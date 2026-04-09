@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { createRequestTracker } from 'e2e-utils/request-tracker'
 import { retry } from 'next-test-utils'
@@ -55,15 +54,6 @@ describe('unrecognized server actions', () => {
           body: new FormData(),
         },
       },
-      {
-        // we never use urlencoded actions, but we currently have codepaths for it in `handleAction`,
-        // so might as well test them.
-        name: 'urlencoded',
-        request: {
-          contentType: 'application/x-www-form-urlencoded',
-          body: 'foo=bar',
-        },
-      },
     ])(
       'should 404 when POSTing a server action with an unrecognized id to a nonexistent page: $name',
       async ({ request: { contentType, body } }) => {
@@ -91,6 +81,20 @@ describe('unrecognized server actions', () => {
       }
     )
   }
+
+  it('should error when POSTing a urlencoded action to a nonexistent page', async () => {
+    const res = await next.fetch('/non-existent-route', {
+      method: 'POST',
+      headers: {
+        'next-action': '123',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'foo=bar',
+    })
+
+    // On deploy, this would hit the 404 route which is a static page, and returns a 405 instead.
+    expect(res.status).toBeOneOf([405, 404])
+  })
 
   describe.each(['nodejs', 'edge'])(
     'should error and log a warning when submitting a server action with an unrecognized ID - %s',
@@ -150,17 +154,24 @@ describe('unrecognized server actions', () => {
         } else {
           // An MPA action, sent without JS.
 
-          if (isNextDeploy) {
-            // FIXME: When deployed to vercel, the request is logged as a 500, but returns a 405.
-            // We also don't seem to display the error page correctly,
-            // and the response is inconsistent between nodejs and edge.
-            expect(response.status()).toBe(runtime === 'nodejs' ? 405 : 500)
-            expect(response.headers()['content-type']).toStartWith('text/html')
-          } else {
+          // FIXME: When deployed, the request is logged as a 500, but returns a 405.
+          // We also don't seem to display the error page correctly
+          if (!isNextDeploy) {
             // FIXME: Currently, an unrecognized id in an MPA action results in a 500.
             // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.
             expect(response.status()).toBe(500)
-            expect(response.headers()['content-type']).toStartWith('text/html')
+            if (isNextDev) {
+              expect(response.headers()['content-type']).toStartWith(
+                'text/html'
+              )
+            } else {
+              const responseText = await response.text()
+              expect(responseText).toBe('Internal Server Error')
+              expect(response.headers()['content-type']).toStartWith(
+                'text/plain'
+              )
+            }
+
             // In dev, the 500 page doesn't have any SSR'd html, so it won't show anything without JS.
             if (!isNextDev) {
               expect(await browser.elementByCss('body').text()).toContain(
@@ -169,10 +180,9 @@ describe('unrecognized server actions', () => {
             }
 
             if (!isNextDeploy) {
-              // FIXME: For an MPA action, the logs currently show the error thrown by React instead of our custom message with a link to a docs page.
               await retry(async () =>
                 expect(getLogs()).toInclude(
-                  `Error: Could not find the module "decafc0ffeebad01" in the React Server Manifest. This is probably a bug in the React Server Components bundler`
+                  `Error: Failed to find Server Action. This request might be from an older or newer deployment`
                 )
               )
             }

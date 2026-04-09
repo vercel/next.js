@@ -1,13 +1,14 @@
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets},
     ident::AssetIdent,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     version::VersionedContent,
 };
 
@@ -26,6 +27,8 @@ use crate::BrowserChunkingContext;
 /// * moving a module from one chunk to another;
 /// * changing a chunk's path.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Dev Chunk List")]
 pub(crate) struct EcmascriptDevChunkList {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
     pub(super) ident: ResolvedVc<AssetIdent>,
@@ -62,10 +65,10 @@ impl EcmascriptDevChunkList {
 }
 
 #[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptDevChunkList {
+impl OutputAssetsReference for EcmascriptDevChunkList {
     #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Dev Chunk List"))
+    fn references(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced::from_assets(*self.chunks)
     }
 }
 
@@ -91,12 +94,7 @@ impl OutputAsset for EcmascriptDevChunkList {
         let ident = AssetIdent::new(ident);
         Ok(this
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<OutputAssets> {
-        *self.chunks
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
 }
 
@@ -125,6 +123,8 @@ impl Asset for EcmascriptDevChunkList {
     TraceRawVcs,
     Serialize,
     Deserialize,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub enum EcmascriptDevChunkListSource {

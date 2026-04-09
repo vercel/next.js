@@ -1,5 +1,5 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     base::SwcComments,
     ecma::{
@@ -12,12 +12,11 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
-use turbopack_core::{
-    chunk::ChunkingContext, module_graph::ModuleGraph, reference::ModuleReference,
-};
+use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
     ScopeHoistingContext,
+    chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
@@ -33,6 +32,8 @@ use crate::{
             dynamic::EsmAsyncAssetReferenceCodeGen, module_id::EsmModuleIdAssetReferenceCodeGen,
             url::UrlAssetReferenceCodeGen,
         },
+        exports_info::{ExportsInfoBinding, ExportsInfoRef},
+        hot_module::ModuleHotReferenceCodeGen,
         ident::IdentReplacement,
         member::MemberReplacement,
         require_context::RequireContextAssetReferenceCodeGen,
@@ -47,6 +48,8 @@ pub struct CodeGeneration {
     pub visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub late_stmts: Vec<CodeGenerationHoistedStmt>,
+    pub early_late_stmts: Vec<CodeGenerationHoistedStmt>,
     pub comments: Option<SwcComments>,
 }
 
@@ -61,11 +64,15 @@ impl CodeGeneration {
         visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
+        late_stmts: Vec<CodeGenerationHoistedStmt>,
+        early_late_stmts: Vec<CodeGenerationHoistedStmt>,
     ) -> Self {
         CodeGeneration {
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
+            late_stmts,
+            early_late_stmts,
             ..Default::default()
         }
     }
@@ -167,7 +174,9 @@ impl_modify!(visit_mut_block_stmt, BlockStmt);
 impl_modify!(visit_mut_switch_case, SwitchCase);
 impl_modify!(visit_mut_program, Program);
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub enum CodeGen {
     // AMD occurs very rarely and makes the enum much bigger
     AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),
@@ -177,6 +186,8 @@ pub enum CodeGen {
     DynamicExpression(DynamicExpression),
     EsmBinding(EsmBinding),
     EsmModuleItem(EsmModuleItem),
+    ExportsInfoBinding(ExportsInfoBinding),
+    ExportsInfoRef(ExportsInfoRef),
     IdentReplacement(IdentReplacement),
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
@@ -189,35 +200,42 @@ pub enum CodeGen {
     RequireContextAssetReferenceCodeGen(RequireContextAssetReferenceCodeGen),
     UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen),
     WorkerAssetReferenceCodeGen(WorkerAssetReferenceCodeGen),
+    ModuleHotReferenceCodeGen(ModuleHotReferenceCodeGen),
 }
 
 impl CodeGen {
     pub async fn code_generation(
         &self,
-        g: Vc<ModuleGraph>,
         ctx: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        exports: ResolvedVc<EcmascriptExports>,
     ) -> Result<CodeGeneration> {
         match self {
-            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireCacheAccess(v) => v.code_generation(g, ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::ConstantValueCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::DynamicExpression(v) => v.code_generation(g, ctx).await,
-            Self::EsmBinding(v) => v.code_generation(g, ctx, scope_hoisting_context).await,
-            Self::EsmModuleItem(v) => v.code_generation(g, ctx).await,
-            Self::IdentReplacement(v) => v.code_generation(g, ctx).await,
-            Self::ImportMetaBinding(v) => v.code_generation(g, ctx).await,
-            Self::ImportMetaRef(v) => v.code_generation(g, ctx).await,
-            Self::MemberReplacement(v) => v.code_generation(g, ctx).await,
-            Self::Unreachable(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
-            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
+            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
+            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
+            Self::DynamicExpression(v) => v.code_generation(ctx).await,
+            Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
+            Self::EsmModuleItem(v) => v.code_generation(ctx).await,
+            Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
+            Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
+            Self::IdentReplacement(v) => v.code_generation(ctx).await,
+            Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
+            Self::ImportMetaRef(v) => v.code_generation(ctx).await,
+            Self::MemberReplacement(v) => v.code_generation(ctx).await,
+            Self::Unreachable(v) => v.code_generation(ctx).await,
+            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::ModuleHotReferenceCodeGen(v) => {
+                v.code_generation(ctx, scope_hoisting_context).await
+            }
         }
     }
 }

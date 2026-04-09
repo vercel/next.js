@@ -1,6 +1,7 @@
 import type { RouteMetadata } from '../../../export/routes/types'
 import type { CacheHandler, CacheHandlerContext, CacheHandlerValue } from '.'
 import type { CacheFs } from '../../../shared/lib/utils'
+import type { TagManifestEntry } from './tags-manifest.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -16,12 +17,11 @@ import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_DATA_SUFFIX,
   NEXT_META_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SEGMENT_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SUFFIX,
 } from '../../../lib/constants'
-import { isStale, tagsManifest } from './tags-manifest.external'
+import { areTagsExpired, tagsManifest } from './tags-manifest.external'
 import { MultiFileWriter } from '../../../lib/multi-file-writer'
 import { getMemoryCache } from './memory-cache.external'
 
@@ -50,37 +50,54 @@ export default class FileSystemCache implements CacheHandler {
     if (ctx.maxMemoryCacheSize) {
       if (!FileSystemCache.memoryCache) {
         if (FileSystemCache.debug) {
-          console.log('using memory store for fetch cache')
+          console.log('FileSystemCache: using memory store for fetch cache')
         }
 
         FileSystemCache.memoryCache = getMemoryCache(ctx.maxMemoryCacheSize)
       } else if (FileSystemCache.debug) {
-        console.log('memory store already initialized')
+        console.log('FileSystemCache: memory store already initialized')
       }
     } else if (FileSystemCache.debug) {
-      console.log('not using memory store for fetch cache')
+      console.log('FileSystemCache: not using memory store for fetch cache')
     }
   }
 
   public resetRequestCache(): void {}
 
   public async revalidateTag(
-    ...args: Parameters<CacheHandler['revalidateTag']>
+    tags: string | string[],
+    durations?: { expire?: number }
   ) {
-    let [tags] = args
     tags = typeof tags === 'string' ? [tags] : tags
 
     if (FileSystemCache.debug) {
-      console.log('revalidateTag', tags)
+      console.log('FileSystemCache: revalidateTag', tags, durations)
     }
 
     if (tags.length === 0) {
       return
     }
 
+    const now = Date.now()
+
     for (const tag of tags) {
-      if (!tagsManifest.has(tag)) {
-        tagsManifest.set(tag, Date.now())
+      const existingEntry = tagsManifest.get(tag) || {}
+
+      if (durations) {
+        // Use provided durations directly
+        const updates: TagManifestEntry = { ...existingEntry }
+
+        // mark as stale immediately
+        updates.stale = now
+
+        if (durations.expire !== undefined) {
+          updates.expired = now + durations.expire * 1000 // Convert seconds to ms
+        }
+
+        tagsManifest.set(tag, updates)
+      } else {
+        // Update expired field for immediate expiration (default behavior when no durations provided)
+        tagsManifest.set(tag, { ...existingEntry, expired: now })
       }
     }
   }
@@ -93,16 +110,16 @@ export default class FileSystemCache implements CacheHandler {
 
     if (FileSystemCache.debug) {
       if (kind === IncrementalCacheKind.FETCH) {
-        console.log('get', key, ctx.tags, kind, !!data)
+        console.log('FileSystemCache: get', key, ctx.tags, kind, !!data)
       } else {
-        console.log('get', key, kind, !!data)
+        console.log('FileSystemCache: get', key, kind, !!data)
       }
     }
 
     // let's check the disk for seed data
     if (!data && process.env.NEXT_RUNTIME !== 'edge') {
-      if (kind === IncrementalCacheKind.APP_ROUTE) {
-        try {
+      try {
+        if (kind === IncrementalCacheKind.APP_ROUTE) {
           const filePath = this.getFilePath(
             `${key}.body`,
             IncrementalCacheKind.APP_ROUTE
@@ -117,7 +134,7 @@ export default class FileSystemCache implements CacheHandler {
             )
           )
 
-          const cacheEntry: CacheHandlerValue = {
+          data = {
             lastModified: mtime.getTime(),
             value: {
               kind: CachedRouteKind.APP_ROUTE,
@@ -126,146 +143,148 @@ export default class FileSystemCache implements CacheHandler {
               status: meta.status,
             },
           }
-          return cacheEntry
-        } catch {
-          return null
-        }
-      }
+        } else {
+          const filePath = this.getFilePath(
+            kind === IncrementalCacheKind.FETCH ? key : `${key}.html`,
+            kind
+          )
 
-      try {
-        const filePath = this.getFilePath(
-          kind === IncrementalCacheKind.FETCH ? key : `${key}.html`,
-          kind
-        )
+          const fileData = await this.fs.readFile(filePath, 'utf8')
+          const { mtime } = await this.fs.stat(filePath)
 
-        const fileData = await this.fs.readFile(filePath, 'utf8')
-        const { mtime } = await this.fs.stat(filePath)
+          if (kind === IncrementalCacheKind.FETCH) {
+            const { tags, fetchIdx, fetchUrl } = ctx
 
-        if (kind === IncrementalCacheKind.FETCH) {
-          const { tags, fetchIdx, fetchUrl } = ctx
+            if (!this.flushToDisk) return null
 
-          if (!this.flushToDisk) return null
-
-          const lastModified = mtime.getTime()
-          const parsedData: CachedFetchValue = JSON.parse(fileData)
-          data = {
-            lastModified,
-            value: parsedData,
-          }
-
-          if (data.value?.kind === CachedRouteKind.FETCH) {
-            const storedTags = data.value?.tags
-
-            // update stored tags if a new one is being added
-            // TODO: remove this when we can send the tags
-            // via header on GET same as SET
-            if (!tags?.every((tag) => storedTags?.includes(tag))) {
-              if (FileSystemCache.debug) {
-                console.log('tags vs storedTags mismatch', tags, storedTags)
-              }
-              await this.set(key, data.value, {
-                fetchCache: true,
-                tags,
-                fetchIdx,
-                fetchUrl,
-              })
+            const lastModified = mtime.getTime()
+            const parsedData: CachedFetchValue = JSON.parse(fileData)
+            data = {
+              lastModified,
+              value: parsedData,
             }
-          }
-        } else if (kind === IncrementalCacheKind.APP_PAGE) {
-          // We try to load the metadata file, but if it fails, we don't
-          // error. We also don't load it if this is a fallback.
-          let meta: RouteMetadata | undefined
-          try {
-            meta = JSON.parse(
-              await this.fs.readFile(
-                filePath.replace(/\.html$/, NEXT_META_SUFFIX),
-                'utf8'
-              )
-            )
-          } catch {}
 
-          let maybeSegmentData: Map<string, Buffer> | undefined
-          if (meta?.segmentPaths) {
-            // Collect all the segment data for this page.
-            // TODO: To optimize file system reads, we should consider creating
-            // separate cache entries for each segment, rather than storing them
-            // all on the page's entry. Though the behavior is
-            // identical regardless.
-            const segmentData: Map<string, Buffer> = new Map()
-            maybeSegmentData = segmentData
-            const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
-            await Promise.all(
-              meta.segmentPaths.map(async (segmentPath: string) => {
-                const segmentDataFilePath = this.getFilePath(
-                  segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
+            if (data.value?.kind === CachedRouteKind.FETCH) {
+              const storedTags = data.value?.tags
+
+              // update stored tags if a new one is being added
+              // TODO: remove this when we can send the tags
+              // via header on GET same as SET
+              if (!tags?.every((tag) => storedTags?.includes(tag))) {
+                if (FileSystemCache.debug) {
+                  console.log(
+                    'FileSystemCache: tags vs storedTags mismatch',
+                    tags,
+                    storedTags
+                  )
+                }
+                await this.set(key, data.value, {
+                  fetchCache: true,
+                  tags,
+                  fetchIdx,
+                  fetchUrl,
+                })
+              }
+            }
+          } else if (kind === IncrementalCacheKind.APP_PAGE) {
+            // We try to load the metadata file, but if it fails, we don't
+            // error. We also don't load it if this is a fallback.
+            let meta: RouteMetadata | undefined
+            try {
+              meta = JSON.parse(
+                await this.fs.readFile(
+                  filePath.replace(/\.html$/, NEXT_META_SUFFIX),
+                  'utf8'
+                )
+              )
+            } catch {}
+
+            let maybeSegmentData: Map<string, Buffer> | undefined
+            if (meta?.segmentPaths) {
+              // Collect all the segment data for this page.
+              // TODO: To optimize file system reads, we should consider creating
+              // separate cache entries for each segment, rather than storing them
+              // all on the page's entry. Though the behavior is
+              // identical regardless.
+              const segmentData: Map<string, Buffer> = new Map()
+              maybeSegmentData = segmentData
+              const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
+              await Promise.all(
+                meta.segmentPaths.map(async (segmentPath: string) => {
+                  const segmentDataFilePath = this.getFilePath(
+                    segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
+                    IncrementalCacheKind.APP_PAGE
+                  )
+                  try {
+                    segmentData.set(
+                      segmentPath,
+                      await this.fs.readFile(segmentDataFilePath)
+                    )
+                  } catch {
+                    // This shouldn't happen, but if for some reason we fail to
+                    // load a segment from the filesystem, treat it the same as if
+                    // the segment is dynamic and does not have a prefetch.
+                  }
+                })
+              )
+            }
+
+            let rscData: Buffer | undefined
+            if (
+              !ctx.isFallback &&
+              (!ctx.isRoutePPREnabled || meta?.postponed == null)
+            ) {
+              rscData = await this.fs.readFile(
+                this.getFilePath(
+                  `${key}${RSC_SUFFIX}`,
                   IncrementalCacheKind.APP_PAGE
                 )
-                try {
-                  segmentData.set(
-                    segmentPath,
-                    await this.fs.readFile(segmentDataFilePath)
-                  )
-                } catch {
-                  // This shouldn't happen, but if for some reason we fail to
-                  // load a segment from the filesystem, treat it the same as if
-                  // the segment is dynamic and does not have a prefetch.
-                }
-              })
-            )
-          }
-
-          let rscData: Buffer | undefined
-          if (!ctx.isFallback) {
-            rscData = await this.fs.readFile(
-              this.getFilePath(
-                `${key}${ctx.isRoutePPREnabled ? RSC_PREFETCH_SUFFIX : RSC_SUFFIX}`,
-                IncrementalCacheKind.APP_PAGE
               )
-            )
-          }
+            }
 
-          data = {
-            lastModified: mtime.getTime(),
-            value: {
-              kind: CachedRouteKind.APP_PAGE,
-              html: fileData,
-              rscData,
-              postponed: meta?.postponed,
-              headers: meta?.headers,
-              status: meta?.status,
-              segmentData: maybeSegmentData,
-            },
-          }
-        } else if (kind === IncrementalCacheKind.PAGES) {
-          let meta: RouteMetadata | undefined
-          let pageData: string | object = {}
+            data = {
+              lastModified: mtime.getTime(),
+              value: {
+                kind: CachedRouteKind.APP_PAGE,
+                html: fileData,
+                rscData,
+                postponed: meta?.postponed,
+                headers: meta?.headers,
+                status: meta?.status,
+                segmentData: maybeSegmentData,
+              },
+            }
+          } else if (kind === IncrementalCacheKind.PAGES) {
+            let meta: RouteMetadata | undefined
+            let pageData: string | object = {}
 
-          if (!ctx.isFallback) {
-            pageData = JSON.parse(
-              await this.fs.readFile(
-                this.getFilePath(
-                  `${key}${NEXT_DATA_SUFFIX}`,
-                  IncrementalCacheKind.PAGES
-                ),
-                'utf8'
+            if (!ctx.isFallback) {
+              pageData = JSON.parse(
+                await this.fs.readFile(
+                  this.getFilePath(
+                    `${key}${NEXT_DATA_SUFFIX}`,
+                    IncrementalCacheKind.PAGES
+                  ),
+                  'utf8'
+                )
               )
+            }
+
+            data = {
+              lastModified: mtime.getTime(),
+              value: {
+                kind: CachedRouteKind.PAGES,
+                html: fileData,
+                pageData,
+                headers: meta?.headers,
+                status: meta?.status,
+              },
+            }
+          } else {
+            throw new Error(
+              `Invariant: Unexpected route kind ${kind} in file system cache.`
             )
           }
-
-          data = {
-            lastModified: mtime.getTime(),
-            value: {
-              kind: CachedRouteKind.PAGES,
-              html: fileData,
-              pageData,
-              headers: meta?.headers,
-              status: meta?.status,
-            },
-          }
-        } else {
-          throw new Error(
-            `Invariant: Unexpected route kind ${kind} in file system cache.`
-          )
         }
 
         if (data) {
@@ -278,20 +297,24 @@ export default class FileSystemCache implements CacheHandler {
 
     if (
       data?.value?.kind === CachedRouteKind.APP_PAGE ||
+      data?.value?.kind === CachedRouteKind.APP_ROUTE ||
       data?.value?.kind === CachedRouteKind.PAGES
     ) {
-      let cacheTags: undefined | string[]
       const tagsHeader = data.value.headers?.[NEXT_CACHE_TAGS_HEADER]
-
       if (typeof tagsHeader === 'string') {
-        cacheTags = tagsHeader.split(',')
-      }
+        const cacheTags = tagsHeader.split(',')
 
-      if (cacheTags?.length) {
         // we trigger a blocking validation if an ISR page
         // had a tag revalidated, if we want to be a background
         // revalidation instead we return data.lastModified = -1
-        if (isStale(cacheTags, data?.lastModified || Date.now())) {
+        if (
+          cacheTags.length > 0 &&
+          areTagsExpired(cacheTags, data.lastModified)
+        ) {
+          if (FileSystemCache.debug) {
+            console.log('FileSystemCache: expired tags', cacheTags)
+          }
+
           return null
         }
       }
@@ -301,17 +324,22 @@ export default class FileSystemCache implements CacheHandler {
           ? [...(ctx.tags || []), ...(ctx.softTags || [])]
           : []
 
-      const wasRevalidated = combinedTags.some((tag) => {
-        if (this.revalidatedTags.includes(tag)) {
-          return true
+      // When revalidate tag is called we don't return stale data so it's
+      // updated right away.
+      if (combinedTags.some((tag) => this.revalidatedTags.includes(tag))) {
+        if (FileSystemCache.debug) {
+          console.log('FileSystemCache: was revalidated', combinedTags)
         }
 
-        return isStale([tag], data?.lastModified || Date.now())
-      })
-      // When revalidate tag is called we don't return
-      // stale data so it's updated right away
-      if (wasRevalidated) {
-        data = undefined
+        return null
+      }
+
+      if (areTagsExpired(combinedTags, data.lastModified)) {
+        if (FileSystemCache.debug) {
+          console.log('FileSystemCache: expired tags', combinedTags)
+        }
+
+        return null
       }
     }
 
@@ -329,7 +357,7 @@ export default class FileSystemCache implements CacheHandler {
     })
 
     if (FileSystemCache.debug) {
-      console.log('set', key)
+      console.log('FileSystemCache: set', key)
     }
 
     if (!this.flushToDisk || !data) return
@@ -351,6 +379,7 @@ export default class FileSystemCache implements CacheHandler {
         status: data.status,
         postponed: undefined,
         segmentPaths: undefined,
+        prefetchHints: undefined,
       }
 
       writer.append(
@@ -370,16 +399,10 @@ export default class FileSystemCache implements CacheHandler {
       writer.append(htmlPath, data.html)
 
       // Fallbacks don't generate a data file.
-      if (!ctx.fetchCache && !ctx.isFallback) {
+      if (!ctx.fetchCache && !ctx.isFallback && !ctx.isRoutePPREnabled) {
         writer.append(
           this.getFilePath(
-            `${key}${
-              isAppPath
-                ? ctx.isRoutePPREnabled
-                  ? RSC_PREFETCH_SUFFIX
-                  : RSC_SUFFIX
-                : NEXT_DATA_SUFFIX
-            }`,
+            `${key}${isAppPath ? RSC_SUFFIX : NEXT_DATA_SUFFIX}`,
             isAppPath
               ? IncrementalCacheKind.APP_PAGE
               : IncrementalCacheKind.PAGES
@@ -410,6 +433,7 @@ export default class FileSystemCache implements CacheHandler {
           status: data.status,
           postponed: data.postponed,
           segmentPaths,
+          prefetchHints: undefined,
         }
 
         writer.append(

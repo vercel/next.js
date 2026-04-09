@@ -1,67 +1,85 @@
 use std::{fmt::Debug, hash::Hash, sync::Arc};
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use async_trait::async_trait;
-use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::{Atom, atom},
     base::SwcComments,
     common::{Mark, SourceMap, comments::Comments},
     ecma::{
         ast::{ExprStmt, ModuleItem, Pass, Program, Stmt},
-        preset_env::{self, Targets},
+        preset_env::{self, Feature, FeatureOrModule, Targets},
         transforms::{
             base::{
                 assumptions::Assumptions,
                 helpers::{HELPERS, HelperData, Helpers},
             },
-            optimization::inline_globals,
             react::react,
+            typescript::{Config, typescript},
         },
         utils::IsDirective,
     },
     quote,
 };
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{
-    environment::Environment,
-    issue::{Issue, IssueSeverity, IssueStage, StyledString},
-};
+use turbopack_core::{environment::Environment, source::Source};
+
+use crate::runtime_functions::{TURBOPACK_MODULE, TURBOPACK_REFRESH};
+
+/// Additional options for SWC's preset-env, beyond the browserslist-derived
+/// targets that are already provided by the `Environment`.
+///
+/// These correspond to the fields documented at
+/// <https://swc.rs/docs/configuration/supported-browsers>.
+#[turbo_tasks::value(shared)]
+#[derive(Default, Clone, Debug)]
+pub struct PresetEnvConfig {
+    /// Polyfill injection mode (`"usage"` or `"entry"`), matching Babel's
+    /// `useBuiltIns`.
+    pub mode: Option<RcStr>,
+    /// The core-js version string (e.g. `"3.38"`).
+    pub core_js: Option<RcStr>,
+    /// Core-js modules or SWC transform passes to skip.
+    pub skip: Option<Vec<RcStr>>,
+    /// Core-js modules or SWC transform passes to always include.
+    pub include: Option<Vec<RcStr>>,
+    /// Core-js modules or SWC transform passes to always exclude.
+    pub exclude: Option<Vec<RcStr>>,
+    /// Enable shipped TC39 proposals.
+    pub shipped_proposals: Option<bool>,
+    /// Force all transforms regardless of targets.
+    pub force_all_transforms: Option<bool>,
+    /// Enable debug output.
+    pub debug: Option<bool>,
+    /// Enable loose mode for transforms.
+    pub loose: Option<bool>,
+}
 
 #[turbo_tasks::value]
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
     Plugin(ResolvedVc<TransformPlugin>),
-    PresetEnv(ResolvedVc<Environment>),
+    PresetEnv(ResolvedVc<Environment>, ResolvedVc<PresetEnvConfig>),
     React {
-        #[serde(default)]
         development: bool,
-        #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
         import_source: ResolvedVc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
         runtime: ResolvedVc<Option<RcStr>>,
     },
-    GlobalTypeofs {
-        window_value: String,
-    },
     // These options are subset of swc_core::ecma::transforms::typescript::Config, but
     // it doesn't derive `Copy` so repeating values in here
     TypeScript {
-        #[serde(default)]
         use_define_for_class_fields: bool,
+        verbatim_module_syntax: bool,
     },
     Decorators {
-        #[serde(default)]
         is_legacy: bool,
-        #[serde(default)]
         is_ecma: bool,
-        #[serde(default)]
         emit_decorators_metadata: bool,
-        #[serde(default)]
         use_define_for_class_fields: bool,
     },
 }
@@ -75,13 +93,7 @@ pub trait CustomTransformer: Debug {
 
 /// A wrapper around a TransformPlugin instance, allowing it to operate with
 /// the turbo_task caching requirements.
-#[turbo_tasks::value(
-    transparent,
-    serialization = "none",
-    eq = "manual",
-    into = "new",
-    cell = "new"
-)]
+#[turbo_tasks::value(transparent, serialization = "none", eq = "manual", cell = "new")]
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
@@ -121,6 +133,7 @@ pub struct TransformContext<'a> {
     pub file_name_hash: u128,
     pub query_str: RcStr,
     pub file_path: FileSystemPath,
+    pub source: ResolvedVc<Box<dyn Source>>,
 }
 
 impl EcmascriptInputTransform {
@@ -139,22 +152,6 @@ impl EcmascriptInputTransform {
         } = ctx;
 
         Ok(match self {
-            EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: FxHashMap<Atom, Atom> = Default::default();
-                typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
-
-                apply_transform(
-                    program,
-                    helpers,
-                    inline_globals(
-                        unresolved_mark,
-                        Default::default(),
-                        Default::default(),
-                        Default::default(),
-                        Arc::new(typeofs),
-                    ),
-                )
-            }
             EcmascriptInputTransform::React {
                 development,
                 refresh,
@@ -167,10 +164,10 @@ impl EcmascriptInputTransform {
                         "classic" => Runtime::Classic,
                         "automatic" => Runtime::Automatic,
                         _ => {
-                            return Err(anyhow::anyhow!(
+                            bail!(
                                 "Invalid value for swc.jsc.transform.react.runtime: {}",
                                 runtime
-                            ));
+                            );
                         }
                     }
                 } else {
@@ -182,8 +179,8 @@ impl EcmascriptInputTransform {
                     development: Some(*development),
                     import_source: import_source.await?.as_deref().map(Atom::from),
                     refresh: if *refresh {
+                        debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
-                            // __turbopack_context__.k is __turbopack_refresh__
                             refresh_reg: atom!("__turbopack_context__.k.register"),
                             refresh_sig: atom!("__turbopack_context__.k.signature"),
                             ..Default::default()
@@ -209,12 +206,14 @@ impl EcmascriptInputTransform {
                 );
 
                 if *refresh {
+                    debug_assert_eq!(TURBOPACK_REFRESH.full, "__turbopack_context__.k");
+                    debug_assert_eq!(TURBOPACK_MODULE.full, "__turbopack_context__.m");
                     let stmt = quote!(
-                        // AMP / No-JS mode does not inject these helpers
-                        "\nif (typeof globalThis.$RefreshHelpers$ === 'object' && \
+                        // No-JS mode does not inject these helpers
+                        "if (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
-                         __turbopack_context__.k.registerExports(module, \
-                         globalThis.$RefreshHelpers$); }\n" as Stmt
+                         __turbopack_context__.k.registerExports(__turbopack_context__.m, \
+                         globalThis.$RefreshHelpers$); }" as Stmt
                     );
 
                     match program {
@@ -229,12 +228,70 @@ impl EcmascriptInputTransform {
 
                 helpers
             }
-            EcmascriptInputTransform::PresetEnv(env) => {
+            EcmascriptInputTransform::PresetEnv(env, preset_env_config) => {
                 let versions = env.runtime_versions().await?;
+                let extra = preset_env_config.await?;
+
+                let mode = match extra.mode.as_deref() {
+                    Some("usage") => Some(preset_env::Mode::Usage),
+                    Some("entry") => Some(preset_env::Mode::Entry),
+                    _ => None,
+                };
+
+                let core_js = extra.core_js.as_ref().and_then(|v| {
+                    let parts: Vec<&str> = v.split('.').collect();
+                    Some(preset_env::Version {
+                        major: parts.first()?.parse().ok()?,
+                        minor: parts.get(1).and_then(|s| s.parse().ok()).unwrap_or(0),
+                        patch: parts.get(2).and_then(|s| s.parse().ok()).unwrap_or(0),
+                    })
+                });
+
+                let skip = extra
+                    .skip
+                    .as_ref()
+                    .map(|v| v.iter().map(|s| Atom::from(s.as_str())).collect())
+                    .unwrap_or_default();
+
+                let parse_feature_or_module = |s: &str| -> FeatureOrModule {
+                    if let Ok(feature) = s.parse::<Feature>() {
+                        FeatureOrModule::Feature(feature)
+                    } else {
+                        FeatureOrModule::CoreJsModule(s.to_string())
+                    }
+                };
+
+                let include: Vec<FeatureOrModule> = extra
+                    .include
+                    .as_ref()
+                    .map(|v| v.iter().map(|s| parse_feature_or_module(s)).collect())
+                    .unwrap_or_default();
+
+                // Disable some ancient ES3 transforms; ReservedWords breaks resolving of
+                // some ident references.
+                let mut exclude: Vec<FeatureOrModule> = vec![
+                    FeatureOrModule::Feature(Feature::ReservedWords),
+                    FeatureOrModule::Feature(Feature::MemberExpressionLiterals),
+                    FeatureOrModule::Feature(Feature::PropertyLiterals),
+                ];
+                if let Some(user_exclude) = &extra.exclude {
+                    for s in user_exclude {
+                        exclude.push(parse_feature_or_module(s));
+                    }
+                }
+
                 let config = swc_core::ecma::preset_env::EnvConfig::from(
                     swc_core::ecma::preset_env::Config {
                         targets: Some(Targets::Versions(*versions)),
-                        mode: None, // Don't insert core-js polyfills
+                        mode,
+                        core_js,
+                        skip,
+                        include,
+                        exclude,
+                        shipped_proposals: extra.shipped_proposals.unwrap_or(false),
+                        force_all_transforms: extra.force_all_transforms.unwrap_or(false),
+                        debug: extra.debug.unwrap_or(false),
+                        loose: extra.loose.unwrap_or(false),
                         ..Default::default()
                     },
                 );
@@ -255,9 +312,12 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::TypeScript {
                 // TODO(WEB-1213)
                 use_define_for_class_fields: _use_define_for_class_fields,
+                verbatim_module_syntax,
             } => {
-                use swc_core::ecma::transforms::typescript::typescript;
-                let config = Default::default();
+                let config = Config {
+                    verbatim_module_syntax: *verbatim_module_syntax,
+                    ..Default::default()
+                };
                 apply_transform(
                     program,
                     helpers,
@@ -350,35 +410,5 @@ pub fn remove_directives(program: &mut Program) {
                 .count();
             script.body.drain(0..directive_count);
         }
-    }
-}
-
-#[turbo_tasks::value(shared)]
-pub struct UnsupportedServerActionIssue {
-    pub file_path: FileSystemPath,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for UnsupportedServerActionIssue {
-    fn severity(&self) -> IssueSeverity {
-        IssueSeverity::Error
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
-            "Server actions (\"use server\") are not yet supported in Turbopack"
-        ))
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
     }
 }

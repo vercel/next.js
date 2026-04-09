@@ -26,10 +26,17 @@ export interface InstallTemplateArgs {
   template: TemplateType;
   mode: TemplateMode;
   eslint: boolean;
+  biome: boolean;
   tailwind: boolean;
   srcDir: boolean;
   importAlias: string;
   skipInstall: boolean;
-  turbopack: boolean;
-  rspack: boolean;
+  bundler: Bundler;
+  reactCompiler: boolean;
+}
+
+export enum Bundler {
+  Turbopack = "turbopack",
+  Webpack = "webpack",
+  Rspack = "rspack",
 }

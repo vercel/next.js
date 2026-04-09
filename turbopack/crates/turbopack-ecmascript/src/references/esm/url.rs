@@ -1,34 +1,29 @@
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
 };
-use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{
-        ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        ModuleChunkItemIdExt,
-    },
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     environment::Rendering,
     issue::IssueSource,
-    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
-        ExternalType, ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve,
+        ExternalType, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request,
+        url_resolve,
     },
 };
 
-use super::base::ReferencedAsset;
 use crate::{
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
+    references::{AstPath, esm::base::ReferencedAsset},
     runtime_functions::{
         TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
     },
@@ -39,17 +34,7 @@ use crate::{
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
+    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
@@ -61,17 +46,19 @@ pub enum UrlRewriteBehavior {
 }
 
 /// URL Asset References are injected during code analysis when we find a
-/// (staticly analyzable) `new URL("path", import.meta.url)`.
+/// (statically analyzable) `new URL("path", import.meta.url)`.
 ///
 /// It's responsible rewriting the `URL` constructor's arguments to allow the
 /// referenced file to be imported/fetched/etc.
 #[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("new URL({request})")]
 pub struct UrlAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
     rendering: Rendering,
     issue_source: IssueSource,
-    in_try: bool,
+    error_mode: ResolveErrorMode,
     url_rewrite_behavior: UrlRewriteBehavior,
 }
 
@@ -81,7 +68,7 @@ impl UrlAssetReference {
         request: ResolvedVc<Request>,
         rendering: Rendering,
         issue_source: IssueSource,
-        in_try: bool,
+        error_mode: ResolveErrorMode,
         url_rewrite_behavior: UrlRewriteBehavior,
     ) -> Self {
         UrlAssetReference {
@@ -89,7 +76,7 @@ impl UrlAssetReference {
             request,
             rendering,
             issue_source,
-            in_try,
+            error_mode,
             url_rewrite_behavior,
         }
     }
@@ -107,30 +94,16 @@ impl ModuleReference for UrlAssetReference {
             *self.origin,
             *self.request,
             ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl),
-            Some(self.issue_source.clone()),
-            self.in_try,
+            Some(self.issue_source),
+            self.error_mode,
         )
     }
-}
 
-#[turbo_tasks::value_impl]
-impl ValueToString for UrlAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("new URL({})", self.request.to_string().await?,).into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for UrlAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }
 
@@ -147,7 +120,9 @@ impl IntoCodeGenReference for UrlAssetReference {
     }
 }
 
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
     path: AstPath,
@@ -173,7 +148,6 @@ impl UrlAssetReferenceCodeGen {
     */
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
@@ -194,7 +168,7 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
-                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                        let id = asset.chunk_item_id(chunking_context).await?;
 
                         visitors.push(create_visitor!(self.path, visit_mut_expr, |new_expr: &mut Expr| {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
@@ -248,7 +222,7 @@ impl UrlAssetReferenceCodeGen {
                 // be a location.origin because it allows us to access files from the root of
                 // the dev server.
                 //
-                // By default for the remaining environments, turbopack's runtime have overriden
+                // By default for the remaining environments, turbopack's runtime have overridden
                 // `import.meta.url`.
                 let rewrite_url_base = match reference.rendering {
                     Rendering::Client => Some(quote!("location.origin" as Expr)),
@@ -259,14 +233,14 @@ impl UrlAssetReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.
-                        let id = asset.chunk_item_id(Vc::upcast(chunking_context)).await?;
+                        let id = asset.chunk_item_id(chunking_context).await?;
 
                         // If there's a rewrite to the base url, then the current rendering
                         // environment should able to resolve the asset path
                         // (asset_url) from the base. Wrap the module id
                         // with __turbopack_require__ which returns the asset_url.
                         //
-                        // Otherwise, the envioronment should provide an absolute path to the actual
+                        // Otherwise, the environment should provide an absolute path to the actual
                         // output asset; delegate those calculation to the
                         // runtime fn __turbopack_resolve_module_id_path__.
                         let url_segment_resolver = if rewrite_url_base.is_some() {

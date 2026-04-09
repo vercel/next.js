@@ -190,7 +190,14 @@ pub async fn webpack_runtime(
     source: Vc<Box<dyn Source>>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<WebpackRuntime>> {
-    let parsed = parse(source, EcmascriptModuleAssetType::Ecmascript, transforms).await?;
+    let parsed = parse(
+        source,
+        EcmascriptModuleAssetType::Ecmascript,
+        transforms,
+        false,
+        false,
+    )
+    .await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -218,11 +225,11 @@ pub async fn webpack_runtime(
                         chunk_request_expr: value,
                         context_path: source.ident().path().await?.parent(),
                     }
-                    .into());
+                    .cell());
                 }
             }
         }
-        ParseResult::Unparseable { .. } | ParseResult::NotFound => {}
+        ParseResult::Unparsable { .. } | ParseResult::NotFound => {}
     }
-    Ok(WebpackRuntime::None.into())
+    Ok(WebpackRuntime::None.cell())
 }

@@ -45,7 +45,7 @@ The following props are available:
 | [`loader`](#loader)                       | `loader={imageLoader}`                   | Function        | -          |
 | [`sizes`](#sizes)                         | `sizes="(max-width: 768px) 100vw, 33vw"` | String          | -          |
 | [`quality`](#quality)                     | `quality={80}`                           | Integer (1-100) | -          |
-| [`priority`](#priority)                   | `priority={true}`                        | Boolean         | -          |
+| [`preload`](#preload)                     | `preload={true}`                         | Boolean         | -          |
 | [`placeholder`](#placeholder)             | `placeholder="blur"`                     | String          | -          |
 | [`style`](#style)                         | `style={{objectFit: "contain"}}`         | Object          | -          |
 | [`onLoadingComplete`](#onloadingcomplete) | `onLoadingComplete={img => done())}`     | Function        | Deprecated |
@@ -53,7 +53,9 @@ The following props are available:
 | [`onError`](#onerror)                     | `onError(event => fail()}`               | Function        | -          |
 | [`loading`](#loading)                     | `loading="lazy"`                         | String          | -          |
 | [`blurDataURL`](#blurdataurl)             | `blurDataURL="data:image/jpeg..."`       | String          | -          |
+| [`unoptimized`](#unoptimized)             | `unoptimized={true}`                     | Boolean         | -          |
 | [`overrideSrc`](#overridesrc)             | `overrideSrc="/seo.png"`                 | String          | -          |
+| [`decoding`](#decoding)                   | `decoding="async"`                       | String          | -          |
 </div>
 
 #### `src`
@@ -81,6 +83,9 @@ export default function Page() {
   return <Image src={profile} />
 }
 ```
+
+> **Good to know**: For security reasons, the Image Optimization API using the default [loader](#loader) will _not_ forward headers when fetching the `src` image.
+> If the `src` image requires authentication, consider using the [unoptimized](#unoptimized) property to disable Image Optimization.
 
 #### `alt`
 
@@ -257,27 +262,35 @@ export default function ProfileImage() {
 
 > **Good to know**: If you’re using the `style` prop to set a custom width, be sure to also set `height: 'auto'` to preserve the image’s aspect ratio.
 
-#### `priority`
+#### `preload`
 
 A boolean that indicates if the image should be preloaded.
 
 ```jsx
-// Default priority is false
-<Image priority={false} />
+// Default preload is false
+<Image preload={false} />
 ```
 
-- `true`: [Preloads](https://web.dev/preload-responsive-images/) the image. Disables lazy loading.
-- `false`: Lazy loads the image.
+- `true`: [Preloads](https://web.dev/preload-responsive-images/) the image by inserting a `<link>` in the `<head>`.
+- `false`: Does not preload the image.
 
 **When to use it:**
 
-- The image is above the fold.
 - The image is the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element.
-- You want to improve the initial loading performance of your page.
+- The image is above the fold, typically the hero image.
+- You want to begin loading the image in the `<head>`, before its discovered later in the `<body>`.
 
 **When not to use it:**
 
-- When the `loading` prop isused (will trigger warnings).
+- When you have multiple images that could be considered the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element depending on the viewport.
+- When the `loading` property is used.
+- When the `fetchPriority` property is used.
+
+In most cases, you should use `loading="eager"` or `fetchPriority="high"` instead of `preload`.
+
+#### `priority`
+
+Starting with Next.js 16, the `priority` property has been deprecated in favor of the [`preload`](#preload) property in order to make the behavior clear.
 
 #### `loading`
 
@@ -412,10 +425,10 @@ When providing the `src` prop to the `<Image>` component, both the `srcset` and 
 ```html filename="output.html"
 <img
   srcset="
-    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
-    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+    /_next/image?url=%2Fprofile.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fprofile.jpg&w=828&q=75 2x
   "
-  src="/_next/image?url=%2Fme.jpg&w=828&q=75"
+  src="/_next/image?url=%2Fprofile.jpg&w=828&q=75"
 />
 ```
 
@@ -430,8 +443,8 @@ For example, when upgrading an existing website from `<img>` to `<Image>`, you m
 ```html filename="output.html"
 <img
   srcset="
-    /_next/image?url=%2Fme.jpg&w=640&q=75 1x,
-    /_next/image?url=%2Fme.jpg&w=828&q=75 2x
+    /_next/image?url=%2Fprofile.jpg&w=640&q=75 1x,
+    /_next/image?url=%2Fprofile.jpg&w=828&q=75 2x
   "
   src="/override.jpg"
 />
@@ -515,6 +528,8 @@ module.exports = {
 
 The example above will ensure the `src` property of `next/image` must start with `/assets/images/` and must not have a query string. Attempting to optimize any other path will respond with `400` Bad Request error.
 
+> **Good to know**: Omitting the `search` property allows all search parameters which could allow malicious actors to optimize URLs you did not intend. Try using a specific value like `search: '?v=2'` to ensure an exact match.
+
 #### `remotePatterns`
 
 Use `remotePatterns` in your `next.config.js` file to allow images from specific external paths and block all others. This ensures that only external images from your account can be served.
@@ -527,7 +542,7 @@ module.exports = {
 }
 ```
 
-If using a version prior to 15.3.0, you can configure `remotePatterns` using the object:
+You can also configure `remotePatterns` using the object:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -593,6 +608,8 @@ module.exports = {
 
 The example above will ensure the `src` property of `next/image` must start with `https://assets.example.com` and must have the exact query string `?v=1727111025337`. Any other protocol or query string will respond with `400` Bad Request.
 
+Note that any allowed `remotePatterns` that respond with a redirect will follow the redirect from the remote image server without validating `remotePatterns` again on the redirect location. You can reduce or disable redirects by configuring [maximumRedirects](#maximumredirects).
+
 #### `loaderFile`
 
 `loaderFiles` allows you to use a custom image optimization service instead of Next.js.
@@ -636,6 +653,18 @@ export default function myImageLoader({ src, width, quality }) {
 
 > Alternatively, you can use the [`loader` prop](#loader) to configure each instance of `next/image`.
 
+#### `path`
+
+If you want to change or prefix the default path for the Image Optimization API, you can do so with the `path` property. The default value for `path` is `/_next/image`.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    path: '/my-prefix/_next/image',
+  },
+}
+```
+
 #### `deviceSizes`
 
 `deviceSizes` allows you to specify a list of device width breakpoints. These widths are used when the `next/image` component uses [`sizes`](#sizes) prop to ensure the correct image is served for the user's device.
@@ -659,7 +688,7 @@ If no configuration is provided, the default below is used:
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    imageSizes: [32, 48, 64, 96, 128, 256, 384],
   },
 }
 ```
@@ -670,15 +699,33 @@ module.exports = {
 
 `qualities` allows you to specify a list of image quality values.
 
+If not configuration is provided, the default below is used:
+
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    qualities: [25, 50, 75],
+    qualities: [75],
   },
 }
 ```
 
-In the example above, only three qualities are allowed: 25, 50, and 75. If the [`quality`](#quality) prop does not match a value in this array, the image will fail with a `400` Bad Request.
+> **Good to know**: This field is required starting with Next.js 16 because unrestricted access could allow malicious actors to optimize more qualities than you intended.
+
+You can add more image qualities to the allowlist, such as the following:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    qualities: [25, 50, 75, 100],
+  },
+}
+```
+
+In the example above, only four qualities are allowed: 25, 50, 75, and 100.
+
+If the [`quality`](#quality) prop does not match a value in this array, the closest allowed value will be used.
+
+If the REST API is visited directly with a quality that does not match a value in this array, the server will return a 400 Bad Request response.
 
 #### `formats`
 
@@ -707,10 +754,21 @@ module.exports = {
 }
 ```
 
+You can also enable both AVIF and WebP formats together. AVIF will be preferred for browsers that support it, with WebP as a fallback:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+}
+```
+
 > **Good to know**:
 >
 > - We still recommend using WebP for most use cases.
 > - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower, but subsequent requests that are cached will be faster.
+> - When using multiple formats, Next.js will cache each format separately. This means increased storage requirements compared to using a single format, as both AVIF and WebP versions of images will be stored for different browser support.
 > - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 #### `minimumCacheTTL`
@@ -722,12 +780,12 @@ If no configuration is provided, the default below is used.
 ```js filename="next.config.js"
 module.exports = {
   images: {
-    minimumCacheTTL: 60, // 1 minute
+    minimumCacheTTL: 14400, // 4 hours
   },
 }
 ```
 
-You can increase the TTL to reduce the number of revalidations and potentionally lower cost:
+You can increase the TTL to reduce the number of revalidations and potentially lower cost:
 
 ```js filename="next.config.js"
 module.exports = {
@@ -755,6 +813,106 @@ You can disable static image imports inside your `next.config.js`:
 module.exports = {
   images: {
     disableStaticImages: true,
+  },
+}
+```
+
+#### `maximumRedirects`
+
+The default image optimization loader will follow HTTP redirects when fetching remote images up to 3 times.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumRedirects: 3,
+  },
+}
+```
+
+For your convenience, these redirects do not need to satisfy [remotePatterns](#remotepatterns).
+
+You can configure the number of redirects to follow when fetching remote images. Setting the value to `0` will disable following redirects.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumRedirects: 0,
+  },
+}
+```
+
+#### `maximumDiskCacheSize`
+
+The default image optimization loader will write optimized images to disk so subsequent requests can be served faster from the disk cache.
+
+You can configure the maximum disk cache size in bytes, for example 500 MB:
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumDiskCacheSize: 500_000_000,
+  },
+}
+```
+
+You can also disable the disk cache entirely by setting the value to `0`.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumDiskCacheSize: 0,
+  },
+}
+```
+
+If no value is configured, the default behavior is to check the current available disk space once during startup and use 50%.
+
+When the disk cache exceeds the configured size, the least recently used optimized images will be deleted until the cache is under the limit again.
+
+Alternatively, you can implement your own cache handler using [`cacheHandler`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath) which will ignore the `maximumDiskCacheSize` configuration.
+
+#### `maximumResponseBody`
+
+The default image optimization loader will fetch source images up to 50 MB in size.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumResponseBody: 50_000_000,
+  },
+}
+```
+
+If you know all your source images are small, you can protect memory constrained servers by reducing this to a smaller value such as 5 MB.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    maximumResponseBody: 5_000_000,
+  },
+}
+```
+
+#### `dangerouslyAllowLocalIP`
+
+In rare cases when self-hosting Next.js on a private network, you may want to allow optimizing images from local IP addresses on the same network. This is not recommended for most users because it could allow malicious users to access content on your internal network.
+
+By default, the value is false.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    dangerouslyAllowLocalIP: false,
+  },
+}
+```
+
+If you need to optimize remote images hosted elsewhere in your local network, you can set the value to true.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    dangerouslyAllowLocalIP: true,
   },
 }
 ```
@@ -828,9 +986,11 @@ You can optionally configure `inline` to allow the browser to render the image w
 
 #### `domains`
 
-> **Warning**: Deprecated since Next.js 14 in favor of strict [`remotePatterns`](#remotepatterns) in order to protect your application from malicious users. Only use `domains` if you own all the content served from the domain.
+> **Warning**: Deprecated since Next.js 14 in favor of strict [`remotePatterns`](#remotepatterns) in order to protect your application from malicious users.
 
 Similar to [`remotePatterns`](#remotepatterns), the `domains` configuration can be used to provide a list of allowed hostnames for external images. However, the `domains` configuration does not support wildcard pattern matching and it cannot restrict protocol, port, or pathname.
+
+Since most remote image servers are shared between multiple tenants, it's safer to use `remotePatterns` to ensure only the intended images are optimized.
 
 Below is an example of the `domains` property in the `next.config.js` file:
 
@@ -851,7 +1011,7 @@ The `getImageProps` function can be used to get the props that would be passed t
 ```jsx
 import { getImageProps } from 'next/image'
 
-const props = getImageProps({
+const { props } = getImageProps({
   src: 'https://example.com/image.jpg',
   alt: 'A scenic mountain view',
   width: 1200,
@@ -876,9 +1036,8 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 - [Safari 15 - 16.3](https://bugs.webkit.org/show_bug.cgi?id=243601) display a gray border while loading. Safari 16.4 [fixed this issue](https://webkit.org/blog/13966/webkit-features-in-safari-16-4/#:~:text=Now%20in%20Safari%2016.4%2C%20a%20gray%20line%20no%20longer%20appears%20to%20mark%20the%20space%20where%20a%20lazy%2Dloaded%20image%20will%20appear%20once%20it%E2%80%99s%20been%20loaded.). Possible solutions:
   - Use CSS `@supports (font: -apple-system-body) and (-webkit-appearance: none) { img[loading="lazy"] { clip-path: inset(0.6px) } }`
-  - Use [`priority`](#priority) if the image is above the fold
+  - Use [`loading="eager"`](#loading) if the image is above the fold
 - [Firefox 67+](https://bugzilla.mozilla.org/show_bug.cgi?id=1556156) displays a white background while loading. Possible solutions:
-
   - Enable [AVIF `formats`](#formats)
   - Use [`placeholder`](#placeholder)
 
@@ -1124,7 +1283,7 @@ If you want to display a different image for light and dark mode, you can create
 import styles from './theme-image.module.css'
 import Image, { ImageProps } from 'next/image'
 
-type Props = Omit<ImageProps, 'src' | 'priority' | 'loading'> & {
+type Props = Omit<ImageProps, 'src' | 'preload' | 'loading'> & {
   srcLight: string
   srcDark: string
 }
@@ -1157,7 +1316,7 @@ const ThemeImage = (props) => {
 }
 ```
 
-> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `priority` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority).
+> **Good to know**: The default behavior of `loading="lazy"` ensures that only the correct image is loaded. You cannot use `preload` or `loading="eager"` because that would cause both images to load. Instead, you can use [`fetchPriority="high"`](https://developer.mozilla.org/docs/Web/API/HTMLImageElement/fetchPriority).
 
 Try it out:
 
@@ -1238,6 +1397,9 @@ export default function Home() {
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `v16.1.7`  | `maximumDiskCacheSize` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `v16.1.2`  | `maximumResponseBody` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| `v16.0.0`  | `qualities` default configuration changed to `[75]`, `preload` prop added, `priority` prop deprecated, `dangerouslyAllowLocalIP` config added, `maximumRedirects` config added.                                                                                                                                                                                                                                                                                                            |
 | `v15.3.0`  | `remotePatterns` added support for array of `URL` objects.                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                           |

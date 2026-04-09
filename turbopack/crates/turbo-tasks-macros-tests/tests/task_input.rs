@@ -3,13 +3,14 @@
 //! macro and the `#[turbo_tasks::function]` macro.
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use serde::{Deserialize, Serialize};
+use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_tasks::{Completion, ReadRef, TaskInput, Vc, trace::TraceRawVcs};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[derive(Clone, TaskInput, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, TaskInput, Debug, PartialEq, Eq, Hash, Encode, Decode, TraceRawVcs)]
 struct OneUnnamedField(u32);
 
 #[turbo_tasks::function]
@@ -18,13 +19,17 @@ fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
     Completion::immutable()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tests() {
-    run(&REGISTRATION, || async {
-        assert!(ReadRef::ptr_eq(
-            &one_unnamed_field(OneUnnamedField(42)).await?,
-            &Completion::immutable().await?,
-        ));
+    run_once(&REGISTRATION, || async {
+        #[turbo_tasks::function(operation)]
+        async fn equality_operation() -> Result<Vc<bool>> {
+            Ok(Vc::cell(ReadRef::ptr_eq(
+                &one_unnamed_field(OneUnnamedField(42)).await?,
+                &Completion::immutable().await?,
+            )))
+        }
+        equality_operation().read_strongly_consistent().await?;
         anyhow::Ok(())
     })
     .await

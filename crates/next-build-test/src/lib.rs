@@ -1,37 +1,37 @@
-#![feature(future_join)]
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
 use std::{str::FromStr, time::Instant};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
-    project::{ProjectContainer, ProjectOptions},
+    entrypoints::Entrypoints,
+    project::{HmrTarget, ProjectContainer, ProjectOptions},
     route::{Endpoint, EndpointOutputPaths, Route, endpoint_write_to_disk},
 };
-use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadConsistency, ResolvedVc, TransientInstance, TurboTasks, Vc, get_effects};
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{
+    Effects, ReadConsistency, ReadRef, ResolvedVc, TransientInstance, TurboTasks, Vc, take_effects,
+};
 use turbo_tasks_backend::{NoopBackingStorage, TurboTasksBackend};
 use turbo_tasks_malloc::TurboMalloc;
 
 pub async fn main_inner(
     tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
-    strat: Strategy,
+    strategy: Strategy,
     factor: usize,
     limit: usize,
     files: Option<Vec<String>>,
 ) -> Result<()> {
-    register();
-
     let path = std::env::current_dir()?.join("project_options.json");
     let mut file = std::fs::File::open(&path)
         .with_context(|| format!("loading file at {}", path.display()))?;
 
     let mut options: ProjectOptions = serde_json::from_reader(&mut file)?;
 
-    if matches!(strat, Strategy::Development { .. }) {
+    if matches!(strategy, Strategy::Development { .. }) {
         options.dev = true;
         options.watch.enable = true;
     } else {
@@ -40,21 +40,29 @@ pub async fn main_inner(
     }
 
     let project = tt
-        .run_once(async {
-            let project = ProjectContainer::new("next-build-test".into(), options.dev);
-            let project = project.to_resolved().await?;
-            project.initialize(options).await?;
-            Ok(project)
+        .run(async {
+            let container_op = ProjectContainer::new_operation(rcstr!("next.js"), options.dev);
+            ProjectContainer::initialize(container_op, options).await?;
+            container_op.resolve().strongly_consistent().await
         })
         .await?;
 
     tracing::info!("collecting endpoints");
+
+    #[turbo_tasks::function(operation)]
+    fn project_entrypoints_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Entrypoints> {
+        project.entrypoints()
+    }
     let entrypoints = tt
-        .run_once(async move { project.entrypoints().await })
+        .run(async move {
+            project_entrypoints_operation(project)
+                .read_strongly_consistent()
+                .await
+        })
         .await?;
 
     let mut routes = if let Some(files) = files {
-        tracing::info!("builing only the files:");
+        tracing::info!("building only the files:");
         for file in &files {
             tracing::info!("  {}", file);
         }
@@ -72,12 +80,12 @@ pub async fn main_inner(
         Box::new(entrypoints.routes.clone().into_iter())
     };
 
-    if strat.randomized() {
+    if strategy.randomized() {
         routes = Box::new(shuffle(routes))
     }
 
     let start = Instant::now();
-    let count = render_routes(tt, routes, strat, factor, limit).await?;
+    let count = render_routes(tt, routes, strategy, factor, limit).await?;
     tracing::info!("rendered {} pages in {:?}", count, start.elapsed());
 
     if count == 0 {
@@ -87,16 +95,11 @@ pub async fn main_inner(
         }
     }
 
-    if matches!(strat, Strategy::Development { .. }) {
-        hmr(tt, *project).await?;
+    if matches!(strategy, Strategy::Development { .. }) {
+        hmr(tt, project).await?;
     }
 
     Ok(())
-}
-
-pub fn register() {
-    next_api::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
 #[derive(PartialEq, Copy, Clone)]
@@ -133,7 +136,7 @@ impl FromStr for Strategy {
             "parallel-randomized" => Ok(Strategy::Parallel { randomized: true }),
             "development" => Ok(Strategy::Development { randomized: false }),
             "development-randomized" => Ok(Strategy::Development { randomized: true }),
-            _ => Err(anyhow::anyhow!("invalid strategy")),
+            _ => bail!("invalid strategy"),
         }
     }
 }
@@ -165,7 +168,7 @@ pub async fn render_routes(
     limit: usize,
 ) -> Result<usize> {
     tracing::info!(
-        "rendering routes with {} parallel and strat {}",
+        "rendering routes with {} parallel and strategy {}",
         factor,
         strategy
     );
@@ -177,7 +180,7 @@ pub async fn render_routes(
 
             let memory = TurboMalloc::memory_usage();
 
-            tt.run_once({
+            tt.run({
                 let name = name.clone();
                 async move {
                     match route {
@@ -185,21 +188,21 @@ pub async fn render_routes(
                             html_endpoint,
                             data_endpoint: _,
                         } => {
-                            endpoint_write_to_disk_with_effects(*html_endpoint).await?;
+                            endpoint_write_to_disk_with_apply(html_endpoint).await?;
                         }
                         Route::PageApi { endpoint } => {
-                            endpoint_write_to_disk_with_effects(*endpoint).await?;
+                            endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
                         Route::AppPage(routes) => {
                             for route in routes {
-                                endpoint_write_to_disk_with_effects(*route.html_endpoint).await?;
+                                endpoint_write_to_disk_with_apply(route.html_endpoint).await?;
                             }
                         }
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
                         } => {
-                            endpoint_write_to_disk_with_effects(*endpoint).await?;
+                            endpoint_write_to_disk_with_apply(endpoint).await?;
                         }
                         Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);
@@ -242,32 +245,65 @@ pub async fn render_routes(
     Ok(stream.len())
 }
 
-#[turbo_tasks::function]
-async fn endpoint_write_to_disk_with_effects(
+async fn endpoint_write_to_disk_with_apply(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
-) -> Result<Vc<EndpointOutputPaths>> {
-    let op = endpoint_write_to_disk_operation(endpoint);
-    let result = op.resolve_strongly_consistent().await?;
-    get_effects(op).await?.apply().await?;
-    Ok(*result)
-}
+) -> Result<ReadRef<EndpointOutputPaths>> {
+    #[turbo_tasks::function(operation)]
+    fn inner_operation(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<EndpointOutputPaths> {
+        // we must wrap this in an operation so we can get the Effects collectibles
+        endpoint_write_to_disk(*endpoint)
+    }
 
-#[turbo_tasks::function(operation)]
-pub fn endpoint_write_to_disk_operation(
-    endpoint: ResolvedVc<Box<dyn Endpoint>>,
-) -> Vc<EndpointOutputPaths> {
-    endpoint_write_to_disk(*endpoint)
+    #[turbo_tasks::value(serialization = "none")]
+    struct WithEffects {
+        output_paths: ReadRef<EndpointOutputPaths>,
+        effects: Effects,
+    }
+
+    #[turbo_tasks::function(operation)]
+    pub async fn inner_operation_with_effects(
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    ) -> Result<Vc<WithEffects>> {
+        let op = inner_operation(endpoint);
+        let output_paths = op.read_strongly_consistent().await?;
+        let effects = take_effects(op).await?;
+        Ok(WithEffects {
+            output_paths,
+            effects,
+        }
+        .cell())
+    }
+
+    let op = inner_operation_with_effects(endpoint);
+    let WithEffects {
+        output_paths,
+        effects,
+    } = &*op.read_strongly_consistent().await?;
+    effects.apply().await?;
+
+    Ok(output_paths.clone())
 }
 
 async fn hmr(
     tt: &TurboTasks<TurboTasksBackend<NoopBackingStorage>>,
-    project: Vc<ProjectContainer>,
+    project: ResolvedVc<ProjectContainer>,
 ) -> Result<()> {
     tracing::info!("HMR...");
     let session = TransientInstance::new(());
+
+    #[turbo_tasks::function(operation)]
+    fn project_hmr_chunk_names_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Vec<RcStr>> {
+        project.hmr_chunk_names(HmrTarget::Client)
+    }
+
     let idents = tt
-        .run_once(async move { project.hmr_identifiers().await })
+        .run(async move {
+            project_hmr_chunk_names_operation(project)
+                .read_strongly_consistent()
+                .await
+        })
         .await?;
+
     let start = Instant::now();
     for ident in idents {
         if !ident.ends_with(".js") {
@@ -279,8 +315,10 @@ async fn hmr(
             let session = session.clone();
             async move {
                 let project = project.project();
-                let state = project.hmr_version_state(ident.clone(), session);
-                project.hmr_update(ident.clone(), state).await?;
+                let state = project.hmr_version_state(ident.clone(), HmrTarget::Client, session);
+                project
+                    .hmr_update(ident.clone(), HmrTarget::Client, state)
+                    .await?;
                 Ok(Vc::<()>::cell(()))
             }
         });

@@ -4,7 +4,7 @@ title: Using Node.js Modules in Edge Runtime
 
 ## Why This Error Occurred
 
-The code in your [Middleware](/docs/pages/api-reference/file-conventions/middleware) or your [Edge API Routes](/docs/pages/building-your-application/routing/api-routes) is using a feature from Node.js runtime.
+The code in your [Proxy](/docs/pages/api-reference/file-conventions/proxy) or your [Edge API Routes](/docs/pages/building-your-application/routing/api-routes) is using a feature from Node.js runtime.
 
 However, the Edge Runtime does not support [Node.js APIs and globals](/docs/pages/api-reference/edge#unsupported-apis).
 
@@ -17,5 +17,5 @@ For example, you might replace the Node.js `crypto` module with the [Web Crypto 
 ## Useful Links
 
 - [Edge Runtime Supported APIs](/docs/pages/api-reference/edge)
-- [Next.js Middleware](/docs/pages/api-reference/file-conventions/middleware)
+- [Next.js Proxy](/docs/pages/api-reference/file-conventions/proxy)
 - [JWT Example](https://vercel.com/templates/next.js/jwt-authentication)

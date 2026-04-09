@@ -33,7 +33,7 @@
 
 0 -> 14 call = ???*0*()
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 0 -> 15 unreachable = ???*0*
 - *0* unreachable

@@ -13,21 +13,22 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc, turbobail};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
 pub(crate) use self::graph::{
     PartId, create_turbopack_part_id_assert, find_turbopack_part_id_in_asserts,
 };
-use crate::{EcmascriptModuleAsset, analyzer::graph::EvalContext, parse::ParseResult};
+use crate::{
+    EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
+};
 
-pub mod asset;
-pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
-pub mod side_effect_module;
+pub mod part;
+pub mod side_effects;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -469,16 +470,9 @@ impl PartialEq for SplitResult {
 }
 
 #[turbo_tasks::function]
-pub(super) fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
-    Ok(split(asset.source().ident(), asset.source(), asset.parse()))
-}
-
-#[turbo_tasks::function]
-pub(super) async fn split(
-    ident: ResolvedVc<AssetIdent>,
-    source: ResolvedVc<Box<dyn Source>>,
-    parsed: ResolvedVc<ParseResult>,
-) -> Result<Vc<SplitResult>> {
+pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<SplitResult>> {
+    let parsed: ResolvedVc<ParseResult> = asset.failsafe_parse().to_resolved().await?;
+    let ident = asset.source().ident().to_resolved().await?;
     // Do not split already split module
     if !ident.await?.parts.is_empty() {
         return Ok(SplitResult::Failed {
@@ -498,6 +492,7 @@ pub(super) async fn split(
     }
 
     let parse_result = parsed.await?;
+    let source = asset.source().to_resolved().await?;
 
     match &*parse_result {
         ParseResult::Ok {
@@ -570,7 +565,7 @@ pub(super) async fn split(
                 .map(|module| {
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
-                        &program,
+                        Some(&program),
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
@@ -584,6 +579,7 @@ pub(super) async fn split(
                         comments: comments.clone(),
                         source_map: source_map.clone(),
                         eval_context,
+                        source_mapping_url: None,
                     })
                 })
                 .collect();
@@ -695,7 +691,7 @@ pub(crate) async fn part_of_module(
 
                     let program = Program::Module(module);
                     let eval_context = EvalContext::new(
-                        &program,
+                        Some(&program),
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
@@ -709,6 +705,7 @@ pub(crate) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
+                        source_mapping_url: None,
                     }
                     .cell());
                 } else {
@@ -719,11 +716,11 @@ pub(crate) async fn part_of_module(
             let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
-                bail!(
+                turbobail!(
                     "part_id is out of range: {part_id} >= {}; asset = {}; entrypoints = \
                      {entrypoints:?}: part_deps = {deps:?}",
-                    asset_ident.to_string().await?,
                     modules.len(),
+                    *asset_ident
                 );
             }
 

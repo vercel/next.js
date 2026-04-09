@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
+use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
 use serde::de::DeserializeOwned;
 use swc_core::{
     base::Compiler,
-    common::{comments::SingleThreadedComments, Mark},
+    common::{Mark, comments::SingleThreadedComments},
     ecma::{
         ast::noop_pass,
         parser::{Syntax, TsSyntax},
@@ -38,7 +38,7 @@ fn test(input: &Path, minify: bool) {
                     output_path: Some(output.clone()),
 
                     config: swc_core::base::config::Config {
-                        is_module: Some(swc_core::base::config::IsModule::Bool(true)),
+                        is_module: Some(swc_core::base::config::IsModule::Unknown),
 
                         jsc: swc_core::base::config::JscConfig {
                             minify: if minify {
@@ -58,7 +58,6 @@ fn test(input: &Path, minify: bool) {
                     ..Default::default()
                 },
                 disable_next_ssg: false,
-                disable_page_config: false,
                 pages_dir: None,
                 is_page_file: false,
                 is_development: true,

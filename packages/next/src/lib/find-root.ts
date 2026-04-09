@@ -2,7 +2,21 @@ import { dirname } from 'path'
 import findUp from 'next/dist/compiled/find-up'
 import * as Log from '../build/output/log'
 
-export function findRootLockFile(cwd: string) {
+function findWorkRoot(cwd: string) {
+  // Find-up evaluates the list of files at each level.
+  // For pnpm-workspace.yaml we first want to look up before searching for lockfiles as those can be included in the application directory by accident.
+  const pnpmWorkspaceFile = findUp.sync(
+    'pnpm-workspace.yaml',
+
+    {
+      cwd,
+    }
+  )
+
+  if (pnpmWorkspaceFile) {
+    return pnpmWorkspaceFile
+  }
+
   return findUp.sync(
     [
       'pnpm-lock.yaml',
@@ -17,31 +31,64 @@ export function findRootLockFile(cwd: string) {
   )
 }
 
-export function findRootDir(cwd: string) {
-  const lockFile = findRootLockFile(cwd)
-  if (!lockFile) return undefined
+export function findRootDirAndLockFiles(cwd: string): {
+  lockFiles: string[]
+  rootDir: string
+} {
+  const lockFile = findWorkRoot(cwd)
+  if (!lockFile)
+    return {
+      lockFiles: [],
+      rootDir: cwd,
+    }
 
   const lockFiles = [lockFile]
   while (true) {
-    const nextDir = dirname(dirname(lockFiles[lockFiles.length - 1]))
-    const newLockFile = findRootLockFile(nextDir)
+    const lastLockFile = lockFiles[lockFiles.length - 1]
+    const currentDir = dirname(lastLockFile)
+    const parentDir = dirname(currentDir)
 
-    if (newLockFile) {
-      lockFiles.push(newLockFile)
+    // dirname('/')==='/' so if we happen to reach the FS root (as might happen in a container we need to quit to avoid looping forever
+    if (parentDir === currentDir) break
+
+    const newLockFile = findWorkRoot(parentDir)
+
+    if (!newLockFile) break
+
+    lockFiles.push(newLockFile)
+  }
+
+  return {
+    lockFiles,
+    rootDir: dirname(lockFiles[lockFiles.length - 1]),
+  }
+}
+
+export function warnDuplicatedLockFiles(lockFiles: string[]) {
+  if (lockFiles.length > 1) {
+    const additionalLockFiles = lockFiles
+      .slice(0, -1)
+      .map((str) => `\n   * ${str}`)
+      .join('')
+
+    if (process.env.TURBOPACK) {
+      Log.warnOnce(
+        `Warning: Next.js inferred your workspace root, but it may not be correct.\n` +
+          ` We detected multiple lockfiles and selected the directory of ${lockFiles[lockFiles.length - 1]} as the root directory.\n` +
+          ` To silence this warning, set \`turbopack.root\` in your Next.js config, or consider ` +
+          `removing one of the lockfiles if it's not needed.\n` +
+          `   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.\n` +
+          ` Detected additional lockfiles: ${additionalLockFiles}\n`
+      )
     } else {
-      break
+      Log.warnOnce(
+        `Warning: Next.js inferred your workspace root, but it may not be correct.\n` +
+          ` We detected multiple lockfiles and selected the directory of ${lockFiles[lockFiles.length - 1]} as the root directory.\n` +
+          ` To silence this warning, set \`outputFileTracingRoot\` in your Next.js config, or consider ` +
+          `removing one of the lockfiles if it's not needed.\n` +
+          `   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.\n` +
+          ` Detected additional lockfiles: ${additionalLockFiles}\n`
+      )
     }
   }
-
-  // Only warn if not in a build worker to avoid duplicate warnings
-  if (typeof process.send !== 'function' && lockFiles.length > 1) {
-    Log.warnOnce(
-      `Warning: Found multiple lockfiles. Selecting ${lockFiles[lockFiles.length - 1]}.\n   Consider removing the lockfiles at:${lockFiles
-        .slice(0, -1)
-        .map((str) => '\n   * ' + str)
-        .join('')}\n`
-    )
-  }
-
-  return dirname(lockFile)
 }

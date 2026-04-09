@@ -8,10 +8,11 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkData, ChunksData},
+    chunk::{ChunkData, ChunkingContext, ChunksData},
     context::AssetContext,
+    ident::AssetIdent,
     module::Module,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     proxied_asset::ProxiedAsset,
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -31,8 +32,8 @@ pub async fn create_page_loader_entry_module(
     writeln!(result, "const PAGE_PATH = {};\n", StringifyJs(&pathname))?;
 
     let page_loader_path = next_js_file_path(rcstr!("entry/page-loader.ts"))
-        .await?
-        .clone_value();
+        .owned()
+        .await?;
     let base_code = page_loader_path.read();
     if let FileContent::Content(base_file) = &*base_code.await? {
         result += base_file.content()
@@ -44,7 +45,7 @@ pub async fn create_page_loader_entry_module(
 
     let virtual_source = Vc::upcast(VirtualSource::new(
         page_loader_path,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     ));
 
     let module = client_context
@@ -73,6 +74,8 @@ pub struct PageLoaderAsset {
     pub pathname: RcStr,
     pub rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
     pub page_chunks: ResolvedVc<OutputAssets>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub use_fixed_path: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -83,12 +86,16 @@ impl PageLoaderAsset {
         pathname: RcStr,
         rebase_prefix_path: ResolvedVc<FileSystemPathOption>,
         page_chunks: ResolvedVc<OutputAssets>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        use_fixed_path: bool,
     ) -> Vc<Self> {
         Self {
             server_root,
             pathname,
             rebase_prefix_path,
             page_chunks,
+            chunking_context,
+            use_fixed_path,
         }
         .cell()
     }
@@ -103,7 +110,7 @@ impl PageLoaderAsset {
         // If we are provided a prefix path, we need to rewrite our chunk paths to
         // remove that prefix.
         if let Some(rebase_path) = &*rebase_prefix_path.await? {
-            let root_path = rebase_path.root().await?.clone_value();
+            let root_path = rebase_path.root().owned().await?;
             let rebased = chunks
                 .await?
                 .iter()
@@ -114,12 +121,12 @@ impl PageLoaderAsset {
                         Vc::upcast::<Box<dyn OutputAsset>>(ProxiedAsset::new(
                             *chunk,
                             FileSystemPath::rebase(
-                                chunk.path().await?.clone_value(),
+                                chunk.path().owned().await?,
                                 rebase_path.clone(),
                                 root_path.clone(),
                             )
-                            .await?
-                            .clone_value(),
+                            .owned()
+                            .await?,
                         ))
                         .to_resolved()
                         .await
@@ -134,37 +141,45 @@ impl PageLoaderAsset {
     }
 }
 
+impl PageLoaderAsset {
+    async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
+        let rebase_prefix_path = self.rebase_prefix_path.await?;
+        let root = rebase_prefix_path.as_ref().unwrap_or(&self.server_root);
+        Ok(AssetIdent::from_path(root.join(&format!(
+            "static/chunks/pages{}",
+            get_asset_path_from_pathname(&self.pathname, ".js")
+        ))?)
+        .with_modifier(rcstr!("page loader asset")))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for PageLoaderAsset {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        Ok(OutputAssetsWithReferenced::from_assets(
+            *self.await?.page_chunks,
+        ))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl OutputAsset for PageLoaderAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let root = (*self.rebase_prefix_path.await?)
-            .clone()
-            .map_or(self.server_root.clone(), |path| path);
-        Ok(root
-            .join(&format!(
-                "static/chunks/pages{}",
-                get_asset_path_from_pathname(&self.pathname, ".js")
-            ))?
-            .cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let chunks = self.await?.page_chunks.await?;
-
-        let mut references = Vec::with_capacity(chunks.len());
-        for &chunk in chunks.iter() {
-            references.push(chunk);
+    async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
+        let ident = this.ident_for_path().await?;
+        if this.use_fixed_path {
+            // In development mode, don't include a content hash and put the chunk at e.g.
+            // `static/chunks/pages/page2.js`, so that the dev runtime can request it at a known
+            // path.
+            // https://github.com/vercel/next.js/blob/84873e00874e096e6c4951dcf070e8219ed414e5/packages/next/src/client/route-loader.ts#L256-L271
+            Ok(ident.path())
+        } else {
+            Ok(this
+                .chunking_context
+                .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
         }
-
-        // We don't need to strip the client relative prefix, because we won't be using
-        // these reference paths with `__turbopack_load__`.
-        for chunk_data in &*self.chunks_data(FileSystemPathOption::none()).await? {
-            references.extend(chunk_data.references().await?.iter().copied());
-        }
-
-        Ok(Vc::cell(references))
     }
 }
 
@@ -187,6 +202,8 @@ impl Asset for PageLoaderAsset {
             StringifyJs(&chunks_data)
         );
 
-        Ok(AssetContent::file(File::from(content).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(content)).cell(),
+        ))
     }
 }

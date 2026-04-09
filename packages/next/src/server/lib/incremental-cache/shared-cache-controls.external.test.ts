@@ -40,6 +40,7 @@ describe('SharedCacheControls', () => {
           fallback: true,
           fallbackRootParams: undefined,
           fallbackSourceRoute: undefined,
+          fallbackRouteParams: undefined,
           dataRoute: null,
           dataRouteRegex: null,
           prefetchDataRoute: null,

@@ -13,6 +13,7 @@ const cwd = process.cwd()
 ;(async function () {
   let isCanary = true
   let isReleaseCandidate = false
+  let isBeta = false
 
   try {
     const tagOutput = execSync(
@@ -24,6 +25,7 @@ const cwd = process.cwd()
       isCanary = tagOutput.includes('-canary')
     }
     isReleaseCandidate = tagOutput.includes('-rc')
+    isBeta = tagOutput.includes('-beta')
   } catch (err) {
     console.log(err)
 
@@ -34,10 +36,16 @@ const cwd = process.cwd()
     throw err
   }
 
-  let tag = isCanary ? 'canary' : isReleaseCandidate ? 'rc' : 'latest'
+  let tag = isCanary
+    ? 'canary'
+    : isReleaseCandidate
+      ? 'rc'
+      : isBeta
+        ? 'beta'
+        : 'latest'
 
   try {
-    if (!isCanary && !isReleaseCandidate) {
+    if (!isCanary && !isReleaseCandidate && !isBeta) {
       const version = JSON.parse(
         await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
       ).version

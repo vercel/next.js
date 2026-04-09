@@ -3,11 +3,11 @@ import * as React from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
 import { ExternalIcon } from '../../icons/external'
-import { getFrameSource } from '../../../shared/stack-frame'
+import { getStackFrameFile, type StackFrame } from '../../../shared/stack-frame'
 import { useOpenInEditor } from '../../utils/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
 
-export type TerminalProps = { content: string }
+type TerminalProps = { content: string }
 
 function getFile(lines: string[]) {
   const contentFileName = lines.shift()
@@ -22,8 +22,8 @@ function getFile(lines: string[]) {
     fileName: hasLocation ? fileName : contentFileName,
     location: hasLocation
       ? {
-          line: parsedLine,
-          column: parsedColumn,
+          line1: parsedLine,
+          column1: parsedColumn,
         }
       : undefined,
   }
@@ -76,16 +76,16 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
   const open = useOpenInEditor({
     file: file?.fileName,
-    lineNumber: file?.location?.line ?? 1,
-    column: file?.location?.column ?? 0,
+    line1: file?.location?.line1 ?? 1,
+    column1: file?.location?.column1 ?? 1,
   })
 
-  const stackFrame = {
+  const stackFrame: StackFrame = {
     file: file?.fileName ?? null,
     methodName: '',
     arguments: [],
-    lineNumber: file?.location?.line ?? null,
-    column: file?.location?.column ?? null,
+    line1: file?.location?.line1 ?? null,
+    column1: file?.location?.column1 ?? null,
   }
 
   const fileExtension = stackFrame?.file?.split('.').pop()
@@ -99,7 +99,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
           </span>
           <span data-text>
             {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
-            {getFrameSource(stackFrame)}
+            {getStackFrameFile(stackFrame)}
           </span>
           <button
             aria-label="Open in editor"

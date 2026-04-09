@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import { waitFor } from 'next-test-utils'
 
 describe('@next/third-parties basic usage', () => {
   const { next } = nextTestSetup({
@@ -33,17 +32,11 @@ describe('@next/third-parties basic usage', () => {
   it('renders GTM', async () => {
     const browser = await next.browser('/gtm')
 
-    await browser.waitForElementByCss('#_next-gtm')
-    await waitFor(1000)
-
-    const gtmInlineScript = await browser.elementsByCss('#_next-gtm-init')
-    expect(gtmInlineScript.length).toBe(1)
-
-    const gtmScript = await browser.elementsByCss(
-      '[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
+    await browser.waitForElementByCss('script#_next-gtm')
+    await browser.elementByCss('script#_next-gtm-init')
+    await browser.elementByCss(
+      'script[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
     )
-
-    expect(gtmScript.length).toBe(1)
 
     const dataLayer = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(1)
@@ -57,17 +50,12 @@ describe('@next/third-parties basic usage', () => {
   it('renders GA', async () => {
     const browser = await next.browser('/ga')
 
-    await browser.waitForElementByCss('#_next-ga')
-    await waitFor(1000)
-
-    const gaInlineScript = await browser.elementsByCss('#_next-ga-init')
-    expect(gaInlineScript.length).toBe(1)
-
-    const gaScript = await browser.elementsByCss(
-      '[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]'
+    await browser.waitForElementByCss('script#_next-ga')
+    await browser.elementByCss('script#_next-ga-init')
+    await browser.elementByCss(
+      'script[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]'
     )
 
-    expect(gaScript.length).toBe(1)
     const dataLayer = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(4)
 

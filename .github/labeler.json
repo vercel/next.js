@@ -5,7 +5,7 @@
     "examples": ["examples/**"],
     "Font (next/font)": ["**/*font*"],
     "tests": ["test/**", "bench/**"],
-    "Turbopack": ["crates/next-*/**", "crates/napi/**", "turbopack/**"],
+    "Turbopack": ["crates/next-*/**", "turbopack/**"],
     "Rspack": [
       { "type": "user", "pattern": "9aoy" },
       { "type": "user", "pattern": "ahabhgk" },
@@ -31,8 +31,7 @@
       { "type": "user", "pattern": "valorkin" },
       { "type": "user", "pattern": "xc2" },
       { "type": "user", "pattern": "zackarychapple" },
-      { "type": "user", "pattern": "zoolsher" },
-      "packages/next/src/build/**"
+      { "type": "user", "pattern": "zoolsher" }
     ],
     "created-by: Chrome Aurora": [
       { "type": "user", "pattern": "atcastle" },
@@ -45,7 +44,7 @@
     ],
     "CI approved": [
       { "type": "user", "pattern": "SukkaW" },
-      { "type": "user", "pattern": "vercel-release-bot" },
+      { "type": "user", "pattern": "nextjs-bot" },
       { "type": "user", "pattern": "raunofreiberg" }
     ],
     "created-by: Next.js team": [
@@ -60,7 +59,7 @@
       { "type": "user", "pattern": "lazarv" },
       { "type": "user", "pattern": "lubieowoce" },
       { "type": "user", "pattern": "RobPruzan" },
-      { "type": "user", "pattern": "samcx" },
+      { "type": "user", "pattern": "samselikoff" },
       { "type": "user", "pattern": "sebmarkbage" },
       { "type": "user", "pattern": "shuding" },
       { "type": "user", "pattern": "styfle" },
@@ -71,19 +70,18 @@
     "created-by: Next.js DevEx team": [
       { "type": "user", "pattern": "delbaoliveira" },
       { "type": "user", "pattern": "ismaelrumzan" },
-      { "type": "user", "pattern": "leerob" },
       { "type": "user", "pattern": "manovotny" },
       { "type": "user", "pattern": "molebox" },
       { "type": "user", "pattern": "timeyoutakeit" },
-      { "type": "user", "pattern": "icyJoseph" }
+      { "type": "user", "pattern": "icyJoseph" },
+      { "type": "user", "pattern": "aurorascharff" }
     ],
     "created-by: Turbopack team": [
+      { "type": "user", "pattern": "andrewimm" },
       { "type": "user", "pattern": "bgw" },
-      { "type": "user", "pattern": "Cy-Tek" },
-      { "type": "user", "pattern": "kdy1" },
       { "type": "user", "pattern": "lukesandberg" },
       { "type": "user", "pattern": "mischnic" },
-      { "type": "user", "pattern": "padmaia" },
+      { "type": "user", "pattern": "mmastrac" },
       { "type": "user", "pattern": "sokra" },
       { "type": "user", "pattern": "timneutkens" },
       { "type": "user", "pattern": "wbinnssmith" }

@@ -1,42 +1,49 @@
-use std::iter::once;
+use std::collections::BTreeSet;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::{
-    css::chunk::CssChunkType,
-    module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule, TypeofWindow,
-        TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
-    },
-    resolve_options_context::ResolveOptionsContext,
+use turbopack::module_options::{
+    CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleRule,
+    TypescriptTransformOptions, module_options_context::ModuleOptionsContext,
+    side_effect_free_packages_glob,
 };
 use turbopack_browser::{
-    BrowserChunkingContext, ContentHashing, CurrentChunkMethod,
-    react_refresh::assert_can_resolve_react_refresh,
+    BrowserChunkingContext, CurrentChunkMethod, react_refresh::assert_can_resolve_react_refresh,
 };
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType,
-        module_id_strategies::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, MangleType, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
     free_var_references,
+    issue::IssueSeverity,
+    module_graph::binding_usage_info::OptionBindingUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_css::chunk::CssChunkType;
+use turbopack_ecmascript::{
+    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+    transform::PresetEnvConfig,
+};
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
 };
+use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
-use super::transforms::get_next_client_transforms_rules;
 use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
-    next_client::runtime_entry::{RuntimeEntries, RuntimeEntry},
+    next_client::{
+        runtime_entry::{RuntimeEntries, RuntimeEntry},
+        transforms::get_next_client_transforms_rules,
+    },
     next_config::NextConfig,
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
@@ -44,10 +51,7 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::{
-            ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-            get_invalid_server_only_resolve_plugin,
-        },
+        resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
         transforms::{
             emotion::get_emotion_transform_rule,
             react_remove_properties::get_react_remove_properties_transform_rule,
@@ -56,13 +60,17 @@ use crate::{
             styled_jsx::get_styled_jsx_transform_rule,
             swc_ecma_transform_plugins::get_swc_ecma_transform_plugin_rule,
         },
-        webpack_rules::webpack_loader_options,
+        webpack_rules::{WebpackLoaderBuiltinCondition, webpack_loader_options},
     },
     transform_options::{
         get_decorators_transform_options, get_jsx_transform_options,
         get_typescript_transform_options,
     },
-    util::{OptionEnvMap, defines, foreign_code_context_condition, internal_assets_conditions},
+    util::{
+        OptionEnvMap, defines, foreign_code_context_condition,
+        free_var_references_with_vercel_system_env_warnings, internal_assets_conditions,
+        module_styles_rule_condition, worker_forwarded_globals,
+    },
 };
 
 #[turbo_tasks::function]
@@ -71,9 +79,15 @@ async fn next_client_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileT
 }
 
 #[turbo_tasks::function]
-async fn next_client_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVarReferences>> {
+async fn next_client_free_vars(
+    define_env: Vc<OptionEnvMap>,
+    report_system_env_inlining: Vc<IssueSeverity>,
+) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
-        ..defines(&*define_env.await?).into_iter(),
+        ..free_var_references_with_vercel_system_env_warnings(
+            defines(&*define_env.await?),
+            *report_system_env_inlining.await?
+        ),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: rcstr!("node:buffer"),
             lookup_path: None,
@@ -92,6 +106,8 @@ async fn next_client_free_vars(define_env: Vc<OptionEnvMap>) -> Result<Vc<FreeVa
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     define_env: Vc<OptionEnvMap>,
+    report_system_env_inlining: Vc<IssueSeverity>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::Browser(
@@ -107,7 +123,12 @@ pub async fn get_client_compile_time_info(
         .await?,
     )
     .defines(next_client_defines(define_env).to_resolved().await?)
-    .free_var_references(next_client_free_vars(define_env).to_resolved().await?)
+    .free_var_references(
+        next_client_free_vars(define_env, report_system_env_inlining)
+            .to_resolved()
+            .await?,
+    )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }
@@ -145,9 +166,14 @@ pub async fn get_client_resolve_options_context(
         get_next_client_resolved_map(project_path.clone(), project_path.clone(), *mode.await?)
             .to_resolved()
             .await?;
-    let custom_conditions = vec![mode.await?.condition().into()];
+    let mut custom_conditions: Vec<_> = mode.await?.custom_resolve_conditions().collect();
+
+    if *next_config.enable_cache_components().await? {
+        custom_conditions.push(rcstr!("next-js"));
+    };
+
     let resolve_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
+        enable_node_modules: Some(project_path.root().owned().await?),
         custom_conditions,
         import_map: Some(next_client_import_map),
         fallback_import_map: Some(next_client_fallback_import_map),
@@ -155,11 +181,6 @@ pub async fn get_client_resolve_options_context(
         browser: true,
         module: true,
         before_resolve_plugins: vec![
-            ResolvedVc::upcast(
-                get_invalid_server_only_resolve_plugin(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            ),
             ResolvedVc::upcast(
                 ModuleFeatureReportResolvePlugin::new(project_path.clone())
                     .to_resolved()
@@ -179,17 +200,21 @@ pub async fn get_client_resolve_options_context(
         ..Default::default()
     };
 
+    let tsconfig_path = next_config.typescript_tsconfig_path().await?;
+    let tsconfig_path = project_path.join(
+        tsconfig_path
+            .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .unwrap_or(&rcstr!("tsconfig.json")),
+    )?;
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path: next_config
-            .typescript_tsconfig_path()
-            .await?
-            .as_ref()
-            .map(|p| project_path.join(p))
-            .transpose()?,
+        tsconfig_path: TsConfigHandling::Fixed(tsconfig_path),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -208,7 +233,6 @@ pub async fn get_client_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     encryption_key: ResolvedVc<RcStr>,
-    no_mangling: Vc<bool>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -219,10 +243,18 @@ pub async fn get_client_module_options_context(
         *execution_context,
     );
 
-    let tsconfig = get_typescript_transform_options(project_path.clone())
+    let tsconfig_path = next_config
+        .typescript_tsconfig_path()
+        .await?
+        .as_ref()
+        .map(|p| project_path.join(p))
+        .transpose()?;
+
+    let tsconfig = get_typescript_transform_options(project_path.clone(), tsconfig_path.clone())
         .to_resolved()
         .await?;
-    let decorators_options = get_decorators_transform_options(project_path.clone());
+    let decorators_options =
+        get_decorators_transform_options(project_path.clone(), tsconfig_path.clone());
     let enable_mdx_rs = *next_config.mdx_rs().await?;
     let jsx_runtime_options = get_jsx_transform_options(
         project_path.clone(),
@@ -230,30 +262,26 @@ pub async fn get_client_module_options_context(
         Some(resolve_options_context),
         false,
         next_config,
+        tsconfig_path,
     )
     .to_resolved()
     .await?;
 
-    // A separate webpack rules will be applied to codes matching
-    // foreign_code_context_condition. This allows to import codes from
-    // node_modules that requires webpack loaders, which next-dev implicitly
-    // does by default.
-    let conditions = vec![rcstr!("browser"), mode.await?.condition().into()];
-    let foreign_enable_webpack_loaders = webpack_loader_options(
-        project_path.clone(),
-        next_config,
-        true,
-        conditions
-            .iter()
-            .cloned()
-            .chain(once(rcstr!("foreign")))
-            .collect(),
-    )
-    .await?;
+    let mut loader_conditions = BTreeSet::new();
+    loader_conditions.insert(WebpackLoaderBuiltinCondition::Browser);
+    loader_conditions.extend(mode.await?.webpack_loader_conditions());
 
-    // Now creates a webpack rules that applies to all codes.
+    // A separate webpack rules will be applied to codes matching foreign_code_context_condition.
+    // This allows to import codes from node_modules that requires webpack loaders, which next-dev
+    // implicitly does by default.
+    let mut foreign_conditions = loader_conditions.clone();
+    foreign_conditions.insert(WebpackLoaderBuiltinCondition::Foreign);
+    let foreign_enable_webpack_loaders =
+        *webpack_loader_options(project_path.clone(), next_config, foreign_conditions).await?;
+
+    // Now creates a webpack rules that applies to all code.
     let enable_webpack_loaders =
-        webpack_loader_options(project_path.clone(), next_config, false, conditions).await?;
+        *webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
     let tree_shaking_mode_for_user_code = *next_config
         .tree_shaking_mode_for_user_code(next_mode.is_development())
@@ -302,30 +330,61 @@ pub async fn get_client_module_options_context(
     let enable_postcss_transform = Some(postcss_transform_options.resolved_cell());
     let enable_foreign_postcss_transform = Some(postcss_foreign_transform_options.resolved_cell());
 
-    let source_maps = if *next_config.client_source_maps(mode).await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    };
+    let source_maps = *next_config.client_source_maps(mode).await?;
+
+    let preset_env_config = (*next_config.experimental_swc_env_options().await?)
+        .as_ref()
+        .map(|opts| {
+            PresetEnvConfig {
+                mode: opts.mode.clone(),
+                core_js: opts.core_js.clone(),
+                skip: opts.skip.clone(),
+                include: opts.include.clone(),
+                exclude: opts.exclude.clone(),
+                shipped_proposals: opts.shipped_proposals,
+                force_all_transforms: opts.force_all_transforms,
+                debug: opts.debug,
+                loose: opts.loose,
+            }
+            .resolved_cell()
+        });
+
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
+            esm_url_rewrite_behavior: Some(UrlRewriteBehavior::Relative),
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
+            enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             source_maps,
+            infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            preset_env_config,
             ..Default::default()
         },
         css: CssOptionsContext {
             source_maps,
+            module_css_condition: Some(module_styles_rule_condition()),
+            lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             ..Default::default()
         },
+        static_url_tag: Some(rcstr!("client")),
         environment: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,
-        side_effect_free_packages: next_config.optimize_package_imports().owned().await?,
+        side_effect_free_packages: Some(
+            side_effect_free_packages_glob(next_config.optimize_package_imports())
+                .to_resolved()
+                .await?,
+        ),
         keep_last_successful_parse: next_mode.is_development(),
-        remove_unused_exports: *next_config
-            .turbopack_remove_unused_exports(next_mode.is_development())
-            .await?,
+        analyze_mode: if next_mode.is_development() {
+            AnalyzeMode::CodeGeneration
+        } else {
+            // Technically, this doesn't need to tracing for the client context. But this will
+            // result in more cache hits for the analysis for modules which are loaded for both ssr
+            // and client
+            AnalyzeMode::CodeGenerationAndTracing
+        },
         ..Default::default()
     };
 
@@ -335,6 +394,9 @@ pub async fn get_client_module_options_context(
             enable_typeof_window_inlining: None,
             // Ignore e.g. import(`${url}`) requests in node_modules.
             ignore_dynamic_requests: true,
+            // Don't inject core-js polyfills into node_modules — only user code
+            // should be processed by preset_env's usage/entry mode.
+            preset_env_config: None,
             ..module_options_context.ecmascript
         },
         enable_webpack_loaders: foreign_enable_webpack_loaders,
@@ -351,6 +413,8 @@ pub async fn get_client_module_options_context(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
             enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
+            // Don't inject core-js polyfills into framework internals.
+            preset_env_config: None,
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: None,
@@ -369,16 +433,6 @@ pub async fn get_client_module_options_context(
         },
         enable_webpack_loaders,
         enable_mdx_rs,
-        css: CssOptionsContext {
-            minify_type: if *next_config.turbo_minify(mode).await? {
-                MinifyType::Minify {
-                    mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
-                }
-            } else {
-                MinifyType::NoMinify
-            },
-            ..module_options_context.css
-        },
         rules: vec![
             (
                 foreign_code_context_condition(next_config, project_path).await?,
@@ -397,38 +451,73 @@ pub async fn get_client_module_options_context(
     Ok(module_options_context)
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+pub struct ClientChunkingContextOptions {
+    pub mode: Vc<NextMode>,
+    pub root_path: FileSystemPath,
+    pub client_root: FileSystemPath,
+    pub client_root_to_root_path: RcStr,
+    pub client_static_folder_name: RcStr,
+    pub asset_prefix: Vc<RcStr>,
+    pub environment: Vc<Environment>,
+    pub module_id_strategy: Vc<ModuleIdStrategy>,
+    pub export_usage: Vc<OptionBindingUsageInfo>,
+    pub unused_references: Vc<UnusedReferences>,
+    pub minify: Vc<bool>,
+    pub source_maps: Vc<SourceMapsType>,
+    pub no_mangling: Vc<bool>,
+    pub scope_hoisting: Vc<bool>,
+    pub nested_async_chunking: Vc<bool>,
+    pub debug_ids: Vc<bool>,
+    pub should_use_absolute_url_references: Vc<bool>,
+    pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
+}
+
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    root_path: FileSystemPath,
-    client_root: FileSystemPath,
-    client_root_to_root_path: RcStr,
-    asset_prefix: ResolvedVc<Option<RcStr>>,
-    chunk_suffix_path: ResolvedVc<Option<RcStr>>,
-    environment: ResolvedVc<Environment>,
-    mode: Vc<NextMode>,
-    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    minify: Vc<bool>,
-    source_maps: Vc<bool>,
-    no_mangling: Vc<bool>,
-    scope_hoisting: Vc<bool>,
+    options: ClientChunkingContextOptions,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    let ClientChunkingContextOptions {
+        mode,
+        root_path,
+        client_root,
+        client_root_to_root_path,
+        client_static_folder_name,
+        asset_prefix,
+        environment,
+        module_id_strategy,
+        export_usage,
+        unused_references,
+        minify,
+        source_maps,
+        no_mangling,
+        scope_hoisting,
+        nested_async_chunking,
+        debug_ids,
+        should_use_absolute_url_references,
+        css_url_suffix,
+        hash_salt,
+    } = options;
+
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
-    let chunk_suffix_path = chunk_suffix_path.owned().await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
         client_root_to_root_path,
         client_root.clone(),
-        client_root.join("static/chunks")?,
-        get_client_assets_path(client_root.clone())
-            .await?
-            .clone_value(),
-        environment,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("chunks")?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
+        environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .chunk_base_path(asset_prefix.clone())
-    .chunk_suffix_path(chunk_suffix_path)
+    .chunk_base_path(Some(asset_prefix.clone()))
+    .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
@@ -436,17 +525,27 @@ pub async fn get_client_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(if *source_maps.await? {
-        SourceMapsType::Full
-    } else {
-        SourceMapsType::None
-    })
-    .asset_base_path(asset_prefix)
+    .source_maps(*source_maps.await?)
+    .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
-    .module_id_strategy(module_id_strategy);
+    .export_usage(*export_usage.await?)
+    .unused_references(unused_references.to_resolved().await?)
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .debug_ids(*debug_ids.await?)
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .hash_salt(hash_salt)
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix.to_resolved().await?,
+    });
 
     if next_mode.is_development() {
-        builder = builder.hot_module_replacement().use_file_source_map_uris();
+        builder = builder
+            .hot_module_replacement()
+            .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
+            .dynamic_chunk_content_loading(true);
     } else {
         builder = builder
             .chunking_config(
@@ -465,16 +564,11 @@ pub async fn get_client_chunking_context(
                     ..Default::default()
                 },
             )
-            .use_content_hashing(ContentHashing::Direct { length: 16 })
+            .chunk_content_hashing(ContentHashing::Direct { length: 13 })
             .module_merging(*scope_hoisting.await?);
     }
 
     Ok(Vc::upcast(builder.build()))
-}
-
-#[turbo_tasks::function]
-pub fn get_client_assets_path(client_root: FileSystemPath) -> Result<Vc<FileSystemPath>> {
-    Ok(client_root.join("static/media")?.cell())
 }
 
 #[turbo_tasks::function]

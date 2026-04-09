@@ -37,6 +37,8 @@ export const metadata: Metadata = {
     email: false,
     address: false,
     telephone: false,
+    // Properties set to `true` should not be included in `format-detection` meta tag
+    url: true,
   },
 }
 

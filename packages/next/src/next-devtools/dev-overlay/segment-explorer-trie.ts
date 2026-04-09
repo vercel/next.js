@@ -97,6 +97,7 @@ function createTrie<Value = string>({
   function remove(value: Value) {
     let currentNode = root
     const segments = getCharacters(value)
+
     const stack: TrieNode<Value>[] = []
     let found = true
     for (const segment of segments) {
@@ -131,7 +132,7 @@ function createTrie<Value = string>({
   return { insert, remove, getRoot }
 }
 
-export type SegmentTrie = Trie<SegmentNodeState>
+type SegmentTrie = Trie<SegmentNodeState>
 export type SegmentTrieNode = TrieNode<SegmentNodeState>
 
 const trie: SegmentTrie = createTrie({
@@ -147,6 +148,7 @@ const trie: SegmentTrie = createTrie({
 })
 export const insertSegmentNode = trie.insert
 export const removeSegmentNode = trie.remove
+export const getSegmentTrieRoot = trie.getRoot
 
 export function useSegmentTree(): SegmentTrieNode {
   const state = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)

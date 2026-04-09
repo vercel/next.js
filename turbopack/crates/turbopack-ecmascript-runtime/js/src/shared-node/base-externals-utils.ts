@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-
-/// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared/runtime/runtime-utils.ts" />
 
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.
@@ -24,6 +22,7 @@ async function externalImport(id: DependencySpecifier) {
 
   return raw
 }
+contextPrototype.y = externalImport
 
 function externalRequire(
   id: ModuleId,
@@ -56,3 +55,4 @@ externalRequire.resolve = (
 ) => {
   return require.resolve(id, options)
 }
+contextPrototype.x = externalRequire

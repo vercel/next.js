@@ -52,6 +52,27 @@ export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
   }
 }
 
+const EVENT_ANALYZE_COMPLETED = 'NEXT_ANALYZE_COMPLETED'
+type AnalyzeEventCompleted =
+  | {
+      durationInSeconds: number
+      success: true
+      totalPageCount: number
+    }
+  | {
+      success: false
+    }
+
+export function eventAnalyzeCompleted(event: AnalyzeEventCompleted): {
+  eventName: string
+  payload: AnalyzeEventCompleted
+} {
+  return {
+    eventName: EVENT_ANALYZE_COMPLETED,
+    payload: event,
+  }
+}
+
 const EVENT_BUILD_COMPLETED = 'NEXT_BUILD_COMPLETED'
 type EventBuildCompleted = {
   bundler: 'webpack' | 'rspack' | 'turbopack'
@@ -172,7 +193,7 @@ export type EventBuildFeatureUsage = {
     | 'next/font/google'
     | 'next/font/local'
     | 'experimental/nextScriptWorkers'
-    | 'experimental/dynamicIO'
+    | 'experimental/cacheComponents'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
     | 'swcLoader'
@@ -185,16 +206,15 @@ export type EventBuildFeatureUsage = {
     | 'swcEmotion'
     | `swc/target/${SWC_TARGET_TRIPLE}`
     | 'turbotrace'
-    | 'build-lint'
     | 'vercelImageGeneration'
     | 'transpilePackages'
-    | 'skipMiddlewareUrlNormalize'
+    | 'skipProxyUrlNormalize'
     | 'skipTrailingSlashRedirect'
     | 'modularizeImports'
     | 'esmExternals'
     | 'webpackPlugins'
     | UseCacheTrackerKey
-    | 'turbopackPersistentCaching'
+    | 'turbopackFileSystemCache'
     | 'runAfterProductionCompile'
   invocationCount: number
 }
@@ -230,20 +250,57 @@ export function eventPackageUsedInGetServerSideProps(
   }))
 }
 
+export const EVENT_MCP_TOOL_USAGE = 'NEXT_MCP_TOOL_USAGE'
+
+export type McpToolName =
+  | 'mcp/get_errors'
+  | 'mcp/get_logs'
+  | 'mcp/get_page_metadata'
+  | 'mcp/get_project_metadata'
+  | 'mcp/get_routes'
+  | 'mcp/get_server_action_by_id'
+  | 'mcp/get_compilation_issues'
+
+export type EventMcpToolUsage = {
+  toolName: McpToolName
+  invocationCount: number
+}
+
+export function eventMcpToolUsage(
+  usages: Array<{ featureName: McpToolName; invocationCount: number }>
+): Array<{ eventName: string; payload: EventMcpToolUsage }> {
+  return usages.map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_MCP_TOOL_USAGE,
+    payload: {
+      toolName: featureName,
+      invocationCount,
+    },
+  }))
+}
+
 export const ERROR_THROWN_EVENT = 'NEXT_ERROR_THROWN'
 type ErrorThrownEvent = {
   eventName: typeof ERROR_THROWN_EVENT
   payload: {
     errorCode: string | undefined
+    location: string | undefined
   }
 }
 
-// Creates a Telemetry event for errors. For privacy, only includes the error code.
-export function eventErrorThrown(error: Error): ErrorThrownEvent {
+// Creates a Telemetry event for errors. For privacy, only includes the error code and not the error
+// message.
+//
+// `location` may be included if it's a location internal to the next.js source tree (i.e. a
+// non-absolute path).
+export function eventErrorThrown(
+  error: Error,
+  anonymizedLocation: string | undefined
+): ErrorThrownEvent {
   return {
     eventName: ERROR_THROWN_EVENT,
     payload: {
       errorCode: extractNextErrorCode(error) || 'Unknown',
+      location: anonymizedLocation,
     },
   }
 }

@@ -5,17 +5,16 @@
 use std::future::IntoFuture;
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
-use regex::Regex;
 use serde_json::json;
-use turbo_tasks::Vc;
+use turbo_tasks::{Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_simple_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         for i in 0..10 {
             double(i).await.unwrap();
@@ -28,7 +27,7 @@ async fn test_simple_task() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -39,9 +38,10 @@ async fn test_simple_task() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_await_same_vc_multiple_times() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         let dvc = double(0);
         // this is awaited multiple times, but only resolved once
@@ -50,7 +50,7 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 1,
                     "cache_hit": 0,
                 },
@@ -61,9 +61,10 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_vc_receiving_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         for i in 0..10 {
             let dvc = double(i);
@@ -78,11 +79,11 @@ async fn test_vc_receiving_task() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
+                "task_statistics::double": {
                     "cache_miss": 10,
                     "cache_hit": 5,
                 },
-                "double_vc": {
+                "task_statistics::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -93,9 +94,10 @@ async fn test_vc_receiving_task() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         for i in 0..10 {
             let wvc = wrap(i);
@@ -111,15 +113,15 @@ async fn test_trait_methods() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "wrap": {
+                "task_statistics::wrap": {
                     "cache_miss": 10,
                     "cache_hit": 5,
                 },
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
-                "WrappedU64::Doublable::double_vc": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 15,
                 },
@@ -130,20 +132,23 @@ async fn test_trait_methods() -> Result<()> {
     .await
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dyn_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
         for i in 0..10 {
             let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
-            let _ = tokio::try_join!(wvc.double().resolve(), wvc.double().resolve()).unwrap();
-            let _ = tokio::try_join!(wvc.double_vc().resolve(), wvc.double_vc().resolve()).unwrap();
+            let _ =
+                tokio::try_join!(wvc.double().to_resolved(), wvc.double().to_resolved()).unwrap();
+            let _ = tokio::try_join!(wvc.double_vc().to_resolved(), wvc.double_vc().to_resolved())
+                .unwrap();
         }
         // use cached results
         for i in 0..5 {
             let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
-            let _ = wvc.double().resolve().await.unwrap();
-            let _ = wvc.double_vc().resolve().await.unwrap();
+            let _ = wvc.double().to_resolved().await.unwrap();
+            let _ = wvc.double_vc().to_resolved().await.unwrap();
         }
         // use cached results without dynamic dispatch
         for i in 0..2 {
@@ -154,15 +159,15 @@ async fn test_dyn_trait_methods() -> Result<()> {
         assert_eq!(
             stats_json(),
             json!({
-                "wrap": {
+                "task_statistics::wrap": {
                     "cache_miss": 10,
                     "cache_hit": 7,
                 },
-                "WrappedU64::Doublable::double": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_miss": 10,
                     "cache_hit": 17,
                 },
-                "WrappedU64::Doublable::double_vc": {
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
                     "cache_miss": 10,
                     "cache_hit": 17,
                 },
@@ -174,20 +179,76 @@ async fn test_dyn_trait_methods() -> Result<()> {
 }
 
 // creates Vcs, but doesn't ever execute them
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_no_execution() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         enable_stats();
-        // don't await this!
-        let _ = wrap_vc(double_vc(double(123))).double().double_vc();
+        wrap_vc(double_vc(double(123)))
+            .double()
+            .double_vc()
+            .as_side_effect()
+            .await?;
         assert_eq!(
             stats_json(),
             json!({
-                "double": {
-                    "cache_miss": 1,
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
                     "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::double":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::double_vc":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::wrap_vc": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
                 },
             })
+        );
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_inline_definitions() -> Result<()> {
+    run_without_cache_check(&REGISTRATION, async move {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        enable_stats();
+        inline_definitions().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "<dyn task_statistics::inline_definitions_turbo_tasks_function_inline::Trait>::trait_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::Value::value_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::inline_fn": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::inline_definitions_turbo_tasks_function_inline::{{closure}}::inline_fn_in_closure": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                }
+            }),
         );
         Ok(())
     })
@@ -254,21 +315,70 @@ fn enable_stats() {
 
 fn stats_json() -> serde_json::Value {
     let tt = turbo_tasks::turbo_tasks();
-    remove_crate_and_hashes(serde_json::to_value(tt.task_statistics().get()).unwrap())
+    make_stats_deterministic(serde_json::to_value(tt.task_statistics().get()).unwrap())
 }
 
-// Global task identifiers can contain a hash of the crate and dependencies.
-// Remove that so that we can compare against a stable value in tests.
-fn remove_crate_and_hashes(mut json: serde_json::Value) -> serde_json::Value {
-    static HASH_RE: Lazy<Regex> = Lazy::new(|| Regex::new("^[^:@]+@[^:]+:+").unwrap());
+// Global task identifiers can contain the crate name, remove it to simplify test assertions
+fn make_stats_deterministic(mut json: serde_json::Value) -> serde_json::Value {
     match &mut json {
         serde_json::Value::Object(map) => {
             let old_map = std::mem::take(map);
             for (k, v) in old_map {
-                map.insert(HASH_RE.replace(&k, "").into_owned(), v);
+                // Replace `duration` with a fixed value to simplify test assertions
+                let mut v = v.clone();
+                let object = v.as_object_mut().unwrap();
+                // These are only populated after the task has finalized execution so it racy to
+                // assert on it.
+                object.remove("duration");
+                object.remove("executions");
+                map.insert(k, v);
             }
         }
         _ => unreachable!("expected object"),
     };
     json
+}
+
+#[turbo_tasks::function]
+fn inline_definitions() -> Result<Vc<()>> {
+    #[turbo_tasks::function]
+    fn inline_fn() -> Vc<()> {
+        Vc::cell(())
+    }
+    let _ = inline_fn();
+
+    let closure = || {
+        #[turbo_tasks::function]
+        fn inline_fn_in_closure() -> Vc<()> {
+            Vc::cell(())
+        }
+        let _ = inline_fn_in_closure();
+    };
+    closure();
+
+    #[turbo_tasks::value]
+    struct Value;
+
+    #[turbo_tasks::value_impl]
+    impl Value {
+        #[turbo_tasks::function]
+        fn value_fn(&self) -> Vc<()> {
+            Vc::cell(())
+        }
+    }
+    let _ = Value.cell().value_fn();
+
+    #[turbo_tasks::value_trait]
+    trait Trait {
+        #[turbo_tasks::function]
+        fn trait_fn(&self) -> Vc<()> {
+            Vc::cell(())
+        }
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Trait for Value {}
+    let _ = Value.cell().trait_fn();
+
+    Ok(Vc::cell(()))
 }

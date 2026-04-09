@@ -8,8 +8,7 @@ use anyhow::Result;
 use const_format::concatcp;
 use once_cell::sync::Lazy;
 use regex::Regex;
-pub use trace::{StackFrame, TraceResult, trace_source_map};
-use tracing::{Level, instrument};
+use serde::Deserialize;
 use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fs::{
     FileLinesContent, FileSystemPath, source_context::get_source_context, to_sys_path,
@@ -17,12 +16,12 @@ use turbo_tasks_fs::{
 use turbopack_cli_utils::source_context::format_source_context_lines;
 use turbopack_core::{
     PROJECT_FILESYSTEM_NAME, SOURCE_URL_PROTOCOL,
-    output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
 };
 use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 
-use crate::{AssetsForSourceMapping, internal_assets_for_source_mapping, pool::FormattingMode};
+pub use crate::source_map::trace::{StackFrame, TraceResult, trace_source_map};
+use crate::{AssetsForSourceMapping, format::FormattingMode};
 
 pub mod trace;
 
@@ -65,7 +64,7 @@ pub async fn apply_source_mapping(
         let resolved = resolve_source_mapping(
             assets_for_source_mapping,
             root.clone(),
-            project_dir.root().await?.clone_value(),
+            project_dir.root().owned().await?,
             &frame,
         )
         .await;
@@ -232,7 +231,7 @@ async fn resolve_source_mapping(
     let Some(sm) = &*SourceMap::new_from_rope_cached(sm).await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = trace_source_map(sm, line, column, name.map(|s| &**s)).await?;
+    let trace = trace_source_map(sm, line, column, name.map(|s| &**s));
     match trace {
         TraceResult::Found(frame) => {
             let lib_code = frame.file.contains("/node_modules/");
@@ -266,7 +265,7 @@ async fn resolve_source_mapping(
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct StructuredError {
     pub name: String,
     pub message: String,
@@ -331,39 +330,4 @@ impl StructuredError {
 
         Ok(message)
     }
-}
-
-pub async fn trace_stack(
-    error: StructuredError,
-    root_asset: Vc<Box<dyn OutputAsset>>,
-    output_path: FileSystemPath,
-    project_dir: FileSystemPath,
-) -> Result<String> {
-    let assets_for_source_mapping =
-        internal_assets_for_source_mapping(root_asset, output_path.clone());
-
-    trace_stack_with_source_mapping_assets(
-        error,
-        assets_for_source_mapping,
-        output_path,
-        project_dir,
-    )
-    .await
-}
-
-#[instrument(level = Level::TRACE, skip_all)]
-pub async fn trace_stack_with_source_mapping_assets(
-    error: StructuredError,
-    assets_for_source_mapping: Vc<AssetsForSourceMapping>,
-    output_path: FileSystemPath,
-    project_dir: FileSystemPath,
-) -> Result<String> {
-    error
-        .print(
-            assets_for_source_mapping,
-            output_path,
-            project_dir,
-            FormattingMode::Plain,
-        )
-        .await
 }

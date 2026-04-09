@@ -1,4 +1,4 @@
-_ = (...) => parent
+_ (const after eval) = (...) => parent
 
 i = (0 | ???*0*)
 - *0* updated with update expression
@@ -14,4 +14,4 @@ parent = arguments[2]
 
 path = arguments[1]
 
-root = {}
+root (const after eval) = {}

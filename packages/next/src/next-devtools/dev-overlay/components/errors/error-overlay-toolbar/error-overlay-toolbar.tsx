@@ -1,27 +1,30 @@
 import type { DebugInfo } from '../../../../shared/types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
-import { CopyStackTraceButton } from './copy-stack-trace-button'
+import { CopyErrorButton } from './copy-error-button'
 import { DocsLinkButton } from './docs-link-button'
 
 type ErrorOverlayToolbarProps = {
   error: Error
   debugInfo: DebugInfo | undefined
   feedbackButton?: React.ReactNode
+  generateErrorInfo: () => Promise<string>
 }
 
 export function ErrorOverlayToolbar({
   error,
   debugInfo,
   feedbackButton,
+  generateErrorInfo,
 }: ErrorOverlayToolbarProps) {
   return (
     <span className="error-overlay-toolbar">
       {/* TODO: Move the button inside and remove the feedback on the footer of the error overlay.  */}
       {feedbackButton}
-      <CopyStackTraceButton error={error} />
+      <CopyErrorButton error={error} generateErrorInfo={generateErrorInfo} />
       <DocsLinkButton errorMessage={error.message} />
       <NodejsInspectorButton
-        devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
+        key={debugInfo?.devtoolsFrontendUrl}
+        defaultDevtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
     </span>
   )
@@ -34,7 +37,7 @@ export const styles = `
   }
 
   .nodejs-inspector-button,
-  .copy-stack-trace-button,
+  .copy-error-button,
   .docs-link-button {
     display: flex;
     justify-content: center;
@@ -69,6 +72,10 @@ export const styles = `
       background-color: var(--color-gray-100);
       cursor: not-allowed;
     }
+  }
+
+  .nodejs-inspector-button[data-pending='true'] {
+    cursor: wait;
   }
 
   .error-overlay-toolbar-button-icon {

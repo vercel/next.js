@@ -1,19 +1,30 @@
-use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
-use turbo_esregex::EsRegex;
-use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, primitives::Regex, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileSystemPath, glob::Glob};
-use turbopack_core::{
-    reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
+use std::{
+    iter,
+    mem::{replace, take},
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+use anyhow::Result;
+use bincode::{Decode, Encode};
+use either::Either;
+use smallvec::SmallVec;
+use turbo_esregex::EsRegex;
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, trace::TraceRawVcs};
+use turbo_tasks_fs::{FileContent, FileSystemPath, glob::Glob};
+use turbopack_core::{
+    asset::Asset,
+    reference_type::{ReferenceType, ReferenceTypeCondition},
+    source::Source,
+    virtual_source::VirtualSource,
+};
+
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),
     Not(Box<RuleCondition>),
-    ReferenceType(ReferenceType),
+    True,
+    False,
+    ReferenceType(ReferenceTypeCondition),
     ResourceIsVirtualSource,
     ResourcePathEquals(FileSystemPath),
     ResourcePathHasNoExtension,
@@ -22,8 +33,8 @@ pub enum RuleCondition {
     ResourcePathInExactDirectory(FileSystemPath),
     ContentTypeStartsWith(String),
     ContentTypeEmpty,
-    ResourcePathRegex(#[turbo_tasks(trace_ignore)] Regex),
     ResourcePathEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ResourceContentEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
     /// For paths that are within the same filesystem as the `base`, it need to
     /// match the relative path from base to resource. This includes `./` or
     /// `../` prefix. For paths in a different filesystem, it need to match
@@ -36,6 +47,11 @@ pub enum RuleCondition {
         glob: ReadRef<Glob>,
     },
     ResourceBasePathGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
+    ResourceQueryContains(String),
+    ResourceQueryEquals(String),
+    ResourceQueryEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
+    ContentTypeGlob(#[turbo_tasks(trace_ignore)] ReadRef<Glob>),
+    ContentTypeEsRegex(#[turbo_tasks(trace_ignore)] ReadRef<EsRegex>),
 }
 
 impl RuleCondition {
@@ -51,9 +67,101 @@ impl RuleCondition {
     pub fn not(condition: RuleCondition) -> RuleCondition {
         RuleCondition::Not(Box::new(condition))
     }
-}
 
-impl RuleCondition {
+    /// Slightly optimize a `RuleCondition` by flattening nested `Any`, `All`, or `Not` variants.
+    ///
+    /// Does not apply general re-ordering of rules (which may also be a valid optimization using a
+    /// cost heuristic), but does flatten constant `True` and `False` conditions, potentially
+    /// skipping other rules.
+    pub fn flatten(&mut self) {
+        match self {
+            RuleCondition::Any(conds) => {
+                // fast path: flatten children in-place and avoid constructing an additional vec
+                let mut needs_flattening = false;
+                for c in conds.iter_mut() {
+                    c.flatten();
+                    if *c == RuleCondition::True {
+                        // short-circuit: all conditions are side-effect free
+                        *self = RuleCondition::True;
+                        return;
+                    }
+                    needs_flattening = needs_flattening
+                        || matches!(c, RuleCondition::Any(_) | RuleCondition::False);
+                }
+
+                if needs_flattening {
+                    *conds = take(conds)
+                        .into_iter()
+                        .flat_map(|c| match c {
+                            RuleCondition::Any(nested) => {
+                                debug_assert!(!nested.is_empty(), "empty Any should be False");
+                                Either::Left(nested.into_iter())
+                            }
+                            RuleCondition::False => Either::Right(Either::Left(iter::empty())),
+                            c => Either::Right(Either::Right(iter::once(c))),
+                        })
+                        .collect();
+                }
+
+                match conds.len() {
+                    0 => *self = RuleCondition::False,
+                    1 => *self = take(conds).into_iter().next().unwrap(),
+                    _ => {}
+                }
+            }
+            RuleCondition::All(conds) => {
+                // fast path: flatten children in-place and avoid constructing an additional vec
+                let mut needs_flattening = false;
+                for c in conds.iter_mut() {
+                    c.flatten();
+                    if *c == RuleCondition::False {
+                        // short-circuit: all conditions are side-effect free
+                        *self = RuleCondition::False;
+                        return;
+                    }
+                    needs_flattening = needs_flattening
+                        || matches!(c, RuleCondition::All(_) | RuleCondition::True);
+                }
+
+                if needs_flattening {
+                    *conds = take(conds)
+                        .into_iter()
+                        .flat_map(|c| match c {
+                            RuleCondition::All(nested) => {
+                                debug_assert!(!nested.is_empty(), "empty All should be True");
+                                Either::Left(nested.into_iter())
+                            }
+                            RuleCondition::True => Either::Right(Either::Left(iter::empty())),
+                            c => Either::Right(Either::Right(iter::once(c))),
+                        })
+                        .collect();
+                }
+
+                match conds.len() {
+                    0 => *self = RuleCondition::True,
+                    1 => *self = take(conds).into_iter().next().unwrap(),
+                    _ => {}
+                }
+            }
+            RuleCondition::Not(cond) => {
+                match &mut **cond {
+                    // nested `Not`s negate each other
+                    RuleCondition::Not(inner) => {
+                        let inner = &mut **inner;
+                        inner.flatten();
+                        // Use `replace` with a dummy condition instead of `take` since
+                        // `RuleCondition` doesn't implement `Default`.
+                        *self = replace(inner, RuleCondition::False)
+                    }
+                    RuleCondition::True => *self = RuleCondition::False,
+                    RuleCondition::False => *self = RuleCondition::True,
+                    other => other.flatten(),
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub async fn matches(
         &self,
         source: ResolvedVc<Box<dyn Source>>,
@@ -107,6 +215,12 @@ impl RuleCondition {
                         cond = inner.as_ref();
                         continue;
                     }
+                    RuleCondition::True => {
+                        return Ok(true);
+                    }
+                    RuleCondition::False => {
+                        return Ok(false);
+                    }
                     RuleCondition::ReferenceType(condition_ty) => {
                         return Ok(condition_ty.includes(reference_type));
                     }
@@ -141,7 +255,7 @@ impl RuleCondition {
                         let content_type = &source.ident().await?.content_type;
                         return Ok(content_type
                             .as_ref()
-                            .is_some_and(|ct| ct.starts_with(start)));
+                            .is_some_and(|ct| ct.starts_with(start.as_str())));
                     }
                     RuleCondition::ContentTypeEmpty => {
                         return Ok(source.ident().await?.content_type.is_none());
@@ -160,11 +274,43 @@ impl RuleCondition {
                             .map_or(path.path.as_str(), |(_, b)| b);
                         return Ok(glob.matches(basename));
                     }
-                    RuleCondition::ResourcePathRegex(_) => {
-                        bail!("ResourcePathRegex not implemented yet");
-                    }
                     RuleCondition::ResourcePathEsRegex(regex) => {
                         return Ok(regex.is_match(&path.path));
+                    }
+                    RuleCondition::ResourceContentEsRegex(regex) => {
+                        let content = source.content().file_content().await?;
+                        match &*content {
+                            FileContent::Content(file_content) => {
+                                return Ok(regex.is_match(&file_content.content().to_str()?));
+                            }
+                            FileContent::NotFound => return Ok(false),
+                        }
+                    }
+                    RuleCondition::ResourceQueryContains(query) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident.query.contains(query));
+                    }
+                    RuleCondition::ResourceQueryEquals(query) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident.query == *query);
+                    }
+                    RuleCondition::ResourceQueryEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(regex.is_match(&ident.query));
+                    }
+                    RuleCondition::ContentTypeGlob(glob) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| glob.matches(ct)));
+                    }
+                    RuleCondition::ContentTypeEsRegex(regex) => {
+                        let ident = source.ident().await?;
+                        return Ok(ident
+                            .content_type
+                            .as_ref()
+                            .is_some_and(|ct| regex.is_match(ct)));
                     }
                 }
             }
@@ -230,20 +376,117 @@ pub mod tests {
 
     use super::*;
 
-    #[tokio::test]
+    #[test]
+    fn flatten_any_with_single_child_collapses() {
+        let mut rc = RuleCondition::Any(vec![RuleCondition::True]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+
+        let mut rc = RuleCondition::Any(vec![RuleCondition::ContentTypeEmpty]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_any_nested_and_false() {
+        let mut rc = RuleCondition::Any(vec![
+            RuleCondition::False,
+            RuleCondition::Any(vec![RuleCondition::ContentTypeEmpty, RuleCondition::False]),
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_any_short_circuits_on_true() {
+        let mut rc = RuleCondition::Any(vec![
+            RuleCondition::False,
+            RuleCondition::True,
+            RuleCondition::ContentTypeEmpty,
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
+
+    #[test]
+    fn flatten_any_empty_becomes_false() {
+        let mut rc = RuleCondition::Any(vec![]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::False);
+    }
+
+    #[test]
+    fn flatten_all_with_single_child_collapses() {
+        let mut rc = RuleCondition::All(vec![RuleCondition::ContentTypeEmpty]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+
+        let mut rc = RuleCondition::All(vec![RuleCondition::True]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
+
+    #[test]
+    fn flatten_all_nested_and_true() {
+        let mut rc = RuleCondition::All(vec![
+            RuleCondition::True,
+            RuleCondition::All(vec![RuleCondition::ContentTypeEmpty, RuleCondition::True]),
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_all_short_circuits_on_false() {
+        let mut rc = RuleCondition::All(vec![
+            RuleCondition::True,
+            RuleCondition::False,
+            RuleCondition::ContentTypeEmpty,
+        ]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::False);
+    }
+
+    #[test]
+    fn flatten_all_empty_becomes_true() {
+        let mut rc = RuleCondition::All(vec![]);
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
+
+    #[test]
+    fn flatten_not_of_not() {
+        let mut rc = RuleCondition::Not(Box::new(RuleCondition::Not(Box::new(
+            RuleCondition::All(vec![RuleCondition::ContentTypeEmpty]),
+        ))));
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::ContentTypeEmpty);
+    }
+
+    #[test]
+    fn flatten_not_constants() {
+        let mut rc = RuleCondition::Not(Box::new(RuleCondition::True));
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::False);
+
+        let mut rc = RuleCondition::Not(Box::new(RuleCondition::False));
+        rc.flatten();
+        assert_eq!(rc, RuleCondition::True);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_rule_condition_leaves() {
-        crate::register();
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_leaves_test().await })
+        tt.run_once(async { run_leaves_test_operation().read_strongly_consistent().await })
             .await
             .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_leaves_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_leaves_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(
@@ -260,7 +503,7 @@ pub mod tests {
                 .await?;
 
         {
-            let condition = RuleCondition::ReferenceType(ReferenceType::Runtime);
+            let condition = RuleCondition::ReferenceType(ReferenceTypeCondition::Runtime);
             assert!(
                 condition
                     .matches(virtual_source, &virtual_path, &ReferenceType::Runtime)
@@ -364,20 +607,23 @@ pub mod tests {
         anyhow::Ok(())
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_rule_condition_tree() {
-        crate::register();
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),
         ));
-        tt.run_once(async { run_rule_condition_tree_test().await })
-            .await
-            .unwrap();
+        tt.run_once(async {
+            run_rule_condition_tree_test_operation()
+                .read_strongly_consistent()
+                .await
+        })
+        .await
+        .unwrap();
     }
 
-    #[turbo_tasks::function]
-    pub async fn run_rule_condition_tree_test() -> Result<()> {
+    #[turbo_tasks::function(operation)]
+    pub async fn run_rule_condition_tree_test_operation() -> Result<()> {
         let fs = VirtualFileSystem::new();
         let virtual_path = fs.root().await?.join("foo.js")?;
         let virtual_source = Vc::upcast::<Box<dyn Source>>(VirtualSource::new(

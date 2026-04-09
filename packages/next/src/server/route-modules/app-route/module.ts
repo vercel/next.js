@@ -2,10 +2,10 @@ import type { NextConfig } from '../../config-shared'
 import type { AppRouteRouteDefinition } from '../../route-definitions/app-route-route-definition'
 import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
 import type { NextRequest } from '../../web/spec-extension/request'
-import type { PrerenderManifest } from '../../../build'
 import type { NextURL } from '../../web/next-url'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { WorkUnitStore } from '../../app-render/work-unit-async-storage.external'
+import type { __ApiPreviewProps } from '../../api-utils'
 
 import {
   RouteModule,
@@ -22,7 +22,6 @@ import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
 import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
-import { getPathnameFromAbsolutePath } from './helpers/get-pathname-from-absolute-path'
 import * as Log from '../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import {
@@ -32,7 +31,10 @@ import {
 import { HeadersAdapter } from '../../web/spec-extension/adapters/headers'
 import { RequestCookiesAdapter } from '../../web/spec-extension/adapters/request-cookies'
 import { parsedUrlQueryToParams } from './helpers/parsed-url-query-to-params'
-import { printDebugThrownValueForProspectiveRender } from '../../app-render/prospective-render-utils'
+import {
+  Phase,
+  printDebugThrownValueForProspectiveRender,
+} from '../../app-render/prospective-render-utils'
 
 import * as serverHooks from '../../../client/components/hooks-server-context'
 import { DynamicServerError } from '../../../client/components/hooks-server-context'
@@ -84,6 +86,8 @@ import { RedirectStatusCode } from '../../../client/components/redirect-status-c
 import { INFINITE_CACHE } from '../../../lib/constants'
 import { executeRevalidates } from '../../revalidation-utils'
 import { trackPendingModules } from '../../app-render/module-loading/track-module-loading.external'
+import { InvariantError } from '../../../shared/lib/invariant-error'
+import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
 
 export class WrappedNextRouterError {
   constructor(
@@ -110,7 +114,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
   renderOpts: WorkStoreContext['renderOpts'] &
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
-  prerenderManifest: DeepReadonly<PrerenderManifest>
+  previewProps: DeepReadonly<__ApiPreviewProps>
   sharedContext: AppRouteSharedContext
 }
 
@@ -169,9 +173,23 @@ export type AppRouteUserlandModule = AppRouteHandlers &
  * module from the bundled code.
  */
 export interface AppRouteRouteModuleOptions
-  extends RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule> {
+  extends Omit<
+    RouteModuleOptions<AppRouteRouteDefinition, AppRouteUserlandModule>,
+    'userland'
+  > {
+  readonly userland:
+    | AppRouteUserlandModule
+    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
+  /**
+   * Optional synchronous getter that returns the live userland module. When
+   * provided (Turbopack dev mode), it is called on every request so that
+   * server HMR updates are picked up without re-executing the entry chunk.
+   * Using require() instead of import() keeps this synchronous so the time
+   * spent here is not incorrectly attributed to application-code in timing.
+   */
+  readonly getUserland?: () => AppRouteUserlandModule
 }
 
 /**
@@ -208,43 +226,125 @@ export class AppRouteRouteModule extends RouteModule<
   public readonly resolvedPagePath: string
   public readonly nextConfigOutput: NextConfig['output'] | undefined
 
-  private readonly methods: Record<HTTP_METHOD, AppRouteHandlerFn>
-  private readonly hasNonStaticMethods: boolean
-  private readonly dynamic: AppRouteUserlandModule['dynamic']
+  // Set in the constructor when userland is provided as a factory. Cleared
+  // after the first access so userland is only loaded once.
+  private _userlandFactory:
+    | (() => AppRouteUserlandModule | Promise<AppRouteUserlandModule>)
+    | null
+  // Non-null while an async userland module (top-level await) is loading.
+  // ensureUserland() awaits this before the first request is handled.
+  private _pendingUserland: Promise<void> | null = null
+  // Synchronous per-request userland getter for Turbopack dev mode.
+  // Called on every request to pick up server HMR updates.
+  private readonly _getUserland?: () => AppRouteUserlandModule
+  private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
+  private _hasNonStaticMethods!: boolean
+  private _dynamic!: AppRouteUserlandModule['dynamic']
+
+  override get userland(): AppRouteUserlandModule {
+    if (this._userlandFactory) {
+      const result = this._userlandFactory()
+      this._userlandFactory = null
+      if (result instanceof Promise) {
+        // The route file uses top-level await (async module). Store the
+        // promise so ensureUserland() can await it before the first request.
+        this._pendingUserland = result.then((mod) => {
+          this._userland = mod
+          this._pendingUserland = null
+          this._initFromUserland()
+        })
+      } else {
+        this._userland = result
+        this._initFromUserland()
+      }
+    }
+    return this._userland as AppRouteUserlandModule
+  }
+
+  /**
+   * Ensures the userland module is fully loaded before a request is handled.
+   * Required for route files that use top-level await, where require() returns
+   * a Promise instead of the module directly. Must be called before accessing
+   * `userland` in contexts where the module may not yet be resolved (e.g. the
+   * export/static-generation worker).
+   */
+  async ensureUserland(): Promise<void> {
+    // Trigger lazy loading if not yet started.
+    void this.userland
+    if (this._pendingUserland) {
+      await this._pendingUserland
+    }
+  }
 
   constructor({
     userland,
+    getUserland,
     definition,
     distDir,
-    projectDir,
+    relativeProjectDir,
     resolvedPagePath,
     nextConfigOutput,
   }: AppRouteRouteModuleOptions) {
-    super({ userland, definition, distDir, projectDir })
+    const isLazy = typeof userland === 'function'
+    super({
+      userland: (isLazy ? undefined! : userland) as AppRouteUserlandModule,
+      definition,
+      distDir,
+      relativeProjectDir,
+    })
 
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
+    this._getUserland = getUserland
+
+    if (!isLazy) {
+      this._userlandFactory = null
+      this._initFromUserland()
+    } else if (nextConfigOutput === 'export') {
+      // For output:export routes, validate constraints eagerly at module load
+      // time so that the error surfaces as a Redbox in dev (module load error)
+      // rather than being silently swallowed as a 500 response at request time.
+      this._userlandFactory = null
+      const result = userland()
+      if (result instanceof Promise) {
+        // Async module (top-level await) — defer via pending promise.
+        this._pendingUserland = result.then((mod) => {
+          this._userland = mod
+          this._pendingUserland = null
+          this._initFromUserland()
+        })
+      } else {
+        this._userland = result
+        this._initFromUserland() // throws for invalid output:export routes
+      }
+    } else {
+      this._userlandFactory = userland
+    }
+  }
+
+  private _initFromUserland(): void {
+    const userland = this._userland as AppRouteUserlandModule
 
     // Automatically implement some methods if they aren't implemented by the
     // userland module.
-    this.methods = autoImplementMethods(userland)
+    this._methods = autoImplementMethods(userland)
 
     // Get the non-static methods for this route.
-    this.hasNonStaticMethods = hasNonStaticMethods(userland)
+    this._hasNonStaticMethods = hasNonStaticMethods(userland)
 
     // Get the dynamic property from the userland module.
-    this.dynamic = this.userland.dynamic
+    this._dynamic = userland.dynamic
     if (this.nextConfigOutput === 'export') {
-      if (this.dynamic === 'force-dynamic') {
+      if (this._dynamic === 'force-dynamic') {
         throw new Error(
-          `export const dynamic = "force-dynamic" on page "${definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
-      } else if (!isStaticGenEnabled(this.userland) && this.userland['GET']) {
+      } else if (!isStaticGenEnabled(userland) && userland['GET']) {
         throw new Error(
-          `export const dynamic = "force-static"/export const revalidate not configured on route "${definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+          `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
         )
       } else {
-        this.dynamic = 'error'
+        this._dynamic = 'error'
       }
     }
 
@@ -255,7 +355,7 @@ export class AppRouteRouteModule extends RouteModule<
       // uppercase handlers are supported.
       const lowercased = HTTP_METHODS.map((method) => method.toLowerCase())
       for (const method of lowercased) {
-        if (method in this.userland) {
+        if (method in userland) {
           Log.error(
             `Detected lowercase method '${method}' in '${
               this.resolvedPagePath
@@ -266,7 +366,7 @@ export class AppRouteRouteModule extends RouteModule<
 
       // Print error if the module exports a default handler, they must use named
       // exports for each HTTP method.
-      if ('default' in this.userland) {
+      if ('default' in userland) {
         Log.error(
           `Detected default export in '${this.resolvedPagePath}'. Export a named export for each HTTP method instead.`
         )
@@ -274,7 +374,7 @@ export class AppRouteRouteModule extends RouteModule<
 
       // If there is no methods exported by this module, then return a not found
       // response.
-      if (!HTTP_METHODS.some((method) => method in this.userland)) {
+      if (!HTTP_METHODS.some((method) => method in userland)) {
         Log.error(
           `No HTTP methods exported in '${this.resolvedPagePath}'. Export a named export for each HTTP method.`
         )
@@ -283,17 +383,28 @@ export class AppRouteRouteModule extends RouteModule<
   }
 
   /**
-   * Resolves the handler function for the given method.
-   *
-   * @param method the requested method
-   * @returns the handler function for the given method
+   * Returns the handler function for the given HTTP method.
+   * Must be called after ensureUserland() has resolved so that _methods is
+   * populated.
    */
-  private resolve(method: string): AppRouteHandlerFn {
-    // Ensure that the requested method is a valid method (to prevent RCE's).
+  private resolveHandler(method: string): AppRouteHandlerFn {
+    // Prevent RCE: only allow recognized HTTP methods.
     if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
 
-    // Return the handler.
-    return this.methods[method]
+    return this._methods[method]
+  }
+
+  /**
+   * Returns the handler for the given method using a live userland snapshot.
+   * Used in Turbopack dev mode to pick up server HMR updates. The userland
+   * is fetched synchronously via require() so no async overhead is added.
+   */
+  private resolveHandlerFromUserland(
+    method: string,
+    userland: AppRouteUserlandModule
+  ): AppRouteHandlerFn {
+    if (!isHTTPMethod(method)) return () => new Response(null, { status: 400 })
+    return autoImplementMethods(userland)[method]
   }
 
   private async do(
@@ -309,7 +420,7 @@ export class AppRouteRouteModule extends RouteModule<
     context: AppRouteRouteHandlerContext
   ) {
     const isStaticGeneration = workStore.isStaticGeneration
-    const dynamicIOEnabled = !!context.renderOpts.experimental?.dynamicIO
+    const cacheComponentsEnabled = !!context.renderOpts.cacheComponents
 
     // Patch the global fetch.
     patchFetch({
@@ -319,24 +430,25 @@ export class AppRouteRouteModule extends RouteModule<
 
     const handlerContext: AppRouteHandlerFnContext = {
       params: context.params
-        ? createServerParamsForRoute(
-            parsedUrlQueryToParams(context.params),
-            workStore
-          )
+        ? createServerParamsForRoute(parsedUrlQueryToParams(context.params))
         : undefined,
     }
 
     const resolvePendingRevalidations = () => {
-      context.renderOpts.pendingWaitUntil = executeRevalidates(
-        workStore
-      ).finally(() => {
-        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
-          console.log(
-            'pending revalidates promise finished for:',
-            requestStore.url
-          )
-        }
-      })
+      const maybeRevalidatesPromise = executeRevalidates(workStore)
+
+      if (maybeRevalidatesPromise !== false) {
+        context.renderOpts.pendingWaitUntil = maybeRevalidatesPromise.finally(
+          () => {
+            if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+              console.log(
+                'pending revalidates promise finished for:',
+                requestStore.url.pathname + requestStore.url.search
+              )
+            }
+          }
+        )
+      }
     }
 
     let prerenderStore: null | PrerenderStore = null
@@ -353,10 +465,10 @@ export class AppRouteRouteModule extends RouteModule<
             ? INFINITE_CACHE
             : userlandRevalidate
 
-        if (dynamicIOEnabled) {
+        if (cacheComponentsEnabled) {
           /**
            * When we are attempting to statically prerender the GET handler of a route.ts module
-           * and dynamicIO is on we follow a similar pattern to rendering.
+           * and cacheComponents is on we follow a similar pattern to rendering.
            *
            * We first run the handler letting caches fill. If something synchronously dynamic occurs
            * during this prospective render then we can infer it will happen on every render and we
@@ -377,6 +489,18 @@ export class AppRouteRouteModule extends RouteModule<
           const cacheSignal = new CacheSignal()
           let dynamicTracking = createDynamicTrackingState(undefined)
 
+          // TODO: Route handlers are never resumed, so it's counter-intuitive
+          // to use an RDC here. However, we need the data cache to store cached
+          // results in memory during the prospective prerender, so that they
+          // can be retrieved during the final prerender within microtasks. This
+          // is crucial when doing revalidations of a deployed route handler,
+          // where the default cache handler does not do any in-memory caching.
+          // We should replace the `prerenderResumeDataCache` and
+          // `renderResumeDataCache` with a single `dataCache` property that is
+          // conceptually not tied to resuming, and also avoids the unnecessary
+          // complexity of using a mutable and an immutable resume data cache.
+          const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
           const prospectiveRoutePrerenderStore: PrerenderStore =
             (prerenderStore = {
               type: 'prerender',
@@ -384,6 +508,7 @@ export class AppRouteRouteModule extends RouteModule<
               // This replicates prior behavior where rootParams is empty in routes
               // TODO we need to make this have the proper rootParams for this route
               rootParams: {},
+              fallbackRouteParams: null,
               implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
@@ -396,10 +521,10 @@ export class AppRouteRouteModule extends RouteModule<
               expire: INFINITE_CACHE,
               stale: INFINITE_CACHE,
               tags: [...implicitTags.tags],
-              // TODO: Shouldn't we provide an RDC here?
-              prerenderResumeDataCache: null,
+              prerenderResumeDataCache,
               renderResumeDataCache: null,
               hmrRefreshHash: undefined,
+              varyParamsAccumulator: null,
             })
 
           let prospectiveResult
@@ -419,7 +544,11 @@ export class AppRouteRouteModule extends RouteModule<
               process.env.NEXT_DEBUG_BUILD ||
               process.env.__NEXT_VERBOSE_LOGGING
             ) {
-              printDebugThrownValueForProspectiveRender(err, workStore.route)
+              printDebugThrownValueForProspectiveRender(
+                err,
+                workStore.route,
+                Phase.ProspectiveRender
+              )
             }
           }
           if (
@@ -439,7 +568,8 @@ export class AppRouteRouteModule extends RouteModule<
                 } else if (process.env.NEXT_DEBUG_BUILD) {
                   printDebugThrownValueForProspectiveRender(
                     err,
-                    workStore.route
+                    workStore.route,
+                    Phase.ProspectiveRender
                   )
                 }
               }
@@ -477,6 +607,7 @@ export class AppRouteRouteModule extends RouteModule<
             type: 'prerender',
             phase: 'action',
             rootParams: {},
+            fallbackRouteParams: null,
             implicitTags,
             renderSignal: finalController.signal,
             controller: finalController,
@@ -487,10 +618,10 @@ export class AppRouteRouteModule extends RouteModule<
             expire: INFINITE_CACHE,
             stale: INFINITE_CACHE,
             tags: [...implicitTags.tags],
-            // TODO: Shouldn't we provide an RDC here?
-            prerenderResumeDataCache: null,
+            prerenderResumeDataCache,
             renderResumeDataCache: null,
             hmrRefreshHash: undefined,
+            varyParamsAccumulator: null,
           })
 
           let responseHandled = false
@@ -532,7 +663,7 @@ export class AppRouteRouteModule extends RouteModule<
                   if (!bodyHandled) {
                     bodyHandled = true
                     finalController.abort()
-                    reject(createDynamicIOError(workStore.route))
+                    reject(createCacheComponentsError(workStore.route))
                   }
                 })
               } catch (err) {
@@ -543,13 +674,13 @@ export class AppRouteRouteModule extends RouteModule<
               if (!responseHandled) {
                 responseHandled = true
                 finalController.abort()
-                reject(createDynamicIOError(workStore.route))
+                reject(createCacheComponentsError(workStore.route))
               }
             })
           })
           if (finalController.signal.aborted) {
             // We aborted from within the execution
-            throw createDynamicIOError(workStore.route)
+            throw createCacheComponentsError(workStore.route)
           } else {
             // We didn't abort during the execution. We can abort now as a matter of semantics
             // though at the moment nothing actually consumes this signal so it won't halt any
@@ -598,9 +729,7 @@ export class AppRouteRouteModule extends RouteModule<
         // cookie API.
         // TODO leaving the gate here b/c it indicates that we might not actually want to do this
         // on every `do` call. During prerender there should be no mutableCookies because
-        if (requestStore.type === 'request') {
-          appendMutableCookies(headers, requestStore.mutableCookies)
-        }
+        appendMutableCookies(headers, requestStore.mutableCookies)
 
         resolvePendingRevalidations()
 
@@ -624,8 +753,19 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Validate that the response is a valid response object.
     if (!(res instanceof Response)) {
+      const invalidType =
+        res === null
+          ? 'null'
+          : res === undefined
+            ? 'undefined'
+            : typeof res === 'object'
+              ? res.constructor?.name || 'object'
+              : typeof res
+
       throw new Error(
-        `No response is returned from route handler '${this.resolvedPagePath}'. Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
+        `No response is returned from route handler '${this.resolvedPagePath}'. ` +
+          `Expected a Response object but received '${invalidType}' (method: ${request.method}, url: ${requestStore.url.pathname}). ` +
+          `Ensure you return a \`Response\` or a \`NextResponse\` in all branches of your handler.`
       )
     }
 
@@ -644,10 +784,7 @@ export class AppRouteRouteModule extends RouteModule<
     // to merge the modified cookies and the returned response
     // here.
     const headers = new Headers(res.headers)
-    if (
-      requestStore.type === 'request' &&
-      appendMutableCookies(headers, requestStore.mutableCookies)
-    ) {
+    if (appendMutableCookies(headers, requestStore.mutableCookies)) {
       return new Response(res.body, {
         status: res.status,
         statusText: res.statusText,
@@ -662,21 +799,40 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<Response> {
-    // Get the handler function for the given method.
-    const handler = this.resolve(req.method)
+    // Ensure userland is fully loaded (handles async modules with top-level
+    // await, where require() returns a Promise instead of the module).
+    await this.ensureUserland()
+
+    // In Turbopack dev mode, fetch the live userland module on every request
+    // via the synchronous require() getter so server HMR updates are reflected
+    // immediately. This is cheap — it is just a devModuleCache lookup.
+    // For routes with top-level await, require() may still return a Promise
+    // (async module); in that case fall back to the already-resolved
+    // _userland from ensureUserland() above.
+    const rawLiveUserland = this._getUserland?.()
+    const liveUserland =
+      rawLiveUserland instanceof Promise
+        ? undefined
+        : (rawLiveUserland as AppRouteUserlandModule | undefined)
+
+    const handler = liveUserland
+      ? this.resolveHandlerFromUserland(req.method, liveUserland)
+      : this.resolveHandler(req.method)
 
     // Get the context for the static generation.
     const staticGenerationContext: WorkStoreContext = {
-      // App Routes don't support unknown route params.
-      fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
       buildId: context.sharedContext.buildId,
       previouslyRevalidatedTags: [],
     }
 
+    // Use the live userland (if available) for per-request values so HMR
+    // changes to fetchCache, dynamic, etc. are also picked up.
+    const userland = liveUserland ?? (this._userland as AppRouteUserlandModule)
+
     // Add the fetchCache option to the renderOpts.
-    staticGenerationContext.renderOpts.fetchCache = this.userland.fetchCache
+    staticGenerationContext.renderOpts.fetchCache = userland.fetchCache
 
     const actionStore: ActionStore = {
       isAppRoute: true,
@@ -685,7 +841,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     const implicitTags = await getImplicitTags(
       this.definition.page,
-      req.nextUrl,
+      req.nextUrl.pathname,
       // App Routes don't support unknown route params.
       null
     )
@@ -695,7 +851,7 @@ export class AppRouteRouteModule extends RouteModule<
       req.nextUrl,
       implicitTags,
       undefined,
-      context.prerenderManifest.preview
+      context.previewProps
     )
 
     const workStore = createWorkStore(staticGenerationContext)
@@ -709,8 +865,12 @@ export class AppRouteRouteModule extends RouteModule<
         this.workUnitAsyncStorage.run(requestStore, () =>
           this.workAsyncStorage.run(workStore, async () => {
             // Check to see if we should bail out of static generation based on
-            // having non-static methods.
-            if (this.hasNonStaticMethods) {
+            // having non-static methods. Use live userland when available so
+            // HMR changes to exported HTTP methods are reflected immediately.
+            const hasNonStatic = liveUserland
+              ? hasNonStaticMethods(liveUserland)
+              : this._hasNonStaticMethods
+            if (hasNonStatic) {
               if (workStore.isStaticGeneration) {
                 const err = new DynamicServerError(
                   'Route is configured with methods that cannot be statically generated.'
@@ -725,8 +885,12 @@ export class AppRouteRouteModule extends RouteModule<
             // proxying it in certain circumstances based on execution type and configuration
             let request = req
 
+            // Use the live dynamic value when available so HMR changes to
+            // `export const dynamic` are reflected immediately.
+            const dynamic = liveUserland?.dynamic ?? this._dynamic
+
             // Update the static generation store based on the dynamic property.
-            switch (this.dynamic) {
+            switch (dynamic) {
               case 'force-dynamic': {
                 // Routes of generated paths should be dynamic
                 workStore.forceDynamic = true
@@ -755,25 +919,28 @@ export class AppRouteRouteModule extends RouteModule<
                 if (workStore.isStaticGeneration)
                   request = new Proxy(req, requireStaticRequestHandlers)
                 break
-              default:
-                // We proxy `NextRequest` to track dynamic access, and potentially bail out of static generation
+              case undefined:
+              case 'auto':
+                // We proxy `NextRequest` to track dynamic access, and
+                // potentially bail out of static generation.
                 request = proxyNextRequest(req, workStore)
+                break
+              default:
+                dynamic satisfies never
             }
-
-            // TODO: propagate this pathname from route matcher
-            const route = getPathnameFromAbsolutePath(this.resolvedPagePath)
 
             const tracer = getTracer()
 
             // Update the root span attribute for the route.
-            tracer.setRootSpanAttribute('next.route', route)
+            const { pathname } = this.definition
+            tracer.setRootSpanAttribute('next.route', pathname)
 
             return tracer.trace(
               AppRouteRouteHandlersSpan.runHandler,
               {
-                spanName: `executing api route (app) ${route}`,
+                spanName: `executing api route (app) ${pathname}`,
                 attributes: {
-                  'next.route': route,
+                  'next.route': pathname,
                 },
               },
               async () =>
@@ -1140,9 +1307,9 @@ const requireStaticNextUrlHandlers = {
   },
 }
 
-function createDynamicIOError(route: string) {
+function createCacheComponentsError(route: string) {
   return new DynamicServerError(
-    `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/dynamic-io`
+    `Route ${route} couldn't be rendered statically because it used IO that was not cached. See more info here: https://nextjs.org/docs/messages/cache-components`
   )
 }
 
@@ -1151,18 +1318,6 @@ function trackDynamic(
   workUnitStore: undefined | WorkUnitStore,
   expression: string
 ): void {
-  if (workUnitStore) {
-    if (workUnitStore.type === 'cache') {
-      throw new Error(
-        `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-      )
-    } else if (workUnitStore.type === 'unstable-cache') {
-      throw new Error(
-        `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-      )
-    }
-  }
-
   if (store.dynamicShouldError) {
     throw new StaticGenBailoutError(
       `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
@@ -1170,41 +1325,64 @@ function trackDynamic(
   }
 
   if (workUnitStore) {
-    if (workUnitStore.type === 'prerender') {
-      // dynamicIO Prerender
-      const error = new Error(
-        `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-request`
-      )
-      abortAndThrowOnSynchronousRequestDataAccess(
-        store.route,
-        expression,
-        error,
-        workUnitStore
-      )
-    } else if (workUnitStore.type === 'prerender-ppr') {
-      // PPR Prerender
-      postponeWithTracking(
-        store.route,
-        expression,
-        workUnitStore.dynamicTracking
-      )
-    } else if (workUnitStore.type === 'prerender-legacy') {
-      // legacy Prerender
-      workUnitStore.revalidate = 0
+    switch (workUnitStore.type) {
+      case 'cache':
+      case 'private-cache':
+        // TODO: Should we allow reading cookies and search params from the
+        // request for private caches in route handlers?
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      case 'unstable-cache':
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      case 'prerender':
+        const error = new Error(
+          `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-request`
+        )
+        return abortAndThrowOnSynchronousRequestDataAccess(
+          store.route,
+          expression,
+          error,
+          workUnitStore
+        )
+      case 'prerender-client':
+      case 'validation-client':
+        throw new InvariantError(
+          'A client prerender store should not be used for a route handler.'
+        )
+      case 'prerender-runtime':
+        throw new InvariantError(
+          'A runtime prerender store should not be used for a route handler.'
+        )
+      case 'prerender-ppr':
+        return postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      case 'prerender-legacy':
+        workUnitStore.revalidate = 0
 
-      const err = new DynamicServerError(
-        `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
-      )
-      store.dynamicUsageDescription = expression
-      store.dynamicUsageStack = err.stack
+        const err = new DynamicServerError(
+          `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+        store.dynamicUsageDescription = expression
+        store.dynamicUsageStack = err.stack
 
-      throw err
-    } else if (
-      process.env.NODE_ENV === 'development' &&
-      workUnitStore &&
-      workUnitStore.type === 'request'
-    ) {
-      workUnitStore.usedDynamic = true
+        throw err
+      case 'request':
+        if (process.env.NODE_ENV !== 'production') {
+          // TODO: This is currently not really needed for route handlers, as it
+          // only controls the ISR status that's shown for pages.
+          workUnitStore.usedDynamic = true
+        }
+        break
+      case 'generate-static-params':
+        break
+      default:
+        workUnitStore satisfies never
     }
   }
 }

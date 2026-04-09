@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { waitFor, retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 

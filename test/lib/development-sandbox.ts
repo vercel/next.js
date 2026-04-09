@@ -5,8 +5,8 @@ import {
   getRedboxHeader,
   getRedboxSource,
   getVersionCheckerText,
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   waitFor,
   openRedbox,
   getRedboxDescriptionWarning,
@@ -127,12 +127,15 @@ export async function createSandbox(
         async remove(filename) {
           await next.deleteFile(filename)
         },
-        evaluate,
-        async assertHasRedbox() {
-          return assertHasRedbox(browser)
+        async renameFolder(...args: Parameters<(typeof next)['renameFolder']>) {
+          await next.renameFolder(...args)
         },
-        async assertNoRedbox() {
-          return assertNoRedbox(browser)
+        evaluate,
+        async waitForRedbox() {
+          return waitForRedbox(browser)
+        },
+        async waitForNoRedbox() {
+          return waitForNoRedbox(browser)
         },
         async openRedbox() {
           return openRedbox(browser)

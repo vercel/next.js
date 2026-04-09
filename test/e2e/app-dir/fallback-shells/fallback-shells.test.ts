@@ -14,12 +14,8 @@ describe('fallback-shells', () => {
       expect(await browser.elementById('slug').text()).toBe('Hello /world')
       const headers = response.headers()
 
-      if (isNextDeploy) {
-        expect(headers['x-matched-path']).toBe('/without-io/[slug]')
-      }
-
       // If we didn't use the fallback shell, then we didn't postpone the
-      // response and therefore shouldn't have sent the postponed header.
+      // response, and therefore shouldn't have sent the postponed header.
       expect(headers['x-nextjs-postponed']).not.toBe('1')
     })
   })
@@ -44,11 +40,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -95,10 +87,10 @@ describe('fallback-shells', () => {
                 isNextDev ? 'runtime' : 'buildtime'
               )
 
-              // `/bar` was not prerendered, and thus resumes the fallback shell.
               await browser.loadPage(
                 new URL(
-                  '/with-cached-io/with-static-params/with-suspense/params-in-page/bar',
+                  // Use a unique slug so earlier tests don't upgrade this route.
+                  `/with-cached-io/with-static-params/with-suspense/params-in-page/baz`,
                   next.url
                 ).href
               )
@@ -167,11 +159,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-not-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -194,11 +182,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-then-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -221,11 +205,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/with-suspense/params-transformed/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).toBe('1')
             }
           })
@@ -250,33 +230,33 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
 
-          it('does not render a fallback shell when using a params placeholder', async () => {
-            // This should trigger a blocking prerender of the route shell.
-            const { browser, response } = await next.browserWithResponse(
-              '/with-cached-io/with-static-params/without-suspense/params-in-page/[slug]'
-            )
+          // TODO: Re-enable as deploy test when (potential) infra issue is
+          // resolved.
+          if (!isNextDeploy) {
+            it('does not render a fallback shell when using a params placeholder', async () => {
+              // This should trigger a blocking prerender of the route shell.
+              const { browser, response } = await next.browserWithResponse(
+                '/with-cached-io/with-static-params/without-suspense/params-in-page/[slug]'
+              )
 
-            expect(response.status()).toBe(200)
+              expect(response.status()).toBe(200)
 
-            // This should render the encoded param in the route shell, and not
-            // interpret the param as a fallback param, and subsequently try to
-            // render the fallback shell instead, which would fail because of the
-            // missing parent suspense boundary.
-            const lastModified = await browser
-              .elementById('last-modified')
-              .text()
-            expect(lastModified).toInclude('Page /%5Bslug%5D')
-            expect(lastModified).toInclude('runtime')
-          })
+              // This should render the encoded param in the route shell, and not
+              // interpret the param as a fallback param, and subsequently try to
+              // render the fallback shell instead, which would fail because of the
+              // missing parent suspense boundary.
+              const lastModified = await browser
+                .elementById('last-modified')
+                .text()
+              expect(lastModified).toInclude('Page /%5Bslug%5D')
+              expect(lastModified).toInclude('runtime')
+            })
+          }
         })
 
         describe('and the params accessed in a cached non-page function', () => {
@@ -296,11 +276,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-not-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
@@ -323,11 +299,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-then-in-page/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
@@ -350,11 +322,7 @@ describe('fallback-shells', () => {
 
             const headers = response.headers()
 
-            if (isNextDeploy) {
-              expect(headers['x-matched-path']).toBe(
-                '/with-cached-io/with-static-params/without-suspense/params-transformed/[slug]'
-              )
-            } else if (isNextStart) {
+            if (isNextStart) {
               expect(headers['x-nextjs-postponed']).not.toBe('1')
             }
           })
@@ -378,11 +346,7 @@ describe('fallback-shells', () => {
 
           const headers = response.headers()
 
-          if (isNextDeploy) {
-            expect(headers['x-matched-path']).toBe(
-              '/with-cached-io/without-static-params/params-in-page/[slug]'
-            )
-          } else if (isNextStart) {
+          if (isNextStart) {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
@@ -429,11 +393,7 @@ describe('fallback-shells', () => {
 
           const headers = response.headers()
 
-          if (isNextDeploy) {
-            expect(headers['x-matched-path']).toBe(
-              '/with-cached-io/without-static-params/params-not-in-page/[slug]'
-            )
-          } else if (isNextStart) {
+          if (isNextStart) {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })
@@ -454,11 +414,7 @@ describe('fallback-shells', () => {
 
           const headers = response.headers()
 
-          if (isNextDeploy) {
-            expect(headers['x-matched-path']).toBe(
-              '/with-cached-io/without-static-params/params-then-in-page/[slug]'
-            )
-          } else if (isNextStart) {
+          if (isNextStart) {
             expect(headers['x-nextjs-postponed']).toBe('1')
           }
         })

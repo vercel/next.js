@@ -1,10 +1,11 @@
 use anyhow::{Result, bail};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueDefault, ValueToString, Vc};
 
-use super::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
-use crate::RawDirectoryContent;
+use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
 
+#[derive(ValueToString)]
+#[value_to_string(self.name)]
 #[turbo_tasks::value]
 pub struct VirtualFileSystem {
     pub name: RcStr,
@@ -21,7 +22,7 @@ impl VirtualFileSystem {
     /// [`Vc<VirtualFileSystem>`].
     pub fn new() -> Vc<Self> {
         Self::cell(VirtualFileSystem {
-            name: "virtual file system".into(),
+            name: rcstr!("virtual file system"),
         })
     }
 
@@ -74,13 +75,5 @@ impl FileSystem for VirtualFileSystem {
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Result<Vc<FileMeta>> {
         bail!("Reading is not possible on the virtual file system")
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for VirtualFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.name.clone())
     }
 }

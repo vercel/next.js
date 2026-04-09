@@ -1,14 +1,21 @@
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
- * It will be appended to the base development runtime code.
+ * It will be appended to the base runtime code.
  */
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime/runtime-types.d.ts" />
+
+function getAssetSuffixFromScriptSrc() {
+  // TURBOPACK_ASSET_SUFFIX is set in web workers
+  if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
+  const src = document?.currentScript?.getAttribute?.('src') ?? ''
+  const qi = src.indexOf('?')
+  return qi >= 0 ? src.slice(qi) : ''
+}
 
 type ChunkResolver = {
   resolved: boolean
@@ -20,37 +27,6 @@ type ChunkResolver = {
 
 let BACKEND: RuntimeBackend
 
-function augmentContext(context: unknown): unknown {
-  return context
-}
-
-function fetchWebAssembly(wasmChunkPath: ChunkPath) {
-  return fetch(getChunkRelativeUrl(wasmChunkPath))
-}
-
-async function loadWebAssembly(
-  _source: unknown,
-  wasmChunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module,
-  importsObj: WebAssembly.Imports
-): Promise<Exports> {
-  const req = fetchWebAssembly(wasmChunkPath)
-
-  const { instance } = await WebAssembly.instantiateStreaming(req, importsObj)
-
-  return instance.exports
-}
-
-async function loadWebAssemblyModule(
-  _source: unknown,
-  wasmChunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module
-): Promise<WebAssembly.Module> {
-  const req = fetchWebAssembly(wasmChunkPath)
-
-  return await WebAssembly.compileStreaming(req)
-}
-
 /**
  * Maps chunk paths to the corresponding resolver.
  */
@@ -58,8 +34,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
 ;(() => {
   BACKEND = {
-    async registerChunk(chunkPath, params) {
-      const chunkUrl = getChunkRelativeUrl(chunkPath)
+    async registerChunk(chunk, params) {
+      let chunkPath = getPathFromScript(chunk)
+      let chunkUrl = getUrlFromScript(chunk)
 
       const resolver = getOrCreateResolver(chunkUrl)
       resolver.resolve()
@@ -79,13 +56,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       // This waits for chunks to be loaded, but also marks included items as available.
       await Promise.all(
         params.otherChunks.map((otherChunkData) =>
-          loadChunk({ type: SourceType.Runtime, chunkPath }, otherChunkData)
+          loadInitialChunk(chunkPath, otherChunkData)
         )
       )
 
       if (params.runtimeModuleIds.length > 0) {
         for (const moduleId of params.runtimeModuleIds) {
-          getOrInstantiateRuntimeModule(moduleId, chunkPath)
+          getOrInstantiateRuntimeModule(chunkPath, moduleId)
         }
       }
     },
@@ -94,8 +71,36 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
      */
-    loadChunk(chunkUrl, source) {
-      return doLoadChunk(chunkUrl, source)
+    loadChunkCached(sourceType: SourceType, chunkUrl: ChunkUrl) {
+      return doLoadChunk(sourceType, chunkUrl)
+    },
+
+    async loadWebAssembly(
+      _sourceType: SourceType,
+      _sourceData: SourceData,
+      wasmChunkPath: ChunkPath,
+      _edgeModule: () => WebAssembly.Module,
+      importsObj: WebAssembly.Imports
+    ): Promise<Exports> {
+      const req = fetchWebAssembly(wasmChunkPath)
+
+      const { instance } = await WebAssembly.instantiateStreaming(
+        req,
+        importsObj
+      )
+
+      return instance.exports
+    },
+
+    async loadWebAssemblyModule(
+      _sourceType: SourceType,
+      _sourceData: SourceData,
+      wasmChunkPath: ChunkPath,
+      _edgeModule: () => WebAssembly.Module
+    ): Promise<WebAssembly.Module> {
+      const req = fetchWebAssembly(wasmChunkPath)
+
+      return await WebAssembly.compileStreaming(req)
     },
   }
 
@@ -127,13 +132,13 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    */
-  function doLoadChunk(chunkUrl: ChunkUrl, source: SourceInfo) {
+  function doLoadChunk(sourceType: SourceType, chunkUrl: ChunkUrl) {
     const resolver = getOrCreateResolver(chunkUrl)
     if (resolver.loadingStarted) {
       return resolver.promise
     }
 
-    if (source.type === SourceType.Runtime) {
+    if (sourceType === SourceType.Runtime) {
       // We don't need to load chunks references from runtime code, as they're already
       // present in the DOM.
       resolver.loadingStarted = true
@@ -157,7 +162,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl)
+        importScripts(chunkUrl)
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`
@@ -187,7 +192,8 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
             // loaded instantly.
             resolver.resolve()
           }
-          document.body.appendChild(link)
+          // Append to the `head` for webpack compatibility.
+          document.head.appendChild(link)
         }
       } else if (isJs(chunkUrl)) {
         const previousScripts = document.querySelectorAll(
@@ -210,7 +216,8 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           script.onerror = () => {
             resolver.reject()
           }
-          document.body.appendChild(script)
+          // Append to the `head` for webpack compatibility.
+          document.head.appendChild(script)
         }
       } else {
         throw new Error(`can't infer type of chunk from URL ${chunkUrl}`)
@@ -219,5 +226,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
     resolver.loadingStarted = true
     return resolver.promise
+  }
+
+  function fetchWebAssembly(wasmChunkPath: ChunkPath) {
+    return fetch(getChunkRelativeUrl(wasmChunkPath))
   }
 })()

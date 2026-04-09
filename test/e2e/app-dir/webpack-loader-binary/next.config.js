@@ -5,7 +5,7 @@ const nextConfig = {
   turbopack: {
     rules: {
       '*.txt': {
-        loaders: [require.resolve('./test-file-loader.js')],
+        loaders: ['./test-file-loader.js'],
         as: '*.js',
       },
       '*.mp4': {
@@ -17,7 +17,7 @@ const nextConfig = {
   webpack(config) {
     config.module.rules.push({
       test: /\.txt/,
-      use: require.resolve('./test-file-loader.js'),
+      use: './test-file-loader.js',
     })
     config.module.rules.push({
       test: /\.mp4/,

@@ -1,15 +1,16 @@
 import { ImageResponse } from 'next/og'
 
-// without id
 export async function generateImageMetadata({ params }) {
   return [
     {
       contentType: 'image/png',
       size: { width: 48, height: 48 },
+      id: '0',
     },
     {
       contentType: 'image/png',
       size: { width: 64, height: 64 },
+      id: '1',
     },
   ]
 }

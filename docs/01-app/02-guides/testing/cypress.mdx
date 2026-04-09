@@ -16,8 +16,20 @@ description: Learn how to set up Cypress with Next.js for End-to-End (E2E) and C
 
 You can use `create-next-app` with the [with-cypress example](https://github.com/vercel/next.js/tree/canary/examples/with-cypress) to quickly get started.
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app --example with-cypress with-cypress-app
+```
+
+```bash package="npm"
 npx create-next-app@latest --example with-cypress with-cypress-app
+```
+
+```bash package="yarn"
+yarn create next-app --example with-cypress with-cypress-app
+```
+
+```bash package="bun"
+bun create next-app --example with-cypress with-cypress-app
 ```
 
 </AppOnly>
@@ -26,12 +38,20 @@ npx create-next-app@latest --example with-cypress with-cypress-app
 
 To manually set up Cypress, install `cypress` as a dev dependency:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm add -D cypress
+```
+
+```bash package="npm"
 npm install -D cypress
-# or
+```
+
+```bash package="yarn"
 yarn add -D cypress
-# or
-pnpm install -D cypress
+```
+
+```bash package="bun"
+bun add -D cypress
 ```
 
 Add the Cypress `open` command to the `package.json` scripts field:
@@ -42,7 +62,7 @@ Add the Cypress `open` command to the `package.json` scripts field:
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint",
     "cypress:open": "cypress open"
   }
 }
@@ -50,8 +70,20 @@ Add the Cypress `open` command to the `package.json` scripts field:
 
 Run Cypress for the first time to open the Cypress testing suite:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm cypress:open
+```
+
+```bash package="npm"
 npm run cypress:open
+```
+
+```bash package="yarn"
+yarn cypress:open
+```
+
+```bash package="bun"
+bun run cypress:open
 ```
 
 You can choose to configure **E2E Testing** and/or **Component Testing**. Selecting any of these options will automatically create a `cypress.config.js` file and a `cypress` folder in your project.

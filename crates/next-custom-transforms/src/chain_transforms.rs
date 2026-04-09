@@ -8,12 +8,12 @@ use serde::Deserialize;
 use swc_core::{
     atoms::Atom,
     common::{
+        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
         comments::{Comments, NoopComments},
         pass::Optional,
-        FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{fn_pass, noop_pass, EsVersion, Pass},
+        ast::{EsVersion, Pass, fn_pass, noop_pass},
         parser::parse_file_as_module,
         visit::visit_mut_pass,
     },
@@ -23,7 +23,7 @@ use crate::{
     linter::linter,
     transforms::{
         cjs_finder::contains_cjs,
-        dynamic::{next_dynamic, NextDynamicMode},
+        dynamic::{NextDynamicMode, next_dynamic},
         fonts::next_font_loaders,
         lint_codemod_comments::lint_codemod_comments,
         react_server_components,
@@ -39,9 +39,6 @@ pub struct TransformOptions {
 
     #[serde(default)]
     pub disable_next_ssg: bool,
-
-    #[serde(default)]
-    pub disable_page_config: bool,
 
     #[serde(default)]
     pub pages_dir: Option<PathBuf>,
@@ -139,6 +136,7 @@ where
     C: Clone + Comments + 'a,
 {
     let file_path_str = file.name.to_string();
+    let file_path_for_instant_stack = file_path_str.clone();
 
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
@@ -164,21 +162,17 @@ where
 
         fn_pass(move |program| {
             if let Some(config) = opts.styled_jsx.to_option() {
-                let target_browsers = opts
-                    .css_env
-                    .as_ref()
-                    .map(|env| {
-                        targets_to_versions(env.targets.clone(), None)
-                            .expect("failed to parse env.targets")
-                    })
-                    .unwrap_or_default();
+                let target_browsers = opts.css_env.as_ref().map(|env| {
+                    targets_to_versions(env.targets.clone(), None)
+                        .expect("failed to parse env.targets")
+                });
 
                 program.mutate(styled_jsx::visitor::styled_jsx(
                     cm.clone(),
                     &file.name,
                     &styled_jsx::visitor::Config {
                         use_lightningcss: config.use_lightningcss,
-                        browsers: *target_browsers,
+                        browsers: *target_browsers.map(|t| t.versions).unwrap_or_default(),
                     },
                     &styled_jsx::visitor::NativeConfig { process_css: None },
                 ))
@@ -252,7 +246,6 @@ where
                 crate::transforms::next_ssg::next_ssg(eliminated_packages),
                 !opts.disable_next_ssg,
             ),
-            crate::transforms::amp_attributes::amp_attributes(),
             next_dynamic(
                 opts.is_development,
                 opts.is_server_compiler,
@@ -271,10 +264,6 @@ where
                 NextDynamicMode::Webpack,
                 file.name.clone(),
                 opts.pages_dir.clone().or_else(|| opts.app_dir.clone()),
-            ),
-            Optional::new(
-                crate::transforms::page_config::page_config(opts.is_development, opts.is_page_file),
-                !opts.disable_page_config,
             ),
             relay_plugin,
             match &opts.remove_console {
@@ -330,6 +319,7 @@ where
                     None,
                     config.clone(),
                     comments.clone(),
+                    unresolved_mark,
                     cm.clone(),
                     use_cache_telemetry_tracker,
                     ServerActionsMode::Webpack,
@@ -340,6 +330,7 @@ where
                 true => Either::Left(
                     crate::transforms::track_dynamic_imports::track_dynamic_imports(
                         unresolved_mark,
+                        comments.clone(),
                     ),
                 ),
                 false => Either::Right(noop_pass()),
@@ -356,6 +347,15 @@ where
             Optional::new(
                 crate::transforms::debug_fn_name::debug_fn_name(),
                 opts.debug_function_name,
+            ),
+            crate::transforms::debug_instant_stack::debug_instant_stack(
+                file_path_for_instant_stack,
+                match &opts.server_components {
+                    Some(react_server_components::Config::WithOptions(options)) => {
+                        options.page_extensions.clone()
+                    }
+                    _ => vec![],
+                },
             ),
             visit_mut_pass(crate::transforms::pure::pure_magic(comments.clone())),
             Optional::new(
@@ -432,32 +432,60 @@ where
         #[serde(untagged)]
         enum Deser<T> {
             Bool(bool),
-            Obj(T),
             EmptyObject(EmptyStruct),
+            #[serde(untagged)]
+            Obj(T),
         }
 
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct EmptyStruct {}
 
-        use serde::__private::de;
+        let res = Deser::deserialize(deserializer)?;
+        Ok(match res {
+            Deser::Bool(v) => BoolOr::Bool(v),
+            Deser::EmptyObject(_) => BoolOr::Bool(true),
+            Deser::Obj(v) => BoolOr::Data(v),
+        })
+    }
+}
 
-        let content = de::Content::deserialize(deserializer)?;
+#[cfg(test)]
+mod tests {
+    use serde::Deserialize;
+    use serde_json::json;
 
-        let deserializer = de::ContentRefDeserializer::<D::Error>::new(&content);
+    use super::BoolOr;
 
-        let res = Deser::deserialize(deserializer);
+    #[test]
+    fn test_bool_or() {
+        let v: BoolOr<usize> = serde_json::from_value(json!(false)).unwrap();
+        assert_eq!(v, BoolOr::Bool(false));
 
-        match res {
-            Ok(v) => Ok(match v {
-                Deser::Bool(v) => BoolOr::Bool(v),
-                Deser::Obj(v) => BoolOr::Data(v),
-                Deser::EmptyObject(_) => BoolOr::Bool(true),
-            }),
-            Err(..) => {
-                let d = de::ContentDeserializer::<D::Error>::new(content);
-                Ok(BoolOr::Data(T::deserialize(d)?))
-            }
+        let v: BoolOr<usize> = serde_json::from_value(json!(true)).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: BoolOr<usize> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: Result<BoolOr<usize>, _> = serde_json::from_value(json!({"a": 1}));
+        assert!(v.is_err());
+
+        let v: BoolOr<usize> = serde_json::from_value(json!(1)).unwrap();
+        assert_eq!(v, BoolOr::Data(1));
+
+        let v: BoolOr<usize> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        #[derive(Debug, Eq, PartialEq, Deserialize)]
+        struct SomeStruct {
+            field: Option<usize>,
         }
+
+        let v: BoolOr<SomeStruct> = serde_json::from_value(json!({})).unwrap();
+        assert_eq!(v, BoolOr::Bool(true));
+
+        let v: BoolOr<SomeStruct> = serde_json::from_value(json!({"field": 32})).unwrap();
+        assert_eq!(v, BoolOr::Data(SomeStruct { field: Some(32) }));
     }
 }

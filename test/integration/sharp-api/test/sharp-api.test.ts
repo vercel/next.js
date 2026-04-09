@@ -12,11 +12,9 @@ import fs from 'fs-extra'
 import { join } from 'path'
 
 const appDir = join(__dirname, '../app')
-let app,
-  appPort
+let app, appPort
 
-  // Skip as Turbopack doesn't support `next build` yet
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)('sharp api', () => {
+describe('sharp api', () => {
   beforeAll(async () => {
     await execa('npm', ['install'], { cwd: appDir, stdio: 'inherit' })
     await nextBuild(appDir)
@@ -34,7 +32,8 @@ let app,
   it('should handle custom sharp usage', async () => {
     const res = await fetchViaHTTP(appPort, '/api/custom-sharp')
     expect(res.status).toBe(200)
-    expect(await res.json()).toEqual({ success: true })
+    expect(res.headers.get('content-type')).toBe('image/png')
+    expect((await res.arrayBuffer()).byteLength).toBeGreaterThan(0)
     const traceFile = await fs.readJson(
       join(
         appDir,

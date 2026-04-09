@@ -1,6 +1,8 @@
-# Next.js + MySQL
+# Next.js + PlanetScale MySQL
 
-This is a [Next.js](https://nextjs.org/) project that uses [Prisma](https://www.prisma.io/) to connect to a [PlanetScale](https://planetscale.com/) MySQL database and [Tailwind CSS](https://tailwindcss.com/) for styling.
+This is a [Next.js](https://nextjs.org/) project that uses [Prisma](https://www.prisma.io/) to connect to a [PlanetScale MySQL database](https://planetscale.com/) and [Tailwind CSS](https://tailwindcss.com/) for styling.
+
+> **Using PlanetScale Postgres?** Check out the [Next.js and Postgres Starter Template](https://github.com/vercel/postgres-next-starter) for a PostgreSQL-based template.
 
 ## Demo
 
@@ -16,23 +18,26 @@ https://next-mysql.vercel.app
 pscale auth login
 ```
 
-## Set up the database
+## Set Up the Database
 
 Create a new database with the following command:
 
 ```sh
-pscale database create <DATABASE_NAME>
+pscale database create <DATABASE_NAME> --engine mysql
 ```
 
 > A branch, `main`, was automatically created when you created your database, so you can use that for `BRANCH_NAME` in the steps below.
 
-## Set up the starter Next.js app
+## Set Up the Starter Next.js App
 
-Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+Run [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with your preferred package manager to bootstrap the example:
 
 ```bash
 npx create-next-app --example with-mysql nextjs-mysql
 ```
+
+<details>
+<summary>Or use yarn / pnpm / bun</summary>
 
 ```bash
 yarn create next-app --example with-mysql nextjs-mysql
@@ -41,6 +46,12 @@ yarn create next-app --example with-mysql nextjs-mysql
 ```bash
 pnpm create next-app --example with-mysql nextjs-mysql
 ```
+
+```bash
+bunx create-next-app --example with-mysql nextjs-mysql
+```
+
+</details>
 
 Next, you'll need to create a database username and password through the CLI to connect to your application. If you'd prefer to use the dashboard for this step, you can find those instructions in the [Connection Strings documentation](https://docs.planetscale.com/concepts/connection-strings#creating-a-password) and then come back here to finish setup.
 
@@ -61,12 +72,12 @@ pscale password create <DATABASE_NAME> <BRANCH_NAME> <PASSWORD_NAME>
 Take note of the values returned to you, as you won't be able to see this password again.
 
 ```text
-Password production-password was successfully created.
+Password <PASSWORD_NAME> was successfully created in <DIRECTORY_NAME>.
 Please save the values below as they will not be shown again
 
-  NAME                  USERNAME       ACCESS HOST URL                     ROLE               PLAIN TEXT
- --------------------- -------------- ----------------------------------- ------------------ -------------------------------------------------------
-  production-password   xxxxxxxxxxxxx   xxxxxx.us-east-2.psdb.cloud   Can Read & Write   pscale_pw_xxxxxxx
+  NAME              USERNAME        ACCESS HOST URL                ROLE               PLAIN TEXT
+  ----------------  --------------  -----------------------------  -----------------  -----------------------------
+  <PASSWORD_NAME>   xxxxxxxxxxxxx   xxxxxx.us-east-2.psdb.cloud    Can Read & Write   pscale_pw_xxxxxxx
 ```
 
 You'll use these properties to construct your connection string, which will be the value for `DATABASE_URL` in your `.env` file. Update the `DATABASE_URL` property with your connection string in the following format:
@@ -75,53 +86,35 @@ You'll use these properties to construct your connection string, which will be t
 mysql://<USERNAME>:<PLAIN_TEXT_PASSWORD>@<ACCESS_HOST_URL>/<DATABASE_NAME>?sslaccept=strict
 ```
 
-Push the database schema to your PlanetScale database using Prisma.
+Generate the Prisma Client:
+
+```bash
+npx prisma generate
+```
+
+Push the database schema to your PlanetScale database using Prisma:
 
 ```bash
 npx prisma db push
 ```
 
-```bash
-yarn prisma db push
-```
+Run the seed script to populate your database with `Product` and `Category` data:
 
 ```bash
-pnpm prisma
-```
-
-Run the seed script to populate your database with `Product` and `Category` data.
-
-```bash
-npm run seed
-```
-
-```bash
-yarn seed
-```
-
-```bash
-pnpm seed
+npx prisma db seed
 ```
 
 ## Run the App
 
-Run the app with following command:
+Run the app with the following command:
 
 ```bash
 npm run dev
 ```
 
-```bash
-yarn dev
-```
+Open your browser at [localhost:3000](http://localhost:3000) to see the running application.
 
-```bash
-pnpm dev
-```
-
-Open your browser at [localhost:3000](localhost:3000) to see the running application.
-
-## Deploy your own
+## Deploy Your Own
 
 After you've got your application running locally, it's time to deploy it. To do so, you'll need to promote your database branch (`main` by default) to be the production branch ([read the branching documentation for more information](https://docs.planetscale.com/concepts/branching)).
 

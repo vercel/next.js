@@ -53,7 +53,7 @@ Add a `twitter-image.(jpg|jpeg|png|gif)` image file to any route segment.
 
 ### `opengraph-image.alt.txt`
 
-Add an accompanying `opengraph-image.alt.txt` file in the same route segment as the `opengraph-image.(jpg|jpeg|png|gif)` image it's alt text.
+Add an accompanying `opengraph-image.alt.txt` file in the same route segment as the `opengraph-image.(jpg|jpeg|png|gif)` image its alt text.
 
 ```txt filename="opengraph-image.alt.txt"
 About Acme
@@ -65,14 +65,14 @@ About Acme
 
 ### `twitter-image.alt.txt`
 
-Add an accompanying `twitter-image.alt.txt` file in the same route segment as the `twitter-image.(jpg|jpeg|png|gif)` image it's alt text.
+Add an accompanying `twitter-image.alt.txt` file in the same route segment as the `twitter-image.(jpg|jpeg|png|gif)` image its alt text.
 
 ```txt filename="twitter-image.alt.txt"
 About Acme
 ```
 
 ```html filename="<head> output"
-<meta property="twitter:image:alt" content="About Acme" />
+<meta name="twitter:image:alt" content="About Acme" />
 ```
 
 ## Generate images using code (.js, .ts, .tsx)
@@ -88,9 +88,9 @@ Generate a route segment's shared image by creating an `opengraph-image` or `twi
 
 > **Good to know**:
 >
-> - By default, generated images are [**statically optimized**](/docs/app/getting-started/partial-prerendering#static-rendering) (generated at build time and cached) unless they use [Dynamic APIs](/docs/app/getting-started/partial-prerendering#dynamic-rendering#dynamic-apis) or uncached data.
+> - By default, generated images are [**statically optimized**](/docs/app/glossary#prerendering) (generated at build time and cached) unless they use [Request-time APIs](/docs/app/glossary#request-time-apis) or uncached data.
 > - You can generate multiple Images in the same file using [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata).
-> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that is cached by default unless it uses a [Dynamic API](/docs/app/guides/caching#dynamic-apis) or [dynamic config](/docs/app/guides/caching#segment-config-options) option.
+> - `opengraph-image.js` and `twitter-image.js` are special Route Handlers that are cached by default unless it uses a [Request-time API](/docs/app/glossary#request-time-apis) or [dynamic config](/docs/app/guides/caching-without-cache-components#dynamic) option.
 
 The easiest way to generate an image is to use the [ImageResponse](/docs/app/api-reference/functions/image-response) API from `next/og`.
 
@@ -220,29 +220,37 @@ The default export function receives the following props:
 
 #### `params` (optional)
 
-An object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `opengraph-image` or `twitter-image` is colocated in.
+A promise that resolves to an object containing the [dynamic route parameters](/docs/app/api-reference/file-conventions/dynamic-routes) object from the root segment down to the segment `opengraph-image` or `twitter-image` is colocated in.
+
+> **Good to know**: If you use [`generateImageMetadata`](/docs/app/api-reference/functions/generate-image-metadata), the function will also receive an `id` prop that is a promise resolving to the `id` value from one of the items returned by `generateImageMetadata`.
 
 ```tsx filename="app/shop/[slug]/opengraph-image.tsx" switcher
-export default function Image({ params }: { params: { slug: string } }) {
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
   // ...
 }
 ```
 
 ```jsx filename="app/shop/[slug]/opengraph-image.js" switcher
-export default function Image({ params }) {
+export default async function Image({ params }) {
+  const { slug } = await params
   // ...
 }
 ```
 
-| Route                                      | URL         | `params`                  |
-| ------------------------------------------ | ----------- | ------------------------- |
-| `app/shop/opengraph-image.js`              | `/shop`     | `undefined`               |
-| `app/shop/[slug]/opengraph-image.js`       | `/shop/1`   | `{ slug: '1' }`           |
-| `app/shop/[tag]/[item]/opengraph-image.js` | `/shop/1/2` | `{ tag: '1', item: '2' }` |
+| Route                                      | URL         | `params`                           |
+| ------------------------------------------ | ----------- | ---------------------------------- |
+| `app/shop/opengraph-image.js`              | `/shop`     | `undefined`                        |
+| `app/shop/[slug]/opengraph-image.js`       | `/shop/1`   | `Promise<{ slug: '1' }>`           |
+| `app/shop/[tag]/[item]/opengraph-image.js` | `/shop/1/2` | `Promise<{ tag: '1', item: '2' }>` |
 
 ### Returns
 
-The default export function should return a `Blob` | `ArrayBuffer` | `TypedArray` | `DataView` | `ReadableStream` | `Response`.
+The default export function should return a `Response`.
 
 > **Good to know**: `ImageResponse` satisfies this return type.
 
@@ -322,7 +330,7 @@ export default function Image() {}
 This example uses the `params` object and external data to generate the image.
 
 > **Good to know**:
-> By default, this generated image will be [statically optimized](/docs/app/getting-started/partial-prerendering#static-rendering). You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/api-reference/file-conventions/route-segment-config#revalidate) to change this behavior.
+> By default, this generated image will be statically optimized. You can configure the individual `fetch` [`options`](/docs/app/api-reference/functions/fetch) or route segments [options](/docs/app/guides/caching-without-cache-components#route-segment-config-revalidate) to change this behavior.
 
 ```tsx filename="app/posts/[slug]/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
@@ -334,8 +342,13 @@ export const size = {
 }
 export const contentType = 'image/png'
 
-export default async function Image({ params }: { params: { slug: string } }) {
-  const post = await fetch(`https://.../posts/${params.slug}`).then((res) =>
+export default async function Image({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  const post = await fetch(`https://.../posts/${slug}`).then((res) =>
     res.json()
   )
 
@@ -373,7 +386,8 @@ export const size = {
 export const contentType = 'image/png'
 
 export default async function Image({ params }) {
-  const post = await fetch(`https://.../posts/${params.slug}`).then((res) =>
+  const { slug } = await params
+  const post = await fetch(`https://.../posts/${slug}`).then((res) =>
     res.json()
   )
 
@@ -402,7 +416,59 @@ export default async function Image({ params }) {
 
 #### Using Node.js runtime with local assets
 
-This example uses the Node.js runtime to fetch a local image on the file system and passes it as an `ArrayBuffer` to the `src` attribute of an `<img>` element. The local asset should be placed relative to the root of your project, rather than the location of the example source file.
+These examples use the Node.js runtime to fetch a local image from the file system and pass it to the `<img>` `src` attribute, either as a base64 string or an `ArrayBuffer`. Place the local asset relative to the project root, not the example source file.
+
+```tsx filename="app/opengraph-image.tsx" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), 'logo.png'), 'base64')
+  const logoSrc = `data:image/png;base64,${logoData}`
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+```jsx filename="app/opengraph-image.js" switcher
+import { ImageResponse } from 'next/og'
+import { join } from 'node:path'
+import { readFile } from 'node:fs/promises'
+
+export default async function Image() {
+  const logoData = await readFile(join(process.cwd(), 'logo.png'), 'base64')
+  const logoSrc = `data:image/png;base64,${logoData}`
+
+  return new ImageResponse(
+    (
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <img src={logoSrc} height="100" />
+      </div>
+    )
+  )
+}
+```
+
+Passing an `ArrayBuffer` to the `src` attribute of an `<img>` element is not part of the HTML spec. The rendering engine used by `next/og` supports it, but because TypeScript definitions follow the spec, you need a `@ts-expect-error` directive or similar to use this [feature](https://github.com/vercel/satori/issues/606#issuecomment-2144000453).
 
 ```tsx filename="app/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
@@ -422,6 +488,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
+        {/* @ts-expect-error Satori accepts ArrayBuffer/typed arrays for <img src> at runtime */}
         <img src={logoSrc} height="100" />
       </div>
     )
@@ -456,6 +523,7 @@ export default async function Image() {
 
 ## Version History
 
-| Version   | Changes                                           |
-| --------- | ------------------------------------------------- |
-| `v13.3.0` | `opengraph-image` and `twitter-image` introduced. |
+| Version   | Changes                                              |
+| --------- | ---------------------------------------------------- |
+| `v16.0.0` | `params` is now a promise that resolves to an object |
+| `v13.3.0` | `opengraph-image` and `twitter-image` introduced.    |

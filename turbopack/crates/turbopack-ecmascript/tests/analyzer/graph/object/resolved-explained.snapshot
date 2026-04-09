@@ -93,39 +93,24 @@ c6 = (3 | 4 | ???*0*)
 - *0* unknown mutation
   ⚠️  This value might have side effects
 
-d = (???*0* | ???*1*)
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *1* unknown mutation
+d = (undefined | ???*0*)
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
-d1 = (???*0* | ???*1*)
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *1* unknown mutation
+d1 = (undefined | ???*0*)
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
-d2 = (???*0* | ???*1*)
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *1* unknown mutation
+d2 = (undefined | ???*0*)
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
-d3 = (???*0* | ???*1*)
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *1* unknown mutation
+d3 = (undefined | ???*0*)
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
-d4 = (???*0* | ???*1*)
-- *0* FreeVar(undefined)
-  ⚠️  unknown global
-  ⚠️  This value might have side effects
-- *1* unknown mutation
+d4 = (undefined | ???*0*)
+- *0* unknown mutation
   ⚠️  This value might have side effects
 
 d6 = (2 | 4 | ???*0* | ???*1*)

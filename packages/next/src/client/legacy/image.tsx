@@ -23,13 +23,14 @@ import { useIntersection } from '../use-intersection'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import { normalizePathTrailingSlash } from '../normalize-trailing-slash'
+import { findClosestQuality } from '../../shared/lib/find-closest-quality'
+import { getAssetToken, getDeploymentId } from '../../shared/lib/deployment-id'
 
 function normalizeSrc(src: string): string {
   return src[0] === '/' ? src.slice(1) : src
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-const DEFAULT_Q = 75
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -120,6 +121,48 @@ function defaultLoader({
   width,
   quality,
 }: ImageLoaderPropsWithConfig): string {
+  if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
+    // Special case to make svg serve as-is to avoid proxying
+    // through the built-in Image Optimization API.
+    return src
+  }
+
+  // Extract dpl parameter early so validation uses the clean URL
+  let deploymentId = getDeploymentId()
+  if (src.startsWith('/') && !src.startsWith('//')) {
+    if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+      // immutable static asset and supported by platform, don't add `?dpl=`
+      deploymentId = undefined
+    } else {
+      // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+      // double-encoding with the `encodeURIComponent(src)` below
+      const qIndex = src.indexOf('?')
+      if (qIndex !== -1) {
+        const params = new URLSearchParams(src.slice(qIndex + 1))
+        const srcDpl = params.get('dpl')
+        if (srcDpl) {
+          deploymentId = srcDpl
+          params.delete('dpl')
+          const remaining = params.toString()
+          src = src.slice(0, qIndex) + (remaining ? '?' + remaining : '')
+        }
+      }
+    }
+  }
+
+  if (
+    src.startsWith('/') &&
+    src.includes('?') &&
+    config.localPatterns?.length === 1 &&
+    config.localPatterns[0].pathname === '**' &&
+    config.localPatterns[0].search === ''
+  ) {
+    throw new Error(
+      `Image with src "${src}" is using a query string which is not configured in images.localPatterns.` +
+        `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns`
+    )
+  }
+
   if (process.env.NODE_ENV !== 'production') {
     const missingValues = []
 
@@ -188,31 +231,15 @@ function defaultLoader({
         }
       }
     }
-
-    if (quality && config.qualities && !config.qualities.includes(quality)) {
-      throw new Error(
-        `Invalid quality prop (${quality}) on \`next/image\` does not match \`images.qualities\` configured in your \`next.config.js\`\n` +
-          `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
-      )
-    }
   }
 
-  const q =
-    quality ||
-    config.qualities?.reduce((prev, cur) =>
-      Math.abs(cur - DEFAULT_Q) < Math.abs(prev - DEFAULT_Q) ? cur : prev
-    ) ||
-    DEFAULT_Q
-
-  if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
-    // Special case to make svg serve as-is to avoid proxying
-    // through the built-in Image Optimization API.
-    return src
-  }
+  const q = findClosestQuality(quality, config)
 
   return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
     src
-  )}&w=${width}&q=${q}`
+  )}&w=${width}&q=${q}${
+    src.startsWith('/') && deploymentId ? `&dpl=${deploymentId}` : ''
+  }`
 }
 
 const loaders = new Map<
@@ -403,6 +430,29 @@ function generateImgAttrs({
   loader,
 }: GenImgAttrsData): GenImgAttrsResult {
   if (unoptimized) {
+    if (src.startsWith('/') && !src.startsWith('//')) {
+      let deploymentId = getDeploymentId()
+      if (src.includes('/_next/static/immutable') && !getAssetToken()) {
+        // immutable static asset and supported by platform, don't add `?dpl=`
+        deploymentId = undefined
+      } else if (deploymentId) {
+        // We unfortunately can't easily use `new URL()` here, because it normalizes the URL which causes
+        // double-encoding with the `encodeURIComponent(src)` below
+        const qIndex = src.indexOf('?')
+        if (qIndex !== -1) {
+          const params = new URLSearchParams(src.slice(qIndex + 1))
+          const srcDpl = params.get('dpl')
+          if (!srcDpl) {
+            // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+            params.append('dpl', deploymentId)
+            src = src.slice(0, qIndex) + '?' + params.toString()
+          }
+        } else {
+          // src is missing the dpl parameter, but we have a deploymentId, so add it to the src URL
+          src = src + `?dpl=${deploymentId}`
+        }
+      }
+    }
     return { src, srcSet: undefined, sizes: undefined }
   }
 
@@ -628,6 +678,9 @@ const ImageElement = ({
   )
 }
 
+/**
+ * @deprecated The `next/legacy/image` component is deprecated and will be removed in a future version of Next.js. Please use `next/image` instead.
+ */
 export default function Image({
   src,
   sizes,
@@ -654,7 +707,19 @@ export default function Image({
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
     const qualities = c.qualities?.sort((a, b) => a - b)
-    return { ...c, allSizes, deviceSizes, qualities }
+    return {
+      ...c,
+      allSizes,
+      deviceSizes,
+      qualities, // During the SSR, configEnv (__NEXT_IMAGE_OPTS) does not include
+      // security sensitive configs like `localPatterns`, which is needed
+      // during the server render to ensure it's validated. Therefore use
+      // configContext, which holds the config from the server for validation.
+      localPatterns:
+        typeof window === 'undefined'
+          ? configContext?.localPatterns
+          : c.localPatterns,
+    }
   }, [configContext])
 
   let rest: Partial<ImageProps> = all
@@ -708,6 +773,10 @@ export default function Image({
     }
   }
   src = typeof src === 'string' ? src : staticSrc
+
+  warnOnce(
+    `Image with src "${src}" is using next/legacy/image which is deprecated and will be removed in a future version of Next.js.`
+  )
 
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
@@ -856,6 +925,17 @@ export default function Image({
       if ('ref' in rest) {
         warnOnce(
           `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        )
+      }
+
+      if (
+        qualityInt &&
+        config.qualities &&
+        !config.qualities.includes(qualityInt)
+      ) {
+        warnOnce(
+          `Image with src "${src}" is using quality "${qualityInt}" which is not configured in images.qualities [${config.qualities.join(', ')}]. Please update your config to [${[...config.qualities, qualityInt].sort().join(', ')}].` +
+            `\nRead more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
         )
       }
 

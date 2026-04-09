@@ -3,7 +3,6 @@
  */
 const nextConfig = {
   experimental: {
-    devtoolNewPanelUI: true,
     authInterrupts: true,
   },
 }

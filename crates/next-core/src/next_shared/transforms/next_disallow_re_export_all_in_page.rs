@@ -19,8 +19,9 @@ pub fn get_next_disallow_export_all_in_page_rule(
     ModuleRule::new(
         module_rule_match_pages_page_file(enable_mdx_rs, pages_dir),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![transformer]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![transformer]),
         }],
     )
 }

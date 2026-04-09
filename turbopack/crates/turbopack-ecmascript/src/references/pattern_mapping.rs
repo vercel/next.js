@@ -1,7 +1,7 @@
 use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -10,7 +10,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
@@ -18,7 +18,7 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
     issue::{
-        IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
+        Issue, IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
         module::emit_unknown_module_type_error,
     },
     resolve::{
@@ -27,17 +27,19 @@ use turbopack_core::{
     },
 };
 
-use super::util::{request_to_string, throw_module_not_found_expr};
 use crate::{
-    references::util::throw_module_not_found_error_expr,
+    references::util::{
+        request_to_string, throw_module_not_found_error_expr, throw_module_not_found_expr,
+        throw_module_not_found_expr_async,
+    },
     runtime_functions::{
-        TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT,
-        TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
+        TURBOPACK_ASYNC_LOADER, TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE,
+        TURBOPACK_IMPORT, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
     },
     utils::module_id_to_lit,
 };
 
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
@@ -83,21 +85,11 @@ pub(crate) enum PatternMapping {
     /// ```js
     /// require(`./images/${name}.png`)
     /// ```
-    Map(FxIndexMap<String, SinglePatternMapping>),
+    Map(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, SinglePatternMapping>),
 }
 
 #[derive(
-    Copy,
-    Clone,
-    Debug,
-    Eq,
-    PartialEq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
+    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,
@@ -161,7 +153,7 @@ impl SinglePatternMapping {
                     ..Default::default()
                 })
             }
-            Self::Unresolvable(_) => self.create_id(key_expr),
+            Self::Unresolvable(request) => throw_module_not_found_expr_async(request),
             Self::External(_, ExternalType::EcmaScriptModule) => {
                 if import_externals {
                     Expr::Call(CallExpr {
@@ -208,9 +200,8 @@ impl SinglePatternMapping {
                 &format!("Unsupported external type {ty:?} for dynamic import reference"),
             ),
             Self::ModuleLoader(module_id) => {
-                quote!("($turbopack_require($id))($turbopack_import)" as Expr,
-                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
-                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                quote!("$turbopack_async_loader($id)" as Expr,
+                    turbopack_async_loader: Expr = TURBOPACK_ASYNC_LOADER.into(),
                     id: Expr = module_id_to_lit(module_id)
                 )
             }
@@ -333,8 +324,10 @@ async fn to_single_pattern_mapping(
                 "unknown module type".to_string(),
             ));
         }
-        ModuleResolveResultItem::Error(str) => {
-            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()));
+        ModuleResolveResultItem::Error(issue) => {
+            return Ok(SinglePatternMapping::Unresolvable(
+                issue.title().await?.to_unstyled_string(),
+            ));
         }
         ModuleResolveResultItem::OutputAsset(_)
         | ModuleResolveResultItem::Empty
@@ -342,9 +335,9 @@ async fn to_single_pattern_mapping(
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,
-                title: StyledString::Text(
-                    "pattern mapping is not implemented for this result".into(),
-                )
+                title: StyledString::Text(rcstr!(
+                    "pattern mapping is not implemented for this result"
+                ))
                 .resolved_cell(),
                 message: StyledString::Text(
                     format!(
@@ -354,7 +347,8 @@ async fn to_single_pattern_mapping(
                     .into(),
                 )
                 .resolved_cell(),
-                path: origin.origin_path().await?.clone_value(),
+                path: origin.origin_path().owned().await?,
+                source: None,
             }
             .resolved_cell()
             .emit();
@@ -364,23 +358,29 @@ async fn to_single_pattern_mapping(
     if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
-                let loader_id = chunking_context.async_loader_chunk_item_id(*chunkable);
-                return Ok(SinglePatternMapping::ModuleLoader(loader_id.owned().await?));
+                let ident = chunking_context.async_loader_chunk_item_ident(*chunkable);
+                let loader_id = chunking_context
+                    .chunk_item_id_strategy()
+                    .await?
+                    .get_id_from_ident(ident)
+                    .await?;
+                return Ok(SinglePatternMapping::ModuleLoader(loader_id));
             }
             ResolveType::ChunkItem => {
-                let item_id = chunkable.chunk_item_id(chunking_context);
-                return Ok(SinglePatternMapping::Module(item_id.owned().await?));
+                let item_id = chunkable.chunk_item_id(chunking_context).await?;
+                return Ok(SinglePatternMapping::Module(item_id));
             }
         }
     }
     CodeGenerationIssue {
         severity: IssueSeverity::Bug,
-        title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
-        message: StyledString::Text(
-            "asset is not placeable in ESM chunks, so it doesn't have a module id".into(),
-        )
+        title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
+        message: StyledString::Text(rcstr!(
+            "asset is not placeable in ESM chunks, so it doesn't have a module id"
+        ))
         .resolved_cell(),
-        path: origin.origin_path().await?.clone_value(),
+        path: origin.origin_path().owned().await?,
+        source: None,
     }
     .resolved_cell()
     .emit();

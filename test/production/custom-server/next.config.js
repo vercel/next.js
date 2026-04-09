@@ -4,9 +4,9 @@
 const nextConfig = {
   experimental: {
     useCache: true,
-    cacheHandlers: {
-      default: require.resolve('./cache-handler.js'),
-    },
+  },
+  cacheHandlers: {
+    default: require.resolve('./cache-handler.js'),
   },
 }
 

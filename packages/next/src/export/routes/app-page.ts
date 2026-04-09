@@ -12,7 +12,6 @@ import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
   NEXT_META_SUFFIX,
-  RSC_PREFETCH_SUFFIX,
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
@@ -24,12 +23,16 @@ import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-headers'
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import type { OpaqueFallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
 import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
+import {
+  UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
+  UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+} from '../../shared/lib/entry-constants'
 
 /**
  * Renders & exports a page associated with the /app directory
@@ -41,7 +44,7 @@ export async function exportAppPage(
   path: string,
   pathname: string,
   query: NextParsedUrlQuery,
-  fallbackRouteParams: FallbackRouteParams | null,
+  fallbackRouteParams: OpaqueFallbackRouteParams | null,
   partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
   htmlFilepath: string,
   debugOutput: boolean,
@@ -59,11 +62,16 @@ export async function exportAppPage(
   }
 
   let isDefaultNotFound = false
+  let isDefaultGlobalError = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
-  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
-  if (page === '/_not-found/page') {
+  if (page === UNDERSCORE_NOT_FOUND_ROUTE_ENTRY) {
     isDefaultNotFound = true
     pathname = '/404'
+  }
+  // If the page is `/_global-error`, then we should update the page to be `/500`.
+  if (page === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
+    isDefaultGlobalError = true
+    pathname = '/500'
   }
 
   try {
@@ -75,7 +83,6 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      false,
       sharedContext
     )
 
@@ -93,6 +100,7 @@ export async function exportAppPage(
       fetchTags,
       fetchMetrics,
       segmentData,
+      prefetchHints,
       renderResumeDataCache,
     } = metadata
 
@@ -123,29 +131,29 @@ export async function exportAppPage(
     // If page data isn't available, it means that the page couldn't be rendered
     // properly so long as we don't have unknown route params. When a route doesn't
     // have unknown route params, there will not be any flight data.
-    if (
-      !flightData &&
-      (!fallbackRouteParams || fallbackRouteParams.size === 0)
-    ) {
-      throw new Error(`Invariant: failed to get page data for ${path}`)
-    }
+    let hasStaticRsc = false
 
-    if (flightData) {
-      // If PPR is enabled, we want to emit a prefetch rsc file for the page
-      // instead of the standard rsc. This is because the standard rsc will
-      // contain the dynamic data. We do this if any routes have PPR enabled so
-      // that the cache read/write is the same.
-      if (renderOpts.experimental.isRoutePPREnabled) {
-        // If PPR is enabled, we should emit the flight data as the prefetch
-        // payload.
-        // TODO: This will eventually be replaced by the per-segment prefetch
-        // output below.
-        fileWriter.append(
-          htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
-          flightData
-        )
-      } else {
-        // Writing the RSC payload to a file if we don't have PPR enabled.
+    if (!flightData) {
+      if (
+        !fallbackRouteParams ||
+        fallbackRouteParams.size === 0 ||
+        renderOpts.cacheComponents
+      ) {
+        throw new Error(`Invariant: failed to get page data for ${path}`)
+      }
+    } else {
+      const hasFallbackParams =
+        fallbackRouteParams != null && fallbackRouteParams.size > 0
+      const shouldWriteRsc =
+        !renderOpts.experimental.isRoutePPREnabled ||
+        (!postponed && !hasFallbackParams)
+      hasStaticRsc = shouldWriteRsc
+
+      // With PPR enabled, we normally skip writing .rsc because it may contain
+      // dynamic data. However, for fully static outputs (no postponed state and
+      // no fallback params), we can safely emit the route .rsc to support
+      // static navigations.
+      if (shouldWriteRsc) {
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
           flightData
@@ -197,6 +205,9 @@ export async function exportAppPage(
     if (isDefaultNotFound) {
       // Override the default /_not-found page status code to 404
       status = 404
+    } else if (isDefaultGlobalError) {
+      // Override the default /_global-error page status code to 500
+      status = 500
     } else if (isNonSuccessfulStatusCode && !isParallelRoute) {
       // If it's parallel route the status from mock response is 404
       status = res.statusCode
@@ -208,6 +219,7 @@ export async function exportAppPage(
       headers,
       postponed,
       segmentPaths,
+      prefetchHints,
     }
 
     fileWriter.append(
@@ -216,14 +228,23 @@ export async function exportAppPage(
     )
 
     return {
-      // Only include the metadata if the environment has next support.
-      metadata: hasNextSupport ? meta : undefined,
+      // Filter the metadata if the environment does not have next support.
+      metadata: hasNextSupport
+        ? meta
+        : {
+            segmentPaths: meta.segmentPaths,
+            prefetchHints: meta.prefetchHints,
+          },
       hasEmptyStaticShell: Boolean(postponed) && html === '',
       hasPostponed: Boolean(postponed),
+      hasStaticRsc,
       cacheControl,
       fetchMetrics,
       renderResumeDataCache: renderResumeDataCache
-        ? await stringifyResumeDataCache(renderResumeDataCache)
+        ? await stringifyResumeDataCache(
+            renderResumeDataCache,
+            renderOpts.cacheComponents
+          )
         : undefined,
     }
   } catch (err) {

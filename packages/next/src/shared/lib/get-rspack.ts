@@ -3,38 +3,12 @@ import { warnOnce } from '../../build/output/log'
 export function getRspackCore() {
   warnRspack()
   try {
-    const paths = [require.resolve('next-rspack')]
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    return require(require.resolve('@rspack/core', { paths }))
+    // eslint-disable-next-line @next/internal/typechecked-require
+    return require('next-rspack/rspack-core')
   } catch (e) {
     if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
       throw new Error(
         '@rspack/core is not available. Please make sure `next-rspack` is correctly installed.'
-      )
-    }
-
-    throw e
-  }
-}
-
-export function getRspackReactRefresh() {
-  warnRspack()
-  try {
-    const paths = [require.resolve('next-rspack')]
-    // eslint-disable-next-line import/no-extraneous-dependencies
-    const plugin = require(
-      require.resolve('@rspack/plugin-react-refresh', { paths })
-    )
-    const entry = require.resolve(
-      '@rspack/plugin-react-refresh/react-refresh-entry',
-      { paths }
-    )
-    plugin.entry = entry
-    return plugin
-  } catch (e) {
-    if (e instanceof Error && 'code' in e && e.code === 'MODULE_NOT_FOUND') {
-      throw new Error(
-        '@rspack/plugin-react-refresh is not available. Please make sure `next-rspack` is correctly installed.'
       )
     }
 

@@ -5,18 +5,15 @@ import type {
   DynamicParamTypesShort,
   FlightRouterState,
   FlightSegmentPath,
-} from '../app-render/types'
+} from '../../shared/lib/app-router-types'
 import type { CompilerNameValues } from '../../shared/lib/constants'
 import type { RouteDefinition } from '../route-definitions/route-definition'
-import type HotReloaderWebpack from './hot-reloader-webpack'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
 import { findPageFile } from '../lib/find-page-file'
-import {
-  getStaticInfoIncludingLayouts,
-  runDependingOnPageType,
-} from '../../build/entries'
+import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
+import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -38,13 +35,19 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
 } from '../../shared/lib/constants'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+  type NextJsHotReloaderInterface,
+} from './hot-reloader-types'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { Batcher } from '../../lib/batcher'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
+import { handleErrorStateResponse } from '../mcp/tools/get-errors'
+import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -84,12 +87,18 @@ function convertDynamicParamTypeToSyntax(
 ) {
   switch (dynamicParamTypeShort) {
     case 'c':
-    case 'ci':
+    case 'ci(..)(..)':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)':
       return `[...${param}]`
     case 'oc':
       return `[[...${param}]]`
     case 'd':
-    case 'di':
+    case 'di(..)(..)':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)':
       return `[${param}]`
     default:
       throw new Error('Unknown dynamic param type')
@@ -190,7 +199,6 @@ interface EntryType {
 }
 
 // Shadowing check in ESLint does not account for enum
-// eslint-disable-next-line no-shadow
 export const enum EntryTypes {
   ENTRY,
   CHILD_ENTRY,
@@ -540,7 +548,7 @@ export function onDemandEntryHandler({
   rootDir,
   appDir,
 }: {
-  hotReloader: HotReloaderWebpack
+  hotReloader: NextJsHotReloaderInterface
   maxInactiveAge: number
   multiCompiler: webpack.MultiCompiler
   nextConfig: NextConfigComplete
@@ -560,9 +568,83 @@ export function onDemandEntryHandler({
     invalidators.set(multiCompiler.outputPath, curInvalidator)
   }
 
+  // Deferred entries state management
+  const deferredEntriesConfig = nextConfig.experimental.deferredEntries
+  const hasDeferredEntriesConfig =
+    deferredEntriesConfig && deferredEntriesConfig.length > 0
+  let onBeforeDeferredEntriesCalled = false
+  let onBeforeDeferredEntriesPromise: Promise<void> | null = null
+
+  // Function to wait for all non-deferred entries to be built
+  async function waitForNonDeferredEntries(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const checkEntries = () => {
+        // Check if there are any non-deferred entries that are still building or added
+        const hasNonDeferredEntriesBuilding = Object.entries(curEntries).some(
+          ([, entry]) => {
+            const entryData = entry as Entry | ChildEntry
+            if (entryData.type !== EntryTypes.ENTRY) return false
+
+            const isDeferred = isDeferredEntry(
+              (entryData as Entry).absolutePagePath
+                .replace(appDir || '', '')
+                .replace(pagesDir || '', '')
+                .replace(rootDir, ''),
+              deferredEntriesConfig
+            )
+
+            return (
+              !isDeferred &&
+              (entryData.status === ADDED || entryData.status === BUILDING)
+            )
+          }
+        )
+
+        if (!hasNonDeferredEntriesBuilding) {
+          resolve()
+        } else {
+          // Check again after a short delay
+          setTimeout(checkEntries, 100)
+        }
+      }
+
+      checkEntries()
+    })
+  }
+
+  // Function to handle deferred entry processing
+  async function processDeferredEntry(): Promise<void> {
+    if (!hasDeferredEntriesConfig) return
+
+    // Wait for all non-deferred entries to be built
+    await waitForNonDeferredEntries()
+
+    // Call the onBeforeDeferredEntries callback once
+    if (!onBeforeDeferredEntriesCalled) {
+      onBeforeDeferredEntriesCalled = true
+
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        debug('calling onBeforeDeferredEntries callback')
+        if (!onBeforeDeferredEntriesPromise) {
+          onBeforeDeferredEntriesPromise =
+            nextConfig.experimental.onBeforeDeferredEntries()
+        }
+        await onBeforeDeferredEntriesPromise
+        debug('onBeforeDeferredEntries callback completed')
+      }
+    } else if (onBeforeDeferredEntriesPromise) {
+      // Wait for any in-progress callback
+      await onBeforeDeferredEntriesPromise
+    }
+  }
+
   const startBuilding = (compilation: webpack.Compilation) => {
     const compilationName = compilation.name as any as CompilerNameValues
     curInvalidator.startBuilding(compilationName)
+    // Reset deferred entries state for this compilation cycle
+    // This ensures onBeforeDeferredEntries will be called again during HMR
+    onBeforeDeferredEntriesCalled = false
+    onBeforeDeferredEntriesPromise = null
   }
   for (const compiler of multiCompiler.compilers) {
     compiler.hooks.make.tap('NextJsOnDemandEntries', startBuilding)
@@ -635,6 +717,17 @@ export function onDemandEntryHandler({
     }
 
     getInvalidator(multiCompiler.outputPath)?.doneBuilding([...COMPILER_KEYS])
+
+    // Call onBeforeDeferredEntries after compilation completes during HMR
+    // This ensures the callback is invoked even when non-deferred entries change
+    if (hasDeferredEntriesConfig && !onBeforeDeferredEntriesCalled) {
+      onBeforeDeferredEntriesCalled = true
+      if (nextConfig.experimental.onBeforeDeferredEntries) {
+        debug('calling onBeforeDeferredEntries callback after HMR')
+        onBeforeDeferredEntriesPromise =
+          nextConfig.experimental.onBeforeDeferredEntries()
+      }
+    }
   })
 
   const pingIntervalTime = Math.max(1000, Math.min(5000, maxInactiveAge))
@@ -754,6 +847,16 @@ export function onDemandEntryHandler({
 
       const isInsideAppDir = !!appDir && route.filename.startsWith(appDir)
 
+      // Check if this is a deferred entry and wait for non-deferred entries first
+      if (hasDeferredEntriesConfig) {
+        const isDeferred = isDeferredEntry(route.page, deferredEntriesConfig)
+        if (isDeferred) {
+          debug(`Page ${page} is a deferred entry, waiting for other entries`)
+          await processDeferredEntry()
+          debug(`Deferred entry ${page} can now be processed`)
+        }
+      }
+
       if (typeof isApp === 'boolean' && isApp !== isInsideAppDir) {
         Error.stackTraceLimit = 15
         throw new Error(
@@ -829,10 +932,6 @@ export function onDemandEntryHandler({
 
       let pageRuntime = staticInfo.runtime
 
-      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
-        pageRuntime = 'edge'
-      }
-
       runDependingOnPageType({
         page: route.page,
         pageRuntime,
@@ -887,7 +986,11 @@ export function onDemandEntryHandler({
 
       if (hasNewEntry) {
         const routePage = isApp ? route.page : normalizeAppPath(route.page)
-        reportTrigger(routePage, url)
+        // If proxy file, remove the leading slash from "/proxy" to "proxy".
+        reportTrigger(
+          isMiddlewareFile(routePage) ? routePage.slice(1) : routePage,
+          url
+        )
       }
 
       if (entriesThatShouldBeInvalidated.length > 0) {
@@ -988,7 +1091,7 @@ export function onDemandEntryHandler({
           // New error occurred: buffered error is flushed and new error occurred
           if (!bufferedHmrServerError && error) {
             hotReloader.send({
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR,
+              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR,
               errorJSON: stringifyError(error),
             })
             bufferedHmrServerError = null
@@ -998,12 +1101,30 @@ export function onDemandEntryHandler({
             typeof data !== 'string' ? data.toString() : data
           )
 
-          if (parsedData.event === 'ping') {
+          if (parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.PING) {
             if (parsedData.appDirRoute) {
               handleAppDirPing(parsedData.tree)
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
+          ) {
+            handleErrorStateResponse(
+              parsedData.requestId,
+              parsedData.errorState,
+              parsedData.url
+            )
+          } else if (
+            parsedData.event ===
+            HMR_MESSAGE_SENT_TO_SERVER.MCP_PAGE_METADATA_RESPONSE
+          ) {
+            handlePageMetadataResponse(
+              parsedData.requestId,
+              parsedData.segmentTrieData,
+              parsedData.url
+            )
           }
         } catch {}
       })

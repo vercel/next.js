@@ -6,12 +6,20 @@ const logger = require('./util/logger')
 const runConfigs = require('./run')
 const addComment = require('./add-comment')
 const actionInfo = require('./prepare/action-info')()
-const { mainRepoDir, diffRepoDir } = require('./constants')
+const { mainRepoDir, diffRepoDir, pnpmStoreDir } = require('./constants')
 const loadStatsConfig = require('./prepare/load-stats-config')
 const { cloneRepo, mergeBranch, getCommitId, linkPackages, getLastStable } =
   require('./prepare/repo-setup')(actionInfo)
 
 const allowedActions = new Set(['synchronize', 'opened'])
+
+// Get bundler filter from action input (set by GitHub Actions as INPUT_BUNDLER)
+const bundlerInput = (process.env.INPUT_BUNDLER || 'both').toLowerCase()
+const isShardedRun = bundlerInput !== 'both'
+
+if (isShardedRun) {
+  logger(`Running in sharded mode for bundler: ${bundlerInput}`)
+}
 
 if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
   logger(
@@ -102,21 +110,51 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       logger(`Running initial build for ${dir}`)
       if (!actionInfo.skipClone) {
         const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
+        if (usePnpm) {
+          // TODO: we can remove this explicit `corepack use` once Next.js
+          // 16.3 is released, but we must override it for now because 16.2 uses
+          // pnpm 9.6.0, which supports different arguments. `diffRepoDir`
+          // points to the most recent stable tag.
+          //
+          // First, remove `engines.pnpm`. `corepack use` will update
+          // `packageManager`, but not `engines`. `pnpm install` can then fail
+          // because it checks `engines.pnpm`.
+          const packageJson = path.join(dir, 'package.json')
+          const packageJsonContents = JSON.parse(
+            await fs.readFile(packageJson, { encoding: 'utf8' })
+          )
+          if (packageJsonContents.engines != null) {
+            delete packageJsonContents.engines.pnpm
+          }
+          await fs.writeFile(
+            packageJson,
+            JSON.stringify(packageJsonContents, null, '  ')
+          )
+          await exec.spawnPromise('corepack use pnpm@10.33.0', {
+            cwd: dir,
+          })
+        }
 
         if (!statsConfig.skipInitialInstall) {
-          await exec.spawnPromise(
-            `cd ${dir}${
-              usePnpm
-                ? // --no-frozen-lockfile is used here to tolerate lockfile
-                  // changes from merging latest changes
-                  ` && pnpm install --no-frozen-lockfile`
-                : ' && yarn install --network-timeout 1000000'
-            }`
-          )
+          const command = usePnpm
+            ? 'pnpm install ' +
+              // tolerate lockfile changes from merging latest changes
+              '--no-frozen-lockfile ' +
+              // avoid hardlink issues on self-hosted runners,
+              '--package-import-method=clone-or-copy ' +
+              // the store is colocated with the workdir to avoid EXDEV copy
+              // failures on overlayfs runners.
+              `--store-dir=${pnpmStoreDir}`
+            : 'yarn install --network-timeout=1000000'
+          await exec.spawnPromise(command, {
+            env: { PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1' },
+            cwd: dir,
+          })
 
           await exec.spawnPromise(
             statsConfig.initialBuildCommand ||
-              `cd ${dir} && ${usePnpm ? 'pnpm build' : 'echo built'}`
+              (usePnpm ? 'pnpm build' : 'echo built'),
+            { cwd: dir }
           )
         }
       }
@@ -140,14 +178,37 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       else diffRepoPkgPaths = pkgPaths
     }
 
-    // run the configs and post the comment
+    // run the configs and collect results
     const results = await runConfigs(statsConfig.configs, {
       statsConfig,
       mainRepoPkgPaths,
       diffRepoPkgPaths,
       relativeStatsAppDir,
+      bundlerFilter: isShardedRun ? bundlerInput : null,
     })
-    await addComment(results, actionInfo, statsConfig)
+
+    if (isShardedRun) {
+      // In sharded mode, save results to JSON for later aggregation
+      const resultsPath = path.join(
+        process.env.GITHUB_WORKSPACE || process.cwd(),
+        `pr-stats-${bundlerInput}.json`
+      )
+      // Exclude sensitive fields (githubToken) before serializing to JSON
+      const { githubToken, ...safeActionInfo } = actionInfo
+      await fs.writeFile(
+        resultsPath,
+        JSON.stringify(
+          { results, actionInfo: safeActionInfo, statsConfig },
+          null,
+          2
+        )
+      )
+      logger(`Saved results to ${resultsPath}`)
+    } else {
+      // In non-sharded mode, post comment directly
+      await addComment(results, actionInfo, statsConfig)
+    }
+
     logger('finished')
     process.exit(0)
   } catch (err) {

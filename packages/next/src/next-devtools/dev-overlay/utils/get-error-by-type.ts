@@ -1,55 +1,61 @@
 import type { SupportedErrorEvent } from '../container/runtime-error/render-error'
 import { getOriginalStackFrames } from '../../shared/stack-frame'
 import type { OriginalStackFrame } from '../../shared/stack-frame'
-import type { ComponentStackFrame } from './parse-component-stack'
 import { getErrorSource } from '../../../shared/lib/error-source'
+import { parseStack } from '../../../server/lib/parse-stack'
 import React from 'react'
 
-export type ReadyRuntimeError = {
-  id: number
-  runtime: true
-  error: Error & { environmentName?: string }
-  frames: OriginalStackFrame[] | (() => Promise<OriginalStackFrame[]>)
-  componentStackFrames?: ComponentStackFrame[]
-  type: 'runtime' | 'console' | 'recoverable'
-}
-
-export const useFrames = (error: ReadyRuntimeError): OriginalStackFrame[] => {
-  if ('use' in React) {
-    const frames = error.frames
-
-    if (typeof frames !== 'function') {
-      throw new Error(
-        'Invariant: frames must be a function when the React version has React.use. This is a bug in Next.js.'
-      )
+export type ReadyErrorCause =
+  | {
+      error: Error
+      frames: () => Promise<readonly OriginalStackFrame[]>
+      cause?: ReadyErrorCause
+    }
+  | {
+      error: AggregateError
+      frames: () => Promise<readonly OriginalStackFrame[]>
+      cause?: ReadyErrorCause
+      aggregateErrors: ReadyErrorCause[] | null
     }
 
-    return React.use((frames as () => Promise<OriginalStackFrame[]>)())
-  } else {
-    if (!Array.isArray(error.frames)) {
-      throw new Error(
-        'Invariant: frames must be an array when the React version does not have React.use. This is a bug in Next.js.'
-      )
+export type ReadyRuntimeError =
+  | {
+      id: number
+      runtime: true
+      error: Error & { environmentName?: string }
+      frames: () => Promise<readonly OriginalStackFrame[]>
+      type: 'runtime' | 'console' | 'recoverable'
+      cause?: ReadyErrorCause
+    }
+  | {
+      id: number
+      runtime: true
+      error: AggregateError & { environmentName?: string }
+      frames: () => Promise<readonly OriginalStackFrame[]>
+      type: 'runtime' | 'console' | 'recoverable'
+      cause?: ReadyErrorCause
+      aggregateErrors: ReadyErrorCause[] | null
     }
 
-    return error.frames
-  }
+export const useFrames = (
+  error: ReadyRuntimeError | null
+): readonly OriginalStackFrame[] => {
+  if (!error) return []
+
+  const frames = error.frames
+  return React.use(frames())
 }
 
-export async function getErrorByType(
+export function getErrorByType(
   event: SupportedErrorEvent,
   isAppDir: boolean
-): Promise<ReadyRuntimeError> {
-  const baseError = {
-    id: event.id,
-    runtime: true,
-    error: event.error,
-    type: event.type,
-  } as const
-
-  if ('use' in React) {
+): ReadyRuntimeError {
+  if (event.error instanceof AggregateError) {
     const readyRuntimeError: ReadyRuntimeError = {
-      ...baseError,
+      id: event.id,
+      runtime: true,
+      error: event.error,
+      type: event.type,
       // createMemoizedPromise dedups calls to getOriginalStackFrames
       frames: createMemoizedPromise(async () => {
         return await getOriginalStackFrames(
@@ -58,26 +64,119 @@ export async function getErrorByType(
           isAppDir
         )
       }),
-    }
-    if (event.componentStackFrames !== undefined) {
-      readyRuntimeError.componentStackFrames = event.componentStackFrames
+      cause: getCauseChain(event.error, isAppDir),
+      aggregateErrors: getAggregateErrors(event.error, isAppDir),
     }
     return readyRuntimeError
   } else {
     const readyRuntimeError: ReadyRuntimeError = {
-      ...baseError,
+      id: event.id,
+      runtime: true,
+      error: event.error,
+      type: event.type,
       // createMemoizedPromise dedups calls to getOriginalStackFrames
-      frames: await getOriginalStackFrames(
-        event.frames,
-        getErrorSource(event.error),
-        isAppDir
-      ),
-    }
-    if (event.componentStackFrames !== undefined) {
-      readyRuntimeError.componentStackFrames = event.componentStackFrames
+      frames: createMemoizedPromise(async () => {
+        return await getOriginalStackFrames(
+          event.frames,
+          getErrorSource(event.error),
+          isAppDir
+        )
+      }),
+      cause: getCauseChain(event.error, isAppDir),
     }
     return readyRuntimeError
   }
+}
+
+function getCauseChain(
+  error: Error,
+  isAppDir: boolean,
+  depth: number = 0
+): ReadyErrorCause | undefined {
+  if (depth >= 5) return undefined
+  const cause = error.cause
+  if (!(cause instanceof Error)) return undefined
+
+  const frames = parseStack(cause.stack || '')
+  if (cause instanceof AggregateError) {
+    return {
+      error: cause,
+      frames: createMemoizedPromise(async () => {
+        return await getOriginalStackFrames(
+          frames,
+          getErrorSource(cause),
+          isAppDir
+        )
+      }),
+      cause: getCauseChain(cause, isAppDir, depth + 1),
+      aggregateErrors: getAggregateErrors(cause, isAppDir, depth + 1),
+    }
+  } else {
+    return {
+      error: cause,
+      frames: createMemoizedPromise(async () => {
+        return await getOriginalStackFrames(
+          frames,
+          getErrorSource(cause),
+          isAppDir
+        )
+      }),
+      cause: getCauseChain(cause, isAppDir, depth + 1),
+    }
+  }
+}
+
+function getAggregateErrors(
+  error: AggregateError,
+  isAppDir: boolean,
+  depth: number = 0
+): ReadyErrorCause[] | null {
+  if (depth >= 5) {
+    return null
+  }
+  if (error.errors.length === 0) {
+    return null
+  }
+
+  const maxErrors = 5
+  const readyErrors: ReadyErrorCause[] = []
+  for (let i = 0; i < error.errors.length; i++) {
+    const childError = error.errors[i]
+    if (childError instanceof AggregateError) {
+      const frames = parseStack(childError.stack || '')
+      readyErrors.push({
+        error: childError,
+        frames: createMemoizedPromise(async () => {
+          return await getOriginalStackFrames(
+            frames,
+            getErrorSource(childError),
+            isAppDir
+          )
+        }),
+        cause: getCauseChain(childError, isAppDir, depth + 1),
+        aggregateErrors: getAggregateErrors(childError, isAppDir, depth + 1),
+      })
+    } else if (childError instanceof Error) {
+      const frames = parseStack(childError.stack || '')
+      readyErrors.push({
+        error: childError,
+        frames: createMemoizedPromise(async () => {
+          return await getOriginalStackFrames(
+            frames,
+            getErrorSource(childError),
+            isAppDir
+          )
+        }),
+        cause: getCauseChain(childError, isAppDir, depth + 1),
+      })
+    }
+
+    if (readyErrors.length >= maxErrors) {
+      break
+    }
+  }
+
+  return readyErrors
 }
 
 function createMemoizedPromise<T>(

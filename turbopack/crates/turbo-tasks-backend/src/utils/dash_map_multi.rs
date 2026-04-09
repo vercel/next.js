@@ -21,6 +21,14 @@ pub enum RefMut<'a, K, V> {
     },
 }
 
+// SAFETY: `RefMut` contains a raw `Bucket` pointer into a `DashMap` shard's `RawTable`.
+// Sending/sharing is safe because:
+// - `Simple` variant: The `Bucket` is accessed under an exclusive `RwLockWriteGuard` on a single
+//   shard. The guard provides exclusive access to all data in that shard.
+// - `Shared` variant: The `Bucket` is accessed under an `Arc<RwLockWriteGuard>`. The
+//   `get_multiple_mut` function asserts that bucket pointers do not alias, so each `RefMut` has
+//   exclusive access to its bucket even when sharing a guard.
+// - `K: Sync + V: Sync` bounds ensure the key and value types are safe to share across threads.
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Send for RefMut<'_, K, V> {}
 unsafe impl<K: Eq + Hash + Sync, V: Sync> Sync for RefMut<'_, K, V> {}
 
@@ -43,7 +51,7 @@ impl<K: Eq + Hash, V> RefMut<'_, K, V> {
             RefMut::Simple { bucket, .. } | RefMut::Shared { bucket, .. } => {
                 // SAFETY:
                 // - The bucket is still valid, as we're holding a write guard on the shard
-                // - These bucket pointers are convertable to references
+                // - These bucket pointers are convertible to references
                 //
                 // https://doc.rust-lang.org/std/ptr/index.html#pointer-to-reference-conversion
                 let entry = unsafe { bucket.as_ref() };
@@ -216,7 +224,7 @@ mod tests {
         const THREADS: usize = 20;
 
         let map = FxDashMap::with_hasher_and_shard_amount(Default::default(), 4);
-        let indicies = (0..THREADS)
+        let indices = (0..THREADS)
             .map(|_| {
                 let mut vec = (0..N).collect::<Vec<_>>();
                 vec.shuffle(&mut rand::rng());
@@ -225,9 +233,9 @@ mod tests {
             .collect::<Vec<_>>();
         let map = &map;
         scope(|s| {
-            for indicies in indicies {
+            for indices in indices {
                 s.spawn(|| {
-                    for i in indicies {
+                    for i in indices {
                         let (mut a, mut b) = get_multiple_mut(map, i, i + 1, || 0);
                         *a += 1;
                         *b += 1;

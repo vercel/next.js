@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, forwardRef } from 'react'
+import { forwardRef, useEffect, useState } from 'react'
 
 export const Resizer = forwardRef(function Resizer(
   {
@@ -11,8 +11,8 @@ export const Resizer = forwardRef(function Resizer(
   } & React.HTMLProps<HTMLDivElement>,
   resizerRef: React.Ref<HTMLDivElement | null>
 ) {
-  const ref = useRef<HTMLDivElement | null>(null)
-  const [height, measuring] = useMeasureHeight(ref, measure)
+  const [element, setElement] = useState<HTMLDivElement | null>(null)
+  const [height, measuring] = useMeasureHeight(element, measure)
 
   return (
     <div
@@ -26,13 +26,13 @@ export const Resizer = forwardRef(function Resizer(
         transition: 'height 250ms var(--timing-swift)',
       }}
     >
-      <div ref={ref}>{children}</div>
+      <div ref={setElement}>{children}</div>
     </div>
   )
 })
 
 function useMeasureHeight(
-  ref: React.RefObject<HTMLDivElement | null>,
+  element: HTMLDivElement | null,
   measure: boolean
 ): [number, boolean] {
   const [height, setHeight] = useState<number>(0)
@@ -44,9 +44,8 @@ function useMeasureHeight(
     }
 
     let timerId: number
-    const el = ref.current
 
-    if (!el) {
+    if (!element) {
       return
     }
 
@@ -60,10 +59,9 @@ function useMeasureHeight(
       setHeight(contentRect.height)
     })
 
-    observer.observe(el)
+    observer.observe(element)
     return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [measure])
+  }, [measure, element])
 
   return [height, measuring]
 }

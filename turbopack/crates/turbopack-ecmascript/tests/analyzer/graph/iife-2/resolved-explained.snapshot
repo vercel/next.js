@@ -16,7 +16,7 @@ key = (???*0* | undefined)
   ⚠️  This value might have side effects
 - *3* Object: The global Object variable
 - *4* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 keys = ???*0*
 - *0* ???*1*(???*3*)
@@ -27,18 +27,18 @@ keys = ???*0*
   ⚠️  This value might have side effects
 - *2* Object: The global Object variable
 - *3* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 namespace = ???*0*
 - *0* arguments[0]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 parent = ???*0*
 - *0* arguments[2]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 path = ???*0*
 - *0* arguments[1]
-  ⚠️  function calls are not analysed yet
+  ⚠️  function calls are not analyzed yet
 
 root = {}

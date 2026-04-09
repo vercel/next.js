@@ -1,111 +1,53 @@
-use std::{
-    any::{Any, TypeId},
-    fmt::Display,
-    hash::{Hash, Hasher},
-    mem::replace,
-    sync::{Arc, Weak},
+use std::{fmt::Display, mem::replace, sync::Arc};
+
+use bincode::{Decode, Encode};
+use indexmap::map::Entry;
+use turbo_dyn_eq_hash::{
+    DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
 };
 
-use anyhow::Result;
-use indexmap::map::Entry;
-use serde::{Deserialize, Serialize, de::Visitor};
-use tokio::{runtime::Handle, task_local};
-
 use crate::{
-    FxIndexMap, FxIndexSet, TaskId, TurboTasksApi,
-    magic_any::HasherMut,
-    manager::{current_task, with_turbo_tasks},
+    FxIndexMap, FxIndexSet, NonLocalValue, OperationValue, TaskId, TurboTasksApi,
+    manager::{current_task_if_available, mark_invalidator},
     trace::TraceRawVcs,
     util::StaticOrArc,
 };
 
-task_local! {
-    static DISALLOW_INVALIDATOR: ();
-}
-
-pub fn disallow_invalidator<R>(f: impl Future<Output = R>) -> impl Future<Output = R> {
-    DISALLOW_INVALIDATOR.scope((), f)
-}
-
 /// Get an [`Invalidator`] that can be used to invalidate the current task
 /// based on external events.
-pub fn get_invalidator() -> Invalidator {
-    if DISALLOW_INVALIDATOR.try_with(|_| {}).is_ok() {
-        panic!(
-            "Invalidator can only be used in the turbo-tasks function that has \
-             #[turbo_tasks::function(invalidator)] attribute"
-        );
-    }
-
-    let handle = Handle::current();
-    Invalidator {
-        task: current_task("turbo_tasks::get_invalidator()"),
-        turbo_tasks: with_turbo_tasks(Arc::downgrade),
-        handle,
+/// Returns `None` if called outside of a task context.
+pub fn get_invalidator() -> Option<Invalidator> {
+    if let Some(task) = current_task_if_available("turbo_tasks::get_invalidator()") {
+        mark_invalidator();
+        Some(Invalidator { task })
+    } else {
+        None
     }
 }
 
+/// A lightweight handle to invalidate a task. Only stores the task ID.
+/// The caller must provide the `TurboTasksApi` when calling invalidation methods.
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Encode, Decode)]
 pub struct Invalidator {
     task: TaskId,
-    turbo_tasks: Weak<dyn TurboTasksApi>,
-    handle: Handle,
 }
 
 impl Invalidator {
-    pub fn invalidate(self) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _guard = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate(task);
-        }
+    pub fn invalidate(self, turbo_tasks: &dyn TurboTasksApi) {
+        turbo_tasks.invalidate(self.task);
     }
 
-    pub fn invalidate_with_reason<T: InvalidationReason>(self, reason: T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _guard = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate_with_reason(
-                task,
-                (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
-            );
-        }
-    }
-
-    pub fn invalidate_with_static_reason<T: InvalidationReason>(self, reason: &'static T) {
-        let Invalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _guard = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks
-                .invalidate_with_reason(task, (reason as &'static dyn InvalidationReason).into());
-        }
+    pub fn invalidate_with_reason<T: InvalidationReason>(
+        self,
+        turbo_tasks: &dyn TurboTasksApi,
+        reason: T,
+    ) {
+        turbo_tasks.invalidate_with_reason(
+            self.task,
+            (Arc::new(reason) as Arc<dyn InvalidationReason>).into(),
+        );
     }
 }
-
-impl Hash for Invalidator {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.task.hash(state);
-    }
-}
-
-impl PartialEq for Invalidator {
-    fn eq(&self, other: &Self) -> bool {
-        self.task == other.task
-    }
-}
-
-impl Eq for Invalidator {}
 
 impl TraceRawVcs for Invalidator {
     fn trace_raw_vcs(&self, _context: &mut crate::trace::TraceRawVcsContext) {
@@ -113,72 +55,14 @@ impl TraceRawVcs for Invalidator {
     }
 }
 
-impl Serialize for Invalidator {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("Invalidator", &self.task)
-    }
-}
-
-impl<'de> Deserialize<'de> for Invalidator {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = Invalidator;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an Invalidator")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(Invalidator {
-                    task: TaskId::deserialize(deserializer)?,
-                    turbo_tasks: with_turbo_tasks(Arc::downgrade),
-                    handle: tokio::runtime::Handle::current(),
-                })
-            }
-        }
-        deserializer.deserialize_newtype_struct("Invalidator", V)
-    }
-}
-
-pub trait DynamicEqHash {
-    fn as_any(&self) -> &dyn Any;
-    fn dyn_eq(&self, other: &dyn Any) -> bool;
-    fn dyn_hash(&self, state: &mut dyn Hasher);
-}
-
-impl<T: Any + PartialEq + Eq + Hash> DynamicEqHash for T {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn dyn_eq(&self, other: &dyn Any) -> bool {
-        other
-            .downcast_ref::<Self>()
-            .map(|other| self.eq(other))
-            .unwrap_or(false)
-    }
-
-    fn dyn_hash(&self, state: &mut dyn Hasher) {
-        Hash::hash(&(TypeId::of::<Self>(), self), &mut HasherMut(state));
-    }
-}
+unsafe impl NonLocalValue for Invalidator {}
+unsafe impl OperationValue for Invalidator {}
 
 /// A user-facing reason why a task was invalidated. This should only be used
 /// for invalidation that were triggered by the user.
 ///
 /// Reasons are deduplicated, so this need to implement [Eq] and [Hash]
-pub trait InvalidationReason: DynamicEqHash + Display + Send + Sync + 'static {
+pub trait InvalidationReason: DynEq + DynHash + Display + Send + Sync + 'static {
     fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
         None
     }
@@ -189,7 +73,7 @@ pub trait InvalidationReason: DynamicEqHash + Display + Send + Sync + 'static {
 ///
 /// Reason kinds are used a hash map key, so this need to implement [Eq] and
 /// [Hash]
-pub trait InvalidationReasonKind: DynamicEqHash + Send + Sync + 'static {
+pub trait InvalidationReasonKind: DynEq + DynHash + Send + Sync + 'static {
     /// Displays a description of multiple invalidation reasons of the same
     /// kind. It is only called with two or more reasons.
     fn fmt(
@@ -199,27 +83,13 @@ pub trait InvalidationReasonKind: DynamicEqHash + Send + Sync + 'static {
     ) -> std::fmt::Result;
 }
 
-macro_rules! impl_eq_hash {
-    ($ty:ty) => {
-        impl PartialEq for $ty {
-            fn eq(&self, other: &Self) -> bool {
-                DynamicEqHash::dyn_eq(self, other.as_any())
-            }
-        }
+impl_partial_eq_for_dyn!(dyn InvalidationReason);
+impl_eq_for_dyn!(dyn InvalidationReason);
+impl_hash_for_dyn!(dyn InvalidationReason);
 
-        impl Eq for $ty {}
-
-        impl Hash for $ty {
-            fn hash<H: Hasher>(&self, state: &mut H) {
-                self.as_any().type_id().hash(state);
-                DynamicEqHash::dyn_hash(self, state as &mut dyn Hasher)
-            }
-        }
-    };
-}
-
-impl_eq_hash!(dyn InvalidationReason);
-impl_eq_hash!(dyn InvalidationReasonKind);
+impl_partial_eq_for_dyn!(dyn InvalidationReasonKind);
+impl_eq_for_dyn!(dyn InvalidationReasonKind);
+impl_hash_for_dyn!(dyn InvalidationReasonKind);
 
 #[derive(PartialEq, Eq, Hash)]
 enum MapKey {

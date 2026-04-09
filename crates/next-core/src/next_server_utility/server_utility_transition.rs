@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::{ModuleAssetContext, transition::Transition};
 use turbopack_core::module::Module;
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
@@ -32,12 +32,12 @@ impl Transition for NextServerUtilityTransition {
         module: Vc<Box<dyn Module>>,
         _context: Vc<ModuleAssetContext>,
     ) -> Result<Vc<Box<dyn Module>>> {
-        let Some(module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
-        else {
+        let Some(module) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(
+            module.to_resolved().await?,
+        ) else {
             bail!("not an ecmascript module");
         };
 
-        Ok(Vc::upcast(NextServerUtilityModule::new(module)))
+        Ok(Vc::upcast(NextServerUtilityModule::new(*module)))
     }
 }

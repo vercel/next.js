@@ -2,6 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import path from 'path'
 
+function extractSourceMappingURL(jsContent) {
+  // Matches both //# and //@ sourceMappingURL=...
+  const match = jsContent.match(/\/\/[#@] sourceMappingURL=([^\s]+)/)
+  expect(match).toBeDefined()
+  return match ? match[1] : null
+}
+
 describe('Middleware source maps', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -18,7 +25,12 @@ describe('Middleware source maps', () => {
       for (const file of middleware.files) {
         const filePath = path.join(next.testDir, '.next', file)
         expect(await fs.pathExists(filePath)).toEqual(true)
-        expect(await fs.pathExists(`${filePath}.map`)).toEqual(true)
+        let sourcemap = decodeURI(
+          extractSourceMappingURL(await fs.readFile(filePath, 'utf8'))
+        )
+        expect(
+          await fs.pathExists(path.join(path.dirname(filePath), sourcemap))
+        ).toEqual(true)
       }
     }
   })
@@ -39,7 +51,12 @@ describe('Middleware source maps', () => {
           filePath.endsWith('.js') &&
           !filePath.endsWith('/react-loadable-manifest.js')
         ) {
-          expect(await fs.pathExists(`${filePath}.map`)).toEqual(true)
+          let sourcemap = decodeURI(
+            extractSourceMappingURL(await fs.readFile(filePath, 'utf8'))
+          )
+          expect(
+            await fs.pathExists(path.join(path.dirname(filePath), sourcemap))
+          ).toEqual(true)
         }
       }
     }

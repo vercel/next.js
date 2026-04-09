@@ -28,8 +28,8 @@ _describe('app dir - form prefetching', () => {
       requestFilter: async (request) => {
         // only capture RSC requests that *aren't* prefetches
         const headers = await request.allHeaders()
-        const isRSC = headers[RSC_HEADER.toLowerCase()] === '1'
-        const isPrefetch = !!headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()]
+        const isRSC = headers[RSC_HEADER] === '1'
+        const isPrefetch = !!headers[NEXT_ROUTER_PREFETCH_HEADER]
         return isRSC && !isPrefetch
       },
       log: true,
@@ -74,7 +74,7 @@ _describe('app dir - form prefetching', () => {
       requestFilter: async (request) => {
         // capture all RSC requests, prefetch or not
         const headers = await request.allHeaders()
-        const isRSC = headers[RSC_HEADER.toLowerCase()] === '1'
+        const isRSC = headers[RSC_HEADER] === '1'
         return isRSC
       },
       log: true,

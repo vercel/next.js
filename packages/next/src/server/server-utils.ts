@@ -2,8 +2,8 @@ import type { Rewrite } from '../lib/load-custom-routes'
 import type { RouteMatchFn } from '../shared/lib/router/utils/route-matcher'
 import type { NextConfig } from './config'
 import type { BaseNextRequest } from './base-http'
+import type { NextUrlWithParsedQuery } from './request-meta'
 import type { ParsedUrlQuery } from 'querystring'
-import type { UrlWithParsedQuery } from 'url'
 
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import { getPathMatch } from '../shared/lib/router/utils/path-match'
@@ -27,15 +27,10 @@ import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { parseAndValidateFlightRouterState } from './app-render/parse-and-validate-flight-router-state'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
-import { NEXT_ROUTER_STATE_TREE_HEADER } from '../client/components/app-router-headers'
-import { getSelectedParams } from '../client/components/router-reducer/compute-changed-path'
 
 function filterInternalQuery(
   query: Record<string, undefined | string | string[]>,
-  paramKeys: string[],
-  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+  paramKeys: string[]
 ) {
   // this is used to pass query information in rewrites
   // but should not be exposed in final query
@@ -52,8 +47,7 @@ function filterInternalQuery(
     if (
       isNextQueryPrefix ||
       isNextInterceptionMarkerPrefix ||
-      paramKeys.includes(key) ||
-      (defaultRouteRegex && Object.keys(defaultRouteRegex.groups).includes(key))
+      paramKeys.includes(key)
     ) {
       delete query[key]
     }
@@ -62,8 +56,7 @@ function filterInternalQuery(
 
 export function normalizeCdnUrl(
   req: BaseNextRequest | IncomingMessage,
-  paramKeys: string[],
-  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+  paramKeys: string[]
 ) {
   // make sure to normalize req.url from CDNs to strip dynamic and rewrite
   // params from the query which are added during routing
@@ -74,7 +67,7 @@ export function normalizeCdnUrl(
     return req.url
   }
   delete (_parsedUrl as any).search
-  filterInternalQuery(_parsedUrl.query, paramKeys, defaultRouteRegex)
+  filterInternalQuery(_parsedUrl.query, paramKeys)
 
   req.url = formatUrl(_parsedUrl)
 }
@@ -119,6 +112,34 @@ export function normalizeDynamicRouteParams(
   defaultRouteMatches: ParsedUrlQuery,
   ignoreMissingOptional: boolean
 ) {
+  const isDefaultValueMatch = (
+    candidateValue: string | undefined,
+    defaultValue: string
+  ) => {
+    if (!candidateValue) {
+      return false
+    }
+
+    let normalizedCandidateValue = normalizeRscURL(candidateValue)
+    for (let i = 0; i < 3; i++) {
+      if (normalizedCandidateValue === defaultValue) {
+        return true
+      }
+
+      const decodedCandidateValue = decodeQueryPathParameter(
+        normalizedCandidateValue
+      )
+
+      if (decodedCandidateValue === normalizedCandidateValue) {
+        break
+      }
+
+      normalizedCandidateValue = decodedCandidateValue
+    }
+
+    return false
+  }
+
   let hasValidParams = true
   let params: ParsedUrlQuery = {}
 
@@ -140,10 +161,12 @@ export function normalizeDynamicRouteParams(
     const isDefaultValue = Array.isArray(defaultValue)
       ? defaultValue.some((defaultVal) => {
           return Array.isArray(value)
-            ? value.some((val) => val.includes(defaultVal))
-            : value?.includes(defaultVal)
+            ? value.some((val) => isDefaultValueMatch(val, defaultVal))
+            : isDefaultValueMatch(value, defaultVal)
         })
-      : value?.includes(defaultValue as string)
+      : Array.isArray(value)
+        ? value.some((val) => isDefaultValueMatch(val, defaultValue as string))
+        : isDefaultValueMatch(value, defaultValue as string)
 
     if (
       isDefaultValue ||
@@ -161,7 +184,9 @@ export function normalizeDynamicRouteParams(
           value.length === 1 &&
           // fallback optional catch-all SSG pages have
           // [[...paramName]] for the root path on Vercel
-          (value[0] === 'index' || value[0] === `[[...${key}]]`)))
+          (value[0] === 'index' || value[0] === `[[...${key}]]`)) ||
+        value === 'index' ||
+        value === `[[...${key}]]`)
     ) {
       value = undefined
       delete query[key]
@@ -223,10 +248,15 @@ export function getServerUtils({
 
   function handleRewrites(
     req: BaseNextRequest | IncomingMessage,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
   ) {
+    // Here we deep clone the parsedUrl to avoid mutating the original. We also
+    // cast this to a mutable type so we can mutate it within this scope.
+    const rewrittenParsedUrl = structuredClone(
+      parsedUrl
+    ) as NextUrlWithParsedQuery
     const rewriteParams: Record<string, string> = {}
-    let fsPathname = parsedUrl.pathname
+    let fsPathname = rewrittenParsedUrl.pathname
 
     const matchesPage = () => {
       const fsPathnameNoSlash = removeTrailingSlash(fsPathname || '')
@@ -246,14 +276,14 @@ export function getServerUtils({
         }
       )
 
-      if (!parsedUrl.pathname) return false
+      if (!rewrittenParsedUrl.pathname) return false
 
-      let params = matcher(parsedUrl.pathname)
+      let params = matcher(rewrittenParsedUrl.pathname)
 
       if ((rewrite.has || rewrite.missing) && params) {
         const hasParams = matchHas(
           req,
-          parsedUrl.query,
+          rewrittenParsedUrl.query,
           rewrite.has as Rewrite['has'],
           rewrite.missing as Rewrite['missing']
         )
@@ -266,33 +296,11 @@ export function getServerUtils({
       }
 
       if (params) {
-        try {
-          // An interception rewrite might reference a dynamic param for a route the user
-          // is currently on, which wouldn't be extractable from the matched route params.
-          // This attempts to extract the dynamic params from the provided router state.
-          if (isInterceptionRouteRewrite(rewrite as Rewrite)) {
-            const stateHeader =
-              req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
-
-            if (stateHeader) {
-              params = {
-                ...getSelectedParams(
-                  parseAndValidateFlightRouterState(stateHeader)
-                ),
-                ...params,
-              }
-            }
-          }
-        } catch (err) {
-          // this is a no-op -- we couldn't extract dynamic params from the provided router state,
-          // so we'll just use the params from the route matcher
-        }
-
         const { parsedDestination, destQuery } = prepareDestination({
           appendParamsToQuery: true,
           destination: rewrite.destination,
           params: params,
-          query: parsedUrl.query,
+          query: rewrittenParsedUrl.query,
         })
 
         // if the rewrite destination is external break rewrite chain
@@ -301,26 +309,12 @@ export function getServerUtils({
         }
 
         Object.assign(rewriteParams, destQuery, params)
-        Object.assign(parsedUrl.query, parsedDestination.query)
+        Object.assign(rewrittenParsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
 
-        // for each property in parsedUrl.query, if the value is parametrized (eg :foo), look up the value
-        // in rewriteParams and replace the parametrized value with the actual value
-        // this is used when the rewrite destination does not contain the original source param
-        // and so the value is still parametrized and needs to be replaced with the actual rewrite param
-        Object.entries(parsedUrl.query).forEach(([key, value]) => {
-          if (value && typeof value === 'string' && value.startsWith(':')) {
-            const paramName = value.slice(1)
-            const actualValue = rewriteParams[paramName]
-            if (actualValue) {
-              parsedUrl.query[key] = actualValue
-            }
-          }
-        })
+        Object.assign(rewrittenParsedUrl, parsedDestination)
 
-        Object.assign(parsedUrl, parsedDestination)
-
-        fsPathname = parsedUrl.pathname
+        fsPathname = rewrittenParsedUrl.pathname
         if (!fsPathname) return false
 
         if (basePath) {
@@ -330,7 +324,7 @@ export function getServerUtils({
         if (i18n) {
           const result = normalizeLocalePath(fsPathname, i18n.locales)
           fsPathname = result.pathname
-          parsedUrl.query.nextInternalLocale =
+          rewrittenParsedUrl.query.nextInternalLocale =
             result.detectedLocale || params.nextInternalLocale
         }
 
@@ -341,14 +335,15 @@ export function getServerUtils({
         if (pageIsDynamic && dynamicRouteMatcher) {
           const dynamicParams = dynamicRouteMatcher(fsPathname)
           if (dynamicParams) {
-            parsedUrl.query = {
-              ...parsedUrl.query,
+            rewrittenParsedUrl.query = {
+              ...rewrittenParsedUrl.query,
               ...dynamicParams,
             }
             return true
           }
         }
       }
+
       return false
     }
 
@@ -371,7 +366,8 @@ export function getServerUtils({
         }
       }
     }
-    return rewriteParams
+
+    return { rewriteParams, rewrittenParsedUrl }
   }
 
   function getParamsFromRouteMatches(routeMatchesHeader: string) {
@@ -484,7 +480,7 @@ export function getServerUtils({
     normalizeCdnUrl: (
       req: BaseNextRequest | IncomingMessage,
       paramKeys: string[]
-    ) => normalizeCdnUrl(req, paramKeys, defaultRouteRegex),
+    ) => normalizeCdnUrl(req, paramKeys),
 
     interpolateDynamicPath: (
       pathname: string,
@@ -492,7 +488,7 @@ export function getServerUtils({
     ) => interpolateDynamicPath(pathname, params, defaultRouteRegex),
 
     filterInternalQuery: (query: ParsedUrlQuery, paramKeys: string[]) =>
-      filterInternalQuery(query, paramKeys, defaultRouteRegex),
+      filterInternalQuery(query, paramKeys),
   }
 }
 

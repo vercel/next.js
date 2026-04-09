@@ -38,7 +38,6 @@ export default function process(
   postcssPlugin.postcss = true
 
   // prepend file protocol to all sources to avoid problems with source map
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
   return postcss([postcssPlugin])
     .process(sourceContent, {
       from: prepend(sourceFile),
@@ -61,7 +60,6 @@ export default function process(
     return {
       postcssPlugin: 'postcss-resolve-url',
       Once: function (root: any) {
-        // eslint-disable-next-line @typescript-eslint/no-use-before-define
         root.walkDecls(eachDeclaration)
       },
     }

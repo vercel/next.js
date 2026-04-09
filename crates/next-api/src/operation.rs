@@ -1,11 +1,11 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     CollectiblesSource, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
-    TaskInput, Vc, debug::ValueDebugFormat, get_effects, trace::TraceRawVcs,
+    TaskInput, Vc, debug::ValueDebugFormat, take_effects, trace::TraceRawVcs,
 };
-use turbopack_core::{diagnostics::Diagnostic, issue::IssueDescriptionExt};
+use turbopack_core::{diagnostics::Diagnostic, issue::CollectibleIssuesExt};
 
 use crate::{
     entrypoints::Entrypoints,
@@ -22,6 +22,7 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
@@ -36,10 +37,10 @@ pub struct EntrypointsOperation {
 async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
 ) -> Result<Vc<Entrypoints>> {
-    let _ = entrypoints.resolve_strongly_consistent().await?;
-    let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
-    let _ = entrypoints.take_issues_with_path().await?;
-    let _ = get_effects(entrypoints).await?;
+    let _ = entrypoints.resolve().strongly_consistent().await?;
+    entrypoints.drop_collectibles::<Box<dyn Diagnostic>>();
+    entrypoints.drop_issues();
+    let _ = take_effects(entrypoints).await?;
     Ok(entrypoints.connect())
 }
 
@@ -55,8 +56,9 @@ impl EntrypointsOperation {
                 .iter()
                 .map(|(k, v)| (k.clone(), pick_route(entrypoints, k.clone(), v)))
                 .collect(),
-            middleware: e.middleware.as_ref().map(|_| MiddlewareOperation {
+            middleware: e.middleware.as_ref().map(|m| MiddlewareOperation {
                 endpoint: pick_endpoint(entrypoints, EndpointSelector::Middleware),
+                is_proxy: m.is_proxy,
             }),
             instrumentation: e
                 .instrumentation
@@ -111,8 +113,6 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
     Debug,
     Clone,
     TaskInput,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     PartialEq,
     Eq,
@@ -120,6 +120,8 @@ fn pick_route(entrypoints: OperationVc<Entrypoints>, key: RcStr, route: &Route) 
     ValueDebugFormat,
     NonLocalValue,
     OperationValue,
+    Encode,
+    Decode,
 )]
 enum EndpointSelector {
     RoutePageHtml(RcStr),
@@ -147,7 +149,7 @@ async fn pick_endpoint(
     op: OperationVc<Entrypoints>,
     selector: EndpointSelector,
 ) -> Result<Vc<OptionEndpoint>> {
-    let endpoints = op.connect().strongly_consistent().await?;
+    let endpoints = op.read_strongly_consistent().await?;
     let endpoint = match selector {
         EndpointSelector::InstrumentationNodeJs => {
             endpoints.instrumentation.as_ref().map(|i| i.node_js)
@@ -166,7 +168,7 @@ async fn pick_endpoint(
         }
         EndpointSelector::RoutePageData(name) => {
             if let Some(Route::Page { data_endpoint, .. }) = endpoints.routes.get(&name) {
-                Some(*data_endpoint)
+                *data_endpoint
             } else {
                 None
             }
@@ -203,15 +205,16 @@ async fn pick_endpoint(
     Ok(Vc::cell(endpoint))
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<OptionEndpoint>,
     pub edge: OperationVc<OptionEndpoint>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
+#[derive(TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<OptionEndpoint>,
+    pub is_proxy: bool,
 }
 
 #[turbo_tasks::value(shared)]
@@ -233,15 +236,7 @@ pub enum RouteOperation {
 }
 
 #[derive(
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    PartialEq,
-    Eq,
-    ValueDebugFormat,
-    Clone,
-    Debug,
-    NonLocalValue,
+    TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
 )]
 pub struct AppPageRouteOperation {
     pub original_name: RcStr,

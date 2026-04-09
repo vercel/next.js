@@ -4,16 +4,20 @@
 
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks::{
+    CollectiblesSource, ResolvedVc, State, ValueToString, Vc, emit,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
+};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
-    run(&REGISTRATION, || async {
-        let input = ChangingInput::new(1).resolve().await?;
-        let input2 = ChangingInput::new(2).resolve().await?;
+    run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
+        let input = *ChangingInput::new(1).to_resolved().await?;
+        let input2 = *ChangingInput::new(2).to_resolved().await?;
         input.await?.state.set(1);
         input2.await?.state.set(1000);
         let output = compute(input, input2, 1);
@@ -76,7 +80,7 @@ impl ValueToString for Collectible {
     }
 }
 
-#[turbo_tasks::function(operation, invalidator)]
+#[turbo_tasks::function(operation)]
 async fn inner_compute(
     input: ResolvedVc<ChangingInput>,
     input2: ResolvedVc<ChangingInput>,
@@ -85,7 +89,7 @@ async fn inner_compute(
     Ok(inner_compute2(*input, *input2.await?.state.get()))
 }
 
-#[turbo_tasks::function(invalidator)]
+#[turbo_tasks::function]
 async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u32>> {
     println!("inner_compute2({innerness})");
     if innerness > 0 {

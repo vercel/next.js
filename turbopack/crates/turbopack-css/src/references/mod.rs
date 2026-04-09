@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use anyhow::Result;
 use lightningcss::{
     rules::CssRule,
+    stylesheet::StyleSheet,
     traits::IntoOwned,
     values::url::Url,
     visitor::{Visit, Visitor},
@@ -13,17 +14,16 @@ use turbopack_core::{
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
-    resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request, url_resolve},
+    resolve::{
+        ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request, url_resolve,
+    },
     source::Source,
     source_pos::SourcePos,
 };
 
-use crate::{
-    StyleSheetLike,
-    references::{
-        import::{ImportAssetReference, ImportAttributes},
-        url::UrlAssetReference,
-    },
+use crate::references::{
+    import::{ImportAssetReference, ImportAttributes},
+    url::UrlAssetReference,
 };
 
 pub(crate) mod compose;
@@ -38,7 +38,7 @@ pub type AnalyzedRefs = (
 
 /// Returns `(all_references, urls)`.
 pub async fn analyze_references(
-    stylesheet: &mut StyleSheetLike<'static, 'static>,
+    stylesheet: &mut StyleSheet<'static, 'static>,
     source: ResolvedVc<Box<dyn Source>>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     import_context: Option<ResolvedVc<ImportContext>>,
@@ -48,7 +48,7 @@ pub async fn analyze_references(
 
     let mut visitor =
         ModuleReferencesVisitor::new(source, origin, import_context, &mut references, &mut urls);
-    stylesheet.0.visit(&mut visitor).unwrap();
+    stylesheet.visit(&mut visitor).unwrap();
 
     tokio::try_join!(
         references.into_iter().map(|v| v.to_resolved()).try_join(),
@@ -103,17 +103,14 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
                 self.references.push(Vc::upcast(ImportAssetReference::new(
                     *self.origin,
                     Request::parse(RcStr::from(src).into()),
-                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).into(),
+                    ImportAttributes::new_from_lightningcss(&i.clone().into_owned()).cell(),
                     self.import_context.map(|ctx| *ctx),
-                    IssueSource::from_line_col(
-                        ResolvedVc::upcast(self.source),
+                    IssueSource::from_single_line_col(
+                        self.source,
                         SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
-                        },
-                        SourcePos {
-                            line: issue_span.line as _,
-                            column: issue_span.column as _,
+                            // lightningcss::rules::Location is 1-based for column only
+                            line: issue_span.line,
+                            column: issue_span.column - 1,
                         },
                     ),
                 )));
@@ -140,15 +137,12 @@ impl Visitor<'_> for ModuleReferencesVisitor<'_> {
             let vc = UrlAssetReference::new(
                 *self.origin,
                 Request::parse(RcStr::from(src).into()),
-                IssueSource::from_line_col(
-                    ResolvedVc::upcast(self.source),
+                IssueSource::from_single_line_col(
+                    self.source,
                     SourcePos {
-                        line: issue_span.line as _,
-                        column: issue_span.column as _,
-                    },
-                    SourcePos {
-                        line: issue_span.line as _,
-                        column: issue_span.column as _,
+                        // lightningcss::dependencies::Location is 1-based for both line and column
+                        line: issue_span.line - 1,
+                        column: issue_span.column - 1,
                     },
                 ),
             );
@@ -180,5 +174,11 @@ pub fn css_resolve(
     ty: CssReferenceSubType,
     issue_source: Option<IssueSource>,
 ) -> Vc<ModuleResolveResult> {
-    url_resolve(origin, request, ReferenceType::Css(ty), issue_source, false)
+    url_resolve(
+        origin,
+        request,
+        ReferenceType::Css(ty),
+        issue_source,
+        ResolveErrorMode::Error,
+    )
 }

@@ -1,8 +1,8 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, Vc};
+use turbo_tasks::{FxIndexMap, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{chunk::ModuleId, version::Version};
 use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 
@@ -11,7 +11,7 @@ use super::content_entry::EcmascriptBrowserChunkContentEntries;
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptBrowserChunkVersion {
     pub(super) chunk_path: String,
-    pub(super) entries_hashes: FxIndexMap<ReadRef<ModuleId>, u64>,
+    pub(super) entries_hashes: FxIndexMap<ModuleId, u64>,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,11 +27,7 @@ impl EcmascriptBrowserChunkVersion {
         let chunk_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
-            bail!(
-                "chunk path {} is not in client root {}",
-                chunk_path.to_string(),
-                output_root.to_string()
-            );
+            turbobail!("chunk path {chunk_path} is not in client root {output_root}");
         };
         let entries = EcmascriptBrowserChunkContentEntries::new(content).await?;
         let mut entries_hashes =
@@ -62,7 +58,7 @@ impl Version for EcmascriptBrowserChunkVersion {
             hasher.write_value(hash);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Vc::cell(hex_hash.into())
+        let hash = encode_base64(hash);
+        Vc::cell(hash.into())
     }
 }

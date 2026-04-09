@@ -9,6 +9,14 @@ autobenches = false
 [lib]
 bench = false
 
+[[bench]]
+name = "analyzer"
+harness = false
+
+[[bench]]
+name = "references"
+harness = false
+
 [lints]
 workspace = true
 
@@ -16,6 +24,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
+bincode = { workspace = true }
 bytes-str = { workspace = true }
 data-encoding = { workspace = true }
 either = { workspace = true }
@@ -26,7 +35,9 @@ num-bigint = "0.4"
 num-traits = "0.2.15"
 once_cell = { workspace = true }
 parking_lot = { workspace = true }
+phf = { version = "0.11", features = ["macros"] }
 petgraph = { workspace = true }
+dashmap = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }
@@ -36,6 +47,7 @@ smallvec = { workspace = true }
 strsim = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
+turbo-bincode = { workspace = true }
 turbo-esregex = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -54,12 +66,12 @@ swc_core = { workspace = true, features = [
   "common_sourcemap",
   "ecma_ast_shrink",
   "ecma_codegen",
+  "ecma_helpers_inline",
   "ecma_lints",
   "ecma_minifier",
   "ecma_parser",
   "ecma_preset_env",
   "ecma_transforms",
-  "ecma_transforms_module",
   "ecma_transforms_react",
   "ecma_transforms_optimization",
   "ecma_transforms_typescript",
@@ -72,16 +84,10 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-bitvec = "1.0.1"
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 turbo-tasks-testing = { workspace = true }
-
-[build-dependencies]
-turbo-tasks-build = { workspace = true }
-
-[[bench]]
-name = "mod"
-harness = false
+turbopack-test-utils = { workspace = true }

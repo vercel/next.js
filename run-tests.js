@@ -4,10 +4,7 @@ const path = require('path')
 const _glob = require('glob')
 const { existsSync } = require('fs')
 const fsp = require('fs/promises')
-const nodeFetch = require('node-fetch')
-const vercelFetch = require('@vercel/fetch')
-// @ts-expect-error
-const fetch = vercelFetch(nodeFetch)
+const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
@@ -16,10 +13,11 @@ const glob = promisify(_glob)
 const exec = promisify(execOrig)
 const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
+const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.1.0";
+const nextjsReactPeerVersion = "19.2.5";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -31,10 +29,15 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('g')
   .alias('g', 'group')
   .number('c')
-  .boolean('related')
   .boolean('dry')
+  .boolean('print-tests')
+  .describe('print-tests', 'Prints the test files that will be run')
+  .boolean('require-timings')
+  .describe(
+    'require-timings',
+    'Require test-timings.json from disk; fail if missing instead of falling back to KV or round-robin'
+  )
   .boolean('local')
-  .alias('r', 'related')
   .alias('c', 'concurrency').argv
 
 function escapeRegexp(str) {
@@ -55,34 +58,53 @@ const DEFAULT_NUM_RETRIES = 2
 const DEFAULT_CONCURRENCY = 2
 const RESULTS_EXT = `.results.json`
 const isTestJob = !!process.env.NEXT_TEST_JOB
-// Check env to see if test should continue even if some of test fails
-const shouldContinueTestsOnError = !!process.env.NEXT_TEST_CONTINUE_ON_ERROR
-// Check env to load a list of test paths to skip retry. This is to be used in conjunction with NEXT_TEST_CONTINUE_ON_ERROR,
-// When try to run all of the tests regardless of pass / fail and want to skip retrying `known` failed tests.
-// manifest should be a json file with an array of test paths.
-const skipRetryTestManifest = process.env.NEXT_TEST_SKIP_RETRY_MANIFEST
-  ? require(process.env.NEXT_TEST_SKIP_RETRY_MANIFEST)
-  : []
-const TIMINGS_API = `https://api.github.com/gists/4500dd89ae2f5d70d9aaceb191f528d1`
-const TIMINGS_API_HEADERS = {
-  Accept: 'application/vnd.github.v3+json',
-  ...(process.env.TEST_TIMINGS_TOKEN
-    ? {
-        Authorization: `Bearer ${process.env.TEST_TIMINGS_TOKEN}`,
+const KV_TIMINGS_KEY = 'test-timings'
+
+const kvClient =
+  process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+    ? createClient({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
+      })
+    : null
+
+/**
+ * Retry a KV operation with exponential backoff
+ * @param {() => Promise<any>} operation - The async operation to retry
+ * @param {string} operationName - Name of the operation for logging
+ * @param {number} maxRetries - Maximum number of retries (default: 3)
+ * @returns {Promise<any>} The result of the operation
+ */
+async function retryKVOperation(operation, operationName, maxRetries = 3) {
+  let lastError
+  let retries = maxRetries
+
+  while (retries > 0) {
+    try {
+      return await operation()
+    } catch (err) {
+      lastError = err
+      retries--
+      if (retries > 0) {
+        const delay = (maxRetries - retries + 1) * 5 // 5s, 10s, 15s backoff
+        console.log(
+          `KV ${operationName} failed, retrying in ${delay}s. Error:`,
+          err.message
+        )
+        await new Promise((resolve) => setTimeout(resolve, delay * 1000))
       }
-    : {}),
+    }
+  }
+
+  throw new Error(
+    `Failed to ${operationName} after ${maxRetries} retries: ${lastError?.message}`
+  )
 }
 
 const testFilters = {
-  development: new RegExp(
-    '^(test/(development|e2e)|packages/.*/src/.*|packages/next-codemod/.*)/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  production: new RegExp(
-    '^(test/(production|e2e))/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
-  unit: new RegExp(
-    '^test/unit|packages/.*/src/.*/.*\\.test\\.(js|jsx|ts|tsx)$'
-  ),
+  development: new RegExp('^(test/(development|e2e))'),
+  production: new RegExp('^(test/(production|e2e))'),
+  unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
   examples: 'examples/',
   integration: 'test/integration/',
   e2e: 'test/e2e/',
@@ -96,13 +118,14 @@ const mockTrace = () => ({
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+/** @type {Map<string, { output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 
 async function maybeLogSummary() {
   if (process.env.CI && errorsPerTests.size > 0) {
     const outputTemplate = `
 ${Array.from(errorsPerTests.entries())
-  .map(([test, output]) => {
+  .map(([test, { output }]) => {
     return `
 <details>
 <summary>${test}</summary>
@@ -116,20 +139,27 @@ ${output}
   })
   .join('\n')}`
 
+    // Build table rows with one row per failed test case
+    const tableRows = []
+    for (const [test, { failedCases }] of errorsPerTests.entries()) {
+      const testLink = `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`
+      if (failedCases.length === 0) {
+        tableRows.push(['Unknown', testLink])
+      } else {
+        for (const caseName of failedCases) {
+          tableRows.push([caseName, testLink])
+        }
+      }
+    }
+
     await core.summary
       .addHeading('Tests failures')
       .addTable([
         [
-          {
-            data: 'Test suite',
-            header: true,
-          },
+          { data: 'Test Name', header: true },
+          { data: 'Test Path', header: true },
         ],
-        ...Array.from(errorsPerTests.entries()).map(([test]) => {
-          return [
-            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
-          ]
-        }),
+        ...tableRows,
       ])
       .addRaw(outputTemplate)
       .write()
@@ -172,33 +202,27 @@ const isMatchingPattern = (pattern, file) => {
 }
 
 async function getTestTimings() {
-  let timingsRes
-
-  const doFetch = () =>
-    fetch(TIMINGS_API, {
-      headers: {
-        ...TIMINGS_API_HEADERS,
-      },
-    })
-  timingsRes = await doFetch()
-
-  if (timingsRes.status === 403) {
-    const delay = 15
-    console.log(`Got 403 response waiting ${delay} seconds before retry`)
-    await new Promise((resolve) => setTimeout(resolve, delay * 1000))
-    timingsRes = await doFetch()
+  if (!kvClient) {
+    console.warn('KV client not configured, skipping timing fetch')
+    return null
   }
 
-  if (!timingsRes.ok) {
-    throw new Error(`request status: ${timingsRes.status}`)
-  }
-  const timingsData = await timingsRes.json()
-  return JSON.parse(timingsData.files['test-timings.json'].content)
+  const timings = await retryKVOperation(async () => {
+    const data = await kvClient.get(KV_TIMINGS_KEY)
+    if (!data) {
+      console.log('No timing data found in KV store')
+    }
+    return data
+  }, 'fetch timings')
+  return timings || null
 }
 
 async function main() {
   // Ensure we have the arguments awaited from yargs.
   argv = await argv
+
+  // Check for stale or missing build
+  await checkBuildFreshness()
 
   // `.github/workflows/build_reusable.yml` sets this, we should use it unless
   // it's overridden by an explicit `--concurrency` argument.
@@ -213,10 +237,11 @@ async function main() {
     group: argv.group ?? false,
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
-    related: argv.related ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    requireTimings: argv.requireTimings ?? false,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
+    printTests: argv.printTests ?? false,
   }
   let numRetries = options.retries
   const hideOutput = !options.debug && !options.dry
@@ -246,6 +271,10 @@ async function main() {
     process.env.NEXT_TEST_MODE
   )
 
+  // Only fetch/update shared timing data during grouped CI runs to avoid
+  // individual test runs from polluting the timing data
+  const shouldUseSharedTimings = options.timings && options.group
+
   /** @type TestFile[] */
   let tests = argv._.filter((arg) =>
     arg.toString().match(/\.test\.(js|ts|tsx)/)
@@ -258,20 +287,6 @@ async function main() {
 
     if (options.testPattern && typeof options.testPattern === 'string') {
       testPatternRegex = new RegExp(options.testPattern)
-    }
-
-    if (options.related) {
-      const { getRelatedTests } = await import('./scripts/run-related-test.mjs')
-      const tests = await getRelatedTests()
-      if (tests.length)
-        testPatternRegex = new RegExp(tests.map(escapeRegexp).join('|'))
-
-      if (testPatternRegex) {
-        console.log('Running related tests:', testPatternRegex.toString())
-      } else {
-        console.log('No matching related tests, exiting.')
-        process.exit(0)
-      }
     }
 
     tests = (
@@ -301,32 +316,57 @@ async function main() {
         file,
         excludedCases: [],
       }))
+
+    //
   }
 
-  if (options.timings && options.group) {
+  if (shouldUseSharedTimings) {
     console.log('Fetching previous timings data')
+    const timingsFile = path.join(process.cwd(), 'test-timings.json')
+
     try {
-      const timingsFile = path.join(process.cwd(), 'test-timings.json')
+      prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
+      console.log('Loaded test timings from disk successfully')
+    } catch (_) {
+      if (options.requireTimings) {
+        console.error(
+          'ERROR: --require-timings is set but test-timings.json could not be loaded from disk:',
+          _
+        )
+        await cleanUpAndExit(1)
+        return
+      }
+      console.error(
+        'Failed to load test timings from disk. Proceeding to fetch from KV store. Original error: ',
+        _
+      )
+    }
+
+    if (!prevTimings && !options.requireTimings) {
       try {
-        prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
-        console.log('Loaded test timings from disk successfully')
-      } catch (_) {
-        console.error('failed to load from disk', _)
+        prevTimings = await getTestTimings()
+        if (prevTimings) {
+          console.log('Fetched previous timings data successfully from KV')
+        } else {
+          console.log('No previous timings data available')
+        }
+      } catch (kvError) {
+        console.warn(
+          'Failed to fetch timings from KV, continuing without timing data:',
+          kvError.message
+        )
+        prevTimings = null
       }
 
-      if (!prevTimings) {
-        prevTimings = await getTestTimings()
-        console.log('Fetched previous timings data successfully')
-
-        if (options.writeTimings) {
+      if (options.writeTimings) {
+        if (prevTimings) {
           await fsp.writeFile(timingsFile, JSON.stringify(prevTimings))
           console.log('Wrote previous timings data to', timingsFile)
-          await cleanUpAndExit(0)
+        } else {
+          console.log('No timings data to write')
         }
+        await cleanUpAndExit(0)
       }
-    } catch (err) {
-      console.log(`Failed to fetch timings data`, err)
-      await cleanUpAndExit(1)
     }
   }
 
@@ -386,10 +426,27 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
+      if (options.requireTimings) {
+        console.error(
+          'ERROR: --require-timings is set but no timing data is available for sharding. ' +
+            'Ensure test-timings.json is provided.'
+        )
+        await cleanUpAndExit(1)
+        return
+      }
+
       // assign every nth test "round-robin" to the group, so that similar slow
       // tests tend not to get clustered together
       tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
       console.log('Splitting without timings')
+
+      // Warn in CI that tests are not optimally distributed
+      if (process.env.GITHUB_ACTIONS) {
+        core.warning(
+          `Test timing data unavailable for group ${options.group}. Tests are being distributed round-robin, which may increase CI time. ` +
+            `Consider checking KV store connectivity if this persists.`
+        )
+      }
     }
   }
 
@@ -405,6 +462,10 @@ async function main() {
 ${tests.map((t) => t.file).join('\n')}
 ${ENDGROUP}`)
   console.log(`total: ${tests.length}`)
+
+  if (options.printTests) {
+    await cleanUpAndExit(0)
+  }
 
   if (
     !options.dry &&
@@ -448,9 +509,9 @@ ${ENDGROUP}`)
     `jest${process.platform === 'win32' ? '.CMD' : ''}`
   )
   let firstError = true
-  let killed = false
+  let hadFailures = false
 
-  const runTest = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
+  const runTestOnce = (/** @type {TestFile} */ test, isFinalRun, isRetry) =>
     new Promise((resolve, reject) => {
       const start = new Date().getTime()
       let outputChunks = []
@@ -459,8 +520,8 @@ ${ENDGROUP}`)
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
+        '--no-cache',
         '--verbose',
-        '--silent',
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
           : []),
@@ -472,6 +533,7 @@ ${ENDGROUP}`)
               `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
             ]),
       ]
+      const deferNextTestWasm = !!process.env.NEXT_TEST_WASM
       const env = {
         // run tests in headless mode by default
         HEADLESS: 'true',
@@ -488,8 +550,7 @@ ${ENDGROUP}`)
           ? {}
           : {
               IS_RETRY: isRetry ? 'true' : undefined,
-              TRACE_PLAYWRIGHT:
-                process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
+              TRACE_PLAYWRIGHT: 'true',
               CIRCLECI: '',
               GITHUB_ACTIONS: '',
               CONTINUOUS_INTEGRATION: '',
@@ -498,7 +559,6 @@ ${ENDGROUP}`)
               // Format the output of junit report to include the test name
               // For the debugging purpose to compare actual run list to the generated reports
               // [NOTE]: This won't affect if junit reporter is not enabled
-              // @ts-expect-error .replaceAll() does exist. Follow-up why TS is not recognizing it
               JEST_JUNIT_OUTPUT_NAME: test.file.replaceAll('/', '_'),
               // Specify suite name for the test to avoid unexpected merging across different env / grouped tests
               // This is not individual suites name (corresponding 'describe'), top level suite name which have redundant names by default
@@ -512,6 +572,13 @@ ${ENDGROUP}`)
                 .filter(Boolean)
                 .join(':'),
             }),
+        ...(deferNextTestWasm
+          ? {
+              // Let Next/Jest initialize native SWC for the transformer first.
+              NEXT_TEST_WASM: undefined,
+              NEXT_TEST_WASM_AFTER_JEST: process.env.NEXT_TEST_WASM,
+            }
+          : {}),
         ...(isFinalRun
           ? {
               // Events can be finicky in CI. This switches to a more
@@ -564,13 +631,10 @@ ${ENDGROUP}`)
         if (isChildExitWithNonZero) {
           if (hideOutput) {
             await outputSema.acquire()
-            const isExpanded =
-              firstError && !killed && !shouldContinueTestsOnError
+            const isExpanded = firstError
             if (isExpanded) {
               firstError = false
               process.stdout.write(`❌ ${test.file} output:\n`)
-            } else if (killed) {
-              process.stdout.write(`${GROUP}${test.file} output (killed)\n`)
             } else {
               process.stdout.write(`${GROUP}❌ ${test.file} output\n`)
             }
@@ -583,8 +647,8 @@ ${ENDGROUP}`)
               output += chunk.toString()
             }
 
-            if (process.env.CI && !killed) {
-              errorsPerTests.set(test.file, output)
+            if (process.env.CI) {
+              errorsPerTests.set(test.file, { output, failedCases: [] })
             }
 
             if (isExpanded) {
@@ -629,120 +693,130 @@ ${ENDGROUP}`)
       })
     })
 
+  const runTest = async (/** @type {TestFile} */ test) => {
+    let passed = false
+
+    for (let i = 0; i < numRetries + 1; i++) {
+      try {
+        console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
+        const time = await runTestOnce(test, i === numRetries, i > 0)
+        timings.push({
+          file: test.file,
+          time,
+        })
+        passed = true
+        console.log(
+          `${test.file} finished on retry ${i}/${numRetries} in ${time / 1000}s`
+        )
+        break
+      } catch (err) {
+        if (i < numRetries) {
+          try {
+            let testDir = path.dirname(path.join(__dirname, test.file))
+
+            // if test is nested in a test folder traverse up a dir to ensure
+            // we clean up relevant test files
+            if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
+              testDir = path.join(testDir, '..')
+            }
+            console.log('Cleaning test files at', testDir)
+            await exec(`git clean -fdx "${testDir}"`)
+            await exec(`git checkout "${testDir}"`)
+          } catch (err) {}
+        } else {
+          console.error(`${test.file} failed due to ${err}`)
+        }
+      }
+    }
+
+    if (!passed) {
+      hadFailures = true
+      // "failed to pass within" is a keyword parsed by next-pr-webhook
+      console.error(`${test.file} failed to pass within ${numRetries} retries`)
+    }
+
+    // Emit test output, parsed by the commenter webhook to notify about failing tests.
+    // Also emit for all tests when NEXT_TEST_EMIT_ALL_OUTPUT is set (for manifest generation).
+    if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
+      try {
+        const testsOutput = await fsp.readFile(
+          `${test.file}${RESULTS_EXT}`,
+          'utf8'
+        )
+        const obj = JSON.parse(testsOutput)
+
+        // Extract failed test case names from Jest JSON output
+        if (!passed && process.env.CI) {
+          const failedCases = []
+          for (const testResult of obj.testResults || []) {
+            for (const assertion of testResult.assertionResults || []) {
+              if (assertion.status === 'failed') {
+                const caseName = [
+                  ...(assertion.ancestorTitles || []),
+                  assertion.title,
+                ].join(' > ')
+                failedCases.push(caseName)
+              }
+            }
+          }
+          // Update errorsPerTests with failed case names
+          const existing = errorsPerTests.get(test.file)
+          if (existing) {
+            existing.failedCases = failedCases
+          }
+        }
+
+        obj.processEnv = {
+          NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
+          HEADLESS: process.env.HEADLESS,
+        }
+        await outputSema.acquire()
+        if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
+        console.log(
+          `--test output start--`,
+          JSON.stringify(obj),
+          `--test output end--`
+        )
+        if (ENDGROUP) console.log(ENDGROUP)
+        outputSema.release()
+      } catch (err) {
+        console.log(`Failed to load test output`, err)
+      }
+    }
+  }
+
   const directorySemas = new Map()
 
-  const originalRetries = numRetries
-  await Promise.all(
+  const results = await Promise.allSettled(
     tests.map(async (test) => {
       const dirName = path.dirname(test.file)
       let dirSema = directorySemas.get(dirName)
 
       // we only restrict 1 test per directory for
       // legacy integration tests
-      if (test.file.startsWith('test/integration') && dirSema === undefined) {
+      if (/^test[/\\]integration/.test(test.file) && dirSema === undefined) {
         directorySemas.set(dirName, (dirSema = new Sema(1)))
       }
+      // TODO: Use explicit resource managment instead of this acquire/release pattern
+      // once CI runs with Node.js 24+.
       if (dirSema) await dirSema.acquire()
-
       await sema.acquire()
-      let passed = false
 
-      const shouldSkipRetries = skipRetryTestManifest.find((t) =>
-        t.includes(test.file)
-      )
-      const numRetries = shouldSkipRetries ? 0 : originalRetries
-      if (shouldSkipRetries) {
-        console.log(
-          `Skipping retry for ${test.file} due to skipRetryTestManifest`
-        )
+      try {
+        await runTest(test)
+      } finally {
+        sema.release()
+        if (dirSema) dirSema.release()
       }
-
-      for (let i = 0; i < numRetries + 1; i++) {
-        try {
-          console.log(`Starting ${test.file} retry ${i}/${numRetries}`)
-          const time = await runTest(
-            test,
-            shouldSkipRetries || i === numRetries,
-            shouldSkipRetries || i > 0
-          )
-          timings.push({
-            file: test.file,
-            time,
-          })
-          passed = true
-          console.log(
-            `Finished ${test.file} on retry ${i}/${numRetries} in ${
-              time / 1000
-            }s`
-          )
-          break
-        } catch (err) {
-          if (i < numRetries) {
-            try {
-              let testDir = path.dirname(path.join(__dirname, test.file))
-
-              // if test is nested in a test folder traverse up a dir to ensure
-              // we clean up relevant test files
-              if (testDir.endsWith('/test') || testDir.endsWith('\\test')) {
-                testDir = path.join(testDir, '../')
-              }
-              console.log('Cleaning test files at', testDir)
-              await exec(`git clean -fdx "${testDir}"`)
-              await exec(`git checkout "${testDir}"`)
-            } catch (err) {}
-          } else {
-            console.error(`${test.file} failed due to ${err}`)
-          }
-        }
-      }
-
-      if (!passed) {
-        console.error(
-          `${test.file} failed to pass within ${numRetries} retries`
-        )
-
-        if (!shouldContinueTestsOnError) {
-          killed = true
-          children.forEach((child) => child.kill())
-          cleanUpAndExit(1)
-        } else {
-          console.log(
-            `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
-          )
-        }
-      }
-
-      // Emit test output if test failed or if we're continuing tests on error
-      // This is parsed by the commenter webhook to notify about failing tests
-      if ((!passed || shouldContinueTestsOnError) && isTestJob) {
-        try {
-          const testsOutput = await fsp.readFile(
-            `${test.file}${RESULTS_EXT}`,
-            'utf8'
-          )
-          const obj = JSON.parse(testsOutput)
-          obj.processEnv = {
-            NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
-            HEADLESS: process.env.HEADLESS,
-          }
-          await outputSema.acquire()
-          if (GROUP) console.log(`${GROUP}Result as JSON for tooling`)
-          console.log(
-            `--test output start--`,
-            JSON.stringify(obj),
-            `--test output end--`
-          )
-          if (ENDGROUP) console.log(ENDGROUP)
-          outputSema.release()
-        } catch (err) {
-          console.log(`Failed to load test output`, err)
-        }
-      }
-
-      sema.release()
-      if (dirSema) dirSema.release()
     })
   )
+
+  for (const result of results) {
+    if (result.status === 'rejected') {
+      hadFailures = true
+      console.error(result.reason)
+    }
+  }
 
   if (options.timings) {
     const curTimings = {}
@@ -771,51 +845,52 @@ ${ENDGROUP}`)
     // junitData += `</testsuites>`
     // console.log('output timing data to junit.xml')
 
-    if (prevTimings && process.env.TEST_TIMINGS_TOKEN) {
-      try {
-        const newTimings = {
-          ...(await getTestTimings()),
-          ...curTimings,
-        }
-
-        for (const test of Object.keys(newTimings)) {
-          if (!existsSync(path.join(__dirname, test))) {
-            console.log('removing stale timing', test)
-            delete newTimings[test]
+    if (shouldUseSharedTimings) {
+      if (kvClient) {
+        try {
+          // Fetch existing timings and merge with new ones
+          const existingTimings = (await getTestTimings()) || {}
+          const newTimings = {
+            ...existingTimings,
+            ...curTimings,
           }
-        }
 
-        const timingsRes = await fetch(TIMINGS_API, {
-          method: 'PATCH',
-          headers: {
-            ...TIMINGS_API_HEADERS,
-          },
-          body: JSON.stringify({
-            files: {
-              'test-timings.json': {
-                content: JSON.stringify(newTimings),
-              },
-            },
-          }),
-        })
+          // Clean up stale timings for deleted tests
+          for (const test of Object.keys(newTimings)) {
+            if (!existsSync(path.join(__dirname, test))) {
+              console.log('removing stale timing', test)
+              delete newTimings[test]
+            }
+          }
 
-        if (!timingsRes.ok) {
-          throw new Error(`request status: ${timingsRes.status}`)
+          // Update KV store with retries
+          await retryKVOperation(async () => {
+            await kvClient.set(KV_TIMINGS_KEY, newTimings)
+            console.log('Successfully updated test timings in KV store')
+          }, 'update timings')
+        } catch (err) {
+          console.log('Failed to update timings data', err)
         }
-        const result = await timingsRes.json()
-        console.log(
-          `Sent updated timings successfully. API URL: "${result?.url}" HTML URL: "${result?.html_url}"`
-        )
-      } catch (err) {
-        console.log('Failed to update timings data', err)
+      } else {
+        console.warn('KV client not configured, skipping timing update')
       }
     }
   }
+
+  return hadFailures
 }
 
-main()
-  .then(() => cleanUpAndExit(0))
-  .catch((err) => {
-    console.error(err)
-    cleanUpAndExit(1)
-  })
+main().then(
+  (hadFailures) => {
+    if (hadFailures) {
+      console.error('Some tests failed')
+      return cleanUpAndExit(1)
+    } else {
+      return cleanUpAndExit(0)
+    }
+  },
+  (reason) => {
+    console.error(reason)
+    return cleanUpAndExit(1)
+  }
+)

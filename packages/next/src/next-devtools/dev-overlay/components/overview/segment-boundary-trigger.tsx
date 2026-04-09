@@ -1,186 +1,211 @@
-import {
-  useCallback,
-  useState,
-  useRef,
-  useLayoutEffect,
-  useEffect,
-} from 'react'
-import type { SegmentNodeState } from '../../../userspace/app/segment-explorer-node'
+import './segment-boundary-trigger.css'
+import { useCallback, useState, useRef, useMemo } from 'react'
+import { Menu } from '@base-ui-components/react/menu'
+import { useDevOverlayContext } from '../../../dev-overlay.browser'
+import type {
+  SegmentBoundaryType,
+  SegmentNodeState,
+} from '../../../userspace/app/segment-explorer-node'
+import { normalizeBoundaryFilename } from '../../../../server/app-render/segment-explorer-path'
+import { useClickOutsideAndEscape } from '../errors/dev-tools-indicator/utils'
+
+const composeRefs = (...refs: (React.Ref<HTMLButtonElement> | undefined)[]) => {
+  return (node: HTMLButtonElement | null) => {
+    refs.forEach((ref) => {
+      if (typeof ref === 'function') {
+        ref(node)
+      } else if (ref) {
+        ref.current = node
+      }
+    })
+  }
+}
 
 export function SegmentBoundaryTrigger({
-  onSelectBoundary,
-  offset,
+  nodeState,
+  boundaries,
 }: {
-  onSelectBoundary: SegmentNodeState['setBoundaryType']
-  offset: number
+  nodeState: SegmentNodeState
+  boundaries: Record<SegmentBoundaryType, string | null>
 }) {
+  const currNode = nodeState
+  const { pagePath, boundaryType, setBoundaryType: onSelectBoundary } = currNode
+
   const [isOpen, setIsOpen] = useState(false)
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
+  const { shadowRoot } = useDevOverlayContext()
   const triggerRef = useRef<HTMLButtonElement>(null)
-  const rootRef = useRef<HTMLDivElement>(null)
-  const [shadowRoot] = useState<ShadowRoot>(() => {
-    const ownerDocument = document
-    const portalNode = ownerDocument.querySelector('nextjs-portal')!
-    return portalNode.shadowRoot! as ShadowRoot
-  })
+  const popupRef = useRef<HTMLDivElement>(null)
 
-  const updateDropdownPosition = useCallback(() => {
-    if (triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect()
-      setDropdownPosition({
-        top: rect.bottom + offset,
-        right: window.innerWidth - rect.right,
-      })
-    }
-  }, [offset])
-
-  useLayoutEffect(() => {
-    if (isOpen) {
-      updateDropdownPosition()
-    }
-  }, [isOpen, updateDropdownPosition])
-
-  const handleClickOutside = useCallback(
-    (e: Event) => {
-      const target = e.target as HTMLElement
-      if (!target || !isOpen) return
-      if (
-        target.closest(
-          '[data-nextjs-dev-overlay-segment-boundary-dropdown-backdrop]'
-        ) ||
-        target.closest(
-          '[data-nextjs-dev-overlay-segment-boundary-trigger-button]'
-        )
-      ) {
-        return
-      }
+  // Click outside of popup should close the menu
+  useClickOutsideAndEscape(
+    popupRef,
+    triggerRef,
+    isOpen,
+    () => {
       setIsOpen(false)
     },
-    [isOpen]
+    // eslint-disable-next-line react-hooks/refs -- TODO
+    triggerRef.current?.ownerDocument
   )
 
-  // click outside of the trigger button or dropdown menu, in shadow root
-  useEffect(() => {
-    shadowRoot.addEventListener('click', handleClickOutside)
-    return () => {
-      shadowRoot.removeEventListener('click', handleClickOutside)
-    }
-  }, [handleClickOutside, isOpen, shadowRoot])
+  const firstDefinedBoundary = Object.values(boundaries).find((v) => v !== null)
+  const possibleExtension =
+    (firstDefinedBoundary || '').split('.').pop() || 'js'
 
-  // close itself when unfocus: click outside of shadow root or clicking other triggers
-  const handleFocusOut = useCallback((e: Event) => {
-    const triggerRootNode = rootRef.current
-    if (
-      e.target instanceof HTMLElement &&
-      triggerRootNode &&
-      !triggerRootNode.contains(e.target)
-    ) {
-      setIsOpen(false)
-    }
-  }, [])
-  useEffect(() => {
-    shadowRoot.addEventListener('focusout', handleFocusOut)
-    return () => {
-      shadowRoot.removeEventListener('focusout', handleFocusOut)
-    }
-  }, [handleFocusOut, shadowRoot])
+  const fileNames = useMemo(() => {
+    return Object.fromEntries(
+      Object.entries(boundaries).map(([key, filePath]) => {
+        const fileName = normalizeBoundaryFilename(
+          (filePath || '').split('/').pop() || `${key}.${possibleExtension}`
+        )
+        return [key, fileName]
+      })
+    ) as Record<keyof typeof boundaries, string>
+  }, [boundaries, possibleExtension])
 
-  const handleToggleMenu = useCallback(() => {
-    setIsOpen((prev) => !prev)
-    updateDropdownPosition()
-  }, [updateDropdownPosition])
+  const fileName = (pagePath || '').split('/').pop() || ''
+  const pageFileName = normalizeBoundaryFilename(
+    boundaryType
+      ? `page.${possibleExtension}`
+      : fileName || `page.${possibleExtension}`
+  )
 
   const triggerOptions = [
-    { label: 'Trigger Loading', value: 'loading', icon: <LoadingIcon /> },
-    { label: 'Trigger Error', value: 'error', icon: <ErrorIcon /> },
-    { label: 'Trigger Not Found', value: 'not-found', icon: <NotFoundIcon /> },
+    {
+      label: fileNames.loading,
+      value: 'loading',
+      icon: <LoadingIcon />,
+      disabled: !boundaries.loading,
+    },
+    {
+      label: fileNames.error,
+      value: 'error',
+      icon: <ErrorIcon />,
+      disabled: !boundaries.error,
+    },
+    {
+      label: fileNames['not-found'],
+      value: 'not-found',
+      icon: <NotFoundIcon />,
+      disabled: !boundaries['not-found'],
+    },
   ]
 
   const resetOption = {
-    label: 'Reset',
+    label: boundaryType ? 'Reset' : pageFileName,
     value: 'reset',
     icon: <ResetIcon />,
+    disabled: boundaryType === null,
   }
 
-  const handleSelect = (value: string) => {
-    if (value === 'not-found') {
-      onSelectBoundary('not-found')
-    } else if (value === 'loading') {
-      onSelectBoundary('loading')
-    } else if (value === 'error') {
-      onSelectBoundary('error')
-    } else if (value === 'reset') {
-      onSelectBoundary(null)
-    }
-    setIsOpen(false)
-  }
+  const openInEditor = useCallback(({ filePath }: { filePath: string }) => {
+    const params = new URLSearchParams({
+      file: filePath,
+      isAppRelativePath: '1',
+    })
+    fetch(
+      `${
+        process.env.__NEXT_ROUTER_BASEPATH || ''
+      }/__nextjs_launch-editor?${params.toString()}`
+      // Log the failures to console, not track them as console errors in error overlay
+    ).catch(console.warn)
+  }, [])
 
-  return (
-    <div className="segment-boundary-trigger" ref={rootRef}>
-      <button
-        ref={triggerRef}
-        className="segment-boundary-trigger-button"
-        data-nextjs-dev-overlay-segment-boundary-trigger-button
-        onClick={handleToggleMenu}
-        type="button"
-      >
-        <DropdownIcon />
-      </button>
-      {isOpen && (
-        <div
-          className="segment-boundary-dropdown-backdrop"
-          data-nextjs-dev-overlay-segment-boundary-dropdown-backdrop
-          style={{
-            top: dropdownPosition.top - offset, // Extend upward to cover the gap
-            right: dropdownPosition.right,
-            paddingTop: offset, // Visual spacing while backdrop covers the gap
-          }}
-        >
-          <div className="segment-boundary-dropdown">
-            {triggerOptions.map((option) => (
-              <div
-                key={option.value}
-                className="segment-boundary-dropdown-item"
-                onClick={() => handleSelect(option.value)}
-              >
-                {option.icon}
-                {option.label}
-              </div>
-            ))}
-            <div className="segment-boundary-dropdown-divider" />
-            <div
-              key={resetOption.value}
-              className="segment-boundary-dropdown-item"
-              onClick={() => handleSelect(resetOption.value)}
-            >
-              {resetOption.icon}
-              {resetOption.label}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+  const handleSelect = useCallback(
+    (value: string) => {
+      switch (value) {
+        case 'not-found':
+        case 'loading':
+        case 'error':
+          onSelectBoundary(value)
+          break
+        case 'reset':
+          onSelectBoundary(null)
+          break
+        case 'open-editor':
+          if (pagePath) {
+            openInEditor({ filePath: pagePath })
+          }
+          break
+        default:
+          break
+      }
+    },
+    [onSelectBoundary, pagePath, openInEditor]
   )
-}
 
-/**
- * Inline svg icons for the dropdown trigger.
- * The child svg icons like `rect` are fixed size, so they can be used as shared scalable icons.
- */
-function DropdownIcon() {
+  const MergedRefTrigger = (
+    triggerProps: React.ComponentProps<'button'> & {
+      ref?: React.Ref<HTMLButtonElement>
+    }
+  ) => {
+    const mergedRef = composeRefs(triggerProps.ref, triggerRef)
+    return <Trigger {...triggerProps} ref={mergedRef} />
+  }
+
+  const hasBoundary = useMemo(() => {
+    const hasPageOrBoundary =
+      nodeState.type !== 'layout' && nodeState.type !== 'template'
+    return (
+      hasPageOrBoundary && Object.values(boundaries).some((v) => v !== null)
+    )
+  }, [nodeState.type, boundaries])
+
   return (
-    <svg
-      width="20px"
-      height="20px"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M2.5 6.5C3.32843 6.5 4 7.17157 4 8C4 8.82843 3.32843 9.5 2.5 9.5C1.67157 9.5 1 8.82843 1 8C1 7.17157 1.67157 6.5 2.5 6.5ZM8 6.5C8.82843 6.5 9.5 7.17157 9.5 8C9.5 8.82843 8.82843 9.5 8 9.5C7.17157 9.5 6.5 8.82843 6.5 8C6.5 7.17157 7.17157 6.5 8 6.5ZM13.5 6.5C14.3284 6.5 15 7.17157 15 8C15 8.82843 14.3284 9.5 13.5 9.5C12.6716 9.5 12 8.82843 12 8C12 7.17157 12.6716 6.5 13.5 6.5Z"
-        fill="currentColor"
+    <Menu.Root delay={0} modal={false} open={isOpen} onOpenChange={setIsOpen}>
+      <Menu.Trigger
+        className="segment-boundary-trigger"
+        data-nextjs-dev-overlay-segment-boundary-trigger-button
+        render={MergedRefTrigger}
+        disabled={!hasBoundary}
       />
-    </svg>
+
+      <Menu.Portal container={shadowRoot}>
+        <Menu.Positioner
+          className="segment-boundary-dropdown-positioner"
+          side="bottom"
+          align="center"
+          sideOffset={6}
+          arrowPadding={8}
+          ref={popupRef}
+        >
+          <Menu.Popup className="segment-boundary-dropdown">
+            {
+              <Menu.Group>
+                <Menu.GroupLabel className="segment-boundary-group-label">
+                  Toggle Overrides
+                </Menu.GroupLabel>
+                {triggerOptions.map((option) => (
+                  <Menu.Item
+                    key={option.value}
+                    className="segment-boundary-dropdown-item"
+                    onClick={() => handleSelect(option.value)}
+                    disabled={option.disabled}
+                  >
+                    {option.icon}
+                    {option.label}
+                  </Menu.Item>
+                ))}
+              </Menu.Group>
+            }
+
+            <Menu.Group>
+              {
+                <Menu.Item
+                  key={resetOption.value}
+                  className="segment-boundary-dropdown-item"
+                  onClick={() => handleSelect(resetOption.value)}
+                  disabled={resetOption.disabled}
+                >
+                  {resetOption.icon}
+                  {resetOption.label}
+                </Menu.Item>
+              }
+            </Menu.Group>
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
   )
 }
 
@@ -282,83 +307,25 @@ function ResetIcon() {
   )
 }
 
-export const styles = `
-  .segment-boundary-trigger {
-    position: relative;
-    display: inline-flex;
-    margin-left: auto;
-    gap: 8px;
-  }
+function SwitchIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg strokeLinejoin="round" viewBox="0 0 16 16" {...props}>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M8.7071 2.39644C8.31658 2.00592 7.68341 2.00592 7.29289 2.39644L4.46966 5.21966L3.93933 5.74999L4.99999 6.81065L5.53032 6.28032L7.99999 3.81065L10.4697 6.28032L11 6.81065L12.0607 5.74999L11.5303 5.21966L8.7071 2.39644ZM5.53032 9.71966L4.99999 9.18933L3.93933 10.25L4.46966 10.7803L7.29289 13.6035C7.68341 13.9941 8.31658 13.9941 8.7071 13.6035L11.5303 10.7803L12.0607 10.25L11 9.18933L10.4697 9.71966L7.99999 12.1893L5.53032 9.71966Z"
+        fill="currentColor"
+      ></path>
+    </svg>
+  )
+}
 
-  .segment-boundary-trigger-button {
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 500;
-    color: var(--color-gray-1000);
-    border-radius: 6px;
-  }
-  .segment-boundary-trigger-button--reset {
-    background: transparent;
-    border: none;
-  }
-  .segment-boundary-trigger-button svg {
-    width: 20px;
-    height: 20px;
-  }
-  .segment-boundary-trigger-button:hover {
-    background: var(--color-gray-400);
-    color: var(--color-gray-1000);
-  }
-  .segment-boundary-dropdown-backdrop {
-    position: fixed;
-    z-index: 3;
-  }
-
-  .segment-boundary-dropdown {
-    padding: 8px;
-    background: var(--color-background-100);
-    border: 1px solid var(--color-gray-400);
-    border-radius: 6px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-    min-width: 120px;
-  }
-
-  .segment-boundary-dropdown-item {
-    display: flex;
-    align-items: center;
-    padding: 10px 8px;
-    line-height: 20px;
-    font-size: 14px;
-    border-radius: 6px;
-    color: var(--color-gray-1000);
-    cursor: pointer;
-  }
-
-  .segment-boundary-dropdown-item svg {
-    margin-right: 12px;
-    color: var(--color-gray-900);
-  }
-
-  .segment-boundary-dropdown-item:hover {
-    background: var(--color-gray-200);
-  }
-
-  .segment-boundary-dropdown-item:first-child {
-    border-top-left-radius: 4px;
-    border-top-right-radius: 4px;
-  }
-
-  .segment-boundary-dropdown-item:last-child {
-    border-bottom-left-radius: 4px;
-    border-bottom-right-radius: 4px;
-  }
-
-  .segment-boundary-dropdown-divider {
-    height: 1px;
-    background: var(--color-gray-400);
-    margin: 8px 0;
-  }
-`
+function Trigger(props: React.ComponentProps<'button'>) {
+  return (
+    <button {...props}>
+      <span className="segment-boundary-trigger-text">
+        <SwitchIcon className="plus-icon" />
+      </span>
+    </button>
+  )
+}

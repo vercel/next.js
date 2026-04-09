@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('app-dir - action-in-pages-router', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -17,7 +17,7 @@ describe('app-dir - action-in-pages-router', () => {
         .join('')
       // This is a fake server action, a simple function so it can still work
       expect(browserLogText).toContain('action:foo')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     })
   })
 

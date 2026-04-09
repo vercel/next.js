@@ -1,5 +1,6 @@
 import type { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
+import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 
 type StaticPrerenderedRoute = {
   readonly params: Params
@@ -8,6 +9,7 @@ type StaticPrerenderedRoute = {
   readonly fallbackRouteParams: undefined
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: undefined
+  remainingPrerenderableParams?: undefined
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
@@ -16,13 +18,32 @@ type StaticPrerenderedRoute = {
   throwOnEmptyStaticShell: undefined
 }
 
+export type FallbackRouteParam = {
+  /**
+   * The name of the param.
+   */
+  readonly paramName: string
+
+  /**
+   * The type of the param.
+   */
+  readonly paramType: DynamicParamTypes
+}
+
 type FallbackPrerenderedRoute = {
   readonly params: Params
   readonly pathname: string
   readonly encodedPathname: string
-  readonly fallbackRouteParams: readonly string[]
+
+  /**
+   * The fallback route params for the route. This includes all route parameters
+   * that are unknown at build time, from both the main children route and any
+   * parallel routes.
+   */
+  readonly fallbackRouteParams: readonly FallbackRouteParam[]
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: readonly string[]
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which

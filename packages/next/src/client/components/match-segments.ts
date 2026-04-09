@@ -1,4 +1,4 @@
-import type { Segment } from '../../server/app-render/types'
+import type { Segment } from '../../shared/lib/app-router-types'
 
 export const matchSegment = (
   existingSegment: Segment,

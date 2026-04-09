@@ -43,7 +43,7 @@ export type Feature =
   | `swc/target/${SWC_TARGET_TRIPLE}`
   | 'turbotrace'
   | 'transpilePackages'
-  | 'skipMiddlewareUrlNormalize'
+  | 'skipProxyUrlNormalize'
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
   | 'esmExternals'
@@ -101,7 +101,7 @@ const BUILD_FEATURES: Array<Feature> = [
   'swc/target/aarch64-pc-windows-msvc',
   'turbotrace',
   'transpilePackages',
-  'skipMiddlewareUrlNormalize',
+  'skipProxyUrlNormalize',
   'skipTrailingSlashRedirect',
   'modularizeImports',
   'esmExternals',

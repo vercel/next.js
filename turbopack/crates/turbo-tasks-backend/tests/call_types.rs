@@ -4,23 +4,37 @@
 
 use anyhow::Result;
 use turbo_tasks::Vc;
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
-async fn functions() {
-    run(&REGISTRATION, || async {
-        assert_eq!(*fn_plain().await?, 42);
-        assert_eq!(*fn_arg(43).await?, 43);
-        assert_eq!(*fn_vc_arg(Vc::cell(44)).await?, 44);
-        assert_eq!(*async_fn_plain().await?, 42);
-        assert_eq!(*async_fn_arg(43).await?, 43);
-        assert_eq!(*async_fn_vc_arg(Vc::cell(44)).await?, 44);
-        anyhow::Ok(())
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_functions() {
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        // pass a nonce to re-run the test body on every turbo-tasks restart
+        nonce += 1;
+        async move {
+            test_functions_operation(nonce)
+                .read_strongly_consistent()
+                .await
+        }
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_functions_operation(nonce: u32) -> Result<Vc<()>> {
+    let _ = nonce; // ensure the nonce is part of our cache key
+
+    assert_eq!(*fn_plain().await?, 42);
+    assert_eq!(*fn_arg(43).await?, 43);
+    assert_eq!(*fn_vc_arg(Vc::cell(44)).await?, 44);
+    assert_eq!(*async_fn_plain().await?, 42);
+    assert_eq!(*async_fn_arg(43).await?, 43);
+    assert_eq!(*async_fn_vc_arg(Vc::cell(44)).await?, 44);
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::function]
@@ -53,21 +67,27 @@ async fn async_fn_vc_arg(n: Vc<u32>) -> Result<Vc<u32>> {
     Ok(Vc::cell(*n.await?))
 }
 
-#[tokio::test]
-async fn methods() {
-    run(&REGISTRATION, || async {
-        assert_eq!(*Value::static_method().await?, 42);
-        assert_eq!(*Value::async_static_method().await?, 42);
-
-        let value = Value(43).cell();
-        assert_eq!(*value.method().await?, 43);
-        assert_eq!(*value.async_method().await?, 43);
-        assert_eq!(*value.vc_method().await?, 42);
-        assert_eq!(*value.async_vc_method().await?, 43);
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_methods() {
+    run_once(&REGISTRATION, || async {
+        test_methods_operation().read_strongly_consistent().await?;
         anyhow::Ok(())
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_methods_operation() -> Result<Vc<()>> {
+    assert_eq!(*Value::static_method().await?, 42);
+    assert_eq!(*Value::async_static_method().await?, 42);
+
+    let value = Value(43).cell();
+    assert_eq!(*value.method().await?, 43);
+    assert_eq!(*value.async_method().await?, 43);
+    assert_eq!(*value.vc_method().await?, 42);
+    assert_eq!(*value.async_vc_method().await?, 43);
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::value]
@@ -106,39 +126,49 @@ impl Value {
     }
 }
 
-#[tokio::test]
-async fn trait_methods() {
-    run(&REGISTRATION, || async {
-        assert_eq!(*Value::static_trait_method().await?, 42);
-        assert_eq!(*Value::async_static_trait_method().await?, 42);
-
-        let value = Value(43).cell();
-        assert_eq!(*value.trait_method().await?, 43);
-        assert_eq!(*value.async_trait_method().await?, 43);
-        assert_eq!(*value.default_trait_method().await?, 42);
-        assert_eq!(*value.default_async_trait_method().await?, 42);
-
-        let trait_value: Vc<Box<dyn ValueTrait>> = Vc::upcast(value);
-        assert_eq!(*trait_value.trait_method().await?, 43);
-        assert_eq!(*trait_value.async_trait_method().await?, 43);
-        assert_eq!(*trait_value.default_trait_method().await?, 42);
-        assert_eq!(*trait_value.default_async_trait_method().await?, 42);
-
-        let value = wrap_value(value);
-        assert_eq!(*value.trait_method().await?, 43);
-        assert_eq!(*value.async_trait_method().await?, 43);
-        assert_eq!(*value.default_trait_method().await?, 42);
-        assert_eq!(*value.default_async_trait_method().await?, 42);
-
-        let trait_value = wrap_trait_value(trait_value);
-        assert_eq!(*trait_value.trait_method().await?, 43);
-        assert_eq!(*trait_value.async_trait_method().await?, 43);
-        assert_eq!(*trait_value.default_trait_method().await?, 42);
-        assert_eq!(*trait_value.default_async_trait_method().await?, 42);
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_trait_methods() {
+    run_once(&REGISTRATION, || async {
+        test_trait_methods_operation()
+            .read_strongly_consistent()
+            .await?;
         anyhow::Ok(())
     })
     .await
     .unwrap()
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_trait_methods_operation() -> Result<Vc<()>> {
+    assert_eq!(*Value::static_trait_method().await?, 42);
+    assert_eq!(*Value::async_static_trait_method().await?, 42);
+    assert_eq!(*Value::default_static_trait_method().await?, 42);
+    assert_eq!(*Value::default_async_static_trait_method().await?, 42);
+
+    let value = Value(43).cell();
+    assert_eq!(*value.trait_method().await?, 43);
+    assert_eq!(*value.async_trait_method().await?, 43);
+    assert_eq!(*value.default_trait_method().await?, 42);
+    assert_eq!(*value.default_async_trait_method().await?, 42);
+
+    let trait_value: Vc<Box<dyn ValueTrait>> = Vc::upcast(value);
+    assert_eq!(*trait_value.trait_method().await?, 43);
+    assert_eq!(*trait_value.async_trait_method().await?, 43);
+    assert_eq!(*trait_value.default_trait_method().await?, 42);
+    assert_eq!(*trait_value.default_async_trait_method().await?, 42);
+
+    let value = wrap_value(value);
+    assert_eq!(*value.trait_method().await?, 43);
+    assert_eq!(*value.async_trait_method().await?, 43);
+    assert_eq!(*value.default_trait_method().await?, 42);
+    assert_eq!(*value.default_async_trait_method().await?, 42);
+
+    let trait_value = wrap_trait_value(trait_value);
+    assert_eq!(*trait_value.trait_method().await?, 43);
+    assert_eq!(*trait_value.async_trait_method().await?, 43);
+    assert_eq!(*trait_value.default_trait_method().await?, 42);
+    assert_eq!(*trait_value.default_async_trait_method().await?, 42);
+    Ok(Vc::cell(()))
 }
 
 #[turbo_tasks::function]

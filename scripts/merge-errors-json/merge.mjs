@@ -50,6 +50,16 @@ function main() {
     process.exit(0)
   } catch (error) {
     console.error('merge-errors-json: merge failed:', error.message)
+    console.error()
+    console.error(
+      [
+        'if this error persists, you can disable the merge driver by running',
+        '',
+        '  scripts/merge-errors-json/uninstall',
+        '',
+        'or by manually removing the `[merge "errors-json"]` section from your .git/config.',
+      ].join('\n')
+    )
     process.exit(1)
   }
 }

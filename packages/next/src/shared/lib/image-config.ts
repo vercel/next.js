@@ -83,7 +83,7 @@ export type ImageConfigComplete = {
   /** @see [Image loaders configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader) */
   loader: LoaderValue
 
-  /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/legacy/image#loader-configuration) */
+  /** @see [Image loader configuration](https://nextjs.org/docs/app/api-reference/components/image#path) */
   path: string
 
   /** @see [Image loader configuration](https://nextjs.org/docs/api-reference/next/image#loader-configuration) */
@@ -102,6 +102,18 @@ export type ImageConfigComplete = {
 
   /** @see [Acceptable formats](https://nextjs.org/docs/api-reference/next/image#acceptable-formats) */
   formats: ImageFormat[]
+
+  /** @see [Maximum Disk Cache Size (in bytes)](https://nextjs.org/docs/api-reference/next/image#maximumdiskcachesize) */
+  maximumDiskCacheSize: number | undefined
+
+  /** @see [Maximum Redirects](https://nextjs.org/docs/api-reference/next/image#maximumredirects) */
+  maximumRedirects: number
+
+  /** @see [Maximum Response Body](https://nextjs.org/docs/api-reference/next/image#maximumresponsebody) */
+  maximumResponseBody: number
+
+  /** @see [Dangerously Allow Local IP](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-local-ip) */
+  dangerouslyAllowLocalIP: boolean
 
   /** @see [Dangerously Allow SVG](https://nextjs.org/docs/api-reference/next/image#dangerously-allow-svg) */
   dangerouslyAllowSVG: boolean
@@ -123,25 +135,40 @@ export type ImageConfigComplete = {
 
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
   unoptimized: boolean
+
+  /**
+   * When true, the `cacheHandler` configured in next.config.js will also be used
+   * for caching optimized images. When false, images use the default filesystem cache.
+   * @see [Image Optimization Caching](https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheHandler#image-optimization-caching)
+   */
+  customCacheHandler: boolean
 }
 
 export type ImageConfig = Partial<ImageConfigComplete>
 
 export const imageConfigDefault: ImageConfigComplete = {
   deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
-  imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+  imageSizes: [32, 48, 64, 96, 128, 256, 384],
   path: '/_next/image',
   loader: 'default',
   loaderFile: '',
+  /**
+   * @deprecated Use `remotePatterns` instead to protect your application from malicious users.
+   */
   domains: [],
   disableStaticImages: false,
-  minimumCacheTTL: 60,
+  minimumCacheTTL: 14400, // 4 hours
   formats: ['image/webp'],
+  maximumDiskCacheSize: undefined, // auto-detect by default
+  maximumRedirects: 3,
+  maximumResponseBody: 50_000_000, // 50 MB
+  dangerouslyAllowLocalIP: false,
   dangerouslyAllowSVG: false,
   contentSecurityPolicy: `script-src 'none'; frame-src 'none'; sandbox;`,
   contentDispositionType: 'attachment',
   localPatterns: undefined, // default: allow all local images
   remotePatterns: [], // default: allow no remote images
-  qualities: undefined, // default: allow all qualities
+  qualities: [75],
   unoptimized: false,
+  customCacheHandler: false,
 }

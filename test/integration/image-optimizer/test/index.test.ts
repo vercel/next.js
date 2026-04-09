@@ -10,12 +10,13 @@ import {
   nextStart,
   retry,
   waitFor,
+  getDistDir,
 } from 'next-test-utils'
 import { join } from 'path'
 import { cleanImagesDir, expectWidth, fsToJson } from './util'
 
 const appDir = join(__dirname, '../app')
-const imagesDir = join(appDir, '.next', 'cache', 'images')
+const imagesDir = join(appDir, getDistDir(), 'cache', 'images')
 const nextConfig = new File(join(appDir, 'next.config.js'))
 const largeSize = 1080 // defaults defined in server/config.ts
 
@@ -709,7 +710,7 @@ describe('Image Optimizer', () => {
               headers: [
                 {
                   key: 'Cache-Control',
-                  value: 'public, max-age=86400, must-revalidate',
+                  value: 'public, max-age=14400, must-revalidate',
                 },
               ],
             },
@@ -718,7 +719,7 @@ describe('Image Optimizer', () => {
       }`
           )
           await nextBuild(appDir)
-          await cleanImagesDir({ imagesDir })
+          await cleanImagesDir(imagesDir)
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
@@ -733,7 +734,7 @@ describe('Image Optimizer', () => {
           const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
           expect(res.status).toBe(200)
           expect(res.headers.get('Cache-Control')).toBe(
-            `public, max-age=86400, must-revalidate`
+            `public, max-age=14400, must-revalidate`
           )
           expect(res.headers.get('Content-Disposition')).toBe(
             `attachment; filename="test.webp"`
@@ -743,7 +744,7 @@ describe('Image Optimizer', () => {
             const files = await fsToJson(imagesDir)
 
             let found = false
-            const maxAge = '86400'
+            const maxAge = '14400'
 
             Object.keys(files).forEach((dir) => {
               if (
@@ -764,7 +765,7 @@ describe('Image Optimizer', () => {
           const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
           expect(res.status).toBe(200)
           expect(res.headers.get('Cache-Control')).toBe(
-            `public, max-age=60, must-revalidate`
+            `public, max-age=14400, must-revalidate`
           )
           expect(res.headers.get('Content-Disposition')).toBe(
             `attachment; filename="test.webp"`
@@ -786,7 +787,7 @@ describe('Image Optimizer', () => {
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
-      await cleanImagesDir({ imagesDir })
+      await cleanImagesDir(imagesDir)
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -816,7 +817,7 @@ describe('Image Optimizer', () => {
           },
         })
       )
-      await cleanImagesDir({ imagesDir })
+      await cleanImagesDir(imagesDir)
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -846,7 +847,7 @@ describe('Image Optimizer', () => {
           },
         })
       )
-      await cleanImagesDir({ imagesDir })
+      await cleanImagesDir(imagesDir)
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
@@ -884,7 +885,7 @@ describe('Image Optimizer', () => {
       }`
           nextConfig.replace('{ /* replaceme */ }', newConfig)
           await nextBuild(appDir)
-          await cleanImagesDir({ imagesDir })
+          await cleanImagesDir(imagesDir)
           appPort = await findPort()
           app = await nextStart(appDir, appPort)
         })
@@ -894,7 +895,7 @@ describe('Image Optimizer', () => {
         })
 
         it('should return response when image is served from an external rewrite', async () => {
-          await cleanImagesDir({ imagesDir })
+          await cleanImagesDir(imagesDir)
 
           const query = { url: '/next-js/next-js-bg.png', w: 64, q: 75 }
           const opts = { headers: { accept: 'image/webp' } }
@@ -943,7 +944,7 @@ describe('Image Optimizer', () => {
         },
       })
       nextConfig.replace('{ /* replaceme */ }', json)
-      await cleanImagesDir({ imagesDir })
+      await cleanImagesDir(imagesDir)
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })

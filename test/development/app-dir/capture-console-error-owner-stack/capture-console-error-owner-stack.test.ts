@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, assertNoConsoleErrors } from 'next-test-utils'
+import { waitForNoRedbox, assertNoConsoleErrors } from 'next-test-utils'
 
 describe('app-dir - capture-console-error-owner-stack', () => {
   const { next } = nextTestSetup({
@@ -12,6 +12,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "trigger an console <error>",
        "environmentLabel": null,
        "label": "Console Error",
@@ -20,7 +21,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
           |                 ^",
        "stack": [
          "onClick app/browser/event/page.js (7:17)",
-         "button <anonymous> (0:0)",
+         "button <anonymous>",
          "Page app/browser/event/page.js (5:5)",
        ],
      }
@@ -32,6 +33,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -50,6 +52,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -68,6 +71,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "ssr console error:client",
        "environmentLabel": null,
        "label": "Console Error",
@@ -112,7 +116,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
          |                 ^",
        "stack": [
          "Page app/rsc/page.js (2:17)",
-         "Page <anonymous> (0:0)",
+         "Page <anonymous>",
        ],
      }
     `)
@@ -122,7 +126,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     const browser = await next.browser('/browser/error-event')
     await browser.elementByCss('button').click()
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     await assertNoConsoleErrors(browser)
   })
 })

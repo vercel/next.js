@@ -9,7 +9,7 @@ use turbopack_core::{
     version::VersionedContentExt,
 };
 
-use super::{
+use crate::source::{
     ContentSource, ContentSourceContent, ContentSourceData, GetContentSourceContent,
     route_tree::{BaseSegment, RouteTree, RouteTrees, RouteType},
 };
@@ -126,13 +126,9 @@ impl Introspectable for StaticAssetsContentSource {
                 async move {
                     let child = match entry {
                         DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) => {
-                            ResolvedVc::upcast(
-                                IntrospectableSource::new(Vc::upcast(FileSource::new(
-                                    path.clone(),
-                                )))
+                            IntrospectableSource::new(Vc::upcast(FileSource::new(path.clone())))
                                 .to_resolved()
-                                .await?,
-                            )
+                                .await?
                         }
                         DirectoryEntry::Directory(path) => ResolvedVc::upcast(
                             StaticAssetsContentSource::with_prefix(
@@ -142,7 +138,7 @@ impl Introspectable for StaticAssetsContentSource {
                             .to_resolved()
                             .await?,
                         ),
-                        DirectoryEntry::Other(_) | DirectoryEntry::Error => {
+                        DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => {
                             todo!("unsupported DirectoryContent variant: {entry:?}")
                         }
                     };

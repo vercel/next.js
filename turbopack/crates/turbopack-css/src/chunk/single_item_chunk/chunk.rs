@@ -3,15 +3,15 @@ use std::fmt::Write;
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystemPath, rope::RopeBuilder};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
-    output::{OutputAsset, OutputAssets},
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
+    source_map::GenerateSourceMap,
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
@@ -53,7 +53,8 @@ impl SingleItemCssChunk {
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?;
-        let mut code = CodeBuilder::new(source_maps);
+        // CSS chunks never have debug IDs
+        let mut code = CodeBuilder::new(source_maps, false);
 
         if matches!(
             &*this.chunking_context.minify_type().await?,
@@ -65,7 +66,14 @@ impl SingleItemCssChunk {
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;
 
-        code.push_source(&content.inner_code, content.source_map.clone());
+        code.push_source(
+            &content.inner_code,
+            content
+                .source_map
+                .await?
+                .as_content()
+                .map(|f| f.content().clone()),
+        );
         write!(code, "{close}")?;
 
         let c = code.build().cell();
@@ -80,12 +88,35 @@ impl SingleItemCssChunk {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for SingleItemCssChunk {
+    #[turbo_tasks::function]
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let this = self.await?;
+        let mut references = Vec::new();
+        if *this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self))
+            .await?
+        {
+            references.push(ResolvedVc::upcast(
+                SingleItemCssChunkSourceMapAsset::new(self)
+                    .to_resolved()
+                    .await?,
+            ));
+        }
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(
+            references,
+        )))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl Chunk for SingleItemCssChunk {
     #[turbo_tasks::function]
     async fn ident(self: Vc<Self>) -> Result<Vc<AssetIdent>> {
         let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
         Ok(AssetIdent::from_path(
-            self_as_output_asset.path().await?.clone_value(),
+            self_as_output_asset.path().owned().await?,
         ))
     }
 
@@ -102,26 +133,9 @@ impl OutputAsset for SingleItemCssChunk {
         Ok(self.await?.chunking_context.chunk_path(
             Some(Vc::upcast(self)),
             self.ident_for_path(),
+            None,
             rcstr!(".single.css"),
         ))
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        let this = self.await?;
-        let mut references = Vec::new();
-        if *this
-            .chunking_context
-            .reference_chunk_source_maps(Vc::upcast(self))
-            .await?
-        {
-            references.push(ResolvedVc::upcast(
-                SingleItemCssChunkSourceMapAsset::new(self)
-                    .to_resolved()
-                    .await?,
-            ));
-        }
-        Ok(Vc::cell(references))
     }
 }
 
@@ -146,14 +160,16 @@ impl Asset for SingleItemCssChunk {
             code.source_code().clone()
         };
 
-        Ok(AssetContent::file(File::from(rope).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(rope)).cell(),
+        ))
     }
 }
 
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
 }
@@ -171,13 +187,12 @@ impl Introspectable for SingleItemCssChunk {
     }
 
     #[turbo_tasks::function]
-    async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
+    async fn details(&self) -> Result<Vc<RcStr>> {
         let mut details = String::new();
         write!(
             details,
             "Chunk item: {}",
-            this.item.asset_ident().to_string().await?
+            self.item.asset_ident().to_string().await?
         )?;
         Ok(Vc::cell(details.into()))
     }

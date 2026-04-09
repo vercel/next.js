@@ -66,7 +66,8 @@ export const styles = `
     place-items: center center;
     width: 100%;
     position: fixed;
-    overflow: hidden;
+    height: 0;
+    overflow: visible;
     z-index: -1;
     max-width: var(--next-dialog-max-width);
 

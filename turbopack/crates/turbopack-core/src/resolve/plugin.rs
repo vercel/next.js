@@ -10,41 +10,53 @@ use crate::{
 };
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value]
-pub struct AfterResolvePluginCondition {
-    root: FileSystemPath,
-    glob: ResolvedVc<Glob>,
+#[turbo_tasks::value(shared)]
+pub enum AfterResolvePluginCondition {
+    Glob {
+        root: FileSystemPath,
+        glob: ResolvedVc<Glob>,
+    },
+    Always,
+    Never,
 }
 
 #[turbo_tasks::value_impl]
 impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Vc<Self> {
-        AfterResolvePluginCondition { root, glob }.cell()
+    pub fn new_with_glob(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Vc<Self> {
+        AfterResolvePluginCondition::Glob { root, glob }.cell()
     }
+}
 
+#[turbo_tasks::value_impl]
+impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
     pub async fn matches(&self, fs_path: FileSystemPath) -> Result<Vc<bool>> {
-        let root = self.root.clone();
-        let glob = self.glob.await?;
+        match self {
+            AfterResolvePluginCondition::Glob { root, glob } => {
+                let path = fs_path;
 
-        let path = fs_path;
+                if let Some(path) = root.get_path_to(&path)
+                    && glob.await?.matches(path)
+                {
+                    return Ok(Vc::cell(true));
+                }
 
-        if let Some(path) = root.get_path_to(&path)
-            && glob.matches(path)
-        {
-            return Ok(Vc::cell(true));
+                Ok(Vc::cell(false))
+            }
+            AfterResolvePluginCondition::Always => Ok(Vc::cell(true)),
+            AfterResolvePluginCondition::Never => Ok(Vc::cell(false)),
         }
-
-        Ok(Vc::cell(false))
     }
 }
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub enum BeforeResolvePluginCondition {
     Request(ResolvedVc<Glob>),
     Modules(FxHashSet<RcStr>),
+    Always,
+    Never,
 }
 
 #[turbo_tasks::value_impl]
@@ -71,11 +83,13 @@ impl BeforeResolvePluginCondition {
             },
             BeforeResolvePluginCondition::Modules(modules) => {
                 if let Request::Module { module, .. } = &*request.await? {
-                    modules.contains(module)
+                    modules.iter().any(|m| module.is_match(m))
                 } else {
                     false
                 }
             }
+            BeforeResolvePluginCondition::Always => true,
+            BeforeResolvePluginCondition::Never => false,
         }))
     }
 }

@@ -1,7 +1,8 @@
-use std::ops::Deref;
+use std::{ops::Deref, sync::LazyLock};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use regex::Regex;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks_fs::FileSystemPath;
@@ -41,11 +42,15 @@ pub struct MetadataFileMatch<'a> {
 }
 
 fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
-    let (_whole, stem, number) = lazy_regex::regex_captures!(
-        "^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$",
-        stem
-    )?;
-
+    static NUMBERED_METADATA_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new("^(icon|apple-icon|opengraph-image|twitter-image)(\\d+)$").unwrap()
+    });
+    let captures = NUMBERED_METADATA_RE.captures(stem)?;
+    // these captures must be defined if `captures` is `Some(...)`.
+    let (stem, number) = (
+        captures.get(1).unwrap().as_str(),
+        captures.get(2).unwrap().as_str(),
+    );
     Some((stem, number))
 }
 
@@ -87,11 +92,11 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
     let mut ext = path.extension();
 
     let name = stem.unwrap_or_default();
-    if ext == "jpg" {
-        ext = "jpeg"
+    if ext == Some("jpg") {
+        ext = Some("jpeg");
     }
 
-    if name == "favicon" && ext == "ico" {
+    if name == "favicon" && ext == Some("ico") {
         return Ok("image/x-icon".to_string());
     }
     if name == "sitemap" {
@@ -104,7 +109,9 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
         return Ok("application/manifest+json".to_string());
     }
 
-    if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
+    if let Some(ext) = ext
+        && matches!(ext, "png" | "jpeg" | "ico" | "svg")
+    {
         return Ok(mime_guess::from_ext(ext)
             .first_or_octet_stream()
             .to_string());
@@ -221,10 +228,6 @@ pub fn is_metadata_route_file(
     false
 }
 
-pub fn is_static_metadata_route_file(app_dir_relative_path: &str) -> bool {
-    is_metadata_route_file(app_dir_relative_path, &[], true)
-}
-
 /// Remove the 'app' prefix or '/route' suffix, only check the route name since
 /// they're only allowed in root app directory
 ///
@@ -297,7 +300,7 @@ fn format_radix(mut x: u32, radix: u32) -> String {
 /// /(post)/sitemap -> /sitemap
 fn get_metadata_route_suffix(page: &str) -> Option<String> {
     // skip sitemap
-    if page.ends_with("/sitemap") {
+    if page.ends_with("/sitemap") || page.ends_with("/sitemap.xml") {
         return None;
     }
 
@@ -331,6 +334,8 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
+    } else if route.ends_with("/sitemap") {
+        route += ".xml"
     } else {
         suffix = get_metadata_route_suffix(&route);
     }
@@ -379,6 +384,9 @@ mod test {
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
+            ["/sitemap", "/sitemap.xml/route"],
+            ["/sitemap.xml", "/sitemap.xml/route"],
+            ["/blog/sitemap", "/blog/sitemap.xml/route"],
         ];
 
         for [input, expected] in cases {

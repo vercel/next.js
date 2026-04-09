@@ -1,0 +1,11 @@
+{
+  "name": "test-imports-sync-cjs",
+  "type": "commonjs",
+  "imports": {
+    "#internal": {
+      "module-sync": "./internal-sync.js",
+      "require": "./internal-require.js",
+      "default": "./internal-default.js"
+    }
+  }
+}

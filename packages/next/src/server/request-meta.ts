@@ -1,20 +1,52 @@
-/* eslint-disable no-redeclare */
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
-import type { ServerComponentsHmrCache } from './response-cache'
+import type {
+  ResponseCacheEntry,
+  ServerComponentsHmrCache,
+} from './response-cache'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
+import type { OpaqueFallbackRouteParams } from './request/fallback-params'
+import type { IncrementalCache } from './lib/incremental-cache'
+import type { RevalidateFn } from './lib/router-utils/router-server-context'
+import type { NextRequest } from './web/exports'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
 
-export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
+export type NextIncomingMessage = (
+  | BaseNextRequest
+  | IncomingMessage
+  | NextRequest
+) & {
   [NEXT_REQUEST_META]?: RequestMeta
 }
+
+/**
+ * The callback function to call when a response cache entry was generated or
+ * looked up in the cache. When it returns true, the server assumes that the
+ * handler has already responded to the request and will not do so itself.
+ */
+export type OnCacheEntryHandler = (
+  /**
+   * The response cache entry that was generated or looked up in the cache.
+   */
+  cacheEntry: ResponseCacheEntry,
+
+  /**
+   * The request metadata.
+   */
+  requestMeta: {
+    /**
+     * The URL that was used to make the request.
+     */
+    url: string | undefined
+  }
+) => Promise<boolean | void> | boolean | void
 
 export interface RequestMeta {
   /**
@@ -51,9 +83,16 @@ export interface RequestMeta {
   didStripLocale?: boolean
 
   /**
-   * If the request had it's URL rewritten, this is the URL it was rewritten to.
+   * If the request had its URL rewritten, this is the pathname it was rewritten
+   * to (not a full URL, just the pathname).
    */
-  rewroteURL?: string
+  rewrittenPathname?: string
+
+  /**
+   * The resolved pathname for the request. Dynamic route params are
+   * interpolated, the pathname is decoded, and the trailing slash is removed.
+   */
+  resolvedPathname?: string
 
   /**
    * The cookies that were added by middleware and were added to the response.
@@ -68,7 +107,7 @@ export interface RequestMeta {
   /**
    * The incremental cache to use for the request.
    */
-  incrementalCache?: any
+  incrementalCache?: IncrementalCache
 
   /**
    * The server components HMR cache, only for dev.
@@ -116,13 +155,25 @@ export interface RequestMeta {
   postponed?: string
 
   /**
+   * The action body extracted from a server action request when the postponed
+   * state was prepended to the body by the proxy. This allows the action
+   * handler to read the action payload without re-reading the consumed stream.
+   */
+  actionBody?: Buffer
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   *
+   * @deprecated Use `onCacheEntryV2` instead.
+   */
+  onCacheEntry?: OnCacheEntryHandler
+
+  /**
    * If provided, this will be called when a response cache entry was generated
    * or looked up in the cache.
    */
-  onCacheEntry?: (
-    cacheEntry: any,
-    requestMeta: any
-  ) => Promise<boolean | void> | boolean | void
+  onCacheEntryV2?: OnCacheEntryHandler
 
   /**
    * The previous revalidate before rendering 404 page for notFound: true
@@ -170,6 +221,14 @@ export interface RequestMeta {
   renderFallbackShell?: boolean
 
   /**
+   * Route param keys that were explicitly resolved from partial nxtP*
+   * query params during background revalidation. Used by app-page.ts to
+   * determine which fallback params should remain deferred vs resolved
+   * in intermediate PPR shells.
+   */
+  resolvedRouteParamKeys?: Set<string>
+
+  /**
    * Whether the request is for the custom error page.
    */
   customErrorRender?: true
@@ -197,9 +256,9 @@ export interface RequestMeta {
   defaultLocale?: string
 
   /**
-   * The project dir the server is running in
+   * The relative project dir the server is running in from project root
    */
-  projectDir?: string
+  relativeProjectDir?: string
 
   /**
    * The dist directory the server is currently using
@@ -207,9 +266,25 @@ export interface RequestMeta {
   distDir?: string
 
   /**
-   * Whether we are generating the fallback version of the page in dev mode
+    Optional hostname used by route handlers when constructing absolute URLs.
+    hostname: '127.0.0.1',
    */
-  isIsrFallback?: boolean
+  hostname?: string
+
+  /**
+   Optional internal revalidate function to avoid revalidating over the network
+   */
+  revalidate?: RevalidateFn
+
+  /**
+   Optional function to render the 404 page for pages router `notFound: true`
+   */
+  render404?: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders?: boolean
+  ) => Promise<void>
 
   /**
    * The query after resolving routes
@@ -222,11 +297,6 @@ export interface RequestMeta {
   params?: ParsedUrlQuery
 
   /**
-   * The AMP validator to use in development
-   */
-  ampValidator?: (html: string, pathname: string) => Promise<void>
-
-  /**
    * ErrorOverlay component to use in development for pages router
    */
   PagesErrorDebug?: PagesDevOverlayBridgeType
@@ -236,6 +306,35 @@ export interface RequestMeta {
    * specific flags in future)
    */
   minimalMode?: boolean
+
+  /**
+   * The fallback params for this route. In dev, used for validating prerenders.
+   * In production, used to defer params resolution during staged rendering.
+   */
+  fallbackParams?: OpaqueFallbackRouteParams
+
+  /**
+   * DEV only: Request timings in process.hrtime.bigint()
+   */
+  devRequestTimingStart?: bigint
+  devRequestTimingMiddlewareStart?: bigint
+  devRequestTimingMiddlewareEnd?: bigint
+  devRequestTimingInternalsEnd?: bigint
+
+  /**
+   * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
+   */
+  devGenerateStaticParamsDuration?: bigint
+
+  /**
+   * DEV only: Server action log info to be logged after the request log
+   */
+  devServerActionLog?: {
+    functionName: string
+    args: unknown[]
+    location: string
+    duration: number
+  }
 }
 
 /**
@@ -316,11 +415,28 @@ type NextQueryMetadata = {
   [NEXT_RSC_UNION_QUERY]?: string
 }
 
-export type NextParsedUrlQuery = ParsedUrlQuery &
-  NextQueryMetadata & {
-    amp?: '1'
-  }
+export type NextParsedUrlQuery = ParsedUrlQuery & NextQueryMetadata
 
-export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
+/**
+ * subset of `url.parse` return value
+ */
+interface LegacyUrl {
+  auth?: string | null
+  hash: string | null
+  hostname: string | null
+  href: string
+  pathname: string | null
+  protocol: string | null
+  search: string | null
+  slashes: boolean | null
+  port: string | null
+  query: string | null | ParsedUrlQuery
+}
+interface LegacyUrlWithParsedQuery extends LegacyUrl {
+  query: ParsedUrlQuery
+}
+
+// TODO: Remove in favor of WHATWG URLs
+export interface NextUrlWithParsedQuery extends LegacyUrlWithParsedQuery {
   query: NextParsedUrlQuery
 }

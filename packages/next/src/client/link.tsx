@@ -91,7 +91,8 @@ type InternalLinkProps = {
   locale?: string | false
   /**
    * Enable legacy link behavior.
-   * @deprecated This will be removed in v16
+   *
+   * @deprecated This will be removed in a future version
    * @defaultValue `false`
    * @see https://github.com/vercel/next.js/commit/489e65ed98544e69b0afd7e0cfc3f9f6c2b803b7
    */
@@ -112,13 +113,27 @@ type InternalLinkProps = {
    * Optional event handler for when the `<Link>` is navigated.
    */
   onNavigate?: OnNavigateEventHandler
+
+  /**
+   * Transition types to apply when navigating. These types are passed to
+   * [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType)
+   * inside the navigation transition, enabling
+   * [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components
+   * to apply different animations based on the type of navigation.
+   *
+   * @example
+   * ```tsx
+   * <Link href="/about" transitionTypes={['slide-in']}>About</Link>
+   * ```
+   */
+  transitionTypes?: string[]
 }
 
 // TODO-APP: Include the full set of Anchor props
 // adding this to the publicly exported type currently breaks existing apps
 
 // `RouteInferType` is a stub here to avoid breaking `typedRoutes` when the type
-// isn't generated yet. It will be replaced when the webpack plugin runs.
+// isn't generated yet. It will be replaced when type generation runs.
 // WARNING: This should be an interface to prevent TypeScript from inlining it
 // in declarations of libraries dependending on Next.js.
 // Not trivial to reproduce so only convert to an interface when needed.
@@ -310,6 +325,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
+      transitionTypes,
       ...restProps
     } = props
 
@@ -362,7 +378,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           }
         } else {
           // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _: never = key
         }
       })
@@ -381,6 +396,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onTouchStart: true,
         legacyBehavior: true,
         onNavigate: true,
+        transitionTypes: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -443,9 +459,16 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
               actual: valType,
             })
           }
+        } else if (key === 'transitionTypes') {
+          if (props[key] != null && !Array.isArray(props[key])) {
+            throw createPropError({
+              key,
+              expected: '`string[]`',
+              actual: valType,
+            })
+          }
         } else {
           // TypeScript trick for type-guarding:
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const _: never = key
         }
       })
@@ -520,7 +543,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const [setIntersectionRef, isVisible, resetVisible] = useIntersection({
       rootMargin: '200px',
     })
-
     const setIntersectionWithResetRef = React.useCallback(
       (el: Element | null) => {
         // Before the link getting observed, check if visible state need to be reset
@@ -658,8 +680,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           },
     }
 
-    // If child is an <a> tag and doesn't have a href attribute, or if the 'passHref' property is
-    // defined, we specify the current 'href', so that repetition is not needed by the user.
     // If the url is absolute, we can bypass the logic to prepend the domain and locale.
     if (isAbsoluteUrl(as)) {
       childProps.href = as

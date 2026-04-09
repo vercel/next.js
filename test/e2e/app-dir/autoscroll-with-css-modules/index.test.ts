@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('router autoscrolling on navigation with css modules', () => {
   const { next } = nextTestSetup({
@@ -14,17 +14,16 @@ describe('router autoscrolling on navigation with css modules', () => {
   const getLeftScroll = async (browser: Playwright) =>
     await browser.eval('document.documentElement.scrollLeft')
 
-  const waitForScrollToComplete = (
-    browser,
+  const waitForScrollToComplete = async (
+    browser: Playwright,
     options: { x: number; y: number }
-  ) =>
-    check(async () => {
+  ) => {
+    await retry(async function expectScrolledTo() {
       const top = await getTopScroll(browser)
       const left = await getLeftScroll(browser)
-      return top === options.y && left === options.x
-        ? 'success'
-        : JSON.stringify({ top, left })
-    }, 'success')
+      expect({ top, left }).toEqual({ top: options.y, left: options.x })
+    })
+  }
 
   const scrollTo = async (
     browser: Playwright,
@@ -37,6 +36,7 @@ describe('router autoscrolling on navigation with css modules', () => {
   describe('vertical scroll when page imports css modules', () => {
     it('should scroll to top of document when navigating between to pages without layout when', async () => {
       const browser = await next.browser('/1')
+      await browser.waitForElementByCss('#lower')
 
       await scrollTo(browser, { x: 0, y: 1000 })
       expect(await getTopScroll(browser)).toBe(1000)
@@ -47,6 +47,7 @@ describe('router autoscrolling on navigation with css modules', () => {
 
     it('should scroll when clicking in JS', async () => {
       const browser = await next.browser('/1')
+      await browser.waitForElementByCss('#lower')
 
       await scrollTo(browser, { x: 0, y: 1000 })
       expect(await getTopScroll(browser)).toBe(1000)

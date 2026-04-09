@@ -3,7 +3,7 @@ import { useMemo, useState, useRef } from 'react'
 import { CallStack } from '../../call-stack/call-stack'
 
 interface CallStackProps {
-  frames: OriginalStackFrame[]
+  frames: readonly OriginalStackFrame[]
   dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
@@ -19,26 +19,39 @@ export function ErrorOverlayCallStack({
   }, [frames])
 
   function onToggleIgnoreList() {
-    const dialog = dialogResizerRef?.current as HTMLElement
-
-    if (!dialog) {
-      return
-    }
-
-    const { height: currentHeight } = dialog?.getBoundingClientRect()
-
-    if (!initialDialogHeight.current) {
-      initialDialogHeight.current = currentHeight
-    }
+    const dialog = dialogResizerRef?.current
 
     if (isIgnoreListOpen) {
+      // Closing requires dialog for animation
+      if (!dialog) {
+        // No dialog ref available, just close without animation
+        setIsIgnoreListOpen(false)
+        return
+      }
+
+      const { height: currentHeight } = dialog.getBoundingClientRect()
+
+      if (!initialDialogHeight.current) {
+        initialDialogHeight.current = currentHeight
+      }
+
       function onTransitionEnd() {
-        dialog.removeEventListener('transitionend', onTransitionEnd)
+        // TS bug. We closed over a non-nullable value here.
+        dialog!.removeEventListener('transitionend', onTransitionEnd)
         setIsIgnoreListOpen(false)
       }
+      // eslint-disable-next-line react-hooks/immutability -- Bug in react-hooks/react-compiler
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {
+      if (dialog) {
+        const { height: currentHeight } = dialog.getBoundingClientRect()
+        // When the ignore list is closed, we need to store the initial height of the dialog,
+        // we need this value to restore the dialog to its original height when the ignore list is opened again.
+        if (!initialDialogHeight.current) {
+          initialDialogHeight.current = currentHeight
+        }
+      }
       setIsIgnoreListOpen(true)
     }
   }

@@ -36,7 +36,7 @@ describe.skip('app dir - next-image (with https)', () => {
 
     if (process.env.IS_TURBOPACK_TEST) {
       expect(src).toMatchInlineSnapshot(
-        `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.308c602d.png&w=828&q=90"`
+        `"/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.4813cd24.png&w=828&q=90"`
       )
     } else {
       expect(src).toMatchInlineSnapshot(

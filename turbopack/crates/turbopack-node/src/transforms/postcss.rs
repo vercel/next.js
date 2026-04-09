@@ -1,45 +1,44 @@
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use indoc::formatdoc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
     fxindexmap, trace::TraceRawVcs,
 };
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    changed::any_content_changed_of_module,
+    changed::any_source_content_changed_of_module,
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
-    },
+    module_graph::{ModuleGraph, SingleModuleGraph},
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{FindContextFileResult, find_context_file_or_package_key, options::ImportMapping},
     source::Source,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap},
+    source_map::GenerateSourceMap,
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
-use super::{
-    util::{EmittedAsset, emitted_assets_to_virtual_sources},
-    webpack::WebpackLoaderContext,
-};
 use crate::{
-    embed_js::embed_file_path, execution_context::ExecutionContext,
-    transforms::webpack::evaluate_webpack_loader,
+    embed_js::embed_file_path,
+    evaluate::get_evaluate_entries,
+    execution_context::ExecutionContext,
+    transforms::{
+        util::{EmittedAsset, emitted_assets_to_virtual_sources},
+        webpack::{WebpackLoaderContext, evaluate_webpack_loader},
+    },
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Clone, Deserialize)]
+#[turbo_tasks::value]
 #[serde(rename_all = "camelCase")]
-#[turbo_tasks::value(serialization = "custom")]
 struct PostCssProcessingResult {
     css: String,
     map: Option<String>,
@@ -55,10 +54,10 @@ struct PostCssProcessingResult {
     Hash,
     Debug,
     TraceRawVcs,
-    Serialize,
-    Deserialize,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum PostCssConfigLocation {
     #[default]
@@ -85,6 +84,9 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".postcssrc.js",
             ".postcssrc.mjs",
             ".postcssrc.cjs",
+            ".postcssrc.ts",
+            ".postcssrc.mts",
+            ".postcssrc.cts",
             ".config/postcssrc",
             ".config/postcssrc.json",
             ".config/postcssrc.yaml",
@@ -92,9 +94,15 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
             ".config/postcssrc.js",
             ".config/postcssrc.mjs",
             ".config/postcssrc.cjs",
+            ".config/postcssrc.ts",
+            ".config/postcssrc.mts",
+            ".config/postcssrc.cts",
             "postcss.config.js",
             "postcss.config.mjs",
             "postcss.config.cjs",
+            "postcss.config.ts",
+            "postcss.config.mts",
+            "postcss.config.cts",
             "postcss.config.json",
         ]
         .into_iter()
@@ -106,6 +114,7 @@ fn postcss_configs() -> Vc<Vec<RcStr>> {
 #[turbo_tasks::value]
 pub struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source_maps: bool,
@@ -116,12 +125,14 @@ impl PostCssTransform {
     #[turbo_tasks::function]
     pub fn new(
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+        config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
         source_maps: bool,
     ) -> Vc<Self> {
         PostCssTransform {
             evaluate_context,
+            config_tracing_context,
             execution_context,
             config_location,
             source_maps,
@@ -133,13 +144,19 @@ impl PostCssTransform {
 #[turbo_tasks::value_impl]
 impl SourceTransform for PostCssTransform {
     #[turbo_tasks::function]
-    fn transform(&self, source: ResolvedVc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
+    fn transform(
+        &self,
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    ) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             PostCssTransformedAsset {
                 evaluate_context: self.evaluate_context,
+                config_tracing_context: self.config_tracing_context,
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
+                asset_context,
                 source_map: self.source_maps,
             }
             .cell(),
@@ -150,9 +167,11 @@ impl SourceTransform for PostCssTransform {
 #[turbo_tasks::value]
 struct PostCssTransformedAsset {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
+    config_tracing_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     source_map: bool,
 }
 
@@ -162,30 +181,20 @@ impl Source for PostCssTransformedAsset {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident()
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(format!("PostCSS transform of {}", inner).into()))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
-        let this = self.await?;
-        Ok(*transform_process_operation(self)
-            .issue_file_path(
-                this.source.ident().path().await?.clone_value(),
-                "PostCSS processing",
-            )
-            .await?
-            .connect()
-            .await?
-            .content)
+    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+        Ok(*self.process().await?.content)
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn transform_process_operation(
-    asset: ResolvedVc<PostCssTransformedAsset>,
-) -> Vc<ProcessPostCssResult> {
-    asset.process()
 }
 
 #[turbo_tasks::value]
@@ -207,7 +216,7 @@ async fn config_changed(
         .module();
 
     Ok(Vc::<Completions>::cell(vec![
-        any_content_changed_of_module(config_asset)
+        any_source_content_changed_of_module(config_asset)
             .to_resolved()
             .await?,
         extra_configs_changed(asset_context, postcss_config_path)
@@ -243,9 +252,11 @@ async fn extra_configs_changed(
                         .try_into_module()
                         .await?
                     {
-                        Some(module) => {
-                            Some(any_content_changed_of_module(*module).to_resolved().await?)
-                        }
+                        Some(module) => Some(
+                            any_source_content_changed_of_module(*module)
+                                .to_resolved()
+                                .await?,
+                        ),
                         None => None,
                     }
                 } else {
@@ -286,6 +297,11 @@ impl JsonSource {
 #[turbo_tasks::value_impl]
 impl Source for JsonSource {
     #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("JSON content of {}", self.path).into())
+    }
+
+    #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         match &*self.key.await? {
             Some(key) => Ok(AssetIdent::from_path(
@@ -317,12 +333,14 @@ impl Asset for JsonSource {
                     }
                     None => &*json,
                 };
-                Ok(AssetContent::file(File::from(value.to_string()).into()))
+                Ok(AssetContent::file(
+                    FileContent::Content(File::from(value.to_string())).cell(),
+                ))
             }
             FileSystemEntryType::NotFound => {
                 Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
             }
-            _ => Err(anyhow::anyhow!("Invalid file type {:?}", file_type)),
+            _ => bail!("Invalid file type {:?}", file_type),
         }
     }
 }
@@ -383,7 +401,7 @@ pub(crate) async fn config_loader_source(
 
     Ok(Vc::upcast(VirtualSource::new(
         postcss_config_path.append("_.loader.mjs")?,
-        AssetContent::file(File::from(code).into()),
+        AssetContent::file(FileContent::Content(File::from(code)).cell()),
     )))
 }
 
@@ -405,8 +423,8 @@ async fn postcss_executor(
     Ok(asset_context.process(
         Vc::upcast(FileSource::new(
             embed_file_path(rcstr!("transforms/postcss.ts"))
-                .await?
-                .clone_value(),
+                .owned()
+                .await?,
         )),
         ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             rcstr!("CONFIG") => config_asset
@@ -443,11 +461,11 @@ async fn find_config_in_location(
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
-        let source = Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*self.source).await?;
+    async fn generate_source_map(&self) -> Result<Vc<FileContent>> {
+        let source = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.source);
         match source {
             Some(source) => Ok(source.generate_source_map()),
-            None => Ok(Vc::cell(None)),
+            None => Ok(FileContent::NotFound.cell()),
         }
     }
 }
@@ -460,9 +478,10 @@ impl PostCssTransformedAsset {
             project_path,
             chunking_context,
             env,
+            node_backend,
         } = &*self.execution_context.await?;
 
-        // For this postcss transform, there is no gaurantee that looking up for the
+        // For this postcss transform, there is no guarantee that looking up for the
         // source path will arrives specific project config for the postcss.
         // i.e, this is possible
         // - root
@@ -500,15 +519,27 @@ impl PostCssTransformedAsset {
         let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
-        let config_changed = config_changed(*evaluate_context, config_path.clone())
+        let config_changed = config_changed(*self.config_tracing_context, config_path.clone())
             .to_resolved()
             .await?;
 
         let postcss_executor =
-            postcss_executor(*evaluate_context, project_path.clone(), config_path)
-                .module()
+            postcss_executor(*evaluate_context, project_path.clone(), config_path).module();
+
+        let entries =
+            get_evaluate_entries(postcss_executor, *evaluate_context, **node_backend, None)
                 .to_resolved()
                 .await?;
+
+        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        ))
+        .connect()
+        .to_resolved()
+        .await?;
+
         let css_fs_path = self.source.ident().path();
 
         // We need to get a path relative to the project because the postcss loader
@@ -522,13 +553,16 @@ impl PostCssTransformedAsset {
             };
 
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            module_asset: postcss_executor,
+            entries,
             cwd: project_path.clone(),
             env: *env,
-            context_ident_for_issue: self.source.ident().to_resolved().await?,
-            asset_context: evaluate_context,
+            node_backend: *node_backend,
+            context_source_for_issue: self.source,
             chunking_context: *chunking_context,
+            evaluate_context: self.evaluate_context,
+            module_graph,
             resolve_options_context: None,
+            asset_context: self.asset_context,
             args: vec![
                 ResolvedVc::cell(content.into()),
                 ResolvedVc::cell(css_path.into()),
@@ -538,7 +572,7 @@ impl PostCssTransformedAsset {
         })
         .await?;
 
-        let SingleValue::Single(val) = config_value.try_into_single().await? else {
+        let Some(val) = &*config_value else {
             // An error happened, which has already been converted into an issue.
             return Ok(ProcessPostCssResult {
                 content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
@@ -546,7 +580,7 @@ impl PostCssTransformedAsset {
             }
             .cell());
         };
-        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val.to_str()?)
+        let processed_css: PostCssProcessingResult = parse_json_with_source_context(val)
             .context("Unable to deserializate response from PostCSS transform operation")?;
 
         // TODO handle SourceMap
@@ -555,42 +589,5 @@ impl PostCssTransformedAsset {
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
         Ok(ProcessPostCssResult { content, assets }.cell())
-    }
-}
-
-#[turbo_tasks::value]
-struct PostCssTransformIssue {
-    source: FileSystemPath,
-    description: RcStr,
-    severity: IssueSeverity,
-    title: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for PostCssTransformIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(self.title.clone()).cell()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.description.clone()).resolved_cell(),
-        ))
-    }
-
-    fn severity(&self) -> IssueSeverity {
-        self.severity
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
     }
 }

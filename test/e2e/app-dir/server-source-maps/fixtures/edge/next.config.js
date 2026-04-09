@@ -2,9 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  enablePrerenderSourceMaps: true,
   experimental: {
     cpus: 1,
-    enablePrerenderSourceMaps: true,
     serverSourceMaps: true,
   },
 }

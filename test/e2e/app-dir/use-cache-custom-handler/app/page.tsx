@@ -1,10 +1,5 @@
 import { Suspense } from 'react'
-import {
-  unstable_cacheLife as cacheLife,
-  unstable_cacheTag as cacheTag,
-  revalidatePath,
-  revalidateTag,
-} from 'next/cache'
+import { cacheLife, cacheTag, revalidatePath, updateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { connection } from 'next/server'
 import React from 'react'
@@ -12,7 +7,7 @@ import React from 'react'
 async function getData() {
   'use cache'
 
-  cacheLife({ revalidate: 3 })
+  cacheLife({ revalidate: 6 })
   cacheTag('modern')
 
   return new Date().toISOString()
@@ -38,7 +33,7 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            revalidateTag('modern')
+            updateTag('modern')
           }}
         >
           Revalidate Tag
@@ -58,7 +53,7 @@ export default async function Home() {
           formAction={async () => {
             'use server'
 
-            revalidateTag('modern')
+            updateTag('modern')
             redirect('/')
           }}
         >

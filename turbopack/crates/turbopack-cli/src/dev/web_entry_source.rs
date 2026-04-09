@@ -1,4 +1,4 @@
-use anyhow::{Result, anyhow};
+use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_env::ProcessEnv;
@@ -6,14 +6,16 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{BrowserChunkingContext, react_refresh::assert_can_resolve_react_refresh};
 use turbopack_cli_utils::runtime_entry::{RuntimeEntries, RuntimeEntry};
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapsType},
+    chunk::{
+        ChunkableModule, ChunkingContext, EvaluatableAsset, SourceMapSourceType, SourceMapsType,
+    },
     environment::Environment,
     file_source::FileSource,
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroupEntry},
+    module_graph::{ModuleGraph, SingleModuleGraph, chunk_group_info::ChunkGroupEntry},
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
-        origin::{PlainResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
 };
@@ -51,7 +53,9 @@ pub async fn get_client_chunking_context(
             RuntimeType::Development,
         )
         .hot_module_replacement()
-        .use_file_source_map_uris()
+        .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
+        .dynamic_chunk_content_loading(true)
+        .nested_async_availability(true)
         .build(),
     ))
 }
@@ -84,8 +88,8 @@ pub async fn get_client_runtime_entries(
         RuntimeEntry::Source(ResolvedVc::upcast(
             FileSource::new(
                 embed_file_path(rcstr!("entry/bootstrap.ts"))
-                    .await?
-                    .clone_value(),
+                    .owned()
+                    .await?,
             )
             .to_resolved()
             .await?,
@@ -109,7 +113,7 @@ pub async fn create_web_entry_source(
     source_maps_type: SourceMapsType,
     browserslist_query: RcStr,
 ) -> Result<Vc<Box<dyn ContentSource>>> {
-    let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
+    let compile_time_info = get_client_compile_time_info(browserslist_query, node_env, true);
     let asset_context = get_client_asset_context(
         root_path.clone(),
         execution_context,
@@ -135,9 +139,9 @@ pub async fn create_web_entry_source(
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
             Ok(origin
-                .resolve_asset(request, origin.resolve_options(ty.clone()).await?, ty)
+                .resolve_asset(request, origin.resolve_options(), ty)
                 .await?
-                .resolve()
+                .to_resolved()
                 .await?
                 .primary_modules()
                 .await?
@@ -157,10 +161,12 @@ pub async fn create_web_entry_source(
                 .map(|&entry| ResolvedVc::upcast(entry)),
         )
         .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
-    let module_graph =
-        ModuleGraph::from_modules(Vc::cell(vec![ChunkGroupEntry::Entry(all_modules)]), false)
-            .to_resolved()
-            .await?;
+    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(all_modules)]),
+        false,
+        false,
+    ));
+    let module_graph = module_graph.connect().to_resolved().await?;
 
     let entries: Vec<_> = entries
         .into_iter()
@@ -188,10 +194,10 @@ pub async fn create_web_entry_source(
                 })
             } else {
                 // TODO convert into a serve-able asset
-                Err(anyhow!(
+                bail!(
                     "Entry module is not chunkable, so it can't be used to bootstrap the \
                      application"
-                ))
+                )
             }
         })
         .try_join()

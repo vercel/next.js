@@ -178,12 +178,12 @@
   },
   "packages/next-codemod/transforms/__tests__/new-link.test.js": {
     "passed": [
-      "new-link transforms correctly using \"new-link/add-legacy-behavior\" data",
       "new-link transforms correctly using \"new-link/children-interpolation\" data",
-      "new-link transforms correctly using \"new-link/excludes-links-with-legacybehavior-prop\" data",
+      "new-link transforms correctly using \"new-link/custom-component-child\" data",
       "new-link transforms correctly using \"new-link/handle-duplicate-props\" data",
       "new-link transforms correctly using \"new-link/link-a\" data",
       "new-link transforms correctly using \"new-link/link-string\" data",
+      "new-link transforms correctly using \"new-link/links-with-legacybehavior-prop\" data",
       "new-link transforms correctly using \"new-link/move-props\" data",
       "new-link transforms correctly using \"new-link/spread-props\" data",
       "new-link transforms correctly using \"new-link/styled-jsx\" data"
@@ -386,24 +386,6 @@
       "url-to-withrouter transforms correctly using \"url-to-withrouter/with-router-import\" data",
       "url-to-withrouter transforms correctly using \"url-to-withrouter/without-import\" data",
       "url-to-withrouter transforms correctly using \"url-to-withrouter/wrapping-export\" data"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "packages/next-codemod/transforms/__tests__/withamp-to-config.test.js": {
-    "passed": [
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-inline\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-dupe\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/full-amp-with-config-var\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/hybrid-amp-with-config\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-renamed\" data",
-      "withamp-to-config transforms correctly using \"withamp-to-config/remove-import-single\" data"
     ],
     "failed": [],
     "pending": [],
@@ -911,7 +893,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "packages/next/src/next-devtools/dev-overlay/segment-explorer.test.tsx": {
+  "packages/next/src/next-devtools/dev-overlay/segment-explorer-trie.test.tsx": {
     "passed": [
       "Segment Explorer add complex structure",
       "Segment Explorer remove node in the middle"
@@ -1091,13 +1073,13 @@
   "packages/next/src/server/config.test.ts": {
     "passed": [
       "loadConfig canary-only features errors when using PPR if not in canary",
-      "loadConfig canary-only features errors when using dynamicIO if not in canary",
+      "loadConfig canary-only features errors when using cacheComponents if not in canary",
       "loadConfig canary-only features errors when using persistentCaching if not in canary",
       "loadConfig canary-only features should not print a stack trace when throwing an error",
       "loadConfig nextConfig.images defaults should assign a `images.remotePatterns` when using assetPrefix",
       "loadConfig nextConfig.images defaults should not assign a duplicate `images.remotePatterns` value when using assetPrefix",
-      "loadConfig with a canary version errors when dynamicIO is enabled but PPR is disabled",
-      "loadConfig with a canary version errors when dynamicIO is enabled but PPR set to \"incremental\""
+      "loadConfig with a canary version errors when cacheComponents is enabled but PPR is disabled",
+      "loadConfig with a canary version errors when cacheComponents is enabled but PPR set to \"incremental\""
     ],
     "failed": [],
     "pending": [],
@@ -2036,10 +2018,10 @@
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidatePath is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidateTag is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cache is allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cacheLife is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_cacheTag is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_expirePath is not allowed",
-      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_expireTag is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component cacheLife is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component cacheTag is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidatePath is not allowed",
+      "Error overlay - RSC build errors importing 'next/cache' APIs in a client component revalidateTag is not allowed",
       "Error overlay - RSC build errors importing 'next/cache' APIs in a client component unstable_noStore is allowed",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning client-only",
       "Error overlay - RSC build errors should allow to use and handle rsc poisoning server-only",
@@ -2291,10 +2273,10 @@
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidatePath is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidateTag is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cache is allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cacheLife is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_cacheTag is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expirePath is not allowed",
-      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_expireTag is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages cacheLife is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages cacheTag is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidatePath is not allowed",
+      "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages revalidateTag is not allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/cache' APIs in pages unstable_noStore is allowed",
       "Error Overlay for server components compiler errors in pages importing 'next/headers' in pages",
       "Error Overlay for server components compiler errors in pages importing 'server-only' in pages",
@@ -2419,39 +2401,39 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/dynamic-io-dev-cache-scope/dynamic-io-dev-cache-scope.test.ts": {
+  "test/development/app-dir/cache-components-dev-cache-scope/cache-components-dev-cache-scope.test.ts": {
     "passed": [
-      "Dynamic IO Dev Errors should not show a red box error on the SSR render",
-      "Dynamic IO Dev Errors should show a red box error on the SSR render when data is uncached"
+      "Cache Components Dev Errors should not show a red box error on the SSR render",
+      "Cache Components Dev Errors should show a red box error on the SSR render when data is uncached"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/dynamic-io-dev-errors/dynamic-io-dev-errors.test.ts": {
+  "test/development/app-dir/cache-components-dev-errors/cache-components-dev-errors.test.ts": {
     "passed": [
-      "Dynamic IO Dev Errors should clear segment errors after correcting them",
-      "Dynamic IO Dev Errors should display error when component accessed data without suspense boundary",
-      "Dynamic IO Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
-      "Dynamic IO Dev Errors should show a red box error on client navigations",
-      "Dynamic IO Dev Errors should show a red box error on the SSR render"
+      "Cache Components Dev Errors should clear segment errors after correcting them",
+      "Cache Components Dev Errors should display error when component accessed data without suspense boundary",
+      "Cache Components Dev Errors should not log unhandled rejections for persistently thrown top-level errors",
+      "Cache Components Dev Errors should show a red box error on client navigations",
+      "Cache Components Dev Errors should show a red box error on the SSR render"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/dynamic-io-dev-warmup/dynamic-io.dev-warmup.test.ts": {
+  "test/development/app-dir/cache-components-dev-warmup/cache-components.dev-warmup.test.ts": {
     "passed": [
-      "dynamic-io-dev-warmup logs with Prerender or Server environment depending based on whether the timing of when the log runs relative to this environment boundary"
+      "cache-components-dev-warmup logs with Prerender or Server environment depending based on whether the timing of when the log runs relative to this environment boundary"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/development/app-dir/dynamic-io-warnings/dynamic-io.warnings.test.ts": {
+  "test/development/app-dir/cache-components-warnings/cache-components.warnings.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -2539,6 +2521,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/hmr-intercept-routes/hmr-intercept-routes.test.ts": {
+    "passed": ["hmr-intercept-routes should update intercept routes via HMR"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/hmr-move-file/hmr-move-file.test.ts": {
     "passed": [
       "HMR Move File should work when moving a component to another directory"
@@ -2618,7 +2607,7 @@
   "test/development/app-dir/missing-required-html-tags/index.test.ts": {
     "passed": [
       "app-dir - missing required html tags should display correct error count in dev indicator",
-      "app-dir - missing required html tags should hmr when you fix the error",
+      "app-dir - missing required html tags should reload when you fix the error",
       "app-dir - missing required html tags should show error overlay"
     ],
     "failed": [],
@@ -2671,6 +2660,16 @@
       "app-dir - owner-stack should log stitched error for SSR errors",
       "app-dir - owner-stack should log stitched error for browser caught errors",
       "app-dir - owner-stack should log stitched error for browser uncaught errors"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/segment-explorer-globals/segment-explorer-globals.test.ts": {
+    "passed": [
+      "segment-explorer - globals should display parallel routes default page when present",
+      "segment-explorer - globals should show global-error segment"
     ],
     "failed": [],
     "pending": [],
@@ -3670,9 +3669,7 @@
       "Client Navigation with <a/> tag inside the <Link /> should navigate the page",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the <a/> tag has a target",
       "Client Navigation with <a/> tag inside the <Link /> should not navigate if the click-event is modified",
-      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked",
-      "Client Navigation with unexpected <a/> nested tag should not redirect if passHref prop is not defined in Link",
-      "Client Navigation with unexpected <a/> nested tag should redirect if passHref prop is defined in Link"
+      "Client Navigation with <a/> tag inside the <Link /> should not reload when link in svg is clicked"
     ],
     "failed": [],
     "pending": [],
@@ -3783,15 +3780,13 @@
   "test/development/pages-dir/client-navigation/link.test.ts": {
     "passed": [
       "Client Navigation with <Link/> should call mouse handlers with an absolute url",
-      "Client Navigation with <Link/> should error when calling onClick without event",
       "Client Navigation with <Link/> should navigate an absolute local url",
       "Client Navigation with <Link/> should navigate an absolute local url with as",
       "Client Navigation with <Link/> should navigate an absolute url",
       "Client Navigation with <Link/> should navigate back after reload",
       "Client Navigation with <Link/> should navigate forwards after reload",
       "Client Navigation with <Link/> should navigate the page",
-      "Client Navigation with <Link/> should navigate via the client side",
-      "Client Navigation with <Link/> should not throw error when one number type child is provided"
+      "Client Navigation with <Link/> should navigate via the client side"
     ],
     "failed": [],
     "pending": [],
@@ -4221,8 +4216,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -4284,7 +4279,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -4349,8 +4344,8 @@
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
       "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-      "app-dir action handling fetch actions should handle unstable_expirePath",
-      "app-dir action handling fetch actions should handle unstable_expireTag",
+      "app-dir action handling fetch actions should handle revalidatePath",
+      "app-dir action handling fetch actions should handle revalidateTag",
       "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
       "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
       "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -4412,7 +4407,7 @@
     ],
     "failed": [],
     "pending": [
-      "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
+      "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
     ],
     "flakey": [],
@@ -4811,50 +4806,6 @@
     "pending": [
       "app dir rendering mixed static and dynamic should generate static data during build and use it"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/generate-static-params.test.ts": {
-    "passed": [
-      "app-root-params - generateStaticParams should be a cache hit for fully prerendered pages",
-      "app-root-params - generateStaticParams should be a cache miss for pages that aren't prerendered",
-      "app-root-params - generateStaticParams should only return rootParams and not other params",
-      "app-root-params - generateStaticParams should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/multiple-roots.test.ts": {
-    "passed": [
-      "app-root-params - multiple roots should have root params on dashboard pages",
-      "app-root-params - multiple roots should not have root params on marketing pages"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/simple.test.ts": {
-    "passed": [
-      "app-root-params - simple should only return rootParams and not other params",
-      "app-root-params - simple should render the not found page without errors",
-      "app-root-params - simple should return rootParams"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-root-params/use-cache.test.ts": {
-    "passed": [
-      "app-root-params - cache - at build noop in dev",
-      "app-root-params - cache - at runtime should error when using rootParams within `unstable_cache` - dev",
-      "app-root-params - cache - at runtime should error when using rootParams within a \"use cache\" - dev"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -5825,122 +5776,101 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-dynamic-imports/dynamic-io-dynamic-imports.test.ts": {
+  "test/e2e/app-dir/cache-components-dynamic-imports/cache-components-dynamic-imports.test.ts": {
     "passed": [
-      "async imports in dynamicIO - external packages does not instrument import() in external packages",
-      "async imports in dynamicIO are not instrumented in edge edge route handler",
-      "async imports in dynamicIO are not instrumented in edge middleware",
-      "async imports in dynamicIO inside a GET route handler import of a sync module",
-      "async imports in dynamicIO inside a GET route handler import of module with top-level-await",
-      "async imports in dynamicIO inside a client component import of a sync module",
-      "async imports in dynamicIO inside a client component import of module with top-level-await",
-      "async imports in dynamicIO inside a server component dynamic import in node_modules in a CJS package import of a sync module",
-      "async imports in dynamicIO inside a server component dynamic import in node_modules in an ESM package import of a sync module",
-      "async imports in dynamicIO inside a server component dynamic import in node_modules in an ESM package import of module with top-level-await",
-      "async imports in dynamicIO inside a server component import of a sync module",
-      "async imports in dynamicIO inside a server component import of module with top-level-await",
-      "async imports in dynamicIO outside of render client import of a sync module",
-      "async imports in dynamicIO outside of render client import of module with top-level-await",
-      "async imports in dynamicIO outside of render server import of a sync module",
-      "async imports in dynamicIO outside of render server import of module with top-level-await"
+      "async imports in cacheComponents - external packages does not instrument import() in external packages",
+      "async imports in cacheComponents are not instrumented in edge edge route handler",
+      "async imports in cacheComponents are not instrumented in edge middleware",
+      "async imports in cacheComponents inside a GET route handler import of a sync module",
+      "async imports in cacheComponents inside a GET route handler import of module with top-level-await",
+      "async imports in cacheComponents inside a client component import of a sync module",
+      "async imports in cacheComponents inside a client component import of module with top-level-await",
+      "async imports in cacheComponents inside a server component dynamic import in node_modules in a CJS package import of a sync module",
+      "async imports in cacheComponents inside a server component dynamic import in node_modules in an ESM package import of a sync module",
+      "async imports in cacheComponents inside a server component dynamic import in node_modules in an ESM package import of module with top-level-await",
+      "async imports in cacheComponents inside a server component import of a sync module",
+      "async imports in cacheComponents inside a server component import of module with top-level-await",
+      "async imports in cacheComponents outside of render client import of a sync module",
+      "async imports in cacheComponents outside of render client import of module with top-level-await",
+      "async imports in cacheComponents outside of render server import of a sync module",
+      "async imports in cacheComponents outside of render server import of module with top-level-await"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.module-scope.test.ts": {
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.module-scope.test.ts": {
     "passed": ["Lazy Module Init does not run in dev"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.platform-dynamic.test.ts": {
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.platform-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - Math.random() does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - Math.random() does not run in dev"
+      "Cache Components Errors - Dev Sync Dynamic - With Fallback - Math.random() should not show a collapsed redbox error",
+      "Cache Components Errors - Dev Sync Dynamic - Without Fallback - Math.random() should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.prospective-errors.test.ts": {
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.prospective-errors.test.ts": {
     "passed": [
-      "Dynamic IO Prospective Render Errors - Debug Build should error on the first visit to each page",
-      "Dynamic IO Prospective Render Errors - Standard Build should error on the first visit to each page"
+      "Cache Components Prospective Render Errors - Debug Build should error on the first visit to each page",
+      "Cache Components Prospective Render Errors - Standard Build should error on the first visit to each page"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-attribution.test.ts": {
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.sync-attribution.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - With Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO does not run in dev",
-      "Dynamic IO Errors - Without Minification Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO does not run in dev"
+      "Cache Components Errors - Dev Error Attribution with Sync IO - Guarded RSC with guarded Client sync IO does not show a validation error in the dev overlay",
+      "Cache Components Errors - Dev Error Attribution with Sync IO - Guarded RSC with unguarded Client sync IO should show a collapsed redbox error",
+      "Cache Components Errors - Dev Error Attribution with Sync IO - Unguarded RSC with guarded Client sync IO should show a collapsed redbox error",
+      "Cache Components Errors - Dev Error Attribution with Sync IO - unguarded RSC with unguarded Client sync IO should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.sync-dynamic.test.ts": {
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.sync-dynamic.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - With Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - With Minification Sync Dynamic - Without Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - With Fallback - server searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - client searchParams does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - cookies does not run in dev",
-      "Dynamic IO Errors - Without Minification Sync Dynamic - Without Fallback - server searchParams does not run in dev"
+      "Cache Components Errors - Dev Sync Dynamic - With Fallback - client searchParams should show a collapsed redbox error",
+      "Cache Components Errors - Dev Sync Dynamic - With Fallback - cookies should show a collapsed redbox error",
+      "Cache Components Errors - Dev Sync Dynamic - With Fallback - server searchParams should show a collapsed redbox error",
+      "Cache Components Errors - Dev Sync Dynamic - Without Fallback - client searchParams should show a collapsed redbox with two errors",
+      "Cache Components Errors - Dev Sync Dynamic - Without Fallback - cookies should show a collapsed redbox error",
+      "Cache Components Errors - Dev Sync Dynamic - Without Fallback - server searchParams should show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-errors/dynamic-io-errors.test.ts": {
+  "test/e2e/app-dir/cache-components-errors/cache-components-errors.test.ts": {
     "passed": [
-      "Dynamic IO Errors - With Minification Dynamic Boundary does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Error Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Metadata - Static Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Root does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - With Minification Dynamic Viewport - Static Route does not run in dev",
-      "Dynamic IO Errors - With Minification Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Boundary does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Error Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route With Suspense does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Metadata - Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Root does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Dynamic Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Dynamic Viewport - Static Route does not run in dev",
-      "Dynamic IO Errors - Without Minification Static Route does not run in dev"
+      "Cache Components Errors - Dev Dynamic Boundary should not show a collapsed redbox error",
+      "Cache Components Errors - Dev Dynamic Metadata - Dynamic Route should not show a collapsed redbox error",
+      "Cache Components Errors - Dev Dynamic Metadata - Error Route should show a collapsed redbox error",
+      "Cache Components Errors - Dev Dynamic Metadata - Static Route With Suspense should show a collapsed redbox error",
+      "Cache Components Errors - Dev Dynamic Metadata - Static Route should show a collapsed redbox error",
+      "Cache Components Errors - Dev Dynamic Root should show a collapsed redbox with two errors",
+      "Cache Components Errors - Dev Dynamic Viewport - Dynamic Route should show a collapsed redbox error",
+      "Cache Components Errors - Dev Dynamic Viewport - Static Route should show a collapsed redbox error",
+      "Cache Components Errors - Dev Static Route should not show a collapsed redbox error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-request-apis/dynamic-io-request-apis.test.ts": {
+  "test/e2e/app-dir/cache-components-request-apis/cache-components-request-apis.test.ts": {
     "passed": [
       "Request Promises On Prerender Completion does not run in dev",
       "Request Promises On Prerender Interruption does not run in dev"
@@ -5950,221 +5880,232 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io-segment-configs/dynamic-io-segment-configs.test.ts": {
+  "test/e2e/app-dir/cache-components-segment-configs/cache-components-segment-configs.test.ts": {
     "passed": [
-      "dynamic-io-segment-configs it should error when using segment configs that aren't supported by dynamicIO",
-      "dynamic-io-segment-configs should propagate configurations from layouts to pages"
+      "cache-components-segment-configs it should error when using segment configs that aren't supported by cacheComponents",
+      "cache-components-segment-configs should propagate configurations from layouts to pages"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.connection.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.connection.test.ts": {
     "passed": [
-      "dynamic-io should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
-      "dynamic-io should partially prerender pages that use connection"
+      "cache-components should be able to pass connection as a promise to another component and trigger an intermediate Suspense boundary",
+      "cache-components should partially prerender pages that use connection"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.cookies.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.cookies.test.ts": {
     "passed": [
-      "dynamic-io should be able to access cookie properties asynchronously",
-      "dynamic-io should be able to access cookie properties synchronously",
-      "dynamic-io should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
-      "dynamic-io should partially prerender pages that use async cookies",
-      "dynamic-io should partially prerender pages that use sync cookies"
+      "cache-components should be able to access cookie properties asynchronously",
+      "cache-components should be able to access cookie properties synchronously",
+      "cache-components should be able to pass cookies as a promise to another component and trigger an intermediate Suspense boundary",
+      "cache-components should partially prerender pages that use async cookies",
+      "cache-components should partially prerender pages that use sync cookies"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.date.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.date.test.ts": {
     "passed": [
-      "dynamic-io should not have route specific errors",
-      "dynamic-io should not prerender pages with uncached `Date()` calls",
-      "dynamic-io should not prerender pages with uncached `Date.now()` calls",
-      "dynamic-io should not prerender pages with uncached `new Date()` calls",
-      "dynamic-io should not prerender pages with uncached static Date instances like `new Date(0)`",
-      "dynamic-io should prerender pages with cached `Date()` calls",
-      "dynamic-io should prerender pages with cached `Date.now()` calls",
-      "dynamic-io should prerender pages with cached `new Date()` calls",
-      "dynamic-io should prerender pages with cached static Date instances like `new Date(0)`"
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached `Date()` calls",
+      "cache-components should not prerender pages with uncached `Date.now()` calls",
+      "cache-components should not prerender pages with uncached `new Date()` calls",
+      "cache-components should not prerender pages with uncached static Date instances like `new Date(0)`",
+      "cache-components should prerender pages with cached `Date()` calls",
+      "cache-components should prerender pages with cached `Date.now()` calls",
+      "cache-components should prerender pages with cached `new Date()` calls",
+      "cache-components should prerender pages with cached static Date instances like `new Date(0)`"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.draft-mode.test.ts": {
-    "passed": ["dynamic-io should fully prerender pages that use draftMode"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.headers.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.draft-mode.test.ts": {
     "passed": [
-      "dynamic-io should be able to access headers properties asynchronously",
-      "dynamic-io should be able to access headers properties synchronously",
-      "dynamic-io should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
-      "dynamic-io should partially prerender pages that use async headers",
-      "dynamic-io should partially prerender pages that use sync headers"
+      "cache-components should fully prerender pages that use draftMode"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.node-crypto.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.headers.test.ts": {
     "passed": [
-      "dynamic-io should not have route specific errors",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').generateKeyPairSync(type, options)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').generateKeySync(type, options)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').generatePrimeSync(size, options)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
-      "dynamic-io should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').generateKeySync(type, options)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').generatePrimeSync(size, options)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').getRandomValues(...)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').randomBytes(size)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').randomFillSync(buffer)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').randomInt(max)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').randomInt(min, max)` calls",
-      "dynamic-io should prerender pages with cached `require('node:crypto').randomUUID()` calls"
+      "cache-components should be able to access headers properties asynchronously",
+      "cache-components should be able to access headers properties synchronously",
+      "cache-components should be able to pass headers as a promise to another component and trigger an intermediate Suspense boundary",
+      "cache-components should partially prerender pages that use async headers",
+      "cache-components should partially prerender pages that use sync headers"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.params.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.node-crypto.test.ts": {
     "passed": [
-      "dynamic-io Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
-      "dynamic-io Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
-      "dynamic-io Async Params should partially prerender pages that await params in a server components",
-      "dynamic-io Async Params should partially prerender pages that spread `use`ed params in a client component",
-      "dynamic-io Async Params should partially prerender pages that spread awaited params in a server component",
-      "dynamic-io Async Params should partially prerender pages that use params in a client components",
-      "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
-      "dynamic-io Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
-      "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
-      "dynamic-io Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
-      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
-      "dynamic-io Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
-      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a client components",
-      "dynamic-io Synchronous Params access should partially prerender pages that access params synchronously in a server components",
-      "dynamic-io Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
-      "dynamic-io Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeyPairSync(type, options)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').generateKeySync(type, options)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').generatePrimeSync(size, options)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').getRandomValues(...)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomBytes(size)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomFillSync(buffer)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(max)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomInt(min, max)` calls",
+      "cache-components should not prerender pages with uncached `require('node:crypto').randomUUID()` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').generateKeyPairSync(type, options)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').generateKeySync(type, options)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').generatePrimeSync(size, options)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').getRandomValues(...)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomBytes(size)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomFillSync(buffer)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomInt(max)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomInt(min, max)` calls",
+      "cache-components should prerender pages with cached `require('node:crypto').randomUUID()` calls"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.random.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.params.test.ts": {
     "passed": [
-      "dynamic-io should not have route specific errors",
-      "dynamic-io should not prerender pages with uncached Math.random() calls",
-      "dynamic-io should prerender pages with cached Math.random() calls"
+      "cache-components Async Params should fully prerender pages that check individual param keys after `use`ing params in a client component",
+      "cache-components Async Params should fully prerender pages that check individual param keys after awaiting params in a server component",
+      "cache-components Async Params should partially prerender pages that await params in a server components",
+      "cache-components Async Params should partially prerender pages that spread `use`ed params in a client component",
+      "cache-components Async Params should partially prerender pages that spread awaited params in a server component",
+      "cache-components Async Params should partially prerender pages that use params in a client components",
+      "cache-components Param Shadowing should correctly allow param names like then, value, and status when `use`ing params in a client component",
+      "cache-components Param Shadowing should correctly allow param names like then, value, and status when awaiting params in a server component",
+      "cache-components Param Shadowing should not allow param names like then and status when accessing params directly in a client component",
+      "cache-components Param Shadowing should not allow param names like then and status when accessing params directly in a server component",
+      "cache-components Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a client component",
+      "cache-components Synchronous Params access should fully prerender pages that check individual param keys directly on the params prop in a server component",
+      "cache-components Synchronous Params access should partially prerender pages that access params synchronously in a client components",
+      "cache-components Synchronous Params access should partially prerender pages that access params synchronously in a server components",
+      "cache-components Synchronous Params access should partially prerender pages that spread params without `use`ing them first in a client component",
+      "cache-components Synchronous Params access should partially prerender pages that spread params without awaiting first in a server component"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.routes.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.random.test.ts": {
     "passed": [
-      "dynamic-io should not prerender GET route handlers that complete in a new Task",
-      "dynamic-io should not prerender GET route handlers that have some uncached io (fetches)",
-      "dynamic-io should not prerender GET route handlers that have some uncached io (unstable_cache)",
-      "dynamic-io should not prerender GET route handlers that use dynamic APIs",
-      "dynamic-io should prerender GET route handlers that complete synchronously or in a microtask",
-      "dynamic-io should prerender GET route handlers that have entirely cached io (\"use cache\")",
-      "dynamic-io should prerender GET route handlers that have entirely cached io (fetches)",
-      "dynamic-io should prerender GET route handlers that have entirely cached io (unstable_cache)",
-      "dynamic-io should prerender GET route handlers when accessing awaited params",
-      "dynamic-io should prerender GET route handlers when accessing params without awaiting first"
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached Math.random() calls",
+      "cache-components should prerender pages with cached Math.random() calls"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.search.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.routes.test.ts": {
     "passed": [
-      "dynamic-io should partially prerender pages that `use` searchParams in a client component",
-      "dynamic-io should partially prerender pages that `use` searchParams in a server component",
-      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a client component",
-      "dynamic-io should partially prerender pages that access a searchParam property synchronously in a server component",
-      "dynamic-io should partially prerender pages that await searchParams in a server component",
-      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
-      "dynamic-io should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
-      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a client component",
-      "dynamic-io should partially prerender pages that spreads ...searchParam synchronously in a server component"
+      "cache-components should not prerender GET route handlers that complete in a new Task",
+      "cache-components should not prerender GET route handlers that have some uncached io (fetches)",
+      "cache-components should not prerender GET route handlers that have some uncached io (unstable_cache)",
+      "cache-components should not prerender GET route handlers that use dynamic APIs",
+      "cache-components should prerender GET route handlers that complete synchronously or in a microtask",
+      "cache-components should prerender GET route handlers that have entirely cached io (\"use cache\")",
+      "cache-components should prerender GET route handlers that have entirely cached io (fetches)",
+      "cache-components should prerender GET route handlers that have entirely cached io (unstable_cache)",
+      "cache-components should prerender GET route handlers when accessing awaited params",
+      "cache-components should prerender GET route handlers when accessing params without awaiting first"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.server-action.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.search.test.ts": {
     "passed": [
-      "dynamic-io should not fail decoding server action arguments",
-      "dynamic-io should not have dynamic IO errors when encoding bound args for inline server actions",
-      "dynamic-io should prerender pages with inline server actions"
+      "cache-components should partially prerender pages that `use` searchParams in a client component",
+      "cache-components should partially prerender pages that `use` searchParams in a server component",
+      "cache-components should partially prerender pages that access a searchParam property synchronously in a client component",
+      "cache-components should partially prerender pages that access a searchParam property synchronously in a server component",
+      "cache-components should partially prerender pages that await searchParams in a server component",
+      "cache-components should partially prerender pages that checks for the existence of a searchParam property synchronously in a client component",
+      "cache-components should partially prerender pages that checks for the existence of a searchParam property synchronously in a server component",
+      "cache-components should partially prerender pages that spreads ...searchParam synchronously in a client component",
+      "cache-components should partially prerender pages that spreads ...searchParam synchronously in a server component"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.server-action.test.ts": {
     "passed": [
-      "dynamic-io can prerender pages with parallel routes that are static",
-      "dynamic-io can prerender pages with parallel routes that resolve in a microtask",
-      "dynamic-io does not prerender pages with parallel routes that resolve in a task",
-      "dynamic-io does not prerender pages with parallel routes that uses a dynamic API",
-      "dynamic-io should fully prerender pages that use `unstable_noStore()`",
-      "dynamic-io should not have route specific errors",
-      "dynamic-io should not log not-found errors",
-      "dynamic-io should partially prerender pages that do any uncached IO",
-      "dynamic-io should partially prerender pages that do any uncached IO (use cache)",
-      "dynamic-io should partially prerender pages that take longer than a task to render",
-      "dynamic-io should partially prerender pages that use `cookies()`",
-      "dynamic-io should partially prerender pages that use `headers()`",
-      "dynamic-io should partially prerender pages that use `searchParams` in Client Components",
-      "dynamic-io should partially prerender pages that use `searchParams` in Server Components",
-      "dynamic-io should partially prerender pages that use at least one fetch without cache",
-      "dynamic-io should prerender fully static pages",
-      "dynamic-io should prerender pages that cached the whole page",
-      "dynamic-io should prerender pages that only use cached (\"use cache\") IO",
-      "dynamic-io should prerender pages that only use cached (unstable_cache) IO",
-      "dynamic-io should prerender pages that only use cached fetches",
-      "dynamic-io should prerender pages that render in a microtask",
-      "dynamic-io should prerender static not-found pages"
+      "cache-components should not fail decoding server action arguments",
+      "cache-components should not have cache components errors when encoding bound args for inline server actions",
+      "cache-components should prerender pages with inline server actions"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/dynamic-io/dynamic-io.web-crypto.test.ts": {
+  "test/e2e/app-dir/cache-components/cache-components.test.ts": {
     "passed": [
-      "dynamic-io should not have route specific errors",
-      "dynamic-io should not prerender pages with uncached `crypto.getRandomValues(...)` calls",
-      "dynamic-io should not prerender pages with uncached `crypto.randomUUID()` calls",
-      "dynamic-io should prerender pages with cached `crypto.getRandomValues(...)` calls",
-      "dynamic-io should prerender pages with cached `crypto.randomUUID()` calls"
+      "cache-components can prerender pages with parallel routes that are static",
+      "cache-components can prerender pages with parallel routes that resolve in a microtask",
+      "cache-components does not prerender pages with parallel routes that resolve in a task",
+      "cache-components does not prerender pages with parallel routes that uses a dynamic API",
+      "cache-components should fully prerender pages that use `unstable_noStore()`",
+      "cache-components should not have route specific errors",
+      "cache-components should not log not-found errors",
+      "cache-components should partially prerender pages that do any uncached IO",
+      "cache-components should partially prerender pages that do any uncached IO (use cache)",
+      "cache-components should partially prerender pages that take longer than a task to render",
+      "cache-components should partially prerender pages that use `cookies()`",
+      "cache-components should partially prerender pages that use `headers()`",
+      "cache-components should partially prerender pages that use `searchParams` in Client Components",
+      "cache-components should partially prerender pages that use `searchParams` in Server Components",
+      "cache-components should partially prerender pages that use at least one fetch without cache",
+      "cache-components should prerender fully static pages",
+      "cache-components should prerender pages that cached the whole page",
+      "cache-components should prerender pages that only use cached (\"use cache\") IO",
+      "cache-components should prerender pages that only use cached (unstable_cache) IO",
+      "cache-components should prerender pages that only use cached fetches",
+      "cache-components should prerender pages that render in a microtask",
+      "cache-components should prerender static not-found pages"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/cache-components/cache-components.web-crypto.test.ts": {
+    "passed": [
+      "cache-components should not have route specific errors",
+      "cache-components should not prerender pages with uncached `crypto.getRandomValues(...)` calls",
+      "cache-components should not prerender pages with uncached `crypto.randomUUID()` calls",
+      "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
+      "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/duplicate-layout-components/duplicate-layout-components.test.ts": {
+    "passed": [
+      "app dir - duplicate layout components should not duplicate layout elements when navigating to 404"
     ],
     "failed": [],
     "pending": [],
@@ -6596,7 +6537,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js": {
+  "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.ts": {
     "passed": [
       "i18n-hybrid does not resolve /en-CA/blog/first-post",
       "i18n-hybrid does not resolve /en-US/blog/first-post",
@@ -6734,15 +6675,6 @@
       "app dir - layout params catchall params should give catchall params just to last layout",
       "app dir - layout params catchall params should give empty optional catchall params won't give params to any layout",
       "app dir - layout params catchall params should give optional catchall params just to last layout"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/link-component-deprecations/link-component-deprecations.test.ts": {
-    "passed": [
-      "Link component deprecations logs deprecation warning for legacyBehavior prop"
     ],
     "failed": [],
     "pending": [],
@@ -6936,6 +6868,15 @@
       "app-dir - metadata-icons should re-insert the body icons into the head",
       "app-dir - metadata-icons should render custom icons along with favicon in nested page",
       "app-dir - metadata-icons should render custom icons along with favicon in root page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-image-files/metadata-image-files.test.ts": {
+    "passed": [
+      "app dir - metadata image files should handle imported metadata images"
     ],
     "failed": [],
     "pending": [],
@@ -7170,6 +7111,18 @@
   "test/e2e/app-dir/middleware-matching/index.test.ts": {
     "passed": [
       "app dir - middleware with custom matcher should match /:id (without asterisk)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/middleware-rewrite-catchall-priority-with-parallel-route/middleware-rewrite-catchall-priority-with-parallel-route.test.ts": {
+    "passed": [
+      "app-dir - middleware rewrite with catch-all and parallel routes should rewrite to the specific page instead of the catch-all with parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes should redirect to the specific page instead of the catch-all with parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes should rewrite to the specific page instead of the catch-all without parallel route",
+      "app-dir - middleware rewrite with catch-all and parallel routes should redirect to the specific page instead of the catch-all without parallel route"
     ],
     "failed": [],
     "pending": [],
@@ -7647,11 +7600,11 @@
   },
   "test/e2e/app-dir/node-extensions/node-extensions.random.test.ts": {
     "passed": [
-      "Node Extensions Random Dynamic IO should not error when accessing middlware that use Math.random()",
-      "Node Extensions Random Dynamic IO should not error when accessing pages that use Math.random() in App Router",
-      "Node Extensions Random Dynamic IO should not error when accessing pages that use Math.random() in Pages Router",
-      "Node Extensions Random Dynamic IO should not error when accessing routes that use Math.random() in App Router",
-      "Node Extensions Random Dynamic IO should not error when accessing routes that use Math.random() in Pages Router",
+      "Node Extensions Random Cache Components should not error when accessing middlware that use Math.random()",
+      "Node Extensions Random Cache Components should not error when accessing pages that use Math.random() in App Router",
+      "Node Extensions Random Cache Components should not error when accessing pages that use Math.random() in Pages Router",
+      "Node Extensions Random Cache Components should not error when accessing routes that use Math.random() in App Router",
+      "Node Extensions Random Cache Components should not error when accessing routes that use Math.random() in Pages Router",
       "Node Extensions Random Legacy should not error when accessing middlware that use Math.random()",
       "Node Extensions Random Legacy should not error when accessing pages that use Math.random() in App Router",
       "Node Extensions Random Legacy should not error when accessing pages that use Math.random() in Pages Router",
@@ -7689,6 +7642,24 @@
       "app dir - not found with default 404 page should render default 404 with root layout for non-existent page",
       "app dir - not found with default 404 page should render default not found for group routes if not found is not defined",
       "app dir - not found with default 404 page should return 404 status code for default not-found page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found-with-layout-and-group-not-found/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts and custom not-found should render the custom not-found page when notFound() is thrown from a page within the group"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/not-found-with-nested-layouts/index.test.ts": {
+    "passed": [
+      "app dir - not found with nested layouts should render the custom not-found page when notFound() is thrown from a page"
     ],
     "failed": [],
     "pending": [],
@@ -8428,8 +8399,8 @@
   },
   "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts": {
     "passed": [
-      "unstable_expireTag-rsc should error if unstable_expireTag is called during render",
-      "unstable_expireTag-rsc should revalidate fetch cache if unstable_expireTag invoked via server action"
+      "revalidateTag-rsc should error if revalidateTag is called during render",
+      "revalidateTag-rsc should revalidate fetch cache if revalidateTag invoked via server action"
     ],
     "failed": [],
     "pending": [],
@@ -9531,7 +9502,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
-      "use-cache-custom-handler should not call expireTags for a normal invocation",
+      "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should revalidate after redirect using a legacy custom cache handler",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -9600,21 +9571,21 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
+  "test/e2e/app-dir/use-cache-search-params/use-cache-search-params.test.ts": {
     "passed": [
-      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
+      "use-cache-search-params when searchParams are caught inside of \"use cache\" should show an error",
+      "use-cache-search-params when searchParams are unused inside of \"use cache\" should not show an error",
+      "use-cache-search-params when searchParams are used inside of \"use cache\" should show an error"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-standalone-search-params/use-cache-standalone-search-params.test.ts": {
+  "test/e2e/app-dir/use-cache-segment-configs/use-cache-segment-configs.test.ts": {
     "passed": [
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should also show an error after the second reload",
-      "use-cache-standalone-search-params when searchParams are caught inside of \"use cache\" should show an error",
-      "use-cache-standalone-search-params when searchParams are unused inside of \"use cache\" should not show an error",
-      "use-cache-standalone-search-params when searchParams are used inside of \"use cache\" should show an error"
+      "use-cache-segment-configs it should error when using segment configs that aren't supported by useCache"
     ],
     "failed": [],
     "pending": [],
@@ -9648,7 +9619,7 @@
       "use-cache renders the not-found page when `notFound()` is used",
       "use-cache replays logs from \"use cache\" functions",
       "use-cache shares caches between the page/layout and generateMetadata",
-      "use-cache should be able to revalidate a page using unstable_expireTag",
+      "use-cache should be able to revalidate a page using revalidateTag",
       "use-cache should cache complex args",
       "use-cache should cache fetch without no-store",
       "use-cache should cache results",
@@ -9659,18 +9630,18 @@
       "use-cache should dedupe cached data in the RSC payload",
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should error when cookies/headers/draftMode is used inside \"use cache\"",
-      "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO",
+      "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled",
       "use-cache should not read nor write cached data when draft mode is enabled js enabled",
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should return the same object reference for multiple invocations",
-      "use-cache should revalidate before redirecting in a route handlers",
+      "use-cache should revalidate before redirecting in a route handler",
       "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",
-      "use-cache should update after unstable_expireTag correctly",
+      "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
       "use-cache usage in node_modules should cache results when using a directive without a handler",
@@ -9850,7 +9821,6 @@
       "Document and App - Rendering via HTTP _app should show valid error when thrown in _app getInitialProps",
       "Document and App - Rendering via HTTP _app shows a custom tag",
       "Document and App - Rendering via HTTP _document Document.getInitialProps returns html prop representing app shell",
-      "Document and App - Rendering via HTTP _document adds a timestamp to link tags with preload attribute to invalidate the cache in dev",
       "Document and App - Rendering via HTTP _document adds crossOrigin to all scripts and preload links",
       "Document and App - Rendering via HTTP _document adds nonces to all scripts and preload links",
       "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceApp and enhanceComponent correctly",
@@ -9874,10 +9844,7 @@
       "Async modules works with getStaticProps"
     ],
     "failed": [],
-    "pending": [
-      "Async modules can render async AMP pages",
-      "Async modules can render async error page"
-    ],
+    "pending": ["Async modules can render async error page"],
     "flakey": [],
     "runtimeError": false
   },
@@ -9907,7 +9874,6 @@
       "basePath should not add header without basePath without disabling",
       "basePath should redirect trailing slash correctly",
       "basePath should redirect trailing slash on root correctly",
-      "basePath should respect basePath in amphtml link rel",
       "basePath should serve public file with basePath correctly",
       "basePath should show 404 for page not under the /docs prefix",
       "basePath should show the hello page under the /docs prefix",
@@ -10157,7 +10123,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/disable-js-preload/test/index.test.js": {
+  "test/e2e/disable-js-preload/test/index.test.ts": {
     "passed": [
       "disabled JS preloads should not have JS preload links",
       "disabled JS preloads should render the page"
@@ -10719,6 +10685,8 @@
       "react version App Router page headers with nodejs runtime",
       "react version App Router page with edge runtime",
       "react version App Router page with nodejs runtime",
+      "react version Pages Router API route with edge runtime",
+      "react version Pages Router API route with nodejs runtime",
       "react version Pages Router page headers with edge runtime",
       "react version Pages Router page headers with nodejs runtime",
       "react version Pages Router page with edge runtime",
@@ -11444,16 +11412,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/new-link-behavior/typescript.test.ts": {
-    "passed": [
-      "New Link Behavior should apply ref on link",
-      "New Link Behavior should render link with <a>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/next-config-warnings/esm-externals-false/esm-externals-false.test.ts": {
     "passed": [],
     "failed": [],
@@ -11635,9 +11593,7 @@
   "test/e2e/next-link-errors/next-link-errors.test.ts": {
     "passed": [
       "next-link errors on invalid href",
-      "next-link invalid `prefetch` causes runtime error (dev-only)",
-      "next-link multiple children",
-      "next-link no children"
+      "next-link invalid `prefetch` causes runtime error (dev-only)"
     ],
     "failed": [],
     "pending": [],
@@ -11884,12 +11840,12 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/persistent-caching/persistent-caching.test.ts": {
+  "test/e2e/filesystem-cache/filesystem-cache.test.ts": {
     "passed": [
-      "persistent-caching should allow to change files while stopped (run 1)",
-      "persistent-caching should allow to change files while stopped (run 2)",
-      "persistent-caching should allow to change files while stopped (run 3)",
-      "persistent-caching should persistent cache loaders"
+      "filesystem-cache should allow to change files while stopped (run 1)",
+      "filesystem-cache should allow to change files while stopped (run 2)",
+      "filesystem-cache should allow to change files while stopped (run 3)",
+      "filesystem-cache should filesystem cache loaders"
     ],
     "failed": [],
     "pending": [],
@@ -12119,7 +12075,7 @@
       "skip-trailing-slash-redirect should merge cookies from middleware and edge API routes correctly",
       "skip-trailing-slash-redirect should not apply trailing slash on load on client",
       "skip-trailing-slash-redirect should parse locale info for data request correctly",
-      "skip-trailing-slash-redirect should provide original _next/data URL with skipMiddlewareUrlNormalize"
+      "skip-trailing-slash-redirect should provide original _next/data URL with skipProxyUrlNormalize"
     ],
     "failed": [],
     "pending": [],
@@ -12176,9 +12132,7 @@
   "test/e2e/styled-jsx/index.test.ts": {
     "passed": [
       "styled-jsx should contain styled-jsx styles during SSR",
-      "styled-jsx should render styles during CSR",
-      "styled-jsx should render styles during CSR (AMP)",
-      "styled-jsx should render styles during SSR (AMP)"
+      "styled-jsx should render styles during CSR"
     ],
     "failed": [],
     "pending": [],
@@ -12452,7 +12406,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/typescript-custom-tsconfig/test/index.test.js": {
+  "test/e2e/typescript-custom-tsconfig/test/index.test.ts": {
     "passed": [
       "Custom TypeScript Config app router: allows a user-specific tsconfig via the next config",
       "Custom TypeScript Config middleware: allows a user-specific tsconfig via the next config",
@@ -12570,7 +12524,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page-app/test/index.test.js": {
+  "test/integration/404-page-app/test/index.test.ts": {
     "passed": [
       "404 Page Support with _app development mode should not show pages/404 GIP error if _app has GIP"
     ],
@@ -12584,7 +12538,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page-custom-error/test/index.test.js": {
+  "test/integration/404-page-custom-error/test/index.test.ts": {
     "passed": [
       "Default 404 Page with custom _error development mode should render error correctly",
       "Default 404 Page with custom _error development mode should render index page normal",
@@ -12602,7 +12556,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page-ssg/test/index.test.js": {
+  "test/integration/404-page-ssg/test/index.test.ts": {
     "passed": [
       "404 Page Support SSG development mode should not show an error in the logs for 404 SSG",
       "404 Page Support SSG development mode should render error correctly",
@@ -12623,7 +12577,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/404-page/test/index.test.js": {
+  "test/integration/404-page/test/index.test.ts": {
     "passed": [
       "404 Page Support development mode 2 does not show error with getStaticProps in pages/404 dev",
       "404 Page Support development mode 2 falls back to _error correctly without pages/404",
@@ -12654,7 +12608,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/500-page/test/gsp-gssp.test.js": {
+  "test/integration/500-page/test/gsp-gssp.test.ts": {
     "passed": [
       "gsp-gssp development mode does not show error with getStaticProps in pages/500 dev",
       "gsp-gssp development mode shows error with getServerSideProps in pages/500 dev"
@@ -12669,7 +12623,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/500-page/test/index.test.js": {
+  "test/integration/500-page/test/index.test.ts": {
     "passed": [
       "500 Page Support development mode 2 shows error with getInitialProps in pages/500 dev",
       "500 Page Support development mode should not error when visited directly",
@@ -12694,7 +12648,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/absolute-assetprefix/test/index.test.js": {
+  "test/integration/absolute-assetprefix/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -12707,117 +12661,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/amp-export-validation/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Validation on Export production mode should have shown errors during build",
-      "AMP Validation on Export production mode shows AMP warning without throwing error",
-      "AMP Validation on Export production mode shows warning and error when throwing error",
-      "AMP Validation on Export production mode throws error on AMP error"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-custom-optimizer/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Custom Optimizer production mode should build and start for dynamic page",
-      "AMP Custom Optimizer production mode should build and start for static page"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-custom-validator/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Custom Validator development mode should run in development mode successfully",
-      "AMP Custom Validator production mode should build and start successfully"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-fragment-style/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Fragment Styles production mode adds styles from fragment in AMP mode correctly"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml-ssg/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP SSG Support development mode should load a hybrid amp page with query correctly",
-      "AMP SSG Support development mode should load a hybrid amp page without query correctly",
-      "AMP SSG Support development mode should load an amp first page correctly",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support development mode should load dynamic hybrid SSG/AMP page with trailing slash",
-      "AMP SSG Support export mode production mode should have copied SSG files correctly",
-      "AMP SSG Support production mode should load a hybrid amp page with query correctly",
-      "AMP SSG Support production mode should load a hybrid amp page without query correctly",
-      "AMP SSG Support production mode should load an amp first page correctly",
-      "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page",
-      "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with query",
-      "AMP SSG Support production mode should load dynamic hybrid SSG/AMP page with trailing slash",
-      "AMP SSG Support production mode should output prerendered files correctly during build"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/amphtml/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "AMP Usage AMP dev no-warn should not warn on valid amp",
-      "AMP Usage AMP development mode should add data-ampdevmode to development script tags",
-      "AMP Usage AMP development mode should detect amp validator warning on custom scripts",
-      "AMP Usage AMP development mode should detect amp validator warning on invalid amp",
-      "AMP Usage AMP development mode should detect changes and refresh a hybrid AMP page",
-      "AMP Usage AMP development mode should detect changes and refresh an AMP page",
-      "AMP Usage AMP development mode should detect changes and refresh an AMP page at root pages/",
-      "AMP Usage AMP development mode should detect changes to component and refresh an AMP page",
-      "AMP Usage AMP development mode should detect the changes and display it",
-      "AMP Usage AMP development mode should navigate from non-AMP to AMP without error",
-      "AMP Usage AMP development mode should not contain missing files warning",
-      "AMP Usage AMP development mode should not reload unless the page is edited for an AMP page",
-      "AMP Usage production mode With AMP context should render nested AMP page with AMP hook",
-      "AMP Usage production mode With AMP context should render nested normal page with AMP hook",
-      "AMP Usage production mode With AMP context should render the AMP page that uses the AMP hook",
-      "AMP Usage production mode With AMP context should render the normal page that uses the AMP hook",
-      "AMP Usage production mode With basic AMP usage should auto import extensions",
-      "AMP Usage production mode With basic AMP usage should drop custom scripts",
-      "AMP Usage production mode With basic AMP usage should not drop custom amp scripts",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only",
-      "AMP Usage production mode With basic AMP usage should not output client pages for AMP only with config exported after declaration",
-      "AMP Usage production mode With basic AMP usage should optimize clean",
-      "AMP Usage production mode With basic AMP usage should render the page as valid AMP",
-      "AMP Usage production mode With basic AMP usage should render the page without leaving render target",
-      "AMP Usage production mode With basic usage should render the page",
-      "AMP Usage production mode canonical amphtml should allow manually setting amphtml rel",
-      "AMP Usage production mode canonical amphtml should allow manually setting canonical",
-      "AMP Usage production mode canonical amphtml should not render amphtml link tag with no AMP page",
-      "AMP Usage production mode canonical amphtml should remove conflicting amp tags",
-      "AMP Usage production mode canonical amphtml should render a canonical regardless of amp-only status (explicit)",
-      "AMP Usage production mode canonical amphtml should render amphtml from provided rel link",
-      "AMP Usage production mode canonical amphtml should render link rel amphtml",
-      "AMP Usage production mode canonical amphtml should render link rel amphtml with existing query",
-      "AMP Usage production mode canonical amphtml should render the AMP page that uses the AMP hook",
-      "AMP Usage production mode combined styles should combine style tags",
-      "AMP Usage production mode combined styles should remove sourceMaps from styles",
-      "AMP Usage production mode should have amp optimizer in trace",
-      "AMP Usage production mode should not contain missing files warning",
-      "AMP Usage production mode should not have deprecation warning"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/api-body-parser/test/index.test.js": {
+  "test/integration/api-body-parser/test/index.test.ts": {
     "passed": [
       "should not throw if request body is already parsed in custom middleware",
       "should not throw if request's content-type is invalid",
@@ -12828,7 +12672,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/api-catch-all/test/index.test.js": {
+  "test/integration/api-catch-all/test/index.test.ts": {
     "passed": [
       "API routes dev support should return data when catch-all",
       "API routes dev support should return data when catch-all with index and no trailing slash",
@@ -12845,7 +12689,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/api-support/test/index.test.js": {
+  "test/integration/api-support/test/index.test.ts": {
     "passed": [
       "API routes dev support should 404 on optional dynamic api page",
       "API routes dev support should compile only server code in development",
@@ -12955,7 +12799,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-aspath/test/index.test.js": {
+  "test/integration/app-aspath/test/index.test.ts": {
     "passed": [
       "App asPath should not have any changes in asPath after a bundle rebuild"
     ],
@@ -12964,7 +12808,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-config-asset-prefix/test/index.test.js": {
+  "test/integration/app-config-asset-prefix/test/index.test.ts": {
     "passed": [
       "App assetPrefix config should render correctly with assetPrefix: \"/\""
     ],
@@ -13092,7 +12936,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-add-hmr/test/index.test.js": {
+  "test/integration/app-document-add-hmr/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13102,7 +12946,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-import-order/test/index.test.js": {
+  "test/integration/app-document-import-order/test/index.test.ts": {
     "passed": [
       "development mode root components should be imported in this order _document > _app > page in order to respect side effects"
     ],
@@ -13115,7 +12959,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-remove-hmr/test/index.test.js": {
+  "test/integration/app-document-remove-hmr/test/index.test.ts": {
     "passed": [
       "_app removal HMR should HMR when _app is removed",
       "_app removal HMR should HMR when _document is removed"
@@ -13125,7 +12969,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-document-style-fragment/test/index.test.js": {
+  "test/integration/app-document-style-fragment/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13143,14 +12987,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-functional/test/index.test.js": {
+  "test/integration/app-functional/test/index.test.ts": {
     "passed": ["Document and App should not have any missing key warnings"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-tree/test/index.test.js": {
+  "test/integration/app-tree/test/index.test.ts": {
     "passed": [
       "AppTree development mode should pass AppTree to NextPageContext",
       "AppTree development mode should provide router context in AppTree on CSR",
@@ -13165,7 +13009,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/app-types/app-types.test.js": {
+  "test/integration/app-types/app-types.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13177,7 +13021,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/auto-export-error-bail/test/index.test.js": {
+  "test/integration/auto-export-error-bail/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13186,7 +13030,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/auto-export-query-error/test/index.test.js": {
+  "test/integration/auto-export-query-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13195,7 +13039,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/auto-export/test/index.test.js": {
+  "test/integration/auto-export/test/index.test.ts": {
     "passed": [
       "Auto Export dev Refreshes query on mount",
       "Auto Export dev Supports commonjs 1",
@@ -13215,7 +13059,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/babel-custom/test/index.test.js": {
+  "test/integration/babel-custom/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13227,7 +13071,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/babel-next-image/babel-next-image.test.js": {
+  "test/integration/babel-next-image/babel-next-image.test.ts": {
     "passed": [],
     "failed": [],
     "pending": ["babel-next-image should work with babel and next/image"],
@@ -13243,7 +13087,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/basepath-root-catch-all/test/index.test.js": {
+  "test/integration/basepath-root-catch-all/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13253,7 +13097,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/bigint/test/index.test.js": {
+  "test/integration/bigint/test/index.test.ts": {
     "passed": [
       "bigint API route support development mode should return 200",
       "bigint API route support development mode should return the BigInt result text"
@@ -13266,7 +13110,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/broken-webpack-plugin/test/index.test.js": {
+  "test/integration/broken-webpack-plugin/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13279,7 +13123,7 @@
     "passed": [
       "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
       "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator should validate buildActivityPosition config"
+      "Build Activity Indicator should validate position config"
     ],
     "failed": [],
     "pending": [
@@ -13289,7 +13133,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-output/test/index.test.js": {
+  "test/integration/build-output/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13304,13 +13148,12 @@
       "Build Output production mode Custom App Output should not include custom error",
       "Build Output production mode Custom Error Output should not include custom app",
       "Build Output production mode Custom Static Error Output should not specify /404 as lambda when static",
-      "Build Output production mode With AMP Output should not include custom error",
       "Build Output production mode With Parallel Routes should not have duplicate paths that resolve to the same route"
     ],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-trace-extra-entries-turbo/test/index.test.js": {
+  "test/integration/build-trace-extra-entries-turbo/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13319,7 +13162,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-trace-extra-entries/test/index.test.js": {
+  "test/integration/build-trace-extra-entries/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13328,7 +13171,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/build-warnings/test/index.test.js": {
+  "test/integration/build-warnings/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13342,7 +13185,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/catches-missing-getStaticProps/test/index.test.js": {
+  "test/integration/catches-missing-getStaticProps/test/index.test.ts": {
     "passed": [
       "Catches Missing getStaticProps development mode should catch it in development mode"
     ],
@@ -13353,7 +13196,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/chunking/test/index.test.js": {
+  "test/integration/chunking/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13370,7 +13213,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/clean-distdir/test/index.test.js": {
+  "test/integration/clean-distdir/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13380,7 +13223,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/cli/test/index.test.js": {
+  "test/integration/cli/test/index.test.ts": {
     "passed": [
       "CLI Usage dev --experimental-https",
       "CLI Usage dev --experimental-https with provided key/cert",
@@ -13450,7 +13293,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/client-404/test/index.test.js": {
+  "test/integration/client-404/test/index.test.ts": {
     "passed": [
       "Client 404 development mode Client Navigation 404 should hard navigate to URL on failing to load bundle",
       "Client 404 development mode Client Navigation 404 should show 404 upon client replacestate should navigate the page"
@@ -13464,7 +13307,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/client-navigation-a11y/test/index.test.js": {
+  "test/integration/client-navigation-a11y/test/index.test.ts": {
     "passed": [
       "Client Navigation accessibility <RouteAnnouncer /> There is a title and a h1 tag has the innerText equal to the value of h1",
       "Client Navigation accessibility <RouteAnnouncer /> There is a title but no h1 tag has the innerText equal to the value of document.title",
@@ -13478,7 +13321,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/client-shallow-routing/test/index.test.js": {
+  "test/integration/client-shallow-routing/test/index.test.ts": {
     "passed": [
       "Client Shallow Routing development mode should not shallowly navigate back in history when current page was not shallow",
       "Client Shallow Routing development mode should not shallowly navigate forwards in history when current page was not shallow"
@@ -13491,14 +13334,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/compression/test/index.test.js": {
+  "test/integration/compression/test/index.test.ts": {
     "passed": ["Compression should compress responses by default"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-devtool-dev/test/index.test.js": {
+  "test/integration/config-devtool-dev/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13507,7 +13350,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-experimental-warning/test/index.test.js": {
+  "test/integration/config-experimental-warning/test/index.test.ts": {
     "passed": [
       "Config Experimental Warning should not show warning with config from object",
       "Config Experimental Warning should not show warning with default config from function",
@@ -13566,7 +13409,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-promise-error/test/index.test.js": {
+  "test/integration/config-promise-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13575,7 +13418,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-resolve-alias/test/index.test.js": {
+  "test/integration/config-resolve-alias/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13584,7 +13427,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config-syntax-error/test/index.test.js": {
+  "test/integration/config-syntax-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -13606,7 +13449,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/config/test/index.test.js": {
+  "test/integration/config/test/index.test.ts": {
     "passed": [
       "Configuration correctly imports a package that defines `module` but no `main` in package.json",
       "Configuration renders public config on the server only",
@@ -13619,7 +13462,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/conflicting-public-file-page/test/index.test.js": {
+  "test/integration/conflicting-public-file-page/test/index.test.ts": {
     "passed": [
       "Errors on conflict between public file and page file development mode Throws error during development"
     ],
@@ -14526,16 +14369,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/development-runtime-config/test/index.test.js": {
-    "passed": [
-      "should work with runtime-config in next.config.js empty runtime-config",
-      "should work with runtime-config in next.config.js with runtime-config"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/disable-js/test/index.test.js": {
     "passed": [
       "disabled runtime JS development mode should have a script for each preload link",
@@ -14732,7 +14565,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/dynamic-routing/test/index.test.js": {
+  "test/integration/dynamic-routing/test/index.test.ts": {
     "passed": [
       "Dynamic Routing development mode [catch all] should not decode slashes (end)",
       "Dynamic Routing development mode [catch all] should not decode slashes (middle)",
@@ -15447,20 +15280,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-default-map/test/index.test.js": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "Export with default map production mode should export an amp only page to clean path",
-      "Export with default map production mode should export hybrid amp page correctly",
-      "Export with default map production mode should export hybrid index amp page correctly",
-      "Export with default map production mode should export nested hybrid amp page correctly",
-      "Export with default map production mode should export nested hybrid amp page correctly with folder",
-      "Export with default map production mode should export with folder that has dot in name"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/export-dynamic-pages/test/index.test.js": {
     "passed": [],
     "failed": [],
@@ -15558,7 +15377,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/export-subfolders/test/index.test.js": {
+  "test/integration/export-subfolders/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -15567,7 +15386,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/externals-esm-loose/test/index.test.js": {
+  "test/integration/externals-esm-loose/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -15578,7 +15397,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/externals-pages-bundle/test/externals.test.js": {
+  "test/integration/externals-pages-bundle/test/externals.test.ts": {
     "passed": [
       "default should use externals for unvendored node_modules reachable from the project"
     ],
@@ -15587,7 +15406,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/externals-pages-bundle/test/index.test.js": {
+  "test/integration/externals-pages-bundle/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -15597,7 +15416,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/fallback-false-rewrite/test/index.test.js": {
+  "test/integration/fallback-false-rewrite/test/index.test.ts": {
     "passed": [
       "fallback: false rewrite development mode should behave properly when accessing the dynamic param directly",
       "fallback: false rewrite development mode should not rewrite for path from fallback: false SSR",
@@ -15620,7 +15439,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/fallback-modules/test/index.test.js": {
+  "test/integration/fallback-modules/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -15629,7 +15448,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/fallback-route-params/test/index.test.js": {
+  "test/integration/fallback-route-params/test/index.test.ts": {
     "passed": [
       "Fallback Dynamic Route Params development mode should have correct fallback query (hydration)",
       "Fallback Dynamic Route Params development mode should have correct fallback query (skeleton)"
@@ -15642,7 +15461,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/fetch-polyfill-ky-universal/test/index.test.js": {
+  "test/integration/fetch-polyfill-ky-universal/test/index.test.ts": {
     "passed": [
       "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getInitialProps",
       "Fetch polyfill with ky-universal development mode includes polyfilled fetch when using getServerSideProps",
@@ -15657,7 +15476,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/fetch-polyfill/test/index.test.js": {
+  "test/integration/fetch-polyfill/test/index.test.ts": {
     "passed": [
       "Fetch polyfill development mode includes polyfilled fetch when using API routes",
       "Fetch polyfill development mode includes polyfilled fetch when using getInitialProps",
@@ -15676,7 +15495,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/file-serving/test/index.test.js": {
+  "test/integration/file-serving/test/index.test.ts": {
     "passed": [
       "File Serving development mode should prevent traversing with /%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt",
       "File Serving development mode should prevent traversing with /%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66%%32%65%%32%65%%32%66test-file.txt",
@@ -16997,7 +16816,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/filesystempublicroutes/test/index.test.js": {
+  "test/integration/filesystempublicroutes/test/index.test.ts": {
     "passed": [
       "FileSystemPublicRoutes should not route to the index page",
       "FileSystemPublicRoutes should route to exportPathMap defined routes in development",
@@ -17009,7 +16828,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/firebase-grpc/test/index.test.js": {
+  "test/integration/firebase-grpc/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -17019,7 +16838,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/future/test/index.test.js": {
+  "test/integration/future/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -17028,7 +16847,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/getinitialprops/test/index.test.js": {
+  "test/integration/getinitialprops/test/index.test.ts": {
     "passed": [
       "getInitialProps development mode should have correct router.asPath for direct visit dynamic page",
       "getInitialProps development mode should have correct router.asPath for direct visit dynamic page rewrite direct",
@@ -17045,7 +16864,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/getserversideprops-export-error/test/index.test.js": {
+  "test/integration/getserversideprops-export-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -17054,7 +16873,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/getserversideprops-preview/test/index.test.js": {
+  "test/integration/getserversideprops-preview/test/index.test.ts": {
     "passed": [
       "ServerSide Props Preview Mode development mode should enable preview mode",
       "ServerSide Props Preview Mode development mode should fetch prerendered data",
@@ -17079,7 +16898,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gip-identifier/test/index.test.js": {
+  "test/integration/gip-identifier/test/index.test.ts": {
     "passed": [
       "gip identifiers development mode should have gip and appGip in NEXT_DATA for page with getInitialProps and _app with getInitialProps",
       "gip identifiers development mode should have gip in NEXT_DATA for page with getInitialProps",
@@ -17096,7 +16915,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gsp-build-errors/test/index.test.js": {
+  "test/integration/gsp-build-errors/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -17111,7 +16930,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gsp-extension/test/index.test.js": {
+  "test/integration/gsp-extension/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -17122,7 +16941,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gssp-pageProps-merge/test/index.test.js": {
+  "test/integration/gssp-pageProps-merge/test/index.test.ts": {
     "passed": [
       "pageProps GSSP conflict development mode should merge _app pageProps and getServerSideProps props",
       "pageProps GSSP conflict development mode should merge _app pageProps and getStaticProps props"
@@ -17135,7 +16954,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gssp-redirect-base-path/test/index.test.js": {
+  "test/integration/gssp-redirect-base-path/test/index.test.ts": {
     "passed": [
       "GS(S)P Redirect Support development mode should apply permanent redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support development mode should apply redirect when GSP page is navigated to client-side (external)",
@@ -17185,7 +17004,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gssp-redirect-with-rewrites/test/index.test.js": {
+  "test/integration/gssp-redirect-with-rewrites/test/index.test.ts": {
     "passed": [
       "getServerSideProps redirects should fallback to browser navigation for an unknown URL",
       "getServerSideProps redirects should use a client-side navigation for a rewritten URL"
@@ -17195,7 +17014,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/gssp-redirect/test/index.test.js": {
+  "test/integration/gssp-redirect/test/index.test.ts": {
     "passed": [
       "GS(S)P Redirect Support development mode should apply permanent redirect when visited directly for GSSP page",
       "GS(S)P Redirect Support development mode should apply redirect when GSP page is navigated to client-side (external)",
@@ -17252,7 +17071,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/handles-export-errors/test/index.test.js": {
+  "test/integration/handles-export-errors/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -17261,7 +17080,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/hashbang/test/index.test.js": {
+  "test/integration/hashbang/test/index.test.ts": {
     "passed": [
       "Hashbang development mode first-line hashbang (#!) parse should work for .cjs files",
       "Hashbang development mode first-line hashbang (#!) parse should work for .js files",
@@ -17285,7 +17104,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/hydration/test/index.test.js": {
+  "test/integration/hydration/test/index.test.ts": {
     "passed": [
       "Hydration development mode hydrates correctly for //",
       "Hydration development mode hydrates correctly for normal page",
@@ -17300,7 +17119,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support-base-path/test/index.test.js": {
+  "test/integration/i18n-support-base-path/test/index.test.ts": {
     "passed": [
       "i18n Support basePath development mode should 404 for GSP pages that returned notFound",
       "i18n Support basePath development mode should 404 for GSP that returned notFound on client-transition",
@@ -17310,7 +17129,6 @@
       "i18n Support basePath development mode should apply redirects correctly",
       "i18n Support basePath development mode should apply rewrites correctly",
       "i18n Support basePath development mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath development mode should generate AMP pages with all locales",
       "i18n Support basePath development mode should generate auto-export page with all locales",
       "i18n Support basePath development mode should generate fallbacks with all locales",
       "i18n Support basePath development mode should generate non-dynamic GSP page with all locales",
@@ -17384,8 +17202,7 @@
       "i18n Support basePath development mode should use default locale for / without accept-language",
       "i18n Support basePath development mode should use default locale when no locale is in href with locale false",
       "i18n Support basePath development mode should visit API route directly correctly",
-      "i18n Support basePath development mode should visit dynamic API route directly correctly",
-      "i18n Support basePath development mode should work with AMP first page with all locales"
+      "i18n Support basePath development mode should visit dynamic API route directly correctly"
     ],
     "failed": [],
     "pending": [
@@ -17400,7 +17217,6 @@
       "i18n Support basePath production mode should apply redirects correctly",
       "i18n Support basePath production mode should apply rewrites correctly",
       "i18n Support basePath production mode should apply trailingSlash redirect correctly",
-      "i18n Support basePath production mode should generate AMP pages with all locales",
       "i18n Support basePath production mode should generate auto-export page with all locales",
       "i18n Support basePath production mode should generate fallbacks with all locales",
       "i18n Support basePath production mode should generate non-dynamic GSP page with all locales",
@@ -17481,7 +17297,6 @@
       "i18n Support basePath production mode should use default locale when no locale is in href with locale false",
       "i18n Support basePath production mode should visit API route directly correctly",
       "i18n Support basePath production mode should visit dynamic API route directly correctly",
-      "i18n Support basePath production mode should work with AMP first page with all locales",
       "i18n Support basePath with localeDetection disabled production mode should have localeDetection in routes-manifest",
       "i18n Support basePath with localeDetection disabled production mode should not detect locale from accept-language",
       "i18n Support basePath with localeDetection disabled production mode should set locale from detected path"
@@ -17489,7 +17304,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support-catchall/test/index.test.js": {
+  "test/integration/i18n-support-catchall/test/index.test.ts": {
     "passed": [
       "i18n Support Root Catch-all development mode should load the index route correctly CSR",
       "i18n Support Root Catch-all development mode should load the index route correctly SSR",
@@ -17508,7 +17323,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support-custom-error/test/index.test.js": {
+  "test/integration/i18n-support-custom-error/test/index.test.ts": {
     "passed": [
       "Custom routes i18n custom error development mode handle custom http status maintaining locale props in custom _error page",
       "Custom routes i18n custom error development mode handle default http status maintaining locale props in custom _error page",
@@ -17525,7 +17340,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support-fallback-rewrite-legacy/test/index.test.js": {
+  "test/integration/i18n-support-fallback-rewrite-legacy/test/index.test.ts": {
     "passed": [
       "i18n Support development mode should not rewrite for dynamic page",
       "i18n Support development mode should not rewrite for index page"
@@ -17538,7 +17353,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support-fallback-rewrite/test/index.test.js": {
+  "test/integration/i18n-support-fallback-rewrite/test/index.test.ts": {
     "passed": [
       "i18n Support development mode should not rewrite for dynamic page",
       "i18n Support development mode should not rewrite for index page"
@@ -17551,7 +17366,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support-index-rewrite/test/index.test.js": {
+  "test/integration/i18n-support-index-rewrite/test/index.test.ts": {
     "passed": [
       "Custom routes i18n support index rewrite development mode should handle index rewrite on client correctly",
       "Custom routes i18n support index rewrite development mode should rewrite index route correctly"
@@ -17564,7 +17379,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support-same-page-hash-change/test/index.test.js": {
+  "test/integration/i18n-support-same-page-hash-change/test/index.test.ts": {
     "passed": [
       "Hash changes i18n development mode should trigger hash change events",
       "Hash changes i18n development mode should update props on locale change with same hash",
@@ -17579,7 +17394,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/i18n-support/test/index.test.js": {
+  "test/integration/i18n-support/test/index.test.ts": {
     "passed": [
       "i18n Support development mode should 404 for GSP pages that returned notFound",
       "i18n Support development mode should 404 for GSP that returned notFound on client-transition",
@@ -17589,7 +17404,6 @@
       "i18n Support development mode should apply redirects correctly",
       "i18n Support development mode should apply rewrites correctly",
       "i18n Support development mode should apply trailingSlash redirect correctly",
-      "i18n Support development mode should generate AMP pages with all locales",
       "i18n Support development mode should generate auto-export page with all locales",
       "i18n Support development mode should generate fallbacks with all locales",
       "i18n Support development mode should generate non-dynamic GSP page with all locales",
@@ -17663,7 +17477,6 @@
       "i18n Support development mode should use default locale when no locale is in href with locale false",
       "i18n Support development mode should visit API route directly correctly",
       "i18n Support development mode should visit dynamic API route directly correctly",
-      "i18n Support development mode should work with AMP first page with all locales",
       "i18n Support with trailingSlash: false development mode should redirect correctly",
       "i18n Support with trailingSlash: true development mode should navigate between pages correctly",
       "i18n Support with trailingSlash: true development mode should redirect correctly",
@@ -17683,7 +17496,6 @@
       "i18n Support production mode should apply redirects correctly",
       "i18n Support production mode should apply rewrites correctly",
       "i18n Support production mode should apply trailingSlash redirect correctly",
-      "i18n Support production mode should generate AMP pages with all locales",
       "i18n Support production mode should generate auto-export page with all locales",
       "i18n Support production mode should generate fallbacks with all locales",
       "i18n Support production mode should generate non-dynamic GSP page with all locales",
@@ -17767,7 +17579,6 @@
       "i18n Support production mode should use default locale when no locale is in href with locale false",
       "i18n Support production mode should visit API route directly correctly",
       "i18n Support production mode should visit dynamic API route directly correctly",
-      "i18n Support production mode should work with AMP first page with all locales",
       "i18n Support with localeDetection disabled production mode should have localeDetection in routes-manifest",
       "i18n Support with localeDetection disabled production mode should ignore the invalid accept-language header",
       "i18n Support with localeDetection disabled production mode should not detect locale from accept-language",
@@ -18819,7 +18630,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/import-assertion/test/index.test.js": {
+  "test/integration/import-assertion/test/index.test.ts": {
     "passed": ["import-assertion dev should handle json assertions"],
     "failed": [],
     "pending": [
@@ -18828,7 +18639,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/import-attributes/test/index.test.js": {
+  "test/integration/import-attributes/test/index.test.ts": {
     "passed": ["import-attributes dev should handle json attributes"],
     "failed": [],
     "pending": [
@@ -18880,14 +18691,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/initial-ref/test/index.test.js": {
+  "test/integration/initial-ref/test/index.test.ts": {
     "passed": ["Initial Refs development mode Has correct initial ref values"],
     "failed": [],
     "pending": ["Initial Refs production mode Has correct initial ref values"],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-config-values/test/index.test.js": {
+  "test/integration/invalid-config-values/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -18897,7 +18708,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-custom-routes/test/index.test.js": {
+  "test/integration/invalid-custom-routes/test/index.test.ts": {
     "passed": [
       "Errors on invalid custom routes development mode should error during next build for invalid headers",
       "Errors on invalid custom routes development mode should error during next build for invalid redirects",
@@ -18926,7 +18737,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-document-image-import/test/index.test.js": {
+  "test/integration/invalid-document-image-import/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -18961,7 +18772,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-middleware-matchers/test/index.test.js": {
+  "test/integration/invalid-middleware-matchers/test/index.test.ts": {
     "passed": [
       "Errors on invalid custom middleware matchers development mode should error during next build for invalid matchers",
       "Errors on invalid custom middleware matchers development mode should error when source length is exceeded"
@@ -18974,7 +18785,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-multi-match/test/index.test.js": {
+  "test/integration/invalid-multi-match/test/index.test.ts": {
     "passed": [
       "Custom routes invalid multi-match development mode should show error for invalid mulit-match"
     ],
@@ -18985,7 +18796,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-page-automatic-static-optimization/test/index.test.js": {
+  "test/integration/invalid-page-automatic-static-optimization/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -18995,7 +18806,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-revalidate-values/test/index.test.js": {
+  "test/integration/invalid-revalidate-values/test/index.test.ts": {
     "passed": [
       "Invalid revalidate values should not show error for false revalidate value",
       "Invalid revalidate values should not show error for true revalidate value",
@@ -19009,7 +18820,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/invalid-server-options/test/index.test.js": {
+  "test/integration/invalid-server-options/test/index.test.ts": {
     "passed": [
       "Invalid server options next() called with dev as array should send warning",
       "Invalid server options next() called with dev as function should send warning",
@@ -19025,7 +18836,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/jsconfig-baseurl/test/index.test.js": {
+  "test/integration/jsconfig-baseurl/test/index.test.ts": {
     "passed": [
       "jsconfig.json baseurl default behavior should have correct module not found error",
       "jsconfig.json baseurl default behavior should render the page"
@@ -19037,7 +18848,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/jsconfig-empty/test/index.test.js": {
+  "test/integration/jsconfig-empty/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -19046,7 +18857,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/jsconfig-paths-wildcard/test/index.test.js": {
+  "test/integration/jsconfig-paths-wildcard/test/index.test.ts": {
     "passed": [
       "jsconfig paths wildcard default behavior should resolve a wildcard alias",
       "jsconfig paths without baseurl wildcard default behavior should resolve a wildcard alias"
@@ -19056,7 +18867,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/jsconfig-paths/test/index.test.js": {
+  "test/integration/jsconfig-paths/test/index.test.ts": {
     "passed": [
       "jsconfig paths default behavior should alias components",
       "jsconfig paths default behavior should have correct module not found error",
@@ -19077,7 +18888,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/jsconfig/test/index.test.js": {
+  "test/integration/jsconfig/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -19087,7 +18898,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/json-serialize-original-error/test/index.test.js": {
+  "test/integration/json-serialize-original-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -19154,17 +18965,6 @@
       "Link Component with Encoding spaces should have correct query on Router#push",
       "Link Component with Encoding spaces should have correct query on SSR",
       "Link Component with Encoding spaces should have correct query on simple client-side <Link>"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/link-with-multiple-child/test/index.test.js": {
-    "passed": [
-      "multiple child with default legacyBehavior",
-      "multiple child with forced legacyBehavior=false",
-      "single child"
     ],
     "failed": [],
     "pending": [],
@@ -19286,7 +19086,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/module-ids/test/index.test.js": {
+  "test/integration/module-ids/test/index.test.ts": {
     "passed": [
       "minified module ids development mode should have long module id for the next client runtime module",
       "minified module ids development mode should have long module ids for async loader modules",
@@ -20488,7 +20288,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/preload-viewport/test/index.test.js": {
+  "test/integration/preload-viewport/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -20743,7 +20543,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.js": {
+  "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -20784,7 +20584,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/react-profiling-mode/test/index.test.js": {
+  "test/integration/react-profiling-mode/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -20796,7 +20596,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/read-only-source-hmr/test/index.test.js": {
+  "test/integration/read-only-source-hmr/test/index.test.ts": {
     "passed": [
       "Read-only source HMR should detect a new page",
       "Read-only source HMR should detect changes to a page",
@@ -20807,7 +20607,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/relay-graphql-swc-multi-project/test/index.test.js": {
+  "test/integration/relay-graphql-swc-multi-project/test/index.test.ts": {
     "passed": [
       "Relay Compiler Transform - Multi Project Config development mode project-a should resolve index page correctly",
       "Relay Compiler Transform - Multi Project Config development mode project-b should resolve index page correctly"
@@ -20820,7 +20620,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/relay-graphql-swc-single-project/test/index.test.js": {
+  "test/integration/relay-graphql-swc-single-project/test/index.test.ts": {
     "passed": [
       "Relay Compiler Transform - Single Project Config development mode should resolve index page correctly"
     ],
@@ -20831,14 +20631,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/render-error-on-module-error/test/index.test.js": {
+  "test/integration/render-error-on-module-error/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": ["Module Init Error production mode should render error page"],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/render-error-on-top-level-error/with-get-initial-props/test/index.test.js": {
+  "test/integration/render-error-on-top-level-error/with-get-initial-props/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -20847,14 +20647,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/render-error-on-top-level-error/without-get-initial-props/test/index.test.js": {
+  "test/integration/render-error-on-top-level-error/without-get-initial-props/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": ["Top Level Error production mode should render error page"],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/repeated-slashes/test/index.test.js": {
+  "test/integration/repeated-slashes/test/index.test.ts": {
     "passed": [
       "404 handling custom _error next dev should handle backslashes correctly",
       "404 handling custom _error next dev should handle double slashes correctly",
@@ -20933,7 +20733,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/required-server-files-ssr-404/test/index.test.js": {
+  "test/integration/required-server-files-ssr-404/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -20965,7 +20765,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/revalidate-as-path/test/index.test.js": {
+  "test/integration/revalidate-as-path/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -20977,7 +20777,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrite-with-browser-history/test/index.test.js": {
+  "test/integration/rewrite-with-browser-history/test/index.test.ts": {
     "passed": [
       "rewrites persist with browser history actions development mode back-button should go back to rewritten path successfully"
     ],
@@ -20988,7 +20788,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-client-resolving/test/index.test.js": {
+  "test/integration/rewrites-client-resolving/test/index.test.ts": {
     "passed": [
       "Client-side rewrites resolving development mode should break rewrites chain after matching /category",
       "Client-side rewrites resolving development mode should break rewrites chain when dynamic catch-all route matches",
@@ -21007,7 +20807,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-destination-query-array/test/index.test.js": {
+  "test/integration/rewrites-destination-query-array/test/index.test.ts": {
     "passed": [
       "rewrites destination query development mode should contain all values passed in param as array"
     ],
@@ -21018,7 +20818,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-has-condition/test/index.test.js": {
+  "test/integration/rewrites-has-condition/test/index.test.ts": {
     "passed": [
       "rewrites has condition development mode should navigate to a has rewrite without error",
       "rewrites has condition development mode should navigate to a simple rewrite without error"
@@ -21031,7 +20831,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/rewrites-manual-href-as/test/index.test.js": {
+  "test/integration/rewrites-manual-href-as/test/index.test.ts": {
     "passed": [
       "rewrites manual href/as development mode should allow manual href/as on dynamic page",
       "rewrites manual href/as development mode should allow manual href/as on index page"
@@ -21044,7 +20844,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/root-catchall-cache/test/index.test.js": {
+  "test/integration/root-catchall-cache/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21064,7 +20864,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-index/test/index.test.js": {
+  "test/integration/route-index/test/index.test.ts": {
     "passed": [
       "Route index handling development mode should handle / correctly",
       "Route index handling development mode should handle /index correctly",
@@ -21083,7 +20883,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-indexes/test/index.test.js": {
+  "test/integration/route-indexes/test/index.test.ts": {
     "passed": [
       "Route indexes handling development mode should handle / correctly",
       "Route indexes handling development mode should handle /api/sub correctly",
@@ -21124,7 +20924,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-load-cancel-css/test/index.test.js": {
+  "test/integration/route-load-cancel-css/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21133,7 +20933,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/route-load-cancel/test/index.test.js": {
+  "test/integration/route-load-cancel/test/index.test.ts": {
     "passed": [
       "next/dynamic development mode should cancel slow page loads on re-navigation"
     ],
@@ -21144,7 +20944,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-hash-navigation/test/index.test.js": {
+  "test/integration/router-hash-navigation/test/index.test.ts": {
     "passed": [
       "router.isReady development mode scrolls to top when href=\"/\" and url already contains a hash"
     ],
@@ -21155,7 +20955,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-is-ready-app-gip/test/index.test.js": {
+  "test/integration/router-is-ready-app-gip/test/index.test.ts": {
     "passed": [
       "router.isReady with appGip development mode isReady should be true after query update for getStaticProps page with query",
       "router.isReady with appGip development mode isReady should be true immediately for getStaticProps page without query",
@@ -21172,7 +20972,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-is-ready/test/index.test.js": {
+  "test/integration/router-is-ready/test/index.test.ts": {
     "passed": [
       "router.isReady development mode isReady should be true after query update for auto-export page with query",
       "router.isReady development mode isReady should be true after query update for dynamic auto-export page with query",
@@ -21201,7 +21001,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-prefetch/test/index.test.js": {
+  "test/integration/router-prefetch/test/index.test.ts": {
     "passed": [
       "Router prefetch development mode should not prefetch",
       "Router prefetch development mode should resolve prefetch promise"
@@ -21213,7 +21013,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/router-rerender/test/index.test.js": {
+  "test/integration/router-rerender/test/index.test.ts": {
     "passed": [
       "router rerender development mode with middleware should not trigger unnecessary rerenders when middleware is used"
     ],
@@ -21260,7 +21060,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scroll-back-restoration/test/index.test.js": {
+  "test/integration/scroll-back-restoration/test/index.test.ts": {
     "passed": [
       "Scroll Back Restoration Support development mode should restore the scroll position on navigating back"
     ],
@@ -21271,7 +21071,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/scroll-forward-restoration/test/index.test.js": {
+  "test/integration/scroll-forward-restoration/test/index.test.ts": {
     "passed": [
       "Scroll Forward Restoration Support development mode should restore the scroll position on navigating forward"
     ],
@@ -21282,7 +21082,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/server-asset-modules/test/index.test.js": {
+  "test/integration/server-asset-modules/test/index.test.ts": {
     "passed": [
       "serverside asset modules development mode should enable reading local files in api routes"
     ],
@@ -21293,7 +21093,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/server-side-dev-errors/test/index.test.js": {
+  "test/integration/server-side-dev-errors/test/index.test.ts": {
     "passed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
@@ -21317,7 +21117,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/src-dir-support-double-dir/test/index.test.js": {
+  "test/integration/src-dir-support-double-dir/test/index.test.ts": {
     "passed": [
       "Dynamic Routing development mode should render from pages",
       "Dynamic Routing development mode should render not render from src/pages"
@@ -21330,7 +21130,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/src-dir-support/test/index.test.js": {
+  "test/integration/src-dir-support/test/index.test.ts": {
     "passed": [
       "Dynamic Routing development mode should navigate to a dynamic page successfully",
       "Dynamic Routing development mode should navigate to a nested dynamic page successfully",
@@ -21355,7 +21155,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/ssg-data-404/test/index.test.js": {
+  "test/integration/ssg-data-404/test/index.test.ts": {
     "passed": [
       "SSG data 404 development mode should hard navigate when a new deployment occurs"
     ],
@@ -21366,7 +21166,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/ssg-dynamic-routes-404-page/test/index.test.js": {
+  "test/integration/ssg-dynamic-routes-404-page/test/index.test.ts": {
     "passed": [
       "Custom 404 Page for static site generation with dynamic routes development mode should respond to a not existing page with 404"
     ],
@@ -21378,7 +21178,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/static-404/test/index.test.js": {
+  "test/integration/static-404/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21389,7 +21189,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/static-page-name/test/index.test.js": {
+  "test/integration/static-page-name/test/index.test.ts": {
     "passed": [
       "Static Page Name development mode should navigate to static page name correctly",
       "Static Page Name development mode should render the page via SSR correctly"
@@ -21402,7 +21202,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/styled-jsx-plugin/test/index.test.js": {
+  "test/integration/styled-jsx-plugin/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21411,7 +21211,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/telemetry/test/config.test.js": {
+  "test/integration/telemetry/test/config.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21427,11 +21227,11 @@
       "config telemetry production mode emits telemetry for lint during build when '--no-lint' is specified",
       "config telemetry production mode emits telemetry for lint during build when 'ignoreDuringBuilds' is specified",
       "config telemetry production mode emits telemetry for middleware related options",
-      "config telemetry production mode emits telemetry for persistent cache in build mode",
-      "config telemetry production mode emits telemetry for persistent cache in dev mode",
+      "config telemetry production mode emits telemetry for filesystem cache in build mode",
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
-      "config telemetry production mode emits telemetry for usage of `experimental/dynamicIO`",
+      "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",
       "config telemetry production mode emits telemetry for usage of middleware",
@@ -21443,7 +21243,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/telemetry/test/index.test.js": {
+  "test/integration/telemetry/test/index.test.ts": {
     "passed": [
       "Telemetry CLI can disable telemetry with env NEXT_TELEMETRY_DISABLED",
       "Telemetry CLI can disable telemetry with flag",
@@ -21473,7 +21273,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/telemetry/test/page-features.test.js": {
+  "test/integration/telemetry/test/page-features.test.ts": {
     "passed": [
       "page features telemetry detects --turbo correctly for `next dev`",
       "page features telemetry detects --turbo correctly for `next dev` stopped"
@@ -21483,7 +21283,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slash-dist/test/index.test.js": {
+  "test/integration/trailing-slash-dist/test/index.test.ts": {
     "passed": [
       "Trailing slash in distDir development mode supports trailing slash"
     ],
@@ -21492,7 +21292,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slashes-href-resolving/test/index.test.js": {
+  "test/integration/trailing-slashes-href-resolving/test/index.test.ts": {
     "passed": [
       "href resolving trailing-slash development mode should route to /another/ correctly",
       "href resolving trailing-slash development mode should route to /blog/another/ correctly",
@@ -21514,7 +21314,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/trailing-slashes-rewrite/test/index.test.js": {
+  "test/integration/trailing-slashes-rewrite/test/index.test.ts": {
     "passed": [
       "Trailing Slash Rewrite Proxying development mode should proxy non-existent page correctly",
       "Trailing Slash Rewrite Proxying development mode should resolve a catch-all page correctly",
@@ -21533,7 +21333,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/tsconfig-verifier/test/index.test.js": {
+  "test/integration/tsconfig-verifier/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21566,7 +21366,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/turborepo-access-trace/test/index.test.js": {
+  "test/integration/turborepo-access-trace/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21575,7 +21375,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/turbotrace-with-webpack-worker/test/index.test.js": {
+  "test/integration/turbotrace-with-webpack-worker/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21584,7 +21384,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typeof-window-replace/test/index.test.js": {
+  "test/integration/typeof-window-replace/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21595,7 +21395,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-app-type-declarations/test/index.test.js": {
+  "test/integration/typescript-app-type-declarations/test/index.test.ts": {
     "passed": [
       "TypeScript App Type Declarations should not touch an existing correct next-env.d.ts",
       "TypeScript App Type Declarations should overwrite next-env.d.ts if an incorrect one exists",
@@ -21606,14 +21406,14 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-baseurl/test/index.test.js": {
+  "test/integration/typescript-baseurl/test/index.test.ts": {
     "passed": ["TypeScript Features default behavior should render the page"],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-custom-tsconfig/test/index.test.js": {
+  "test/integration/typescript-custom-tsconfig/test/index.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
@@ -21622,7 +21422,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript-external-dir/project/test/index.test.js": {
+  "test/integration/typescript-external-dir/project/test/index.test.ts": {
     "passed": [
       "TypeScript Features default behavior should render the page with external TS/TSX dependencies"
     ],
@@ -21705,7 +21505,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/typescript/test/index.test.js": {
+  "test/integration/typescript/test/index.test.ts": {
     "passed": [
       "TypeScript Features default behavior should not fail to render when an inactive page has an error",
       "TypeScript Features default behavior should render the angle bracket type assertions page",

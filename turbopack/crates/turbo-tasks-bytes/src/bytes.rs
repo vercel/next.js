@@ -4,11 +4,17 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use bytes::Bytes as CBytes;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 /// Bytes is a thin wrapper around [bytes::Bytes], implementing easy
-/// conversion to/from, ser/de support, and Vc containers.
+/// conversion to/from, bincode support, and Vc containers.
 #[derive(Clone, Debug, Default)]
 #[turbo_tasks::value(transparent, serialization = "custom")]
 pub struct Bytes(#[turbo_tasks(trace_ignore)] CBytes);
@@ -19,18 +25,21 @@ impl Bytes {
     }
 }
 
-impl Serialize for Bytes {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        serde_bytes::Bytes::new(&self.0).serialize(serializer)
+impl Encode for Bytes {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self[..].encode(encoder)
     }
 }
 
-impl<'de> Deserialize<'de> for Bytes {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        let bytes = serde_bytes::ByteBuf::deserialize(deserializer)?;
-        Ok(Bytes(bytes.into_vec().into()))
+impl<Context> Decode<Context> for Bytes {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        // bincode uses the same encoding for slices and vecs
+        // https://docs.rs/bincode/latest/bincode/spec/index.html#linear-collections-vec-arrays-etc
+        Ok(Bytes(CBytes::from(Vec::<u8>::decode(decoder)?)))
     }
 }
+
+impl_borrow_decode!(Bytes);
 
 impl Deref for Bytes {
     type Target = CBytes;
@@ -39,9 +48,10 @@ impl Deref for Bytes {
     }
 }
 
-/// Types that implement From<X> for Bytes {}
-/// Unfortunately, we cannot just use the more generic `Into<Bytes>` without
-/// running afoul of the `From<X> for X` base case, causing conflicting impls.
+/// Types that `impl From<CustomType> for Bytes {}`
+///
+/// Unfortunately, we cannot just use the more generic `Into<Bytes>` without running afoul of the
+/// `From<X> for X` base case, causing conflicting impls.
 pub trait IntoBytes: Into<CBytes> {}
 impl IntoBytes for &'static [u8] {}
 impl IntoBytes for &'static str {}
@@ -69,10 +79,8 @@ impl From<Bytes> for CBytes {
 
 #[cfg(test)]
 mod tests {
-    use bytes::Bytes as CBytes;
-    use serde_test::{Token, assert_tokens};
+    use super::*;
 
-    use super::Bytes;
     impl PartialEq<&str> for Bytes {
         fn eq(&self, other: &&str) -> bool {
             self.0 == other
@@ -90,9 +98,13 @@ mod tests {
     }
 
     #[test]
-    fn serde() {
+    fn bincode() {
         let s = Bytes::from("test");
-        assert_tokens(&s, &[Token::Bytes(b"test")])
+        let c = bincode::config::standard();
+        let decoded: Bytes = bincode::decode_from_slice(&bincode::encode_to_vec(&s, c).unwrap(), c)
+            .unwrap()
+            .0;
+        assert_eq!(decoded, s);
     }
 
     #[test]

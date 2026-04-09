@@ -1,15 +1,16 @@
-use anyhow::Result;
-use futures::{StreamExt, stream};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(Debug, Clone, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode)]
 pub enum ContextCondition {
     All(Vec<ContextCondition>),
     Any(Vec<ContextCondition>),
     Not(Box<ContextCondition>),
     InDirectory(String),
+    /// The same as `InDirectory("node_modules"), but as this is the most common case, we handle it
+    /// directly.`
+    InNodeModules,
     InPath(FileSystemPath),
 }
 
@@ -31,32 +32,27 @@ impl ContextCondition {
     }
 
     /// Returns true if the condition matches the context.
-    pub async fn matches(&self, path: &FileSystemPath) -> Result<bool> {
+    pub fn matches(&self, path: &FileSystemPath) -> bool {
         match self {
-            ContextCondition::All(conditions) => {
-                // False positive.
-                #[allow(clippy::manual_try_fold)]
-                stream::iter(conditions)
-                    .fold(Ok(true), |acc, c| async move {
-                        Ok(acc? && Box::pin(c.matches(path)).await?)
-                    })
-                    .await
+            ContextCondition::All(conditions) => conditions.iter().all(|c| c.matches(path)),
+            ContextCondition::Any(conditions) => conditions.iter().any(|c| c.matches(path)),
+            ContextCondition::Not(condition) => !condition.matches(path),
+            ContextCondition::InPath(other_path) => path.is_inside_or_equal_ref(other_path),
+            ContextCondition::InNodeModules => is_in_directory(path, "node_modules"),
+            ContextCondition::InDirectory(dir) => {
+                // `dir` must be a substring and bracketd by either `'/'` or the end of the path.
+                is_in_directory(path, dir)
             }
-            ContextCondition::Any(conditions) => {
-                // False positive.
-                #[allow(clippy::manual_try_fold)]
-                stream::iter(conditions)
-                    .fold(Ok(false), |acc, c| async move {
-                        Ok(acc? || Box::pin(c.matches(path)).await?)
-                    })
-                    .await
-            }
-            ContextCondition::Not(condition) => Box::pin(condition.matches(path)).await.map(|b| !b),
-            ContextCondition::InPath(other_path) => Ok(path.is_inside_or_equal_ref(other_path)),
-            ContextCondition::InDirectory(dir) => Ok(path.path.starts_with(&format!("{dir}/"))
-                || path.path.contains(&format!("/{dir}/"))
-                || path.path.ends_with(&format!("/{dir}"))
-                || path.path == *dir),
         }
+    }
+}
+
+fn is_in_directory(path: &FileSystemPath, dir: &str) -> bool {
+    if let Some(pos) = path.path.find(dir) {
+        let end = pos + dir.len();
+        (pos == 0 || path.path.as_bytes()[pos - 1] == b'/')
+            && (end == path.path.len() || path.path.as_bytes()[end] == b'/')
+    } else {
+        false
     }
 }

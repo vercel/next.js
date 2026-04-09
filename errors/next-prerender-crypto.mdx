@@ -1,14 +1,16 @@
 ---
-title: Cannot access `crypto.getRandomValue()`, `crypto.randomUUID()`, or another web or node crypto API that generates random values synchronously in a Server Component
+title: Cannot access `crypto.getRandomValue()`, `crypto.randomUUID()`, or another web or node crypto API that generates random values synchronously before other uncached data or Request data in a Server Component
 ---
 
 ## Why This Error Occurred
 
-An API that produces a random value synchronously from the Web Crypto API or from Node's `crypto` API was called outside of a `"use cache"` scope and without first calling `await connection()`. Random values that are produced synchronously must either be inside a `"use cache"` scope or be preceded with `await connection()` to explicitly communicate to Next.js whether the random values produced can be reused across many requests (cached) or if they must be unique per Request (`await connection()`).
-
-If the API used has an async version you can also switch to that instead of using `await connection()`.
+An API that produces a random value synchronously from the Web Crypto API or from Node's `crypto` package was used in a Server Component before accessing other uncached data through APIs like `fetch()` and native database drivers, or Request data through Next.js APIs like `cookies()`, `headers()`, `connection()` and `searchParams`. Accessing random values synchronously in this way interferes with the prerendering and prefetching capabilities of Next.js.
 
 ## Possible Ways to Fix It
+
+If the random crypto value is appropriate to be prerendered and prefetched consider moving it into a Cache Component or Cache Function with the `"use cache"` directive.
+
+If the random crypto value is intended to be generated on every user request consider whether an async API exists that achieves the same result. If not consider whether you can move the random crypto value generation later, behind other existing uncached data or Request data access. If there is no way to do this you can always precede the random crypto value generation with Request data access by using `await connection()`.
 
 ### Cache the token value
 

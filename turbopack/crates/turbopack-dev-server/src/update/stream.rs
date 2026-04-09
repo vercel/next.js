@@ -7,15 +7,14 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
-    error::PrettyPrintError,
     issue::{
-        Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionIssueProcessingPathItems,
-        OptionStyledString, PlainIssue, StyledString,
+        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, OptionStyledString,
+        PlainIssue, StyledString,
     },
     server_fs::ServerFileSystem,
     version::{
@@ -88,9 +87,9 @@ impl GetContentFn {
 }
 
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
-    let captured = source.peek_issues_with_path().await?;
+    let captured = source.peek_issues();
 
-    captured.get_plain_issues().await
+    captured.get_plain_issues(IssueFilter::everything()).await
 }
 
 fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
@@ -137,7 +136,6 @@ async fn get_update_stream_item_operation(
                         .cell(),
                     ),
                     None,
-                    OptionIssueProcessingPathItems::none(),
                 )
                 .await?,
             );
@@ -188,7 +186,8 @@ async fn get_update_stream_item_operation(
             extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
-            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await?
+            if let Some(from) =
+                ResolvedVc::try_downcast_type::<ProxyResult>(from.to_resolved().await?)
                 && from.await? == proxy_result_value
             {
                 return Ok(UpdateStreamItem::Found {
@@ -385,7 +384,7 @@ impl Issue for FatalStreamIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other("websocket".into()).cell()
+        IssueStage::Other(rcstr!("websocket")).cell()
     }
 
     #[turbo_tasks::function]
@@ -425,9 +424,8 @@ pub mod test {
         ResolveSourceRequestResult::NotFound.cell()
     }
 
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_get_content_fn() {
-        crate::register();
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),

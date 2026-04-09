@@ -70,12 +70,7 @@ export default function ({
                 ;[newPath] = path.unshiftContainer('body', mapping)
               }
 
-              for (const declar of newPath.get('declarations')) {
-                path.scope.registerBinding(
-                  newPath.node.kind,
-                  declar as NodePath<BabelTypes.Node>
-                )
-              }
+              path.scope.registerDeclaration(newPath)
             }
 
             if (!existingBinding) {

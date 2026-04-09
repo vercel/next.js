@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
@@ -71,7 +70,7 @@ describe('app-dir action progressive enhancement', () => {
       await browser.elementById('set-cookie').click()
 
       await retry(async () => {
-        expect(await browser.elementById('referer').text()).toBe('')
+        expect(await browser.elementById('referer').text()).toBe('<null>')
       })
 
       await browser.elementById('get-cookie').click()

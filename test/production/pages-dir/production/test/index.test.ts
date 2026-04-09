@@ -8,6 +8,7 @@ import {
   getPageFileFromPagesManifest,
   check,
   fetchViaHTTP,
+  listClientChunks,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -15,7 +16,6 @@ import {
   PAGES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from 'next/constants'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import path, { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
@@ -25,7 +25,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 const glob = promisify(globOriginal)
 
-if (process.env.NEXT_TEST_WASM) {
+if (process.env.NEXT_TEST_WASM || process.env.NEXT_TEST_WASM_AFTER_JEST) {
   jest.setTimeout(120 * 1000)
 }
 
@@ -111,10 +111,15 @@ describe('Production Usage', () => {
   })
 
   it('should contain generated page count in output', async () => {
-    const pageCount = 37
-    expect(next.cliOutput).toContain(`Generating static pages (0/${pageCount})`)
-    expect(next.cliOutput).toContain(
-      `Generating static pages (${pageCount}/${pageCount})`
+    const pageCount = 34
+    expect(next.cliOutput).toMatch(
+      new RegExp(`Generating static pages.*\\(0\\/${pageCount}\\)`, 'g')
+    )
+    expect(next.cliOutput).toMatch(
+      new RegExp(
+        `Generating static pages.*\\(${pageCount}\\/${pageCount}\\)`,
+        'g'
+      )
     )
     // we should only have 4 segments and the initial message logged out
     expect(next.cliOutput.match(/Generating static pages/g).length).toBe(5)
@@ -342,7 +347,7 @@ describe('Production Usage', () => {
 
   // This test checks webpack chunks in particular
   ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
-    'should not contain amp, rsc APIs in main chunk',
+    'should not contain rsc APIs in main chunk',
     async () => {
       const globResult = await glob('main-*.js', {
         cwd: join(next.testDir, '.next/static/chunks'),
@@ -357,8 +362,6 @@ describe('Production Usage', () => {
         'utf8'
       )
 
-      // eslint-disable-next-line jest/no-standalone-expect
-      expect(content).not.toContain('useAmp')
       // eslint-disable-next-line jest/no-standalone-expect
       expect(content).not.toContain('useRefreshRoot')
     }
@@ -535,7 +538,7 @@ describe('Production Usage', () => {
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${encodeURI(file)}`,
+          `/_next/${encodeURI(file)}${next.getAssetQuery()}`,
           undefined,
           {
             method: 'GET',
@@ -558,7 +561,7 @@ describe('Production Usage', () => {
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${encodeURI(file)}`,
+          `/_next/${encodeURI(file)}${next.getAssetQuery()}`,
           undefined,
           {
             method: 'GET',
@@ -610,29 +613,28 @@ describe('Production Usage', () => {
         resources.add('/' + item)
       }
 
-      const cssStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
-        { pathnameFilter: (f) => /\.css$/.test(f) }
-      )
+      const assets = await listClientChunks(join(next.testDir, '.next'))
+
+      const cssStaticAssets = assets.filter((f) => /\.css$/.test(f))
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
       if (!process.env.IS_TURBOPACK_TEST) {
         expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       }
-      const mediaStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
-        { pathnameFilter: (f) => /\.svg$/.test(f) }
-      )
+      const mediaStaticAssets = assets.filter((f) => /\.svg$/.test(f))
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       if (!process.env.IS_TURBOPACK_TEST) {
         expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
       }
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
-        resources.add(`/static${asset.replace(/\\+/g, '/')}`)
+        resources.add(`/${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
         [...resources].map((resource) =>
-          fetchViaHTTP(url, join('/_next', encodeURI(resource)))
+          fetchViaHTTP(
+            url,
+            `/_next/${encodeURI(resource)}${next.getAssetQuery()}`
+          )
         )
       )
 
@@ -783,7 +785,8 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      // Just wait for google.com to be revealed. We can't control which input we get.
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -800,7 +803,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -820,7 +823,7 @@ describe('Production Usage', () => {
     await browser
       .elementByCss('a')
       .click()
-      .waitForElementByCss('input')
+      .waitForElementByCss('input', { state: 'attached' })
       .back()
       .waitForElementByCss('p')
 
@@ -936,19 +939,6 @@ describe('Production Usage', () => {
         await browser.close()
       })
     }
-
-    it('should have default runtime values when not defined', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      expect(html).toMatch(/found public config/)
-      expect(html).toMatch(/found server config/)
-    })
-
-    it('should not have runtimeConfig in __NEXT_DATA__', async () => {
-      const html = await renderViaHTTP(next.appPort, '/runtime-config')
-      const $ = cheerio.load(html)
-      const script = $('#__NEXT_DATA__').html()
-      expect(script).not.toMatch(/runtimeConfig/)
-    })
 
     it('should add autoExport for auto pre-rendered pages', async () => {
       for (const page of ['/about']) {
@@ -1117,12 +1107,6 @@ describe('Production Usage', () => {
     }
   })
 
-  it('should handle AMP correctly in IE', async () => {
-    const browser = await webdriver(next.appPort, '/some-amp')
-    const text = await browser.elementByCss('p').text()
-    expect(text).toBe('Not AMP')
-  })
-
   it('should warn when prefetch is true', async () => {
     if (global.browserName !== 'chrome') return
     let browser
@@ -1156,9 +1140,15 @@ describe('Production Usage', () => {
       const version = await browser.eval('window.next.version')
       expect(version).toBeTruthy()
       expect(version).toBe(
-        (await next.readJSON('node_modules/next/package.json')).version +
-          (process.env.IS_TURBOPACK_TEST ? '-turbo' : '')
+        (await next.readJSON('node_modules/next/package.json')).version
       )
+
+      const turbopack = await browser.eval('window.next.turbopack')
+      if (process.env.IS_TURBOPACK_TEST) {
+        expect(turbopack).toBeTrue()
+      } else {
+        expect(turbopack).toBeFalsy()
+      }
     } finally {
       if (browser) {
         await browser.close()

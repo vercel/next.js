@@ -1,11 +1,15 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use next_taskless::NEVER_EXTERNAL_RE;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    self, FileJsonContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    reference_type::{ReferenceType, ReferenceTypeCondition},
     resolve::{
         ExternalTraced, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
         ResolveResultOption, find_context_file,
@@ -21,7 +25,7 @@ use turbopack_core::{
 
 /// The predicated based on which the [ExternalCjsModulesResolvePlugin] decides
 /// whether to mark a module as external.
-#[turbo_tasks::value(into = "shared")]
+#[turbo_tasks::value(shared)]
 pub enum ExternalPredicate {
     /// Mark all modules as external if they're not listed in the list.
     /// Applies only to imports outside of node_modules.
@@ -37,7 +41,6 @@ pub enum ExternalPredicate {
 /// possible to resolve them at runtime.
 #[turbo_tasks::value]
 pub(crate) struct ExternalCjsModulesResolvePlugin {
-    project_path: FileSystemPath,
     root: FileSystemPath,
     predicate: ResolvedVc<ExternalPredicate>,
     import_externals: bool,
@@ -47,13 +50,11 @@ pub(crate) struct ExternalCjsModulesResolvePlugin {
 impl ExternalCjsModulesResolvePlugin {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: FileSystemPath,
         root: FileSystemPath,
         predicate: ResolvedVc<ExternalPredicate>,
         import_externals: bool,
     ) -> Vc<Self> {
         ExternalCjsModulesResolvePlugin {
-            project_path,
             root,
             predicate,
             import_externals,
@@ -64,7 +65,10 @@ impl ExternalCjsModulesResolvePlugin {
 
 #[turbo_tasks::function]
 fn condition(root: FileSystemPath) -> Vc<AfterResolvePluginCondition> {
-    AfterResolvePluginCondition::new(root, Glob::new(rcstr!("**/node_modules/**")))
+    AfterResolvePluginCondition::new_with_glob(
+        root,
+        Glob::new(rcstr!("**/node_modules/**"), GlobOptions::default()),
+    )
 }
 
 #[turbo_tasks::value_impl]
@@ -92,14 +96,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             return Ok(ResolveResultOption::none());
         };
 
-        // from https://github.com/vercel/next.js/blob/8d1c619ad650f5d147207f267441caf12acd91d1/packages/next/src/build/handle-externals.ts#L188
-        let never_external_regex = lazy_regex::regex!("^(?:private-next-pages\\/|next\\/(?:dist\\/pages\\/|(?:app|cache|document|link|form|head|image|legacy\\/image|constants|dynamic|script|navigation|headers|router|compat\\/router|server)$)|string-hash|private-next-rsc-action-validate|private-next-rsc-action-client-wrapper|private-next-rsc-server-reference|private-next-rsc-cache-wrapper$)");
-
-        let Pattern::Constant(package_subpath) = package_subpath else {
+        let (Pattern::Constant(package), Pattern::Constant(package_subpath)) =
+            (package, package_subpath)
+        else {
             return Ok(ResolveResultOption::none());
         };
         let request_str: RcStr = format!("{package}{package_subpath}").into();
-        if never_external_regex.is_match(&request_str) {
+        if NEVER_EXTERNAL_RE.is_match(&request_str) {
             return Ok(ResolveResultOption::none());
         }
 
@@ -152,8 +155,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         };
 
         let is_esm = self.import_externals
-            && ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-                .includes(&reference_type);
+            && ReferenceTypeCondition::EcmaScriptModules(None).includes(&reference_type);
 
         #[derive(Debug, Copy, Clone)]
         enum FileType {
@@ -169,35 +171,32 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         ) -> Result<FileType> {
             // node.js only supports these file extensions
             // mjs is an esm module and we can't bundle that yet
-            let ext = raw_fs_path.extension_ref();
-            if matches!(ext, Some("cjs" | "node" | "json")) {
-                return Ok(FileType::CommonJs);
-            }
-            if matches!(ext, Some("mjs")) {
-                return Ok(FileType::EcmaScriptModule);
-            }
-            if matches!(ext, Some("js")) {
-                // for .js extension in cjs context, we need to check the actual module type via
-                // package.json
-                let FindContextFileResult::Found(package_json, _) =
-                    &*find_context_file(fs_path.parent(), package_json()).await?
-                else {
-                    // can't find package.json
-                    return Ok(FileType::CommonJs);
-                };
-                let FileJsonContent::Content(package) = &*package_json.read_json().await? else {
-                    // can't parse package.json
-                    return Ok(FileType::InvalidPackageJson);
-                };
+            Ok(match raw_fs_path.extension() {
+                Some("cjs" | "node" | "json") => FileType::CommonJs,
+                Some("mjs") => FileType::EcmaScriptModule,
+                Some("js") => {
+                    // for .js extension in cjs context, we need to check the actual module type via
+                    // package.json
+                    let FindContextFileResult::Found(package_json, _) =
+                        &*find_context_file(fs_path.parent(), package_json(), false).await?
+                    else {
+                        // can't find package.json
+                        return Ok(FileType::CommonJs);
+                    };
+                    let FileJsonContent::Content(package) = &*package_json.read_json().await?
+                    else {
+                        // can't parse package.json
+                        return Ok(FileType::InvalidPackageJson);
+                    };
 
-                if let Some("module") = package["type"].as_str() {
-                    return Ok(FileType::EcmaScriptModule);
+                    if let Some("module") = package["type"].as_str() {
+                        FileType::EcmaScriptModule
+                    } else {
+                        FileType::CommonJs
+                    }
                 }
-
-                return Ok(FileType::CommonJs);
-            }
-
-            Ok(FileType::UnsupportedExtension)
+                _ => FileType::UnsupportedExtension,
+            })
         }
 
         let unable_to_externalize = |reason: Vec<StyledString>| {
@@ -218,9 +217,9 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let mut request_str = request_str.to_string();
 
         let node_resolve_options = if is_esm {
-            node_esm_resolve_options(lookup_path.root().await?.clone_value())
+            node_esm_resolve_options(lookup_path.root().owned().await?)
         } else {
-            node_cjs_resolve_options(lookup_path.root().await?.clone_value())
+            node_cjs_resolve_options(lookup_path.root().owned().await?)
         };
         let result_from_original_location = loop {
             let node_resolved_from_original_location = resolve(
@@ -237,11 +236,11 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     && package_subpath != "/"
                     && !request_str.ends_with(".js")
                 {
-                    // We have a fallback solution for convinience: If user doesn't
+                    // We have a fallback solution for convenience: If user doesn't
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
-                    request = request.append_path(".js".into()).resolve().await?;
+                    request = *request.append_path(rcstr!(".js")).to_resolved().await?;
                     continue;
                 }
                 // this can't resolve with node.js from the original location, so bundle it
@@ -256,133 +255,40 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             };
             break result_from_original_location;
         };
-        let node_resolved = resolve(
-            self.project_path.clone(),
-            reference_type.clone(),
-            request,
-            node_resolve_options,
-        );
 
-        let Some(result) = *node_resolved.first_source().await? else {
-            // this can't resolve with node.js from the project directory, so bundle it
-            return unable_to_externalize(vec![
-                StyledString::Text(
-                    "The request could not be resolved by Node.js from the project \
-                     directory.\nPackages that should be external need to be installed in the \
-                     project directory, so they can be resolved from the output files.\nTry to \
-                     install it into the project directory by running "
-                        .into(),
-                ),
-                StyledString::Code(format!("npm install {package}").into()),
-                StyledString::Text(" from the project directory.".into()),
-            ]);
-        };
-
-        if result_from_original_location != result {
-            let package_json_file =
-                find_context_file(result.ident().path().await?.parent(), package_json());
-            let package_json_from_original_location = find_context_file(
-                result_from_original_location.ident().path().await?.parent(),
-                package_json(),
-            );
-            let FindContextFileResult::Found(package_json_file, _) = &*package_json_file.await?
-            else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package resolved from the project directory can't be \
-                     found."
-                        .into(),
-                )]);
-            };
-            let FindContextFileResult::Found(package_json_from_original_location, _) =
-                &*package_json_from_original_location.await?
-            else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package can't be found.".into(),
-                )]);
-            };
-            let FileJsonContent::Content(package_json_file) =
-                &*package_json_file.read_json().await?
-            else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package resolved from project directory can't be \
-                     parsed."
-                        .into(),
-                )]);
-            };
-            let FileJsonContent::Content(package_json_from_original_location) =
-                &*package_json_from_original_location.read_json().await?
-            else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package can't be parsed.".into(),
-                )]);
-            };
-            let (Some(name), Some(version)) = (
-                package_json_file.get("name").and_then(|v| v.as_str()),
-                package_json_file.get("version").and_then(|v| v.as_str()),
-            ) else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package has no name or version.".into(),
-                )]);
-            };
-            let (Some(name2), Some(version2)) = (
-                package_json_from_original_location
-                    .get("name")
-                    .and_then(|v| v.as_str()),
-                package_json_from_original_location
-                    .get("version")
-                    .and_then(|v| v.as_str()),
-            ) else {
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json of the package resolved from project directory has no name \
-                     or version."
-                        .into(),
-                )]);
-            };
-            if (name, version) != (name2, version2) {
-                // this can't resolve with node.js from the original location, so bundle it
-                return unable_to_externalize(vec![StyledString::Text(
-                    format!(
-                        "The package resolves to a different version when requested from the \
-                         project directory ({version}) compared to the package requested from the \
-                         importing module ({version2}).\nMake sure to install the same version of \
-                         the package in both locations."
-                    )
-                    .into(),
-                )]);
-            }
-        }
-        let path = result.ident().path().await?.clone_value();
-        let file_type = get_file_type(path.clone(), &path).await?;
+        let path = result_from_original_location.ident().path().await?;
+        let file_type = get_file_type((*path).clone(), &path).await?;
 
         let external_type = match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
                 // unsupported file type, bundle it
-                return unable_to_externalize(vec![StyledString::Text(
-                    "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js.".into(),
-                )]);
+                return unable_to_externalize(vec![StyledString::Text(rcstr!(
+                    "Only .mjs, .cjs, .js, .json, or .node can be handled by Node.js."
+                ))]);
             }
             (FileType::InvalidPackageJson, _) => {
                 // invalid package.json, bundle it
-                return unable_to_externalize(vec![StyledString::Text(
-                    "The package.json can't be found or parsed.".into(),
-                )]);
+                return unable_to_externalize(vec![StyledString::Text(rcstr!(
+                    "The package.json can't be found or parsed."
+                ))]);
             }
             // commonjs without esm is always external
             (FileType::CommonJs, false) => ExternalType::CommonJs,
             (FileType::CommonJs, true) => {
                 // It would be more efficient to use an CJS external instead of an ESM external,
-                // but we need to verify if that would be correct (as in resolves to the same file).
+                // but we need to verify if that would be correct (as in resolves to the same
+                // file).
                 let node_resolve_options =
-                    node_cjs_resolve_options(lookup_path.root().await?.clone_value());
+                    node_cjs_resolve_options(lookup_path.root().owned().await?);
                 let node_resolved = resolve(
-                    self.project_path.clone(),
+                    lookup_path.clone(),
                     reference_type.clone(),
                     request,
                     node_resolve_options,
                 );
                 let resolves_equal = if let Some(result) = *node_resolved.first_source().await? {
-                    let cjs_path = result.ident().path().await?.clone_value();
-                    cjs_path == path
+                    let cjs_path = result.ident().path().owned().await?;
+                    cjs_path == *path
                 } else {
                     false
                 };
@@ -403,7 +309,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             // ecmascript with esm is always external
             (FileType::EcmaScriptModule, true) => ExternalType::EcmaScriptModule,
             (FileType::EcmaScriptModule, false) => {
-                // even with require() this resolves to a ESM, which would break node.js, bundle it
+                // even with require() this resolves to a ESM, which would break node.js, bundle
+                // it
                 return unable_to_externalize(vec![StyledString::Text(
                     "The package seems invalid. require() resolves to a EcmaScript module, which \
                      would result in an error in Node.js."
@@ -412,17 +319,21 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
         };
 
-        Ok(ResolveResultOption::some(*ResolveResult::primary(
-            ResolveResultItem::External {
+        let target = result_from_original_location.ident().path().owned().await?;
+
+        Ok(ResolveResultOption::some(
+            ResolveResult::primary(ResolveResultItem::External {
                 name: request_str.into(),
                 ty: external_type,
                 traced: ExternalTraced::Traced,
-            },
-        )))
+                target: Some(target),
+            })
+            .cell(),
+        ))
     }
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue)]
+#[derive(TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue, Encode, Decode)]
 pub struct PackagesGlobs {
     path_glob: ResolvedVc<Glob>,
     request_glob: ResolvedVc<Glob>,
@@ -437,9 +348,14 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
     if packages.is_empty() {
         return Ok(Vc::cell(None));
     }
-    let path_glob = Glob::new(format!("**/node_modules/{{{}}}/**", packages.join(",")).into());
-    let request_glob =
-        Glob::new(format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into());
+    let path_glob = Glob::new(
+        format!("**/node_modules/{{{}}}/**", packages.join(",")).into(),
+        GlobOptions::default(),
+    );
+    let request_glob = Glob::new(
+        format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into(),
+        GlobOptions::default(),
+    );
     Ok(Vc::cell(Some(PackagesGlobs {
         path_glob: path_glob.to_resolved().await?,
         request_glob: request_glob.to_resolved().await?,
@@ -448,6 +364,8 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
 
 #[turbo_tasks::value]
 struct ExternalizeIssue {
+    // TODO(PACK-4879): The filepath is incorrect and there should be a fine grained source
+    // location pointing at the import/require
     file_path: FileSystemPath,
     package: RcStr,
     request_str: RcStr,
@@ -463,16 +381,16 @@ impl Issue for ExternalizeIssue {
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
         StyledString::Line(vec![
-            StyledString::Text("Package ".into()),
+            StyledString::Text(rcstr!("Package ")),
             StyledString::Code(self.package.clone()),
-            StyledString::Text(" can't be external".into()),
+            StyledString::Text(rcstr!(" can't be external")),
         ])
         .cell()
     }
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.into()
+        IssueStage::Config.cell()
     }
 
     #[turbo_tasks::function]
@@ -485,11 +403,11 @@ impl Issue for ExternalizeIssue {
         Ok(Vc::cell(Some(
             StyledString::Stack(vec![
                 StyledString::Line(vec![
-                    StyledString::Text("The request ".into()),
+                    StyledString::Text(rcstr!("The request ")),
                     StyledString::Code(self.request_str.clone()),
-                    StyledString::Text(" matches ".into()),
-                    StyledString::Code("serverExternalPackages".into()),
-                    StyledString::Text(" (or the default list).".into()),
+                    StyledString::Text(rcstr!(" matches ")),
+                    StyledString::Code(rcstr!("serverExternalPackages")),
+                    StyledString::Text(rcstr!(" (or the default list).")),
                 ]),
                 StyledString::Line(self.reason.clone()),
             ])

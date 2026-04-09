@@ -1,30 +1,33 @@
-use std::sync::{LockResult, Mutex, MutexGuard};
+use std::{
+    collections::BTreeMap,
+    path::PathBuf,
+    sync::{LockResult, Mutex, MutexGuard},
+};
 
 use concurrent_queue::ConcurrentQueue;
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize, de::Visitor};
 use turbo_tasks::{Invalidator, ReadRef};
 
-use crate::{FileContent, LinkContent};
+use crate::{LinkContent, PersistedFileContent};
 
-#[derive(Serialize, Deserialize, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub enum WriteContent {
-    File(ReadRef<FileContent>),
+    File(ReadRef<PersistedFileContent>),
     Link(ReadRef<LinkContent>),
 }
 
-type InnerMap = FxHashMap<String, FxHashMap<Invalidator, Option<WriteContent>>>;
+pub type LockedInvalidatorMap = BTreeMap<PathBuf, FxHashMap<Invalidator, Option<WriteContent>>>;
 
 pub struct InvalidatorMap {
-    queue: ConcurrentQueue<(String, Invalidator, Option<WriteContent>)>,
-    map: Mutex<InnerMap>,
+    queue: ConcurrentQueue<(PathBuf, Invalidator, Option<WriteContent>)>,
+    map: Mutex<LockedInvalidatorMap>,
 }
 
 impl Default for InvalidatorMap {
     fn default() -> Self {
         Self {
             queue: ConcurrentQueue::unbounded(),
-            map: Default::default(),
+            map: Mutex::<LockedInvalidatorMap>::default(),
         }
     }
 }
@@ -34,7 +37,7 @@ impl InvalidatorMap {
         Self::default()
     }
 
-    pub fn lock(&self) -> LockResult<MutexGuard<'_, InnerMap>> {
+    pub fn lock(&self) -> LockResult<MutexGuard<'_, LockedInvalidatorMap>> {
         let mut guard = self.map.lock()?;
         while let Ok((key, value, write_content)) = self.queue.pop() {
             guard.entry(key).or_default().insert(value, write_content);
@@ -44,7 +47,7 @@ impl InvalidatorMap {
 
     pub fn insert(
         &self,
-        key: String,
+        key: PathBuf,
         invalidator: Invalidator,
         write_content: Option<WriteContent>,
     ) {
@@ -58,43 +61,5 @@ impl InvalidatorMap {
                      never closed"
                 )
             });
-    }
-}
-
-impl Serialize for InvalidatorMap {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_newtype_struct("InvalidatorMap", &*self.lock().unwrap())
-    }
-}
-
-impl<'de> Deserialize<'de> for InvalidatorMap {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct V;
-
-        impl<'de> Visitor<'de> for V {
-            type Value = InvalidatorMap;
-
-            fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-                write!(f, "an InvalidatorMap")
-            }
-
-            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                Ok(InvalidatorMap {
-                    queue: ConcurrentQueue::unbounded(),
-                    map: Mutex::new(Deserialize::deserialize(deserializer)?),
-                })
-            }
-        }
-
-        deserializer.deserialize_newtype_struct("InvalidatorMap", V)
     }
 }

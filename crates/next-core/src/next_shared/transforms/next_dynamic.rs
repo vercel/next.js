@@ -27,8 +27,9 @@ pub async fn get_next_dynamic_transform_rule(
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![dynamic_transform]),
+            preprocess: ResolvedVc::cell(vec![]),
+            main: ResolvedVc::cell(vec![]),
+            postprocess: ResolvedVc::cell(vec![dynamic_transform]),
         }],
     ))
 }

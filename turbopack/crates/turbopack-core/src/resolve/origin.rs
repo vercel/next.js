@@ -31,6 +31,14 @@ pub trait ResolveOrigin {
         let _ = request;
         Vc::cell(None)
     }
+
+    /// Get the resolve options that apply for this origin.
+    #[turbo_tasks::function]
+    async fn resolve_options(self: Vc<Self>) -> Result<Vc<ResolveOptions>> {
+        Ok(self
+            .asset_context()
+            .resolve_options(self.origin_path().owned().await?))
+    }
 }
 
 // TODO it would be nice if these methods can be moved to the trait to allow
@@ -46,12 +54,6 @@ pub trait ResolveOriginExt: Send {
         reference_type: ReferenceType,
     ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send;
 
-    /// Get the resolve options that apply for this origin.
-    fn resolve_options(
-        self: Vc<Self>,
-        reference_type: ReferenceType,
-    ) -> impl std::future::Future<Output = Result<Vc<ResolveOptions>>> + Send;
-
     /// Adds a transition that is used for resolved assets.
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>>;
 }
@@ -66,22 +68,18 @@ where
         options: Vc<ResolveOptions>,
         reference_type: ReferenceType,
     ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send {
-        resolve_asset(Vc::upcast(self), request, options, reference_type)
-    }
-
-    async fn resolve_options(
-        self: Vc<Self>,
-        reference_type: ReferenceType,
-    ) -> Result<Vc<ResolveOptions>> {
-        Ok(self
-            .asset_context()
-            .resolve_options(self.origin_path().await?.clone_value(), reference_type))
+        resolve_asset(
+            Vc::upcast_non_strict(self),
+            request,
+            options,
+            reference_type,
+        )
     }
 
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>> {
         Vc::upcast(
             ResolveOriginWithTransition {
-                previous: ResolvedVc::upcast(self),
+                previous: ResolvedVc::upcast_non_strict(self),
                 transition,
             }
             .cell(),
@@ -100,12 +98,12 @@ async fn resolve_asset(
     }
     Ok(resolve_origin
         .asset_context()
-        .resolve()
+        .to_resolved()
         .await?
         .resolve_asset(
-            resolve_origin.origin_path().await?.clone_value(),
-            request.resolve().await?,
-            options.resolve().await?,
+            resolve_origin.origin_path().owned().await?,
+            *request.to_resolved().await?,
+            *options.to_resolved().await?,
             reference_type,
         ))
 }

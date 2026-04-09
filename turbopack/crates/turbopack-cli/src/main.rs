@@ -1,13 +1,10 @@
-#![feature(future_join)]
-#![feature(min_specialization)]
-
-use std::path::Path;
+use std::{cell::RefCell, path::Path, thread::available_parallelism, time::Instant};
 
 use anyhow::{Context, Result};
 use clap::Parser;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_tasks_malloc::TurboMalloc;
-use turbopack_cli::{arguments::Arguments, register};
+use turbopack_cli::arguments::Arguments;
 use turbopack_trace_utils::{
     exit::ExitHandler,
     filter_layer::FilterLayer,
@@ -22,12 +19,41 @@ use turbopack_trace_utils::{
 static ALLOC: TurboMalloc = TurboMalloc;
 
 fn main() {
-    let args = Arguments::parse();
+    thread_local! {
+        static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
+    }
 
     let mut rt = tokio::runtime::Builder::new_multi_thread();
-    rt.enable_all().on_thread_stop(|| {
-        TurboMalloc::thread_stop();
-    });
+    rt.enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .on_thread_park(|| {
+            LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
+                use std::time::Duration;
+
+                if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
+                    swc_core::ecma::atoms::hstr::global_atom_store_gc();
+                    *cell = Some(Instant::now());
+                }
+            });
+        });
+
+    let args = Arguments::parse();
+
+    let worker_threads = args
+        .worker_threads()
+        .map(|v| {
+            if v == 0 {
+                panic!("--worker-threads=0 is invalid, you must use at least one thread.");
+            } else {
+                v
+            }
+        })
+        .unwrap_or_else(|| available_parallelism().map(|n| n.get()).unwrap_or(1));
+
+    rt.worker_threads(worker_threads);
+    rt.max_blocking_threads(usize::MAX - worker_threads);
 
     #[cfg(not(codspeed))]
     rt.disable_lifo_slot();
@@ -42,7 +68,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
     if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
-            "overview" => {
+            "overview" | "1" => {
                 trace = TRACING_OVERVIEW_TARGETS.join(",");
             }
             "turbopack" => {
@@ -75,8 +101,6 @@ async fn main_inner(args: Arguments) -> Result<()> {
 
         subscriber.init();
     }
-
-    register();
 
     match args {
         Arguments::Build(args) => turbopack_cli::build::build(&args).await,

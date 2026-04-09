@@ -6,10 +6,9 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
-    ecmascript::TreeShakingMode,
     module_options::{
-        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
+        EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
+        TypescriptTransformOptions,
     },
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
@@ -24,6 +23,7 @@ use turbopack_core::{
     ident::Layer,
     resolve::options::{ImportMap, ImportMapping},
 };
+use turbopack_ecmascript::TreeShakingMode;
 use turbopack_node::{
     execution_context::ExecutionContext, transforms::postcss::PostCssTransformOptions,
 };
@@ -44,28 +44,28 @@ impl fmt::Display for NodeEnv {
     }
 }
 
-async fn foreign_code_context_condition() -> Result<ContextCondition> {
-    Ok(ContextCondition::InDirectory("node_modules".to_string()))
+fn foreign_code_context_condition() -> ContextCondition {
+    ContextCondition::InNodeModules
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_import_map(project_path: FileSystemPath) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
-    import_map.insert_singleton_alias("@swc/helpers", project_path.clone());
-    import_map.insert_singleton_alias("styled-jsx", project_path.clone());
-    import_map.insert_singleton_alias("react", project_path.clone());
-    import_map.insert_singleton_alias("react-dom", project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("@swc/helpers"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("styled-jsx"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react"), project_path.clone());
+    import_map.insert_singleton_alias(rcstr!("react-dom"), project_path.clone());
 
     import_map.insert_wildcard_alias(
-        "@vercel/turbopack-ecmascript-runtime/",
+        rcstr!("@vercel/turbopack-ecmascript-runtime/"),
         ImportMapping::PrimaryAlternative(
-            "./*".into(),
+            rcstr!("./*"),
             Some(
                 turbopack_ecmascript_runtime::embed_fs()
                     .root()
-                    .await?
-                    .clone_value(),
+                    .owned()
+                    .await?,
             ),
         )
         .resolved_cell(),
@@ -83,8 +83,8 @@ pub async fn get_client_resolve_options_context(
         .to_resolved()
         .await?;
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().await?.clone_value()),
-        custom_conditions: vec![node_env.await?.to_string().into(), "browser".into()],
+        enable_node_modules: Some(project_path.root().owned().await?),
+        custom_conditions: vec![node_env.await?.to_string().into(), rcstr!("browser")],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -94,7 +94,7 @@ pub async fn get_client_resolve_options_context(
         enable_typescript: true,
         enable_react: true,
         rules: vec![(
-            foreign_code_context_condition().await?,
+            foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
@@ -135,21 +135,6 @@ async fn get_client_module_options_context(
         .resolved_cell(),
     );
 
-    let conditions = RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".js".to_string()),
-        RuleCondition::ResourcePathEndsWith(".jsx".to_string()),
-        RuleCondition::ResourcePathEndsWith(".ts".to_string()),
-        RuleCondition::ResourcePathEndsWith(".tsx".to_string()),
-    ]);
-
-    let module_rules = ModuleRule::new(
-        conditions,
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: ResolvedVc::cell(vec![]),
-            append: ResolvedVc::cell(vec![]),
-        }],
-    );
-
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_jsx,
@@ -161,10 +146,9 @@ async fn get_client_module_options_context(
         },
         enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(
-            foreign_code_context_condition().await?,
+            foreign_code_context_condition(),
             module_options_context.clone().resolved_cell(),
         )],
-        module_rules: vec![module_rules],
         ..module_options_context
     }
     .cell();
@@ -204,7 +188,7 @@ pub fn get_client_asset_context(
 fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
-        process.env.TURBOPACK = true,
+        process.env.TURBOPACK = "1",
         process.env.NODE_ENV = node_env.to_string()
     )
 }
@@ -213,6 +197,7 @@ fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
 pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     let node_env = node_env.await?;
     CompileTimeInfo::builder(
@@ -232,6 +217,7 @@ pub async fn get_client_compile_time_info(
     .free_var_references(
         free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
     )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }

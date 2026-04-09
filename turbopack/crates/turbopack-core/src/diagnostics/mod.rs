@@ -45,24 +45,23 @@ impl PartialOrd for PlainDiagnostic {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct DiagnosticPayload(pub FxIndexMap<RcStr, RcStr>);
+pub struct DiagnosticPayload(
+    #[bincode(with = "turbo_bincode::indexmap")] pub FxIndexMap<RcStr, RcStr>,
+);
 
-/// An arbitrary payload can be used to analyze, diagnose
-/// Turbopack's behavior.
+/// An arbitrary payload can be used to analyze, diagnose Turbopack's behavior.
 #[turbo_tasks::value_trait]
 pub trait Diagnostic {
-    /// [NOTE]: Psuedo-reserved; this is not being used currently.
-    /// The `type` of the diagnostics that can be used selectively filtered by
-    /// consumers. For example, this could be `telemetry`, or
-    /// `slow_perf_event`, or something else. This is not strongly typed
-    /// though; since consumer or implementation may need to define own
-    /// category.
+    /// **NOTE:** Pseudo-reserved; this is not being used currently. The `type` of the diagnostics
+    /// that can be used selectively filtered by consumers. For example, this could be `telemetry`,
+    /// or `slow_perf_event`, or something else. This is not strongly typed though; since consumer
+    /// or implementation may need to define own category.
     #[turbo_tasks::function]
     fn category(&self) -> Vc<RcStr>;
     /// Name of the specific diagnostic event.
     #[turbo_tasks::function]
     fn name(&self) -> Vc<RcStr>;
-    /// Arbitarary payload included in the diagnostic event.
+    /// Arbitrary payload included in the diagnostic event.
     #[turbo_tasks::function]
     fn payload(&self) -> Vc<DiagnosticPayload>;
 
@@ -86,7 +85,7 @@ where
     T: Upcast<Box<dyn Diagnostic>>,
 {
     fn emit(self) {
-        let diagnostic = ResolvedVc::upcast::<Box<dyn Diagnostic>>(self);
+        let diagnostic = ResolvedVc::upcast_non_strict::<Box<dyn Diagnostic>>(self);
         emit(diagnostic);
     }
 }
@@ -111,8 +110,7 @@ where
     }
 }
 
-/// A list of diagnostics captured with
-/// [`DiagnosticsVc::peek_diagnostics_with_path`] and
+/// A list of diagnostics captured with [`DiagnosticContextExt::peek_diagnostics`] and
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedDiagnostics {

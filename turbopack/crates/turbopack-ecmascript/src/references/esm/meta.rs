@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, Ident},
@@ -10,13 +10,13 @@ use swc_core::{
 use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
     references::AstPath,
-    runtime_functions::TURBOPACK_RESOLVE_ABSOLUTE_PATH,
+    runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_ABSOLUTE_PATH},
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -26,19 +26,21 @@ use crate::{
 /// in the file. But we must only initialize the binding a single time.
 ///
 /// This singleton behavior must be enforced by the caller!
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
+)]
 pub struct ImportMetaBinding {
     path: FileSystemPath,
+    hmr_enabled: bool,
 }
 
 impl ImportMetaBinding {
-    pub fn new(path: FileSystemPath) -> Self {
-        ImportMetaBinding { path }
+    pub fn new(path: FileSystemPath, hmr_enabled: bool) -> Self {
+        ImportMetaBinding { path, hmr_enabled }
     }
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let rel_path = chunking_context
@@ -62,16 +64,28 @@ impl ImportMetaBinding {
             },
         );
 
-        Ok(CodeGeneration::hoisted_stmt(
-            rcstr!("import.meta"),
-            // [NOTE] url property is lazy-evaluated, as it should be computed once
-            // turbopack_runtime injects a function to calculate an absolute path.
+        let hmr_enabled = self.hmr_enabled;
+
+        // [NOTE] url property is lazy-evaluated, as it should be computed once
+        // turbopack_runtime injects a function to calculate an absolute path.
+        let stmt = if hmr_enabled {
+            // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
+            let turbopack_module: Expr = TURBOPACK_MODULE.into();
             quote!(
-                "const $name = { get url() { return $path } };" as Stmt,
+                "var $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
                 name = meta_ident(),
-                path: Expr = path.clone(),
-            ),
-        ))
+                path: Expr = path,
+                m: Expr = turbopack_module,
+            )
+        } else {
+            quote!(
+                "var $name = { get url() { return $path } };" as Stmt,
+                name = meta_ident(),
+                path: Expr = path,
+            )
+        };
+
+        Ok(CodeGeneration::hoisted_stmt(rcstr!("import.meta"), stmt))
     }
 }
 
@@ -86,7 +100,9 @@ impl From<ImportMetaBinding> for CodeGen {
 ///
 /// There can be many references to import.meta, and they appear at any nesting
 /// in the file. But all references refer to the same mutable object.
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
+)]
 pub struct ImportMetaRef {
     ast_path: AstPath,
 }
@@ -98,7 +114,6 @@ impl ImportMetaRef {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {

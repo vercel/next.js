@@ -304,7 +304,7 @@ describe('app dir - css', () => {
 
         const stylesheets = [
           ...html.matchAll(
-            /<link rel="stylesheet" href="[^<]+\.css(\?v=\d+)?"/g
+            /<link rel="stylesheet" href="[^<]+\.css(\?[^"]+)?"/g
           ),
         ].length
         expect(stylesheets).toBe(3)
@@ -324,6 +324,54 @@ describe('app dir - css', () => {
             `window.getComputedStyle(document.querySelector('h2')).color`
           )
         ).toBe('rgb(255, 0, 0)')
+      })
+    })
+
+    describe('css import URLs', () => {
+      it('should not mangle external layers', async () => {
+        const browser = await next.browser('/externalLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).margin`
+          )
+        ).toBe('5px')
+      })
+
+      it('should not mangle relative layers', async () => {
+        const browser = await next.browser('/relativeLayer')
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h2')).color`
+          )
+        ).toBe('rgb(255, 0, 0)')
+      })
+
+      // Broken in webpack, see https://github.com/vercel/next.js/issues/89602
+      if (process.env.IS_TURBOPACK_TEST) {
+        it('should allow the supports attribute', async () => {
+          const browser = await next.browser('/urlSupports')
+          expect(
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('h1')).color`
+            )
+          ).toBe('rgb(255, 0, 0)')
+        })
+      }
+
+      it('should work with the media attribute', async () => {
+        const browser = await next.browser('/urlMedia')
+        await browser.setDimensions({ width: 1000, height: 1000 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(255, 255, 255)')
+        await browser.setDimensions({ width: 300, height: 300 })
+        expect(
+          await browser.eval(
+            `window.getComputedStyle(document.querySelector('h1')).color`
+          )
+        ).toBe('rgb(0, 0, 0)')
       })
     })
 
@@ -394,14 +442,13 @@ describe('app dir - css', () => {
               'hello world!'
             )
 
-            // there should be only 1 preload link
             expect(
               await browser.eval(
                 `(() => {
                 const tags = document.querySelectorAll('link[rel="preload"][href^="/_next/static/css"]')
                 const counts = new Map();
                 for (const tag of tags) {
-                  counts.set(tag.href, (counts.get(tag.href) || 0) + 1)
+                  counts.set(tag.href + '|' + tag.as, (counts.get(tag.href) || 0) + 1)
                 }
                 return Math.max(...counts.values())
               })()`
@@ -499,7 +546,7 @@ describe('app dir - css', () => {
 
             // Heavy on testing React implementation details.
             // Assertions may change often but what needs to be checked on change is if styles are needlessly duplicated in Flight data
-            // There are 3 matches, one for the rendered <link> (HTML), one for Float preload (Flight) and one for the <link> inside Flight payload.
+            // There are 5 matches, one for the rendered <link> (HTML), one for Float preload (Flight), one for the <link> inside Flight payload.
             // And there is one match for the not found style
             expect(matches).toEqual([
               '/_next/static/css/app/css/css-duplicate-2/layout.css',
@@ -511,6 +558,8 @@ describe('app dir - css', () => {
               '/_next/static/css/app/layout.css',
               '/_next/static/css/app/layout.css',
               '/_next/static/css/app/layout.css',
+              '/_next/static/css/app/not-found.css',
+              '/_next/static/css/app/not-found.css',
               '/_next/static/css/app/not-found.css',
             ])
           }

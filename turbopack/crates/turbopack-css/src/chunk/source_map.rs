@@ -1,10 +1,11 @@
 use anyhow::Result;
+use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, FileSystemPath};
+use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     source_map::{GenerateSourceMap, SourceMap},
 };
 
@@ -25,6 +26,9 @@ impl CssChunkSourceMapAsset {
 }
 
 #[turbo_tasks::value_impl]
+impl OutputAssetsReference for CssChunkSourceMapAsset {}
+
+#[turbo_tasks::value_impl]
 impl OutputAsset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
@@ -34,7 +38,7 @@ impl OutputAsset for CssChunkSourceMapAsset {
             .chunk
             .await?
             .chunking_context
-            .chunk_path(Some(Vc::upcast(self)), ident, ".css".into())
+            .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".css"))
             .await?
             .append(".map")?
             .cell())
@@ -45,11 +49,12 @@ impl OutputAsset for CssChunkSourceMapAsset {
 impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
-        if let Some(sm) = &*self.chunk.generate_source_map().await? {
-            Ok(AssetContent::file(File::from(sm.clone()).into()))
+        let content = self.chunk.generate_source_map();
+        if content.await?.is_content() {
+            Ok(AssetContent::file(content))
         } else {
             Ok(AssetContent::file(
-                File::from(SourceMap::empty_rope()).into(),
+                FileContent::Content(File::from(SourceMap::empty_rope())).cell(),
             ))
         }
     }

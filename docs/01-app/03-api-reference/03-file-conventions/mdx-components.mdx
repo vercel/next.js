@@ -14,18 +14,18 @@ Use the file `mdx-components.tsx` (or `.js`) in the root of your project to defi
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    ...components,
-  }
+const components: MDXComponents = {}
+
+export function useMDXComponents(): MDXComponents {
+  return components
 }
 ```
 
 ```js filename="mdx-components.js" switcher
-export function useMDXComponents(components) {
-  return {
-    ...components,
-  }
+const components = {}
+
+export function useMDXComponents() {
+  return components
 }
 ```
 
@@ -33,36 +33,25 @@ export function useMDXComponents(components) {
 
 ### `useMDXComponents` function
 
-The file must export a single function, either as a default export or named `useMDXComponents`.
+The file must export a single function named `useMDXComponents`. This function does not accept any arguments.
 
 ```tsx filename="mdx-components.tsx" switcher
 import type { MDXComponents } from 'mdx/types'
 
-export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return {
-    ...components,
-  }
+const components: MDXComponents = {}
+
+export function useMDXComponents(): MDXComponents {
+  return components
 }
 ```
 
 ```js filename="mdx-components.js" switcher
-export function useMDXComponents(components) {
-  return {
-    ...components,
-  }
+const components = {}
+
+export function useMDXComponents() {
+  return components
 }
 ```
-
-## Params
-
-### `components`
-
-When defining MDX Components, the export function accepts a single parameter, `components`. This parameter is an instance of `MDXComponents`.
-
-- The key is the name of the HTML element to override.
-- The value is the component to render instead.
-
-> **Good to know**: Remember to pass all other components (i.e. `...components`) that do not have overrides.
 
 ## Version History
 

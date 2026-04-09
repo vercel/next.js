@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "es5",
     "module": "esnext",
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "strict": false,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -21,6 +21,12 @@
       }
     ]
   },
-  "exclude": ["node_modules"],
-  "include": ["**/*.ts", "**/*.tsx", "next-env.d.ts", ".next/types/**/*.ts"]
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "next-env.d.ts",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
+  ]
 }

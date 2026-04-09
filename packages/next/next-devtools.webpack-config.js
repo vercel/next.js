@@ -73,7 +73,11 @@ module.exports = ({ dev, ...rest }) => {
           test: /\.(ts|tsx)$/,
           exclude: [/node_modules/],
           loader: 'builtin:swc-loader',
+          /** @type {import('@rspack/core').SwcLoaderOptions} */
           options: {
+            env: {
+              targets: MODERN_BROWSERSLIST_TARGET,
+            },
             jsc: {
               parser: {
                 syntax: 'typescript',
@@ -90,6 +94,47 @@ module.exports = ({ dev, ...rest }) => {
             },
           },
           type: 'javascript/auto',
+        },
+        {
+          test: /\.(ts|tsx)$/,
+          exclude: [/node_modules/],
+          loader: 'babel-loader',
+          options: {
+            plugins: [
+              [
+                'babel-plugin-react-compiler',
+                /**
+                 * @type {import('babel-plugin-react-compiler').PluginOptions}
+                 */
+                ({
+                  environment: {
+                    enableNameAnonymousFunctions: dev,
+                  },
+                }),
+              ],
+              ['@babel/plugin-syntax-typescript', { isTSX: true }],
+            ],
+            sourceMaps: true,
+          },
+          type: 'javascript/auto',
+        },
+        {
+          test: /\.css$/,
+          use: [
+            {
+              loader: 'style-loader',
+              options: {
+                // Explicitly set the injectType to 'styleTag' which is also the default behavior.
+                // We've experienced `singletonStyleTag` that the later updated styles not being applied.
+                // Keep using `styleTag` to ensure when new styles injected the style can also be updated.
+                injectType: 'styleTag',
+                insert: require.resolve(
+                  './src/build/webpack/loaders/devtool/devtool-style-inject.js'
+                ),
+              },
+            },
+            { loader: 'css-loader', options: { sourceMap: false } },
+          ],
         },
       ],
     },

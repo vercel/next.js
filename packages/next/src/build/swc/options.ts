@@ -7,7 +7,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
+import { shouldUseReactServerCondition, isWebpackAppPagesLayer } from '../utils'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
 const nextDirname = path.dirname(require.resolve('next/package.json'))
@@ -70,10 +70,12 @@ function getBaseSWCOptions({
   serverComponents,
   serverReferenceHashSalt,
   bundleLayer,
-  isDynamicIo,
+  isCacheComponents,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   jest?: boolean
@@ -91,12 +93,14 @@ function getBaseSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  isDynamicIo?: boolean
-  cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  isCacheComponents?: boolean
+  cacheHandlers?: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
-  const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
+  const isReactServerLayer = shouldUseReactServerCondition(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
   const parserConfig = getParserOptions({ filename, jsConfig })
   const paths = jsConfig?.compilerOptions?.paths
@@ -157,7 +161,7 @@ function getBaseSWCOptions({
         optimizer: {
           simplify: false,
           globals: jest
-            ? null
+            ? undefined
             : {
                 typeofs: {
                   window: globalWindow ? 'object' : 'undefined',
@@ -205,9 +209,7 @@ function getBaseSWCOptions({
     },
     // Disable css-in-js libs (without client-only integration) transform on server layer for server components
     ...(!isReactServerLayer && {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       emotion: getEmotionOptions(compilerOptions?.emotion, development),
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
       styledComponents: getStyledComponentsOptions(
         compilerOptions?.styledComponents,
         development
@@ -217,8 +219,10 @@ function getBaseSWCOptions({
       serverComponents && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            cacheComponentsEnabled: isCacheComponents,
             useCacheEnabled,
+            taintEnabled,
+            pageExtensions: pageExtensions || [],
           }
         : undefined,
     serverActions:
@@ -228,7 +232,7 @@ function getBaseSWCOptions({
             isDevelopment: development,
             useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
-            cacheKinds: ['default', 'remote'].concat(
+            cacheKinds: ['default', 'remote', 'private'].concat(
               cacheHandlers ? Object.keys(cacheHandlers) : []
             ),
           }
@@ -276,16 +280,19 @@ function getEmotionOptions(
     return null
   }
   let autoLabel = !!development
-  switch (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
-    case 'never':
-      autoLabel = false
-      break
-    case 'always':
-      autoLabel = true
-      break
-    case 'dev-only':
-    default:
-      break
+  if (typeof emotionConfig === 'object' && emotionConfig.autoLabel) {
+    switch (emotionConfig.autoLabel) {
+      case 'never':
+        autoLabel = false
+        break
+      case 'always':
+        autoLabel = true
+        break
+      case 'dev-only':
+        break
+      default:
+        emotionConfig.autoLabel satisfies never
+    }
   }
   return {
     enabled: true,
@@ -309,6 +316,7 @@ export function getJestSWCOptions({
   jsConfig,
   resolvedBaseUrl,
   pagesDir,
+  imageConfig,
   serverReferenceHashSalt,
 }: {
   isServer: boolean
@@ -321,6 +329,7 @@ export function getJestSWCOptions({
   resolvedBaseUrl?: ResolvedBaseUrl
   pagesDir?: string
   serverComponents?: boolean
+  imageConfig?: Partial<NextConfig['images']>
   serverReferenceHashSalt: string
 }) {
   let baseOptions = getBaseSWCOptions({
@@ -343,6 +352,19 @@ export function getJestSWCOptions({
     serverReferenceHashSalt,
   })
 
+  // In production, webpack DefinePlugin replaces process.env.__NEXT_IMAGE_OPTS
+  // with an object literal at compile time. Emulate that here by enabling
+  // SWC's optimizer globals.envs so the same compile-time replacement happens
+  // during Jest transforms.
+  if (imageConfig) {
+    baseOptions.jsc.transform.optimizer.globals = {
+      envs: {
+        ...baseOptions.jsc.transform.optimizer.globals?.envs,
+        __NEXT_IMAGE_OPTS: JSON.stringify(imageConfig),
+      },
+    } as any
+  }
+
   const useCjsModules = shouldOutputCommonJs(filename)
   return {
     ...baseOptions,
@@ -356,7 +378,6 @@ export function getJestSWCOptions({
       type: esm && !useCjsModules ? 'es6' : 'commonjs',
     },
     disableNextSsg: true,
-    disablePageConfig: true,
     pagesDir,
   }
 }
@@ -370,12 +391,13 @@ export function getLoaderSWCOptions({
   pagesDir,
   appDir,
   isPageFile,
-  isDynamicIo,
+  isCacheComponents,
   hasReactRefresh,
   modularizeImports,
   optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
+  swcEnvOptions,
   compilerOptions,
   jsConfig,
   supportedBrowsers,
@@ -387,7 +409,9 @@ export function getLoaderSWCOptions({
   esm,
   cacheHandlers,
   useCacheEnabled,
+  taintEnabled,
   trackDynamicImports,
+  pageExtensions,
 }: {
   filename: string
   development: boolean
@@ -398,11 +422,12 @@ export function getLoaderSWCOptions({
   hasReactRefresh: boolean
   optimizeServerReact?: boolean
   modularizeImports: NextConfig['modularizeImports']
-  isDynamicIo?: boolean
+  isCacheComponents?: boolean
   optimizePackageImports?: NonNullable<
     NextConfig['experimental']
   >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
+  swcEnvOptions?: ExperimentalConfig['swcEnvOptions']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
   supportedBrowsers: string[] | undefined
@@ -412,9 +437,11 @@ export function getLoaderSWCOptions({
   serverComponents?: boolean
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
-  cacheHandlers: ExperimentalConfig['cacheHandlers']
+  cacheHandlers: NextConfig['cacheHandlers']
   useCacheEnabled?: boolean
+  taintEnabled?: boolean
   trackDynamicImports?: boolean
+  pageExtensions?: string[]
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -432,10 +459,12 @@ export function getLoaderSWCOptions({
     serverComponents,
     serverReferenceHashSalt,
     esm: !!esm,
-    isDynamicIo,
+    isCacheComponents,
     cacheHandlers,
     useCacheEnabled,
+    taintEnabled,
     trackDynamicImports,
+    pageExtensions,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],
@@ -485,7 +514,6 @@ export function getLoaderSWCOptions({
       ...moduleResolutionConfig,
       // Disables getStaticProps/getServerSideProps tree shaking on the server compilation for pages
       disableNextSsg: true,
-      disablePageConfig: true,
       isDevelopment: development,
       isServerCompiler: isServer,
       pagesDir,
@@ -513,6 +541,7 @@ export function getLoaderSWCOptions({
         ? {
             env: {
               targets: supportedBrowsers,
+              ...swcEnvOptions,
             },
           }
         : {}),
@@ -527,7 +556,6 @@ export function getLoaderSWCOptions({
   // Only keep server actions transform to discover server actions from client components.
   if (isAppBrowserLayer && isNodeModules) {
     options.disableNextSsg = true
-    options.disablePageConfig = true
     options.isPageFile = false
     options.optimizeServerReact = undefined
     options.cjsRequireOptimizer = undefined

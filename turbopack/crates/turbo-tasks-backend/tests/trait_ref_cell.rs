@@ -2,19 +2,23 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-use std::sync::Mutex;
+use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{IntoTraitRef, Invalidator, TraitRef, Vc, get_invalidator};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks::{
+    Invalidator, TraitRef, Vc, get_invalidator,
+    unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
+};
+use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trait_ref() {
-    run(&REGISTRATION, || async {
+    run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let counter = Counter::cell(Counter {
-            value: Mutex::new((0, None)),
+            value: Mutex::new((0, Default::default())),
         });
 
         let counter_value = counter.get_value();
@@ -64,16 +68,19 @@ struct CounterValue(usize);
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 struct Counter {
     #[turbo_tasks(debug_ignore, trace_ignore)]
-    value: Mutex<(usize, Option<Invalidator>)>,
+    value: Mutex<(usize, HashSet<Invalidator>)>,
 }
 
 impl Counter {
     fn incr(&self) {
-        let mut lock = self.value.lock().unwrap();
-        lock.0 += 1;
-        if let Some(i) = lock.1.take() {
-            i.invalidate();
-        }
+        with_turbo_tasks(|tt| {
+            let mut lock = self.value.lock().unwrap();
+            lock.0 += 1;
+            let invalidators = take(&mut lock.1);
+            for i in invalidators {
+                i.invalidate(&**tt);
+            }
+        });
     }
 }
 
@@ -87,10 +94,10 @@ trait CounterTrait {
 
 #[turbo_tasks::value_impl]
 impl CounterTrait for Counter {
-    #[turbo_tasks::function(invalidator)]
+    #[turbo_tasks::function]
     fn get_value(&self) -> Result<Vc<CounterValue>> {
         let mut lock = self.value.lock().unwrap();
-        lock.1 = Some(get_invalidator());
+        lock.1.insert(get_invalidator().unwrap());
         Ok(Vc::cell(lock.0))
     }
 

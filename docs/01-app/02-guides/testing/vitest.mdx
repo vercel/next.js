@@ -4,7 +4,7 @@ nav_title: Vitest
 description: Learn how to set up Vitest with Next.js for Unit Testing.
 ---
 
-Vite and React Testing Library are frequently used together for **Unit Testing**. This guide will show you how to setup Vitest with Next.js and write your first tests.
+Vitest and React Testing Library are frequently used together for **Unit Testing**. This guide will show you how to setup Vitest with Next.js and write your first tests.
 
 > **Good to know:** Since `async` Server Components are new to the React ecosystem, Vitest currently does not support them. While you can still run **unit tests** for synchronous Server and Client Components, we recommend using **E2E tests** for `async` components.
 
@@ -12,19 +12,52 @@ Vite and React Testing Library are frequently used together for **Unit Testing**
 
 You can use `create-next-app` with the Next.js [with-vitest](https://github.com/vercel/next.js/tree/canary/examples/with-vitest) example to quickly get started:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app --example with-vitest with-vitest-app
+```
+
+```bash package="npm"
 npx create-next-app@latest --example with-vitest with-vitest-app
+```
+
+```bash package="yarn"
+yarn create next-app --example with-vitest with-vitest-app
+```
+
+```bash package="bun"
+bun create next-app --example with-vitest with-vitest-app
 ```
 
 ## Manual Setup
 
 To manually set up Vitest, install `vitest` and the following packages as dev dependencies:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+# Using TypeScript
+pnpm add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+# Using JavaScript
+pnpm add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
+```
+
+```bash package="npm"
 # Using TypeScript
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
 # Using JavaScript
 npm install -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
+```
+
+```bash package="yarn"
+# Using TypeScript
+yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+# Using JavaScript
+yarn add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
+```
+
+```bash package="bun"
+# Using TypeScript
+bun add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom vite-tsconfig-paths
+# Using JavaScript
+bun add -D vitest @vitejs/plugin-react jsdom @testing-library/react @testing-library/dom
 ```
 
 Create a `vitest.config.mts|js` file in the root of your project, and add the following options:
@@ -185,14 +218,20 @@ test('Page', () => {
 
 Then, run the following command to run your tests:
 
-```bash filename="Terminal"
-npm run test
-# or
-yarn test
-# or
+```bash package="pnpm"
 pnpm test
-# or
-bun test
+```
+
+```bash package="npm"
+npm run test
+```
+
+```bash package="yarn"
+yarn test
+```
+
+```bash package="bun"
+bun run test
 ```
 
 ## Additional Resources

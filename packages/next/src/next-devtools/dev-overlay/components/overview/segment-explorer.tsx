@@ -1,54 +1,177 @@
+import './segment-explorer.css'
 import {
   useSegmentTree,
   type SegmentTrieNode,
 } from '../../segment-explorer-trie'
-import { css } from '../../utils/css'
 import { cx } from '../../utils/cx'
+import { SegmentBoundaryTrigger } from './segment-boundary-trigger'
+import { Tooltip } from '../tooltip/tooltip'
+import { useCallback, useMemo } from 'react'
 import {
-  SegmentBoundaryTrigger,
-  styles as segmentBoundaryTriggerStyles,
-} from './segment-boundary-trigger'
-
-const BUILTIN_PREFIX = '__next_builtin__'
+  BUILTIN_PREFIX,
+  getBoundaryOriginFileType,
+  isBoundaryFile,
+  isBuiltinBoundaryFile,
+  normalizeBoundaryFilename,
+} from '../../../../server/app-render/segment-explorer-path'
+import { SegmentSuggestion } from './segment-suggestion'
+import type { SegmentBoundaryType } from '../../../userspace/app/segment-explorer-node'
 
 const isFileNode = (node: SegmentTrieNode) => {
   return !!node.value?.type && !!node.value?.pagePath
 }
 
+// Utility functions for global boundary management
+function traverseTreeAndResetBoundaries(node: SegmentTrieNode) {
+  // Reset this node's boundary if it has setBoundaryType function
+  if (node.value?.setBoundaryType) {
+    node.value.setBoundaryType(null)
+  }
+
+  // Recursively traverse children
+  Object.values(node.children).forEach((child) => {
+    if (child) {
+      traverseTreeAndResetBoundaries(child)
+    }
+  })
+}
+
+function countActiveBoundaries(node: SegmentTrieNode): number {
+  let count = 0
+
+  // Count this node's boundary override if it's active
+  // Only count when there's a non ":boundary" type and it has an active override (boundaryType is not null)
+  // This means the file is showing an overridden boundary instead of its original file
+  if (
+    node.value?.setBoundaryType &&
+    node.value.boundaryType !== null &&
+    !isBoundaryFile(node.value.type)
+  ) {
+    count++
+  }
+
+  // Recursively count children
+  Object.values(node.children).forEach((child) => {
+    if (child) {
+      count += countActiveBoundaries(child)
+    }
+  })
+
+  return count
+}
+
 function PageRouteBar({ page }: { page: string }) {
-  const pagePath = `/app${page}`
   return (
     <div className="segment-explorer-page-route-bar">
       <BackArrowIcon />
-      <span className="segment-explorer-page-route-bar-path">{pagePath}</span>
+      <span className="segment-explorer-page-route-bar-path">{page}</span>
     </div>
   )
 }
 
-export function PageSegmentTree({
-  isAppRouter,
-  page,
+function SegmentExplorerFooter({
+  activeBoundariesCount,
+  onGlobalReset,
 }: {
-  isAppRouter: boolean
-  page: string
+  activeBoundariesCount: number
+  onGlobalReset: () => void
 }) {
-  const tree = useSegmentTree()
+  const hasActiveOverrides = activeBoundariesCount > 0
+
   return (
-    <div data-nextjs-devtools-panel-segments-explorer>
-      {isAppRouter && <PageRouteBar page={page} />}
-      <div
-        className="segment-explorer-content"
-        data-nextjs-devtool-segment-explorer
+    <div className="segment-explorer-footer">
+      <button
+        className={`segment-explorer-footer-button ${!hasActiveOverrides ? 'segment-explorer-footer-button--disabled' : ''}`}
+        onClick={hasActiveOverrides ? onGlobalReset : undefined}
+        disabled={!hasActiveOverrides}
+        type="button"
       >
-        {isAppRouter ? (
-          <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
-        ) : (
-          <p>Route Info currently is only available for the App Router.</p>
+        <span className="segment-explorer-footer-text">
+          Clear Segment Overrides
+        </span>
+        {hasActiveOverrides && (
+          <span className="segment-explorer-footer-badge">
+            {activeBoundariesCount}
+          </span>
         )}
-      </div>
+      </button>
     </div>
   )
 }
+
+function FilePill({
+  type,
+  isBuiltin,
+  isOverridden,
+  filePath,
+  fileName,
+}: {
+  type: string
+  isBuiltin: boolean
+  isOverridden: boolean
+  filePath: string
+  fileName: string
+}) {
+  return (
+    <span
+      className={cx(
+        'segment-explorer-file-label',
+        `segment-explorer-file-label--${type}`,
+        isBuiltin && 'segment-explorer-file-label--builtin',
+        isOverridden && 'segment-explorer-file-label--overridden'
+      )}
+      onClick={() => {
+        openInEditor({ filePath })
+      }}
+    >
+      <span className="segment-explorer-file-label-text">{fileName}</span>
+      {isBuiltin ? <InfoIcon /> : <CodeIcon className="code-icon" />}
+    </span>
+  )
+}
+
+export function PageSegmentTree({ page }: { page: string }) {
+  const tree = useSegmentTree()
+
+  // Count active boundaries for the badge
+  const activeBoundariesCount = useMemo(() => {
+    return countActiveBoundaries(tree)
+  }, [tree])
+
+  // Global reset handler
+  const handleGlobalReset = useCallback(() => {
+    traverseTreeAndResetBoundaries(tree)
+  }, [tree])
+
+  return (
+    <div
+      data-nextjs-devtools-panel-segments-explorer
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+      }}
+    >
+      <PageRouteBar page={page} />
+      <div
+        className="segment-explorer-content"
+        data-nextjs-devtool-segment-explorer
+        style={{
+          flex: '1 1 auto',
+          overflow: 'auto',
+        }}
+      >
+        <PageSegmentTreeLayerPresentation node={tree} level={0} segment="" />
+      </div>
+      <SegmentExplorerFooter
+        activeBoundariesCount={activeBoundariesCount}
+        onGlobalReset={handleGlobalReset}
+      />
+    </div>
+  )
+}
+
+const GLOBAL_ERROR_BOUNDARY_TYPE = 'global-error'
 
 function PageSegmentTreeLayerPresentation({
   segment,
@@ -59,33 +182,72 @@ function PageSegmentTreeLayerPresentation({
   node: SegmentTrieNode
   level: number
 }) {
-  const childrenKeys = Object.keys(node.children)
+  const childrenKeys = useMemo(
+    () => Object.keys(node.children),
+    [node.children]
+  )
+
+  const missingGlobalError = useMemo(() => {
+    const existingBoundaries: string[] = []
+    childrenKeys.forEach((key) => {
+      const childNode = node.children[key]
+      if (!childNode || !childNode.value) return
+      const boundaryType = getBoundaryOriginFileType(childNode.value.type)
+      const isGlobalConvention = boundaryType === GLOBAL_ERROR_BOUNDARY_TYPE
+      if (
+        // If global-* convention is not built-in, it's existed
+        (isGlobalConvention &&
+          !isBuiltinBoundaryFile(childNode.value.pagePath)) ||
+        (!isGlobalConvention &&
+          // If it's non global boundary, we check if file is boundary type
+          isBoundaryFile(childNode.value.type))
+      ) {
+        existingBoundaries.push(boundaryType)
+      }
+    })
+
+    return (
+      level === 0 && !existingBoundaries.includes(GLOBAL_ERROR_BOUNDARY_TYPE)
+    )
+  }, [node.children, childrenKeys, level])
 
   const sortedChildrenKeys = childrenKeys.sort((a, b) => {
-    // Prioritize if it's a file convention like layout or page,
-    // then the rest parallel routes.
+    // Prioritize files with extensions over directories
     const aHasExt = a.includes('.')
     const bHasExt = b.includes('.')
     if (aHasExt && !bHasExt) return -1
     if (!aHasExt && bHasExt) return 1
-    // Otherwise sort alphabetically
 
-    // If it's file, sort by order: layout > template > page
+    // For files, sort by priority: layout > template > page > boundaries > others
     if (aHasExt && bHasExt) {
       const aType = node.children[a]?.value?.type
       const bType = node.children[b]?.value?.type
 
-      if (aType === 'layout' && bType !== 'layout') return -1
-      if (aType !== 'layout' && bType === 'layout') return 1
-      if (aType === 'template' && bType !== 'template') return -1
-      if (aType !== 'template' && bType === 'template') return 1
+      // Define priority order
+      const getTypePriority = (type: string | undefined): number => {
+        if (!type) return 5
+        if (type === 'layout') return 1
+        if (type === 'template') return 2
+        if (type === 'page') return 3
+        if (isBoundaryFile(type)) return 4
+        return 5
+      }
 
-      // If both are the same type, sort by pagePath
+      const aPriority = getTypePriority(aType)
+      const bPriority = getTypePriority(bType)
+
+      // Sort by priority first
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority
+      }
+
+      // If same priority, sort by file path
       const aFilePath = node.children[a]?.value?.pagePath || ''
       const bFilePath = node.children[b]?.value?.pagePath || ''
       return aFilePath.localeCompare(bFilePath)
     }
 
+    // For directories, sort alphabetically
     return a.localeCompare(b)
   })
 
@@ -94,7 +256,6 @@ function PageSegmentTreeLayerPresentation({
 
   const folderChildrenKeys: string[] = []
   const filesChildrenKeys: string[] = []
-  let pageChild = null
 
   for (const childKey of sortedChildrenKeys) {
     const childNode = node.children[childKey]
@@ -110,21 +271,55 @@ function PageSegmentTreeLayerPresentation({
     folderChildrenKeys.push(childKey)
   }
 
-  for (const fileChildSegment of filesChildrenKeys) {
-    const childNode = node.children[fileChildSegment]
+  const possibleExtension =
+    normalizeBoundaryFilename(filesChildrenKeys[0] || '')
+      .split('.')
+      .pop() || 'js'
+
+  let firstChild = null
+
+  for (let i = sortedChildrenKeys.length - 1; i >= 0; i--) {
+    const childNode = node.children[sortedChildrenKeys[i]]
     if (!childNode || !childNode.value) continue
 
-    // If it's a page node, we can use it as the page child
-    if (
-      childNode.value.type !== 'layout' &&
-      childNode.value.type !== 'template'
-    ) {
-      pageChild = childNode
-      break // We only need one page child
+    const isBoundary = isBoundaryFile(childNode.value.type)
+
+    if (!firstChild && !isBoundary) {
+      firstChild = childNode
+      break
     }
   }
+  let firstBoundaryChild = null
+  for (const childKey of sortedChildrenKeys) {
+    const childNode = node.children[childKey]
+    if (!childNode || !childNode.value) continue
+    if (isBoundaryFile(childNode.value.type)) {
+      firstBoundaryChild = childNode
+      break
+    }
+  }
+  firstChild = firstChild || firstBoundaryChild
 
   const hasFilesChildren = filesChildrenKeys.length > 0
+  const boundaries: Record<SegmentBoundaryType, string | null> = {
+    'not-found': null,
+    loading: null,
+    error: null,
+    'global-error': null,
+  }
+
+  filesChildrenKeys.forEach((childKey) => {
+    const childNode = node.children[childKey]
+    if (!childNode || !childNode.value) return
+    if (isBoundaryFile(childNode.value.type)) {
+      const boundaryType = getBoundaryOriginFileType(childNode.value.type)
+
+      if (boundaryType in boundaries) {
+        boundaries[boundaryType as keyof typeof boundaries] =
+          childNode.value.pagePath || null
+      }
+    }
+  })
 
   return (
     <>
@@ -141,61 +336,82 @@ function PageSegmentTreeLayerPresentation({
               ...{ paddingLeft: `${(level + 1) * 8}px` },
             }}
           >
-            <div className="segment-explorer-filename">
-              {folderName && (
-                <span className="segment-explorer-filename--path">
-                  {folderName}
-                  {/* hidden slashes for testing snapshots */}
-                  <small>{'/'}</small>
-                </span>
-              )}
-              {/* display all the file segments in this level */}
-              {filesChildrenKeys.length > 0 && (
-                <span className="segment-explorer-files">
-                  {filesChildrenKeys.map((fileChildSegment) => {
-                    const childNode = node.children[fileChildSegment]
-                    if (!childNode || !childNode.value) {
-                      return null
-                    }
-                    const filePath = childNode.value.pagePath
-                    const lastSegment = filePath.split('/').pop() || ''
-                    const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
-                    const fileName = lastSegment.replace(BUILTIN_PREFIX, '')
-
-                    return (
-                      <span
-                        key={fileChildSegment}
-                        onClick={() => {
-                          openInEditor({ filePath })
-                        }}
-                        className={cx(
-                          'segment-explorer-file-label',
-                          `segment-explorer-file-label--${childNode.value.type}`,
-                          isBuiltin && 'segment-explorer-file-label--builtin'
-                        )}
-                      >
-                        {fileName}
-                        {isBuiltin && (
-                          <TooltipSpan
-                            title={`The default Next.js not found is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`}
-                          >
-                            <InfoIcon />
-                          </TooltipSpan>
-                        )}
-                      </span>
-                    )
-                  })}
-                </span>
-              )}
-              {/* TODO: only show triggers in dev panel remove this once the new panel UI is stable */}
-              {process.env.__NEXT_DEVTOOL_NEW_PANEL_UI &&
-                pageChild &&
-                pageChild.value && (
-                  <SegmentBoundaryTrigger
-                    offset={6}
-                    onSelectBoundary={pageChild.value.setBoundaryType}
+            <div className="segment-explorer-item-row-main">
+              <div className="segment-explorer-filename">
+                {folderName && (
+                  <span className="segment-explorer-filename--path">
+                    {folderName}
+                    {/* hidden slashes for testing snapshots */}
+                    <small>{'/'}</small>
+                  </span>
+                )}
+                {missingGlobalError && (
+                  <SegmentSuggestion
+                    possibleExtension={possibleExtension}
+                    missingGlobalError={missingGlobalError}
                   />
                 )}
+                {/* display all the file segments in this level */}
+                {filesChildrenKeys.length > 0 && (
+                  <span className="segment-explorer-files">
+                    {filesChildrenKeys.map((fileChildSegment) => {
+                      const childNode = node.children[fileChildSegment]
+                      if (!childNode || !childNode.value) {
+                        return null
+                      }
+                      // If it's boundary node, which marks the existence of the boundary not the rendered status,
+                      // we don't need to present in the rendered files.
+                      if (isBoundaryFile(childNode.value.type)) {
+                        return null
+                      }
+                      // If it's a page/default file, don't show it as a separate label since it's represented by the dropdown button
+                      // if (
+                      //   childNode.value.type === 'page' ||
+                      //   childNode.value.type === 'default'
+                      // ) {
+                      //   return null
+                      // }
+                      const filePath = childNode.value.pagePath
+                      const lastSegment = filePath.split('/').pop() || ''
+                      const isBuiltin = filePath.startsWith(BUILTIN_PREFIX)
+                      const fileName = normalizeBoundaryFilename(lastSegment)
+
+                      const tooltipMessage = isBuiltin
+                        ? `The default Next.js ${childNode.value.type} is being shown. You can customize this page by adding your own ${fileName} file to the app/ directory.`
+                        : null
+
+                      const isOverridden = childNode.value.boundaryType !== null
+
+                      return (
+                        <Tooltip
+                          key={fileChildSegment}
+                          className={
+                            'segment-explorer-file-label-tooltip--' +
+                            (isBuiltin ? 'lg' : 'sm')
+                          }
+                          direction={isBuiltin ? 'right' : 'top'}
+                          title={tooltipMessage}
+                          offset={12}
+                        >
+                          <FilePill
+                            type={childNode.value.type}
+                            isBuiltin={isBuiltin}
+                            isOverridden={isOverridden}
+                            filePath={filePath}
+                            fileName={fileName}
+                          />
+                        </Tooltip>
+                      )
+                    })}
+                  </span>
+                )}
+                {firstChild && firstChild.value && (
+                  <SegmentBoundaryTrigger
+                    nodeState={firstChild.value}
+                    boundaries={boundaries}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -225,134 +441,6 @@ function PageSegmentTreeLayerPresentation({
   )
 }
 
-export const DEV_TOOLS_INFO_RENDER_FILES_STYLES = css`
-  .segment-explorer-content {
-    font-size: var(--size-14);
-    padding: 0 8px;
-  }
-
-  .segment-explorer-page-route-bar {
-    display: flex;
-    align-items: center;
-    padding: 14px 16px;
-    background-color: var(--color-background-200);
-    gap: 12px;
-  }
-
-  .segment-explorer-page-route-bar-path {
-    font-size: var(--size-14);
-    font-weight: 500;
-    color: var(--color-gray-1000);
-    font-family: var(--font-mono);
-  }
-
-  .segment-explorer-item {
-    margin: 4px 0;
-    border-radius: 6px;
-  }
-
-  .segment-explorer-item:nth-child(even) {
-    background-color: var(--color-background-200);
-  }
-
-  .segment-explorer-item-row {
-    display: flex;
-    align-items: center;
-    padding-top: 10px;
-    padding-bottom: 10px;
-    padding-right: 4px;
-    white-space: pre;
-    cursor: default;
-    color: var(--color-gray-1000);
-  }
-
-  .segment-explorer-children--intended {
-    padding-left: 16px;
-  }
-
-  .segment-explorer-filename {
-    display: inline-flex;
-    width: 100%;
-    align-items: center;
-  }
-
-  .segment-explorer-filename select {
-    margin-left: auto;
-  }
-
-  .segment-explorer-filename--path {
-    margin-right: 8px;
-  }
-  .segment-explorer-filename--path small {
-    display: inline-block;
-    width: 0;
-    opacity: 0;
-  }
-  .segment-explorer-filename--name {
-    color: var(--color-gray-800);
-  }
-
-  .segment-explorer-files {
-    display: inline-flex;
-    gap: 8px;
-  }
-
-  .segment-explorer-file-label {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    height: 20px;
-    padding: 2px 6px;
-    border-radius: 16px;
-    font-size: var(--size-12);
-    font-weight: 500;
-    user-select: none;
-    cursor: pointer;
-  }
-
-  .segment-explorer-file-label:hover {
-    filter: brightness(1.05);
-  }
-
-  .segment-explorer-file-label--layout,
-  .segment-explorer-file-label--template,
-  .segment-explorer-file-label--default {
-    background-color: var(--color-gray-300);
-    color: var(--color-gray-1000);
-  }
-  .segment-explorer-file-label--page {
-    background-color: var(--color-blue-300);
-    color: var(--color-blue-900);
-  }
-  .segment-explorer-file-label--not-found,
-  .segment-explorer-file-label--forbidden,
-  .segment-explorer-file-label--unauthorized {
-    background-color: var(--color-amber-300);
-    color: var(--color-amber-900);
-  }
-  .segment-explorer-file-label--loading {
-    background-color: var(--color-green-300);
-    color: var(--color-green-900);
-  }
-  .segment-explorer-file-label--error,
-  .segment-explorer-file-label--global-error {
-    background-color: var(--color-red-300);
-    color: var(--color-red-900);
-  }
-  .segment-explorer-file-label--builtin {
-    background-color: transparent;
-    color: var(--color-gray-900);
-    border: 1px dashed var(--color-gray-500);
-    cursor: default;
-  }
-  .segment-explorer-file-label--builtin svg {
-    margin-left: 4px;
-    margin-right: -4px;
-  }
-
-  ${segmentBoundaryTriggerStyles}
-`
-
 function openInEditor({ filePath }: { filePath: string }) {
   const params = new URLSearchParams({
     file: filePath,
@@ -367,7 +455,7 @@ function openInEditor({ filePath }: { filePath: string }) {
   )
 }
 
-function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
+export function InfoIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
       width="16"
@@ -403,12 +491,22 @@ function BackArrowIcon() {
   )
 }
 
-function TooltipSpan({
-  children,
-  title,
-}: {
-  children: React.ReactNode
-  title: string
-}) {
-  return <span title={title}>{children}</span>
+function CodeIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width="12"
+      height="12"
+      strokeLinejoin="round"
+      viewBox="0 0 16 16"
+      fill="currentColor"
+      {...props}
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M7.22763 14.1819L10.2276 2.18193L10.4095 1.45432L8.95432 1.09052L8.77242 1.81812L5.77242 13.8181L5.59051 14.5457L7.04573 14.9095L7.22763 14.1819ZM3.75002 12.0607L3.21969 11.5304L0.39647 8.70713C0.00594559 8.31661 0.00594559 7.68344 0.39647 7.29292L3.21969 4.46969L3.75002 3.93936L4.81068 5.00002L4.28035 5.53035L1.81068 8.00003L4.28035 10.4697L4.81068 11L3.75002 12.0607ZM12.25 12.0607L12.7804 11.5304L15.6036 8.70713C15.9941 8.31661 15.9941 7.68344 15.6036 7.29292L12.7804 4.46969L12.25 3.93936L11.1894 5.00002L11.7197 5.53035L14.1894 8.00003L11.7197 10.4697L11.1894 11L12.25 12.0607Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
 }

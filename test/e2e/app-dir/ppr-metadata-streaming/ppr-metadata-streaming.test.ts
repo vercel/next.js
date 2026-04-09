@@ -6,7 +6,8 @@ function countSubstring(str: string, substr: string): number {
   return str.split(substr).length - 1
 }
 
-describe('ppr-metadata-streaming', () => {
+// TODO(NAR-423): Migrate to Cache Components.
+describe.skip('ppr-metadata-streaming', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
@@ -23,7 +24,9 @@ describe('ppr-metadata-streaming', () => {
         pushErrorAsConsoleLog: true,
       })
       expect(
-        await browser.waitForElementByCss(`${rootSelector} title`).text()
+        await browser
+          .waitForElementByCss(`${rootSelector} title`, { state: 'attached' })
+          .text()
       ).toBe('fully static')
       await assertNoConsoleErrors(browser)
     })
@@ -36,9 +39,11 @@ describe('ppr-metadata-streaming', () => {
       const browser = await next.browser('/dynamic-page', {
         pushErrorAsConsoleLog: true,
       })
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'dynamic page'
-      )
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('dynamic page')
       await assertNoConsoleErrors(browser)
     })
   })
@@ -53,9 +58,11 @@ describe('ppr-metadata-streaming', () => {
       const browser = await next.browser('/fully-dynamic', {
         pushErrorAsConsoleLog: true,
       })
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'fully dynamic'
-      )
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('fully dynamic')
       await assertNoConsoleErrors(browser)
     })
 
@@ -65,9 +72,11 @@ describe('ppr-metadata-streaming', () => {
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
       const browser = await next.browser('/dynamic-metadata')
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'dynamic metadata'
-      )
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('dynamic metadata')
       await assertNoConsoleErrors(browser)
     })
   })
@@ -81,9 +90,11 @@ describe('ppr-metadata-streaming', () => {
       const browser = await next.browser('/dynamic-metadata/partial', {
         pushErrorAsConsoleLog: true,
       })
-      expect(await browser.waitForElementByCss('body title').text()).toBe(
-        'dynamic-metadata - partial'
-      )
+      expect(
+        await browser
+          .waitForElementByCss('body title', { state: 'attached' })
+          .text()
+      ).toBe('dynamic-metadata - partial')
       await assertNoConsoleErrors(browser)
     })
 
@@ -97,7 +108,9 @@ describe('ppr-metadata-streaming', () => {
         pushErrorAsConsoleLog: true,
       })
       expect(
-        await browser.waitForElementByCss(`${rootSelector} title`).text()
+        await browser
+          .waitForElementByCss(`${rootSelector} title`, { state: 'attached' })
+          .text()
       ).toBe('dynamic-page - partial')
       await assertNoConsoleErrors(browser)
     })

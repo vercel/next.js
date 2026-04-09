@@ -24,32 +24,8 @@ env:
   RUST_LOG: 'off'
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
-  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
-  benchmark-tiny:
-    name: Benchmark Rust Crates (tiny)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust toolchain
-        uses: ./.github/actions/setup-rust
-
-      - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-codspeed@2.10.1
-
-      - name: Build app build benchmarks
-        run: cargo codspeed build -p next-api
-
-      - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v3
-        with:
-          run: cargo codspeed run
-          token: ${{ secrets.CODSPEED_TOKEN }}
-
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']
@@ -60,12 +36,12 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
-          tool: cargo-codspeed@2.10.1
+          tool: cargo-codspeed@3.0.5
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.8
+        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
         with:
           save-if: 'true'
           cache-provider: 'turbo'
@@ -79,12 +55,55 @@ jobs:
           pnpm install --loglevel error
 
       - name: Build app build benchmarks
+        env:
+          CODSPEED_RUNNER_MODE: instrumentation
         run: cargo codspeed build -p turbopack-cli small_apps
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
-          run: cargo codspeed run
+          mode: instrumentation
+          run: cargo codspeed run -p turbopack-cli small_apps
+          token: ${{ secrets.CODSPEED_TOKEN }}
+
+  benchmark-analyzer:
+    name: Benchmark Rust Crates (analyzer)
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: ./.github/actions/setup-rust
+
+      - name: Install cargo-codspeed
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
+        with:
+          tool: cargo-codspeed@3.0.5
+
+      - name: Cache on ${{ github.ref_name }}
+        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
+        with:
+          save-if: 'true'
+          cache-provider: 'turbo'
+          shared-key: build-turbopack-benchmark-analyzer-${{ hashFiles('.cargo/config.toml') }}
+
+      - name: Install pnpm dependencies
+        working-directory: turbopack/benchmark-apps
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+          pnpm install --loglevel error
+
+      - name: Build app build benchmarks
+        env:
+          CODSPEED_RUNNER_MODE: instrumentation
+        run: cargo codspeed build -p turbopack-ecmascript references
+
+      - name: Run the benchmarks
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
+        with:
+          mode: instrumentation
+          run: cargo codspeed run -p turbopack-ecmascript references
           token: ${{ secrets.CODSPEED_TOKEN }}
 
   benchmark-large:
@@ -98,15 +117,18 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
-          tool: cargo-codspeed@2.10.1
+          tool: cargo-codspeed@3.0.5
 
       - name: Build the benchmark target(s)
+        env:
+          CODSPEED_RUNNER_MODE: instrumentation
         run: cargo codspeed build -p turbopack -p turbopack-bench
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
+          mode: instrumentation
           run: cargo codspeed run
           token: ${{ secrets.CODSPEED_TOKEN }}

@@ -98,9 +98,9 @@ describe('app-dir - metadata-streaming', () => {
     it('should load the metadata in browser', async () => {
       const browser = await next.browser('/dynamic-api')
       await retry(async () => {
-        expect(await browser.elementByCss('body title').text()).toMatch(
-          /Dynamic api \d+/
-        )
+        expect(
+          await browser.elementByCss('body title', { state: 'attached' }).text()
+        ).toMatch(/Dynamic api \d+/)
       })
     })
   })

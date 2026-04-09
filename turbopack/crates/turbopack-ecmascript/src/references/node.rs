@@ -1,22 +1,14 @@
 use anyhow::Result;
-use either::Either;
-use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
-    file_source::FileSource,
-    raw_module::RawModule,
-    reference::ModuleReference,
-    resolve::{
-        ModuleResolveResult, RequestKey,
-        pattern::{Pattern, PatternMatch, read_matches},
-    },
-    source::Source,
+    file_source::FileSource, raw_module::RawModule, reference::ModuleReference,
+    resolve::ModuleResolveResult,
 };
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug)]
+#[derive(Hash, Clone, Debug, ValueToString)]
+#[value_to_string("package.json {package_json}")]
 pub struct PackageJsonReference {
     pub package_json: FileSystemPath,
 }
@@ -38,142 +30,5 @@ impl ModuleReference for PackageJsonReference {
                 .to_resolved()
                 .await?,
         )))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for PackageJsonReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!(
-                "package.json {}",
-                self.package_json.value_to_string().await?
-            )
-            .into(),
-        ))
-    }
-}
-
-#[turbo_tasks::value]
-#[derive(Hash, Debug)]
-pub struct DirAssetReference {
-    pub source: ResolvedVc<Box<dyn Source>>,
-    pub path: ResolvedVc<Pattern>,
-}
-
-#[turbo_tasks::value_impl]
-impl DirAssetReference {
-    #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
-        Self::cell(DirAssetReference { source, path })
-    }
-}
-
-#[turbo_tasks::function]
-async fn resolve_reference_from_dir(
-    parent_path: FileSystemPath,
-    path: Vc<Pattern>,
-) -> Result<Vc<ModuleResolveResult>> {
-    let path_ref = path.await?;
-    let (abs_path, rel_path) = path_ref.split_could_match("/ROOT/");
-    let matches = match (abs_path, rel_path) {
-        (Some(abs_path), Some(rel_path)) => Either::Right(
-            read_matches(
-                parent_path.root().await?.clone_value(),
-                rcstr!("/ROOT/"),
-                true,
-                Pattern::new(abs_path.or_any_nested_file()),
-            )
-            .await?
-            .into_iter()
-            .chain(
-                read_matches(
-                    parent_path,
-                    rcstr!(""),
-                    true,
-                    Pattern::new(rel_path.or_any_nested_file()),
-                )
-                .await?
-                .into_iter(),
-            ),
-        ),
-        (Some(abs_path), None) => Either::Left(
-            // absolute path only
-            read_matches(
-                parent_path.root().await?.clone_value(),
-                rcstr!("/ROOT/"),
-                true,
-                Pattern::new(abs_path.or_any_nested_file()),
-            )
-            .await?
-            .into_iter(),
-        ),
-        (None, Some(rel_path)) => Either::Left(
-            // relative path only
-            read_matches(
-                parent_path,
-                rcstr!(""),
-                true,
-                Pattern::new(rel_path.or_any_nested_file()),
-            )
-            .await?
-            .into_iter(),
-        ),
-        (None, None) => return Ok(*ModuleResolveResult::unresolvable()),
-    };
-    let mut affecting_sources = Vec::new();
-    let mut results = Vec::new();
-    for pat_match in matches {
-        match pat_match {
-            PatternMatch::File(matched_path, file) => {
-                let realpath = file.realpath_with_links().await?;
-                for symlink in &realpath.symlinks {
-                    affecting_sources.push(ResolvedVc::upcast(
-                        FileSource::new(symlink.clone()).to_resolved().await?,
-                    ));
-                }
-                results.push((
-                    RequestKey::new(matched_path.clone()),
-                    ResolvedVc::upcast(
-                        RawModule::new(Vc::upcast(FileSource::new(realpath.path.clone())))
-                            .to_resolved()
-                            .await?,
-                    ),
-                ));
-            }
-            PatternMatch::Directory(..) => {}
-        }
-    }
-    Ok(*ModuleResolveResult::modules_with_affecting_sources(
-        results,
-        affecting_sources,
-    ))
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for DirAssetReference {
-    #[turbo_tasks::function]
-    async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let parent_path = self.source.ident().path().await?.parent();
-        Ok(resolve_reference_from_dir(parent_path, *self.path))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkableModuleReference for DirAssetReference {
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Traced))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for DirAssetReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("directory assets {}", self.path.to_string().await?,).into(),
-        ))
     }
 }

@@ -49,7 +49,6 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-  REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
@@ -59,27 +58,21 @@ function getIteratorFn(maybeIterable) {
     maybeIterable["@@iterator"];
   return "function" === typeof maybeIterable ? maybeIterable : null;
 }
-var hasOwnProperty = Object.prototype.hasOwnProperty,
+var REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
+  hasOwnProperty = Object.prototype.hasOwnProperty,
   assign = Object.assign;
-function ReactElement(type, key, self, source, owner, props) {
-  self = props.ref;
+function ReactElement(type, key, props) {
+  var refProp = props.ref;
   return {
     $$typeof: REACT_ELEMENT_TYPE,
     type: type,
     key: key,
-    ref: void 0 !== self ? self : null,
+    ref: void 0 !== refProp ? refProp : null,
     props: props
   };
 }
 function cloneAndReplaceKey(oldElement, newKey) {
-  return ReactElement(
-    oldElement.type,
-    newKey,
-    void 0,
-    void 0,
-    void 0,
-    oldElement.props
-  );
+  return ReactElement(oldElement.type, newKey, oldElement.props);
 }
 function isValidElement(object) {
   return (
@@ -100,7 +93,9 @@ function escape(key) {
 var userProvidedKeyEscapeRegex = /\/+/g;
 function getElementKey(element, index) {
   return "object" === typeof element && null !== element && null != element.key
-    ? escape("" + element.key)
+    ? element.key === REACT_OPTIMISTIC_KEY
+      ? index.toString(36)
+      : escape("" + element.key)
     : index.toString(36);
 }
 function resolveThenable(thenable) {
@@ -256,19 +251,27 @@ function mapChildren(children, func, context) {
 }
 function lazyInitializer(payload) {
   if (-1 === payload._status) {
-    var ctor = payload._result;
-    ctor = ctor();
-    ctor.then(
+    var ctor = payload._result,
+      thenable = ctor();
+    thenable.then(
       function (moduleObject) {
         if (0 === payload._status || -1 === payload._status)
-          (payload._status = 1), (payload._result = moduleObject);
+          (payload._status = 1),
+            (payload._result = moduleObject),
+            void 0 === thenable.status &&
+              ((thenable.status = "fulfilled"),
+              (thenable.value = moduleObject));
       },
       function (error) {
         if (0 === payload._status || -1 === payload._status)
-          (payload._status = 2), (payload._result = error);
+          (payload._status = 2),
+            (payload._result = error),
+            void 0 === thenable.status &&
+              ((thenable.status = "rejected"), (thenable.reason = error));
       }
     );
-    -1 === payload._status && ((payload._status = 0), (payload._result = ctor));
+    -1 === payload._status &&
+      ((payload._status = 0), (payload._result = thenable));
   }
   if (1 === payload._status) return payload._result.default;
   throw payload._result;
@@ -325,43 +328,46 @@ function cleanup(entryValue) {
     1 === entry.count ? TaintRegistryValues.delete(entryValue) : entry.count--);
 }
 var finalizationRegistry =
-  "function" === typeof FinalizationRegistry
-    ? new FinalizationRegistry(cleanup)
-    : null;
-exports.Children = {
-  map: mapChildren,
-  forEach: function (children, forEachFunc, forEachContext) {
-    mapChildren(
-      children,
-      function () {
-        forEachFunc.apply(this, arguments);
-      },
-      forEachContext
-    );
-  },
-  count: function (children) {
-    var n = 0;
-    mapChildren(children, function () {
-      n++;
-    });
-    return n;
-  },
-  toArray: function (children) {
-    return (
-      mapChildren(children, function (child) {
-        return child;
-      }) || []
-    );
-  },
-  only: function (children) {
-    if (!isValidElement(children)) throw Error(formatProdErrorMessage(143));
-    return children;
-  }
-};
+    "function" === typeof FinalizationRegistry
+      ? new FinalizationRegistry(cleanup)
+      : null,
+  Children = {
+    map: mapChildren,
+    forEach: function (children, forEachFunc, forEachContext) {
+      mapChildren(
+        children,
+        function () {
+          forEachFunc.apply(this, arguments);
+        },
+        forEachContext
+      );
+    },
+    count: function (children) {
+      var n = 0;
+      mapChildren(children, function () {
+        n++;
+      });
+      return n;
+    },
+    toArray: function (children) {
+      return (
+        mapChildren(children, function (child) {
+          return child;
+        }) || []
+      );
+    },
+    only: function (children) {
+      if (!isValidElement(children)) throw Error(formatProdErrorMessage(143));
+      return children;
+    }
+  };
+exports.Activity = REACT_ACTIVITY_TYPE;
+exports.Children = Children;
 exports.Fragment = REACT_FRAGMENT_TYPE;
 exports.Profiler = REACT_PROFILER_TYPE;
 exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
+exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.cache = function (fn) {
@@ -412,11 +418,13 @@ exports.cloneElement = function (element, config, children) {
   if (null === element || void 0 === element)
     throw Error(formatProdErrorMessage(267, element));
   var props = assign({}, element.props),
-    key = element.key,
-    owner = void 0;
+    key = element.key;
   if (null != config)
-    for (propName in (void 0 !== config.ref && (owner = void 0),
-    void 0 !== config.key && (key = "" + config.key),
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
     config))
       !hasOwnProperty.call(config, propName) ||
         "key" === propName ||
@@ -431,14 +439,19 @@ exports.cloneElement = function (element, config, children) {
       childArray[i] = arguments[i + 2];
     props.children = childArray;
   }
-  return ReactElement(element.type, key, void 0, void 0, owner, props);
+  return ReactElement(element.type, key, props);
 };
 exports.createElement = function (type, config, children) {
   var propName,
     props = {},
     key = null;
   if (null != config)
-    for (propName in (void 0 !== config.key && (key = "" + config.key), config))
+    for (propName in (void 0 !== config.key &&
+      (key =
+        config.key === REACT_OPTIMISTIC_KEY
+          ? REACT_OPTIMISTIC_KEY
+          : "" + config.key),
+    config))
       hasOwnProperty.call(config, propName) &&
         "key" !== propName &&
         "__self" !== propName &&
@@ -455,7 +468,7 @@ exports.createElement = function (type, config, children) {
     for (propName in ((childrenLength = type.defaultProps), childrenLength))
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
-  return ReactElement(type, key, void 0, void 0, null, props);
+  return ReactElement(type, key, props);
 };
 exports.createRef = function () {
   return { current: null };
@@ -522,6 +535,7 @@ exports.memo = function (type, compare) {
     compare: void 0 === compare ? null : compare
   };
 };
+exports.optimisticKey = REACT_OPTIMISTIC_KEY;
 exports.startTransition = function (scope) {
   var prevTransition = ReactSharedInternals.T,
     currentTransition = {};
@@ -547,17 +561,10 @@ exports.startTransition = function (scope) {
       (ReactSharedInternals.T = prevTransition);
   }
 };
-exports.unstable_Activity = REACT_ACTIVITY_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
-exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
-};
-exports.unstable_postpone = function (reason) {
-  reason = Error(reason);
-  reason.$$typeof = REACT_POSTPONE_TYPE;
-  throw reason;
 };
 exports.use = function (usable) {
   return ReactSharedInternals.H.use(usable);
@@ -572,4 +579,4 @@ exports.useId = function () {
 exports.useMemo = function (create, deps) {
   return ReactSharedInternals.H.useMemo(create, deps);
 };
-exports.version = "19.2.0-experimental-65c4decb-20250630";
+exports.version = "19.3.0-experimental-404b38c7-20260408";

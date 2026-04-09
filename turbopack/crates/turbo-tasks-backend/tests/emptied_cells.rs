@@ -3,40 +3,41 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{State, Vc};
+use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run};
 
 static REGISTRATION: Registration = register!();
 
-#[tokio::test]
-async fn recompute() {
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_emptied_cells() {
     run(&REGISTRATION, || async {
-        let input = ChangingInput {
-            state: State::new(1),
-        }
-        .cell();
-        let output = compute(input);
-        assert_eq!(*output.await?, 1);
+        let input_op = get_state_operation();
+        let input_vc = input_op.resolve().strongly_consistent().await?;
+        let input = input_op.read_strongly_consistent().await?;
+        input.state.set(0);
+
+        let output = compute_operation(input_vc);
+        assert_eq!(*output.read_strongly_consistent().await?, 0);
 
         println!("changing input");
-        input.await?.state.set(10);
-        assert_eq!(*output.strongly_consistent().await?, 10);
+        input.state.set(10);
+        assert_eq!(*output.read_strongly_consistent().await?, 10);
 
         println!("changing input");
-        input.await?.state.set(5);
-        assert_eq!(*output.strongly_consistent().await?, 5);
+        input.state.set(5);
+        assert_eq!(*output.read_strongly_consistent().await?, 5);
 
         println!("changing input");
-        input.await?.state.set(20);
-        assert_eq!(*output.strongly_consistent().await?, 20);
+        input.state.set(20);
+        assert_eq!(*output.read_strongly_consistent().await?, 20);
 
         println!("changing input");
-        input.await?.state.set(15);
-        assert_eq!(*output.strongly_consistent().await?, 15);
+        input.state.set(15);
+        assert_eq!(*output.read_strongly_consistent().await?, 15);
 
         println!("changing input");
-        input.await?.state.set(1);
-        assert_eq!(*output.strongly_consistent().await?, 1);
+        input.state.set(1);
+        assert_eq!(*output.read_strongly_consistent().await?, 1);
 
         anyhow::Ok(())
     })
@@ -44,19 +45,27 @@ async fn recompute() {
     .unwrap();
 }
 
+#[turbo_tasks::function(operation)]
+fn get_state_operation() -> Vc<ChangingInput> {
+    ChangingInput {
+        state: State::new(0),
+    }
+    .cell()
+}
+
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
 }
 
-#[turbo_tasks::function]
-async fn compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
-    println!("compute()");
-    let value = *inner_compute(input).await?;
+#[turbo_tasks::function(operation)]
+async fn compute_operation(input: ResolvedVc<ChangingInput>) -> Result<Vc<u32>> {
+    println!("compute_operation()");
+    let value = *inner_compute(*input).await?;
     Ok(Vc::cell(value))
 }
 
-#[turbo_tasks::function(invalidator)]
+#[turbo_tasks::function]
 async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     println!("inner_compute()");
     let state_value = *input.await?.state.get();

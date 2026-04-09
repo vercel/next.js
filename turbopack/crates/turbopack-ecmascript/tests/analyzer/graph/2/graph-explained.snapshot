@@ -1,5 +1,5 @@
-x = (1 | y)
+x (const after eval) = (1 | y)
 
-y = x
+y (const after eval) = x
 
-z = x
+z (const after eval) = x

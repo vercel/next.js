@@ -11,6 +11,7 @@ use turbopack_core::{
 use turbopack_ecmascript::TreeShakingMode;
 
 /// Returns the runtime asset context to use to process runtime code assets.
+#[turbo_tasks::function]
 pub async fn get_runtime_asset_context(
     environment: ResolvedVc<Environment>,
 ) -> Result<Vc<Box<dyn AssetContext>>> {
@@ -19,11 +20,10 @@ pub async fn get_runtime_asset_context(
             enable_typescript_transform: Some(
                 TypescriptTransformOptions::default().resolved_cell(),
             ),
+            inline_helpers: true,
             ..Default::default()
         },
-        // TODO: Somehow this fails to compile when enabled.
-        // environment: Some(environment),
-        environment: None,
+        environment: Some(environment),
         tree_shaking_mode: Some(TreeShakingMode::ReexportsOnly),
         ..Default::default()
     }

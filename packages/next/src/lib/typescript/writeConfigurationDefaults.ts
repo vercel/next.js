@@ -1,10 +1,10 @@
-import { promises as fs } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 import { bold, cyan, white } from '../picocolors'
 import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
-import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
+import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
 
 type DesiredCompilerOptionsShape = {
@@ -19,10 +19,37 @@ type DesiredCompilerOptionsShape = {
 }
 
 function getDesiredCompilerOptions(
-  ts: typeof import('typescript'),
-  tsOptions?: CompilerOptions
+  typescriptVersion: string,
+  userTsConfig?: Record<string, any>
 ): DesiredCompilerOptionsShape {
-  const o: DesiredCompilerOptionsShape = {
+  // ModuleKind
+  const moduleKindESNext = 'esnext'
+  const moduleKindES2020 = 'es2020'
+  const moduleKindPreserve = 'preserve'
+  const moduleKindNodeNext = 'nodenext'
+  const moduleKindNode16 = 'node16'
+  const moduleKindCommonJS = 'commonjs'
+  const moduleKindAMD = 'amd'
+
+  // ModuleResolutionKind
+  const moduleResolutionKindBundler = 'bundler'
+  const moduleResolutionKindNode16 = 'node16'
+  const moduleResolutionKindNodeNext = 'nodenext'
+  const moduleResolutionKindNode12 = 'node12'
+  const moduleResolutionKindNode = 'node'
+  const configuredModule =
+    typeof userTsConfig?.compilerOptions?.module === 'string'
+      ? userTsConfig.compilerOptions.module.toLowerCase()
+      : undefined
+  const preferBundlerResolution =
+    semver.gte(typescriptVersion, '5.0.0') &&
+    configuredModule !== moduleKindCommonJS &&
+    configuredModule !== moduleKindAMD
+
+  // Jsx
+  const jsxEmitReactJSX = 'react-jsx'
+
+  return {
     target: {
       suggested: 'ES2017',
       reason:
@@ -34,35 +61,30 @@ function getDesiredCompilerOptions(
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
-    ...(semver.lt(ts.version, '5.0.0')
-      ? { forceConsistentCasingInFileNames: { suggested: true } }
-      : undefined),
     noEmit: { suggested: true },
-    ...(semver.gte(ts.version, '4.4.2')
-      ? { incremental: { suggested: true } }
-      : undefined),
+    incremental: { suggested: true },
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
     // 'parsedValue' matches the output value from ts.parseJsonConfigFileContent()
     module: {
-      parsedValue: ts.ModuleKind.ESNext,
+      parsedValue: moduleKindESNext,
       // All of these values work:
       parsedValues: [
-        semver.gte(ts.version, '5.4.0') && (ts.ModuleKind as any).Preserve,
-        ts.ModuleKind.ES2020,
-        ts.ModuleKind.ESNext,
-        ts.ModuleKind.CommonJS,
-        ts.ModuleKind.AMD,
-        ts.ModuleKind.NodeNext,
-        ts.ModuleKind.Node16,
+        semver.gte(typescriptVersion, '5.4.0') && moduleKindPreserve,
+        moduleKindES2020,
+        moduleKindESNext,
+        moduleKindCommonJS,
+        moduleKindAMD,
+        moduleKindNodeNext,
+        moduleKindNode16,
       ],
       value: 'esnext',
       reason: 'for dynamic import() support',
     },
     // TODO: Semver check not needed once Next.js repo uses 5.4.
-    ...(semver.gte(ts.version, '5.4.0') &&
-    tsOptions?.module === (ts.ModuleKind as any).Preserve
+    ...(semver.gte(typescriptVersion, '5.4.0') &&
+    userTsConfig?.compilerOptions?.module?.toLowerCase() === moduleKindPreserve
       ? {
           // TypeScript 5.4 introduced `Preserve`. Using `Preserve` implies
           // - `moduleResolution` is `Bundler`
@@ -76,32 +98,36 @@ function getDesiredCompilerOptions(
             reason: 'requirement for SWC / babel',
           },
           moduleResolution: {
-            // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
-            parsedValue:
-              ts.ModuleResolutionKind.Bundler ??
-              ts.ModuleResolutionKind.NodeNext ??
-              (ts.ModuleResolutionKind as any).Node10 ??
-              ts.ModuleResolutionKind.NodeJs,
+            parsedValue: preferBundlerResolution
+              ? moduleResolutionKindBundler
+              : moduleResolutionKindNode,
             // All of these values work:
-            parsedValues: [
-              (ts.ModuleResolutionKind as any).Node10 ??
-                ts.ModuleResolutionKind.NodeJs,
-              // only newer TypeScript versions have this field, it
-              // will be filtered for new versions of TypeScript
-              (ts.ModuleResolutionKind as any).Node12,
-              ts.ModuleResolutionKind.Node16,
-              ts.ModuleResolutionKind.NodeNext,
-              ts.ModuleResolutionKind.Bundler,
-            ].filter((val) => typeof val !== 'undefined'),
-            value: 'node',
-            reason: 'to match webpack resolution',
+            parsedValues: preferBundlerResolution
+              ? [
+                  moduleResolutionKindNode16,
+                  moduleResolutionKindNodeNext,
+                  moduleResolutionKindBundler,
+                ]
+              : [
+                  moduleResolutionKindNode,
+                  // only older TypeScript versions have this field
+                  moduleResolutionKindNode12,
+                  moduleResolutionKindNode16,
+                  moduleResolutionKindNodeNext,
+                ],
+            value: preferBundlerResolution
+              ? moduleResolutionKindBundler
+              : moduleResolutionKindNode,
+            reason: preferBundlerResolution
+              ? 'to match modern bundler resolution'
+              : 'to match webpack resolution',
           },
           resolveJsonModule: {
             value: true,
             reason: 'to match webpack resolution',
           },
         }),
-    ...(tsOptions?.verbatimModuleSyntax === true
+    ...(userTsConfig?.compilerOptions?.verbatimModuleSyntax === true
       ? undefined
       : {
           isolatedModules: {
@@ -110,27 +136,64 @@ function getDesiredCompilerOptions(
           },
         }),
     jsx: {
-      parsedValue: ts.JsxEmit.Preserve,
-      value: 'preserve',
-      reason: 'next.js implements its own optimized jsx transform',
+      parsedValue: jsxEmitReactJSX,
+      value: 'react-jsx',
+      reason: 'next.js uses the React automatic runtime',
     },
-  }
-
-  return o
+  } satisfies DesiredCompilerOptionsShape
 }
 
 export function getRequiredConfiguration(
-  ts: typeof import('typescript')
+  typescript: typeof import('typescript')
 ): Partial<import('typescript').CompilerOptions> {
   const res: Partial<import('typescript').CompilerOptions> = {}
+  const typescriptVersion = typescript.version
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts)
+  const desiredCompilerOptions = getDesiredCompilerOptions(typescriptVersion)
   for (const optionKey of Object.keys(desiredCompilerOptions)) {
     const ev = desiredCompilerOptions[optionKey]
     if (!('value' in ev)) {
       continue
     }
-    res[optionKey] = ev.parsedValue ?? ev.value
+
+    const value = ev.parsedValue ?? ev.value
+
+    // Convert string values back to TypeScript enum values
+    if (optionKey === 'module' && typeof value === 'string') {
+      const moduleMap: Record<string, import('typescript').ModuleKind> = {
+        esnext: typescript.ModuleKind.ESNext,
+        es2020: typescript.ModuleKind.ES2020,
+        ...(typescript.ModuleKind.Preserve !== undefined
+          ? { preserve: typescript.ModuleKind.Preserve }
+          : {}),
+        nodenext: typescript.ModuleKind.NodeNext,
+        node16: typescript.ModuleKind.Node16,
+        commonjs: typescript.ModuleKind.CommonJS,
+        amd: typescript.ModuleKind.AMD,
+      }
+      res[optionKey] = moduleMap[value.toLowerCase()] ?? value
+    } else if (optionKey === 'moduleResolution' && typeof value === 'string') {
+      const moduleResolutionMap: Record<
+        string,
+        import('typescript').ModuleResolutionKind
+      > = {
+        bundler: typescript.ModuleResolutionKind.Bundler,
+        node16: typescript.ModuleResolutionKind.Node16,
+        nodenext: typescript.ModuleResolutionKind.NodeNext,
+        node12: (typescript.ModuleResolutionKind as any).Node12,
+        node:
+          (typescript.ModuleResolutionKind as any).Node10 ??
+          typescript.ModuleResolutionKind.NodeJs,
+      }
+      res[optionKey] = moduleResolutionMap[value.toLowerCase()] ?? value
+    } else if (optionKey === 'jsx' && typeof value === 'string') {
+      const jsxMap: Record<string, import('typescript').JsxEmit> = {
+        'react-jsx': typescript.JsxEmit.ReactJSX,
+      }
+      res[optionKey] = jsxMap[value.toLowerCase()] ?? value
+    } else {
+      res[optionKey] = value
+    }
   }
 
   return res
@@ -140,40 +203,42 @@ const localDevTestFilesExcludeAction =
   'NEXT_PRIVATE_LOCAL_DEV_TEST_FILES_EXCLUDE'
 
 export async function writeConfigurationDefaults(
-  ts: typeof import('typescript'),
+  typescriptVersion: string,
   tsConfigPath: string,
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
   distDir: string,
-  hasPagesDir: boolean
+  hasPagesDir: boolean,
+  strictRouteTypes: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
-    await fs.writeFile(tsConfigPath, '{}' + os.EOL)
+    writeFileSync(tsConfigPath, '{}' + os.EOL)
   }
 
-  const { options: tsOptions, raw: rawConfig } =
-    await getTypeScriptConfiguration(ts, tsConfigPath, true)
-
-  const userTsConfigContent = await fs.readFile(tsConfigPath, {
-    encoding: 'utf8',
-  })
+  const userTsConfigContent = readFileSync(tsConfigPath, 'utf8')
   const userTsConfig = CommentJson.parse(userTsConfigContent)
-  if (userTsConfig.compilerOptions == null && !('extends' in rawConfig)) {
+
+  // Bail automatic setup when the user has extended or referenced another config
+  if ('extends' in userTsConfig || 'references' in userTsConfig) {
+    return
+  }
+
+  if (userTsConfig?.compilerOptions == null) {
     userTsConfig.compilerOptions = {}
     isFirstTimeSetup = true
   }
 
-  const desiredCompilerOptions = getDesiredCompilerOptions(ts, tsOptions)
+  const desiredCompilerOptions = getDesiredCompilerOptions(
+    typescriptVersion,
+    userTsConfig
+  )
 
   const suggestedActions: string[] = []
   const requiredActions: string[] = []
-  for (const optionKey of Object.keys(desiredCompilerOptions)) {
+  for (const optionKey in desiredCompilerOptions) {
     const check = desiredCompilerOptions[optionKey]
     if ('suggested' in check) {
-      if (!(optionKey in tsOptions)) {
-        if (!userTsConfig.compilerOptions) {
-          userTsConfig.compilerOptions = {}
-        }
+      if (!(optionKey in userTsConfig?.compilerOptions)) {
         userTsConfig.compilerOptions[optionKey] = check.suggested
         suggestedActions.push(
           cyan(optionKey) +
@@ -183,14 +248,28 @@ export async function writeConfigurationDefaults(
         )
       }
     } else if ('value' in check) {
-      const ev = tsOptions[optionKey]
-      if (
-        !('parsedValues' in check
-          ? check.parsedValues?.includes(ev)
-          : 'parsedValue' in check
-            ? check.parsedValue === ev
-            : check.value === ev)
-      ) {
+      let existingValue = userTsConfig?.compilerOptions?.[optionKey]
+
+      if (typeof existingValue === 'string') {
+        existingValue = existingValue.toLowerCase()
+      }
+
+      const shouldWriteRequiredValue = () => {
+        // Check if the option has multiple allowed values
+        if (check.parsedValues) {
+          return !check.parsedValues.includes(existingValue)
+        }
+
+        // Check if the option has a single parsed value
+        if (check.parsedValue) {
+          return check.parsedValue !== existingValue
+        }
+
+        // Fall back to direct value comparison
+        return check.value !== existingValue
+      }
+
+      if (shouldWriteRequiredValue()) {
         if (!userTsConfig.compilerOptions) {
           userTsConfig.compilerOptions = {}
         }
@@ -203,53 +282,46 @@ export async function writeConfigurationDefaults(
         )
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = check
     }
   }
 
-  const nextAppTypes = `${distDir}/types/**/*.ts`
+  // Get type definition glob patterns using shared utility to ensure consistency
+  // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
+  const nextTypes = getTypeDefinitionGlobPatterns(distDir)
 
-  if (!('include' in rawConfig)) {
-    userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+  if (!('include' in userTsConfig)) {
+    const defaultInclude =
+      hasAppDir && !strictRouteTypes
+        ? ['next-env.d.ts', ...nextTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+        : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+
+    userTsConfig.include = defaultInclude
     suggestedActions.push(
       cyan('include') +
-        ' was set to ' +
-        bold(
-          hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
-        )
+        ' was set to [' +
+        bold(defaultInclude.map((type) => `'${type}'`).join(', ')) +
+        ']'
     )
-  } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
-    if (!Array.isArray(userTsConfig.include)) {
-      userTsConfig.include = []
+  } else if (hasAppDir && !strictRouteTypes) {
+    const missingFromResolved = []
+    for (const type of nextTypes) {
+      if (!userTsConfig.include.includes(type)) {
+        missingFromResolved.push(type)
+      }
     }
-    // rawConfig will resolve all extends and include paths (ex: tsconfig.json, tsconfig.base.json, etc.)
-    // if it doesn't match userTsConfig then update the userTsConfig to add the
-    // rawConfig's includes in addition to nextAppTypes
-    if (
-      rawConfig.include.length !== userTsConfig.include.length ||
-      JSON.stringify(rawConfig.include.sort()) !==
-        JSON.stringify(userTsConfig.include.sort())
-    ) {
-      userTsConfig.include.push(...rawConfig.include, nextAppTypes)
-      suggestedActions.push(
-        cyan('include') +
-          ' was set to ' +
-          bold(
-            `[${[...rawConfig.include, nextAppTypes]
-              .map((i) => `'${i}'`)
-              .join(', ')}]`
-          )
-      )
-    } else {
-      userTsConfig.include.push(nextAppTypes)
-      suggestedActions.push(
-        cyan('include') + ' was updated to add ' + bold(`'${nextAppTypes}'`)
-      )
+
+    if (missingFromResolved.length > 0) {
+      if (!Array.isArray(userTsConfig.include)) {
+        userTsConfig.include = []
+      }
+
+      missingFromResolved.forEach((item) => {
+        userTsConfig.include.push(item)
+        suggestedActions.push(
+          cyan('include') + ' was updated to add ' + bold(`'${item}'`)
+        )
+      })
     }
   }
 
@@ -257,7 +329,7 @@ export async function writeConfigurationDefaults(
   if (hasAppDir) {
     // Check if the config or the resolved config has the plugin already.
     const plugins = [
-      ...(Array.isArray(tsOptions.plugins) ? tsOptions.plugins : []),
+      ...(Array.isArray(userTsConfig?.plugins) ? userTsConfig.plugins : []),
       ...(userTsConfig.compilerOptions &&
       Array.isArray(userTsConfig.compilerOptions.plugins)
         ? userTsConfig.compilerOptions.plugins
@@ -274,8 +346,9 @@ export async function writeConfigurationDefaults(
       !userTsConfig.compilerOptions ||
       (plugins.length &&
         !hasNextPlugin &&
-        'extends' in rawConfig &&
-        (!rawConfig.compilerOptions || !rawConfig.compilerOptions.plugins))
+        'extends' in userTsConfig &&
+        (!userTsConfig.compilerOptions ||
+          !userTsConfig.compilerOptions.plugins))
     ) {
       Log.info(
         `\nYour ${bold(
@@ -299,8 +372,8 @@ export async function writeConfigurationDefaults(
     if (
       hasPagesDir &&
       hasAppDir &&
-      !tsOptions.strict &&
-      !('strictNullChecks' in tsOptions)
+      !userTsConfig?.compilerOptions?.strict &&
+      !('strictNullChecks' in userTsConfig?.compilerOptions)
     ) {
       userTsConfig.compilerOptions.strictNullChecks = true
       suggestedActions.push(
@@ -309,7 +382,7 @@ export async function writeConfigurationDefaults(
     }
   }
 
-  if (!('exclude' in rawConfig)) {
+  if (!('exclude' in userTsConfig)) {
     userTsConfig.exclude = ['node_modules']
     suggestedActions.push(
       cyan('exclude') + ' was set to ' + bold(`['node_modules']`)
@@ -339,7 +412,7 @@ export async function writeConfigurationDefaults(
     return
   }
 
-  await fs.writeFile(
+  writeFileSync(
     tsConfigPath,
     CommentJson.stringify(userTsConfig, null, 2) + os.EOL
   )

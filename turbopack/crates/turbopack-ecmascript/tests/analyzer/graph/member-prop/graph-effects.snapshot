@@ -30,12 +30,9 @@
             ),
         ],
         span: 1..4,
-        in_try: false,
     },
     FreeVar {
-        var: FreeVar(
-            "A",
-        ),
+        var: "A",
         ast_path: [
             Program(
                 Script,
@@ -62,6 +59,5 @@
             ),
         ],
         span: 1..2,
-        in_try: false,
     },
 ]

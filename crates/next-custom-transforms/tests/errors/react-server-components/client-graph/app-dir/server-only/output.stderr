@@ -1,0 +1,10 @@
+  x You're importing a module that depends on "server-only" into a React Client Component module. This API is only available in Server Components but one of its parents is marked with "use client",
+  | so this module is also a Client Component.
+  | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+  | 
+  | 
+   ,-[input.js:9:1]
+ 8 | 
+ 9 | import 'server-only'
+   : ^^^^^^^^^^^^^^^^^^^^
+   `----

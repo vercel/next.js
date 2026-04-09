@@ -1,0 +1,9 @@
+;[
+  'node_modules/microtime/index.js',
+  'node_modules/microtime/package.json',
+  'node_modules/node-gyp-build/index.js',
+  'node_modules/node-gyp-build/node-gyp-build.js',
+  'node_modules/node-gyp-build/package.json',
+  'package.json',
+  'test/unit/microtime-node-gyp/input.js',
+]

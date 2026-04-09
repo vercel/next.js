@@ -23,10 +23,9 @@ const pagesExternals = [
   'react-dom/server.browser',
   'react-dom/server.edge',
   'react-server-dom-webpack/client',
-  'react-server-dom-webpack/client.edge',
-  'react-server-dom-webpack/server.edge',
+  'react-server-dom-webpack/server',
   'react-server-dom-webpack/server.node',
-  'react-server-dom-webpack/static.edge',
+  'react-server-dom-webpack/static',
 ]
 
 const appExternals = []
@@ -42,23 +41,18 @@ function makeAppAliases({ experimental, bundler }) {
     'react/jsx-dev-runtime$': `next/dist/compiled/react${reactChannel}/jsx-dev-runtime`,
     'react/compiler-runtime$': `next/dist/compiled/react${reactChannel}/compiler-runtime`,
     'react-dom/client$': `next/dist/compiled/react-dom${reactChannel}/client`,
-    'react-dom/server$': `next/dist/compiled/react-dom${reactChannel}/server`,
-    'react-dom/static$': `next/dist/compiled/react-dom${reactChannel}/static`,
-    'react-dom/static.edge$': `next/dist/compiled/react-dom${reactChannel}/static.edge`,
-    'react-dom/static.browser$': `next/dist/compiled/react-dom${reactChannel}/static.browser`,
-    // optimizations to ignore the legacy build of react-dom/server in `server.browser` build
-    'react-dom/server.edge$': `next/dist/build/webpack/alias/react-dom-server-edge${reactChannel}.js`,
+    // optimizations to ignore the legacy APIs in react-dom/server
+    'react-dom/server$': `next/dist/build/webpack/alias/react-dom-server${reactChannel}.js`,
+    'react-dom/static$': `next/dist/compiled/react-dom${reactChannel}/static.node`,
     // react-server-dom-webpack alias
-    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client`,
-    'react-server-dom-turbopack/client.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.edge`,
-    'react-server-dom-turbopack/server.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.edge`,
+    'react-server-dom-turbopack/client$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/client.node`,
+    'react-server-dom-turbopack/server$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
     'react-server-dom-turbopack/server.node$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/server.node`,
-    'react-server-dom-turbopack/static.edge$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.edge`,
-    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client`,
-    'react-server-dom-webpack/client.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client.edge`,
-    'react-server-dom-webpack/server.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.edge`,
+    'react-server-dom-turbopack/static$': `next/dist/compiled/react-server-dom-turbopack${reactChannel}/static.node`,
+    'react-server-dom-webpack/client$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/client.node`,
+    'react-server-dom-webpack/server$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
     'react-server-dom-webpack/server.node$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/server.node`,
-    'react-server-dom-webpack/static.edge$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/static.edge`,
+    'react-server-dom-webpack/static$': `next/dist/compiled/react-server-dom-${bundler}${reactChannel}/static.node`,
     '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client.ts':
       'next/dist/client/dev/noop-turbopack-hmr',
   }
@@ -145,7 +139,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         return
       }
 
-      if (request.endsWith('.external')) {
+      if (request.match(/\.external(\.js)?$/)) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
         const relative = path.relative(
@@ -167,10 +161,23 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
 
   const bundledReactChannel = experimental ? '-experimental' : ''
 
+  const alias =
+    bundleType === 'app'
+      ? makeAppAliases({
+          experimental,
+          bundler: turbo ? 'turbopack' : 'webpack',
+        })
+      : {}
+
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
-    mode: dev ? 'development' : 'production',
+    mode:
+      process.env.NEXT_DEBUG_INTERNALS === 'true'
+        ? 'development'
+        : dev
+          ? 'development'
+          : 'production',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${
@@ -179,18 +186,22 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       libraryTarget: 'commonjs2',
     },
     devtool: 'source-map',
-    optimization: {
-      moduleIds: 'named',
-      minimize: true,
-      concatenateModules: true,
-      minimizer: [
-        new webpack.SwcJsMinimizerRspackPlugin({
-          minimizerOptions: {
-            mangle: dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
+    optimization:
+      process.env.NEXT_DEBUG_INTERNALS === 'true'
+        ? undefined
+        : {
+            moduleIds: 'named',
+            minimize: true,
+            concatenateModules: true,
+            minimizer: [
+              new webpack.SwcJsMinimizerRspackPlugin({
+                minimizerOptions: {
+                  mangle:
+                    dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
+                },
+              }),
+            ],
           },
-        }),
-      ],
-    },
     plugins: [
       new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
       new webpack.DefinePlugin({
@@ -198,8 +209,11 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
         'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
         'this.minimalMode': JSON.stringify(true),
-        'this.renderOpts.dev': JSON.stringify(dev),
-        'renderOpts.dev': JSON.stringify(dev),
+        // Only inline __NEXT_DEV_SERVER in prod bundles (for dead-code
+        // elimination). Dev bundles must keep it as a runtime check because
+        // they're shared between `next dev` (where it's set) and `next build
+        // --debug-prerender` (where it's not).
+        ...(dev ? {} : { 'process.env.__NEXT_DEV_SERVER': JSON.stringify('') }),
         'process.env.NODE_ENV': JSON.stringify(
           dev ? 'development' : 'production'
         ),
@@ -238,13 +252,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       optimizationBailout: true,
     },
     resolve: {
-      alias:
-        bundleType === 'app'
-          ? makeAppAliases({
-              experimental,
-              bundler: turbo ? 'turbopack' : 'webpack',
-            })
-          : {},
+      alias,
     },
     module: {
       rules: [
@@ -292,9 +300,6 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       externalsMap,
       externalHandler,
     ],
-    experiments: {
-      layers: true,
-    },
     ...rest,
   }
 }

@@ -1,25 +1,27 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use swc_core::ecma::{
     ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
     visit::fields::{CalleeField, PropField},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
-use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+use turbopack_core::chunk::ChunkingContext;
 
-use super::EsmAssetReference;
 use crate::{
     ScopeHoistingContext,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::{
         AstPath,
-        esm::base::{ReferencedAsset, ReferencedAssetIdent},
+        esm::{
+            EsmAssetReference,
+            base::{ReferencedAsset, ReferencedAssetIdent},
+        },
     },
 };
 
-#[derive(Hash, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct EsmBinding {
     reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,
@@ -57,7 +59,6 @@ impl EsmBinding {
 
     pub async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
@@ -93,7 +94,6 @@ impl EsmBinding {
                         visit_mut_prop,
                         |prop: &mut Prop| {
                             if let Prop::Shorthand(ident) = prop {
-                                // TODO: Merge with the above condition when https://rust-lang.github.io/rfcs/2497-if-let-chains.html lands.
                                 match &imported_ident {
                                     ImportedIdent::Module(imported_ident) => {
                                         *prop = Prop::KeyValue(KeyValueProp {
@@ -150,46 +150,37 @@ impl EsmBinding {
                     ));
                     break;
                 }
-                Some(swc_core::ecma::visit::AstParentKind::BindingIdent(
-                    swc_core::ecma::visit::fields::BindingIdentField::Id,
-                )) => {
+                // We need to handle LHS because of code like
+                // (function (RouteKind1){})(RouteKind || RouteKind = {})
+                Some(swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)) => {
                     ast_path.pop();
 
-                    // We need to handle LHS because of code like
-                    // (function (RouteKind1){})(RouteKind || RouteKind = {})
-                    if let Some(swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(
-                        swc_core::ecma::visit::fields::SimpleAssignTargetField::Ident,
-                    )) = ast_path.last()
-                    {
-                        ast_path.pop();
-
-                        visitors.push(create_visitor!(
-                            exact,
-                            ast_path,
-                            visit_mut_simple_assign_target,
-                            |l: &mut SimpleAssignTarget| {
-                                use swc_core::common::Spanned;
-                                match &imported_ident {
-                                    ImportedIdent::Module(imported_ident) => {
-                                        *l = imported_ident
-                                            .as_expr_individual(l.span())
-                                            .map_either(
-                                                |i| SimpleAssignTarget::Ident(i.into()),
-                                                SimpleAssignTarget::Member,
-                                            )
-                                            .into_inner();
-                                    }
-                                    ImportedIdent::None => {
-                                        // Do nothing, cannot assign to `undefined`
-                                    }
-                                    ImportedIdent::Unresolvable => {
-                                        // Do nothing, the reference will insert a throw
-                                    }
+                    visitors.push(create_visitor!(
+                        exact,
+                        ast_path,
+                        visit_mut_simple_assign_target,
+                        |l: &mut SimpleAssignTarget| {
+                            use swc_core::common::Spanned;
+                            match &imported_ident {
+                                ImportedIdent::Module(imported_ident) => {
+                                    *l = imported_ident
+                                        .as_expr_individual(l.span())
+                                        .map_either(
+                                            |i| SimpleAssignTarget::Ident(i.into()),
+                                            SimpleAssignTarget::Member,
+                                        )
+                                        .into_inner();
+                                }
+                                ImportedIdent::None => {
+                                    // Do nothing, cannot assign to `undefined`
+                                }
+                                ImportedIdent::Unresolvable => {
+                                    // Do nothing, the reference will insert a throw
                                 }
                             }
-                        ));
-                        break;
-                    }
+                        }
+                    ));
+                    break;
                 }
                 Some(_) => {
                     ast_path.pop();

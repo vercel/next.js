@@ -15,6 +15,7 @@ import { getPkgManager } from './helpers/get-pkg-manager'
 import { isFolderEmpty } from './helpers/is-folder-empty'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
+import { Bundler } from './templates'
 
 let projectPath: string = ''
 
@@ -49,11 +50,12 @@ const program = new Command(packageJson.name)
   .option('--ts, --typescript', 'Initialize as a TypeScript project. (default)')
   .option('--js, --javascript', 'Initialize as a JavaScript project.')
   .option('--tailwind', 'Initialize with Tailwind CSS config. (default)')
+  .option('--react-compiler', 'Initialize with React Compiler enabled.')
   .option('--eslint', 'Initialize with ESLint config.')
+  .option('--biome', 'Initialize with Biome config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
-  .option('--turbopack', 'Enable Turbopack by default for development.')
-  .option('--rspack', 'Using Rspack as the bundler')
+  .option('--rspack', 'Enable Rspack as the bundler.')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
@@ -103,6 +105,10 @@ const program = new Command(packageJson.name)
   In this case, you must specify the path to the example separately:
   --example-path foo/bar
 `
+  )
+  .option(
+    '--agents-md',
+    'Include AGENTS.md to guide coding agents to write up-to-date Next.js code. (default)'
   )
   .option('--disable-git', `Skip initializing a git repository.`)
   .action((name) => {
@@ -223,23 +229,175 @@ async function run(): Promise<void> {
    * If the user does not provide the necessary flags, prompt them for their
    * preferences, unless `--yes` option was specified, or when running in CI.
    */
-  const skipPrompt = ciInfo.isCI || opts.yes
+  let skipPrompt = ciInfo.isCI || opts.yes
+  let useRecommendedDefaults = false
 
   if (!example) {
     const defaults: typeof preferences = {
       typescript: true,
       eslint: false,
+      linter: 'eslint',
       tailwind: true,
       app: true,
       srcDir: false,
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
-      turbopack: true,
       disableGit: false,
+      reactCompiler: false,
+      agentsMd: true,
     }
-    const getPrefOrDefault = (field: string) =>
-      preferences[field] ?? defaults[field]
+
+    type DisplayConfigItem = {
+      key: keyof typeof defaults
+      values?: Record<string, string>
+      flags?: Record<string, string>
+    }
+
+    const displayConfig: DisplayConfigItem[] = [
+      {
+        key: 'typescript',
+        values: { true: 'TypeScript', false: 'JavaScript' },
+        flags: { true: '--ts', false: '--js' },
+      },
+      {
+        key: 'linter',
+        values: { eslint: 'ESLint', biome: 'Biome', none: 'None' },
+        flags: { eslint: '--eslint', biome: '--biome', none: '--no-eslint' },
+      },
+      {
+        key: 'reactCompiler',
+        values: { true: 'React Compiler', false: 'No React Compiler' },
+        flags: { true: '--react-compiler', false: '--no-react-compiler' },
+      },
+      {
+        key: 'tailwind',
+        values: { true: 'Tailwind CSS', false: 'No Tailwind CSS' },
+        flags: { true: '--tailwind', false: '--no-tailwind' },
+      },
+      {
+        key: 'srcDir',
+        values: { true: 'src/ directory', false: 'No src/ directory' },
+        flags: { true: '--src-dir', false: '--no-src-dir' },
+      },
+      {
+        key: 'app',
+        values: { true: 'App Router', false: 'Pages Router' },
+        flags: { true: '--app', false: '--no-app' },
+      },
+      {
+        key: 'agentsMd',
+        values: { true: 'AGENTS.md', false: 'No AGENTS.md' },
+        flags: { true: '--agents-md', false: '--no-agents-md' },
+      },
+    ]
+
+    // Helper to format settings for display based on displayConfig
+    const formatSettingsDescription = (
+      settings: Record<string, boolean | string>
+    ) => {
+      const descriptions: string[] = []
+
+      for (const config of displayConfig) {
+        const value = settings[config.key]
+
+        if (config.values) {
+          // Look up the display label for this value
+          const label = config.values[String(value)]
+          if (label) {
+            descriptions.push(label)
+          }
+        }
+      }
+
+      return descriptions.join(', ')
+    }
+
+    // Check if we have saved preferences
+    const hasSavedPreferences = Object.keys(preferences).length > 0
+
+    // Check if user provided any configuration flags
+    // If they did, skip all prompts and use recommended defaults for unspecified
+    // options. This is critical for AI agents, which pass flags like
+    // --typescript --tailwind --app and expect the rest to use sensible defaults
+    // without entering interactive mode.
+    const hasProvidedOptions = process.argv.some((arg) => arg.startsWith('--'))
+
+    if (!skipPrompt && hasProvidedOptions) {
+      skipPrompt = true
+      useRecommendedDefaults = true
+    }
+
+    // Only show the "recommended defaults" prompt if:
+    // - Not in CI and not using --yes flag
+    // - User hasn't provided any custom options
+    if (!skipPrompt && !hasProvidedOptions) {
+      const choices: Array<{
+        title: string
+        value: string
+        description?: string
+      }> = [
+        {
+          title: 'Yes, use recommended defaults',
+          value: 'recommended',
+          description: formatSettingsDescription(defaults),
+        },
+        {
+          title: 'No, customize settings',
+          value: 'customize',
+          description: 'Choose your own preferences',
+        },
+      ]
+
+      // Add "reuse previous settings" option if we have saved preferences
+      if (hasSavedPreferences) {
+        const prefDescription = formatSettingsDescription(preferences)
+        choices.splice(1, 0, {
+          title: 'No, reuse previous settings',
+          value: 'reuse',
+          description: prefDescription,
+        })
+      }
+
+      const { setupChoice } = await prompts(
+        {
+          type: 'select',
+          name: 'setupChoice',
+          message: 'Would you like to use the recommended Next.js defaults?',
+          choices,
+          initial: 0,
+        },
+        {
+          onCancel: () => {
+            console.error('Exiting.')
+            process.exit(1)
+          },
+        }
+      )
+
+      if (setupChoice === 'recommended') {
+        useRecommendedDefaults = true
+        skipPrompt = true
+      } else if (setupChoice === 'reuse') {
+        skipPrompt = true
+      }
+    }
+
+    // If using recommended defaults, populate preferences with defaults
+    // This ensures they are saved for reuse next time
+    if (useRecommendedDefaults) {
+      Object.assign(preferences, defaults)
+    }
+
+    const getPrefOrDefault = (field: string) => {
+      // If using recommended defaults, always use hardcoded defaults
+      if (useRecommendedDefaults) {
+        return defaults[field]
+      }
+
+      // If not using the recommended template, we prefer saved preferences, otherwise defaults.
+      return preferences[field] ?? defaults[field]
+    }
 
     if (!opts.typescript && !opts.javascript) {
       if (skipPrompt) {
@@ -272,27 +430,98 @@ async function run(): Promise<void> {
          * Depending on the prompt response, set the appropriate program flags.
          */
         opts.typescript = Boolean(typescript)
-        opts.javascript = !Boolean(typescript)
+        opts.javascript = !typescript
         preferences.typescript = Boolean(typescript)
       }
     }
 
-    if (!opts.eslint && !args.includes('--no-eslint') && !opts.api) {
+    // Determine linter choice if not specified via CLI flags
+    // Support both --no-linter (new) and --no-eslint (legacy) for backward compatibility
+    const noLinter =
+      args.includes('--no-linter') || args.includes('--no-eslint')
+
+    if (!opts.eslint && !opts.biome && !noLinter && !opts.api) {
       if (skipPrompt) {
-        opts.eslint = getPrefOrDefault('eslint')
+        const preferredLinter = getPrefOrDefault('linter')
+        opts.eslint = preferredLinter === 'eslint'
+        opts.biome = preferredLinter === 'biome'
+        // No need to set noLinter flag since we check args at runtime
       } else {
-        const styledEslint = blue('ESLint')
-        const { eslint } = await prompts({
+        const linterIndexMap = {
+          eslint: 0,
+          biome: 1,
+          none: 2,
+        }
+        const { linter } = await prompts({
+          onState: onPromptState,
+          type: 'select',
+          name: 'linter',
+          message: 'Which linter would you like to use?',
+          choices: [
+            {
+              title: 'ESLint',
+              value: 'eslint',
+              description: 'More comprehensive lint rules',
+            },
+            {
+              title: 'Biome',
+              value: 'biome',
+              description: 'Fast formatter and linter (fewer rules)',
+            },
+            {
+              title: 'None',
+              value: 'none',
+              description: 'Skip linter configuration',
+            },
+          ],
+          initial:
+            linterIndexMap[
+              getPrefOrDefault('linter') as keyof typeof linterIndexMap
+            ],
+        })
+
+        opts.eslint = linter === 'eslint'
+        opts.biome = linter === 'biome'
+        preferences.linter = linter
+
+        // Keep backwards compatibility with old eslint preference
+        preferences.eslint = linter === 'eslint'
+      }
+    } else if (opts.eslint) {
+      opts.biome = false
+      preferences.linter = 'eslint'
+      preferences.eslint = true
+    } else if (opts.biome) {
+      opts.eslint = false
+      preferences.linter = 'biome'
+      preferences.eslint = false
+    } else if (noLinter) {
+      opts.eslint = false
+      opts.biome = false
+      preferences.linter = 'none'
+      preferences.eslint = false
+    }
+
+    if (
+      !opts.reactCompiler &&
+      !args.includes('--no-react-compiler') &&
+      !opts.api
+    ) {
+      if (skipPrompt) {
+        opts.reactCompiler = getPrefOrDefault('reactCompiler')
+      } else {
+        const styledReactCompiler = blue('React Compiler')
+        const { reactCompiler } = await prompts({
           onState: onPromptState,
           type: 'toggle',
-          name: 'eslint',
-          message: `Would you like to use ${styledEslint}?`,
-          initial: getPrefOrDefault('eslint'),
+          name: 'reactCompiler',
+          message: `Would you like to use ${styledReactCompiler}?`,
+          initial: getPrefOrDefault('reactCompiler'),
           active: 'Yes',
           inactive: 'No',
         })
-        opts.eslint = Boolean(eslint)
-        preferences.eslint = Boolean(eslint)
+        opts.reactCompiler = Boolean(reactCompiler)
+        preferences.reactCompiler = Boolean(reactCompiler)
       }
     }
 
@@ -353,25 +582,6 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.turbopack && !args.includes('--no-turbopack')) {
-      if (skipPrompt) {
-        opts.turbopack = getPrefOrDefault('turbopack')
-      } else {
-        const styledTurbo = blue('Turbopack')
-        const { turbopack } = await prompts({
-          onState: onPromptState,
-          type: 'toggle',
-          name: 'turbopack',
-          message: `Would you like to use ${styledTurbo} for \`next dev\`?`,
-          initial: getPrefOrDefault('turbopack'),
-          active: 'Yes',
-          inactive: 'No',
-        })
-        opts.turbopack = Boolean(turbopack)
-        preferences.turbopack = Boolean(turbopack)
-      }
-    }
-
     const importAliasPattern = /^[^*"]+\/\*\s*$/
     if (
       typeof opts.importAlias !== 'string' ||
@@ -415,7 +625,87 @@ async function run(): Promise<void> {
         }
       }
     }
+
+    if (args.includes('--no-agents-md')) {
+      opts.agentsMd = false
+    } else if (!opts.agentsMd) {
+      if (skipPrompt) {
+        opts.agentsMd = getPrefOrDefault('agentsMd')
+      } else {
+        const { agentsMd } = await prompts(
+          {
+            type: 'toggle',
+            name: 'agentsMd',
+            message:
+              'Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code?',
+            initial: getPrefOrDefault('agentsMd'),
+            active: 'Yes',
+            inactive: 'No',
+          },
+          {
+            onCancel: () => {
+              console.error('Exiting.')
+              process.exit(1)
+            },
+          }
+        )
+        opts.agentsMd = Boolean(agentsMd)
+        preferences.agentsMd = Boolean(agentsMd)
+      }
+    }
+
+    // When prompts were skipped because flags were provided, print the
+    // defaults that were assumed so agents and users know what to override.
+    if (hasProvidedOptions && useRecommendedDefaults) {
+      const lines: string[] = []
+
+      for (const config of displayConfig) {
+        if (!config.flags || !config.values) continue
+
+        // Skip options the user already specified explicitly
+        const wasExplicit = process.argv.some((arg) =>
+          Object.values(config.flags!).includes(arg)
+        )
+        if (wasExplicit) continue
+
+        const value = String(defaults[config.key])
+        const flag = config.flags[value]
+        const label = config.values[value]
+        if (!flag || !label) continue
+
+        // Show alternatives the user could pass instead
+        const alts: string[] = []
+        for (const [k, f] of Object.entries(config.flags)) {
+          if (k !== value && config.values[k]) {
+            alts.push(`${f} for ${config.values[k]}`)
+          }
+        }
+
+        const altText = alts.length > 0 ? ` (use ${alts.join(', ')})` : ''
+        lines.push(`  ${flag.padEnd(24)}${label}${altText}`)
+      }
+
+      // Import alias is not a boolean toggle, handle separately
+      const hasImportAlias = process.argv.some(
+        (arg) =>
+          arg.startsWith('--import-alias') ||
+          arg.startsWith('--no-import-alias')
+      )
+      if (!hasImportAlias) {
+        lines.push(`  ${'--import-alias'.padEnd(24)}"${defaults.importAlias}"`)
+      }
+
+      if (lines.length > 0) {
+        console.log(
+          '\nUsing defaults for unprovided options:\n\n' +
+            lines.join('\n') +
+            '\n'
+        )
+      }
+    }
   }
+
+  const bundler: Bundler = opts.rspack ? Bundler.Rspack : Bundler.Turbopack
 
   try {
     await createApp({
@@ -426,15 +716,17 @@ async function run(): Promise<void> {
       typescript: opts.typescript,
       tailwind: opts.tailwind,
       eslint: opts.eslint,
+      biome: opts.biome,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
       api: opts.api,
-      turbopack: opts.turbopack,
-      rspack: opts.rspack,
+      bundler,
       disableGit: opts.disableGit,
+      reactCompiler: opts.reactCompiler,
+      agentsMd: opts.agentsMd,
     })
   } catch (reason) {
     if (!(reason instanceof DownloadError)) {
@@ -459,21 +751,34 @@ async function run(): Promise<void> {
       packageManager,
       typescript: opts.typescript,
       eslint: opts.eslint,
+      biome: opts.biome,
       tailwind: opts.tailwind,
       app: opts.app,
       srcDir: opts.srcDir,
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
-      turbopack: opts.turbopack,
-      rspack: opts.rspack,
+      bundler,
       disableGit: opts.disableGit,
+      reactCompiler: opts.reactCompiler,
+      agentsMd: opts.agentsMd,
     })
   }
   conf.set('preferences', preferences)
 }
 
-const update = updateCheck(packageJson).catch(() => null)
+// Determine the appropriate dist-tag to check for updates.
+// For prerelease versions like "16.1.1-canary.32", extract "canary" and check
+// against that dist-tag. This ensures canary users are notified about newer
+// canary releases, not incorrectly prompted to "update" to stable.
+function getDistTag(version: string): string {
+  const prereleaseMatch = version.match(/-([a-z]+)/)
+  return prereleaseMatch ? prereleaseMatch[1] : 'latest'
+}
+
+const update = updateCheck(packageJson, {
+  distTag: getDistTag(packageJson.version),
+}).catch(() => null)
 
 async function notifyUpdate(): Promise<void> {
   try {
@@ -484,7 +789,9 @@ async function notifyUpdate(): Promise<void> {
         pnpm: 'pnpm add -g',
         bun: 'bun add -g',
       }
-      const updateMessage = `${global[packageManager]} create-next-app`
+      const distTag = getDistTag(packageJson.version)
+      const pkgTag = distTag === 'latest' ? '' : `@${distTag}`
+      const updateMessage = `${global[packageManager]} create-next-app${pkgTag}`
       console.log(
         yellow(bold('A new version of `create-next-app` is available!')) +
           '\n' +

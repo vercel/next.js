@@ -50,6 +50,8 @@ const runTests = (isDev) => {
         `document.getElementById("basic-static").src`
       )
       const res = await fetch(url)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toStartWith('image/')
       expect(res.headers.get('cache-control')).toBe(
         'public, max-age=315360000, immutable'
       )
@@ -64,6 +66,8 @@ const runTests = (isDev) => {
         `document.getElementById("static-unoptimized").src`
       )
       const res = await fetch(url)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('content-type')).toStartWith('image/')
       expect(res.headers.get('cache-control')).toBe(
         'public, max-age=31536000, immutable'
       )
@@ -89,7 +93,7 @@ const runTests = (isDev) => {
       })
     expect(metaViewport.attribs.content).toContain('width=device-width')
     expect(linkPreload.attribs.imagesrcset).toMatch(
-      /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
+      /%2F_next%2Fstatic%2F(immutable%2F)?media%2Ftest-rect\.(.*)\.jpg/g
     )
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
   })
@@ -140,7 +144,7 @@ const runTests = (isDev) => {
         )
       } else {
         expect(style).toBe(
-          `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 240'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/jpeg;base64,/9j/2wBDAAoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/v/2wBDAQoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/v/wgARCAAGAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAACVA//EABwQAAICAgMAAAAAAAAAAAAAABITERQAAwUVIv/aAAgBAQABPwB3H9YmrsuvN5+VxADn/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwB//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwB//9k='/%3E%3C/svg%3E")`
+          `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 240'%3E%3Cfilter id='b' color-interpolation-filters='sRGB'%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3CfeColorMatrix values='1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 100 -1' result='s'/%3E%3CfeFlood x='0' y='0' width='100%25' height='100%25'/%3E%3CfeComposite operator='out' in='s'/%3E%3CfeComposite in2='SourceGraphic'/%3E%3CfeGaussianBlur stdDeviation='20'/%3E%3C/filter%3E%3Cimage width='100%25' height='100%25' x='0' y='0' preserveAspectRatio='none' style='filter: url(%23b);' href='data:image/jpeg;base64,/9j/2wBDAAoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/v/2wBDAQoKCgoKCgsMDAsPEA4QDxYUExMUFiIYGhgaGCIzICUgICUgMy03LCksNy1RQDg4QFFeT0pPXnFlZXGPiI+7u/v/wgARCAAGAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAf/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIQAxAAAACUg//EABwQAAICAgMAAAAAAAAAAAAAABITERQAAwUVIv/aAAgBAQABPwB3H9YmrsuvN5+VxADn/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAgEBPwB//8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAgBAwEBPwB//9k='/%3E%3C/svg%3E")`
         )
       }
     }
@@ -213,7 +217,7 @@ const runTests = (isDev) => {
   it('should load direct imported image', async () => {
     const src = await browser.elementById('basic-static').getAttribute('src')
     expect(src).toMatch(
-      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/
+      /_next\/image\?url=%2F_next%2Fstatic(%2Fimmutable)?%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)

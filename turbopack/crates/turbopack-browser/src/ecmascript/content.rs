@@ -1,17 +1,16 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use either::Either;
-use indoc::writedoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{File, rope::RopeBuilder};
+use turbo_tasks::{ResolvedVc, Vc, turbobail};
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
     chunk::{ChunkingContext, MinifyType, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMapAsset},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
@@ -62,8 +61,8 @@ impl EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
         Ok(EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root().await?.clone_value(),
-            self.chunk.path().await?.clone_value(),
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
             *self.content,
         ))
     }
@@ -85,11 +84,7 @@ impl EcmascriptBrowserChunkContent {
                 let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
                     path
                 } else {
-                    bail!(
-                        "chunk path {} is not in output root {}",
-                        chunk_path.to_string(),
-                        output_root.to_string()
-                    );
+                    turbobail!("chunk path {chunk_path} is not in output root {output_root}");
                 };
                 Either::Left(StringifyJs(chunk_server_path))
             }
@@ -97,37 +92,42 @@ impl EcmascriptBrowserChunkContent {
                 Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
             }
         };
-        let mut code = CodeBuilder::new(source_maps);
+        let mut code = CodeBuilder::new(
+            source_maps,
+            *this.chunking_context.debug_ids_enabled().await?,
+        );
 
         // When a chunk is executed, it will either register itself with the current
         // instance of the runtime, or it will push itself onto the list of pending
-        // chunks (`self.TURBOPACK`).
+        // chunks (using the configured chunk loading global variable).
         //
         // When the runtime executes (see the `evaluate` module), it will pick up and
         // register all pending chunks, and replace the list of pending chunks
         // with itself so later chunks can register directly with it.
-        writedoc!(
+        let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
+        write!(
             code,
-            r#"
-                (globalThis.TURBOPACK = globalThis.TURBOPACK || []).push([{script_or_path}, {{
-            "#
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+            r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
+            chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
 
         let content = this.content.await?;
         let chunk_items = content.chunk_item_code_and_ids().await?;
         for item in chunk_items {
             for (id, item_code) in item {
-                write!(code, "\n{}: ", StringifyJs(&id))?;
+                write!(code, "\n{}, ", StringifyJs(&id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;
             }
         }
 
-        write!(code, "\n}}]);")?;
+        write!(code, "\n]);")?;
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = this.chunking_context.await?.minify_type() {
+        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
             code = minify(code, source_maps, mangle)?;
         }
 
@@ -140,23 +140,15 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        let code = self.code().await?;
 
-        let rope = if code.has_source_map() {
-            let mut rope_builder = RopeBuilder::default();
-            rope_builder.concat(code.source_code());
-            let source_map_path = this.source_map.path().await?;
-            write!(
-                rope_builder,
-                "\n\n//# sourceMappingURL={}",
-                urlencoding::encode(source_map_path.file_name())
-            )?;
-            rope_builder.build()
-        } else {
-            code.source_code().clone()
-        };
-
-        Ok(AssetContent::file(File::from(rope).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(
+                self.code()
+                    .to_rope_with_magic_comments(|| *this.source_map)
+                    .await?,
+            ))
+            .cell(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -176,24 +168,24 @@ impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionStringifiedSourceMap> {
+    fn generate_source_map(self: Vc<Self>) -> Vc<FileContent> {
         self.code().generate_source_map()
     }
 
     #[turbo_tasks::function]
-    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<OptionStringifiedSourceMap>> {
+    async fn by_section(self: Vc<Self>, section: RcStr) -> Result<Vc<FileContent>> {
         // Weirdly, the ContentSource will have already URL decoded the ModuleId, and we
         // can't reparse that via serde.
         if let Ok(id) = ModuleId::parse(&section) {
             let entries = self.entries().await?;
             for (entry_id, entry) in entries.iter() {
-                if id == **entry_id {
+                if id == *entry_id {
                     let sm = entry.code.generate_source_map();
                     return Ok(sm);
                 }
             }
         }
 
-        Ok(Vc::cell(None))
+        Ok(FileContent::NotFound.cell())
     }
 }

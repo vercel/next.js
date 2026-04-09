@@ -1,0 +1,19 @@
+lockfileVersion: 5.3
+
+specifiers:
+  parse5-htmlparser2-tree-adapter: ^6.0.1
+
+dependencies:
+  parse5-htmlparser2-tree-adapter: 6.0.1
+
+packages:
+
+  /parse5-htmlparser2-tree-adapter/6.0.1:
+    resolution: {integrity: sha512-qPuWvbLgvDGilKc5BoicRovlT4MtYT6JfJyBOMDsKoiT+GiuP5qyrPCnR9HcPECIJJmZh5jRndyNThnhhb/vlA==}
+    dependencies:
+      parse5: 6.0.1
+    dev: false
+
+  /parse5/6.0.1:
+    resolution: {integrity: sha512-Ofn/CTFzRGTTxwpNEs9PP93gXShHcTq255nzRYSKe8AkVpZY7e1fpmTfOyoIvjP5HG7Z2ZM7VS9PPhQGW2pOpw==}
+    dev: false

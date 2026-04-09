@@ -1,10 +1,9 @@
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
     chunk::ChunkingContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     output::OutputAsset,
     source::Source,
 };
@@ -16,13 +15,14 @@ use crate::output_asset::StaticOutputAsset;
 #[derive(Clone)]
 pub struct StaticUrlCssModule {
     pub source: ResolvedVc<Box<dyn Source>>,
+    tag: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticUrlCssModule {
     #[turbo_tasks::function]
-    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
-        Self::cell(StaticUrlCssModule { source })
+    pub fn new(source: ResolvedVc<Box<dyn Source>>, tag: Option<RcStr>) -> Vc<Self> {
+        Self::cell(StaticUrlCssModule { source, tag })
     }
 
     #[turbo_tasks::function]
@@ -30,7 +30,7 @@ impl StaticUrlCssModule {
         &self,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<StaticOutputAsset> {
-        StaticOutputAsset::new(*chunking_context, *self.source)
+        StaticOutputAsset::new(*chunking_context, *self.source, self.tag.clone())
     }
 }
 
@@ -38,15 +38,21 @@ impl StaticUrlCssModule {
 impl Module for StaticUrlCssModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(rcstr!("static in css"))
+        let mut ident = self.source.ident().with_modifier(rcstr!("static in css"));
+        if let Some(tag) = &self.tag {
+            ident = ident.with_modifier(format!("tag {}", tag).into());
+        }
+        ident
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for StaticUrlCssModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 
@@ -59,12 +65,4 @@ impl CssEmbed for StaticUrlCssModule {
     ) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(self.static_output_asset(chunking_context))
     }
-}
-
-pub fn register() {
-    turbo_tasks::register();
-    turbo_tasks_fs::register();
-    turbopack_core::register();
-    turbopack_ecmascript::register();
-    include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }

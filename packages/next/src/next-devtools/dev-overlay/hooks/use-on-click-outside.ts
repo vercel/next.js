@@ -1,18 +1,20 @@
 import * as React from 'react'
 
 export function useOnClickOutside(
-  el: Node | null,
+  el: Node | React.RefObject<Node | null> | null,
   cssSelectorsToExclude: string[],
   handler: ((e: MouseEvent | TouchEvent) => void) | undefined
 ) {
   React.useEffect(() => {
-    if (el == null || handler == null) {
+    // Support both direct nodes and ref objects
+    const element = el && 'current' in el ? el.current : el
+    if (element == null || handler == null) {
       return
     }
 
     const listener = (e: MouseEvent | TouchEvent) => {
       // Do nothing if clicking ref's element or descendent elements
-      if (!el || el.contains(e.target as Element)) {
+      if (!element || element.contains(e.target as Element)) {
         return
       }
 
@@ -28,7 +30,7 @@ export function useOnClickOutside(
       handler(e)
     }
 
-    const root = el.getRootNode()
+    const root = element.getRootNode()
     root.addEventListener('mouseup', listener as EventListener)
     root.addEventListener('touchend', listener as EventListener, {
       passive: false,

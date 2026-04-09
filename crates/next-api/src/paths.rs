@@ -1,70 +1,87 @@
-use anyhow::Result;
-use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
-use serde::{Deserialize, Serialize};
+use anyhow::{Context, Result};
+use next_core::next_manifests::AssetBinding;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_hash::{HashAlgorithm, encode_hex};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
+    asset::{Asset, no_hash_salt},
     output::{OutputAsset, OutputAssets},
+    reference::all_assets_from_entries,
 };
 use turbopack_wasm::wasm_edge_var_name;
 
-/// A reference to a server file with content hash for change detection
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub struct ServerPath {
+/// A reference to an output asset with content hash for change detection
+#[turbo_tasks::value]
+#[derive(Debug, Clone)]
+pub struct AssetPath {
     /// Relative to the root_path
-    pub path: String,
-    pub content_hash: u64,
+    pub path: RcStr,
+    pub content_hash: RcStr,
 }
 
-/// A list of server paths
+/// A list of asset paths
 #[turbo_tasks::value(transparent)]
-pub struct ServerPaths(Vec<ServerPath>);
+pub struct AssetPaths(Vec<AssetPath>);
 
-/// Return a list of all server paths with filename and hash for all output
-/// assets references from the `assets` list. Server paths are identified by
-/// being inside `node_root`.
+#[turbo_tasks::value(transparent)]
+pub struct OptionAssetPath(Option<AssetPath>);
+
 #[turbo_tasks::function]
-pub async fn all_server_paths(
+async fn asset_path(
+    asset: Vc<Box<dyn OutputAsset>>,
+    node_root: FileSystemPath,
+    should_content_hash: Option<HashAlgorithm>,
+) -> Result<Vc<OptionAssetPath>> {
+    Ok(Vc::cell(
+        if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
+            let hash = if let Some(algorithm) = should_content_hash {
+                asset
+                    .content()
+                    .content_hash(no_hash_salt(), algorithm)
+                    .owned()
+                    .await?
+                    .context("asset content not found")?
+            } else {
+                encode_hex(*asset.content().hash().await?).into()
+            };
+            Some(AssetPath {
+                path: RcStr::from(path),
+                content_hash: hash,
+            })
+        } else {
+            None
+        },
+    ))
+}
+
+/// Return a list of all asset paths with filename and hash for all output
+/// assets references from the `assets` list. Only paths inside `node_root` are included.
+#[turbo_tasks::function]
+pub async fn all_asset_paths(
     assets: Vc<OutputAssets>,
     node_root: FileSystemPath,
-) -> Result<Vc<ServerPaths>> {
-    let span = tracing::info_span!("all_server_paths");
+    should_content_hash: Option<HashAlgorithm>,
+) -> Result<Vc<AssetPaths>> {
+    let span = tracing::info_span!(
+        "collect all asset paths",
+        assets_count = tracing::field::Empty,
+        asset_paths_count = tracing::field::Empty
+    );
+    let span_clone = span.clone();
     async move {
         let all_assets = all_assets_from_entries(assets).await?;
-        let node_root = node_root.clone();
-        Ok(Vc::cell(
-            all_assets
-                .iter()
-                .map(|&asset| {
-                    let node_root = node_root.clone();
-
-                    async move {
-                        Ok(
-                            if let Some(path) = node_root.get_path_to(&*asset.path().await?) {
-                                let content_hash = match *asset.content().await? {
-                                    AssetContent::File(file) => *file.hash().await?,
-                                    AssetContent::Redirect { .. } => 0,
-                                };
-                                Some(ServerPath {
-                                    path: path.to_string(),
-                                    content_hash,
-                                })
-                            } else {
-                                None
-                            },
-                        )
-                    }
-                })
-                .try_flat_join()
-                .await?,
-        ))
+        span.record("assets_count", all_assets.len());
+        let asset_paths = all_assets
+            .iter()
+            .map(|&asset| asset_path(*asset, node_root.clone(), should_content_hash).owned())
+            .try_flat_join()
+            .await?;
+        span.record("asset_paths_count", asset_paths.len());
+        Ok(Vc::cell(asset_paths))
     }
-    .instrument(span)
+    .instrument(span_clone)
     .await
 }
 

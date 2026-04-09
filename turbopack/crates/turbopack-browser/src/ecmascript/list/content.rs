@@ -1,14 +1,13 @@
 use std::io::Write;
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use either::Either;
 use indoc::writedoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{
-    FxIndexMap, IntoTraitRef, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs,
-};
-use turbo_tasks_fs::File;
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -29,7 +28,9 @@ use crate::chunking_context::{
     CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod,
 };
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
+#[derive(
+    Clone, Debug, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue, Encode, Decode,
+)]
 enum CurrentChunkMethodWithData {
     StringLiteral(RcStr),
     DocumentCurrentScript,
@@ -39,8 +40,11 @@ enum CurrentChunkMethodWithData {
 #[turbo_tasks::value]
 pub(super) struct EcmascriptDevChunkListContent {
     current_chunk_method: CurrentChunkMethodWithData,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub(super) chunks_contents: FxIndexMap<String, ResolvedVc<Box<dyn VersionedContent>>>,
     source: EcmascriptDevChunkListSource,
+    /// The global variable name used for chunk loading (derived from chunkLoadingGlobal config).
+    chunk_loading_global: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -66,6 +70,11 @@ impl EcmascriptDevChunkListContent {
                 CurrentChunkMethodWithData::DocumentCurrentScript
             }
         };
+        let chunk_loading_global = (*chunk_list_ref
+            .chunking_context
+            .chunk_loading_global()
+            .await?)
+            .clone();
         Ok(EcmascriptDevChunkListContent {
             current_chunk_method,
             chunks_contents: chunk_list_ref
@@ -86,6 +95,7 @@ impl EcmascriptDevChunkListContent {
                 .filter_map(|(path, content)| path.map(|path| (path, content)))
                 .collect(),
             source: chunk_list_ref.source,
+            chunk_loading_global,
         }
         .cell())
     }
@@ -100,7 +110,7 @@ impl EcmascriptDevChunkListContent {
             if let Some(mergeable) =
                 ResolvedVc::try_sidecast::<Box<dyn MergeableVersionedContent>>(*chunk_content)
             {
-                let merger = mergeable.get_merger().resolve().await?;
+                let merger = mergeable.get_merger().to_resolved().await?;
                 by_merger.entry(merger).or_default().push(*chunk_content);
             } else {
                 by_path.insert(
@@ -112,14 +122,11 @@ impl EcmascriptDevChunkListContent {
 
         let by_merger = by_merger
             .into_iter()
-            .map(|(merger, contents)| async move {
+            .map(|(merger, contents)| (merger, Vc::cell(contents)))
+            .map(async |(merger, contents)| {
                 Ok((
-                    merger.to_resolved().await?,
-                    merger
-                        .merge(Vc::cell(contents))
-                        .version()
-                        .into_trait_ref()
-                        .await?,
+                    merger,
+                    merger.merge(contents).version().into_trait_ref().await?,
                 ))
             })
             .try_join()
@@ -151,18 +158,22 @@ impl EcmascriptDevChunkListContent {
 
         // When loaded, JS chunks must register themselves with the `TURBOPACK` global
         // variable. Similarly, we register the chunk list with the
-        // `TURBOPACK_CHUNK_LISTS` global variable.
+        // `{chunk_loading_global}_CHUNK_LISTS` global variable.
+        let chunk_lists_global = format!("{}_CHUNK_LISTS", this.chunk_loading_global);
         writedoc!(
             code,
+            // `||=` would be better but we need to be es2020 compatible
+            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
             r#"
-                (globalThis.TURBOPACK_CHUNK_LISTS = globalThis.TURBOPACK_CHUNK_LISTS || []).push({{
+                (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
                     script: {script_or_path},
-                    chunks: {:#},
-                    source: {:#}
+                    chunks: {chunks},
+                    source: {source}
                 }});
             "#,
-            StringifyJs(&chunks),
-            StringifyJs(&this.source),
+            chunk_lists_global = StringifyJs(&chunk_lists_global),
+            chunks = StringifyJs(&chunks),
+            source = StringifyJs(&this.source),
         )?;
 
         Ok(Code::cell(code.build()))
@@ -175,7 +186,7 @@ impl VersionedContent for EcmascriptDevChunkListContent {
     async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
         let code = self.code().await?;
         Ok(AssetContent::file(
-            File::from(code.source_code().clone()).into(),
+            FileContent::Content(File::from(code.source_code().clone())).cell(),
         ))
     }
 

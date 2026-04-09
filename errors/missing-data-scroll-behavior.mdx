@@ -1,0 +1,41 @@
+---
+title: 'Missing data-scroll-behavior Attribute for Smooth Scroll'
+---
+
+## Why This Warning Occurred
+
+Your application has smooth scrolling enabled via CSS (`scroll-behavior: smooth`), but you haven't added the `data-scroll-behavior="smooth"` attribute to your `<html>` element.
+
+Next.js automatically attempts to detect the smooth scrolling configuration to ensure that navigating back/forward through the router doesn't also trigger the smooth scrolling behavior, as this is often not desired.
+
+## Possible Ways to Fix It
+
+Add `data-scroll-behavior="smooth"` to your `<html>` element if you want to disable smooth scrolling when routing via Next.js.
+
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" data-scroll-behavior="smooth">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" data-scroll-behavior="smooth">
+      <body>{children}</body>
+    </html>
+  )
+}
+```
+
+## Why This Optimization Matters
+
+Next.js will only attempt to modify the `scroll-behavior` style on the `<html>` element when the data attribute is present to ensure smooth scrolling isn't triggered. This avoids unnecessary style recalculation unless explicitly opted into.

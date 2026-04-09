@@ -1,5 +1,6 @@
 use turbo_tasks::Vc;
-use turbopack_core::{module::Module, resolve::ModulePart, source::Source};
+use turbopack_core::{module::Module, reference_type::ReferenceType, source::Source};
+use turbopack_ecmascript::EcmascriptInputTransforms;
 
 use crate::ModuleAssetContext;
 
@@ -10,6 +11,14 @@ pub trait CustomModuleType {
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        part: Option<ModulePart>,
+        reference_type: ReferenceType,
     ) -> Vc<Box<dyn Module>>;
+
+    #[turbo_tasks::function]
+    fn extend_ecmascript_transforms(
+        self: Vc<Self>,
+        preprocess: Vc<EcmascriptInputTransforms>,
+        main: Vc<EcmascriptInputTransforms>,
+        postprocess: Vc<EcmascriptInputTransforms>,
+    ) -> Vc<Box<dyn CustomModuleType>>;
 }

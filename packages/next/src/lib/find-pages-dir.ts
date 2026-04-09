@@ -25,6 +25,16 @@ export function findPagesDir(dir: string): {
     )
   }
 
+  if (pagesDir && appDir) {
+    const pagesParent = path.dirname(pagesDir)
+    const appParent = path.dirname(appDir)
+    if (pagesParent !== appParent) {
+      throw new Error(
+        '> `pages` and `app` directories should be under the same folder'
+      )
+    }
+  }
+
   return {
     pagesDir,
     appDir,

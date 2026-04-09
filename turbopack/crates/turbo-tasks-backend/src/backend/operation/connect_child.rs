@@ -1,18 +1,22 @@
-use serde::{Deserialize, Serialize};
-use turbo_tasks::{TaskExecutionReason, TaskId};
+use std::sync::Arc;
+
+use bincode::{Decode, Encode};
+use turbo_tasks::{TaskExecutionReason, TaskId, backend::CachedTaskType, event::EventDescription};
 
 use crate::{
     backend::{
-        TaskDataCategory, get_mut,
+        TaskDataCategory,
         operation::{
             ExecuteContext, Operation, TaskGuard,
             aggregation_update::{AggregationUpdateJob, AggregationUpdateQueue},
         },
+        storage_schema::TaskStorageAccessors,
     },
-    data::{CachedDataItem, CachedDataItemKey, InProgressState, InProgressStateInner},
+    data::{InProgressState, InProgressStateInner},
+    utils::arc_or_owned::ArcOrOwned,
 };
 
-#[derive(Serialize, Deserialize, Clone, Default)]
+#[derive(Encode, Decode, Clone, Default)]
 #[allow(clippy::large_enum_variant)]
 pub enum ConnectChildOperation {
     UpdateAggregation {
@@ -24,62 +28,46 @@ pub enum ConnectChildOperation {
 
 impl ConnectChildOperation {
     pub fn run(
-        parent_task_id: TaskId,
+        parent_task_id: Option<TaskId>,
         child_task_id: TaskId,
-        mut is_child_immutable: bool,
-        mut ctx: impl ExecuteContext,
+        child_task_type: Option<ArcOrOwned<CachedTaskType>>,
+        mut ctx: impl ExecuteContext<'_>,
     ) {
-        if !ctx.should_track_children() {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
-            if is_child_immutable {
-                task.mark_as_immutable();
+        if let Some(parent_task_id) = parent_task_id {
+            let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
+            let Some(InProgressState::InProgress(box InProgressStateInner {
+                new_children, ..
+            })) = parent_task.get_in_progress()
+            else {
+                panic!("Task is not in progress while calling another task: {parent_task:?}");
+            };
+
+            // Quick skip if the child was already connected before
+            // We can't call insert here as this would skip the mandatory task type update below
+            // Instead we only add it after updating the child task type
+            if new_children.contains(&child_task_id) {
+                return;
             }
-            if !task.has_key(&CachedDataItemKey::Output {}) {
-                let description = ctx.get_task_desc_fn(child_task_id);
-                let should_schedule = task.add(CachedDataItem::new_scheduled(
-                    TaskExecutionReason::Connect,
-                    description,
-                ));
-                drop(task);
-                if should_schedule {
-                    ctx.schedule(child_task_id);
-                }
+
+            if parent_task.children_contains(&child_task_id) {
+                // It is already connected, we can skip the rest
+                // but we still need to update the new_children set
+                let Some(InProgressState::InProgress(box InProgressStateInner {
+                    new_children,
+                    ..
+                })) = parent_task.get_in_progress_mut()
+                else {
+                    unreachable!();
+                };
+                new_children.insert(child_task_id);
+                return;
             }
-            return;
         }
-
-        if !is_child_immutable {
-            let task = ctx.task(child_task_id, TaskDataCategory::All);
-            is_child_immutable = task.is_immutable();
-        }
-
-        let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
-        let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
-            get_mut!(parent_task, InProgress)
-        else {
-            panic!("Task is not in progress while calling another task");
-        };
-
-        // Quick skip if the child was already connected before
-        if new_children
-            .insert(child_task_id, is_child_immutable)
-            .is_some()
-        {
-            return;
-        }
-
-        if parent_task.has_key(&CachedDataItemKey::Child {
-            task: child_task_id,
-        }) {
-            // It is already connected, we can skip the rest
-            return;
-        }
-        drop(parent_task);
 
         let mut queue = AggregationUpdateQueue::new();
 
         // Handle the transient to persistent boundary by making the persistent task a root task
-        if parent_task_id.is_transient() && !child_task_id.is_transient() {
+        if parent_task_id.is_none_or(|id| id.is_transient() && !child_task_id.is_transient()) {
             queue.push(AggregationUpdateJob::UpdateAggregationNumber {
                 task_id: child_task_id,
                 base_aggregation_number: u32::MAX,
@@ -87,31 +75,26 @@ impl ConnectChildOperation {
             });
         }
 
-        // https://vercel.slack.com/archives/C03EWR7LGEN/p1750889741099559
-        // HACK: immutable tracking is broken, disable it for now
-        is_child_immutable = false;
-
-        // Immutable tasks cannot be invalidated, meaning that we never reschedule them.
-        if !is_child_immutable && ctx.should_track_activeness() {
+        if ctx.should_track_activeness() && parent_task_id.is_some() {
             queue.push(AggregationUpdateJob::IncreaseActiveCount {
                 task: child_task_id,
+                task_type: child_task_type.map(Arc::from),
             });
         } else {
-            let mut task = ctx.task(child_task_id, TaskDataCategory::All);
-            if is_child_immutable {
-                task.mark_as_immutable();
+            let mut child_task = ctx.task(child_task_id, TaskDataCategory::All);
+            if let Some(child_task_type) = child_task_type
+                && !child_task.has_persistent_task_type()
+            {
+                child_task.set_persistent_task_type(child_task_type.into());
             }
 
-            if !task.has_key(&CachedDataItemKey::Output {}) {
-                let description = ctx.get_task_desc_fn(child_task_id);
-                let should_schedule = task.add(CachedDataItem::new_scheduled(
+            if !child_task.has_output()
+                && child_task.add_scheduled(
                     TaskExecutionReason::Connect,
-                    description,
-                ));
-                drop(task);
-                if should_schedule {
-                    ctx.schedule(child_task_id);
-                }
+                    EventDescription::new(|| child_task.get_task_desc_fn()),
+                )
+            {
+                ctx.schedule_task(child_task, ctx.get_current_task_priority());
             }
         }
 
@@ -119,11 +102,35 @@ impl ConnectChildOperation {
             aggregation_update: queue,
         }
         .execute(&mut ctx);
+
+        if let Some(parent_task_id) = parent_task_id {
+            let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
+            let Some(InProgressState::InProgress(box InProgressStateInner {
+                new_children, ..
+            })) = parent_task.get_in_progress_mut()
+            else {
+                panic!("Task is not in progress while calling another task: {parent_task:?}");
+            };
+
+            // Really add the child to the new children set
+            if !new_children.insert(child_task_id) {
+                drop(parent_task);
+
+                // There was a concurrent connect child operation,
+                // so we need to undo the active count update.
+                AggregationUpdateQueue::run(
+                    AggregationUpdateJob::DecreaseActiveCount {
+                        task: child_task_id,
+                    },
+                    &mut ctx,
+                );
+            }
+        }
     }
 }
 
 impl Operation for ConnectChildOperation {
-    fn execute(mut self, ctx: &mut impl ExecuteContext) {
+    fn execute(mut self, ctx: &mut impl ExecuteContext<'_>) {
         loop {
             ctx.operation_suspend_point(&self);
             match self {

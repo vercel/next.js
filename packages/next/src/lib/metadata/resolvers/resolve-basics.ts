@@ -1,10 +1,7 @@
-import type {
-  AlternateLinkDescriptor,
-  ResolvedAlternateURLs,
-} from '../types/alternative-urls-types'
+import type { AlternateLinkDescriptor } from '../types/alternative-urls-types'
 import type {
   Metadata,
-  ResolvedMetadata,
+  ResolvedMetadataWithURLs,
   Viewport,
 } from '../types/metadata-interface'
 import type { ResolvedVerification } from '../types/metadata-types'
@@ -14,11 +11,14 @@ import type {
   MetadataContext,
 } from '../types/resolvers'
 import { resolveAsArrayOrUndefined } from '../generate/utils'
-import { resolveAbsoluteUrlWithPathname } from './resolve-url'
+import {
+  resolveAbsoluteUrlWithPathname,
+  type MetadataBaseURL,
+} from './resolve-url'
 
 function resolveAlternateUrl(
   url: string | URL,
-  metadataBase: URL | null,
+  metadataBase: MetadataBaseURL,
   pathname: string,
   metadataContext: MetadataContext
 ) {
@@ -66,7 +66,7 @@ async function resolveUrlValuesOfObject(
       >
     | null
     | undefined,
-  metadataBase: ResolvedMetadata['metadataBase'],
+  metadataBase: MetadataBaseURL,
   pathname: Promise<string>,
   metadataContext: MetadataContext
 ): Promise<null | Record<string, AlternateLinkDescriptor[]>> {
@@ -108,7 +108,7 @@ async function resolveUrlValuesOfObject(
 
 async function resolveCanonicalUrl(
   urlOrDescriptor: string | URL | null | AlternateLinkDescriptor | undefined,
-  metadataBase: URL | null,
+  metadataBase: MetadataBaseURL,
   pathname: Promise<string>,
   metadataContext: MetadataContext
 ): Promise<null | AlternateLinkDescriptor> {
@@ -134,7 +134,7 @@ async function resolveCanonicalUrl(
 
 export const resolveAlternates: AsyncFieldResolverExtraArgs<
   'alternates',
-  [ResolvedMetadata['metadataBase'], Promise<string>, MetadataContext]
+  [MetadataBaseURL, Promise<string>, MetadataContext]
 > = async (alternates, metadataBase, pathname, context) => {
   if (!alternates) return null
 
@@ -163,14 +163,12 @@ export const resolveAlternates: AsyncFieldResolverExtraArgs<
     context
   )
 
-  const result: ResolvedAlternateURLs = {
+  return {
     canonical,
     languages,
     media,
     types,
   }
-
-  return result
 }
 
 const robotsKeys = [
@@ -271,12 +269,12 @@ export const resolveAppLinks: FieldResolver<'appLinks'> = (appLinks) => {
     // @ts-ignore // TODO: type infer
     appLinks[key] = resolveAsArrayOrUndefined(appLinks[key])
   }
-  return appLinks as ResolvedMetadata['appLinks']
+  return appLinks as ResolvedMetadataWithURLs['appLinks']
 }
 
 export const resolveItunes: AsyncFieldResolverExtraArgs<
   'itunes',
-  [ResolvedMetadata['metadataBase'], Promise<string>, MetadataContext]
+  [MetadataBaseURL, Promise<string>, MetadataContext]
 > = async (itunes, metadataBase, pathname, context) => {
   if (!itunes) return null
   return {
@@ -302,7 +300,7 @@ export const resolveFacebook: FieldResolver<'facebook'> = (facebook) => {
 
 export const resolvePagination: AsyncFieldResolverExtraArgs<
   'pagination',
-  [ResolvedMetadata['metadataBase'], Promise<string>, MetadataContext]
+  [MetadataBaseURL, Promise<string>, MetadataContext]
 > = async (pagination, metadataBase, pathname, context) => {
   return {
     previous: pagination?.previous

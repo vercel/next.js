@@ -1,28 +1,28 @@
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
-use super::options::NextFontGoogleOptions;
 use crate::{
     next_font::{
         font_fallback::{
             AutomaticFontFallback, DEFAULT_SANS_SERIF_FONT, DEFAULT_SERIF_FONT, FontAdjustment,
             FontFallback,
         },
+        google::options::NextFontGoogleOptions,
         issue::NextFontIssue,
         util::{FontFamilyType, get_scoped_font_family},
     },
-    util::load_next_js_templateon,
+    util::load_next_js_json_file,
 };
 
 /// An entry in the Google fonts metrics map
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 #[serde(rename_all = "camelCase")]
 pub(super) struct FontMetricsMapEntry {
     category: RcStr,
@@ -30,35 +30,46 @@ pub(super) struct FontMetricsMapEntry {
     descent: i32,
     line_gap: u32,
     units_per_em: u32,
-    x_width_avg: f64,
+    x_width_avg: u64,
 }
 
-#[derive(Deserialize, Debug)]
-pub(super) struct FontMetricsMap(pub FxHashMap<RcStr, FontMetricsMapEntry>);
+#[derive(Debug, Deserialize)]
+#[turbo_tasks::value]
+pub(super) struct FontMetricsMap(
+    #[bincode(with = "turbo_bincode::indexmap")] pub FxIndexMap<RcStr, FontMetricsMapEntry>,
+);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue)]
 struct Fallback {
     pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
 }
 
+// This JSON file is large, so we cache it in turbotasks
+#[turbo_tasks::function]
+async fn load_font_metrics(project_root: FileSystemPath) -> Result<Vc<FontMetricsMap>> {
+    let data: FontMetricsMap = load_next_js_json_file(
+        project_root,
+        rcstr!("dist/server/capsize-font-metrics.json"),
+    )
+    .await?;
+
+    Ok(data.cell())
+}
+
 #[turbo_tasks::function]
 pub(super) async fn get_font_fallback(
-    lookup_path: FileSystemPath,
+    project_root: FileSystemPath,
     options_vc: Vc<NextFontGoogleOptions>,
 ) -> Result<Vc<FontFallback>> {
     let options = options_vc.await?;
     Ok(match &options.fallback {
         Some(fallback) => FontFallback::Manual(fallback.clone()).cell(),
         None => {
-            let metrics_json = load_next_js_templateon(
-                lookup_path.clone(),
-                rcstr!("dist/server/capsize-font-metrics.json"),
-            )
-            .await?;
+            let metrics_json = load_font_metrics(project_root.clone()).await?;
             let fallback = lookup_fallback(
                 &options.font_family,
-                metrics_json,
+                &metrics_json,
                 options.adjust_font_fallback,
             );
 
@@ -74,7 +85,7 @@ pub(super) async fn get_font_fallback(
                 .cell(),
                 Err(_) => {
                     NextFontIssue {
-                        path: lookup_path.clone(),
+                        path: project_root.clone(),
                         title: StyledString::Text(
                             format!(
                                 "Failed to find font override values for font `{}`",
@@ -124,7 +135,7 @@ fn format_fallback_font_name(font_family: &str) -> RcStr {
 
 fn lookup_fallback(
     font_family: &str,
-    font_metrics_map: FontMetricsMap,
+    font_metrics_map: &FontMetricsMap,
     adjust: bool,
 ) -> Result<Fallback> {
     let font_family = format_fallback_font_name(font_family);
@@ -142,9 +153,10 @@ fn lookup_fallback(
     let metrics = if adjust {
         // Derived from
         // https://github.com/vercel/next.js/blob/7bfd5829999b1d203e447d30de7e29108c31934a/packages/next/src/server/font-utils.ts#L131
-        let main_font_avg_width = metrics.x_width_avg / metrics.units_per_em as f64;
+        let main_font_avg_width = metrics.x_width_avg as f64 / metrics.units_per_em as f64;
         let fallback_metrics = font_metrics_map.0.get(&fallback.capsize_key).unwrap();
-        let fallback_font_avg_width = fallback_metrics.x_width_avg / fallback.units_per_em as f64;
+        let fallback_font_avg_width =
+            fallback_metrics.x_width_avg as f64 / fallback.units_per_em as f64;
         let size_adjust = main_font_avg_width / fallback_font_avg_width;
 
         let ascent = metrics.ascent as f64 / (metrics.units_per_em as f64 * size_adjust);
@@ -208,7 +220,7 @@ mod tests {
         )?;
 
         assert_eq!(
-            lookup_fallback("Inter", font_metrics, true)?,
+            lookup_fallback("Inter", &font_metrics, true)?,
             Fallback {
                 font_family: rcstr!("Arial"),
                 adjustment: Some(FontAdjustment {
@@ -254,7 +266,7 @@ mod tests {
         )?;
 
         assert_eq!(
-            lookup_fallback("Roboto Slab", font_metrics, true)?,
+            lookup_fallback("Roboto Slab", &font_metrics, true)?,
             Fallback {
                 font_family: rcstr!("Times New Roman"),
                 adjustment: Some(FontAdjustment {

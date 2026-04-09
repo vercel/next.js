@@ -10,7 +10,7 @@ export function CallStack({
   ignoredFramesTally,
   onToggleIgnoreList,
 }: {
-  frames: OriginalStackFrame[]
+  frames: readonly OriginalStackFrame[]
   isIgnoreListOpen: boolean
   ignoredFramesTally: number
   onToggleIgnoreList: () => void

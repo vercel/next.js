@@ -1,5 +1,4 @@
 #![feature(arbitrary_self_types)]
-#![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
@@ -19,17 +18,17 @@ async fn multiply(value: OperationVc<i32>, coefficient: ResolvedVc<i32>) -> Resu
     Ok(Vc::cell((*value.connect().await?) * (*coefficient.await?)))
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 fn use_operations() -> Vc<i32> {
     let twenty_one: OperationVc<i32> = bare_op_fn();
-    let fourty_two: OperationVc<i32> = multiply(twenty_one, ResolvedVc::cell(2));
-    fourty_two.connect()
+    let forty_two: OperationVc<i32> = multiply(twenty_one, ResolvedVc::cell(2));
+    forty_two.connect()
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_use_operations() -> Result<()> {
     run(&REGISTRATION, || async {
-        assert_eq!(*use_operations().await?, 42);
+        assert_eq!(*use_operations().read_strongly_consistent().await?, 42);
         Ok(())
     })
     .await

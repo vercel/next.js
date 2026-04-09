@@ -1,10 +1,11 @@
 import { check, retry } from 'next-test-utils'
+import type { Playwright } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
-async function clickSourceFile(browser: any) {
+async function clickSourceFile(browser: Playwright) {
   await browser.waitForElementByCss(
     '[data-with-open-in-editor-link-source-file]'
   )
@@ -13,7 +14,7 @@ async function clickSourceFile(browser: any) {
     .click()
 }
 
-async function clickImportTraceFiles(browser: any) {
+async function clickImportTraceFiles(browser: Playwright) {
   await browser.waitForElementByCss(
     '[data-with-open-in-editor-link-import-trace]'
   )
@@ -71,15 +72,21 @@ describe('Error overlay - editor links', () => {
         return Boolean(
           [].slice
             .call(document.querySelectorAll('nextjs-portal'))
-            .find((p) =>
-              p.shadowRoot.querySelector('[data-next-mark-loading="false"]')
-            )
+            .find((p) => {
+              const badge = p.shadowRoot.querySelector('[data-next-badge]')
+              // Check if badge exists and is not showing any loading status
+              return (
+                badge &&
+                (badge.getAttribute('data-status') === 'none' ||
+                  !badge.getAttribute('data-status'))
+              )
+            })
         )
       })
       expect(loaded).toBe(true)
     })
 
-    await session.assertHasRedbox()
+    await session.waitForRedbox()
     await clickSourceFile(browser)
     await check(() => editorRequestsCount, /1/)
   })
@@ -122,7 +129,7 @@ describe('Error overlay - editor links', () => {
       `
         )
 
-        await session.assertHasRedbox()
+        await session.waitForRedbox()
         await clickImportTraceFiles(browser)
         await check(() => editorRequestsCount, /4/)
       })
@@ -163,7 +170,7 @@ describe('Error overlay - editor links', () => {
       `
         )
 
-        await session.assertHasRedbox()
+        await session.waitForRedbox()
         await clickImportTraceFiles(browser)
         await check(() => editorRequestsCount, /3/)
       })

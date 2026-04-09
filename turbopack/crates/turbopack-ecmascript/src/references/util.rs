@@ -1,14 +1,27 @@
 use anyhow::Result;
-use swc_core::{ecma::ast::Expr, quote};
-use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
-use turbo_tasks_fs::{FileSystemPath, rope::Rope};
-use turbopack_core::{
-    resolve::parse::Request,
-    source_map::{
-        GenerateSourceMap, OptionStringifiedSourceMap, utils::resolve_source_map_sources,
+use bincode::{Decode, Encode};
+use swc_core::{
+    common::{
+        Span,
+        errors::{DiagnosticId, HANDLER},
     },
+    ecma::ast::Expr,
+    quote,
 };
+use turbo_rcstr::{RcStr, rcstr};
+use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs, turbofmt};
+use turbo_tasks_fs::FileSystemPath;
+use turbopack_core::{
+    self,
+    chunk::ChunkingType,
+    issue::{
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
+        OptionStyledString, StyledString,
+    },
+    resolve::{ModuleResolveResult, parse::Request, pattern::Pattern},
+};
+
+use crate::errors;
 
 /// Creates a IIFE expression that throws a "Cannot find module" error for the
 /// given request string
@@ -16,6 +29,17 @@ pub fn throw_module_not_found_expr(request: &str) -> Expr {
     let message = format!("Cannot find module '{request}'");
     quote!(
         "(() => { const e = new Error($message); e.code = 'MODULE_NOT_FOUND'; throw e; })()"
+            as Expr,
+        message: Expr = message.into()
+    )
+}
+
+/// Creates a Promise that rejects with a "Cannot find module" error for the
+/// given request string. Use this for async contexts (dynamic imports).
+pub fn throw_module_not_found_expr_async(request: &str) -> Expr {
+    let message = format!("Cannot find module '{request}'");
+    quote!(
+        "Promise.resolve().then(() => { const e = new Error($message); e.code = 'MODULE_NOT_FOUND'; throw e; })"
             as Expr,
         message: Expr = message.into()
     )
@@ -43,35 +67,128 @@ pub async fn request_to_string(request: Vc<Request>) -> Result<Vc<RcStr>> {
     ))
 }
 
+/// If a pattern resolves to more than 10000 results, it's likely a mistake so issue a warning.
+const TOO_MANY_MATCHES_LIMIT: usize = 10000;
+
+pub async fn check_and_emit_too_many_matches_warning(
+    result: Vc<ModuleResolveResult>,
+    issue_source: IssueSource,
+    context_dir: FileSystemPath,
+    pattern: ResolvedVc<Pattern>,
+) -> Result<()> {
+    let num_matches = result.await?.primary.len();
+    if num_matches > TOO_MANY_MATCHES_LIMIT {
+        TooManyMatchesWarning {
+            source: issue_source,
+            context_dir,
+            num_matches,
+            pattern,
+        }
+        .resolved_cell()
+        .emit();
+    }
+    Ok(())
+}
+
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Clone)]
-pub struct InlineSourceMap {
-    /// The file path of the module containing the sourcemap data URL
-    pub origin_path: FileSystemPath,
-    /// The Base64 encoded JSON sourcemap string
-    pub source_map: RcStr,
+struct TooManyMatchesWarning {
+    source: IssueSource,
+    context_dir: FileSystemPath,
+    num_matches: usize,
+    pattern: ResolvedVc<Pattern>,
 }
 
 #[turbo_tasks::value_impl]
-impl GenerateSourceMap for InlineSourceMap {
+impl Issue for TooManyMatchesWarning {
     #[turbo_tasks::function]
-    pub async fn generate_source_map(&self) -> Result<Vc<OptionStringifiedSourceMap>> {
-        let source_map = maybe_decode_data_url(&self.source_map);
-        let source_map =
-            resolve_source_map_sources(source_map.as_ref(), self.origin_path.clone()).await?;
-        Ok(Vc::cell(source_map))
+    async fn title(&self) -> Result<Vc<StyledString>> {
+        Ok(StyledString::Text(
+            turbofmt!(
+                "The file pattern {} matches {} files in {}",
+                self.pattern,
+                self.num_matches,
+                self.context_dir
+            )
+            .await?,
+        )
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<OptionStyledString> {
+        Vc::cell(Some(
+            StyledString::Text(rcstr!(
+                "Overly broad patterns can lead to build performance issues and over bundling."
+            ))
+            .resolved_cell(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    async fn file_path(&self) -> Vc<FileSystemPath> {
+        self.source.file_path()
+    }
+
+    #[turbo_tasks::function]
+    fn stage(&self) -> Vc<IssueStage> {
+        IssueStage::Resolve.cell()
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    #[turbo_tasks::function]
+    fn source(&self) -> Vc<OptionIssueSource> {
+        Vc::cell(Some(self.source))
     }
 }
 
-fn maybe_decode_data_url(url: &str) -> Option<Rope> {
-    const DATA_PREAMBLE: &str = "data:application/json;base64,";
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Encode, Decode, TraceRawVcs, NonLocalValue)]
+pub enum SpecifiedChunkingType {
+    Parallel,
+    Shared,
+    None,
+}
 
-    if !url.starts_with(DATA_PREAMBLE) {
-        return None;
+impl SpecifiedChunkingType {
+    pub fn as_chunking_type(&self, inherit_async: bool, hoisted: bool) -> Option<ChunkingType> {
+        match self {
+            SpecifiedChunkingType::Parallel => Some(ChunkingType::Parallel {
+                inherit_async,
+                hoisted,
+            }),
+            SpecifiedChunkingType::Shared => Some(ChunkingType::Shared {
+                inherit_async,
+                merge_tag: None,
+            }),
+            SpecifiedChunkingType::None => None,
+        }
     }
-    let data_b64 = &url[DATA_PREAMBLE.len()..];
-    data_encoding::BASE64
-        .decode(data_b64.as_bytes())
-        .ok()
-        .map(Rope::from)
+}
+
+pub fn parse_chunking_type_annotation(
+    span: Span,
+    chunking_type_annotation: &str,
+) -> Option<SpecifiedChunkingType> {
+    match chunking_type_annotation {
+        "parallel" => Some(SpecifiedChunkingType::Parallel),
+        "shared" => Some(SpecifiedChunkingType::Shared),
+        "none" => Some(SpecifiedChunkingType::None),
+        _ => {
+            HANDLER.with(|handler| {
+                handler.span_err_with_code(
+                    span,
+                    &format!(
+                        "Unknown specified chunking-type: \"{chunking_type_annotation}\", \
+                         expected \"parallel\", \"shared\" or \"none\""
+                    ),
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::CHUNKING_TYPE.into(),
+                    ),
+                );
+            });
+            None
+        }
+    }
 }

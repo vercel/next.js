@@ -1,9 +1,9 @@
 // Adapted from https://github.com/vercel/next.js/blob/canary/packages/next/src/client/dev/error-overlay/websocket.ts
 
-import type { WebSocketMessage } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client'
+import type { HmrMessage } from '@vercel/turbopack-ecmascript-runtime/browser/dev/hmr-client/hmr-client'
 
 let source: WebSocket
-const eventCallbacks: ((msg: WebSocketMessage) => void)[] = []
+const messageCallbacks: ((message: HmrMessage) => void)[] = []
 
 // TODO: add timeout again
 // let lastActivity = Date.now()
@@ -19,8 +19,8 @@ function getSocketProtocol(assetPrefix: string): string {
   return protocol === 'http:' ? 'ws' : 'wss'
 }
 
-export function addMessageListener(cb: (msg: WebSocketMessage) => void) {
-  eventCallbacks.push(cb)
+export function addMessageListener(cb: (message: HmrMessage) => void) {
+  messageCallbacks.push(cb)
 }
 
 export function sendMessage(data: any) {
@@ -46,7 +46,7 @@ export function connectHMR(options: HMROptions) {
 
     function handleOnline() {
       const connected = { type: 'turbopack-connected' as const }
-      eventCallbacks.forEach((cb) => {
+      messageCallbacks.forEach((cb) => {
         cb(connected)
       })
 
@@ -61,7 +61,7 @@ export function connectHMR(options: HMROptions) {
         type: 'turbopack-message' as const,
         data: JSON.parse(event.data),
       }
-      eventCallbacks.forEach((cb) => {
+      messageCallbacks.forEach((cb) => {
         cb(message)
       })
     }

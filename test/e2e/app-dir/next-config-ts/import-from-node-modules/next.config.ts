@@ -1,9 +1,15 @@
 import type { NextConfig } from 'next'
-import { foo } from 'foo'
+import cjs from 'cjs'
+import mjs from 'mjs'
+import jsCJS from 'js-cjs'
+import jsESM from 'js-esm'
 
 const nextConfig: NextConfig = {
   env: {
-    foo,
+    cjs,
+    mjs,
+    jsCJS,
+    jsESM,
   },
 }
 

@@ -2,10 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+  cacheComponents: true,
   experimental: {
     cpus: 1,
-    dynamicIO: true,
-    enablePrerenderSourceMaps: true,
     serverSourceMaps: true,
   },
   serverExternalPackages: ['external-pkg'],

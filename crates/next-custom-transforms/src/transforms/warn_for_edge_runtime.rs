@@ -1,12 +1,13 @@
 use std::sync::Arc;
 
+use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use swc_core::{
-    atoms::Atom,
-    common::{errors::HANDLER, SourceMap, Span},
+    atoms::{Atom, Wtf8Atom},
+    common::{SourceMap, Span, errors::HANDLER},
     ecma::{
         ast::{
-            op, BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
-            MemberExpr, MemberProp, NamedExport, UnaryExpr,
+            BinExpr, CallExpr, Callee, CondExpr, Expr, IdentName, IfStmt, ImportDecl, Lit,
+            MemberExpr, MemberProp, NamedExport, UnaryExpr, op,
         },
         utils::{ExprCtx, ExprExt},
         visit::{Visit, VisitWith},
@@ -111,94 +112,28 @@ const EDGE_UNSUPPORTED_NODE_APIS: &[&str] = &[
     "WritableStreamDefaultController",
 ];
 
-/// https://vercel.com/docs/functions/runtimes/edge-runtime#compatible-node.js-modules
-const NODEJS_MODULE_NAMES: &[&str] = &[
-    "_http_agent",
-    "_http_client",
-    "_http_common",
-    "_http_incoming",
-    "_http_outgoing",
-    "_http_server",
-    "_stream_duplex",
-    "_stream_passthrough",
-    "_stream_readable",
-    "_stream_transform",
-    "_stream_wrap",
-    "_stream_writable",
-    "_tls_common",
-    "_tls_wrap",
-    // "assert",
-    // "assert/strict",
-    // "async_hooks",
-    // "buffer",
-    "child_process",
-    "cluster",
-    "console",
-    "constants",
-    "crypto",
-    "dgram",
-    "diagnostics_channel",
-    "dns",
-    "dns/promises",
-    "domain",
-    // "events",
-    "fs",
-    "fs/promises",
-    "http",
-    "http2",
-    "https",
-    "inspector",
-    "module",
-    "net",
-    "os",
-    "path",
-    "path/posix",
-    "path/win32",
-    "perf_hooks",
-    "process",
-    "punycode",
-    "querystring",
-    "readline",
-    "readline/promises",
-    "repl",
-    "stream",
-    "stream/consumers",
-    "stream/promises",
-    "stream/web",
-    "string_decoder",
-    "sys",
-    "timers",
-    "timers/promises",
-    "tls",
-    "trace_events",
-    "tty",
-    "url",
-    // "util",
-    // "util/types",
-    "v8",
-    "vm",
-    "wasi",
-    "worker_threads",
-    "zlib",
-];
-
 impl<EmitWarn, EmitError> WarnForEdgeRuntime<EmitWarn, EmitError>
 where
     EmitWarn: Fn(Span, String),
     EmitError: Fn(Span, String),
 {
-    fn warn_if_nodejs_module(&self, span: Span, module_specifier: &str) -> Option<()> {
+    fn warn_if_nodejs_module(&self, span: Span, module_specifier: &Wtf8Atom) -> Option<()> {
+        let module_specifier_str = module_specifier.as_str()?;
         if self.guarded_runtime {
             return None;
         }
 
-        // Node.js modules can be loaded with `node:` prefix or directly
-        if module_specifier.starts_with("node:") || NODEJS_MODULE_NAMES.contains(&module_specifier)
+        let module_name = module_specifier_str
+            .strip_prefix("node:")
+            .unwrap_or(module_specifier_str);
+
+        if NODE_EXTERNALS.binary_search(&module_name).is_ok()
+            && EDGE_NODE_EXTERNALS.binary_search(&module_name).is_err()
         {
             let loc = self.cm.lookup_line(span.lo).ok()?;
 
             let msg = format!(
-                "A Node.js module is loaded ('{module_specifier}' at line {}) which is not \
+                "A Node.js module is loaded ('{module_specifier_str}' at line {}) which is not \
                  supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime",
                 loc.line + 1
@@ -270,19 +205,17 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime",
                 self.guarded_symbols.push(ident.sym.clone());
             }
             Expr::Member(member) => {
-                if member.prop.is_ident_with("NEXT_RUNTIME") {
-                    if let Expr::Member(obj_member) = &*member.obj {
-                        if obj_member.obj.is_global_ref_to(self.ctx, "process")
-                            && obj_member.prop.is_ident_with("env")
-                        {
-                            self.guarded_runtime = true;
-                        }
-                    }
+                if member.prop.is_ident_with("NEXT_RUNTIME")
+                    && let Expr::Member(obj_member) = &*member.obj
+                    && obj_member.obj.is_global_ref_to(self.ctx, "process")
+                    && obj_member.prop.is_ident_with("env")
+                {
+                    self.guarded_runtime = true;
                 }
-                if member.obj.is_global_ref_to(self.ctx, "process") {
-                    if let MemberProp::Ident(prop) = &member.prop {
-                        self.guarded_process_props.push(prop.sym.clone());
-                    }
+                if member.obj.is_global_ref_to(self.ctx, "process")
+                    && let MemberProp::Ident(prop) = &member.prop
+                {
+                    self.guarded_process_props.push(prop.sym.clone());
                 }
             }
             Expr::Bin(BinExpr {
@@ -328,10 +261,10 @@ where
     fn visit_call_expr(&mut self, n: &CallExpr) {
         n.visit_children_with(self);
 
-        if let Callee::Import(_) = &n.callee {
-            if let Some(Expr::Lit(Lit::Str(s))) = n.args.first().map(|e| &*e.expr) {
-                self.warn_if_nodejs_module(n.span, &s.value);
-            }
+        if let Callee::Import(_) = &n.callee
+            && let Some(Expr::Lit(Lit::Str(s))) = n.args.first().map(|e| &*e.expr)
+        {
+            self.warn_if_nodejs_module(n.span, &s.value);
         }
     }
 
@@ -369,18 +302,18 @@ where
     }
 
     fn visit_expr(&mut self, n: &Expr) {
-        if let Expr::Ident(ident) = n {
-            if ident.ctxt == self.ctx.unresolved_ctxt {
-                if ident.sym == "eval" {
-                    self.emit_dynamic_not_allowed_error(ident.span);
-                    return;
-                }
+        if let Expr::Ident(ident) = n
+            && ident.ctxt == self.ctx.unresolved_ctxt
+        {
+            if ident.sym == "eval" {
+                self.emit_dynamic_not_allowed_error(ident.span);
+                return;
+            }
 
-                for api in EDGE_UNSUPPORTED_NODE_APIS {
-                    if self.is_in_middleware_layer() && ident.sym == *api {
-                        self.emit_unsupported_api_error(ident.span, api);
-                        return;
-                    }
+            for api in EDGE_UNSUPPORTED_NODE_APIS {
+                if self.is_in_middleware_layer() && ident.sym == *api {
+                    self.emit_unsupported_api_error(ident.span, api);
+                    return;
                 }
             }
         }
@@ -404,11 +337,11 @@ where
     }
 
     fn visit_member_expr(&mut self, n: &MemberExpr) {
-        if n.obj.is_global_ref_to(self.ctx, "process") {
-            if let MemberProp::Ident(prop) = &n.prop {
-                self.warn_for_unsupported_process_api(n.span, prop);
-                return;
-            }
+        if n.obj.is_global_ref_to(self.ctx, "process")
+            && let MemberProp::Ident(prop) = &n.prop
+        {
+            self.warn_for_unsupported_process_api(n.span, prop);
+            return;
         }
 
         n.visit_children_with(self);
