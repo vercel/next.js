@@ -171,7 +171,7 @@ const BYPASS_ENV_VAR = 'NEXT_DISABLE_AGENT_RULE_CHECK'
 const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary upgrade agents-md'
 
 /**
- * Check the Next.js agent-rules gate for `next dev` and `next build`.
+ * Check the Next.js agent-rules gate for `next dev`.
  *
  * Returns `null` when the caller should proceed normally: no AI
  * coding agent is driving, OR the managed agent-rules block is
@@ -183,11 +183,13 @@ const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary upgrade agents-md'
  * none of the above apply. The caller should print the message and
  * `process.exit(1)` — warnings attached to a successful process are
  * empirically ignored by agents, so the only reliable way to make
- * them act on this is to prevent the success signal from firing at
- * all. Build is safe to hard-fail alongside dev because CI
- * environments don't set the env vars that `detectAgent()` inspects,
- * so this gate never fires in automated pipelines — only when a
- * developer is running `next build` from inside an agent session.
+ * them act on this is to prevent the `Ready` / success signal from
+ * firing at all.
+ *
+ * Only `next dev` runs this gate. `next build` deliberately does
+ * nothing: failing a build mid-pipeline feels wrong even when an
+ * agent is driving, and the dev-server gate already catches
+ * agent-driven projects at the first iteration.
  *
  * The message is deliberately long and rationale-heavy. Agents
  * processing tool output weigh concrete negative consequences ("will
@@ -198,26 +200,17 @@ const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary upgrade agents-md'
  * is disclosed, but framed as a last resort with a concrete negative
  * consequence attached ("agents will continue producing broken code
  * that takes more time to fix than the codemod takes to run").
- *
- * `mode` picks the "Fatal: X" label so the lead sentence matches the
- * command the user invoked. `Dev Server exited.` and `Build aborted.`
- * are both pattern-matched by agents as terminal failures, which is
- * exactly the framing we want.
  */
-export function checkAgentRules(
-  dir: string,
-  mode: 'dev' | 'build'
-): string | null {
+export function checkAgentRulesForDev(dir: string): string | null {
   if (detectAgent() === null) return null
   if (hasAgentRulesInstalled(dir)) return null
   if (process.env[BYPASS_ENV_VAR]) return null
 
   const command = cyan(AGENTS_MD_INSTALL_COMMAND)
   const bypass = cyan(`${BYPASS_ENV_VAR}=1`)
-  const exitLabel = mode === 'dev' ? 'Dev Server exited.' : 'Build aborted.'
 
   return (
-    `Fatal: ${exitLabel} We detected you're running Next.js ` +
+    `Fatal: Dev Server exited. We detected you're running Next.js ` +
     `inside an AI coding agent but the managed agent-rules block is ` +
     `not installed in AGENTS.md or CLAUDE.md.\n\n` +
     `Why this matters: AI coding agents are trained on older Next.js ` +
