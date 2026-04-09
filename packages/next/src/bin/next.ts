@@ -627,4 +627,22 @@ internal
   })
   .usage('[directory] [options]')
 
+internal
+  .command('upload-trace')
+  .description(
+    'Upload CPU profiles from .next-profiles/ to Vercel Blob storage.'
+  )
+  .argument(
+    '[directory]',
+    `The project directory containing .next-profiles/. ${italic(
+      'If no directory is provided, the current directory will be used.'
+    )}`
+  )
+  .action((directory: string) => {
+    return import('../cli/internal/upload-trace.js').then((mod) =>
+      mod.uploadTraceToBlob({ directory })
+    )
+  })
+  .usage('[directory] [options]')
+
 program.parse(process.argv)
