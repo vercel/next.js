@@ -289,7 +289,7 @@ async function PrivatePost({ slug }: { slug: string }) {
 }
 ```
 
-When using [`output: 'export'`](/docs/app/guides/static-exports) with `cacheComponents: true`, `generateStaticParams` is optional. Next.js emits a shared fallback shell for the dynamic route, prerenders any param-independent layouts or Server Components at build time, and resolves param-dependent content on the client. If you still export `generateStaticParams`, those params are fully prerendered and the rest use the fallback shell.
+When using [`output: 'export'`](/docs/app/guides/static-exports) for App Router dynamic routes with `cacheComponents: true`, `generateStaticParams` is optional. Next.js emits a shared fallback shell for the dynamic route, prerenders any param-independent layouts or Server Components at build time, and resolves param-dependent content on the client. If you still export `generateStaticParams`, those params are fully prerendered and the rest use the fallback shell.
 
 ## Examples
 
