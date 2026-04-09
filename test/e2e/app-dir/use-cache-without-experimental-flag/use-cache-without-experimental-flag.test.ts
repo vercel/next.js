@@ -37,9 +37,9 @@ describe('use-cache-without-experimental-flag', () => {
         expect(buildOutput).toContain('Ecmascript file had an error')
         expect(buildOutput).toContain('./app/page.tsx:1:1')
         expect(buildOutput).toContain("> 1 | 'use cache'")
-        // The stack of a build error holds framework frames only, and the
-        // terminal collapses them.
-        expect(buildOutput).toContain('at ignore-listed frames')
+        // The stack of a build error holds framework frames only, printed
+        // unsourcemapped since the build process has no source maps.
+        expect(buildOutput).toContain('at printBuildErrors (<next-internal>)')
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "
@@ -184,7 +184,15 @@ function getBuildOutput(cliOutput: string): string {
         break
       }
 
-      lines.push(stripAnsi(line))
+      lines.push(
+        // Framework frames are intentionally printed unsourcemapped (the build
+        // process has no source maps); their install-specific paths are not
+        // stable.
+        stripAnsi(line).replace(
+          /(at (?:async )?[\w$.]+) \([^)]*node_modules\/next\/dist[^)]*\)/,
+          '$1 (<next-internal>)'
+        )
+      )
     } else if (
       line.includes('Build error occurred') ||
       line.includes('Failed to compile')
