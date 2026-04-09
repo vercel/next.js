@@ -11,7 +11,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// it to operate with the turbo_tasks caching requirements.
 ///
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
-/// compiled, serialized wasmer::Module instead of raw file bytes to reduce the
+/// compiled, serialized WASM module instead of raw file bytes to reduce the
 /// cost of the compilation.
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", shared)]
 pub struct SwcPluginModule {
@@ -28,11 +28,11 @@ impl SwcPluginModule {
             use swc_core::plugin_runner::plugin_module_bytes::{
                 CompiledPluginModuleBytes, RawPluginModuleBytes,
             };
-            use swc_plugin_backend_wasmer::WasmerRuntime;
+            use swc_plugin_backend_wasmtime::WasmtimeRuntime;
 
             Self {
                 plugin: CompiledPluginModuleBytes::from_raw_module(
-                    &WasmerRuntime,
+                    &WasmtimeRuntime,
                     RawPluginModuleBytes::new(plugin_name.to_string(), plugin_bytes),
                 ),
                 name: plugin_name,
@@ -181,7 +181,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 plugin::proxies::{COMMENTS, HostCommentsStorage},
                 plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
             };
-            use swc_plugin_backend_wasmer::WasmerRuntime;
+            use swc_plugin_backend_wasmtime::WasmtimeRuntime;
             use turbo_tasks::TryJoinIterExt;
 
             let plugins = self
@@ -192,7 +192,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     Ok((
                         plugin_module.name.clone(),
                         config.clone(),
-                        Box::new(plugin_module.plugin.clone_module(&WasmerRuntime)),
+                        Box::new(plugin_module.plugin.clone_module(&WasmtimeRuntime)),
                     ))
                 })
                 .try_join()
@@ -259,7 +259,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                             None,
                             plugin_module,
                             Some(plugin_config),
-                            Arc::new(WasmerRuntime),
+                            Arc::new(WasmtimeRuntime),
                         );
 
                     serialized_program = Either::Right(
