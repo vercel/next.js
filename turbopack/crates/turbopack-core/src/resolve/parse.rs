@@ -90,7 +90,8 @@ fn split_off_query_fragment(mut raw: &str) -> (Pattern, RcStr, RcStr) {
     (Pattern::Constant(RcStr::from(raw)), query, hash)
 }
 
-static WINDOWS_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[A-Za-z]:\\|\\\\").unwrap());
+static WINDOWS_PATH: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^[A-Za-z]:[/\\]|^\\\\").unwrap());
 static URI_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^([^/\\:]+:)(.+)$").unwrap());
 static DATA_URI_REMAINDER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([^;,]*)(?:;([^,]+))?,(.*)$").unwrap());
@@ -854,6 +855,27 @@ pub async fn stringify_data_uri(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_parse_windows_paths() {
+        assert_eq!(
+            Request::Windows {
+                path: rcstr!(r"C:\Users\demo\src\index.ts").into(),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(rcstr!(r"C:\Users\demo\src\index.ts").into())
+        );
+
+        assert_eq!(
+            Request::Windows {
+                path: rcstr!("C:/Users/demo/src/index.ts").into(),
+                query: rcstr!(""),
+                fragment: rcstr!(""),
+            },
+            Request::parse_ref(rcstr!("C:/Users/demo/src/index.ts").into())
+        );
+    }
 
     #[test]
     fn test_parse_module() {

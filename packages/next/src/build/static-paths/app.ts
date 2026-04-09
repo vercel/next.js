@@ -21,16 +21,19 @@ import {
 import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
 import type { NextConfigComplete } from '../../server/config-shared'
-import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import {
+  type WorkStore,
+  workAsyncStorage,
+} from '../../server/app-render/work-async-storage.external'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
 import { throwEmptyGenerateStaticParamsError } from '../../shared/lib/errors/empty-generate-static-params-error'
 import type { AppRouteModule } from '../../server/route-modules/app-route/module.compiled'
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
-import type {
-  GenerateStaticParamsStore,
-  WorkUnitAsyncStorage,
+import {
+  type GenerateStaticParamsStore,
+  workUnitAsyncStorage,
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { ImplicitTags } from '../../server/lib/implicit-tags'
 import { getImplicitTags } from '../../server/lib/implicit-tags'
@@ -606,7 +609,6 @@ export function assignStaticShellMetadata(
  */
 async function callGenerateStaticParams(
   generateStaticParams: NonNullable<AppSegment['generateStaticParams']>,
-  workUnitAsyncStorage: WorkUnitAsyncStorage,
   parentParams: Params,
   rootParamKeys: readonly string[],
   implicitTags: ImplicitTags
@@ -638,7 +640,6 @@ async function callGenerateStaticParams(
  *
  * @param segments - Array of app directory segments to process
  * @param store - Work store for tracking fetch cache configuration
- * @param workUnitAsyncStorage - AsyncLocalStorage for work unit stores
  * @param isRoutePPREnabled - Whether PPR is enabled for this route
  * @param rootParamKeys - The keys identifying which params are root params
  * @returns Promise that resolves to an array of all parameter combinations
@@ -648,7 +649,6 @@ export async function generateRouteStaticParams(
     Readonly<Pick<AppSegment, 'config' | 'generateStaticParams'>>
   >,
   store: Pick<WorkStore, 'fetchCache' | 'page'>,
-  workUnitAsyncStorage: WorkUnitAsyncStorage,
   isRoutePPREnabled: boolean,
   rootParamKeys: readonly string[]
 ): Promise<Params[]> {
@@ -696,7 +696,6 @@ export async function generateRouteStaticParams(
       for (const parentParams of params) {
         const result = await callGenerateStaticParams(
           current.generateStaticParams,
-          workUnitAsyncStorage,
           parentParams,
           rootParamKeys,
           implicitTags
@@ -718,7 +717,6 @@ export async function generateRouteStaticParams(
       // No parent params, call generateStaticParams with empty object
       const result = await callGenerateStaticParams(
         current.generateStaticParams,
-        workUnitAsyncStorage,
         {},
         rootParamKeys,
         implicitTags
@@ -874,12 +872,11 @@ export async function buildAppStaticPaths({
     previouslyRevalidatedTags: [],
   })
 
-  const routeParams = await ComponentMod.workAsyncStorage.run(
+  const routeParams = await workAsyncStorage.run(
     store,
     generateRouteStaticParams,
     segments,
     store,
-    ComponentMod.workUnitAsyncStorage,
     isRoutePPREnabled,
     rootParamKeys
   )

@@ -37,7 +37,7 @@ describe('resolveRoutes with i18n', () => {
     it('should redirect to locale prefix when accept-language is set', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about'),
+        url: new URL('http://example.com/'),
         headers: new Headers({
           'accept-language': 'fr,en;q=0.9',
         }),
@@ -45,14 +45,14 @@ describe('resolveRoutes with i18n', () => {
       })
 
       expect(result.redirect).toBeDefined()
-      expect(result.redirect?.url.pathname).toBe('/fr/about')
+      expect(result.redirect?.url.pathname).toBe('/fr/')
       expect(result.redirect?.status).toBe(307)
     })
 
     it('should use quality values from accept-language', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about'),
+        url: new URL('http://example.com/'),
         headers: new Headers({
           'accept-language': 'de;q=0.8,fr;q=0.9,en;q=0.7',
         }),
@@ -60,13 +60,46 @@ describe('resolveRoutes with i18n', () => {
       })
 
       expect(result.redirect).toBeDefined()
-      expect(result.redirect?.url.pathname).toBe('/fr/about')
+      expect(result.redirect?.url.pathname).toBe('/fr/')
+    })
+
+    it('should preserve middleware response headers on locale redirect', async () => {
+      const invokeMiddleware = jest.fn(async () => ({
+        responseHeaders: new Headers({
+          'x-nested-header': 'valid',
+          'x-append-me': 'top',
+        }),
+      }))
+
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/'),
+        headers: new Headers({
+          'accept-language': 'fr,en;q=0.9',
+        }),
+        i18n: i18nConfigNoDomains,
+        invokeMiddleware,
+        routes: {
+          ...baseParams.routes,
+          middlewareMatchers: [
+            {
+              sourceRegex: '^/.*$',
+            },
+          ],
+        },
+      })
+
+      expect(invokeMiddleware).toHaveBeenCalledTimes(1)
+      expect(result.redirect).toBeDefined()
+      expect(result.redirect?.url.pathname).toBe('/fr/')
+      expect(result.resolvedHeaders?.get('x-nested-header')).toBe('valid')
+      expect(result.resolvedHeaders?.get('x-append-me')).toBe('top')
     })
 
     it('should not redirect when locale matches default', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about'),
+        url: new URL('http://example.com/'),
         headers: new Headers({
           'accept-language': 'en',
         }),
@@ -76,13 +109,26 @@ describe('resolveRoutes with i18n', () => {
       // Should prefix internally but not redirect
       expect(result.redirect).toBeUndefined()
     })
+
+    it('should not redirect preferred locale for non-index pathnames', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/about'),
+        headers: new Headers({
+          'accept-language': 'fr,en;q=0.9',
+        }),
+        i18n: i18nConfigNoDomains,
+      })
+
+      expect(result.redirect).toBeUndefined()
+    })
   })
 
   describe('locale detection from cookie', () => {
     it('should redirect to locale from NEXT_LOCALE cookie', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about'),
+        url: new URL('http://example.com/'),
         headers: new Headers({
           cookie: 'NEXT_LOCALE=ja',
         }),
@@ -90,13 +136,13 @@ describe('resolveRoutes with i18n', () => {
       })
 
       expect(result.redirect).toBeDefined()
-      expect(result.redirect?.url.pathname).toBe('/ja/about')
+      expect(result.redirect?.url.pathname).toBe('/ja/')
     })
 
     it('should prioritize cookie over accept-language', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about'),
+        url: new URL('http://example.com/'),
         headers: new Headers({
           cookie: 'session=abc; NEXT_LOCALE=ja; theme=dark',
           'accept-language': 'fr',
@@ -105,7 +151,7 @@ describe('resolveRoutes with i18n', () => {
       })
 
       expect(result.redirect).toBeDefined()
-      expect(result.redirect?.url.pathname).toBe('/ja/about')
+      expect(result.redirect?.url.pathname).toBe('/ja/')
     })
   })
 
@@ -125,7 +171,7 @@ describe('resolveRoutes with i18n', () => {
     it('should redirect to correct domain for preferred locale', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about'),
+        url: new URL('http://example.com/'),
         headers: new Headers({
           'accept-language': 'fr',
         }),
@@ -134,13 +180,13 @@ describe('resolveRoutes with i18n', () => {
 
       expect(result.redirect).toBeDefined()
       expect(result.redirect?.url.hostname).toBe('example.fr')
-      expect(result.redirect?.url.pathname).toBe('/about')
+      expect(result.redirect?.url.pathname).toBe('/')
     })
 
     it('should not include locale prefix for domain default locale', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about'),
+        url: new URL('http://example.com/'),
         headers: new Headers({
           'accept-language': 'de',
         }),
@@ -149,7 +195,7 @@ describe('resolveRoutes with i18n', () => {
 
       expect(result.redirect).toBeDefined()
       expect(result.redirect?.url.hostname).toBe('example.de')
-      expect(result.redirect?.url.pathname).toBe('/about')
+      expect(result.redirect?.url.pathname).toBe('/')
     })
   })
 
@@ -240,7 +286,7 @@ describe('resolveRoutes with i18n', () => {
       const result = await resolveRoutes({
         ...baseParams,
         basePath: '/base',
-        url: new URL('http://example.com/base/about'),
+        url: new URL('http://example.com/base'),
         headers: new Headers({
           'accept-language': 'ja',
         }),
@@ -248,14 +294,14 @@ describe('resolveRoutes with i18n', () => {
       })
 
       expect(result.redirect).toBeDefined()
-      expect(result.redirect?.url.pathname).toBe('/base/ja/about')
+      expect(result.redirect?.url.pathname).toBe('/base/ja/')
     })
 
     it('should handle basePath with domain redirect', async () => {
       const result = await resolveRoutes({
         ...baseParams,
         basePath: '/base',
-        url: new URL('http://example.com/base/about'),
+        url: new URL('http://example.com/base'),
         headers: new Headers({
           'accept-language': 'de',
         }),
@@ -264,7 +310,7 @@ describe('resolveRoutes with i18n', () => {
 
       expect(result.redirect).toBeDefined()
       expect(result.redirect?.url.hostname).toBe('example.de')
-      expect(result.redirect?.url.pathname).toBe('/base/about')
+      expect(result.redirect?.url.pathname).toBe('/base/')
     })
   })
 
@@ -287,7 +333,7 @@ describe('resolveRoutes with i18n', () => {
     it('should handle query strings', async () => {
       const result = await resolveRoutes({
         ...baseParams,
-        url: new URL('http://example.com/about?foo=bar'),
+        url: new URL('http://example.com/?foo=bar'),
         headers: new Headers({
           'accept-language': 'ja',
         }),
@@ -295,7 +341,7 @@ describe('resolveRoutes with i18n', () => {
       })
 
       expect(result.redirect).toBeDefined()
-      expect(result.redirect?.url.pathname).toBe('/ja/about')
+      expect(result.redirect?.url.pathname).toBe('/ja/')
       expect(result.redirect?.url.search).toBe('?foo=bar')
     })
 
@@ -357,6 +403,39 @@ describe('resolveRoutes with i18n', () => {
         '1': '123',
         id: '123',
       })
+    })
+
+    it('should match non-localized dynamic templates when localized variant is absent', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.com/app-dir/foo'),
+        headers: new Headers({}),
+        pathnames: ['/app-dir/[[...slug]]', '/en/[[...slug]]'],
+        routes: {
+          ...baseParams.routes,
+          dynamicRoutes: [
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})/app\\-dir(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination:
+                '/$nextLocale/app-dir/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+            {
+              sourceRegex:
+                '^[/]?(?<nextLocale>[^/]{1,})(?:/(?<nxtPslug>.+?))?(?:/)?$',
+              destination: '/$nextLocale/[[...slug]]?nxtPslug=$nxtPslug',
+            },
+          ],
+        },
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'en-GB'],
+          localeDetection: false,
+        },
+      })
+
+      expect(result.redirect).toBeUndefined()
+      expect(result.resolvedPathname).toBe('/app-dir/[[...slug]]')
     })
   })
 })
