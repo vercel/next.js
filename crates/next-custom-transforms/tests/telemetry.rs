@@ -38,9 +38,11 @@ export function getServerSideProps() {
         .to_owned(),
     );
 
-    let mut swc_options = swc_core::base::config::Options::default();
-    swc_options.runtime_options = swc_core::base::config::RuntimeOptions::default()
-        .plugin_runtime(Arc::new(swc_plugin_backend_wasmtime::WasmtimeRuntime));
+    let swc_options = swc_core::base::config::Options {
+        runtime_options: swc_core::base::config::RuntimeOptions::default()
+            .plugin_runtime(Arc::new(swc_plugin_backend_wasmtime::WasmtimeRuntime)),
+        ..Default::default()
+    };
 
     try_with_handler(COMPILER.cm.clone(), Default::default(), |handler| {
         GLOBALS.set(&Default::default(), || {
