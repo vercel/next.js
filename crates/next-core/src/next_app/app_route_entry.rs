@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{ResolvedVc, ValueToStringRef, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
@@ -80,7 +80,7 @@ pub async fn get_app_route_entry(
             ("VAR_DEFINITION_FILENAME", path.file_stem().unwrap()),
             // TODO(alexkirsz) Is this necessary?
             ("VAR_DEFINITION_BUNDLE_PATH", ""),
-            ("VAR_RESOLVED_PAGE_PATH", &path.value_to_string().await?),
+            ("VAR_RESOLVED_PAGE_PATH", &path.to_string_ref().await?),
             ("VAR_USERLAND", &inner),
         ],
         [("nextConfigOutput", output_type)],

@@ -1,12 +1,10 @@
 #![doc = include_str!("../README.md")]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(never_type)]
 #![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
@@ -78,9 +76,7 @@ pub use crate::{
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
-    effect::{
-        ApplyEffectsContext, Effect, EffectError, Effects, apply_effects, emit_effect, get_effects,
-    },
+    effect::{ApplyEffectsContext, Effect, EffectError, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
@@ -99,7 +95,7 @@ pub use crate::{
     },
     mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
@@ -114,8 +110,9 @@ pub use crate::{
     value::{TransientInstance, TransientValue},
     value_type::{TraitMethod, TraitType, ValueType},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
+        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
+        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
         VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
         VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },

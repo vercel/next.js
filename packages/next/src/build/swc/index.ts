@@ -1,5 +1,6 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
@@ -707,6 +708,13 @@ function bindingToApi(
       return napiResult
     }
 
+    async getAllCompilationIssues(): Promise<TurbopackResult<void>> {
+      const napiResult = (await binding.projectGetAllCompilationIssues(
+        this._nativeProject
+      )) as TurbopackResult<void>
+      return napiResult
+    }
+
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
@@ -936,12 +944,15 @@ function bindingToApi(
 
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.cacheHandler) {
+      const resolvedCacheHandler = resolveCacheHandlerPathToFilesystem(
+        nextConfigSerializable.cacheHandler
+      )
       nextConfigSerializable.cacheHandler =
         './' +
         normalizePathOnWindows(
-          path.isAbsolute(nextConfigSerializable.cacheHandler)
-            ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
-            : nextConfigSerializable.cacheHandler
+          path.isAbsolute(resolvedCacheHandler)
+            ? path.relative(projectPath, resolvedCacheHandler)
+            : resolvedCacheHandler
         )
     }
     if (nextConfigSerializable.cacheHandlers) {
@@ -950,15 +961,18 @@ function bindingToApi(
           nextConfigSerializable.cacheHandlers as Record<string, string>
         )
           .filter(([_, value]) => value != null)
-          .map(([key, value]) => [
-            key,
-            './' +
-              normalizePathOnWindows(
-                path.isAbsolute(value)
-                  ? path.relative(projectPath, value)
-                  : value
-              ),
-          ])
+          .map(([key, value]) => {
+            const resolved = resolveCacheHandlerPathToFilesystem(value)
+            return [
+              key,
+              './' +
+                normalizePathOnWindows(
+                  path.isAbsolute(resolved)
+                    ? path.relative(projectPath, resolved)
+                    : resolved
+                ),
+            ]
+          })
       )
     }
 

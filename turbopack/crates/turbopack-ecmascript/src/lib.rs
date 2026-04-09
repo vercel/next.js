@@ -3,7 +3,6 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
-#![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
@@ -32,7 +31,7 @@ pub(crate) mod static_code;
 mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
-pub(crate) mod transform;
+pub mod transform;
 pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
@@ -1001,9 +1000,9 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok(
                 part_code_gens
                     .into_iter()
-                    .chain(esm_code_gens.into_iter())
+                    .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
-                    .chain(code_gens.into_iter())
+                    .chain(code_gens)
                     .collect(),
             )
         }
@@ -1891,7 +1890,7 @@ async fn process_parse_result(
                     .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -1919,7 +1918,7 @@ async fn process_parse_result(
                             .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),

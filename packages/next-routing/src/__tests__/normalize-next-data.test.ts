@@ -90,6 +90,41 @@ describe('normalizeNextData - beforeMiddleware', () => {
   })
 })
 
+describe('normalizeNextData - middleware matchers', () => {
+  it('should match middleware against normalized pathname for data URLs', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/_next/data/BUILD_ID/blog/post.json'),
+      basePath: '',
+      pathnames: ['/_next/data/BUILD_ID/blog/post.json'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/blog/post$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+        shouldNormalizeNextData: true,
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+    expect(middlewareMock.mock.calls[0][0].url.pathname).toBe(
+      '/_next/data/BUILD_ID/blog/post.json'
+    )
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/blog/post.json')
+  })
+})
+
 describe('normalizeNextData - pathname checking', () => {
   it('should denormalize before checking pathnames after beforeFiles', async () => {
     const params = createBaseParams({
@@ -112,6 +147,37 @@ describe('normalizeNextData - pathname checking', () => {
     expect(result.resolvedPathname).toBe(
       '/_next/data/BUILD_ID/posts/hello.json'
     )
+  })
+
+  it('should normalize index data URL to root pathname', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/_next/data/BUILD_ID/index.json'),
+      basePath: '',
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/(?<nxtPid>[^/]+)$',
+            destination: '/[id]?nxtPid=$nxtPid',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+        shouldNormalizeNextData: true,
+      },
+      pathnames: ['/', '/[id]', '/_next/data/BUILD_ID/index.json'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/_next/data/BUILD_ID/index.json')
+    expect(result.routeMatches).toBeUndefined()
+    expect(result.invocationTarget).toEqual({
+      pathname: '/_next/data/BUILD_ID/index.json',
+      query: {},
+    })
   })
 
   it('should work with rewrites then pathname check', async () => {

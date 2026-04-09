@@ -10,7 +10,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, availability_info::AvailabilityInfo,
         chunk_id_strategy::ModuleIdStrategy,
@@ -196,7 +196,7 @@ impl ChunkGroupResult {
                 self.assets
                     .await?
                     .into_iter()
-                    .chain(self.referenced_assets.await?.into_iter())
+                    .chain(self.referenced_assets.await?)
                     .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
@@ -352,7 +352,7 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn asset_path(
         self: Vc<Self>,
-        content_hash: Vc<RcStr>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Vc<FileSystemPath>;

@@ -53,7 +53,10 @@ import {
   INSTANT_SLOT_MARKER_PREFIX,
   INSTANT_SLOT_MARKER_SUFFIX,
 } from './instant-validation/boundary-constants'
-import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
+import {
+  type ValidationBoundaryTracking,
+  allRequiredBoundariesRendered,
+} from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
@@ -922,7 +925,7 @@ export function trackDynamicHoleInNavigation(
     // If we managed to render all the validation boundaries, that means
     // that the client holes aren't blocking validation and we can disregard them.
     // Note that we don't even care whether they have suspense or not.
-    if (boundaryState.expectedIds.size === boundaryState.renderedIds.size) {
+    if (allRequiredBoundariesRendered(boundaryState)) {
       dynamicValidation.hasAllowedClientDynamicAboveBoundary = true
       dynamicValidation.hasAllowedDynamic = true // Holes outside the boundary contribute to allowing dynamic metadata
       return
@@ -985,7 +988,7 @@ export function trackDynamicHoleInNavigation(
   const usageDescription =
     kind === DynamicHoleKind.Runtime
       ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`.`
-      : `Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`.`
+      : `Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`.`
   const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
   const error = addErrorContext(
     new Error(message),
@@ -1094,7 +1097,7 @@ export function trackDynamicHoleInRuntimeShell(
     return
   }
 
-  const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
+  const message = `Route "${workStore.route}": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
   const error = addErrorContext(new Error(message), componentStack, null)
   dynamicValidation.dynamicErrors.push(error)
   return
@@ -1332,7 +1335,7 @@ export function getNavigationDisallowedDynamicReasons(
     return validationPreventingErrors
   }
 
-  if (boundaryState.renderedIds.size < boundaryState.expectedIds.size) {
+  if (!allRequiredBoundariesRendered(boundaryState)) {
     const { thrownErrorsOutsideBoundary } = dynamicValidation
     const rootInstantStack = dynamicValidation.slotStacks[0]
     if (thrownErrorsOutsideBoundary.length === 0) {

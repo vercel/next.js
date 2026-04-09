@@ -1,6 +1,4 @@
 #![feature(min_specialization)]
-#![feature(trait_alias)]
-#![feature(iter_intersperse)]
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -32,8 +30,8 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, get_effects,
-    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration,
+    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, run_once_with_reason,
+    take_effects, trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
@@ -67,8 +65,8 @@ struct ContentSourceWithIssues {
 async fn get_source_with_issues_operation(
     source_op: OperationVc<Box<dyn ContentSource>>,
 ) -> Result<Vc<ContentSourceWithIssues>> {
-    let _ = source_op.resolve_strongly_consistent().await?;
-    let effects = get_effects(source_op).await?;
+    let _ = source_op.resolve().strongly_consistent().await?;
+    let effects = take_effects(source_op).await?;
     Ok(ContentSourceWithIssues { source_op, effects }.cell())
 }
 
@@ -240,7 +238,7 @@ impl DevServerBuilder {
                                 http::process_request_with_content_source(
                                     // HACK: pass `source` here (instead of `resolved_source`
                                     // because the underlying API wants to do it's own
-                                    // `resolve_strongly_consistent` call.
+                                    // `.resolve().strongly_consistent()` call.
                                     //
                                     // It's unlikely (the calls happen one-after-another), but this
                                     // could cause inconsistency between the reported issues and

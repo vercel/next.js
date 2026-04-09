@@ -29,7 +29,7 @@ use crate::{
     ReadOutputOptions, ResolvedVc, SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead,
     VcValueTrait, VcValueType,
     backend::{
-        Backend, CachedTaskType, CellContent, TaskCollectiblesMap, TaskExecutionSpec,
+        Backend, CachedTaskType, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec,
         TransientTaskType, TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
     capture_future::CaptureFuture,
@@ -175,7 +175,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<[u8; 16]>,
+        content_hash: Option<CellHash>,
         verification_mode: VerificationMode,
     );
     fn mark_own_task_as_finished(&self, task: TaskId);
@@ -686,6 +686,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             TransientTaskType::Root(Box::new(move || {
                 let functor = functor.clone();
                 Box::pin(async move {
+                    mark_top_level_task();
                     let raw_vc = functor().await?.node;
                     raw_vc.to_non_local().await
                 })
@@ -711,6 +712,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     {
         let id = self.backend.create_transient_task(
             TransientTaskType::Once(Box::pin(async move {
+                mark_top_level_task();
                 let raw_vc = future.await?.node;
                 raw_vc.to_non_local().await
             })),
@@ -1242,7 +1244,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
                                 };
 
-                                let finihed_state = this.finish_current_task_state();
+                                let finished_state = this.finish_current_task_state();
                                 let cell_counters = CURRENT_TASK_STATE
                                     .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
                                 this.backend.task_execution_completed(
@@ -1250,8 +1252,8 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     result,
                                     &cell_counters,
                                     #[cfg(feature = "verify_determinism")]
-                                    finihed_state.stateful,
-                                    finihed_state.has_invalidator,
+                                    finished_state.stateful,
+                                    finished_state.has_invalidator,
                                     &*this,
                                 )
                             }
@@ -1572,7 +1574,7 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
-        content_hash: Option<[u8; 16]>,
+        content_hash: Option<CellHash>,
         verification_mode: VerificationMode,
     ) {
         self.backend.update_task_cell(
@@ -1734,8 +1736,24 @@ pub(crate) fn current_task(from: &str) -> TaskId {
     }
 }
 
+/// Panics if we're not in a top-level task (e.g. [`run_once`]). Some function calls should only
+/// happen in a top-level task (e.g. [`Effects::apply`][crate::Effects::apply]).
 #[track_caller]
-fn debug_assert_not_in_top_level_task(operation: &str) {
+pub(crate) fn debug_assert_in_top_level_task(message: &str) {
+    if !cfg!(debug_assertions) {
+        return;
+    }
+
+    let in_top_level = CURRENT_TASK_STATE
+        .try_with(|ts| ts.read().unwrap().in_top_level_task)
+        .unwrap_or(true);
+    if !in_top_level {
+        panic!("{message}");
+    }
+}
+
+#[track_caller]
+pub(crate) fn debug_assert_not_in_top_level_task(operation: &str) {
     if !cfg!(debug_assertions) {
         return;
     }
@@ -2033,7 +2051,7 @@ impl CurrentCellRef {
     /// Updates the cell if the given `functor` returns a value.
     fn conditional_update<T>(
         &self,
-        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<[u8; 16]>)>,
+        functor: impl FnOnce(Option<&T>) -> Option<(T, Option<SmallVec<[u64; 2]>>, Option<CellHash>)>,
     ) where
         T: VcValueType,
     {
@@ -2056,7 +2074,7 @@ impl CurrentCellRef {
         ) -> Option<(
             SharedReference,
             Option<SmallVec<[u64; 2]>>,
-            Option<[u8; 16]>,
+            Option<CellHash>,
         )>,
     ) {
         let tt = turbo_tasks();

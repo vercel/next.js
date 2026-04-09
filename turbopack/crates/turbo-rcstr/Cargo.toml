@@ -18,6 +18,10 @@ new_debug_unreachable = "1.0.6"
 shrink-to-fit = { workspace = true }
 rustc-hash = { workspace = true }
 bytes-str = { workspace = true }
+inventory = { workspace = true }
+smallvec = { workspace = true }
+turbo-bincode = { workspace = true }
+unty = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 napi = { workspace = true, optional = true }

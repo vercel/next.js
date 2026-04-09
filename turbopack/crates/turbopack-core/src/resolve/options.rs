@@ -576,8 +576,8 @@ impl ImportMap {
 
         let results = lookup_rel
             .into_iter()
-            .chain(lookup_rel_parent.into_iter())
-            .chain(lookup.into_iter())
+            .chain(lookup_rel_parent)
+            .chain(lookup)
             .map(async |result| {
                 import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
             })
