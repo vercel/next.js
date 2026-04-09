@@ -151,21 +151,27 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         }
       }
 
+      const nativeDir = path.join(dir, 'packages/next-swc/native')
       await fs
-        .cp(
-          path.join(__dirname, '../native'),
-          path.join(dir, 'packages/next-swc/native'),
-          { recursive: true, force: true }
-        )
+        .cp(path.join(__dirname, '../native'), nativeDir, {
+          recursive: true,
+          force: true,
+        })
         .catch(console.error)
 
+      process.env.NEXT_TEST_NATIVE_DIR = nativeDir
+
+      logger(`Packing packages in ${dir}`)
+      await exec.spawnPromise('pnpm turbo run pack-for-isolated-tests', {
+        cwd: dir,
+      })
+
       logger(`Linking packages in ${dir}`)
-      const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
       })
 
-      if (isMainRepo) mainRepoPkgPaths = pkgPaths
+      if (dir === mainRepoDir) mainRepoPkgPaths = pkgPaths
       else diffRepoPkgPaths = pkgPaths
     }
 
