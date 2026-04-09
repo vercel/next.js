@@ -191,15 +191,14 @@ async function createNextInstall({
         )
       )
 
-      // pnpm propagates minimumReleaseAge via `npm_config_minimum_release_age`
-      // env variable despite claiming `npm_config` has no effect on pnpm.
-      // Only `pnpm_config_*` should have.
-      // However, it doesn't propagate `minimumReleaseAgeExclude` so we need to
-      // manually propagate those from the minimumReleaseAgeExclude in
-      // file://./../../pnpm-workspace.yaml
+      // Propagate security relate settings from file://./../../pnpm-workspace.yaml
+      // TODO: Ensure tests with custom installCommand also include necessary pnpm
+      // configs for security related settings, and remove this workaround.
       await fs.writeFile(
         path.join(installDir, 'pnpm-workspace.yaml'),
         outdent`
+          blockExoticSubdeps: true
+          minimumReleaseAge: 2880 # 48 hrs
           minimumReleaseAgeExclude:
             - '@next/*'
             - '@turbo/*'
