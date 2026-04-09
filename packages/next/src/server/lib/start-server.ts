@@ -515,23 +515,19 @@ export async function startServer(
           // `next dev` cold start. Trade-off: blocked runs pay the full
           // startup cost before the check fires, which is deliberate.
           //
-          // First failure in an agent-driven session is fatal (hard exit
-          // so the agent runs the codemod). Second+ consecutive failures
-          // print the same message but let the server keep running —
-          // that's the escape hatch for users who legitimately don't
-          // want an AGENTS.md, and it's deliberately never advertised in
-          // the message so agents can't game it.
-          //
-          // Uses the same exit pattern as the lockfile "Another next dev
-          // server is already running" error (`Log.error` + `process.exit`)
-          // — by this point the banner has already flushed to the parent
-          // stream, so there's no early-exit flush race to work around.
-          const agentRulesCheck = checkAgentRulesForDev(dir)
-          if (agentRulesCheck !== null) {
-            Log.error(agentRulesCheck.message)
-            if (agentRulesCheck.fatal) {
-              process.exit(1)
-            }
+          // Hard-fails dev startup when an AI coding agent is driving
+          // and neither AGENTS.md nor CLAUDE.md exists in the project.
+          // The error message itself tells the user how to escape: run
+          // the codemod, or create one of the files and re-run. Uses
+          // the same `Log.error` + `process.exit(1)` pattern as the
+          // lockfile "Another next dev server is already running" error
+          // — by this point the banner has already flushed to the
+          // parent stream, so there's no early-exit flush race to work
+          // around.
+          const agentRulesError = checkAgentRulesForDev(dir)
+          if (agentRulesError !== null) {
+            Log.error(agentRulesError)
+            process.exit(1)
           }
         }
 

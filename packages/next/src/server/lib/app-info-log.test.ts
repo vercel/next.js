@@ -3,10 +3,6 @@ import os from 'os'
 import path from 'path'
 import { warnIfMissingAgentRules, checkAgentRulesForDev } from './app-info-log'
 
-const GATE_STATE_FILE = path.join('.next', 'dev', 'agent-rules-gate-fired')
-
-const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
-
 // Clear every env var `detectAgent()` inspects so the base state is
 // "no agent detected" regardless of what the host has set.
 function clearAgentEnv() {
@@ -27,33 +23,6 @@ function clearAgentEnv() {
   delete process.env.COPILOT_MODEL
   delete process.env.COPILOT_ALLOW_ALL
   delete process.env.COPILOT_GITHUB_TOKEN
-}
-
-/**
- * The error and the build-side notice share a single body via
- * `baseAgentRulesMessage`. Both are framework-style errors: factual, no
- * direct-addressee tag, no claims about the reader, no bypass mentions.
- * These checks must hold for both call sites.
- */
-function assertFactualFrameworkError(message: string) {
-  // Must include the install command, pinned to `@canary` so users pick up
-  // codemod updates on the faster release channel.
-  expect(message).toContain('npx @next/codemod@canary agents-md')
-  expect(message).toContain('AGENTS.md')
-  expect(message).toContain('CLAUDE.md')
-
-  // Must NOT contain anything that looks like a prompt-injection payload
-  // or an agent-addressed directive — that's what triggered agents to
-  // flag the message as suspicious in earlier iterations.
-  expect(message).not.toContain('AGENT:')
-  expect(message).not.toContain('stale')
-  expect(message).not.toContain('Do this before')
-
-  // Must NOT advertise any bypass — there is none, and mentioning one at
-  // all gives frustrated agents permission to take it instead of the fix.
-  expect(message).not.toContain('--skip-agent-rule-check')
-  expect(message).not.toContain('bypass')
-  expect(message).not.toContain('last resort')
 }
 
 describe('warnIfMissingAgentRules (build-side notice)', () => {
@@ -81,23 +50,37 @@ describe('warnIfMissingAgentRules (build-side notice)', () => {
     expect(errorSpy).not.toHaveBeenCalled()
   })
 
-  it('is silent when the marker appears in AGENTS.md or CLAUDE.md', () => {
+  it('is silent when AGENTS.md exists (even empty)', () => {
     process.env.CLAUDECODE = '1'
-    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '')
     warnIfMissingAgentRules(tmpDir)
     expect(errorSpy).not.toHaveBeenCalled()
   })
 
-  it('prints a factual framework error when rules are missing', () => {
+  it('is silent when CLAUDE.md exists (even empty)', () => {
+    process.env.CLAUDECODE = '1'
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), '')
+    warnIfMissingAgentRules(tmpDir)
+    expect(errorSpy).not.toHaveBeenCalled()
+  })
+
+  it('prints the build-side notice when an agent is detected and neither file exists', () => {
     process.env.CLAUDECODE = '1'
     warnIfMissingAgentRules(tmpDir)
     expect(errorSpy).toHaveBeenCalledTimes(1)
     const loggedMessage = errorSpy.mock.calls[0].join(' ')
-    assertFactualFrameworkError(loggedMessage)
+    // Build-side message is the plain install instruction — no `fatal:`
+    // prefix (since the build isn't failing) and no escape-hatch sentence
+    // (since the escape hatch is a dev-only concept).
+    expect(loggedMessage).toContain('npx @next/codemod@canary agents-md')
+    expect(loggedMessage).toContain('AGENTS.md')
+    expect(loggedMessage).toContain('CLAUDE.md')
+    expect(loggedMessage).not.toContain('fatal:')
+    expect(loggedMessage).not.toContain('dev server exited')
   })
 })
 
-describe('checkAgentRulesForDev (dev-side gate with retry softening)', () => {
+describe('checkAgentRulesForDev (dev-side hard gate)', () => {
   let tmpDir: string
   let originalEnv: NodeJS.ProcessEnv
 
@@ -116,92 +99,55 @@ describe('checkAgentRulesForDev (dev-side gate with retry softening)', () => {
     expect(checkAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('returns null when the marker is installed in AGENTS.md', () => {
+  it('returns null when AGENTS.md exists (even empty — the escape hatch)', () => {
     process.env.CLAUDECODE = '1'
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), '')
     expect(checkAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('returns null when the marker is installed in CLAUDE.md', () => {
+  it('returns null when CLAUDE.md exists (even empty)', () => {
     process.env.CLAUDECODE = '1'
-    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), '')
     expect(checkAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('clears prior gate state when the marker is (re-)installed', () => {
+  it('returns null when AGENTS.md has unrelated custom content', () => {
+    // A user with their own custom AGENTS.md (e.g. team rules, no
+    // Next.js-managed block) should not be nagged — their file existence
+    // is the signal that they're aware of agent guidance for this project.
     process.env.CLAUDECODE = '1'
-    // Pre-seed the gate state file to simulate a prior failure.
-    fs.mkdirSync(path.join(tmpDir, '.next', 'dev'), { recursive: true })
-    fs.writeFileSync(path.join(tmpDir, GATE_STATE_FILE), '')
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
-    // State file must be cleared so a future regression starts fresh.
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
-  })
-
-  it('first failure is fatal, prefixed with `fatal: dev server exited.`, and writes the state marker', () => {
-    process.env.CLAUDECODE = '1'
-
-    const result = checkAgentRulesForDev(tmpDir)
-    expect(result).not.toBeNull()
-    // First failure must be fatal so the caller hard-exits.
-    expect(result!.fatal).toBe(true)
-    // First-run messages lead with `fatal:` (git-style — agents are
-    // heavily trained on this) AND with an explicit "dev server exited"
-    // sentence so the symptom is unambiguous in the log instead of being
-    // inferred from the exit code alone.
-    expect(result!.message.startsWith('fatal: dev server exited. ')).toBe(true)
-    assertFactualFrameworkError(result!.message)
-
-    // The state file must now exist so the next run sees this as a repeat.
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
-  })
-
-  it('second failure is non-fatal (soft warning) and drops the fatal/exit prefix', () => {
-    process.env.CLAUDECODE = '1'
-
-    const first = checkAgentRulesForDev(tmpDir)
-    const second = checkAgentRulesForDev(tmpDir)
-
-    expect(first).not.toBeNull()
-    expect(second).not.toBeNull()
-    expect(first!.fatal).toBe(true)
-    // Crucially: the second consecutive failure is soft. The caller logs
-    // the message but lets dev startup continue, so nobody is permanently
-    // locked out of the dev server.
-    expect(second!.fatal).toBe(false)
-    // Softened messages drop the `fatal:` prefix AND the "dev server
-    // exited" sentence — the server is still running, so claiming
-    // otherwise would be a lie, and the soft warning shouldn't look
-    // identical to the hard-exit case.
-    expect(second!.message.startsWith('fatal: ')).toBe(false)
-    expect(second!.message).not.toContain('dev server exited')
-    // But the install instructions are identical — we deliberately don't
-    // advertise the retry-softens behavior or any bypass.
-    expect(second!.message).toBe(
-      first!.message.replace(/^fatal: dev server exited\. /, '')
+    fs.writeFileSync(
+      path.join(tmpDir, 'AGENTS.md'),
+      '# Team rules\n\nUse tabs, not spaces.\n'
     )
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('state resets after install + removal: first failure is fatal again', () => {
+  it('returns the fatal error message when rules are missing', () => {
     process.env.CLAUDECODE = '1'
+    const error = checkAgentRulesForDev(tmpDir)
+    expect(error).not.toBeNull()
 
-    // First failure: fatal, state written.
-    const firstFailure = checkAgentRulesForDev(tmpDir)
-    expect(firstFailure!.fatal).toBe(true)
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
+    // Leads with `fatal:` + explicit "dev server exited" symptom so the
+    // agent sees both git-style authority and the cause-effect clearly.
+    expect(error!.startsWith('fatal: dev server exited')).toBe(true)
 
-    // User installs rules. State cleared.
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
+    // States the cause (agent detected, no file).
+    expect(error).toContain('AI coding agent')
+    expect(error).toContain('AGENTS.md')
+    expect(error).toContain('CLAUDE.md')
 
-    // User removes rules. Next failure must start a fresh cycle — fatal
-    // again, not immediately soft.
-    fs.unlinkSync(path.join(tmpDir, 'AGENTS.md'))
-    const freshFailure = checkAgentRulesForDev(tmpDir)
-    expect(freshFailure).not.toBeNull()
-    expect(freshFailure!.fatal).toBe(true)
+    // Primary fix: the codemod command.
+    expect(error).toContain('npx @next/codemod@canary agents-md')
+
+    // Escape hatch: create a file and re-run. Deliberately advertised in
+    // the error text so a user who genuinely doesn't want the managed
+    // block has a clear opt-out path.
+    expect(error).toContain('create an empty')
+    expect(error).toContain('run again')
+
+    // No leftover bypass language from earlier iterations.
+    expect(error).not.toContain('--skip-agent-rule-check')
+    expect(error).not.toContain('last resort')
   })
 })

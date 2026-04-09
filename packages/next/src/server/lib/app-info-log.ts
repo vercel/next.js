@@ -117,47 +117,77 @@ export function logExperimentalInfo({
 }
 
 /**
- * Keep in sync with the marker written by `create-next-app` in
- * packages/create-next-app/helpers/generate-agent-files.ts.
- */
-const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
-
-/**
- * Returns true when `AGENTS.md` or `CLAUDE.md` in `dir` contains the
- * Next.js-managed agent-rules marker. The marker is what tells AI coding
- * agents to read the version-matched bundled docs instead of relying on
- * stale training data.
+ * Returns true when the user has signalled agent-guidance awareness for
+ * this project by having an `AGENTS.md` or `CLAUDE.md` file at the
+ * project root — *any* content, including an empty file.
+ *
+ * The check is deliberately permissive: file existence alone is enough.
+ * Users who want the actual bundled-docs pointer can run
+ * `npx @next/codemod@canary agents-md`, which upserts the managed block
+ * into whichever file exists (or creates both if neither does). But a
+ * user who has their own custom `AGENTS.md`, or who deliberately opted
+ * out by creating an empty file, is signalling "I know about agent
+ * guidance for this project" — and we don't dictate the content.
  */
 function hasAgentRulesInstalled(dir: string): boolean {
-  const agentsMdContents = tryReadFile(path.join(dir, 'AGENTS.md'))
-  const claudeMdContents = tryReadFile(path.join(dir, 'CLAUDE.md'))
-  return Boolean(
-    agentsMdContents?.includes(AGENT_RULES_MARKER) ||
-      claudeMdContents?.includes(AGENT_RULES_MARKER)
+  return (
+    fs.existsSync(path.join(dir, 'AGENTS.md')) ||
+    fs.existsSync(path.join(dir, 'CLAUDE.md'))
   )
 }
 
+// `@canary` rather than `@latest` because the codemod ships on canary
+// faster than it does on the stable release channel, and the user almost
+// always wants the newest version of this particular codemod anyway.
+const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary agents-md'
+
+/**
+ * The build-side notice message that fires at the tail of `next build`
+ * when neither `AGENTS.md` nor `CLAUDE.md` exists and an AI coding agent
+ * is driving the build. Shaped as a plain framework error: no direct-
+ * addressee tag, no claims about training data, no imperatives aimed at
+ * the reader — agents reject anything that looks like "AGENT: do X now"
+ * in tool output as prompt injection, but they run suggested commands
+ * from ordinary framework errors without hesitation.
+ */
 function baseAgentRulesMessage(): string {
-  // `@canary` rather than `@latest` because the codemod ships on canary
-  // faster than it does on the stable release channel, and the user almost
-  // always wants the newest version of this particular codemod anyway.
-  const command = cyan('npx @next/codemod@canary agents-md')
-  // Shaped as a plain framework error, intentionally: no direct-addressee
-  // tag, no imperative directed at the reader, no claims about training
-  // data. Prompt-injection-aware agents reject anything that looks like
-  // "AGENT: do X now" in tool output, but they run suggested commands from
-  // ordinary framework errors without hesitation. So we say what's missing
-  // and how to install it, nothing more.
+  const command = cyan(AGENTS_MD_INSTALL_COMMAND)
   return `Next.js agent rules are not installed. Run ${command} to install the managed block in AGENTS.md or CLAUDE.md.`
 }
 
 /**
- * Emit an error-level message at the end of `next build` when the agent
- * rules are missing and an AI coding agent is driving the build. Non-fatal —
- * the build still completes, so CI pipelines aren't broken. We use
- * `Log.error` (red ⨯ prefix on stderr) rather than `Log.warn` because
- * agents parsing build output latch onto ERROR-level lines far more
- * reliably than yellow warnings. Humans never see this.
+ * The dev-side hard-exit message. Leads with git-style `fatal:` (a
+ * convention agents are heavily trained on), explicitly names both the
+ * symptom ("dev server exited") and the cause (agent detected + no
+ * AGENTS.md/CLAUDE.md), gives the primary fix (run the codemod), and
+ * offers one concrete escape hatch (create an empty file and re-run).
+ *
+ * The escape hatch is deliberately a file-creation gesture, not a CLI
+ * flag or env var. Users who genuinely don't want the managed block can
+ * `touch AGENTS.md` and they're through — the next check sees the file
+ * exists, passes, and the server starts. Agents that grab the escape
+ * create a concrete artifact in the repo (an empty file) rather than a
+ * runtime flag that hides the opt-out forever, which keeps the decision
+ * visible in source control.
+ */
+function fatalAgentRulesMessage(): string {
+  const command = cyan(AGENTS_MD_INSTALL_COMMAND)
+  return (
+    `fatal: dev server exited because we detected you're running Next.js ` +
+    `inside an AI coding agent but have not created AGENTS.md or CLAUDE.md ` +
+    `in this project. Run ${command} to install the managed block. ` +
+    `Alternatively, you can create an empty AGENTS.md or CLAUDE.md in the ` +
+    `project root, and run again.`
+  )
+}
+
+/**
+ * Emit an error-level message at the end of `next build` when neither
+ * `AGENTS.md` nor `CLAUDE.md` exists and an AI coding agent is driving
+ * the build. Non-fatal — the build still completes, so CI pipelines
+ * aren't broken. We use `Log.error` (red ⨯ prefix on stderr) rather than
+ * `Log.warn` because agents parsing build output latch onto ERROR-level
+ * lines far more reliably than yellow warnings. Humans never see this.
  */
 export function warnIfMissingAgentRules(dir: string): void {
   if (detectAgent() === null) {
@@ -170,120 +200,22 @@ export function warnIfMissingAgentRules(dir: string): void {
 }
 
 /**
- * Relative path (from the project root) of the marker file we use to track
- * whether the dev-side agent-rules gate has already fired once in this
- * project. We co-locate it under `.next/dev/` because `.next/` is already
- * gitignored and `.next/dev/` is where other dev-only state lives.
- */
-const AGENT_RULES_GATE_STATE_FILE = path.join(
-  '.next',
-  'dev',
-  'agent-rules-gate-fired'
-)
-
-function hasGateFiredBefore(dir: string): boolean {
-  return fs.existsSync(path.join(dir, AGENT_RULES_GATE_STATE_FILE))
-}
-
-function markGateFired(dir: string): void {
-  const filePath = path.join(dir, AGENT_RULES_GATE_STATE_FILE)
-  try {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true })
-    fs.writeFileSync(filePath, '', 'utf-8')
-  } catch {
-    // Best-effort: if we can't write the marker (read-only fs, permissions,
-    // etc.) the gate still works — the first run just stays fatal forever,
-    // which is strictly safer than the alternative.
-  }
-}
-
-function clearGateState(dir: string): void {
-  try {
-    fs.unlinkSync(path.join(dir, AGENT_RULES_GATE_STATE_FILE))
-  } catch {
-    // File may not exist or be writable — either way, nothing to do.
-  }
-}
-
-export interface AgentRulesDevCheckResult {
-  /** The error message to print. */
-  message: string
-  /**
-   * True on the first failure — the caller should `printAndExit`.
-   * False on the second and subsequent consecutive failures — the caller
-   * should print the message via `Log.error` and let dev startup continue.
-   */
-  fatal: boolean
-}
-
-/**
  * Check the Next.js agent-rules gate for `next dev`.
  *
- * Returns `null` when the caller should proceed normally (no agent detected,
- * or the marker is already installed in `AGENTS.md` or `CLAUDE.md`).
+ * Returns `null` when the caller should proceed normally — either no AI
+ * coding agent was detected, or the user already has an `AGENTS.md` or
+ * `CLAUDE.md` in their project (any content, including empty).
  *
- * Returns a result when the rules are missing and an AI coding agent is
- * driving the command. The `fatal` field distinguishes first-time from
- * repeat failures:
- *
- *   - **First failure** (`fatal: true`): hard-exit. Agents on their first
- *     run have exactly one action — run the codemod — and a blocked dev
- *     server is what makes them take it. This is the window where the
- *     gate has the most signal value.
- *   - **Second+ failure** (`fatal: false`): print the same message but
- *     continue starting the dev server. This unblocks users who can't or
- *     won't install the managed block (e.g. they legitimately don't want
- *     an `AGENTS.md` in their repo) without ever introducing a CLI bypass
- *     flag that agents would latch onto instead of running the codemod.
- *     The "escape hatch" IS the retry itself.
- *
- * State is tracked via a marker file under `.next/dev/` and cleared the
- * moment the rules are successfully installed, so a later regression
- * (e.g. someone deletes `AGENTS.md`) starts the cycle over from a fresh
- * hard-exit first failure.
- *
- * The message body never mentions any bypass flag, any config field, or
- * the retry-softens behavior itself — advertising the escape in text form
- * would defeat the whole design. Agents see only "run the codemod".
+ * Returns the error message string when an agent is driving and neither
+ * file exists. The caller should print the message via `Log.error` and
+ * then `process.exit(1)` to hard-fail dev startup. The only way past
+ * the gate is for the user (or the agent, on the user's behalf) to run
+ * the codemod or create one of the files and re-run.
  */
-export function checkAgentRulesForDev(
-  dir: string
-): AgentRulesDevCheckResult | null {
+export function checkAgentRulesForDev(dir: string): string | null {
   if (detectAgent() === null) return null
-  if (hasAgentRulesInstalled(dir)) {
-    // Rules were (re-)installed: reset state so a future regression gets
-    // a fresh first-failure hard-exit instead of immediately softening.
-    clearGateState(dir)
-    return null
-  }
-
-  const isRepeat = hasGateFiredBefore(dir)
-  if (!isRepeat) {
-    markGateFired(dir)
-  }
-  // First-run messages lead with `fatal: dev server exited.` — the
-  // `fatal:` token matches git's hardest-error convention (which agents
-  // are heavily trained on and treat as authoritative), and the explicit
-  // "dev server exited" sentence makes the symptom unambiguous when the
-  // agent reads the log after the fact, instead of leaving them to infer
-  // it from the exit code alone. The second-run softened message drops
-  // both — it's not exiting and it's semantically less severe, so it
-  // shouldn't look identical to the hard-exit case.
-  const message = isRepeat
-    ? baseAgentRulesMessage()
-    : `fatal: dev server exited. ${baseAgentRulesMessage()}`
-  return {
-    message,
-    fatal: !isRepeat,
-  }
-}
-
-function tryReadFile(filePath: string): string | null {
-  try {
-    return fs.readFileSync(filePath, 'utf-8')
-  } catch {
-    return null
-  }
+  if (hasAgentRulesInstalled(dir)) return null
+  return fatalAgentRulesMessage()
 }
 
 /**
