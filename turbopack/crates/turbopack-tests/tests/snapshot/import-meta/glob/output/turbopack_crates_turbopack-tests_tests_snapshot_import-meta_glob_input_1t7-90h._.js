@@ -8,9 +8,9 @@ __turbopack_context__.s([
     "name",
     ()=>name
 ]);
-const name = "bar";
+const name = 'bar';
 function bar() {
-    return "bar";
+    return 'bar';
 }
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/glob/input/dir/foo.js [test] (ecmascript)", ((__turbopack_context__) => {
@@ -22,9 +22,9 @@ __turbopack_context__.s([
     "name",
     ()=>name
 ]);
-const name = "foo";
+const name = 'foo';
 function foo() {
-    return "foo";
+    return 'foo';
 }
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/glob/input/index.js (import.meta.glob ./dir/*.js)", (function(__turbopack_context__){

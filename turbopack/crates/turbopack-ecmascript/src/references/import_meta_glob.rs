@@ -190,25 +190,19 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
 /// Patterns like `./dir/*.js` are converted to `^\./dir/[^/]*\.js$`.
 fn glob_to_regex_str(glob: &str) -> String {
     let mut out = String::from("^");
-    let chars: Vec<char> = glob.chars().collect();
-    let len = chars.len();
-    let mut i = 0;
+    let mut chars = glob.chars().peekable();
     let mut brace_depth = 0u32;
 
-    while i < len {
-        let c = chars[i];
+    while let Some(c) = chars.next() {
         match c {
-            '*' if i + 1 < len && chars[i + 1] == '*' => {
-                i += 2;
-                // `**/` matches zero or more path segments
-                if i < len && chars[i] == '/' {
-                    i += 1;
-                    out.push_str("(.+/)?");
+            '*' if chars.peek() == Some(&'*') => {
+                chars.next(); // consume the second `*`
+                if chars.peek() == Some(&'/') {
+                    chars.next(); // consume `/`
+                    out.push_str("(.+/)?"); // `**/` — zero or more path segments
                 } else {
-                    // `**` at end matches anything
-                    out.push_str(".*");
+                    out.push_str(".*"); // `**` at end — anything
                 }
-                continue;
             }
             '*' => out.push_str("[^/]*"),
             '?' => out.push_str("[^/]"),
@@ -227,23 +221,18 @@ fn glob_to_regex_str(glob: &str) -> String {
             }
             _ => out.push(c),
         }
-        i += 1;
     }
     out.push('$');
     out
 }
 
-/// Combine multiple positive glob patterns into a single regex string (union).
+/// Combine one or more positive glob patterns into a single alternation regex.
 fn globs_to_regex(patterns: &[RcStr]) -> Result<EsRegex> {
     if patterns.is_empty() {
         bail!("import.meta.glob() requires at least one positive pattern");
     }
-    if patterns.len() == 1 {
-        return EsRegex::new(&glob_to_regex_str(&patterns[0]), "");
-    }
     let parts: Vec<String> = patterns.iter().map(|p| glob_to_regex_str(p)).collect();
-    let combined = parts.join("|");
-    EsRegex::new(&combined, "")
+    EsRegex::new(&parts.join("|"), "")
 }
 
 /// Check if a path matches any negative (exclusion) pattern.
@@ -355,7 +344,18 @@ impl ImportMetaGlobMap {
 // ImportMetaGlobAsset — the virtual module
 // ---------------------------------------------------------------------------
 
-fn modifier(patterns: &[RcStr], eager: bool, import: &Option<RcStr>) -> RcStr {
+/// Build the unique modifier string for an `ImportMetaGlobAsset` ident.
+///
+/// Every option that affects the generated module content must be included so
+/// that two `import.meta.glob()` calls with different options get different
+/// module idents (and therefore different entries in the module graph).
+fn modifier(
+    patterns: &[RcStr],
+    eager: bool,
+    import: &Option<RcStr>,
+    query: &Option<RcStr>,
+    base: &Option<RcStr>,
+) -> RcStr {
     let mut s = format!("import.meta.glob {}", patterns.join(", "));
     if eager {
         s.push_str(" eager");
@@ -363,6 +363,14 @@ fn modifier(patterns: &[RcStr], eager: bool, import: &Option<RcStr>) -> RcStr {
     if let Some(named) = import {
         s.push_str(" import=");
         s.push_str(named);
+    }
+    if let Some(q) = query {
+        s.push_str(" query=");
+        s.push_str(q);
+    }
+    if let Some(b) = base {
+        s.push_str(" base=");
+        s.push_str(b);
     }
     s.into()
 }
@@ -375,15 +383,21 @@ pub struct ImportMetaGlobAsset {
     patterns: Vec<RcStr>,
     eager: bool,
     import: Option<RcStr>,
+    query: Option<RcStr>,
+    base: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.source
-            .ident()
-            .with_modifier(modifier(&self.patterns, self.eager, &self.import))
+        self.source.ident().with_modifier(modifier(
+            &self.patterns,
+            self.eager,
+            &self.import,
+            &self.query,
+            &self.base,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -549,12 +563,18 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
 // ---------------------------------------------------------------------------
 
 #[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(Hash, Debug, ValueToString)]
 pub struct ImportMetaGlobAssetReference {
     pub inner: ResolvedVc<ImportMetaGlobAsset>,
     pub patterns: Vec<RcStr>,
     pub issue_source: Option<IssueSource>,
     pub error_mode: ResolveErrorMode,
+}
+
+impl std::fmt::Display for ImportMetaGlobAssetReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "import.meta.glob {}", self.patterns.join(", "))
+    }
 }
 
 impl ImportMetaGlobAssetReference {
@@ -577,14 +597,18 @@ impl ImportMetaGlobAssetReference {
             origin_dir
         };
 
-        // Separate positive and negative patterns
+        // Separate positive (matching) and negative (exclusion) patterns.
+        // Negative patterns start with `!`; the `!` is stripped before use.
         let (positive_patterns, negative_raw): (Vec<_>, Vec<_>) =
             patterns.iter().partition(|p| !p.starts_with('!'));
+        let positive_patterns: Vec<RcStr> = positive_patterns.into_iter().cloned().collect();
         let negative_patterns: Vec<RcStr> = negative_raw
             .into_iter()
             .map(|p| p.strip_prefix('!').unwrap_or(p).into())
             .collect();
-        let positive_patterns: Vec<RcStr> = positive_patterns.into_iter().cloned().collect();
+
+        // Clone before moving into generate — both the asset and generate need query.
+        let asset_query = query.clone();
 
         let map = ImportMetaGlobMap::generate(
             *origin,
@@ -605,6 +629,8 @@ impl ImportMetaGlobAssetReference {
             patterns: patterns.clone(),
             eager,
             import,
+            query: asset_query,
+            base,
         }
         .resolved_cell();
 
@@ -614,14 +640,6 @@ impl ImportMetaGlobAssetReference {
             issue_source,
             error_mode,
         })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for ImportMetaGlobAssetReference {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(format!("import.meta.glob {}", self.patterns.join(", ")).into())
     }
 }
 
