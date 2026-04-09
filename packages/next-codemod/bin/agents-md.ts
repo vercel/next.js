@@ -10,7 +10,8 @@ import pc from 'picocolors'
 import { BadInput } from './shared'
 import {
   getNextjsVersion,
-  findBundledDocsPath,
+  findNextProjectDir,
+  hasBundledDocs,
   writeBundledDocsAgentFiles,
   pullDocs,
   collectDocFiles,
@@ -40,18 +41,18 @@ function formatSize(bytes: number): string {
 export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const cwd = process.cwd()
 
-  // Fast path: if the installed Next.js already ships version-matched docs
-  // (Next.js 16.2+), there is nothing to download or index. Write the same
-  // minimal AGENTS.md + CLAUDE.md that `create-next-app` would have generated
-  // and exit. `findBundledDocsPath` returns the path to the bundled docs
-  // relative to `cwd`, honoring monorepo layouts where `next` is installed
-  // inside a workspace package rather than at the project root. This branch
-  // is skipped when `--version` is explicitly passed, since that flag signals
-  // the user wants to pull docs for a specific (potentially older) version.
+  // Fast path: if we can locate a Next.js project dir (the nearest
+  // package.json that declares next — the sub-package in monorepos,
+  // not the monorepo root) and the installed Next.js at that dir
+  // ships version-matched bundled docs, write AGENTS.md + CLAUDE.md
+  // directly into the project dir and exit. No git clone, no
+  // `.next-docs/`, no path math. Skipped when `--version` is
+  // explicitly passed, since that signals the user wants docs for a
+  // specific (potentially older) version via the legacy flow.
   if (!options.version) {
-    const bundledDocsPath = findBundledDocsPath(cwd)
-    if (bundledDocsPath !== null) {
-      runBundledDocsFastPath(cwd, bundledDocsPath)
+    const projectDir = findNextProjectDir(cwd)
+    if (projectDir !== null && hasBundledDocs(projectDir)) {
+      runBundledDocsFastPath(projectDir)
       return
     }
   }
@@ -150,17 +151,14 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   console.log('')
 }
 
-function runBundledDocsFastPath(cwd: string, bundledDocsPath: string): void {
-  const detectedVersion = getNextjsVersion(cwd).version
+function runBundledDocsFastPath(projectDir: string): void {
+  const detectedVersion = getNextjsVersion(projectDir).version
   const versionLabel = detectedVersion
     ? pc.cyan(detectedVersion)
     : pc.cyan('next')
-  const displayDocsPath = bundledDocsPath.endsWith('/')
-    ? bundledDocsPath
-    : `${bundledDocsPath}/`
 
   console.log(
-    `\nDetected bundled docs at ${pc.cyan(displayDocsPath)} for Next.js ${versionLabel}.`
+    `\nDetected bundled docs for Next.js ${versionLabel} in ${pc.cyan(projectDir)}.`
   )
   console.log(
     pc.gray(
@@ -168,7 +166,7 @@ function runBundledDocsFastPath(cwd: string, bundledDocsPath: string): void {
     )
   )
 
-  const result = writeBundledDocsAgentFiles(cwd, bundledDocsPath)
+  const result = writeBundledDocsAgentFiles(projectDir)
 
   const describe = (file: string, action: BundledDocsFileAction) => {
     // Don't list files we didn't touch at all.

@@ -44,43 +44,82 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
 }
 
 /**
- * Locate the `dist/docs/` directory shipped by the installed `next` package
- * and return a POSIX-style path relative to `cwd`. Returns `null` when no
- * bundled docs directory can be found.
+ * Find the Next.js project directory — the canonical location for
+ * AGENTS.md / CLAUDE.md. This is the nearest ancestor directory with
+ * a `package.json` that declares `next` as a dependency.
  *
- * The search walks candidate filesystem paths directly (via `fs.statSync`)
- * rather than going through `require.resolve`, so pnpm symlinks are preserved:
- * the returned path points through the symlinked `apps/web/node_modules/next/`
- * instead of the realpath under `node_modules/.pnpm/next@X.Y.Z/...`.
+ * In a monorepo, this resolves to the *sub-package* that actually
+ * uses Next.js (e.g. `apps/web/`), never the monorepo root that
+ * wraps it. That's because AI coding agents locate agent-rules files
+ * by reading from the package they're currently working in — so
+ * AGENTS.md must be co-located with the package.json that declares
+ * the dependency.
  *
- * Checks, in order:
- *   1. `<cwd>/node_modules/next/dist/docs/` (the common flat-install layout).
- *   2. For each detected workspace package: `<pkg>/node_modules/next/dist/docs/`.
+ * Resolution order:
+ *   1. Walk up from `cwd` looking for a `package.json` that has
+ *      `next` in `dependencies` / `devDependencies` / `peerDependencies`.
+ *      Covers the common case (user `cd`'d into the package).
+ *   2. If nothing found walking up, fall back to walking the detected
+ *      workspace packages from `cwd`. Covers the less-common case
+ *      where the user runs the codemod from the monorepo root without
+ *      cd'ing into the sub-package first.
+ *
+ * Returns `null` if no Next.js project is found anywhere in the walk.
  */
-export function findBundledDocsPath(cwd: string): string | null {
-  const rootCandidate = path.join(cwd, 'node_modules', 'next', 'dist', 'docs')
-  if (isDirectory(rootCandidate)) {
-    // Normalize so the block always uses forward slashes regardless of OS.
-    return toPosixPath(path.relative(cwd, rootCandidate))
+export function findNextProjectDir(cwd: string): string | null {
+  let currentDir = path.resolve(cwd)
+  while (true) {
+    if (packageJsonHasNext(currentDir)) return currentDir
+    const parent = path.dirname(currentDir)
+    if (parent === currentDir) break
+    currentDir = parent
   }
 
+  // Fallback for monorepo-root invocations: walk the workspace
+  // packages and find the first one that declares next.
   const workspace = detectWorkspace(cwd)
-  if (!workspace.isMonorepo || workspace.packages.length === 0) {
-    return null
-  }
-
-  for (const pkgPath of expandWorkspacePatterns(cwd, workspace.packages)) {
-    const candidate = path.join(pkgPath, 'node_modules', 'next', 'dist', 'docs')
-    if (isDirectory(candidate)) {
-      return toPosixPath(path.relative(cwd, candidate))
+  if (workspace.isMonorepo && workspace.packages.length > 0) {
+    for (const pkgPath of expandWorkspacePatterns(cwd, workspace.packages)) {
+      if (packageJsonHasNext(pkgPath)) return pkgPath
     }
   }
 
   return null
 }
 
-function toPosixPath(p: string): string {
-  return p.split(path.sep).join('/')
+function packageJsonHasNext(dir: string): boolean {
+  try {
+    const content = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')
+    const pkg = JSON.parse(content)
+    return Boolean(
+      pkg.dependencies?.next ||
+        pkg.devDependencies?.next ||
+        pkg.peerDependencies?.next
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Returns true when the Next.js install in `projectDir` ships
+ * version-matched bundled docs at `node_modules/next/dist/docs/`.
+ * Used to decide between the fast path (which only writes AGENTS.md)
+ * and the legacy git-clone flow.
+ *
+ * Checked directly at `projectDir/node_modules/next/...` — no Node-
+ * resolution walk-up — because that's the only layout where the
+ * `node_modules/next/dist/docs/` string we bake into the managed
+ * block is guaranteed to resolve correctly from the AGENTS.md
+ * location. pnpm's symlinked `node_modules/next` at the sub-package
+ * satisfies this. Hoisted `node_modules` layouts that only have
+ * `next` at the monorepo root won't match here and will cleanly
+ * fall back to the legacy git-clone flow.
+ */
+export function hasBundledDocs(projectDir: string): boolean {
+  return isDirectory(
+    path.join(projectDir, 'node_modules', 'next', 'dist', 'docs')
+  )
 }
 
 /**
@@ -106,19 +145,19 @@ const LEGACY_AGENT_RULES_START_MARKER = '<!-- NEXT-AGENTS-MD-START -->'
 const LEGACY_AGENT_RULES_END_MARKER = '<!-- NEXT-AGENTS-MD-END -->'
 
 /**
- * Build the canonical agent-rules block, parameterized by the path agents
- * should read for the bundled docs. For a single-package project the path is
- * `node_modules/next/dist/docs/` (same as `create-next-app`); for a monorepo
- * it's computed relative to wherever the agent file will live.
+ * Build the canonical agent-rules block. The bundled-docs path is
+ * hardcoded to `node_modules/next/dist/docs/` because AGENTS.md is
+ * always written at the Next.js project directory — the same level
+ * as `package.json` and `node_modules/next/` — so the relative path
+ * from the file to the docs is always this string regardless of
+ * project layout. This is what `create-next-app` writes for new
+ * projects too.
  */
-function buildAgentRulesBlock(bundledDocsPath: string): string {
-  const normalized = bundledDocsPath.endsWith('/')
-    ? bundledDocsPath
-    : `${bundledDocsPath}/`
+function buildAgentRulesBlock(): string {
   return `${AGENT_RULES_START_MARKER}
 # This is NOT the Next.js you know
 
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`${normalized}\` before writing any code. Heed deprecation notices.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in \`node_modules/next/dist/docs/\` before writing any code. Heed deprecation notices.
 ${AGENT_RULES_END_MARKER}`
 }
 
@@ -138,30 +177,37 @@ export interface BundledDocsWriteResult {
 }
 
 /**
- * Write the create-next-app-style agent rules into the project, respecting
- * whichever file the user already uses as their agent instructions:
+ * Write the create-next-app-style agent rules into `projectDir`,
+ * respecting whichever file the user already uses as their agent
+ * instructions:
  *
- *   - If `AGENTS.md` exists, upsert the rules block into it and leave
- *     `CLAUDE.md` alone. `AGENTS.md` is the canonical file, so we prefer it
- *     whenever the user has one.
- *   - Otherwise, if `CLAUDE.md` exists, upsert the rules block into it. The
- *     user is clearly using `CLAUDE.md` as their primary agent file and we
- *     shouldn't force a new `AGENTS.md` next to it.
- *   - Otherwise (neither exists), create a fresh `AGENTS.md` containing the
- *     canonical block and a `CLAUDE.md` that points at it via the `@` import
- *     syntax — identical to what `create-next-app` generates for new projects.
+ *   - If `AGENTS.md` exists, upsert the rules block into it and
+ *     leave `CLAUDE.md` alone. `AGENTS.md` is the canonical file,
+ *     so we prefer it whenever the user has one.
+ *   - Otherwise, if `CLAUDE.md` exists, upsert the rules block into
+ *     it. The user is clearly using `CLAUDE.md` as their primary
+ *     agent file and we shouldn't force a new `AGENTS.md` next to it.
+ *   - Otherwise (neither exists), create a fresh `AGENTS.md`
+ *     containing the canonical block and a `CLAUDE.md` that points
+ *     at it via the `@` import syntax — identical to what
+ *     `create-next-app` generates for new projects.
  *
- * Upserts are non-destructive: existing content outside the marker block is
- * preserved. If the canonical block is already present verbatim, the file is
- * reported as `unchanged` and not rewritten.
+ * `projectDir` must be the Next.js project directory (the package
+ * that declares `next` as a dependency). AI coding agents locate
+ * agent-rules files at that level by default, so that's the only
+ * location we write to — in a monorepo it's the sub-package (e.g.
+ * `apps/web/`), never the monorepo root.
+ *
+ * Upserts are non-destructive: existing content outside the marker
+ * block is preserved. If the canonical block is already present
+ * verbatim, the file is reported as `unchanged` and not rewritten.
  */
 export function writeBundledDocsAgentFiles(
-  cwd: string,
-  bundledDocsPath: string
+  projectDir: string
 ): BundledDocsWriteResult {
-  const agentsMdPath = path.join(cwd, 'AGENTS.md')
-  const claudeMdPath = path.join(cwd, 'CLAUDE.md')
-  const block = buildAgentRulesBlock(bundledDocsPath)
+  const agentsMdPath = path.join(projectDir, 'AGENTS.md')
+  const claudeMdPath = path.join(projectDir, 'CLAUDE.md')
+  const block = buildAgentRulesBlock()
 
   const agentsMdExists = fs.existsSync(agentsMdPath)
   const claudeMdExists = fs.existsSync(claudeMdPath)

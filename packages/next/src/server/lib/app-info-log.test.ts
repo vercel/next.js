@@ -35,10 +35,10 @@ describe('warnIfMissingAgentRules', () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-'))
-    // Drop a `.git` sentinel at the tmp dir root so the walk-up inside
-    // `hasAgentRulesInstalled` stops at the fixture boundary instead of
-    // leaking into the developer's home directory.
-    fs.mkdirSync(path.join(tmpDir, '.git'))
+    // Drop a `package.json` at the tmp dir root — the check anchors
+    // on the nearest `package.json` walking up, so this is what
+    // defines the fixture's "project root".
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name": "fixture"}')
     // `Log.warn` ultimately calls `console.warn`; stubbing at that level
     // avoids `jest.spyOn` issues with `* as` namespace imports.
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
@@ -120,12 +120,14 @@ describe('warnIfMissingAgentRules', () => {
     expect(loggedMessage).not.toContain('strongly discouraged')
   })
 
-  it('walks up from a subdirectory to find AGENTS.md at the project root', () => {
-    // Simulates running `next dev` from `apps/web/` in a monorepo where
-    // AGENTS.md lives at the repo root. The walk-up should find it and
-    // the gate stays silent.
+  it('anchors the check at the nearest package.json walking up from a subdirectory', () => {
+    // Simulates running `next dev` from a nested source directory.
+    // The check anchors on the nearest `package.json` walking up,
+    // so AGENTS.md at the fixture root (which has package.json)
+    // is the file we check. AGENTS.md at the subdir itself would
+    // NOT be checked because it's "below" the package.json level.
     process.env.CLAUDECODE = '1'
-    const subDir = path.join(tmpDir, 'apps', 'web')
+    const subDir = path.join(tmpDir, 'src', 'app')
     fs.mkdirSync(subDir, { recursive: true })
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
 
@@ -133,30 +135,35 @@ describe('warnIfMissingAgentRules', () => {
     expect(warnSpy).not.toHaveBeenCalled()
   })
 
-  it('stops the walk-up at the .git project boundary', () => {
-    // A stray AGENTS.md above the `.git` boundary must NOT be picked
-    // up — that would be leaking agent guidance from an unrelated
-    // parent directory into this project.
+  it('anchors on the nearest package.json, not the monorepo root', () => {
+    // Monorepo layout: package.json at both the root and at
+    // `apps/web/`. The check from `apps/web/` must anchor on
+    // `apps/web/package.json` — the *nearest* one — and look for
+    // AGENTS.md there, NOT at the monorepo root. A marker at the
+    // monorepo root must not count.
     process.env.CLAUDECODE = '1'
-    const outerDir = fs.mkdtempSync(path.join(os.tmpdir(), 'outer-'))
-    try {
-      // Put the tmpDir's .git boundary one level in, and an AGENTS.md
-      // with the marker ABOVE the boundary.
-      fs.writeFileSync(
-        path.join(outerDir, 'AGENTS.md'),
-        `${AGENT_RULES_MARKER}\n`
-      )
-      const innerDir = path.join(outerDir, 'project')
-      fs.mkdirSync(innerDir)
-      fs.mkdirSync(path.join(innerDir, '.git'))
+    const appDir = path.join(tmpDir, 'apps', 'web')
+    fs.mkdirSync(appDir, { recursive: true })
+    fs.writeFileSync(path.join(appDir, 'package.json'), '{"name": "web"}')
+    // Put the marker at the monorepo root (wrong place for an
+    // `apps/web/` invocation).
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
 
-      warnIfMissingAgentRules(innerDir)
-      // The stray outer AGENTS.md must NOT count — we stopped at the
-      // `.git` boundary.
-      expect(warnSpy).toHaveBeenCalledTimes(1)
-    } finally {
-      fs.rmSync(outerDir, { recursive: true, force: true })
-    }
+    warnIfMissingAgentRules(appDir)
+    expect(warnSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('respects the marker when it is in the sub-package, not the monorepo root', () => {
+    // Same monorepo layout as above, but the marker is now in the
+    // sub-package (where it belongs). The check must find it.
+    process.env.CLAUDECODE = '1'
+    const appDir = path.join(tmpDir, 'apps', 'web')
+    fs.mkdirSync(appDir, { recursive: true })
+    fs.writeFileSync(path.join(appDir, 'package.json'), '{"name": "web"}')
+    fs.writeFileSync(path.join(appDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
+
+    warnIfMissingAgentRules(appDir)
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 })
 
@@ -166,7 +173,9 @@ describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-dev-'))
-    fs.mkdirSync(path.join(tmpDir, '.git'))
+    // `package.json` at the fixture root defines the Next.js project
+    // root the dev-side check anchors on.
+    fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name": "fixture"}')
     originalEnv = { ...process.env }
     clearAgentEnv()
   })

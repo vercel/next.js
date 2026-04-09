@@ -18,7 +18,8 @@ import {
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import {
-  findBundledDocsPath,
+  findNextProjectDir,
+  hasBundledDocs,
   writeBundledDocsAgentFiles,
 } from '../lib/agents-md'
 import { BadInput } from './shared'
@@ -426,14 +427,16 @@ export async function runUpgrade(
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
-  // Scaffold `AGENTS.md` + `CLAUDE.md` if the upgraded Next.js ships
-  // version-matched bundled docs. Mirrors what `create-next-app` does for
-  // new projects so existing projects pick up the agent rules as a natural
-  // side effect of upgrading. No-op on older versions where no bundled docs
-  // are found.
-  const bundledDocsPath = findBundledDocsPath(cwd)
-  if (bundledDocsPath !== null) {
-    const result = writeBundledDocsAgentFiles(cwd, bundledDocsPath)
+  // Scaffold `AGENTS.md` + `CLAUDE.md` at the Next.js project dir
+  // (the package.json that declares `next`, never the monorepo root)
+  // if the upgraded Next.js ships version-matched bundled docs.
+  // Mirrors what `create-next-app` does for new projects so existing
+  // projects pick up the agent rules as a natural side effect of
+  // upgrading. No-op on older versions or hoisted layouts where
+  // `node_modules/next/dist/docs/` isn't at the project dir.
+  const projectDir = findNextProjectDir(cwd)
+  if (projectDir !== null && hasBundledDocs(projectDir)) {
+    const result = writeBundledDocsAgentFiles(projectDir)
     const touched: string[] = []
     if (result.agentsMd === 'created' || result.agentsMd === 'updated') {
       touched.push('AGENTS.md')
@@ -443,7 +446,7 @@ export async function runUpgrade(
     }
     if (touched.length > 0) {
       console.log(
-        `${pc.green('✔')} Agent rules scaffolded in ${pc.bold(touched.join(' and '))} (pointing at ${pc.cyan(`${bundledDocsPath}/`)}).`
+        `${pc.green('✔')} Agent rules scaffolded in ${pc.bold(touched.join(' and '))} at ${pc.cyan(projectDir)}.`
       )
     }
   }

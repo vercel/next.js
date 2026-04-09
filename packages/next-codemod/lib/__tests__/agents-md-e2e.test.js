@@ -7,7 +7,8 @@ const os = require('os')
 const { runAgentsMd } = require('../../bin/agents-md')
 const {
   getNextjsVersion,
-  findBundledDocsPath,
+  findNextProjectDir,
+  hasBundledDocs,
   AGENT_RULES_START_MARKER,
   AGENT_RULES_END_MARKER,
 } = require('../../lib/agents-md')
@@ -342,28 +343,31 @@ This is my project documentation.
       }
     })
 
-    it('findBundledDocsPath returns the correct path for each project layout', () => {
-      // Flat layout (next installed at the project root) → relative path is
-      // the standard `node_modules/next/dist/docs`.
-      expect(findBundledDocsPath(fixtureProjectDir)).toBe(
-        'node_modules/next/dist/docs'
-      )
+    it('findNextProjectDir + hasBundledDocs fork correctly for each layout', () => {
+      // Flat layout: project dir is the fixture root itself; bundled
+      // docs are detected because `node_modules/next/dist/docs` exists.
+      expect(findNextProjectDir(fixtureProjectDir)).toBe(fixtureProjectDir)
+      expect(hasBundledDocs(fixtureProjectDir)).toBe(true)
 
-      // A project with no `next` installed at all should return null.
+      // A project with no `next` installed at all returns null for
+      // findNextProjectDir (nothing to anchor on).
       const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-md-bare-'))
       try {
-        expect(findBundledDocsPath(bareDir)).toBeNull()
+        expect(findNextProjectDir(bareDir)).toBeNull()
       } finally {
         fs.rmSync(bareDir, { recursive: true, force: true })
       }
 
-      // A project with `next` installed but no `dist/docs/` (e.g. 15.x) also
-      // returns null — this is the legacy-flow fork point.
+      // A project with `next` declared in package.json but no
+      // `dist/docs/` (e.g. 15.x) resolves the project dir but
+      // hasBundledDocs returns false — this is the legacy-flow fork
+      // point.
       const legacyFixture = path.join(
         __dirname,
         'fixtures/agents-md/next-specific-version'
       )
-      expect(findBundledDocsPath(legacyFixture)).toBeNull()
+      expect(findNextProjectDir(legacyFixture)).toBe(legacyFixture)
+      expect(hasBundledDocs(legacyFixture)).toBe(false)
     })
 
     it('writes AGENTS.md + CLAUDE.md and skips .next-docs when bundled docs exist', async () => {
@@ -663,37 +667,54 @@ Footer content.
       }
     })
 
-    it('findBundledDocsPath returns a workspace-relative path when next lives in a sub-package', () => {
-      // In the monorepo fixture, `next` is installed at
-      // `apps/web/node_modules/next/`, not at the root. The returned path
-      // must be relative to the monorepo root so an AGENTS.md at the root
-      // correctly points into the workspace package.
-      expect(findBundledDocsPath(monorepoProjectDir)).toBe(
-        'apps/web/node_modules/next/dist/docs'
+    it('findNextProjectDir resolves to the sub-package, not the monorepo root', () => {
+      // In the monorepo fixture, `next` is declared in
+      // `apps/web/package.json`, NOT in the monorepo root's
+      // `package.json`. findNextProjectDir must return the
+      // sub-package dir — that's the canonical location for
+      // AGENTS.md, per the "package.json level" rule.
+      const expectedProjectDir = path.join(
+        monorepoProjectDir,
+        'apps',
+        'web'
       )
+      expect(findNextProjectDir(monorepoProjectDir)).toBe(expectedProjectDir)
+      expect(hasBundledDocs(expectedProjectDir)).toBe(true)
     })
 
-    it('writes AGENTS.md with a monorepo-relative docs path', async () => {
+    it('writes AGENTS.md into the sub-package with a local docs path', async () => {
       const originalCwd = process.cwd()
       process.chdir(monorepoProjectDir)
 
       try {
         await runAgentsMd({})
 
-        const agentsMdPath = path.join(monorepoProjectDir, 'AGENTS.md')
-        expect(fs.existsSync(agentsMdPath)).toBe(true)
-
-        const agentsMdContent = fs.readFileSync(agentsMdPath, 'utf-8')
-
-        // The block must reference the workspace-relative path, not the
-        // hardcoded `node_modules/next/dist/docs/` that's only correct for
-        // flat projects.
-        expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
-        expect(agentsMdContent).toContain(
-          '`apps/web/node_modules/next/dist/docs/`'
+        // AGENTS.md must land at the sub-package, NOT at the monorepo
+        // root. Agents locate agent-rules files at the package level
+        // they're working in, so `apps/web/AGENTS.md` is the only
+        // location they'll actually read.
+        const rootAgentsPath = path.join(monorepoProjectDir, 'AGENTS.md')
+        const subPackageAgentsPath = path.join(
+          monorepoProjectDir,
+          'apps',
+          'web',
+          'AGENTS.md'
         )
+        expect(fs.existsSync(rootAgentsPath)).toBe(false)
+        expect(fs.existsSync(subPackageAgentsPath)).toBe(true)
+
+        const agentsMdContent = fs.readFileSync(
+          subPackageAgentsPath,
+          'utf-8'
+        )
+        // Because AGENTS.md is now co-located with the sub-package's
+        // own `node_modules/next/`, the block references the plain
+        // `node_modules/next/dist/docs/` path — same string we'd
+        // write for a flat project. No more monorepo-relative paths.
+        expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
+        expect(agentsMdContent).toContain('`node_modules/next/dist/docs/`')
         expect(agentsMdContent).not.toContain(
-          '`node_modules/next/dist/docs/`'
+          'apps/web/node_modules/next/dist/docs/'
         )
       } finally {
         process.chdir(originalCwd)

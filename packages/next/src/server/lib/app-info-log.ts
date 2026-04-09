@@ -132,44 +132,56 @@ function tryReadFile(filePath: string): string | null {
 }
 
 /**
- * Returns true when `AGENTS.md` or `CLAUDE.md` at or above `dir`
- * contains the Next.js-managed agent-rules marker. File existence
- * alone isn't enough — we care specifically about whether the Next.js
- * directive is installed, because that's what points AI coding agents
- * at the version-matched bundled docs and demonstrably improves their
- * API accuracy.
+ * Walk up from `startDir` to the nearest directory containing
+ * `package.json` — that's the canonical "Next.js project root" and
+ * the single authoritative location for `AGENTS.md` / `CLAUDE.md`.
  *
- * Walks upward from `dir` to cover the common case where `next dev`
- * is run from a monorepo sub-package (e.g. `apps/web/`) but
- * `AGENTS.md` lives at the monorepo root. Stops at the nearest `.git`
- * boundary so we don't reach past the project and accidentally pick
- * up an unrelated agent file higher in the filesystem; if no `.git`
- * exists, the walk bottoms out at the filesystem root.
+ * In a monorepo this resolves to the *sub-package* (e.g.
+ * `apps/web/`), never the monorepo root, because the sub-package's
+ * `package.json` is strictly closer to wherever `next dev` was
+ * invoked. This matches how AI coding agents locate agent-rules
+ * files by default: they read from the project root, which for them
+ * is the package they're currently working in.
  *
- * The only supported way to install the marker is via
- * `npx @next/codemod@canary agents-md`, which upserts the managed
- * block into whichever file already exists (or creates both if
- * neither does).
+ * Returns `null` when no `package.json` exists in any ancestor
+ * directory (a degenerate setup where running `next dev` would also
+ * fail for other reasons).
  */
-function hasAgentRulesInstalled(dir: string): boolean {
-  let currentDir = path.resolve(dir)
-
+function findProjectDir(startDir: string): string | null {
+  let currentDir = path.resolve(startDir)
   while (true) {
-    const agentsMdContents = tryReadFile(path.join(currentDir, 'AGENTS.md'))
-    if (agentsMdContents?.includes(AGENT_RULES_MARKER)) return true
-
-    const claudeMdContents = tryReadFile(path.join(currentDir, 'CLAUDE.md'))
-    if (claudeMdContents?.includes(AGENT_RULES_MARKER)) return true
-
-    // Stop at the nearest project boundary. `.git` can be either a
-    // directory (normal repo) or a file (worktree / submodule), so
-    // `existsSync` covers both.
-    if (fs.existsSync(path.join(currentDir, '.git'))) return false
-
+    if (fs.existsSync(path.join(currentDir, 'package.json'))) {
+      return currentDir
+    }
     const parent = path.dirname(currentDir)
-    if (parent === currentDir) return false
+    if (parent === currentDir) return null
     currentDir = parent
   }
+}
+
+/**
+ * Returns true when `AGENTS.md` or `CLAUDE.md` at the Next.js project
+ * root (nearest `package.json` walking up from `dir`) contains the
+ * managed agent-rules marker. Anchored to the project root rather
+ * than walking recursively because that's the only location agents
+ * natively look for the files.
+ *
+ * The only supported way to install the marker is via
+ * `npx @next/codemod@canary agents-md`, which writes the managed
+ * block to the same project-root directory, keeping the check and
+ * the codemod perfectly consistent.
+ */
+function hasAgentRulesInstalled(dir: string): boolean {
+  const projectDir = findProjectDir(dir)
+  if (projectDir === null) return false
+
+  const agentsMdContents = tryReadFile(path.join(projectDir, 'AGENTS.md'))
+  if (agentsMdContents?.includes(AGENT_RULES_MARKER)) return true
+
+  const claudeMdContents = tryReadFile(path.join(projectDir, 'CLAUDE.md'))
+  if (claudeMdContents?.includes(AGENT_RULES_MARKER)) return true
+
+  return false
 }
 
 /**
