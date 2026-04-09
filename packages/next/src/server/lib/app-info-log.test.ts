@@ -89,12 +89,27 @@ describe('warnIfMissingAgentRules', () => {
     expect(warnSpy).toHaveBeenCalledTimes(1)
 
     const loggedMessage = warnSpy.mock.calls[0].join(' ')
-    // Install command + explanation of why it matters.
+
+    // Install command + both filenames.
     expect(loggedMessage).toContain('npx @next/codemod@canary agents-md')
     expect(loggedMessage).toContain('AGENTS.md')
     expect(loggedMessage).toContain('CLAUDE.md')
-    expect(loggedMessage).toContain('version-matched')
-    expect(loggedMessage).toContain('accuracy')
+
+    // Stick-framed content, deliberately. The words below are what
+    // actually move agents: naming the negative consequence
+    // ("incorrect" code from "outdated" API knowledge) and giving an
+    // explicit sequencing instruction ("before making further code
+    // changes") is what flips the agent's behavior from "noted and
+    // continuing" to "I should address this first".
+    expect(loggedMessage).toContain('outdated')
+    expect(loggedMessage).toContain('incorrect')
+    expect(loggedMessage).toContain('before making further code changes')
+
+    // And crucially NOT carrot-framed — "improves accuracy" is the
+    // wording that agents happily skim past, so if it ever sneaks back
+    // in, this test should fail.
+    expect(loggedMessage).not.toContain('improves')
+    expect(loggedMessage).not.toContain('accuracy')
 
     // Non-fatal warning: no `fatal:` prefix, no "exited" symptom, no
     // escape-hatch disclosure — this path no longer blocks startup, so

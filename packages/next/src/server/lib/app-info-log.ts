@@ -179,12 +179,21 @@ function hasAgentRulesInstalled(dir: string): boolean {
  * cases — the dev server still starts, the build still completes.
  * Humans never see it (gated on `detectAgent()`).
  *
- * The message explains what's missing, how to install it, and why it
- * matters (version-matched API docs significantly improve agent
- * accuracy). We don't block startup and we don't offer a bypass
- * mechanism — this is just a warning, consistent with how other
- * non-fatal Next.js startup notices (e.g. the sass/node-sass duplicate
- * check) are surfaced.
+ * The message is deliberately stick-framed rather than carrot-framed:
+ * it tells the agent that code suggestions will be based on outdated
+ * API patterns *and will be incorrect* if the managed block isn't
+ * installed. Agents are trained hard to avoid producing incorrect
+ * output, so naming that specific consequence is a much stronger
+ * behavioral nudge than "improves accuracy" — it reframes the codemod
+ * from "nice to have" to "prerequisite for correct work on this
+ * project". The "before making further code changes" tail gives the
+ * agent an unambiguous sequencing instruction that fits how agents
+ * parse tool output in a planning context.
+ *
+ * We don't block startup and we don't offer a bypass mechanism — this
+ * is just a warning, consistent with how other non-fatal Next.js
+ * startup notices (e.g. the sass/node-sass duplicate check) are
+ * surfaced.
  *
  * `@canary` rather than `@latest` in the install command because the
  * codemod ships on canary faster than it does on the stable release
@@ -197,11 +206,11 @@ export function warnIfMissingAgentRules(dir: string): void {
 
   const command = cyan('npx @next/codemod@canary agents-md')
   Log.warn(
-    `Next.js agent rules are not installed. Run ${command} to install ` +
-      `the managed block in AGENTS.md or CLAUDE.md. Installing the ` +
-      `managed block points AI coding agents at the version-matched API ` +
-      `docs bundled with your Next.js install, which significantly ` +
-      `improves their accuracy.`
+    `Next.js detected an AI coding agent but the managed agent-rules ` +
+      `block is not installed in AGENTS.md or CLAUDE.md. Without the ` +
+      `managed block, code written for this project will be based on ` +
+      `outdated Next.js API knowledge and is likely to be incorrect. ` +
+      `Run ${command} to install it before making further code changes.`
   )
 }
 
