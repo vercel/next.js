@@ -85,7 +85,7 @@ export default function Form({
           `<Form> does not support changing \`${key}\`. ` +
             (isNavigatingForm
               ? `If you'd like to use it to perform a mutation, consider making \`action\` a function instead.\n` +
-                `Learn more: https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations`
+                `Learn more: https://nextjs.org/docs/app/getting-started/updating-data`
               : '')
         )
       }

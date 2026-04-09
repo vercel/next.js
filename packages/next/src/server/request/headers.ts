@@ -32,7 +32,7 @@ import { RenderStage } from '../app-render/staged-rendering'
 /**
  * This function allows you to read the HTTP incoming request headers in
  * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
- * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations),
+ * [Server Actions](https://nextjs.org/docs/app/getting-started/updating-data),
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) and
  * [Middleware](https://nextjs.org/docs/app/building-your-application/routing/middleware).
  *

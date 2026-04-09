@@ -12,7 +12,7 @@ import {
  * `unauthorized()` can be used in
  * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
- * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+ * [Server Actions](https://nextjs.org/docs/app/getting-started/updating-data).
  *
  *
  * Read more: [Next.js Docs: `unauthorized`](https://nextjs.org/docs/app/api-reference/functions/unauthorized)
