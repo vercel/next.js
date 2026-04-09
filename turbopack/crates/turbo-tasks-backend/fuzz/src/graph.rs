@@ -133,20 +133,21 @@ pub fn run(data: Vec<TaskSpec>) {
 struct Iteration(State<usize>);
 
 fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
-    let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
-        turbo_tasks_backend::BackendOptions {
-            storage_mode: None,
-            small_preallocation: true,
-            ..Default::default()
-        },
-        turbo_tasks_backend::noop_backing_storage(),
-    ));
     RUNTIME
         .block_on(async {
+            let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWrite),
+                    small_preallocation: false,
+                    active_tracking: true,
+                    ..Default::default()
+                },
+                turbo_tasks_backend::noop_backing_storage(),
+            ));
             for i in 0..iterations {
                 let spec = spec.clone();
                 tt.run(async move {
-                    let it = create_state().resolve().await?;
+                    let it = *create_state().to_resolved().await?;
                     it.await?.set(i);
                     let task = run_task(spec.clone(), it, 0);
                     task.strongly_consistent().await?;

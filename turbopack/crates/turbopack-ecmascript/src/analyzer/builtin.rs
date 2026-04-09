@@ -347,7 +347,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     if let Some(str) = prop.as_str() {
                         match str {
                             // The Array.prototype.concat method
-                            "concat" => {
+                            "concat"
                                 if args.iter().all(|arg| {
                                     matches!(
                                         arg,
@@ -360,7 +360,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             | JsValue::WellKnownFunction(_)
                                             | JsValue::Function(..)
                                     )
-                                }) {
+                                }) => {
                                     for arg in args {
                                         match arg {
                                             JsValue::Array {
@@ -389,7 +389,6 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                     *value = take(obj);
                                     return true;
                                 }
-                            }
                             // The Array.prototype.map method
                             "map" => {
                                 if let Some(func) = args.first() {
@@ -483,12 +482,12 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             true
         }
         // match object literals
-        JsValue::Object { parts, mutable, .. } => {
+        JsValue::Object { parts, mutable, .. }
             // If the object contains any spread, we might be able to flatten that
             if parts
                 .iter()
                 .any(|part| matches!(part, ObjectPart::Spread(JsValue::Object { .. })))
-            {
+            => {
                 let old_parts = take(parts);
                 for part in old_parts {
                     if let ObjectPart::Spread(JsValue::Object {
@@ -505,10 +504,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                 }
                 value.update_total_nodes();
                 true
-            } else {
-                false
             }
-        }
         // match logical expressions like `a && b` or `a || b || c` or `a ?? b`
         // Reduce logical expressions to their final value(s)
         JsValue::Logical(_, op, parts) => {

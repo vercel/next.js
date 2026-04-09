@@ -3,8 +3,10 @@ use std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     marker::PhantomData,
+    ops::Deref,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, atomic::*},
+    pin::Pin,
+    sync::{Arc, Mutex as StdMutex, atomic::*},
     time::Duration,
 };
 
@@ -16,7 +18,7 @@ use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks_hash::HashAlgorithm;
 
-use crate::RawVc;
+use crate::{RawVc, event::Event};
 
 pub struct TraceRawVcsContext {
     list: Vec<RawVc>,
@@ -79,10 +81,18 @@ ignore!(
     AtomicBool,
     AtomicUsize
 );
-ignore!((), str, String, Duration, anyhow::Error, RcStr);
+ignore!((), str, String, Duration, RcStr);
 ignore!(Path, PathBuf);
 ignore!(serde_json::Value, serde_json::Map<String, serde_json::Value>);
 ignore!(HashAlgorithm);
+ignore!(Event);
+
+// This is not technically correct, as `anyhow::Error` contains a boxed source error, which could
+// contain a `Vc`, but most errors don't do this, and implementing `TraceRawVcs` over every possible
+// error type is impractical.
+//
+// For serialized errors: This is fine, we throw away the anyhow source upon serialization.
+ignore!(anyhow::Error);
 
 impl<T: ?Sized> TraceRawVcs for PhantomData<T> {
     fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
@@ -256,6 +266,16 @@ impl<K: TraceRawVcs, V: TraceRawVcs> TraceRawVcs for FrozenMap<K, V> {
     }
 }
 
+impl<T> TraceRawVcs for Pin<T>
+where
+    T: Deref,
+    <T as Deref>::Target: TraceRawVcs,
+{
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&**self, trace_context);
+    }
+}
+
 impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Box<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&**self, trace_context);
@@ -289,9 +309,24 @@ impl<T: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for Result<T, E> {
     }
 }
 
-impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Mutex<T> {
+// NOTE: Implementing `TraceRawVcs` on a synchronous lock with guards that do not implement `Send`
+// is okay, as it won't be held across await points. We shouldn't attempt to implement it on an
+// asynchronous locks (e.g. via `tokio::sync::Mutex::blocking_lock`).
+//
+// If a future garbage collection tracing implementation holds a global lock on execution, we could
+// end up deadlocked if a currently executing task is holding a lock across an await point.
+//
+// Similarly, if we ever implement synchronous tasks with synchronous reads of `Vc`s, we need to add
+// a mechanism to loudly fail if we're holding a traced lock across a task read.
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for StdMutex<T> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         self.lock().unwrap().trace_raw_vcs(trace_context);
+    }
+}
+
+impl<T: TraceRawVcs + ?Sized> TraceRawVcs for parking_lot::Mutex<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        self.lock().trace_raw_vcs(trace_context);
     }
 }
 

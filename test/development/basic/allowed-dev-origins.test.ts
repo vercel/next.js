@@ -78,8 +78,8 @@ function requestInternalDevMiddleware(
   )
 }
 
-function expectBlockedDevResourceMessage(
-  output: string,
+async function expectBlockedDevResourceMessage(
+  next: NextInstance,
   options: {
     resourcePath: string
     source?: string
@@ -88,7 +88,11 @@ function expectBlockedDevResourceMessage(
     opaqueOrigin?: true
   }
 ) {
-  expect(output).toContain(options.resourcePath)
+  // I/O may not be flushed immediately, so retry until we see the message in the output.
+  await retry(() => {
+    expect(next.cliOutput).toContain(options.resourcePath)
+  })
+  const output = next.cliOutput
   expect(output).toContain(
     'Cross-origin access to Next.js dev resources is blocked by default for safety.'
   )
@@ -182,7 +186,7 @@ describe.each(['', '/docs'])(
             expect(await browser.elementByCss('#status').text()).toBe('error')
           })
 
-          expectBlockedDevResourceMessage(next.cliOutput, {
+          await expectBlockedDevResourceMessage(next, {
             resourcePath: withBasePath(basePath, '/_next/hmr'),
             source: 'example.vercel.sh',
           })
@@ -212,7 +216,7 @@ describe.each(['', '/docs'])(
         )
         expect(differentHostRes.status).toBe(403)
 
-        expectBlockedDevResourceMessage(next.cliOutput, {
+        await expectBlockedDevResourceMessage(next, {
           resourcePath: withBasePath(
             basePath,
             '/_next/static/chunks/pages/_app.js'
@@ -238,12 +242,20 @@ describe.each(['', '/docs'])(
         )
         expect(differentHostRes.status).toBe(403)
 
-        expectBlockedDevResourceMessage(next.cliOutput, {
+        await expectBlockedDevResourceMessage(next, {
           resourcePath: withBasePath(basePath, '/__nextjs_error_feedback'),
           source: 'example.vercel.sh',
         })
       })
 
+      it('should allow requests from multi-level localhost subdomains', async () => {
+        const res = await requestInternalDevMiddleware(
+          next.appPort,
+          basePath,
+          'https://sub.app.localhost'
+        )
+        expect(res.status).not.toBe(403)
+      })
       it('should allow same-site requests without an origin header', async () => {
         const res = await fetchViaHTTP(
           next.appPort,
@@ -411,7 +423,7 @@ describe.each(['', '/docs'])(
         const res = await requestInternalDevScript(next.appPort, basePath)
         expect(res.status).toBe(403)
 
-        expectBlockedDevResourceMessage(next.cliOutput, {
+        await expectBlockedDevResourceMessage(next, {
           resourcePath: withBasePath(
             basePath,
             '/_next/static/chunks/pages/_app.js'
@@ -511,7 +523,7 @@ describe.each(['', '/docs'])(
             expect(await browser.elementByCss('#status').text()).toBe('error')
           })
 
-          expectBlockedDevResourceMessage(next.cliOutput, {
+          await expectBlockedDevResourceMessage(next, {
             resourcePath: withBasePath(basePath, '/_next/hmr'),
             opaqueOrigin: true,
           })

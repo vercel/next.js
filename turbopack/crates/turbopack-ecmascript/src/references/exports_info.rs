@@ -72,7 +72,7 @@ impl ExportsInfoBinding {
         Ok(CodeGeneration::hoisted_stmt(
             rcstr!("__webpack_exports_info__"),
             quote!(
-                "const $name = $data;" as Stmt,
+                "var $name = $data;" as Stmt,
                 name = exports_ident(),
                 data: Expr = data
             ),

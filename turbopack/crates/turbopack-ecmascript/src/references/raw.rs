@@ -62,17 +62,17 @@ impl ModuleReference for FileSourceReference {
                 /* force_in_lookup_dir */ false,
             )
             .as_raw_module_result()
-            .resolve()
+            .to_resolved()
             .await?;
             check_and_emit_too_many_matches_warning(
-                result,
+                *result,
                 self.issue_source,
                 self.context_dir.clone(),
                 self.path,
             )
             .await?;
 
-            Ok(result)
+            Ok(*result)
         }
         .instrument(span)
         .await

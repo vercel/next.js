@@ -18,19 +18,28 @@ use turbo_tasks::{
 
 use crate::database::{
     key_value_database::{KeySpace, KeyValueDatabase},
-    turbo::parallel_scheduler::TurboTasksParallelScheduler,
     write_batch::{ConcurrentWriteBatch, WriteBuffer},
 };
 
 mod parallel_scheduler;
+pub(crate) use parallel_scheduler::TurboTasksParallelScheduler;
 
-/// Number of key families, see KeySpace enum for their numbers.
-const FAMILIES: usize = 4;
+/// Number of key families, see [`KeySpace`] enum for their numbers.
+pub const FAMILIES: usize = 4;
 
 const COMPACTION_MESSAGE: &str = "Finished filesystem cache database compaction";
 
 const MB: u64 = 1024 * 1024;
-const COMPACT_CONFIG: CompactConfig = CompactConfig {
+
+/// Returns the database configuration for the Turbopack persistent cache, mapping each
+/// [`KeySpace`] to its persistence family config.
+pub fn db_config() -> DbConfig<FAMILIES> {
+    DbConfig {
+        family_configs: std::array::from_fn(|i| KeySpace::from_index(i).family_config()),
+    }
+}
+
+pub const COMPACT_CONFIG: CompactConfig = CompactConfig {
     min_merge_count: 3,
     optimal_merge_count: 8,
     max_merge_count: 64,
@@ -45,24 +54,30 @@ pub struct TurboKeyValueDatabase {
     is_ci: bool,
     is_short_session: bool,
     is_fresh: bool,
+    skip_compaction: bool,
 }
 
 impl TurboKeyValueDatabase {
-    pub fn new(versioned_path: PathBuf, is_ci: bool, is_short_session: bool) -> Result<Self> {
-        const CONFIG: DbConfig<FAMILIES> = DbConfig {
-            family_configs: [
-                KeySpace::Infra.family_config(),
-                KeySpace::TaskMeta.family_config(),
-                KeySpace::TaskData.family_config(),
-                KeySpace::TaskCache.family_config(),
-            ],
-        };
-        let db = Arc::new(TurboPersistence::open_with_config(versioned_path, CONFIG)?);
+    pub fn new(
+        versioned_path: PathBuf,
+        is_ci: bool,
+        is_short_session: bool,
+        skip_compaction: bool,
+    ) -> Result<Self> {
+        assert!(
+            !skip_compaction || is_short_session,
+            "skip_compaction=true requires is_short_session=true"
+        );
+        let db = Arc::new(TurboPersistence::open_with_config(
+            versioned_path,
+            db_config(),
+        )?);
         Ok(Self {
             db: db.clone(),
             is_ci,
             is_short_session,
             is_fresh: db.is_empty(),
+            skip_compaction,
         })
     }
 }
@@ -125,7 +140,7 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
     fn shutdown(&self) -> Result<()> {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
-        if !self.is_fresh {
+        if !self.is_fresh && !self.skip_compaction {
             if self.is_ci {
                 // Fully compact in CI to reduce cache size
                 do_compact(&self.db, COMPACTION_MESSAGE, usize::MAX)?;

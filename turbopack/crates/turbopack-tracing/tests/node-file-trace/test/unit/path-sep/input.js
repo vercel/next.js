@@ -1,3 +1,4 @@
+const fs = require('fs')
 const { sep } = require('path')
 
 const X = sep

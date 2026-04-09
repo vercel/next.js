@@ -235,6 +235,10 @@
       "Error overlay - RSC build errors should error when createFactory from react is used in server component",
       "Error overlay - RSC build errors should error when flushSync from react-dom is used in server component",
       "Error overlay - RSC build errors should error when unstable_batchedUpdates from react-dom is used in server component",
+      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in instrumentation.js",
+      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in middleware.js",
+      "Error overlay - RSC build errors should error when unstable_catchError from next/error is imported in proxy.js",
+      "Error overlay - RSC build errors should error when unstable_catchError from next/error is used in a server component",
       "Error overlay - RSC build errors should error when useActionState from react is used in server component",
       "Error overlay - RSC build errors should error when useDeferredValue from react is used in server component",
       "Error overlay - RSC build errors should error when useEffect from react is used in server component",
@@ -684,6 +688,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/css-parse-error-recovery/css-parse-error-recovery.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "css-parse-error-recovery with turbopack.ignoreIssue config should render page with ignored CSS parse error",
+      "css-parse-error-recovery with turbopack.ignoreIssue config should suppress CSS parse error from cli output when ignored",
+      "css-parse-error-recovery without turbopack.ignoreIssue config should show CSS parse error in cli output when not ignored"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/dev-fetch-hmr/dev-fetch-hmr.test.ts": {
     "passed": ["dev-fetch-hmr should retain module level fetch patching"],
     "failed": [],
@@ -715,8 +730,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dev-output/dev-output.test.ts": {
-    "passed": [],
-    "failed": ["dev-output shows Cache Components indicator when enabled"],
+    "passed": ["dev-output shows Cache Components indicator when enabled"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1178,13 +1193,18 @@
   },
   "test/development/app-dir/server-hmr/server-hmr.test.ts": {
     "passed": [
+      "server-hmr CLI/config conflict warning should warn when CLI flag conflicts with config",
+      "server-hmr metadata route hmr reflects manifest.ts changes on fetch/refresh",
       "server-hmr route handler hmr reflects route handler changes on fetch/refresh"
     ],
     "failed": [],
     "pending": [
       "server-hmr child module accept allows child modules to accept hot updates using module.hot.accept",
+      "server-hmr config opt-out re-evaluates unmodified dependencies when serverFastRefresh is disabled via config",
+      "server-hmr metadata route hmr does not prevent page hmr when metadata route has been loaded",
       "server-hmr module preservation does not re-evaluate an unmodified module when page module changes",
       "server-hmr module preservation re-evaluates a module when the module itself changes",
+      "server-hmr route handler hmr does not re-evaluate an unmodified dependency when route changes",
       "server-hmr source maps stack frames from eval'd HMR modules point to original source locations"
     ],
     "flakey": [],
@@ -1280,8 +1300,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/typed-env/typed-env-prod.test.ts": {
-    "passed": [],
-    "failed": ["typed-env should have env types from next config"],
+    "passed": ["typed-env should have env types from next config"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1310,7 +1330,17 @@
   },
   "test/development/app-dir/watch-config-file/index.test.ts": {
     "passed": [
-      "app-dir watch-config-file should output config file change and restart server for app router"
+      "app-dir watch-config-file should output config file change and restart server for app router",
+      "app-dir watch-config-file should show accurate Ready in duration after restart"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/watch-distdir-deletion/index.test.ts": {
+    "passed": [
+      "app-dir watch-distdir-deletion should restart the server when distDir is deleted"
     ],
     "failed": [],
     "pending": [],
@@ -1331,14 +1361,13 @@
   },
   "test/development/app-hmr/hmr.test.ts": {
     "passed": [
+      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
       "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
       "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
-    "failed": [
-      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1354,13 +1383,32 @@
   },
   "test/development/basic/allowed-dev-origins.test.ts": {
     "passed": [
-      "allowed-dev-origins, basePath: \"\" block mode should load images regardless of allowed origins",
-      "allowed-dev-origins, basePath: \"\" block mode should not allow dev WebSocket from cross-site",
-      "allowed-dev-origins, basePath: \"\" block mode should not allow loading internal middleware from cross-site",
-      "allowed-dev-origins, basePath: \"\" block mode should not allow loading scripts from cross-site",
-      "allowed-dev-origins, basePath: \"\" warn mode should warn about WebSocket from cross-site",
-      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading internal middleware from cross-site",
-      "allowed-dev-origins, basePath: \"\" warn mode should warn about loading scripts from cross-site"
+      "allowed-dev-origins, basePath: \"\" configured allowed origins blocks cross-site requests from privacy-sensitive origins",
+      "allowed-dev-origins, basePath: \"\" configured allowed origins should allow dev WebSocket from configured cross-site",
+      "allowed-dev-origins, basePath: \"\" configured allowed origins should allow loading internal middleware from configured cross-site",
+      "allowed-dev-origins, basePath: \"\" configured allowed origins should allow loading scripts from configured cross-site",
+      "allowed-dev-origins, basePath: \"\" configured allowed origins should block no-cors requests without a referer even when origins are configured",
+      "allowed-dev-origins, basePath: \"\" configured allowed origins should load images regardless of allowed origins",
+      "allowed-dev-origins, basePath: \"\" configured but not allowlisted origins should block no-cors requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"\" configured but not allowlisted origins should block websocket requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"\" default blocking should allow requests from multi-level localhost subdomains",
+      "allowed-dev-origins, basePath: \"\" default blocking should allow same-site requests without an origin header",
+      "allowed-dev-origins, basePath: \"\" default blocking should block WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"\" default blocking should block loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"\" default blocking should block loading scripts from cross-site",
+      "allowed-dev-origins, basePath: \"/docs\" configured allowed origins blocks cross-site requests from privacy-sensitive origins",
+      "allowed-dev-origins, basePath: \"/docs\" configured allowed origins should allow dev WebSocket from configured cross-site",
+      "allowed-dev-origins, basePath: \"/docs\" configured allowed origins should allow loading internal middleware from configured cross-site",
+      "allowed-dev-origins, basePath: \"/docs\" configured allowed origins should allow loading scripts from configured cross-site",
+      "allowed-dev-origins, basePath: \"/docs\" configured allowed origins should block no-cors requests without a referer even when origins are configured",
+      "allowed-dev-origins, basePath: \"/docs\" configured allowed origins should load images regardless of allowed origins",
+      "allowed-dev-origins, basePath: \"/docs\" configured but not allowlisted origins should block no-cors requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"/docs\" configured but not allowlisted origins should block websocket requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"/docs\" default blocking should allow requests from multi-level localhost subdomains",
+      "allowed-dev-origins, basePath: \"/docs\" default blocking should allow same-site requests without an origin header",
+      "allowed-dev-origins, basePath: \"/docs\" default blocking should block WebSocket from cross-site",
+      "allowed-dev-origins, basePath: \"/docs\" default blocking should block loading internal middleware from cross-site",
+      "allowed-dev-origins, basePath: \"/docs\" default blocking should block loading scripts from cross-site"
     ],
     "failed": [],
     "pending": [],
@@ -2026,7 +2074,7 @@
   },
   "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
     "passed": [
-      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
+      "Dev Rendering Indicator Shows rendering indicator when navigating between pages"
     ],
     "failed": [],
     "pending": [],
@@ -2057,11 +2105,14 @@
   "test/development/error-overlay/index.test.tsx": {
     "passed": [
       "DevErrorOverlay can get error code from RSC error thrown by framework",
+      "DevErrorOverlay filters non-Error items from AggregateError.errors",
       "DevErrorOverlay ignores non-Error cause in the error overlay",
       "DevErrorOverlay loads fonts successfully",
       "DevErrorOverlay sends feedback when clicking helpful button",
       "DevErrorOverlay sends feedback when clicking not helpful button",
       "DevErrorOverlay should load dev overlay styles successfully",
+      "DevErrorOverlay shows AggregateError.errors in the error overlay",
+      "DevErrorOverlay shows AggregateError.errors with cause chains in the error overlay",
       "DevErrorOverlay shows Error.cause in the error overlay",
       "DevErrorOverlay shows nested Error.cause chain in the error overlay"
     ],
@@ -2148,6 +2199,18 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-compilation-issues.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "mcp-server get_compilation_issues tool should detect module-not-found errors",
+      "mcp-server get_compilation_issues tool should detect syntax errors",
+      "mcp-server get_compilation_issues tool should include issue metadata fields",
+      "mcp-server get_compilation_issues tool should return compilation issues without requiring a browser session"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -2849,7 +2912,6 @@
   },
   "test/e2e/app-dir/actions-allowed-origins/app-action-allowed-origins.test.ts": {
     "passed": [
-      "app-dir action allowed origins should not crash for requests from privacy sensitive contexts",
       "app-dir action allowed origins should pass if localhost is set as a safe origin"
     ],
     "failed": [],
@@ -2860,6 +2922,16 @@
   "test/e2e/app-dir/actions-allowed-origins/app-action-disallowed-origins.test.ts": {
     "passed": [
       "app-dir action disallowed origins should error if x-forwarded-host does not match the origin"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/actions-allowed-origins/app-action-opaque-origin.test.ts": {
+    "passed": [
+      "app-dir action allowed from opaque origins should succeed on submission",
+      "app-dir action disallowed from opaque origins should fail on submission"
     ],
     "failed": [],
     "pending": [],
@@ -3179,6 +3251,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/adapter-dynamic-metadata/adapter-dynamic-metadata.test.ts": {
+    "passed": ["adapter-dynamic-metadata should skip next dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-a11y/index.test.ts": {
     "passed": [
       "app a11y features route announcer should announce document.title changes",
@@ -3274,9 +3353,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
-    "passed": ["app dir client cache with parallel routes should skip dev"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["app dir client cache with parallel routes should skip dev"],
     "flakey": [],
     "runtimeError": false
   },
@@ -3367,7 +3446,8 @@
     "passed": [
       "app-dir - custom-cache-handler - cjs cjs module exports should have logs from cache-handler",
       "app-dir - custom-cache-handler - cjs-default-export cjs default export should have logs from cache-handler",
-      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler"
+      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler",
+      "app-dir - custom-cache-handler - esm import.meta.resolve esm default export should have logs from cache-handler"
     ],
     "failed": [],
     "pending": [],
@@ -3471,12 +3551,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-fetch-deduping during next dev dedupes requests with different trace headers",
       "app-fetch-deduping during next dev should dedupe pending revalidation requests",
       "app-fetch-deduping during next dev should dedupe requests called from the same component"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3536,7 +3616,6 @@
       "app-dir with proxy Mutate request headers for next/headers Updates headers",
       "app-dir with proxy retains a link response header from the proxy",
       "app-dir with proxy should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should ignore x-middleware-set-cookie as a request header",
       "app-dir with proxy should log compilation time",
       "app-dir with proxy should not incorrectly treat a Location header as a rewrite",
@@ -3545,6 +3624,7 @@
       "app-dir with proxy should support unstable_cache in proxy"
     ],
     "failed": [
+      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should filter correctly after proxy rewrite"
     ],
     "pending": [
@@ -3587,7 +3667,6 @@
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware retains a link response header from the middleware",
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
@@ -3596,6 +3675,7 @@
       "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "failed": [
+      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should filter correctly after middleware rewrite"
     ],
     "pending": [],
@@ -3658,8 +3738,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-root-params-getters/generate-static-params-error.test.ts": {
+    "passed": [
+      "app-root-param-getters - generateStaticParams error should error when reading a root param inside the generateStaticParams that defines it - dev"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-root-params-getters/generate-static-params.test.ts": {
     "passed": [
+      "app-root-param-getters - generateStaticParams should allow reading root params inside generateStaticParams",
       "app-root-param-getters - generateStaticParams should allow reading root params that were not prerendered",
       "app-root-param-getters - generateStaticParams should be part of the static shell",
       "app-root-param-getters - generateStaticParams should be statically prerenderable"
@@ -3700,8 +3790,9 @@
   "test/e2e/app-dir/app-root-params-getters/use-cache.test.ts": {
     "passed": [
       "app-root-param-getters - cache - at build noop in dev",
+      "app-root-param-getters - cache - at runtime should allow using root params within a \"use cache\" - dev",
+      "app-root-param-getters - cache - at runtime should error when using root params in \"use cache\" nested inside unstable_cache - dev",
       "app-root-param-getters - cache - at runtime should error when using root params within `unstable_cache` - dev",
-      "app-root-param-getters - cache - at runtime should error when using root params within a \"use cache\" - dev",
       "app-root-param-getters - private cache should allow using root params within a \"use cache: private\" - dev"
     ],
     "failed": [],
@@ -3789,6 +3880,7 @@
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
       "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
+      "app-custom-routes top-level await handles route handlers that use top-level await",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
       "app-custom-routes works with generateStaticParams correctly responds correctly on /static/first/data.json",
@@ -3866,6 +3958,7 @@
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
       "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
+      "app-custom-routes top-level await handles route handlers that use top-level await",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
       "app-custom-routes works with generateStaticParams correctly responds correctly on /static/first/data.json",
@@ -4742,7 +4835,8 @@
       "cache-components should prerender pages that only use cached (unstable_cache) IO",
       "cache-components should prerender pages that only use cached fetches",
       "cache-components should prerender pages that render in a microtask",
-      "cache-components should prerender static not-found pages"
+      "cache-components should prerender static not-found pages",
+      "cache-components should render not-found with Suspense in layout without connection errors"
     ],
     "failed": [],
     "pending": [],
@@ -4754,6 +4848,32 @@
       "cache-components should not have route specific errors",
       "cache-components should prerender pages with cached `crypto.getRandomValues(...)` calls",
       "cache-components should prerender pages with cached `crypto.randomUUID()` calls"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/catch-error/catch-error-react-compiler.test.ts": {
+    "passed": [
+      "app-dir - unstable_catchError with react compiler should recover Client Component error after reset",
+      "app-dir - unstable_catchError with react compiler should recover Client Component error after unstable_retry",
+      "app-dir - unstable_catchError with react compiler should recover Server Component error after unstable_retry",
+      "app-dir - unstable_catchError with react compiler should recover after reset on Pages Router",
+      "app-dir - unstable_catchError with react compiler should throw when unstable_retry is called on Pages Router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/catch-error/catch-error.test.ts": {
+    "passed": [
+      "app-dir - unstable_catchError should recover Client Component error after reset",
+      "app-dir - unstable_catchError should recover Client Component error after unstable_retry",
+      "app-dir - unstable_catchError should recover Server Component error after unstable_retry",
+      "app-dir - unstable_catchError should recover after reset on Pages Router",
+      "app-dir - unstable_catchError should throw when unstable_retry is called on Pages Router"
     ],
     "failed": [],
     "pending": [],
@@ -5853,6 +5973,7 @@
   },
   "test/e2e/app-dir/instant-navigation-testing-api/instant-navigation-testing-api.test.ts": {
     "passed": [
+      "instant-navigation-testing-api - root params includes root param in instant shell",
       "instant-navigation-testing-api clears cookie after instant scope exits",
       "instant-navigation-testing-api clears cookie even when callback throws",
       "instant-navigation-testing-api does not leak runtime data from hover prefetch into instant shell",
@@ -5869,6 +5990,8 @@
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during client navigation",
       "instant-navigation-testing-api runtime params are excluded from instant shell does not include search param values in instant shell during page load",
       "instant-navigation-testing-api sets cookie before first navigation when using baseURL",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during client navigation",
+      "instant-navigation-testing-api statically generated params are included in instant shell includes statically generated param values in instant shell during page load",
       "instant-navigation-testing-api subsequent navigations after instant scope are not locked",
       "instant-navigation-testing-api successive MPA navigations within instant scope",
       "instant-navigation-testing-api throws descriptive error on fresh page without baseURL",
@@ -5920,6 +6043,40 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/instant-validation/instant-validation-parallel-slots.test.ts": {
+    "passed": [
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when both slots render and breadcrumbs calls cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when configured children slot is hidden, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when configured children slot is hidden, no cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - both slots render, no cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - only configured children slot renders, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - only configured children slot renders, no cookies",
+      "instant validation - parallel slot configs dev - client navigation config on children with slot catches unsuspended dynamic content in both slots when config is on fork-point layout",
+      "instant validation - parallel slot configs dev - client navigation config on children with slot catches unsuspended dynamic content in slot when config is on children page",
+      "instant validation - parallel slot configs dev - client navigation config on slot page catches unsuspended dynamic content in children when config is on slot layout",
+      "instant validation - parallel slot configs dev - client navigation config on slot page catches unsuspended dynamic content in children when config is on slot page",
+      "instant validation - parallel slot configs dev - client navigation config on slot page catches unsuspended dynamic content in children when runtime config is on slot page",
+      "instant validation - parallel slot configs dev - client navigation valid parallel slot configs valid - config on both children and slot pages",
+      "instant validation - parallel slot configs dev - client navigation valid parallel slot configs valid - config on slot, children dynamic content inside Suspense",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when both slots render and breadcrumbs calls cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when configured children slot is hidden, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when configured children slot is hidden, no cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - both slots render, no cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - only configured children slot renders, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - only configured children slot renders, no cookies",
+      "instant validation - parallel slot configs dev - initial load config on children with slot catches unsuspended dynamic content in both slots when config is on fork-point layout",
+      "instant validation - parallel slot configs dev - initial load config on children with slot catches unsuspended dynamic content in slot when config is on children page",
+      "instant validation - parallel slot configs dev - initial load config on slot page catches unsuspended dynamic content in children when config is on slot layout",
+      "instant validation - parallel slot configs dev - initial load config on slot page catches unsuspended dynamic content in children when config is on slot page",
+      "instant validation - parallel slot configs dev - initial load config on slot page catches unsuspended dynamic content in children when runtime config is on slot page",
+      "instant validation - parallel slot configs dev - initial load valid parallel slot configs valid - config on both children and slot pages",
+      "instant validation - parallel slot configs dev - initial load valid parallel slot configs valid - config on slot, children dynamic content inside Suspense"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/instant-validation/instant-validation.test.ts": {
     "passed": [
       "instant validation dev - client navigation blocking invalid - blocking page inside a runtime layout is not allowed if the layout has no suspense",
@@ -5938,6 +6095,10 @@
       "instant validation dev - client navigation client errors unable to validate - client error in component from node_modules blocks children",
       "instant validation dev - client navigation client errors unable to validate - client error in parent blocks children",
       "instant validation dev - client navigation client errors valid - client error from sibling of children slot with suspense",
+      "instant validation dev - client navigation config depth preference invalid - children config preferred at equal depth",
+      "instant validation dev - client navigation config depth preference invalid - cross-slot blocking falls back to deep children config",
+      "instant validation dev - client navigation config depth preference invalid - deeper children config preferred over shallower slot config",
+      "instant validation dev - client navigation config depth preference invalid - deeper slot config preferred over shallower children catchall",
       "instant validation dev - client navigation disabling validation disabling build validation",
       "instant validation dev - client navigation disabling validation disabling dev validation",
       "instant validation dev - client navigation disabling validation in a layout",
@@ -5950,6 +6111,7 @@
       "instant validation dev - client navigation head valid - runtime prefetch - dynamic generateMetadata does not block navigation",
       "instant validation dev - client navigation head valid - runtime prefetch - runtime generateViewport does not block navigation",
       "instant validation dev - client navigation head valid - static prefetch - runtime generateMetadata does not block navigation",
+      "instant validation dev - client navigation invalid - loading.js above route group does not cover dynamic in page",
       "instant validation dev - client navigation invalid - loading.js covers page, but not layout at the same level",
       "instant validation dev - client navigation invalid - missing suspense in parallel slot default slot",
       "instant validation dev - client navigation invalid - missing suspense in parallel slot index",
@@ -5962,20 +6124,22 @@
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in runtime segment with valid static parent",
+      "instant validation dev - client navigation invalid - static layout above runtime config blocks navigation",
       "instant validation dev - client navigation invalid - static prefetch - missing suspense around dynamic",
       "instant validation dev - client navigation invalid - static prefetch - missing suspense around dynamic in a layout",
       "instant validation dev - client navigation invalid - static prefetch - missing suspense around params",
       "instant validation dev - client navigation invalid - static prefetch - missing suspense around runtime",
       "instant validation dev - client navigation invalid - static prefetch - missing suspense around search params",
       "instant validation dev - client navigation invalid - static prefetch - suspense too high",
-      "instant validation dev - client navigation route group shared boundary invalid - route group boundary is shared but validation treats it as new",
+      "instant validation dev - client navigation parallel slots with different group depths invalid - children hole detected before shallow @slot hole",
+      "instant validation dev - client navigation parallel slots with different group depths invalid - deep hole in @slot detected before shallow hole in children",
+      "instant validation dev - client navigation route group shared boundary invalid - blocking layout inside shared route group boundary",
       "instant validation dev - client navigation route groups invalid - config on both route group and segment layout - cookies() blocks below",
       "instant validation dev - client navigation route groups invalid - config on route group layout - cookies() blocks below",
       "instant validation dev - client navigation route groups invalid - config on route group layout - cookies() blocks in deeper segment",
       "instant validation dev - client navigation route groups invalid - config on segment layout - cookies() blocks through route group below",
       "instant validation dev - client navigation route groups invalid - config on segment layout inside route group - cookies() blocks below",
       "instant validation dev - client navigation valid - no suspense needed around dynamic in page if loading.js is present",
-      "instant validation dev - client navigation valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above",
       "instant validation dev - client navigation valid - runtime prefetch - does not require Suspense around params",
       "instant validation dev - client navigation valid - runtime prefetch - does not require Suspense around search params",
       "instant validation dev - client navigation valid - runtime prefetch - suspense only around dynamic",
@@ -6000,6 +6164,10 @@
       "instant validation dev - initial load client errors unable to validate - client error in component from node_modules blocks children",
       "instant validation dev - initial load client errors unable to validate - client error in parent blocks children",
       "instant validation dev - initial load client errors valid - client error from sibling of children slot with suspense",
+      "instant validation dev - initial load config depth preference invalid - children config preferred at equal depth",
+      "instant validation dev - initial load config depth preference invalid - cross-slot blocking falls back to deep children config",
+      "instant validation dev - initial load config depth preference invalid - deeper children config preferred over shallower slot config",
+      "instant validation dev - initial load config depth preference invalid - deeper slot config preferred over shallower children catchall",
       "instant validation dev - initial load disabling validation disabling build validation",
       "instant validation dev - initial load disabling validation disabling dev validation",
       "instant validation dev - initial load disabling validation in a layout",
@@ -6012,6 +6180,7 @@
       "instant validation dev - initial load head valid - runtime prefetch - dynamic generateMetadata does not block navigation",
       "instant validation dev - initial load head valid - runtime prefetch - runtime generateViewport does not block navigation",
       "instant validation dev - initial load head valid - static prefetch - runtime generateMetadata does not block navigation",
+      "instant validation dev - initial load invalid - loading.js above route group does not cover dynamic in page",
       "instant validation dev - initial load invalid - loading.js covers page, but not layout at the same level",
       "instant validation dev - initial load invalid - missing suspense in parallel slot default slot",
       "instant validation dev - initial load invalid - missing suspense in parallel slot index",
@@ -6024,20 +6193,22 @@
       "instant validation dev - initial load invalid - runtime prefetch - sync IO in generateMetadata",
       "instant validation dev - initial load invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable",
       "instant validation dev - initial load invalid - runtime prefetch - sync IO in runtime segment with valid static parent",
+      "instant validation dev - initial load invalid - static layout above runtime config blocks navigation",
       "instant validation dev - initial load invalid - static prefetch - missing suspense around dynamic",
       "instant validation dev - initial load invalid - static prefetch - missing suspense around dynamic in a layout",
       "instant validation dev - initial load invalid - static prefetch - missing suspense around params",
       "instant validation dev - initial load invalid - static prefetch - missing suspense around runtime",
       "instant validation dev - initial load invalid - static prefetch - missing suspense around search params",
       "instant validation dev - initial load invalid - static prefetch - suspense too high",
-      "instant validation dev - initial load route group shared boundary invalid - route group boundary is shared but validation treats it as new",
+      "instant validation dev - initial load parallel slots with different group depths invalid - children hole detected before shallow @slot hole",
+      "instant validation dev - initial load parallel slots with different group depths invalid - deep hole in @slot detected before shallow hole in children",
+      "instant validation dev - initial load route group shared boundary invalid - blocking layout inside shared route group boundary",
       "instant validation dev - initial load route groups invalid - config on both route group and segment layout - cookies() blocks below",
       "instant validation dev - initial load route groups invalid - config on route group layout - cookies() blocks below",
       "instant validation dev - initial load route groups invalid - config on route group layout - cookies() blocks in deeper segment",
       "instant validation dev - initial load route groups invalid - config on segment layout - cookies() blocks through route group below",
       "instant validation dev - initial load route groups invalid - config on segment layout inside route group - cookies() blocks below",
       "instant validation dev - initial load valid - no suspense needed around dynamic in page if loading.js is present",
-      "instant validation dev - initial load valid - no suspense needed around dynamic in page if loading.js is present in a non-layout segment above",
       "instant validation dev - initial load valid - runtime prefetch - does not require Suspense around params",
       "instant validation dev - initial load valid - runtime prefetch - does not require Suspense around search params",
       "instant validation dev - initial load valid - runtime prefetch - suspense only around dynamic",
@@ -6356,6 +6527,16 @@
       "mdx without-mdx-rs pages directory should work in initial html with mdx import",
       "mdx without-mdx-rs pages directory should work using browser",
       "mdx without-mdx-rs pages directory should work using browser with mdx import"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/metadata-dynamic-routes-async-deps/index.test.ts": {
+    "passed": [
+      "app dir - metadata dynamic routes with async deps should render page with og:image meta tag when opengraph-image has async dependencies",
+      "app dir - metadata dynamic routes with async deps should serve the opengraph-image route as a valid image"
     ],
     "failed": [],
     "pending": [],
@@ -8376,6 +8557,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/partial-fallback-root-blocking/partial-fallback-root-blocking.test.ts": {
+    "passed": ["partial-fallback-root-blocking skipped in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
     "passed": ["partial-fallback-shell-upgrade skipped in dev"],
     "failed": [],
@@ -8617,6 +8805,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/ppr-root-param-rsc-fallback/ppr-root-param-rsc-fallback.test.ts": {
+    "passed": ["ppr-root-param-rsc-fallback skipped in dev"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/ppr-unstable-cache/ppr-unstable-cache.test.ts": {
     "passed": [],
     "failed": [],
@@ -8810,6 +9005,7 @@
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
+      "turbo-resolve-extensions should respect resolveExtensions priority (.web.tsx before .tsx)",
       "turbo-resolve-extensions should work using browser"
     ],
     "failed": [],
@@ -9014,6 +9210,7 @@
       "router autoscrolling on navigation router.refresh() should not scroll the page when we hot reload",
       "router autoscrolling on navigation router.refresh() should not scroll when called alone",
       "router autoscrolling on navigation router.refresh() should not stop router.push() from scrolling",
+      "router autoscrolling on navigation server action refresh should not scroll when refresh() is called from a server action",
       "router autoscrolling on navigation should scroll to top even if React hoists children",
       "router autoscrolling on navigation vertical scroll should not scroll to top of document if page in viewport",
       "router autoscrolling on navigation vertical scroll should not scroll when the top of the page is in the viewport",
@@ -9649,6 +9846,13 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/max-prefetch-inlining/max-prefetch-inlining.test.ts": {
+    "passed": ["max prefetch inlining disabled in development"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/memory-pressure/segment-cache-memory-pressure.test.ts": {
     "passed": ["segment cache memory pressure disabled in development"],
     "failed": [],
@@ -9671,10 +9875,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/no-prefetch/no-prefetch.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "navigating without a prefetch can show a loading boundary from the dynamic response"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9696,24 +9900,26 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
-    "passed": ["prefetch inlining disabled in development"],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
     "passed": [
-      "layout sharing in non-static prefetches disabled in development"
+      "prefetch inlining prefetch hints are only computed during build"
     ],
     "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
+  "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
     "passed": [],
-    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "failed": [],
+    "pending": [
+      "layout sharing in non-static prefetches disabled in development"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
+    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9733,9 +9939,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
-    "passed": ["segment cache (refresh) disabled in development"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["segment cache (refresh) disabled in development"],
     "flakey": [],
     "runtimeError": false
   },
@@ -9764,9 +9970,36 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/staleness/segment-cache-per-page-dynamic-stale-time.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "segment cache (per-page dynamic stale time) disabled in development"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-stale-time.test.ts": {
     "passed": [
       "segment cache (staleness) disabled in development / deployment"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/vary-params-base-dynamic/vary-params-base-dynamic.test.ts": {
+    "passed": [
+      "segment cache - vary params base dynamic prefetching is disabled in dev mode"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-cache/vary-params/root-params-segment-prefetch.test.ts": {
+    "passed": [
+      "segment cache - root params segment prefetch prefetching is disabled in dev mode"
     ],
     "failed": [],
     "pending": [],
@@ -9872,6 +10105,7 @@
       "app-dir - server source maps logged errors collapse deeply nested causes at depth 2",
       "app-dir - server source maps logged errors have a sourcemapped `cause`",
       "app-dir - server source maps logged errors have a sourcemapped stack with a codeframe",
+      "app-dir - server source maps logged errors in client components during ssr have a sourcemapped stack with a codeframe",
       "app-dir - server source maps logged errors include `[errors]` for AggregateError",
       "app-dir - server source maps logged errors preserve their name",
       "app-dir - server source maps stack frames are ignore-listed in ssr",
@@ -10128,12 +10362,11 @@
     "passed": [
       "typed-routes should correctly convert custom route patterns from path-to-regexp to bracket syntax",
       "typed-routes should generate RouteContext type for route handlers",
+      "typed-routes should generate route types correctly",
+      "typed-routes should have passing tsc after start",
       "typed-routes should update route types file when routes change"
     ],
-    "failed": [
-      "typed-routes should generate route types correctly",
-      "typed-routes should have passing tsc after start"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10322,6 +10555,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
+    "passed": [
+      "use-cache-swr should pass implicit tags to cache handler get() for nested caches during SWR",
+      "use-cache-swr should serve stale data and then pre-warmed data on subsequent request"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-unknown-cache-kind/use-cache-unknown-cache-kind.test.ts": {
     "passed": [
       "use-cache-unknown-cache-kind should not show an error for default cache kinds",
@@ -10395,6 +10638,13 @@
       "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function",
       "use-cache works with useActionState if previousState parameter is not used in \"use cache\" function (separate export)"
     ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/use-offline/use-offline.test.ts": {
+    "passed": ["useOffline skipped in dev mode"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10488,6 +10738,15 @@
   "test/e2e/app-dir/webpack-loader-fs/webpack-loader-fs.test.ts": {
     "passed": ["webpack-loader-fs should allow reading the input FS"],
     "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/webpack-loader-import-module/webpack-loader-import-module.test.ts": {
+    "passed": [],
+    "failed": [
+      "webpack-loader-import-module should support this.importModule() in a webpack loader"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10796,11 +11055,24 @@
   },
   "test/e2e/build-indicator/test/index.test.ts": {
     "passed": [
-      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Invalid position config should validate position config"
+    ],
+    "failed": [],
+    "pending": [
+      "Build Activity Indicator build indicator Enabled - (app) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (app) Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows the build indicator when a page is built during navigation"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/cache-handlers-upstream-wiring/index.test.ts": {
+    "passed": [
+      "cache-handlers-upstream-wiring cacheComponents disabled, edge app router uses configured cacheHandler for edge app page and edge app route",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router uses configured cacheHandlers for custom app-router cache kind",
+      "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router wires revalidateTag and revalidatePath to the custom cache handler",
+      "cache-handlers-upstream-wiring pages router non-edge wires res.revalidate() through the configured custom cacheHandler"
     ],
     "failed": [],
     "pending": [],
@@ -11084,8 +11356,8 @@
   },
   "test/e2e/edge-async-local-storage/index.test.ts": {
     "passed": [
-      "edge api can use async local storage cans use a single instance per request",
-      "edge api can use async local storage cans use multiple instances per request"
+      "edge api can use async local storage can use a single instance per request",
+      "edge api can use async local storage can use multiple instances per request"
     ],
     "failed": [],
     "pending": [],
@@ -13337,11 +13609,38 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/styled-jsx-dynamic/index.test.ts": {
+    "passed": [
+      "styled-jsx dynamic styles SSR should contain dynamic styled-jsx styles during SSR"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/styled-jsx/index.test.ts": {
     "passed": [
       "styled-jsx should contain styled-jsx styles during SSR",
       "styled-jsx should render styles during CSR",
       "styled-jsx should render styles inside TypeScript"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/swc-auto-polyfill-disabled/swc-auto-polyfill-disabled.test.ts": {
+    "passed": [
+      "swc-auto-polyfill-disabled should render the page correctly without swcEnvOptions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/swc-auto-polyfill/swc-auto-polyfill.test.ts": {
+    "passed": [
+      "swc-auto-polyfill should render the page correctly with swcEnvOptions enabled"
     ],
     "failed": [],
     "pending": [],
@@ -13782,6 +14081,17 @@
       "Vary Header Tests should preserve custom vary header and append RSC headers in app route handlers",
       "Vary Header Tests should preserve custom vary header in API routes",
       "Vary Header Tests should preserve middleware vary header in combination with route handlers"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/webpack-loader-parse-error/webpack-loader-parse-error.test.ts": {
+    "passed": [
+      "webpack-loader-parse-error (development) should show parse error for CSS loader that returns broken code",
+      "webpack-loader-parse-error (development) should show parse error for JS loader that returns broken code",
+      "webpack-loader-parse-error (production) skipped in development mode"
     ],
     "failed": [],
     "pending": [],
@@ -14712,7 +15022,10 @@
       "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
-      "create-next-app should not install dependencies if --skip-install"
+      "create-next-app should not install dependencies if --skip-install",
+      "create-next-app should not print assumed defaults when all flags are provided",
+      "create-next-app should not print assumed defaults with --yes flag",
+      "create-next-app should print assumed defaults when flags are partially provided"
     ],
     "failed": [],
     "pending": [],
@@ -14772,12 +15085,12 @@
   "test/integration/create-next-app/prompts.test.ts": {
     "passed": [
       "create-next-app prompts should not prompt user for choice and use defaults if --yes is defined",
-      "create-next-app prompts should prompt user for choice if --import-alias is absent",
-      "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
-      "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
       "create-next-app prompts should prompt user to confirm reset preferences",
       "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use default for --tailwind when other flags are provided",
+      "create-next-app prompts should use default for --ts when other flags are provided",
+      "create-next-app prompts should use default import alias when other flags are provided",
       "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
@@ -23070,6 +23383,7 @@
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
+      "config telemetry production mode emits telemetry for usage of `adapterPath`",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",

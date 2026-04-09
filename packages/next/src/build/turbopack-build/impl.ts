@@ -114,6 +114,7 @@ export async function turbopackBuild(): Promise<{
     isPersistentCachingEnabled: persistentCaching,
     deferredEntries: config.experimental.deferredEntries,
     nextVersion: process.env.__NEXT_VERSION as string,
+    hashSalt: config.hashSalt,
   }
 
   const sharedTurboOptions = {
@@ -121,6 +122,7 @@ export async function turbopackBuild(): Promise<{
     dependencyTracking: persistentCaching || hasDeferredEntries,
     isCi: isCI,
     isShortSession: true,
+    skipCompaction: process.env.NEXT_USE_POST_BUILD === '1',
   }
 
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)

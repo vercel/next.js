@@ -31,6 +31,7 @@ export interface Binding {
       traceFilePath: string,
       port: number | undefined
     ): void
+    databaseCompact(path: string): Promise<void>
 
     nextBuild?: any
   }
@@ -288,6 +289,8 @@ export interface Project {
   update(options: Partial<ProjectOptions>): Promise<void>
 
   writeAnalyzeData(appDirOnly: boolean): Promise<TurbopackResult<void>>
+
+  getAllCompilationIssues(): Promise<TurbopackResult<void>>
 
   writeAllEntrypointsToDisk(
     appDirOnly: boolean

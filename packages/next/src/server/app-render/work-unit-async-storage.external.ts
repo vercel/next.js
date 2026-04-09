@@ -76,6 +76,7 @@ export interface RequestStore extends CommonWorkUnitStore {
   cacheSignal?: CacheSignal | null
   prerenderResumeDataCache?: PrerenderResumeDataCache | null
   fallbackParams?: OpaqueFallbackRouteParams | null
+  varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation
   // We mirror the controller/renderSignal from prerender stores to allow aborting the render
@@ -113,6 +114,10 @@ export type AsyncApiPromises = {
   // Connection is not a runtime promise and doesn't
   // need to distinguish between early and late
   connection: Promise<undefined>
+
+  // IO is not a runtime promise and doesn't
+  // need to distinguish between early and late
+  io: Promise<undefined>
 }
 
 /**

@@ -49,7 +49,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -60,7 +60,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -90,7 +90,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -101,7 +101,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -131,7 +131,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -142,7 +142,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',

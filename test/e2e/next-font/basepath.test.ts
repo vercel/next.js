@@ -45,7 +45,7 @@ describe('next/font/google basepath', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/dashboard\/_next\/static\/media\/.*.p.*.woff2/
+          /\/dashboard\/_next\/static\/(immutable\/)?media\/.*.p.*.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
