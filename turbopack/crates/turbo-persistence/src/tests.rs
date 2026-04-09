@@ -2027,15 +2027,14 @@ fn compaction_deletes_superseded_blob() -> Result<()> {
     let result = db.get(0, &vec![1u8])?;
     assert_eq!(result.as_deref(), Some(&[99u8][..]));
 
-    // Shutdown flushes deferred deletions, removing the old blob file.
-    db.shutdown()?;
-
-    // After shutdown, the old blob file should be deleted
+    // After compaction, the old blob file should be deleted immediately.
     assert_eq!(
         count_blob_files(path),
         0,
-        "Old blob file should be deleted after compaction + shutdown"
+        "Old blob file should be deleted after compaction"
     );
+
+    db.shutdown()?;
 
     Ok(())
 }
@@ -2080,15 +2079,14 @@ fn compaction_deletes_blob_on_tombstone() -> Result<()> {
     let result = db.get(0, &vec![1u8])?;
     assert!(result.is_none());
 
-    // Shutdown flushes deferred deletions, removing the blob file.
-    db.shutdown()?;
-
-    // After shutdown, the blob file should be deleted
+    // After compaction, the blob file should be deleted immediately.
     assert_eq!(
         count_blob_files(path),
         0,
-        "Blob file should be deleted after compaction + shutdown"
+        "Blob file should be deleted after compaction"
     );
+
+    db.shutdown()?;
 
     Ok(())
 }
@@ -2139,15 +2137,14 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
     assert_eq!(results.len(), 1);
     assert_eq!(results[0].as_ref(), &[99u8]);
 
-    // Shutdown flushes deferred deletions, removing the old blob file.
-    db.shutdown()?;
-
-    // After shutdown, the old blob file should be deleted
+    // After compaction, the old blob file should be deleted immediately.
     assert_eq!(
         count_blob_files(path),
         0,
-        "Blob file should be deleted after compaction + shutdown"
+        "Blob file should be deleted after compaction"
     );
+
+    db.shutdown()?;
 
     Ok(())
 }
