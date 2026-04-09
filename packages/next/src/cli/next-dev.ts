@@ -297,7 +297,7 @@ const nextDev = async (
           // Only flag as a rage restart if the git branch hasn't changed. If
           // either the stored or current branch is unknown, skip the comparison
           // and fall back to time-only detection.
-          const storedBranch = state.gitBranch ?? ''
+          const storedBranch = state.gitBranch
           const currentBranch = getGitBranch(dir)
           const branchChanged =
             storedBranch && currentBranch && storedBranch !== currentBranch
