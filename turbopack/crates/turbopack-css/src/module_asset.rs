@@ -230,11 +230,50 @@ impl EcmascriptCssModule {
     #[turbo_tasks::function]
     async fn module_references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
+        let this = self.await?;
 
         for (_, class_names) in &*self.classes().await? {
             for class_name in class_names {
                 match class_name {
                     ModuleCssClass::Import { from, .. } => {
+                        // Validate that the composes reference resolves to a CSS module.
+                        // This runs during module graph building so issues are surfaced
+                        // by get_compilation_issues.
+                        let resolved_module = from.resolve_reference().first_module().await?;
+                        if let Some(resolved_module) = &*resolved_module {
+                            if ResolvedVc::try_downcast_type::<EcmascriptCssModule>(
+                                *resolved_module,
+                            )
+                            .is_none()
+                            {
+                                CssModuleComposesIssue {
+                                    severity: IssueSeverity::Error,
+                                    source: IssueSource::from_source_only(this.source),
+                                    message: turbofmt!(
+                                        "Module {} referenced in `composes: ... from ...;` is not \
+                                         a CSS module.\n",
+                                        from.await?.request
+                                    )
+                                    .await?,
+                                }
+                                .resolved_cell()
+                                .emit();
+                            }
+                        } else {
+                            CssModuleComposesIssue {
+                                severity: IssueSeverity::Error,
+                                source: IssueSource::from_source_only(this.source),
+                                message: turbofmt!(
+                                    "Module {} referenced in `composes: ... from ...;` can't be \
+                                     resolved.\n",
+                                    from.await?.request
+                                )
+                                .await?,
+                            }
+                            .resolved_cell()
+                            .emit();
+                        }
+
                         references.push(ResolvedVc::upcast(*from));
                     }
                     ModuleCssClass::Local { .. } | ModuleCssClass::Global { .. } => {}
@@ -288,40 +327,14 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                         let resolved_module = from.resolve_reference().first_module().await?;
 
                         let Some(resolved_module) = &*resolved_module else {
-                            CssModuleComposesIssue {
-                                severity: IssueSeverity::Error,
-                                // TODO(PACK-4879): this should include detailed location
-                                // information
-                                source: IssueSource::from_source_only(self.await?.source),
-                                message: turbofmt!(
-                                    "Module {} referenced in `composes: ... from ...;` can't be \
-                                     resolved.\n",
-                                    from.await?.request
-                                )
-                                .await?,
-                            }
-                            .resolved_cell()
-                            .emit();
+                            // Issue already emitted during module_references()
                             continue;
                         };
 
                         let Some(css_module) =
                             ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*resolved_module)
                         else {
-                            CssModuleComposesIssue {
-                                severity: IssueSeverity::Error,
-                                // TODO(PACK-4879): this should include detailed location
-                                // information
-                                source: IssueSource::from_source_only(self.await?.source),
-                                message: turbofmt!(
-                                    "Module {} referenced in `composes: ... from ...;` is not a \
-                                     CSS module.\n",
-                                    from.await?.request
-                                )
-                                .await?,
-                            }
-                            .resolved_cell()
-                            .emit();
+                            // Issue already emitted during module_references()
                             continue;
                         };
 
@@ -437,7 +450,7 @@ impl Issue for CssModuleComposesIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::CodeGen.cell()
+        IssueStage::Resolve.cell()
     }
 
     #[turbo_tasks::function]
