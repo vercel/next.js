@@ -1,4 +1,3 @@
-import { writeSync } from 'node:fs'
 import { parseArgs } from 'node:util'
 import { InvalidArgumentError } from 'next/dist/compiled/commander'
 
@@ -6,16 +5,7 @@ export function printAndExit(message: string, code = 1) {
   if (code === 0) {
     console.log(message)
   } else {
-    // Use `fs.writeSync` instead of `console.error` so the message always
-    // lands before `process.exit` terminates the process. On POSIX, writes
-    // to a piped stderr (e.g. when `next dev` is spawned as a background
-    // task by an AI coding agent that captures the output to a file) are
-    // asynchronous, and `process.exit` can drop pending async writes — so
-    // agents reading the log file see the shell preamble and nothing else.
-    // Writing directly to fd 2 is synchronous on both POSIX and Windows
-    // and bypasses Node's stream buffer entirely, so the error always
-    // makes it to the consumer before the process terminates.
-    writeSync(2, message + '\n')
+    console.error(message)
   }
 
   return process.exit(code)
