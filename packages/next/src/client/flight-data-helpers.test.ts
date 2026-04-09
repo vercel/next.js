@@ -1,6 +1,12 @@
-import { prepareFlightRouterStateForRequest } from './flight-data-helpers'
+import {
+  createInitialRSCPayloadFromFallbackPrerender,
+  fillInFallbackFlightData,
+  prepareFlightRouterStateForRequest,
+  replaceDeferredRouteParamMarkersInFlightRouterState,
+} from './flight-data-helpers'
 import {
   PrefetchHint,
+  type InitialRSCPayload,
   type FlightRouterState,
 } from '../shared/lib/app-router-types'
 
@@ -296,5 +302,156 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(sidebarRoute[2]).toBeUndefined() // URL stripped
       expect(sidebarRoute[3]).toBeUndefined() // null marker stripped
     })
+  })
+})
+
+describe('replaceDeferredRouteParamMarkersInFlightRouterState', () => {
+  it('replaces deferred param markers in place while preserving router state metadata', () => {
+    const flightRouterState: FlightRouterState = [
+      '',
+      {
+        children: [
+          'another',
+          {
+            children: [
+              ['slug', '%%drp:slug:abc123%%', 'd', null],
+              {
+                children: ['__PAGE__', {}, ['/another/third', ''], 'refetch'],
+              },
+              ['/another/third', ''],
+              null,
+              PrefetchHint.IsRootLayout,
+            ],
+          },
+          null,
+          null,
+          PrefetchHint.IsRootLayout,
+        ],
+      },
+      null,
+      null,
+      PrefetchHint.IsRootLayout,
+    ]
+
+    const result = replaceDeferredRouteParamMarkersInFlightRouterState(
+      flightRouterState,
+      '/another/third',
+      '' as any
+    )
+
+    expect(result).toBe(flightRouterState)
+    expect(flightRouterState[1].children[1].children[0]).toEqual([
+      'slug',
+      'third',
+      'd',
+      null,
+    ])
+    expect(flightRouterState[1].children[1].children[2]).toEqual([
+      '/another/third',
+      '',
+    ])
+    expect(flightRouterState[1].children[1].children[4]).toBe(
+      PrefetchHint.IsRootLayout
+    )
+  })
+})
+
+describe('fillInFallbackFlightData', () => {
+  it('replaces deferred route param placeholders in navigation flight data', () => {
+    const flightData = [
+      [
+        'children',
+        'another',
+        'children',
+        ['slug', '%%drp:slug:abc123%%', 'd', null],
+        [
+          '',
+          {
+            children: [
+              'another',
+              {
+                children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+              },
+            ],
+          },
+        ],
+        null,
+        null,
+        false,
+      ],
+    ] as const
+
+    const normalizedFlightData = fillInFallbackFlightData(
+      flightData,
+      '/another/third',
+      '' as `?${string}` | ''
+    )
+    const patchedFlightDataPath = normalizedFlightData[0]
+
+    expect(patchedFlightDataPath[3]).toEqual(['slug', 'third', 'd', null])
+    const patchedTree = patchedFlightDataPath[4]
+    expect(patchedTree[0]).toBe('')
+    expect(patchedTree[1].children[0]).toBe('another')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'third',
+      'd',
+      null,
+    ])
+  })
+})
+
+describe('createInitialRSCPayloadFromFallbackPrerender', () => {
+  it('preserves the trailing flight tuple fields while filling fallback params', () => {
+    const fallbackInitialRSCPayload: InitialRSCPayload = {
+      b: 'build-id',
+      c: ['', 'another', '%%drp:slug:abc123%%'],
+      i: false,
+      f: [
+        [
+          [
+            '',
+            {
+              children: [
+                'another',
+                {
+                  children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+                },
+              ],
+            },
+          ],
+          null,
+          'head-node',
+          true,
+        ],
+      ],
+      m: new Set(),
+      G: [(() => null) as any, undefined],
+      S: false,
+      h: null,
+    }
+
+    const response = new Response(null, {
+      headers: { 'x-nextjs-rewritten-path': '/another/third' },
+    })
+
+    const payload = createInitialRSCPayloadFromFallbackPrerender(
+      response,
+      fallbackInitialRSCPayload,
+      new URL('https://example.com/another/third')
+    )
+
+    const patchedTree = payload.f[0][0]
+    expect(patchedTree[0]).toBe('')
+    expect(patchedTree[1].children[0]).toBe('another')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'third',
+      'd',
+      null,
+    ])
+    expect(payload.f[0][1]).toBeNull()
+    expect(payload.f[0][2]).toBe('head-node')
+    expect(payload.f[0][3]).toBe(true)
   })
 })

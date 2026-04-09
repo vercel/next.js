@@ -31,6 +31,50 @@ if (skipped) {
           )
         )
 
+        await next.patchFile(
+          'app/another/[slug]/slug-client.js',
+          `'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function SlugClient() {
+  const params = useParams()
+
+  return <h1>{params.slug}</h1>
+}
+`
+        )
+
+        await next.patchFile(
+          'app/another/[slug]/page.js',
+          () => `import Link from 'next/link'
+import { Suspense } from 'react'
+import SlugClient from './slug-client'
+
+export function generateStaticParams() {
+  return [{ slug: 'first' }, { slug: 'second' }]
+}
+
+export default function Page(props) {
+  return (
+    <main>
+      <Suspense fallback={<h1>Loading slug...</h1>}>
+        <SlugClient />
+      </Suspense>
+      <ul>
+        <li>
+          <Link href="/another">Visit another page</Link>
+        </li>
+      </ul>
+    </main>
+  )
+}
+`
+        )
+
+        await next.deleteFile('app/api/json/route.js')
+        await next.deleteFile('app/api/txt/route.js')
+
         await next.patchFile('app/another/page.js', (content) =>
           content.replace(
             `        <li>
@@ -60,6 +104,7 @@ if (skipped) {
         if (stopOrKill) {
           await stopOrKill()
         }
+        await next.destroy()
       })
 
       it('emits both prerendered known params and fallback artifacts', async () => {

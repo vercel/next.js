@@ -31,8 +31,10 @@ import {
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import {
+  fillInFallbackFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
+  replaceDeferredRouteParamMarkersInFlightData,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
@@ -187,6 +189,7 @@ export async function fetchServerResponse(
     const isLegacyPPR =
       process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
     const shouldImmediatelyDecode = !isLegacyPPR
+    let usedOutputExportFallback = false
     let res = await createFetch<NavigationFlightResponse>(
       url,
       headers,
@@ -232,6 +235,7 @@ export async function fetchServerResponse(
       )
 
       if (fallbackResult !== null) {
+        usedOutputExportFallback = true
         const fallbackFetch = await createFetch<NavigationFlightResponse>(
           new URL(fallbackResult.response.url),
           headers,
@@ -297,6 +301,14 @@ export async function fetchServerResponse(
       res.cacheData,
     ])
 
+    if (usedOutputExportFallback) {
+      replaceDeferredRouteParamMarkersInFlightData(
+        flightResponse.f,
+        originalUrl.pathname,
+        originalUrl.search as NormalizedSearch
+      )
+    }
+
     if (
       (res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? flightResponse.b) !==
       getNavigationBuildId()
@@ -305,7 +317,15 @@ export async function fetchServerResponse(
       return doMpaNavigation(res.url)
     }
 
-    const normalizedFlightData = normalizeFlightData(flightResponse.f)
+    const normalizedFlightData = normalizeFlightData(
+      usedOutputExportFallback
+        ? fillInFallbackFlightData(
+            flightResponse.f,
+            originalUrl.pathname,
+            originalUrl.search as NormalizedSearch
+          )
+        : flightResponse.f
+    )
     if (typeof normalizedFlightData === 'string') {
       return doMpaNavigation(normalizedFlightData)
     }

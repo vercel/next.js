@@ -2933,9 +2933,13 @@ export default async function build(
               sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
+                const normalizedAppPath =
+                  appNormalizedPaths.get(originalAppPath)
 
-                const isRoutePPREnabled: boolean =
-                  pageInfos.get(originalAppPath)?.isRoutePPREnabled ?? false
+                const isRoutePPREnabled: boolean = normalizedAppPath
+                  ? (pageInfos.get(normalizedAppPath)?.isRoutePPREnabled ??
+                    false)
+                  : false
 
                 routes.forEach((route) => {
                   // If the route has any dynamic root segments, we need to skip

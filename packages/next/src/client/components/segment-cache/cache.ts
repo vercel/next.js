@@ -94,9 +94,11 @@ import type {
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 import {
+  fillInFallbackFlightData,
   type NormalizedFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
+  replaceDeferredRouteParamMarkersInFlightData,
 } from '../../flight-data-helpers'
 import { STATIC_STALETIME_MS } from '../router-reducer/reducers/navigate-reducer'
 import { pingVisibleLinks } from '../links'
@@ -1278,15 +1280,15 @@ function convertTreePrefetchToRouteTree(
         // read from the cache, since that's effectively what we're
         // doing anyway.
         const childParamKey =
+          isOutputExportMode ||
           // The server omits this field from the prefetch response when
           // cacheComponents is enabled.
-          childParam.key !== null
-            ? childParam.key
-            : // If no param key was sent, use the value parsed on the client.
-              getCacheKeyForDynamicParam(
+          childParam.key === null
+            ? getCacheKeyForDynamicParam(
                 childParamValue,
                 '' as NormalizedSearch
               )
+            : childParam.key
 
         childPartialVaryPath = appendLayoutVaryPath(
           partialVaryPath,
@@ -1380,14 +1382,19 @@ function convertTreePrefetchToRouteTree(
 export function convertRootFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   renderedSearch: NormalizedSearch,
-  acc: RouteTreeAccumulator
+  acc: RouteTreeAccumulator,
+  renderedPathname?: NormalizedPathname
 ): RouteTree {
+  const pathnameParts =
+    renderedPathname?.split('/').filter((part) => part !== '') ?? null
   return convertFlightRouterStateToRouteTree(
     flightRouterState,
     ROOT_SEGMENT_REQUEST_KEY,
     null,
     renderedSearch,
-    acc
+    acc,
+    pathnameParts,
+    0
   )
 }
 
@@ -1421,7 +1428,9 @@ export function convertReusedFlightRouterStateToRouteTree(
     requestKey,
     parentPartialVaryPath,
     renderedSearch,
-    acc
+    acc,
+    null,
+    0
   )
 }
 
@@ -1430,7 +1439,9 @@ function convertFlightRouterStateToRouteTree(
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   parentRenderedSearch: NormalizedSearch,
-  acc: RouteTreeAccumulator
+  acc: RouteTreeAccumulator,
+  pathnameParts: string[] | null,
+  pathnamePartsIndex: number
 ): RouteTree {
   const originalSegment = flightRouterState[0]
 
@@ -1453,21 +1464,37 @@ function convertFlightRouterStateToRouteTree(
   let partialVaryPath: PartialSegmentVaryPath | null
   let isPage: boolean
   let varyPath: SegmentVaryPath
+  let childPathnamePartsIndex = pathnamePartsIndex
   if (Array.isArray(originalSegment)) {
     isPage = false
-    const paramCacheKey = originalSegment[1]
     const paramName = originalSegment[0]
+    const paramType = originalSegment[2]
+    let paramCacheKey = originalSegment[1]
+    if (pathnameParts !== null && paramCacheKey.startsWith('%%drp:')) {
+      const paramValue = parseDynamicParamFromURLPart(
+        paramType,
+        pathnameParts,
+        pathnamePartsIndex
+      )
+      paramCacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
+      segment = [paramName, paramCacheKey, paramType, originalSegment[3]]
+    } else {
+      segment = originalSegment
+    }
     partialVaryPath = appendLayoutVaryPath(
       parentPartialVaryPath,
       paramCacheKey,
       paramName
     )
     varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
-    segment = originalSegment
+    childPathnamePartsIndex = pathnamePartsIndex + 1
   } else {
     // This segment does not have a param. Inherit the partial vary path of
     // the parent.
     partialVaryPath = parentPartialVaryPath
+    childPathnamePartsIndex = doesStaticSegmentAppearInURL(originalSegment)
+      ? pathnamePartsIndex + 1
+      : pathnamePartsIndex
     if (requestKey.endsWith(PAGE_SEGMENT_KEY)) {
       // This is a page segment.
       isPage = true
@@ -1528,7 +1555,9 @@ function convertFlightRouterStateToRouteTree(
       childRequestKey,
       partialVaryPath,
       renderedSearch,
-      acc
+      acc,
+      pathnameParts,
+      childPathnamePartsIndex
     )
     if (slots === null) {
       slots = {
@@ -1574,6 +1603,29 @@ export function convertRouteTreeToFlightRouterState(
     null,
   ]
   return flightRouterState
+}
+
+function normalizeFlightDataForResponse(
+  flightData: FlightData,
+  response: RSCResponse<unknown> | Response
+): NormalizedFlightData[] | string {
+  if (isOutputExportMode) {
+    replaceDeferredRouteParamMarkersInFlightData(
+      flightData,
+      getRenderedPathname(response),
+      getRenderedSearch(response)
+    )
+  }
+
+  return normalizeFlightData(
+    isOutputExportMode
+      ? fillInFallbackFlightData(
+          flightData,
+          getRenderedPathname(response),
+          getRenderedSearch(response)
+        )
+      : flightData
+  )
 }
 
 export async function fetchRouteOnCacheMiss(
@@ -2238,7 +2290,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // in the LRU as more data comes in.
     const buildId =
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
-    const flightDatas = normalizeFlightData(serverData.f)
+    const flightDatas = normalizeFlightDataForResponse(serverData.f, response)
     if (typeof flightDatas === 'string') {
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
       return null
@@ -2315,7 +2367,10 @@ function writeDynamicTreeResponseIntoCache(
 ): void {
   const renderedSearch = getRenderedSearch(response)
 
-  const normalizedFlightDataResult = normalizeFlightData(serverData.f)
+  const normalizedFlightDataResult = normalizeFlightDataForResponse(
+    serverData.f,
+    response
+  )
   if (
     // A string result means navigating to this route will result in an
     // MPA navigation.
@@ -2348,7 +2403,8 @@ function writeDynamicTreeResponseIntoCache(
   const routeTree = convertRootFlightRouterStateToRouteTree(
     flightRouterState,
     renderedSearch,
-    acc
+    acc,
+    originalPathname as NormalizedPathname
   )
   const metadataVaryPath = acc.metadataVaryPath
   if (metadataVaryPath === null) {
@@ -2539,6 +2595,13 @@ function writeSeedDataIntoCache(
     PendingSegmentCacheEntry
   > | null
 ) {
+  if (
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+    containsDeferredRouteParamMarker(seedData)
+  ) {
+    return
+  }
+
   // This function is used to write the result of a runtime server request
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
@@ -2581,6 +2644,45 @@ function writeSeedDataIntoCache(
       }
     }
   }
+}
+
+function containsDeferredRouteParamMarker(
+  value: unknown,
+  seen: Set<object> = new Set()
+): boolean {
+  if (typeof value === 'string') {
+    return value.includes('%%drp:')
+  }
+
+  if (value === null || value === undefined) {
+    return false
+  }
+
+  if (typeof value !== 'object') {
+    return false
+  }
+
+  if (seen.has(value)) {
+    return false
+  }
+  seen.add(value)
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (containsDeferredRouteParamMarker(item, seen)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  for (const item of Object.values(value)) {
+    if (containsDeferredRouteParamMarker(item, seen)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function fulfillEntrySpawnedByRuntimePrefetch(
