@@ -639,6 +639,8 @@ async fn well_known_object_member(
             Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
             }
+            // import.meta.glob is the Vite-compatible glob import
+            Some("glob") => JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
             _ => {
                 return Ok((
                     JsValue::member(Box::new(JsValue::WellKnownObject(kind)), Box::new(prop)),
