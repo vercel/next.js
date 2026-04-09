@@ -4107,7 +4107,8 @@ async function renderToStream(
           requestStore,
           renderToNodeFizzStream,
           appElement,
-          fizzOptions
+          fizzOptions,
+          { waitForAllReady: generateStaticHTML }
         )
 
         // End the render span only after React completed rendering (including anything inside Suspense boundaries)
@@ -4393,7 +4394,8 @@ async function renderToStream(
                 bootstrapScriptContent,
                 bootstrapScripts: [errorBootstrapScript],
                 formState,
-              }
+              },
+              { waitForAllReady: generateStaticHTML }
             )
 
           errorAllReady.finally(() => {
@@ -8282,7 +8284,8 @@ async function prerenderToStream(
           onError: htmlRendererErrorHandler,
           nonce,
           bootstrapScripts: [bootstrapScript],
-        }
+        },
+        { waitForAllReady: true }
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
@@ -8493,7 +8496,8 @@ async function prerenderToStream(
           nonce,
           bootstrapScripts: [errorBootstrapScript],
           formState,
-        }
+        },
+        { waitForAllReady: true }
       )
 
       const resolvedFlightResult = errorFlightResultPromise
