@@ -182,13 +182,13 @@ export default async function Page() {
 
 ## UI state preservation
 
-**Review your cleanup and reset logic.** With Cache Components, Next.js preserves pages across navigations using React's [`<Activity>`](https://react.dev/reference/react/Activity) component in [`"hidden"`](https://react.dev/reference/react/Activity#activity) mode instead of unmounting them. React state, form values, and scroll position persist when users navigate back. Effects are cleaned up when a route is hidden and recreated when it becomes visible again.
+**Component state now persists across navigations.** With Cache Components, Next.js preserves pages using React's [`<Activity>`](https://react.dev/reference/react/Activity) component in [`"hidden"`](https://react.dev/reference/react/Activity#activity) mode instead of unmounting them. Effects clean up and re-run normally, but `useState` values, form inputs, and scroll position are no longer reset when navigating away and back.
 
-Common patterns that may need adjustment:
+If your code relied on unmounting to clear state, you may need to add explicit reset logic:
 
-- **Dropdowns and popovers** — transient UI that should close when navigating away. Reset with a `useLayoutEffect` cleanup function.
+- **Dropdowns and popovers** — stay open when navigating back. Close them in a `useLayoutEffect` cleanup function.
 - **Dialogs with initialization logic** — Effects that depend on dialog state (like focusing an input) won't re-fire if the state was preserved. Derive dialog state from the URL instead.
-- **Forms after submission** — a "create new item" form should start fresh when the user returns. Reset with a callback ref or `useLayoutEffect` cleanup.
-- **Action state** — success or error messages from `useActionState` persist across navigations. Dispatch a reset action when the component is hidden.
+- **Forms after submission** — input values persist when returning. Reset with a callback ref or `useLayoutEffect` cleanup.
+- **Action state** — success or error messages from `useActionState` persist. Dispatch a reset action when the component is hidden.
 
 See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for detailed examples of each pattern.
