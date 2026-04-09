@@ -99,8 +99,8 @@ interface TraceEvent {
 interface TraceMetadata {
   anonymousId: string
   arch: string
-  branch?: string
-  commit?: string
+  branch: string
+  commit: string
   cpus: number
   isVercelEnvironment: boolean
   isTurboSession: boolean
@@ -130,9 +130,9 @@ interface TraceMetadata {
 
   const isVercelEnvironment = !!process.env.VERCEL
 
-  const commit = getGitCommit(projectDir)
+  const commit = getGitCommit(projectDir) ?? ''
 
-  const branch = getGitBranch(projectDir)
+  const branch = getGitBranch(projectDir) ?? ''
 
   const readLineInterface = createInterface({
     input: createReadStream(path.join(projectDir, distDir, 'trace')),
