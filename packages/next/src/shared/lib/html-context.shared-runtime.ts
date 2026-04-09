@@ -31,6 +31,19 @@ export type HtmlProps = {
   unstable_JsPreload?: false
   assetQueryString: string
   mutableAssetQueryString: string
+  /**
+   * Asset query string for CSS and font assets. Includes both the deployment
+   * token (if any) and a cache-busting parameter for Safari
+   * (https://bugs.webkit.org/show_bug.cgi?id=187726) in dev. Use this for
+   * `<link rel="stylesheet">`, `<link rel="preload" as="style">`, and font
+   * preload tags.
+   *
+   * Must NOT be used for script tags — the Turbopack runtime infers
+   * ASSET_SUFFIX from the executing script's query string and leaks it onto
+   * all static asset URLs, causing next/image validation errors.
+   * See https://github.com/vercel/next.js/issues/92118.
+   */
+  cssAssetQueryString: string
   scriptLoader: {
     afterInteractive?: string[]
     beforeInteractive?: any[]

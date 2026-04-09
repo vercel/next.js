@@ -458,34 +458,44 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  let baseAssetQueryString =
+  // cacheBuster is a workaround for a Safari bug
+  // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS
+  // resources are cached and not re-fetched on HMR. It must only be applied
+  // to CSS and font assets — not to script tags — because the Turbopack
+  // runtime infers ASSET_SUFFIX from the executing script's query string and
+  // leaks it onto all static asset URLs (including images), causing
+  // next/image validation errors.
+  // See https://github.com/vercel/next.js/issues/92118.
+  let cacheBuster =
     (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
 
-  if (process.env.__NEXT_DEV_SERVER && !baseAssetQueryString) {
+  if (process.env.__NEXT_DEV_SERVER && !cacheBuster) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
     if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-      // In dev we invalidate the cache by appending a timestamp to the resource URL.
-      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      // Note: The workaround breaks breakpoints on reload since the script url always changes,
-      // so we only apply it to Safari.
-      baseAssetQueryString = `?ts=${Date.now()}`
+      cacheBuster = `?ts=${Date.now()}`
     }
   }
 
-  const mutableAssetQueryString =
-    baseAssetQueryString +
-    (sharedContext.deploymentId
-      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.deploymentId}`
-      : '')
-  const assetQueryString =
-    baseAssetQueryString +
+  const mutableAssetQueryString = sharedContext.deploymentId
+    ? `?dpl=${sharedContext.deploymentId}`
+    : ''
+  const assetQueryString = sharedContext.clientAssetToken
+    ? `?dpl=${sharedContext.clientAssetToken}`
+    : ''
+  // cssAssetQueryString is assetQueryString with the cacheBuster prepended.
+  // Use this for CSS and font URLs; use assetQueryString for script URLs.
+  const cssAssetQueryString =
+    cacheBuster +
     (sharedContext.clientAssetToken
-      ? `${baseAssetQueryString ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
+      ? `${cacheBuster ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
       : '')
   const metadata: PagesRenderResultMetadata = {
-    assetQueryString,
-    mutableAssetQueryString,
+    assetQueryString: cssAssetQueryString,
+    mutableAssetQueryString:
+      cacheBuster +
+      (sharedContext.deploymentId
+        ? `${cacheBuster ? '&' : '?'}dpl=${sharedContext.deploymentId}`
+        : ''),
   }
 
   // don't modify original query object
@@ -1531,6 +1541,7 @@ export async function renderToHTMLImpl(
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
     assetQueryString: assetQueryString || '',
+    cssAssetQueryString: cssAssetQueryString || '',
     mutableAssetQueryString: mutableAssetQueryString || '',
     scriptLoader,
     locale,
