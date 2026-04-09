@@ -184,4 +184,11 @@ export default async function Page() {
 
 **Review your cleanup and reset logic.** With Cache Components, Next.js preserves pages across navigations using React's [`<Activity>`](https://react.dev/reference/react/Activity) component in [`"hidden"`](https://react.dev/reference/react/Activity#activity) mode instead of unmounting them. React state, form values, and scroll position persist when users navigate back. Effects are cleaned up when a route is hidden and recreated when it becomes visible again.
 
-Code that relied on unmounting to reset state — such as analytics events or transient UI like dropdowns — may need adjustment. See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for patterns on choosing what to preserve and what to reset.
+Common patterns that may need adjustment:
+
+- **Dropdowns and popovers** — transient UI that should close when navigating away. Reset with a `useLayoutEffect` cleanup function.
+- **Dialogs with initialization logic** — Effects that depend on dialog state (like focusing an input) won't re-fire if the state was preserved. Derive dialog state from the URL instead.
+- **Forms after submission** — a "create new item" form should start fresh when the user returns. Reset with a callback ref or `useLayoutEffect` cleanup.
+- **Action state** — success or error messages from `useActionState` persist across navigations. Dispatch a reset action when the component is hidden.
+
+See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for detailed examples of each pattern.
