@@ -27,6 +27,7 @@ import {
   SSG_FALLBACK_EXPORT_ERROR,
 } from '../lib/constants'
 import { recursiveCopy } from '../lib/recursive-copy'
+import { isOutputExportOptimisticRoutingEnabled } from '../lib/output-export-dynamic-fallback'
 import {
   BUILD_ID_FILE,
   CLIENT_PUBLIC_FILES_PATH,
@@ -509,7 +510,7 @@ async function exportAppImpl(
       clientParamParsingOrigins:
         nextConfig.experimental.clientParamParsingOrigins,
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
-      optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
+      optimisticRouting: isOutputExportOptimisticRoutingEnabled(nextConfig),
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
@@ -865,6 +866,29 @@ async function exportAppImpl(
       }
       durations.durationsByPath.set(path, result.duration)
       collector.byPage.set(page, durations)
+    }
+  }
+
+  if (
+    options.buildExport &&
+    allExportPaths.some(
+      ({ _fallbackRouteParams = [] }) => _fallbackRouteParams.length > 0
+    )
+  ) {
+    const fallbackSource = [
+      join(outDir, 'index.html'),
+      join(outDir, '404.html'),
+    ].find((candidate) => existsSync(candidate))
+
+    if (fallbackSource) {
+      const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
+      const exportFallbackScript =
+        '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
+      const patchedFallbackHtml = fallbackHtml.includes('</head>')
+        ? fallbackHtml.replace('</head>', `${exportFallbackScript}</head>`)
+        : exportFallbackScript + fallbackHtml
+
+      await fs.writeFile(join(outDir, '_fallback.html'), patchedFallbackHtml)
     }
   }
 

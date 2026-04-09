@@ -79,6 +79,7 @@ import type {
   AppRouteRouteModule,
 } from '../server/route-modules/app-route/module'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
+import { isOutputExportDynamicFallbackEnabled } from '../lib/output-export-dynamic-fallback'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { fillStaticMetadataSegment } from '../lib/metadata/get-metadata-route'
@@ -851,12 +852,19 @@ export async function isPageStatic({
 
         rootParamKeys = collectRootParamKeys(routeModule)
 
+        const route = parseNormalizedAppRoute(page)
+        const isOutputExportFallbackRoute =
+          isOutputExportDynamicFallbackEnabled({
+            output: nextConfigOutput,
+            cacheComponents,
+          }) && route.dynamicSegments.length > 0
+
         // A page supports partial prerendering if it is an app page and either
-        // the whole app has PPR enabled or this page has PPR enabled when we're
-        // in incremental mode.
+        // the whole app has PPR enabled or this is an export-mode dynamic route
+        // using Cache Components, which reuses the same fallback-shell render path.
         isRoutePPREnabled =
           routeModule.definition.kind === RouteKind.APP_PAGE &&
-          checkIsRoutePPREnabled(pprConfig)
+          (checkIsRoutePPREnabled(pprConfig) || isOutputExportFallbackRoute)
 
         // If force dynamic was set and we don't have PPR enabled, then set the
         // revalidate to 0.
@@ -864,8 +872,6 @@ export async function isPageStatic({
         if (appConfig.dynamic === 'force-dynamic' && !isRoutePPREnabled) {
           appConfig.revalidate = 0
         }
-
-        const route = parseNormalizedAppRoute(page)
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static

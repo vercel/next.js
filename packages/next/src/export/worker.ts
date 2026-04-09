@@ -205,6 +205,22 @@ async function exportPageImpl(
   const getHtmlFilename = (p: string) =>
     subFolders ? `${p}${sep}index.html` : `${p}.html`
 
+  const getFallbackExportPath = (routePath: string) => {
+    const segments = routePath.split('/').filter(Boolean)
+    const firstDynamicIndex = segments.findIndex(
+      (segment) => segment.startsWith('[') && segment.endsWith(']')
+    )
+
+    if (firstDynamicIndex === -1) {
+      return null
+    }
+
+    const staticPrefix = segments.slice(0, firstDynamicIndex).join('/')
+    return staticPrefix.length > 0
+      ? `/${staticPrefix}/__fallback`
+      : '/__fallback'
+  }
+
   let htmlFilename = getHtmlFilename(filePath)
 
   // dynamic routes can provide invalid extensions e.g. /blog/[...slug] returns an
@@ -228,6 +244,19 @@ async function exportPageImpl(
   } else if (path === '/') {
     // If the path is the root, just use index.html
     htmlFilename = 'index.html'
+  }
+
+  if (
+    buildExport &&
+    isAppDir &&
+    fallbackRouteParams &&
+    fallbackRouteParams.size > 0
+  ) {
+    const fallbackExportPath = getFallbackExportPath(path)
+
+    if (fallbackExportPath) {
+      htmlFilename = getHtmlFilename(normalizePagePath(fallbackExportPath))
+    }
   }
 
   const baseDir = join(outDir, dirname(htmlFilename))

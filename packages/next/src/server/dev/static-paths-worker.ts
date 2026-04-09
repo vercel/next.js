@@ -26,6 +26,7 @@ import { collectRootParamKeys } from '../../build/segment-config/app/collect-roo
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
+import { isOutputExportDynamicFallbackEnabled } from '../../lib/output-export-dynamic-fallback'
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
@@ -130,9 +131,15 @@ export async function loadStaticPaths({
       )
     }
 
+    const isOutputExportFallbackRoute =
+      isOutputExportDynamicFallbackEnabled({
+        output: nextConfigOutput,
+        cacheComponents: config.cacheComponents,
+      }) && route.dynamicSegments.length > 0
+
     const isRoutePPREnabled =
       isAppPageRouteModule(routeModule) &&
-      checkIsRoutePPREnabled(config.pprConfig)
+      (checkIsRoutePPREnabled(config.pprConfig) || isOutputExportFallbackRoute)
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 

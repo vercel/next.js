@@ -70,7 +70,8 @@ export function getFlightDataPartsFromPath(
 
 export function createInitialRSCPayloadFromFallbackPrerender(
   response: Response,
-  fallbackInitialRSCPayload: InitialRSCPayload
+  fallbackInitialRSCPayload: InitialRSCPayload,
+  renderedUrlOverride?: URL
 ): InitialRSCPayload {
   // This is a static fallback page. In order to hydrate the page, we need to
   // parse the client params from the URL, but to account for the possibility
@@ -94,9 +95,13 @@ export function createInitialRSCPayloadFromFallbackPrerender(
 
   // Patch the Flight data sent by the server with the correct params parsed
   // from the URL + response object.
-  const renderedPathname = getRenderedPathname(response)
-  const renderedSearch = getRenderedSearch(response)
-  const canonicalUrl = createHrefFromUrl(new URL(location.href))
+  const renderedPathname =
+    renderedUrlOverride?.pathname ?? getRenderedPathname(response)
+  const renderedSearch =
+    renderedUrlOverride?.search ?? getRenderedSearch(response)
+  const canonicalUrl = createHrefFromUrl(
+    renderedUrlOverride ?? new URL(location.href)
+  )
   const originalFlightDataPath = fallbackInitialRSCPayload.f[0]
   const originalFlightRouterState = originalFlightDataPath[0]
   const payload: InitialRSCPayload = {
