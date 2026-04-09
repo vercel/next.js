@@ -236,7 +236,7 @@ export default async function Page({ params }) {
 }
 ```
 
-Exact `Route (app)` formatting can differ slightly by Next.js version; the following is representative. For `/products/[id]` with `generateStaticParams`, compare output without Cache Components and with Cache Components enabled:
+Exact `Route (app)` lines can differ slightly by Next.js version. The snippets below show a representative `/products/[id]` route with `generateStaticParams`. When Cache Components is on, you may see **`◐` (Partial Prerender)** on the dynamic segment and **`○` (Static)** on prerendered param paths instead of **`●` (SSG)**. Use this as a quick legend for your own `next build` output, not a checklist to match line for line.
 
 **Before Cache Components:**
 
