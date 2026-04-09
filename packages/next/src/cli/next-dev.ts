@@ -510,10 +510,13 @@ function writeDevState(): void {
       // File missing or corrupt — start with empty state
     }
 
-    // Eagerly remove entries older than the threshold
-    const cutoff = Date.now() - RAGE_RESTART_THRESHOLD_MS
+    // Eagerly remove entries that are stale (older than threshold) or invalid
+    // (future timestamps from clock skew or corruption).
+    const now = Date.now()
+    const cutoff = now - RAGE_RESTART_THRESHOLD_MS
     for (const key of Object.keys(state)) {
-      if (!state[key]?.stopTime || state[key].stopTime < cutoff) {
+      const t = state[key]?.stopTime
+      if (!t || t < cutoff || t > now) {
         delete state[key]
       }
     }
