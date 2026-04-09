@@ -1,4 +1,11 @@
-use std::{borrow::Cow, io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{
+    borrow::Cow,
+    io::Write,
+    path::{Path, PathBuf},
+    sync::Arc,
+    thread,
+    time::Duration,
+};
 
 use anyhow::{Context, Result, anyhow, bail};
 use bincode::{Decode, Encode};
@@ -21,6 +28,7 @@ use next_api::{
         DebugBuildPaths, DefineEnv, DraftModeOptions, HmrTarget, PartialProjectOptions, Project,
         ProjectContainer, ProjectOptions, WatchOptions,
     },
+    project_asset_hashes_manifest::immutable_hashes_manifest_asset_if_enabled,
     route::{Endpoint, EndpointGroupKey, Route},
     routes_hashes_manifest::routes_hashes_manifest_asset_if_enabled,
 };
@@ -32,7 +40,7 @@ use next_core::{
     },
 };
 use once_cell::sync::Lazy;
-use rand::Rng;
+use rand::RngExt;
 use serde::Serialize;
 use tokio::{io::AsyncWriteExt, runtime::Handle, time::Instant};
 use tracing::Instrument;
@@ -41,14 +49,15 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Effects, FxIndexSet, NonLocalValue, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TaskInput, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi,
-    UpdateInfo, Vc, get_effects,
+    UpdateInfo, Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
+    take_effects,
     trace::TraceRawVcs,
+    unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorage, db_invalidation::invalidation_reasons};
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation,
-    to_sys_path as fs_path_to_sys_path, util::uri_from_file,
+    DiskFileSystem, FileContent, FileSystem, FileSystemPath, invalidation, util::uri_from_file,
 };
 use turbo_unix_path::{get_relative_path_to, sys_to_unix, unix_to_sys};
 use turbopack_core::{
@@ -201,6 +210,17 @@ pub struct NapiProjectOptions {
 
     // Whether persistent caching is enabled
     pub is_persistent_caching_enabled: bool,
+
+    /// The version of Next.js that is running.
+    pub next_version: RcStr,
+
+    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
+    pub server_hmr: Option<bool>,
+
+    /// A salt to mix into chunk and asset content hashes, allowing users to
+    /// force new filenames without changing file content. Empty string means
+    /// no salt.
+    pub hash_salt: RcStr,
 }
 
 /// [NapiProjectOptions] with all fields optional.
@@ -251,6 +271,9 @@ pub struct NapiPartialProjectOptions {
     /// local names for variables, functions etc., which can be useful for
     /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
+
+    /// An optional salt to mix into chunk and asset content hashes.
+    pub hash_salt: Option<RcStr>,
 }
 
 #[napi(object)]
@@ -271,6 +294,8 @@ pub struct NapiTurboEngineOptions {
     pub is_ci: Option<bool>,
     /// Whether the project is running in a short session.
     pub is_short_session: Option<bool>,
+    /// Whether to skip database compaction during shutdown.
+    pub skip_compaction: Option<bool>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -307,6 +332,9 @@ impl From<NapiProjectOptions> for ProjectOptions {
             debug_build_paths,
             deferred_entries,
             is_persistent_caching_enabled,
+            next_version,
+            server_hmr,
+            hash_salt,
         } = val;
         ProjectOptions {
             root_path,
@@ -329,6 +357,9 @@ impl From<NapiProjectOptions> for ProjectOptions {
             }),
             deferred_entries,
             is_persistent_caching_enabled,
+            next_version,
+            server_hmr: server_hmr.unwrap_or(false),
+            hash_salt,
         }
     }
 }
@@ -349,6 +380,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             browserslist_query,
             no_mangling,
             write_routes_hashes_manifest,
+            hash_salt,
         } = val;
         PartialProjectOptions {
             root_path,
@@ -365,6 +397,7 @@ impl From<NapiPartialProjectOptions> for PartialProjectOptions {
             no_mangling,
             write_routes_hashes_manifest,
             debug_build_paths: None,
+            hash_salt,
         }
     }
 }
@@ -404,7 +437,7 @@ pub fn project_new(
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
 ) -> napi::Result<JsObject> {
-    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(napi_callbacks)?;
+    let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
     if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
@@ -435,7 +468,7 @@ pub fn project_new(
     if let Some(mut trace) = trace {
         let internal_dir = PathBuf::from(&options.root_path)
             .join(&options.project_path)
-            .join(&options.dist_dir);
+            .join(".next-profiles");
         let trace_file = internal_dir.join("trace-turbopack");
 
         println!("Turbopack tracing enabled with targets: {trace}");
@@ -476,7 +509,7 @@ pub fn project_new(
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
         std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next directory")
+            .context("Unable to create .next-profiles directory")
             .unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
@@ -522,6 +555,7 @@ pub fn project_new(
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
             let is_ci = turbo_engine_options.is_ci.unwrap_or(false);
             let is_short_session = turbo_engine_options.is_short_session.unwrap_or(false);
+            let skip_compaction = turbo_engine_options.skip_compaction.unwrap_or(false);
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
                 options.is_persistent_caching_enabled,
@@ -529,6 +563,7 @@ pub fn project_new(
                 dependency_tracking,
                 is_ci,
                 is_short_session,
+                skip_compaction,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
@@ -548,14 +583,14 @@ pub fn project_new(
                 });
             }
 
-            let options: ProjectOptions = options.into();
+            let options = ProjectOptions::from(options);
             let is_dev = options.dev;
+            let root_path = options.root_path.clone();
             let container = turbo_tasks
                 .run(async move {
-                    let project = ProjectContainer::new(rcstr!("next.js"), is_dev);
-                    let project = project.to_resolved().await?;
-                    project.initialize(options).await?;
-                    Ok(project)
+                    let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
+                    ProjectContainer::initialize(container_op, options).await?;
+                    container_op.resolve().strongly_consistent().await
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
@@ -563,15 +598,26 @@ pub fn project_new(
             if is_dev {
                 Handle::current().spawn({
                     let tt = turbo_tasks.clone();
+                    let root_path = root_path.clone();
                     async move {
                         let result = tt
                             .clone()
                             .run(async move {
-                                benchmark_file_io(
-                                    tt,
-                                    container.project().node_root().owned().await?,
-                                )
-                                .await
+                                #[turbo_tasks::function(operation)]
+                                fn project_node_root_path_operation(
+                                    container: ResolvedVc<ProjectContainer>,
+                                ) -> Vc<FileSystemPath> {
+                                    container.project().node_root()
+                                }
+
+                                let mut absolute_benchmark_dir = PathBuf::from(root_path);
+                                absolute_benchmark_dir.push(
+                                    &project_node_root_path_operation(container)
+                                        .read_strongly_consistent()
+                                        .await?
+                                        .path,
+                                );
+                                benchmark_file_io(&tt, &absolute_benchmark_dir).await
                             })
                             .await;
                         if let Err(err) = result {
@@ -630,16 +676,8 @@ impl CompilationEvent for SlowFilesystemEvent {
 /// This idea is copied from Bun:
 /// - https://x.com/jarredsumner/status/1637549427677364224
 /// - https://github.com/oven-sh/bun/blob/06a9aa80c38b08b3148bfeabe560/src/install/install.zig#L3038
-async fn benchmark_file_io(turbo_tasks: NextTurboTasks, directory: FileSystemPath) -> Result<()> {
-    // try to get the real file path on disk so that we can use it with tokio
-    let fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(directory.fs)
-        .context(anyhow!(
-            "expected node_root to be a DiskFileSystem, cannot benchmark"
-        ))?
-        .await?;
-
-    let directory = fs.to_sys_path(&directory);
-    let temp_path = directory.join(format!(
+async fn benchmark_file_io(turbo_tasks: &NextTurboTasks, dir: &Path) -> Result<()> {
+    let temp_path = dir.join(format!(
         "tmp_file_io_benchmark_{:x}",
         rand::random::<u128>()
     ));
@@ -670,7 +708,7 @@ async fn benchmark_file_io(turbo_tasks: NextTurboTasks, directory: FileSystemPat
     let duration = Instant::now().duration_since(start);
     if duration > SLOW_FILESYSTEM_THRESHOLD {
         turbo_tasks.send_compilation_event(Arc::new(SlowFilesystemEvent {
-            directory: directory.to_string_lossy().into(),
+            directory: dir.to_string_lossy().into(),
             duration_ms: duration.as_millis(),
         }));
     }
@@ -687,11 +725,9 @@ pub async fn project_update(
     let ctx = &project.turbopack_ctx;
     let options = options.into();
     let container = project.container;
+
     ctx.turbo_tasks()
-        .run(async move {
-            container.update(options).await?;
-            Ok(())
-        })
+        .run(async move { container.update(options).await })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await
 }
@@ -764,7 +800,7 @@ pub struct AppPageNapiRoute {
 #[derive(Default)]
 pub struct NapiRoute {
     /// The router path
-    pub pathname: String,
+    pub pathname: RcStr,
     /// The relative path from project_path to the route file
     pub original_name: Option<RcStr>,
 
@@ -782,7 +818,7 @@ pub struct NapiRoute {
 
 impl NapiRoute {
     fn from_route(
-        pathname: String,
+        pathname: RcStr,
         value: RouteOperation,
         turbopack_ctx: &NextTurbopackContext,
     ) -> Self {
@@ -906,7 +942,7 @@ impl NapiEntrypoints {
         let routes = entrypoints
             .routes
             .iter()
-            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbopack_ctx))
+            .map(|(k, v)| NapiRoute::from_route(k.clone(), v.clone(), turbopack_ctx))
             .collect();
         let middleware = entrypoints
             .middleware
@@ -1161,34 +1197,42 @@ async fn invalidate_deferred_entry_source_dirs_after_callback(
         return Ok(());
     }
 
-    let project = container.project();
-    let app_dir = find_app_dir(project.project_path().owned().await?).await?;
+    #[turbo_tasks::value(cell = "new", eq = "manual")]
+    struct ProjectInfo(Option<FileSystemPath>, DiskFileSystem);
 
-    let Some(app_dir) = &*app_dir else {
+    #[turbo_tasks::function(operation)]
+    async fn project_info_operation(
+        container: ResolvedVc<ProjectContainer>,
+    ) -> Result<Vc<ProjectInfo>> {
+        let project = container.project();
+        let app_dir = find_app_dir(project.project_path().owned().await?)
+            .owned()
+            .await?;
+        let project_fs = project.project_fs().owned().await?;
+        Ok(ProjectInfo(app_dir, project_fs).cell())
+    }
+    let ProjectInfo(app_dir, project_fs) = &*project_info_operation(container)
+        .read_strongly_consistent()
+        .await?;
+
+    let Some(app_dir) = app_dir else {
         return Ok(());
     };
-
-    let paths_to_invalidate =
-        if let Some(app_dir_sys_path) = fs_path_to_sys_path(app_dir.clone()).await? {
-            deferred_invalidation_dirs
-                .into_iter()
-                .map(|dir| {
-                    let normalized_dir = normalize_deferred_route(dir.as_str());
-                    let relative_dir = normalized_dir.trim_start_matches('/');
-                    if relative_dir.is_empty() {
-                        app_dir_sys_path.clone()
-                    } else {
-                        app_dir_sys_path.join(unix_to_sys(relative_dir).as_ref())
-                    }
-                })
-                .collect::<FxIndexSet<_>>()
-                .into_iter()
-                .collect::<Vec<_>>()
-        } else {
-            Vec::new()
-        };
-
-    let project_fs = project.project_fs().await?;
+    let app_dir_sys_path = project_fs.to_sys_path(app_dir);
+    let paths_to_invalidate = deferred_invalidation_dirs
+        .into_iter()
+        .map(|dir| {
+            let normalized_dir = normalize_deferred_route(dir.as_str());
+            let relative_dir = normalized_dir.trim_start_matches('/');
+            if relative_dir.is_empty() {
+                app_dir_sys_path.clone()
+            } else {
+                app_dir_sys_path.join(unix_to_sys(relative_dir).as_ref())
+            }
+        })
+        .collect::<FxIndexSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>();
 
     if paths_to_invalidate.is_empty() {
         // Fallback to full invalidation when app dir paths are unavailable.
@@ -1265,31 +1309,6 @@ async fn app_route_filter_for_write_phase(
     ))
 }
 
-#[turbo_tasks::function(operation)]
-async fn has_deferred_entrypoints_operation(
-    container: ResolvedVc<ProjectContainer>,
-) -> Result<Vc<bool>> {
-    let project = container.project();
-    let deferred_entries = project.deferred_entries().owned().await?;
-
-    if deferred_entries.is_empty() {
-        return Ok(Vc::cell(false));
-    }
-
-    let app_project = project.app_project().await?;
-    let has_deferred = if let Some(app_project) = &*app_project {
-        app_project
-            .route_keys()
-            .await?
-            .iter()
-            .any(|route_key| is_deferred_app_route(route_key.as_str(), &deferred_entries))
-    } else {
-        false
-    };
-
-    Ok(Vc::cell(has_deferred))
-}
-
 #[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]
 #[napi]
 pub async fn project_write_all_entrypoints_to_disk(
@@ -1299,6 +1318,31 @@ pub async fn project_write_all_entrypoints_to_disk(
     let ctx = &project.turbopack_ctx;
     let container = project.container;
     let tt = ctx.turbo_tasks();
+
+    #[turbo_tasks::function(operation)]
+    async fn has_deferred_entrypoints_operation(
+        container: ResolvedVc<ProjectContainer>,
+    ) -> Result<Vc<bool>> {
+        let project = container.project();
+        let deferred_entries = project.deferred_entries().owned().await?;
+
+        if deferred_entries.is_empty() {
+            return Ok(Vc::cell(false));
+        }
+
+        let app_project = project.app_project().await?;
+        let has_deferred = if let Some(app_project) = &*app_project {
+            app_project
+                .route_keys()
+                .await?
+                .iter()
+                .any(|route_key| is_deferred_app_route(route_key.as_str(), &deferred_entries))
+        } else {
+            false
+        };
+
+        Ok(Vc::cell(has_deferred))
+    }
 
     let has_deferred_entrypoints = tt
         .run(async move {
@@ -1312,13 +1356,29 @@ pub async fn project_write_all_entrypoints_to_disk(
     let phase_build_paths = if has_deferred_entrypoints {
         Some(
             tt.run(async move {
-                let project = container.project();
-                let deferred_entries = project.deferred_entries().owned().await?;
-                let entrypoints = project.entrypoints().await?;
+                #[turbo_tasks::value]
+                struct DeferredEntrypointInfo(ReadRef<Entrypoints>, ReadRef<Vec<RcStr>>);
+
+                #[turbo_tasks::function(operation)]
+                async fn deferred_entrypoint_info_operation(
+                    container: ResolvedVc<ProjectContainer>,
+                ) -> Result<Vc<DeferredEntrypointInfo>> {
+                    let project = container.project();
+                    Ok(DeferredEntrypointInfo(
+                        project.entrypoints().await?,
+                        project.deferred_entries().await?,
+                    )
+                    .cell())
+                }
+
+                let DeferredEntrypointInfo(entrypoints, deferred_entries) =
+                    &*deferred_entrypoint_info_operation(container)
+                        .read_strongly_consistent()
+                        .await?;
 
                 Ok(compute_deferred_phase_build_paths(
-                    &entrypoints,
-                    &deferred_entries,
+                    entrypoints,
+                    deferred_entries,
                 ))
             })
             .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
@@ -1644,6 +1704,8 @@ async fn output_assets_operation(
     let whole_app_module_graphs = project.whole_app_module_graphs();
     let nft = next_server_nft_assets(project).await?;
     let routes_hashes_manifest = routes_hashes_manifest_asset_if_enabled(project).await?;
+    let immutable_hashes_manifest_asset =
+        immutable_hashes_manifest_asset_if_enabled(project).await?;
 
     whole_app_module_graphs.as_side_effect().await?;
 
@@ -1652,6 +1714,7 @@ async fn output_assets_operation(
             .into_iter()
             .chain(nft.iter().copied())
             .chain(routes_hashes_manifest.iter().copied())
+            .chain(immutable_hashes_manifest_asset.iter().copied())
             .collect(),
     ))
 }
@@ -1779,7 +1842,7 @@ async fn hmr_update_with_issues_operation(
     let filter = project.issue_filter();
     let issues = get_issues(update_op, filter).await?;
     let diagnostics = get_diagnostics(update_op).await?;
-    let effects = Arc::new(get_effects(update_op).await?);
+    let effects = Arc::new(take_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -1813,6 +1876,8 @@ pub fn project_hmr_events(
                 let chunk_name: RcStr = outer_chunk_name.clone();
                 let session = session.clone();
                 async move {
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     let project = container.project().to_resolved().await?;
                     let state = project
                         .hmr_version_state(chunk_name.clone(), hmr_target, session)
@@ -1832,7 +1897,11 @@ pub fn project_hmr_events(
                         diagnostics,
                         effects,
                     } = &*update;
+                    // HACK(bgw): Remove this mark call
+                    mark_top_level_task();
                     effects.apply().await?;
+                    // HACK(bgw): Remove this unmark call
+                    unmark_top_level_task_may_leak_eventually_consistent_state();
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -1914,7 +1983,7 @@ async fn get_hmr_chunk_names_with_issues_operation(
     let filter = issue_filter_from_container(container);
     let issues = get_issues(hmr_chunk_names_op, filter).await?;
     let diagnostics = get_diagnostics(hmr_chunk_names_op).await?;
-    let effects = Arc::new(get_effects(hmr_chunk_names_op).await?);
+    let effects = Arc::new(take_effects(hmr_chunk_names_op).await?);
     Ok(HmrChunkNamesWithIssues {
         chunk_names: hmr_chunk_names,
         issues,
@@ -2089,6 +2158,7 @@ pub fn project_compilation_events_subscribe(
             obj.set_named_property("typeName", event.type_name())?;
             obj.set_named_property("severity", event.severity().to_string())?;
             obj.set_named_property("message", event.message())?;
+            obj.set_named_property("eventJson", event.to_json())?;
 
             let external = env.create_external(event, None);
             obj.set_named_property("eventData", external)?;
@@ -2106,6 +2176,16 @@ pub fn project_compilation_events_subscribe(
                 break;
             }
         }
+        // Signal the JS side that the subscription has ended (e.g. after
+        // project shutdown drops all senders).  This allows the async
+        // iterator to exit promptly instead of hanging forever.
+        let _ = tsfn.call(
+            Err(napi::Error::new(
+                Status::Cancelled,
+                "compilation events subscription closed",
+            )),
+            ThreadsafeFunctionCallMode::Blocking,
+        );
     });
 
     Ok(())
@@ -2341,15 +2421,17 @@ pub async fn project_get_source_for_asset(
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {
-            let source_content = &*container
-                .project()
-                .project_path()
-                .await?
-                .fs()
-                .root()
-                .await?
-                .join(&file_path)?
-                .read()
+            #[turbo_tasks::function(operation)]
+            async fn source_content_operation(
+                container: ResolvedVc<ProjectContainer>,
+                file_path: RcStr,
+            ) -> Result<Vc<FileContent>> {
+                let project_path = container.project().project_path().await?;
+                Ok(project_path.fs().root().await?.join(&file_path)?.read())
+            }
+
+            let source_content = &*source_content_operation(container, file_path.clone())
+                .read_strongly_consistent()
                 .await?;
 
             let FileContent::Content(source_content) = source_content else {
@@ -2432,4 +2514,80 @@ pub async fn project_write_analyze_data(
             .map(|d| NapiDiagnostic::from(d))
             .collect(),
     })
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_inner_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<()>> {
+    let project = container.project();
+    // Build the whole app module graph without chunking, code gen, or disk emission.
+    // We use whole_app_module_graphs_without_dropping_issues() instead of
+    // whole_app_module_graphs() because the latter drops issues in development mode
+    // (to avoid duplicate per-route HMR noise). The non-dropping variant ensures issues
+    // like missing modules and transform errors are properly collected as collectables here.
+    project
+        .whole_app_module_graphs_without_dropping_issues()
+        .as_side_effect()
+        .await?;
+    Ok(Vc::cell(()))
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_compilation_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Result<Vc<OperationResult>> {
+    let inner_op = get_all_compilation_issues_inner_operation(container);
+    let filter = issue_filter_from_container(container);
+    let (_, issues, diagnostics, effects) =
+        strongly_consistent_catch_collectables(inner_op, filter).await?;
+    Ok(OperationResult {
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[tracing::instrument(level = "info", name = "get all compilation issues", skip_all)]
+#[napi]
+pub async fn project_get_all_compilation_issues(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) -> napi::Result<TurbopackResult<()>> {
+    let container = project.container;
+    let (issues, diagnostics) = project
+        .turbopack_ctx
+        .turbo_tasks()
+        .run_once(async move {
+            let op = get_all_compilation_issues_operation(container);
+            let OperationResult {
+                issues,
+                diagnostics,
+                effects: _,
+            } = &*op.read_strongly_consistent().await?;
+            Ok((issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: (),
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diagnostics
+            .iter()
+            .map(|d| NapiDiagnostic::from(d))
+            .collect(),
+    })
+}
+
+/// Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+///
+/// The `path` should point to the `<distDir>/cache/turbopack` directory.
+#[napi]
+pub async fn turbopack_database_compact(path: String) -> napi::Result<()> {
+    let version_info = crate::next_api::turbopack_ctx::git_version_info();
+    let is_ci = std::env::var("CI").is_ok_and(|v| !v.is_empty());
+    turbo_tasks_backend::compact_database(&PathBuf::from(path), &version_info, is_ci)
+        .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;
+    Ok(())
 }

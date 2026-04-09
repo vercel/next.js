@@ -8,9 +8,11 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getDeploymentId,
   getDistDir,
   killApp,
   launchApp,
+  listClientChunks,
   nextBuild,
   nextStart,
   retry,
@@ -1518,14 +1520,18 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should set cache-control to immutable for static images', async () => {
     if (!ctx.isDev) {
-      const filename = fs
-        .readdirSync(join(ctx.appDir, '.next/static/media'))
-        .find((f) => /^test\.[0-9a-f]+\.jpg$/.test(f))
-      expect(filename).toBeString()
-      const query = {
-        url: `/_next/static/media/${filename}`,
-        w: ctx.w,
-        q: ctx.q,
+      const file = (await listClientChunks(join(ctx.appDir, '.next'))).find(
+        (f) => /\/test\.[0-9a-z_-]+\.jpg$/.test(f)
+      )
+      expect(file).toBeString()
+      const query: Record<string, string> = {
+        url: `/_next/${file}`,
+        w: String(ctx.w),
+        q: String(ctx.q),
+      }
+      const assetToken = getDeploymentId(ctx.appDir, false).assetToken
+      if (assetToken) {
+        query.dpl = assetToken
       }
       const opts = { headers: { accept: 'image/webp' } }
 

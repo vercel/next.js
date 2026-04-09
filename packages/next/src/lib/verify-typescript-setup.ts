@@ -53,13 +53,13 @@ function hasNativeTypeScriptPreview(dir: string): boolean {
   }
 }
 
-export async function verifyTypeScriptSetup({
+export async function verifyAndRunTypeScript({
   dir,
   distDir,
   cacheDir,
   strictRouteTypes,
   tsconfigPath,
-  typeCheckPreflight,
+  shouldRunTypeCheck,
   typedRoutes,
   disableStaticImages,
   hasAppDir,
@@ -67,13 +67,14 @@ export async function verifyTypeScriptSetup({
   appDir,
   pagesDir,
   debugBuildPaths,
+  rootParams,
 }: {
   dir: string
   distDir: string
   cacheDir?: string
   strictRouteTypes: boolean
   tsconfigPath: string | undefined
-  typeCheckPreflight: boolean
+  shouldRunTypeCheck: boolean
   typedRoutes: boolean
   disableStaticImages: boolean
   hasAppDir: boolean
@@ -81,6 +82,7 @@ export async function verifyTypeScriptSetup({
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
+  rootParams?: boolean
 }): Promise<{ result?: TypeCheckResult; version: string | null }> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
@@ -131,6 +133,7 @@ export async function verifyTypeScriptSetup({
           hasAppDir,
           strictRouteTypes,
           typedRoutes,
+          rootParams: !!rootParams,
         })
 
         return { version: null }
@@ -214,12 +217,17 @@ export async function verifyTypeScriptSetup({
       hasAppDir,
       strictRouteTypes,
       typedRoutes,
+      rootParams: !!rootParams,
     })
 
     let result
-    if (typeCheckPreflight) {
+    if (shouldRunTypeCheck) {
       const { runTypeCheck } =
         require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
+      // Install native bindings so that code frame rendering works in the worker
+      const { installBindings } =
+        require('../build/swc/install-bindings') as typeof import('../build/swc/install-bindings')
+      await installBindings()
 
       const tsPath = deps.resolved.get('typescript')!
       const typescript = (await Promise.resolve(
@@ -248,7 +256,7 @@ export async function verifyTypeScriptSetup({
     }
 
     /**
-     * verifyTypeScriptSetup can be either invoked directly in the main thread (during next dev / next lint)
+     * verifyAndRunTypeScript can be either invoked directly in the main thread (during next dev / next lint)
      * or run in a worker (during next build). In the latter case, we need to print the error message, as the
      * parent process will only receive an `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
      */

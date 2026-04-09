@@ -2453,7 +2453,9 @@ function loadServerReference$1(response, metaData, parentObject, key) {
       (cachedPromise = requireModule(serverReference)),
       (id = blockedPromise),
       (id.status = "fulfilled"),
-      (id.value = cachedPromise)
+      (id.value = cachedPromise),
+      (id.reason = null),
+      cachedPromise
     );
   if (initializingHandler) {
     var handler = initializingHandler;
@@ -2817,23 +2819,20 @@ function getOutlinedModel(
 function createMap(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Map initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Map.");
-  response = new Map(model);
   model.$$consumed = !0;
-  return response;
+  return new Map(model);
 }
 function createSet(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Set initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Set.");
-  response = new Set(model);
   model.$$consumed = !0;
-  return response;
+  return new Set(model);
 }
 function extractIterator(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Iterator initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Iterator.");
-  response = model[Symbol.iterator]();
   model.$$consumed = !0;
-  return response;
+  return model[Symbol.iterator]();
 }
 function createModel(response, model, parentObject, key) {
   return "then" === key && "function" === typeof model ? null : model;
@@ -3304,10 +3303,11 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           arrayRoot
         );
       case "B":
-        return (
-          (obj = parseInt(value.slice(2), 16)),
-          response._formData.get(response._prefix + obj)
-        );
+        obj = parseInt(value.slice(2), 16);
+        response = response._formData.get(response._prefix + obj);
+        if (!(response instanceof Blob))
+          throw Error("Referenced Blob is not a Blob.");
+        return response;
       case "R":
         return parseReadableStream(response, value, void 0);
       case "r":

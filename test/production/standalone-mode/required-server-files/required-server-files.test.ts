@@ -145,6 +145,7 @@ describe('required server files', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         ENV_FROM_HOST: 'FOOBAR',
         PORT: `${appPort}`,
       },

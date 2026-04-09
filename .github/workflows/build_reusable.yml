@@ -7,12 +7,6 @@ on:
         required: false
         description: 'additional steps to run'
         type: string
-      # Toggles the mold linker. The default linker is much slower and can run into OOMs.
-      # However, custom linkers won't work for wasm.
-      mold:
-        required: false
-        description: 'whether to use the mold linker'
-        type: string
       skipInstallBuild:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
@@ -80,6 +74,17 @@ on:
         type: string
         default: ''
 
+      testTimingsArtifact:
+        description: 'Name of an uploaded artifact containing test-timings.json. When set, download it instead of fetching via turbo.'
+        required: false
+        type: string
+        default: ''
+      testReportsArtifactPrefix:
+        description: 'Artifact name prefix for uploading test `*.results.json` files. Empty string disables upload.'
+        required: false
+        type: string
+        default: ''
+
       browser:
         description: 'Browser to use for tests'
         required: false
@@ -87,7 +92,7 @@ on:
         default: 'chromium'
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.8.9
+  TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
@@ -229,16 +234,9 @@ jobs:
         uses: ./.github/actions/setup-rust
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
-      - name: 'Install mold linker'
-        if: ${{ inputs.mold == 'yes' }}
-        run: |
-          sudo apt update
-          sudo apt install -y mold
-          echo RUSTFLAGS=${RUSTFLAGS}\ -C\ link-arg=-fuse-ld=mold >> $GITHUB_ENV
-
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
-        uses: taiki-e/install-action@nextest
+        uses: taiki-e/install-action@3a0adc33ab45d7b9b9da91822dd2b3c0151704be # nextest
 
       - run: rustc --version
         if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
@@ -246,7 +244,7 @@ jobs:
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
       - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+        uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
         if: ${{ inputs.rustCacheKey }}
         with:
           cache-provider: 'turbo'
@@ -294,20 +292,27 @@ jobs:
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      # Some packages e.g. `devlow-bench` depend on `pnpm build` to generate
-      # their `dist` directory. The first run of `pnpm install` will generate
-      # warnings because these don't exist yet.
-      #
-      # We need to run `pnpm install` a _second_ time to fix this. Fortunately,
-      # this second run is very fast and cheap.
-      - name: Re-run pnpm install to link built packages into node_modules/.bin
-        run: pnpm install
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
-
       - run: pnpm playwright install --with-deps ${{ inputs.browser }}
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
+      - name: Download pre-built test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.testTimingsArtifact }}
+
+      - name: Verify test timings
+        if: ${{ inputs.testTimingsArtifact != '' }}
+        run: |
+          if [ ! -f test-timings.json ]; then
+            echo "::error::test-timings.json not found"
+            exit 1
+          fi
+          echo "Test timings loaded ($(wc -c < test-timings.json) bytes)"
+
+      - name: Fetch test timings via turbo
+        if: ${{ inputs.testTimingsArtifact == '' }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
       - run: ${{ inputs.afterBuild }}
         # defaults.run.shell sets a stronger options (`-leo pipefail`)
@@ -318,13 +323,23 @@ jobs:
         shell: bash -le {0}
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
+      - name: Upload test result artifacts
+        if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.testReportsArtifactPrefix }}-${{ steps.var.outputs.input_step_key }}
+          path: test/**/*.results.json
+          if-no-files-found: ignore
+          retention-days: 1
+
       # This file messes up the tests because it influences the build root autodetection.
       # Jest has a global cache, so PRs that poison the cache can bring down CI
       - name: Clean up stray files
         if: ${{ always() }}
         run: rm -f /tmp/package-lock.json
 
-      - name: Upload artifact
+      - name: Upload Turborepo summary
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}

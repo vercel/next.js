@@ -1,6 +1,6 @@
 import execa from 'execa'
 import { nextTestSetup } from 'e2e-utils'
-import { getDistDir } from 'next-test-utils'
+import { getDistDir, retry } from 'next-test-utils'
 
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
@@ -42,15 +42,31 @@ describe('typed-routes-validator', () => {
       await next.build()
     }
     try {
-      const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
-        cwd: next.testDir,
-        reject: false,
-      })
+      if (isNextDev) {
+        // In dev mode, route types are generated asynchronously after the server starts.
+        // Might take a few tries before all the relevant types exist.
+        await retry(async () => {
+          const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+            cwd: next.testDir,
+            reject: false,
+          })
 
-      expect({ stdout, stderr }).toEqual({
-        stdout: '',
-        stderr: '',
-      })
+          expect({ stdout, stderr }).toEqual({
+            stdout: '',
+            stderr: '',
+          })
+        })
+      } else {
+        const { stdout, stderr } = await execa('pnpm', ['tsc', '--noEmit'], {
+          cwd: next.testDir,
+          reject: false,
+        })
+
+        expect({ stdout, stderr }).toEqual({
+          stdout: '',
+          stderr: '',
+        })
+      }
     } finally {
       if (isNextDev) {
         await next.stop()

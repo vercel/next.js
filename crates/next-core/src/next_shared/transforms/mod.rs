@@ -34,7 +34,7 @@ pub use server_actions::get_server_actions_transform_rule;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
-use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
+use turbopack_core::reference_type::ReferenceTypeCondition;
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
 
 use crate::next_image::{StructuredImageModuleType, module::BlurPlaceholderMode};
@@ -44,8 +44,8 @@ pub async fn get_next_image_rule() -> Result<ModuleRule> {
         RuleCondition::All(vec![
             // avoid urlAssetReference to be affected by this rule, since urlAssetReference
             // requires raw module to have its paths in the export
-            RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-                UrlReferenceSubType::Undefined,
+            RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+                None,
             ))),
             RuleCondition::any(vec![
                 RuleCondition::ResourcePathEndsWith(".jpg".to_string()),
@@ -108,8 +108,8 @@ fn match_js_extension(enable_mdx_rs: bool) -> RuleCondition {
 /// condition for custom ecma specific transforms.
 pub(crate) fn module_rule_match_js_no_url(enable_mdx_rs: bool) -> RuleCondition {
     RuleCondition::all(vec![
-        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-            UrlReferenceSubType::Undefined,
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+            None,
         ))),
         match_js_extension(enable_mdx_rs),
     ])

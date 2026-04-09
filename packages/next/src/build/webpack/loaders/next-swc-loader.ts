@@ -155,6 +155,7 @@ async function loaderTransform(
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
     swcPlugins: nextConfig?.experimental?.swcPlugins,
+    swcEnvOptions: nextConfig?.experimental?.swcEnvOptions,
     compilerOptions: nextConfig?.compiler,
     optimizeServerReact: nextConfig?.experimental?.optimizeServerReact,
     jsConfig,
@@ -169,6 +170,7 @@ async function loaderTransform(
     useCacheEnabled: nextConfig.experimental?.useCache,
     taintEnabled: nextConfig.experimental?.taint,
     trackDynamicImports,
+    pageExtensions: nextConfig.pageExtensions,
   })
 
   const programmaticOptions = {

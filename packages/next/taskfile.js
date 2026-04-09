@@ -32,9 +32,23 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 export async function copy_docs(task, opts) {
-  // Copy documentation from repo root into the package
+  // Copy documentation from repo root into the package.
+  // Rename .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
-  await task.source(join(docsSource, '**/*')).target('dist/docs')
+  await task
+    .source(join(docsSource, '**/*'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs')
+}
+
+export async function copy_skills(task, opts) {
+  const skillsSource = join(__dirname, '../../skills')
+  await task.source(join(skillsSource, '**/*')).target('dist/skills')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -215,15 +229,6 @@ export async function copy_vercel_og(task, opts) {
     .source(
       join(dirname(require.resolve('satori/package.json')), 'dist/index.d.ts')
     )
-    // eslint-disable-next-line require-yield
-    .run({ every: true }, function* (file) {
-      const source = file.data.toString()
-      // Ignore yoga-wasm-web types
-      file.data = source.replace(
-        /import { Yoga } from ['"]yoga-wasm-web['"]/g,
-        'type Yoga = any'
-      )
-    })
     .target('src/compiled/@vercel/og/satori')
   await task
     .source(join(dirname(require.resolve('satori/package.json')), 'LICENSE'))
@@ -240,9 +245,10 @@ export async function copy_vercel_og(task, opts) {
     .run({ every: true }, function* (file) {
       const source = file.data.toString()
       // Refers to copied satori types
-      file.data = source
-        .replace(/['"]satori['"]/g, '"next/dist/compiled/@vercel/og/satori"')
-        .replace("typeof import('@resvg/resvg-wasm')", 'any')
+      file.data = source.replace(
+        /['"]satori['"]/g,
+        '"next/dist/compiled/@vercel/og/satori"'
+      )
     })
     .target('src/compiled/@vercel/og')
 
@@ -990,7 +996,6 @@ export async function ncc_postcss_plugin_stub_for_cssnano_simple(task, opts) {
 }
 
 const babelCorePackages = {
-  'code-frame': 'next/dist/compiled/babel/code-frame',
   '@babel/generator': 'next/dist/compiled/babel/generator',
   '@babel/traverse': 'next/dist/compiled/babel/traverse',
   '@babel/types': 'next/dist/compiled/babel/types',
@@ -1006,12 +1011,6 @@ const babelCorePackages = {
   '@babel/core/lib/transformation/plugin-pass':
     'next/dist/compiled/babel/core-lib-plugin-pass',
 }
-externals['next/dist/compiled/babel/code-frame'] =
-  'next/dist/compiled/babel/code-frame'
-
-externals['next/dist/compiled/babel-code-frame'] =
-  'next/dist/compiled/babel-code-frame'
-
 Object.assign(externals, babelCorePackages)
 
 export async function ncc_babel_bundle(task, opts) {
@@ -1030,21 +1029,6 @@ export async function ncc_babel_bundle(task, opts) {
       externals: bundleExternals,
     })
     .target('src/compiled/babel')
-}
-
-export async function ncc_babel_code_frame(task, opts) {
-  const bundleExternals = {
-    ...externals,
-    'next/dist/compiled/babel-packages': 'next/dist/compiled/babel-packages',
-  }
-  await task
-    .source('src/bundles/babel-code-frame/index.js')
-    .ncc({
-      packageName: '@babel/code-frame',
-      bundleName: 'babel-code-frame',
-      externals: bundleExternals,
-    })
-    .target('src/compiled/babel-code-frame')
 }
 
 export async function ncc_babel_bundle_packages(task, opts) {
@@ -1478,7 +1462,11 @@ export async function copy_vendor_react(task_) {
     // TODO-APP: remove unused fields from package.json and unused files
     function overridePackageName(source) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      // avoid infinite suffix addition in case the package name already has the suffix
+      // e.g. if we install from src/compiled instead of npm registry.
+      if (!json.name.endsWith(`-${channel}`)) {
+        json.name = json.name + '-' + channel
+      }
       return JSON.stringify(
         {
           name: json.name,
@@ -1899,6 +1887,14 @@ export async function ncc_strip_ansi(task, opts) {
     .ncc({ packageName: 'strip-ansi', externals })
     .target('src/compiled/strip-ansi')
 }
+externals['@vercel/blob'] = 'next/dist/compiled/@vercel/blob'
+export async function ncc_vercel_blob(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/blob')))
+    .ncc({ packageName: '@vercel/blob', externals })
+    .target('src/compiled/@vercel/blob')
+}
+
 externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
@@ -2194,7 +2190,13 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
+    [
+      'browser_polyfills',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+      'copy_docs',
+      'copy_skills',
+    ],
     opts
   )
 }
@@ -2250,7 +2252,6 @@ export async function ncc(task, opts) {
         'ncc_tty_browserify',
         'ncc_vm_browserify',
         'ncc_babel_bundle',
-        'ncc_babel_code_frame',
         'ncc_bytes',
         'ncc_ci_info',
         'ncc_cli_select',
@@ -2307,6 +2308,7 @@ export async function ncc(task, opts) {
         'ncc_superstruct',
         'ncc_zod',
         'ncc_zod_validation_error',
+        'ncc_vercel_blob',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',

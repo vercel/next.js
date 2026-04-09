@@ -28,11 +28,11 @@ describe('use-cache-custom-handler', () => {
     expect(cliOutput).toContain('ModernCustomCacheHandler::refreshTags')
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
+      /ModernCustomCacheHandler::get \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\] \[ '_N_T_\/layout', '_N_T_\/page', '_N_T_\/', '_N_T_\/index' \]/
     )
 
     expect(next.cliOutput.slice(outputIndex)).toMatch(
-      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]{21})","([0-9a-f]{2})+",\[\]\]/
+      /ModernCustomCacheHandler::set \["(development|[A-Za-z0-9_-]+)","([0-9a-f]{2})+",\[\]\]/
     )
 
     // Since no existing cache entry was retrieved, we don't need to call
@@ -126,7 +126,7 @@ describe('use-cache-custom-handler', () => {
   if (isNextStart) {
     it('should save a short-lived cache during prerendering at buildtime', async () => {
       expect(next.cliOutput).toMatch(
-        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]{21}","([0-9a-f]{2})+",\[{"id":"dynamic-cache"}]\]/
+        /ModernCustomCacheHandler::set \["[A-Za-z0-9_-]+","([0-9a-f]{2})+",\[{"id":"dynamic-cache"}]\]/
       )
     })
   }

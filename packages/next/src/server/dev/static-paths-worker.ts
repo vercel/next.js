@@ -26,10 +26,11 @@ import { collectRootParamKeys } from '../../build/segment-config/app/collect-roo
 import { buildAppStaticPaths } from '../../build/static-paths/app'
 import { buildPagesStaticPaths } from '../../build/static-paths/pages'
 import { createIncrementalCache } from '../../export/helpers/create-incremental-cache'
-import { parseAppRoute } from '../../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
+  partialFallbacks: boolean
   configFileName: string
   cacheComponents: boolean
 }
@@ -118,7 +119,7 @@ export async function loadStaticPaths({
       routeModule as AppPageRouteModule | AppRouteRouteModule
     )
 
-    const route = parseAppRoute(pathname, true)
+    const route = parseNormalizedAppRoute(pathname)
     if (route.dynamicSegments.length === 0) {
       throw new InvariantError(
         `Expected a dynamic route, but got a static route: ${pathname}`
@@ -147,6 +148,7 @@ export async function loadStaticPaths({
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
+      partialFallbacksEnabled: config.partialFallbacks,
       buildId,
       authInterrupts,
       rootParamKeys,

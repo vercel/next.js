@@ -9,7 +9,7 @@ import { printAndExit } from '../server/lib/utils'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
 
 import {
@@ -18,6 +18,7 @@ import {
   writeValidatorFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
+import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
 import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
@@ -42,11 +43,11 @@ const nextTypegen = async (
 
   const strictRouteTypes = Boolean(nextConfig.experimental.strictRouteTypes)
 
-  await verifyTypeScriptSetup({
+  await verifyAndRunTypeScript({
     dir: baseDir,
     distDir: nextConfig.distDir,
     strictRouteTypes,
-    typeCheckPreflight: false,
+    shouldRunTypeCheck: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
     typedRoutes: Boolean(nextConfig.typedRoutes),
     disableStaticImages: nextConfig.images.disableStaticImages,
@@ -54,6 +55,8 @@ const nextTypegen = async (
     hasPagesDir: !!pagesDir,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
+    rootParams:
+      !!nextConfig.experimental.rootParams || !!nextConfig.cacheComponents,
   })
 
   console.log('Generating route types...')
@@ -111,6 +114,12 @@ const nextTypegen = async (
   // Generate cache-life types if cacheLife config exists
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
   writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
+
+  await writeRootParamsTypes(
+    routeTypesManifest,
+    join(distDir, 'types', 'root-params.d.ts'),
+    nextConfig
+  )
 
   console.log('✓ Types generated successfully')
 }

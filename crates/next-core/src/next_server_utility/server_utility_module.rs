@@ -41,6 +41,16 @@ impl NextServerUtilityModule {
     }
 }
 
+impl NextServerUtilityModule {
+    async fn module_reference(&self) -> Result<ResolvedVc<Box<dyn ModuleReference>>> {
+        Ok(ResolvedVc::upcast(
+            NextServerUtilityModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        ))
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl Module for NextServerUtilityModule {
     #[turbo_tasks::function]
@@ -57,11 +67,7 @@ impl Module for NextServerUtilityModule {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            NextServerUtilityModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        )]))
+        Ok(Vc::cell(vec![self.module_reference().await?]))
     }
 
     #[turbo_tasks::function]

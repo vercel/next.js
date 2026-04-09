@@ -8,10 +8,11 @@ use futures::try_join;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map as JsonMap, Value as JsonValue, json};
 use serde_with::serde_as;
+use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, OperationVc, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs,
+    Completion, OperationVc, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, ValueToString,
+    ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::{
@@ -22,7 +23,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::ChunkingContext,
+    chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAsset},
     context::{AssetContext, ProcessResult},
     file_source::FileSource,
     ident::AssetIdent,
@@ -30,10 +31,16 @@ use turbopack_core::{
         Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
         OptionStyledString, StyledString,
     },
-    module_graph::{ModuleGraph, SingleModuleGraph},
-    reference_type::{InnerAssets, ReferenceType},
+    module_graph::{
+        ModuleGraph, SingleModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+    },
+    output::{ExpandOutputAssetsInput, OutputAsset, OutputAssets, expand_output_assets},
+    reference_type::{EcmaScriptModulesReferenceSubType, InnerAssets, ReferenceType},
     resolve::{
+        ResolveErrorMode,
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
+        origin::PlainResolveOrigin,
         parse::Request,
         pattern::Pattern,
         resolve,
@@ -44,20 +51,22 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_resolve::{
-    ecmascript::get_condition_maps, resolve::resolve_options,
+    ecmascript::{esm_resolve, get_condition_maps},
+    resolve::resolve_options,
     resolve_options_context::ResolveOptionsContext,
 };
 
 use crate::{
     AssetsForSourceMapping,
+    backend::NodeBackend,
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluationIssue, custom_evaluate,
-        get_evaluate_entries, get_evaluate_pool,
+        EnvVarTracking, EvaluateContext, EvaluateEntries, EvaluatePool, EvaluationIssue,
+        custom_evaluate, get_evaluate_entries, get_evaluate_pool,
     },
     execution_context::ExecutionContext,
-    pool::{FormattingMode, NodeJsPool},
+    format::FormattingMode,
     source_map::{StackFrame, StructuredError},
     transforms::util::{EmittedAsset, emitted_assets_to_virtual_sources},
 };
@@ -123,11 +132,13 @@ impl SourceTransform for WebpackLoaders {
     fn transform(
         self: ResolvedVc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ) -> Vc<Box<dyn Source>> {
         Vc::upcast(
             WebpackLoadersProcessedAsset {
                 transform: self,
                 source,
+                asset_context,
             }
             .cell(),
         )
@@ -138,6 +149,7 @@ impl SourceTransform for WebpackLoaders {
 struct WebpackLoadersProcessedAsset {
     transform: ResolvedVc<WebpackLoaders>,
     source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -151,6 +163,21 @@ impl Source for WebpackLoadersProcessedAsset {
                 self.source.ident()
             },
         )
+    }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        let loaders = self.transform.await?.loaders.await?;
+        let loader_names: Vec<&str> = loaders.iter().map(|l| l.loader.as_str()).collect();
+        Ok(Vc::cell(
+            format!(
+                "loaders [{}] transform of {}",
+                loader_names.join(", "),
+                inner
+            )
+            .into(),
+        ))
     }
 }
 
@@ -196,122 +223,146 @@ impl WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn process(&self) -> Result<Vc<ProcessWebpackLoadersResult>> {
         let transform = self.transform.await?;
+        let loaders = transform.loaders.await?;
 
-        let ExecutionContext {
-            project_path,
-            chunking_context,
-            env,
-        } = &*transform.execution_context.await?;
-        let source_content = self.source.content();
-        let AssetContent::File(file) = *source_content.await? else {
-            bail!("Webpack Loaders transform only support transforming files");
-        };
-        let FileContent::Content(file_content) = &*file.await? else {
-            return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
-                source_map: FileContent::NotFound.resolved_cell(),
-            }
-            .cell());
-        };
+        let webpack_span = tracing::info_span!(
+            "webpack loader",
+            name = display(ReadRef::<WebpackLoaderItems>::as_raw_ref(&loaders))
+        );
 
-        // If the content is not a valid string (e.g. binary file), handle the error and pass a
-        // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
-        let content: JsonValue = match file_content.content().to_str() {
-            Ok(utf8_str) => utf8_str.to_string().into(),
-            Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
-                "binary".to_string(),
-                JsonValue::from(
-                    base64::engine::general_purpose::STANDARD
-                        .encode(file_content.content().to_bytes()),
-                ),
-            )))),
-        };
-        let evaluate_context = transform.evaluate_context;
+        async {
+            let ExecutionContext {
+                project_path,
+                chunking_context,
+                env,
+                node_backend,
+            } = &*transform.execution_context.await?;
+            let source_content = self.source.content();
+            let AssetContent::File(file) = *source_content.await? else {
+                bail!("Webpack Loaders transform only support transforming files");
+            };
+            let FileContent::Content(file_content) = &*file.await? else {
+                return Ok(ProcessWebpackLoadersResult {
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                        .resolved_cell(),
+                    assets: Vec::new(),
+                    source_map: FileContent::NotFound.resolved_cell(),
+                }
+                .cell());
+            };
 
-        let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
+            // If the content is not a valid string (e.g. binary file), handle the error and pass a
+            // Buffer to Webpack instead of a Base64 string so the build process doesn't crash.
+            let content: JsonValue = match file_content.content().to_str() {
+                Ok(utf8_str) => utf8_str.to_string().into(),
+                Err(_) => JsonValue::Object(JsonMap::from_iter(std::iter::once((
+                    "binary".to_string(),
+                    JsonValue::from(
+                        base64::engine::general_purpose::STANDARD
+                            .encode(file_content.content().to_bytes()),
+                    ),
+                )))),
+            };
+            let evaluate_context = transform.evaluate_context;
 
-        let entries = get_evaluate_entries(webpack_loaders_executor, *evaluate_context, None)
+            let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context).module();
+
+            let entries = get_evaluate_entries(
+                webpack_loaders_executor,
+                *evaluate_context,
+                **node_backend,
+                None,
+            )
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-            entries.graph_entries().to_resolved().await?,
-            false,
-            false,
-        ))
-        .connect()
-        .to_resolved()
-        .await?;
+            let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
+                entries.graph_entries().to_resolved().await?,
+                false,
+                false,
+            ))
+            .connect()
+            .to_resolved()
+            .await?;
 
-        let resource_fs_path = self.source.ident().path().await?;
-        let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
-            bail!(format!(
-                "Resource path \"{}\" need to be on project filesystem \"{}\"",
-                resource_fs_path, project_path
-            ));
-        };
-        let loaders = transform.loaders.await?;
-        let config_value = evaluate_webpack_loader(WebpackLoaderContext {
-            entries,
-            cwd: project_path.clone(),
-            env: *env,
-            context_source_for_issue: self.source,
-            chunking_context: *chunking_context,
-            module_graph,
-            resolve_options_context: Some(transform.resolve_options_context),
-            args: vec![
-                ResolvedVc::cell(content),
-                // We need to pass the query string to the loader
-                ResolvedVc::cell(resource_path.to_string().into()),
-                ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
-                ResolvedVc::cell(json!(*loaders)),
-                ResolvedVc::cell(transform.source_maps.into()),
-            ],
-            additional_invalidation: Completion::immutable().to_resolved().await?,
-        })
-        .await?;
+            let resource_fs_path = self.source.ident().path().await?;
+            let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
+                bail!(
+                    "Resource path \"{}\" needs to be on project filesystem \"{}\"",
+                    resource_fs_path,
+                    project_path
+                );
+            };
+            let config_value = evaluate_webpack_loader(WebpackLoaderContext {
+                entries,
+                cwd: project_path.clone(),
+                env: *env,
+                node_backend: *node_backend,
+                context_source_for_issue: self.source,
+                chunking_context: *chunking_context,
+                evaluate_context: transform.evaluate_context,
+                module_graph,
+                resolve_options_context: Some(transform.resolve_options_context),
+                asset_context: self.asset_context,
+                args: vec![
+                    ResolvedVc::cell(content),
+                    // We need to pass the query string to the loader
+                    ResolvedVc::cell(resource_path.to_string().into()),
+                    ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
+                    ResolvedVc::cell(json!(*loaders)),
+                    ResolvedVc::cell(transform.source_maps.into()),
+                ],
+                additional_invalidation: Completion::immutable().to_resolved().await?,
+            })
+            .await?;
 
-        let Some(val) = &*config_value else {
-            // An error happened, which has already been converted into an issue.
-            return Ok(ProcessWebpackLoadersResult {
-                content: AssetContent::File(FileContent::NotFound.resolved_cell()).resolved_cell(),
-                assets: Vec::new(),
-                source_map: FileContent::NotFound.resolved_cell(),
-            }
-            .cell());
-        };
-        let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(val)
-            .context("Unable to deserializate response from webpack loaders transform operation")?;
+            let Some(val) = &*config_value else {
+                // An error happened, which has already been converted into an issue.
+                return Ok(ProcessWebpackLoadersResult {
+                    content: AssetContent::File(FileContent::NotFound.resolved_cell())
+                        .resolved_cell(),
+                    assets: Vec::new(),
+                    source_map: FileContent::NotFound.resolved_cell(),
+                }
+                .cell());
+            };
+            let processed: WebpackLoadersProcessingResult = parse_json_with_source_context(val)
+                .context(
+                    "Unable to deserializate response from webpack loaders transform operation",
+                )?;
 
-        // handle SourceMap
-        let source_map = if !transform.source_maps {
-            None
-        } else {
-            processed
-                .map
-                .map(|source_map| Rope::from(source_map.into_owned()))
-        };
-        let source_map = resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
-
-        let file = match processed.source {
-            Either::Left(str) => File::from(str),
-            Either::Right(bytes) => File::from(bytes.binary),
-        };
-        let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
-
-        let content =
-            AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
-        Ok(ProcessWebpackLoadersResult {
-            content,
-            assets,
-            source_map: if let Some(source_map) = source_map {
-                FileContent::Content(File::from(source_map)).resolved_cell()
+            // handle SourceMap
+            let source_map = if !transform.source_maps {
+                None
             } else {
-                FileContent::NotFound.resolved_cell()
-            },
+                processed
+                    .map
+                    .map(|source_map| Rope::from(source_map.into_owned()))
+            };
+            let source_map =
+                resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
+
+            let file = match processed.source {
+                Either::Left(str) => File::from(str),
+                Either::Right(bytes) => File::from(bytes.binary),
+            };
+            let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
+
+            let content =
+                AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
+            Ok(ProcessWebpackLoadersResult {
+                content,
+                assets,
+                source_map: if let Some(source_map) = source_map {
+                    FileContent::Content(File::from(source_map)).resolved_cell()
+                } else {
+                    FileContent::NotFound.resolved_cell()
+                },
+            }
+            .cell())
         }
-        .cell())
+        .instrument(webpack_span)
+        .await
     }
 }
 
@@ -404,14 +455,35 @@ pub enum RequestMessage {
     },
     #[serde(rename_all = "camelCase")]
     TrackFileRead { file: RcStr },
+    #[serde(rename_all = "camelCase")]
+    ImportModule { lookup_path: RcStr, request: RcStr },
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportModuleChunk {
+    path: RcStr,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    code: Option<RcStr>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    binary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    source_map: Option<RcStr>,
 }
 
 #[derive(Serialize, Debug)]
 #[serde(untagged)]
 pub enum ResponseMessage {
-    Resolve { path: RcStr },
+    Resolve {
+        path: RcStr,
+    },
     // Only used for tracking invalidations, no content is returned.
     TrackFileRead {},
+    #[serde(rename_all = "camelCase")]
+    ImportModule {
+        entry_path: RcStr,
+        chunks: Vec<ImportModuleChunk>,
+    },
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, TaskInput, Debug, TraceRawVcs, Encode, Decode)]
@@ -419,10 +491,13 @@ pub struct WebpackLoaderContext {
     pub entries: ResolvedVc<EvaluateEntries>,
     pub cwd: FileSystemPath,
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
+    pub node_backend: ResolvedVc<Box<dyn NodeBackend>>,
     pub context_source_for_issue: ResolvedVc<Box<dyn Source>>,
     pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
@@ -433,11 +508,12 @@ impl EvaluateContext for WebpackLoaderContext {
     type ResponseMessage = ResponseMessage;
     type State = Vec<LogInfo>;
 
-    fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
+    fn pool(&self) -> OperationVc<EvaluatePool> {
         get_evaluate_pool(
             self.entries,
             self.cwd.clone(),
             self.env,
+            self.node_backend,
             self.chunking_context,
             self.module_graph,
             self.additional_invalidation,
@@ -461,7 +537,7 @@ impl EvaluateContext for WebpackLoaderContext {
         true
     }
 
-    async fn emit_error(&self, error: StructuredError, pool: &NodeJsPool) -> Result<()> {
+    async fn emit_error(&self, error: StructuredError, pool: &EvaluatePool) -> Result<()> {
         EvaluationIssue {
             error,
             source: IssueSource::from_source_only(self.context_source_for_issue),
@@ -478,7 +554,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         state: &mut Self::State,
         data: Self::InfoMessage,
-        pool: &NodeJsPool,
+        pool: &EvaluatePool,
     ) -> Result<()> {
         match data {
             InfoMessage::Dependencies {
@@ -554,7 +630,7 @@ impl EvaluateContext for WebpackLoaderContext {
         &self,
         _state: &mut Self::State,
         data: Self::RequestMessage,
-        _pool: &NodeJsPool,
+        _pool: &EvaluatePool,
     ) -> Result<Self::ResponseMessage> {
         match data {
             RequestMessage::Resolve {
@@ -588,14 +664,14 @@ impl EvaluateContext for WebpackLoaderContext {
                         bail!(
                             "Resolving {} in {} ends up on a different filesystem",
                             request.to_string().await?,
-                            lookup_path.value_to_string().await?
+                            lookup_path.to_string_ref().await?
                         );
                     }
                 } else {
                     bail!(
                         "Unable to resolve {} in {}",
                         request.to_string().await?,
-                        lookup_path.value_to_string().await?
+                        lookup_path.to_string_ref().await?
                     );
                 }
             }
@@ -605,10 +681,124 @@ impl EvaluateContext for WebpackLoaderContext {
                 let _ = &*self.cwd.join(&file)?.read().await?;
                 Ok(ResponseMessage::TrackFileRead {})
             }
+            RequestMessage::ImportModule {
+                lookup_path,
+                request,
+            } => {
+                let lookup_path = self.cwd.join(&lookup_path)?;
+
+                let request_vc = Request::parse(Pattern::Constant(request.clone()));
+                let origin = PlainResolveOrigin::new(*self.asset_context, lookup_path.join("_")?);
+                let resolved = esm_resolve(
+                    Vc::upcast(origin),
+                    request_vc,
+                    EcmaScriptModulesReferenceSubType::ImportModule,
+                    ResolveErrorMode::Error,
+                    Some(IssueSource::from_source_only(self.context_source_for_issue)),
+                )
+                .await?;
+
+                let Some(module) = *resolved.first_module().await? else {
+                    bail!(
+                        "importModule: unable to resolve {} in {}",
+                        request,
+                        lookup_path.to_string_ref().await?
+                    );
+                };
+
+                // Cast to evaluatable asset for bundle generation
+                let evaluatable = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module)
+                    .context("importModule: module is not evaluatable")?;
+
+                // Build a module graph from the resolved module and its
+                // transitive dependencies
+                let single_graph = SingleModuleGraph::new_with_entry(
+                    ChunkGroupEntry::Entry(vec![module]),
+                    false,
+                    false,
+                );
+                let import_module_graph = ModuleGraph::from_single_graph(single_graph)
+                    .connect()
+                    .to_resolved()
+                    .await?;
+
+                // Generate a full Node.js bundle using the real runtime
+                let output_root = self.chunking_context.output_root().owned().await?;
+                let entry_path = output_root.join("importModule.js")?;
+
+                let bootstrap = self.chunking_context.root_entry_chunk_group_asset(
+                    entry_path.clone(),
+                    ChunkGroup::Entry(vec![ResolvedVc::upcast(evaluatable)]),
+                    *import_module_graph,
+                    OutputAssets::empty(),
+                    OutputAssets::empty(),
+                );
+
+                // Collect all internal assets as {path, code} pairs
+                let bootstrap_resolved = bootstrap.to_resolved().await?;
+                let all_assets = expand_output_assets(
+                    std::iter::once(ExpandOutputAssetsInput::Asset(bootstrap_resolved)),
+                    true,
+                )
+                .await?;
+
+                let mut chunks = Vec::new();
+                for asset in all_assets {
+                    let asset_path = asset.path().owned().await?;
+                    if !asset_path.is_inside_ref(&output_root) {
+                        continue;
+                    }
+                    let Some(rel_path) = output_root.get_path_to(&asset_path) else {
+                        continue;
+                    };
+                    // Skip source map files
+                    if rel_path.ends_with(".map") {
+                        continue;
+                    }
+                    let content = asset.content().await?;
+                    let AssetContent::File(file_vc) = *content else {
+                        continue;
+                    };
+                    let file_content = file_vc.await?;
+                    let FileContent::Content(file) = &*file_content else {
+                        continue;
+                    };
+
+                    if rel_path.ends_with(".js") {
+                        // JavaScript chunk — send as text
+                        let code: RcStr = file.content().to_str()?.into_owned().into();
+                        chunks.push(ImportModuleChunk {
+                            path: rel_path.into(),
+                            code: Some(code),
+                            binary: None,
+                            source_map: None,
+                        });
+                    } else {
+                        // Binary asset (wasm, images, etc.) — send base64-encoded
+                        let bytes = file.content().to_bytes();
+                        let encoded = base64::engine::general_purpose::STANDARD.encode(&*bytes);
+                        chunks.push(ImportModuleChunk {
+                            path: rel_path.into(),
+                            code: None,
+                            binary: Some(encoded),
+                            source_map: None,
+                        });
+                    }
+                }
+
+                let entry_rel = output_root
+                    .get_path_to(&entry_path)
+                    .context("entry path should be inside output root")?;
+
+                Ok(ResponseMessage::ImportModule {
+                    entry_path: entry_rel.into(),
+                    chunks,
+                })
+            }
         }
     }
 
-    async fn finish(&self, state: Self::State, pool: &NodeJsPool) -> Result<()> {
+    async fn finish(&self, state: Self::State, pool: &EvaluatePool) -> Result<()> {
         let has_errors = state.iter().any(|log| log.log_type == LogType::Error);
         let has_warnings = state.iter().any(|log| log.log_type == LogType::Warn);
         if has_errors || has_warnings {

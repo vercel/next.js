@@ -44,6 +44,13 @@ import {
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import { RenderStage, type StagedRenderingController } from './staged-rendering'
 
+type HTTPAccessErrorStatusCode = 404 | 403 | 401
+
+export type PrerenderHTTPErrorState = {
+  boundaryTree: LoaderTree
+  triggeredStatus: HTTPAccessErrorStatusCode
+}
+
 /**
  * Use the provided loader tree to create the React Component tree.
  */
@@ -51,6 +58,7 @@ import { RenderStage, type StagedRenderingController } from './staged-rendering'
 export function createComponentTree(props: {
   loaderTree: LoaderTree
   parentParams: Params
+  parentOptionalCatchAllParamName: string | null
   parentRuntimePrefetchable: false
   rootLayoutIncluded: boolean
   injectedCSS: Set<string>
@@ -61,6 +69,7 @@ export function createComponentTree(props: {
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
   MetadataOutlet: ComponentType
+  prerenderHTTPError?: PrerenderHTTPErrorState
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -87,6 +96,7 @@ async function createComponentTreeInternal(
   {
     loaderTree: tree,
     parentParams,
+    parentOptionalCatchAllParamName,
     parentRuntimePrefetchable,
     rootLayoutIncluded,
     injectedCSS,
@@ -97,9 +107,11 @@ async function createComponentTreeInternal(
     preloadCallbacks,
     authInterrupts,
     MetadataOutlet,
+    prerenderHTTPError,
   }: {
     loaderTree: LoaderTree
     parentParams: Params
+    parentOptionalCatchAllParamName: string | null
     parentRuntimePrefetchable: boolean
     rootLayoutIncluded: boolean
     injectedCSS: Set<string>
@@ -110,6 +122,7 @@ async function createComponentTreeInternal(
     preloadCallbacks: PreloadCallbacks
     authInterrupts: boolean
     MetadataOutlet: ComponentType | null
+    prerenderHTTPError?: PrerenderHTTPErrorState
   },
   isRoot: boolean
 ): Promise<CacheNodeSeedData> {
@@ -332,6 +345,7 @@ async function createComponentTreeInternal(
         case 'prerender-client':
         case 'validation-client':
         case 'unstable-cache':
+        case 'generate-static-params':
           break
         default:
           workUnitStore satisfies never
@@ -350,6 +364,48 @@ async function createComponentTreeInternal(
       workStore.dynamicUsageDescription = dynamicUsageDescription
 
       throw new DynamicServerError(dynamicUsageDescription)
+    }
+  }
+
+  // Read unstable_dynamicStaleTime from page modules (not layouts) and track it on
+  // the store's stale field. This affects the segment cache stale time via
+  // the StaleTimeIterable.
+  if (
+    isPage &&
+    typeof layoutOrPageMod?.unstable_dynamicStaleTime === 'number'
+  ) {
+    const pageStaleTime = layoutOrPageMod.unstable_dynamicStaleTime
+    const workUnitStore = workUnitAsyncStorage.getStore()
+
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-runtime':
+        case 'prerender-legacy':
+        case 'prerender-ppr':
+          if (workUnitStore.stale > pageStaleTime) {
+            workUnitStore.stale = pageStaleTime
+          }
+          break
+        case 'request':
+          if (
+            workUnitStore.stale === undefined ||
+            workUnitStore.stale > pageStaleTime
+          ) {
+            workUnitStore.stale = pageStaleTime
+          }
+          break
+        // createComponentTree is not called for these stores:
+        case 'cache':
+        case 'private-cache':
+        case 'prerender-client':
+        case 'validation-client':
+        case 'unstable-cache':
+        case 'generate-static-params':
+          break
+        default:
+          workUnitStore satisfies never
+      }
     }
   }
 
@@ -428,6 +484,18 @@ async function createComponentTreeInternal(
       [segmentParam.param]: segmentParam.value,
     }
   }
+
+  // Track optional catch-all params with no value (e.g., [[...slug]] at /).
+  // These params won't exist as properties on the params object, so vary
+  // params tracking needs to use a Proxy to detect access. We propagate this
+  // through the tree so that child segments (like __PAGE__) also know about
+  // the missing param. In practice, this only gets passed down one level —
+  // from the optional catch-all layout segment to the page segment — so it's
+  // always very close to the leaf of the tree.
+  const optionalCatchAllParamName: string | null =
+    segmentParam?.type === 'oc' && segmentParam.value === null
+      ? segmentParam.param
+      : parentOptionalCatchAllParamName
 
   // Resolve the segment param
   const isSegmentViewEnabled = !!process.env.__NEXT_DEV_SERVER
@@ -537,27 +605,72 @@ async function createComponentTreeInternal(
             }
           }
 
-          const seedData = await createComponentTreeInternal(
-            {
-              loaderTree: parallelRoute,
-              parentParams: currentParams,
-              parentRuntimePrefetchable: isRuntimePrefetchable,
-              rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
-              injectedCSS: injectedCSSWithCurrentLayout,
-              injectedJS: injectedJSWithCurrentLayout,
-              injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-              ctx,
-              missingSlots,
-              preloadCallbacks,
-              authInterrupts,
-              // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
-              // but we only want to throw on the first one.
-              MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
-            },
-            false
-          )
+          // The outer prerender catch already found the deepest segment whose
+          // HTTP fallback should replace the throwing page. When we reach that
+          // segment's `children` slot, render the fallback directly instead of
+          // descending back into the subtree that threw during deserialization.
 
-          childCacheNodeSeedData = seedData
+          // Like the other segment-level boundary props below, HTTP access
+          // fallbacks are attached to the default `children` slot, not to named
+          // parallel routes.
+          const shouldRenderPrerenderHTTPFallback =
+            prerenderHTTPError?.boundaryTree === tree && isChildrenRouteKey
+
+          if (shouldRenderPrerenderHTTPFallback) {
+            let fallbackElement: React.ReactNode | undefined
+            switch (prerenderHTTPError.triggeredStatus) {
+              case 404:
+                fallbackElement = notFoundElement
+                break
+              case 403:
+                fallbackElement = forbiddenElement
+                break
+              case 401:
+                fallbackElement = unauthorizedElement
+                break
+              default:
+                break
+            }
+
+            if (fallbackElement) {
+              childCacheNodeSeedData = createSeedData(
+                ctx,
+                fallbackElement,
+                {},
+                null,
+                isPossiblyPartialResponse,
+                false,
+                emptyVaryParamsAccumulator
+              )
+            }
+          }
+
+          if (childCacheNodeSeedData === null) {
+            const seedData = await createComponentTreeInternal(
+              {
+                loaderTree: parallelRoute,
+                parentParams: currentParams,
+                parentOptionalCatchAllParamName: optionalCatchAllParamName,
+                parentRuntimePrefetchable: isRuntimePrefetchable,
+                rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+                injectedCSS: injectedCSSWithCurrentLayout,
+                injectedJS: injectedJSWithCurrentLayout,
+                injectedFontPreloadTags:
+                  injectedFontPreloadTagsWithCurrentLayout,
+                ctx,
+                missingSlots,
+                preloadCallbacks,
+                authInterrupts,
+                // `StreamingMetadataOutlet` is used to conditionally throw. In the case of parallel routes we will have more than one page
+                // but we only want to throw on the first one.
+                MetadataOutlet: isChildrenRouteKey ? MetadataOutlet : null,
+                prerenderHTTPError,
+              },
+              false
+            )
+
+            childCacheNodeSeedData = seedData
+          }
         }
 
         const templateNode = createElement(
@@ -808,6 +921,7 @@ async function createComponentTreeInternal(
       // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
+        optionalCatchAllParamName,
         varyParamsAccumulator,
         isRuntimePrefetchable
       )
@@ -990,6 +1104,7 @@ async function createComponentTreeInternal(
     } else {
       const params = createServerParamsForServerSegment(
         currentParams,
+        optionalCatchAllParamName,
         varyParamsAccumulator,
         isRuntimePrefetchable
       )
@@ -1272,6 +1387,7 @@ function createSeedData(
         case 'cache':
         case 'private-cache':
         case 'unstable-cache':
+        case 'generate-static-params':
           break
         default:
           workUnitStore satisfies never

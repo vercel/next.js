@@ -10,6 +10,7 @@ export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
   private _buildId: string
   private _deploymentId: string | undefined
+  private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
 
   protected throwIfUnavailable(): void | never {
@@ -36,6 +37,10 @@ export class NextDeployInstance extends NextInstance {
 
   public get deploymentId() {
     return this._deploymentId
+  }
+
+  public get supportsImmutableAssets() {
+    return process.env.IS_TURBOPACK_TEST ? this._supportsImmutableAssets : false
   }
 
   private async deployUsingCustomScript(): Promise<{ url: string }> {
@@ -118,6 +123,68 @@ export class NextDeployInstance extends NextInstance {
     return logsRes.stdout + logsRes.stderr
   }
 
+  private async cleanupUsingCustomScript(): Promise<void> {
+    const cleanupScriptPath = process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH!
+
+    require('console').log(
+      `Running cleanup using custom script: ${cleanupScriptPath}`
+    )
+
+    const scriptEnv = {
+      ...process.env,
+      NEXT_TEST_DIR: this.testDir,
+      NEXT_TEST_DEPLOY_URL: this._url,
+      ...this.env,
+    }
+
+    const cleanupChild = execa(cleanupScriptPath, [], {
+      cwd: this.testDir,
+      env: scriptEnv,
+      reject: false,
+      stderr: 'inherit',
+    })
+
+    cleanupChild.stdout?.pipe(process.stdout)
+    cleanupChild.stderr?.pipe(process.stderr)
+
+    const { exitCode } = await cleanupChild
+
+    if (exitCode !== 0) {
+      throw new Error(
+        `Custom cleanup script failed with exit code: ${exitCode}`
+      )
+    }
+  }
+
+  private parseIdsFromCliOuput(): void {
+    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
+    if (!buildId) {
+      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
+    }
+    this._buildId = buildId
+    const deploymentId = this._cliOutput
+      .match(/DEPLOYMENT_ID: (.+)/)?.[1]
+      ?.trim()
+    if (!deploymentId) {
+      throw new Error(`Failed to get deploymentId from logs ${this._cliOutput}`)
+    }
+    this._deploymentId = deploymentId
+    const supportsImmutableAssets = this._cliOutput
+      .match(/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/)?.[1]
+      ?.trim()
+    if (!supportsImmutableAssets) {
+      throw new Error(
+        `Failed to get supportsImmutableAssets from logs ${this._cliOutput}`
+      )
+    }
+    this._supportsImmutableAssets =
+      supportsImmutableAssets === '1' ? true : false
+
+    require('console').log(
+      `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}, supportsImmutableAssets: ${this._supportsImmutableAssets}`
+    )
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
@@ -166,24 +233,7 @@ export class NextDeployInstance extends NextInstance {
         this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
-      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-      if (!buildId) {
-        throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
-      }
-      this._buildId = buildId
-      const deploymentId = this._cliOutput
-        .match(/DEPLOYMENT_ID: (.+)/)?.[1]
-        ?.trim()
-      if (!deploymentId) {
-        throw new Error(
-          `Failed to get deploymentId from logs ${this._cliOutput}`
-        )
-      }
-      this._deploymentId = deploymentId
-
-      require('console').log(
-        `Got buildId: ${this._buildId}, deploymentId: ${this._deploymentId}`
-      )
+      this.parseIdsFromCliOuput()
       return
     }
 
@@ -207,17 +257,7 @@ export class NextDeployInstance extends NextInstance {
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-
-      const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
-      if (!buildId) {
-        throw new Error(
-          `Failed to get buildId from custom deploy logs ${this._cliOutput}`
-        )
-      }
-      this._buildId = buildId
-
-      require('console').log(`Got buildId: ${this._buildId}`)
+      this.parseIdsFromCliOuput()
       return
     }
 
@@ -315,17 +355,16 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS=${process.env.__NEXT_CACHE_COMPONENTS}`
       )
     }
+    if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+      additionalEnv.push(
+        `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
+      )
+    }
     if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
       )
     }
-    if (process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL=${process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL}`
-      )
-    }
-
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
@@ -399,14 +438,7 @@ export class NextDeployInstance extends NextInstance {
     // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
     this._cliOutput = buildLogs.stdout + buildLogs.stderr
 
-    const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
-
-    if (!buildId) {
-      throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
-    }
-    this._buildId = buildId
-
-    require('console').log(`Got buildId: ${this._buildId}`)
+    this.parseIdsFromCliOuput()
     // Use the stdout from the logs command as the CLI output. The CLI will
     // output other unrelated logs to stderr.
   }
@@ -444,6 +476,18 @@ export class NextDeployInstance extends NextInstance {
   }
 
   public async destroy() {
+    // Run custom cleanup script if provided
+    const customCleanupScriptPath =
+      process.env.NEXT_TEST_CLEANUP_SCRIPT_PATH?.trim()
+    if (customCleanupScriptPath) {
+      await this.cleanupUsingCustomScript().catch((err) => {
+        require('console').error(
+          'Error running custom cleanup script, continuing with destroy:',
+          err
+        )
+      })
+    }
+
     // If configured, we should remove the proxy address from the hosts file.
     if (this._writtenHostsLine) {
       const trimmed = this._writtenHostsLine.trim()

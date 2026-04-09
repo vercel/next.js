@@ -31,6 +31,7 @@ describe('New Link Behavior with <a> child', () => {
       )
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.
        Learn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor",
          "environmentLabel": null,

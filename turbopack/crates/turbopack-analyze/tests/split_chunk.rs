@@ -5,12 +5,12 @@
 use anyhow::Result;
 use serde_json::json;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, Vc};
 use turbo_tasks_fs::{
     File, FileContent, FileSystem, FileSystemPath, VirtualFileSystem, rope::Rope,
 };
 use turbo_tasks_testing::{Registration, register, run_once};
-use turbopack_analyze::split_chunk::{ChunkPartRange, split_output_asset_into_parts};
+use turbopack_analyze::split_chunk::{ChunkPartRange, ChunkParts, split_output_asset_into_parts};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     code_builder::{Code, CodeBuilder},
@@ -50,14 +50,18 @@ async fn split_chunk() {
         code += "This is the end of the file.\n";
         let code = code.build();
 
-        let asset = Vc::upcast(
-            TestAsset {
-                code: code.resolved_cell(),
-            }
-            .cell(),
-        );
+        let asset = TestAsset {
+            code: code.resolved_cell(),
+        }
+        .resolved_cell();
 
-        let parts = split_output_asset_into_parts(asset).await.unwrap();
+        #[turbo_tasks::function(operation)]
+        fn split_parts_operation(asset: ResolvedVc<TestAsset>) -> Vc<ChunkParts> {
+            split_output_asset_into_parts(Vc::upcast(*asset))
+        }
+
+        let parts_op = split_parts_operation(asset);
+        let parts = parts_op.read_strongly_consistent().await?;
 
         assert_eq!(parts.len(), 2);
 
@@ -92,10 +96,25 @@ async fn split_chunk() {
             }]
         );
 
-        assert_eq!(parts[0].get_compressed_size().await.unwrap(), 43);
-        assert_eq!(parts[1].get_compressed_size().await.unwrap(), 28);
+        #[turbo_tasks::function(operation)]
+        async fn compressed_size_operation(
+            parts: OperationVc<ChunkParts>,
+            index: usize,
+        ) -> Result<Vc<u32>> {
+            Ok(Vc::cell(
+                parts.connect().await?[index].get_compressed_size().await?,
+            ))
+        }
 
-        println!("{:#?}", parts);
+        let compressed_size_0 = compressed_size_operation(parts_op, 0)
+            .read_strongly_consistent()
+            .await?;
+        let compressed_size_1 = compressed_size_operation(parts_op, 1)
+            .read_strongly_consistent()
+            .await?;
+        assert_eq!(*compressed_size_0, 43);
+        assert_eq!(*compressed_size_1, 28);
+
         anyhow::Ok(())
     })
     .await

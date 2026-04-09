@@ -4,9 +4,11 @@ import {
   waitForRedbox,
   getRedboxCallStack,
   getRedboxCause,
+  getRedboxAggregateErrors,
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
+  getRedboxErrorCode,
   getRedboxSource,
   getRedboxLabel,
   getRedboxTotalErrorCount,
@@ -86,6 +88,8 @@ export interface ErrorSnapshot {
   description?: string
   componentStack?: string
   cause?: SanitizedCauseEntry[]
+  aggregateErrors?: SanitizedCauseEntry[]
+  code?: string
   source: string | null
   stack: string[] | null
 }
@@ -191,6 +195,8 @@ async function createErrorSnapshot(
     stack,
     componentStack,
     cause,
+    aggregateErrors,
+    code,
   ] = await Promise.all([
     includeLabel ? getRedboxLabel(browser) : null,
     getRedboxEnvironmentLabel(browser),
@@ -199,6 +205,8 @@ async function createErrorSnapshot(
     getRedboxCallStack(browser),
     getRedboxComponentStack(browser),
     getRedboxCause(browser),
+    getRedboxAggregateErrors(browser),
+    getRedboxErrorCode(browser),
   ])
 
   // We don't need to test the codeframe logic everywhere.
@@ -253,6 +261,10 @@ async function createErrorSnapshot(
     snapshot.componentStack = componentStack
   }
 
+  if (code !== null) {
+    snapshot.code = code
+  }
+
   // Error.cause chain is only relevant when present.
   if (cause !== null) {
     snapshot.cause = cause.map((entry) => {
@@ -265,6 +277,21 @@ async function createErrorSnapshot(
         causeEntry.message = entry.message
       }
       return causeEntry
+    })
+  }
+
+  // AggregateError.errors are only relevant when present.
+  if (aggregateErrors !== null) {
+    snapshot.aggregateErrors = aggregateErrors.map((entry) => {
+      const aggEntry: SanitizedCauseEntry = {
+        label: entry.label,
+        source: focusSource(entry.source, next),
+        stack: sanitizeStack(entry.stack, next) ?? [],
+      }
+      if (entry.message !== null) {
+        aggEntry.message = entry.message
+      }
+      return aggEntry
     })
   }
 

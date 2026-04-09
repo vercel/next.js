@@ -80,6 +80,29 @@ export default function Home() {
         </li>
       </ul>
 
+      <h2>Static Route with Catch-All Sibling</h2>
+      <p>
+        Tests that navigating to a sub-route of a static path does not
+        incorrectly match the catch-all sibling at the parent level.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/dashboard/settings">
+            Dashboard Settings (static route, learns pattern)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/dashboard/settings/profile" prefetch={false}>
+            Profile Settings (sub-route of static, prefetch disabled)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/dashboard/anything/here">
+            Dashboard Catch-All (learns catch-all pattern)
+          </LinkAccordion>
+        </li>
+      </ul>
+
       <h2>Static Sibling Detection</h2>
       <ul>
         <li>

@@ -7,6 +7,7 @@ pub mod dynamic_expression;
 pub mod esm;
 pub mod exports_info;
 pub mod external_module;
+pub mod hot_module;
 pub mod ident;
 pub mod member;
 pub mod node;
@@ -63,10 +64,11 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::ChunkingType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
         DefinableNameSegmentRef, FreeVarReference, FreeVarReferences, FreeVarReferencesMembers,
@@ -107,7 +109,7 @@ use crate::{
         graph::{
             ConditionalKind, DeclUsage, Effect, EffectArg, EvalContext, VarGraph, create_graph,
         },
-        imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
+        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol, Reexport},
         linker::link,
         parse_require_context, side_effects,
         top_level_await::has_top_level_await,
@@ -136,6 +138,7 @@ use crate::{
             base::EsmAssetReferences, export::EsmExport, module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
+        hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
         member::MemberReplacement,
         node::PackageJsonReference,
@@ -482,6 +485,12 @@ struct AnalysisState<'a> {
     // Whether we are only tracing dependencies (no code generation). When true, synthetic
     // wrapper modules like WorkerLoaderModule should not be created.
     tracing_only: bool,
+    // Whether the module is an ESM module (affects resolution for hot module dependencies).
+    is_esm: bool,
+    // ESM import references (indexed to match eval_context.imports.references()).
+    import_references: &'a [ResolvedVc<EsmAssetReference>],
+    // The import map from the eval context, used to match dep strings to import references.
+    imports: &'a ImportMap,
 }
 
 impl AnalysisState<'_> {
@@ -533,10 +542,9 @@ pub async fn analyze_ecmascript_module(
 
     match result {
         Ok(result) => Ok(result),
-        Err(err) => Err(err.context(format!(
-            "failed to analyze ecmascript module '{}'",
-            module.ident().to_string().await?
-        ))),
+        // ast-grep-ignore: no-context-turbofmt
+        Err(err) => Err(err
+            .context(turbofmt!("failed to analyze ecmascript module '{}'", module.ident()).await?)),
     }
 }
 
@@ -812,7 +820,7 @@ async fn analyze_ecmascript_module_internal(
                 RcStr::from(&*r.module_path.to_string_lossy()),
                 r.issue_source
                     .unwrap_or_else(|| IssueSource::from_source_only(source)),
-                r.annotations.clone(),
+                r.annotations.as_ref().map(|a| (**a).clone()),
                 match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         should_add_evaluation = true;
@@ -860,6 +868,12 @@ async fn analyze_ecmascript_module_internal(
 
     let span = tracing::trace_span!("exports");
     let (webpack_runtime, webpack_entry, webpack_chunks) = async {
+        let supports_block_scoping = *compile_time_info
+            .environment()
+            .runtime_versions()
+            .supports_block_scoping()
+            .await?;
+
         let (webpack_runtime, webpack_entry, webpack_chunks, mut esm_exports) =
             set_handler_and_globals(&handler, globals, || {
                 // TODO migrate to effects
@@ -869,6 +883,7 @@ async fn analyze_ecmascript_module_internal(
                     &mut analysis,
                     analyze_mode,
                     &var_graph,
+                    supports_block_scoping,
                 );
                 // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
                 // for any references in esm_exports
@@ -1093,6 +1108,9 @@ async fn analyze_ecmascript_module_internal(
             url_rewrite_behavior: options.url_rewrite_behavior,
             collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
             tracing_only: !options.analyze_mode.is_code_gen(),
+            is_esm,
+            import_references: &import_references,
+            imports: &eval_context.imports,
         };
 
         enum Action {
@@ -1499,8 +1517,22 @@ async fn analyze_ecmascript_module_internal(
                     };
 
                     if let Some("__turbopack_module_id__") = export.as_deref() {
+                        let chunking_type = r
+                            .await?
+                            .annotations
+                            .as_ref()
+                            .and_then(|a| a.chunking_type())
+                            .map_or_else(
+                                || {
+                                    Some(ChunkingType::Parallel {
+                                        inherit_async: true,
+                                        hoisted: true,
+                                    })
+                                },
+                                |c| c.as_chunking_type(true, true),
+                            );
                         analysis.add_reference_code_gen(
-                            EsmModuleIdAssetReference::new(*r),
+                            EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.into(),
                         )
                     } else {
@@ -1576,6 +1608,9 @@ async fn analyze_ecmascript_module_internal(
                         analysis_state.first_import_meta = false;
                         analysis.add_code_gen(ImportMetaBinding::new(
                             source.ident().path().owned().await?,
+                            analysis_state
+                                .compile_time_info_ref
+                                .hot_module_replacement_enabled,
                         ));
                     }
 
@@ -1719,6 +1754,7 @@ async fn compile_time_info_for_module_options(
         environment: compile_time_info.environment,
         defines: CompileTimeDefines(defines).resolved_cell(),
         free_var_references: FreeVarReferences(free_var_references).resolved_cell(),
+        hot_module_replacement_enabled: compile_time_info.hot_module_replacement_enabled,
     }
     .cell())
 }
@@ -2138,6 +2174,58 @@ where
             WellKnownFunctionKind::NodeWorkerConstructor => {
                 let args = linked_args().await?;
                 if !args.is_empty() {
+                    // When `{ eval: true }` is passed as the second argument,
+                    // the first argument is inline JS code, not a file path.
+                    // Skip creating a worker reference in that case.
+                    let mut dynamic_warning: Option<&str> = None;
+                    if let Some(opts) = args.get(1) {
+                        match opts {
+                            JsValue::Object { parts, .. } => {
+                                let eval_value = parts.iter().find_map(|part| match part {
+                                    ObjectPart::KeyValue(
+                                        JsValue::Constant(JsConstantValue::Str(key)),
+                                        value,
+                                    ) if key.as_str() == "eval" => Some(value),
+                                    _ => None,
+                                });
+                                if let Some(eval_value) = eval_value {
+                                    match eval_value {
+                                        // eval: true — first arg is code, not a
+                                        // path
+                                        JsValue::Constant(JsConstantValue::True) => {
+                                            return Ok(());
+                                        }
+                                        // eval: false — first arg is a path,
+                                        // continue normally
+                                        JsValue::Constant(JsConstantValue::False) => {}
+                                        // eval is set but not a literal boolean
+                                        _ => {
+                                            dynamic_warning = Some("has a dynamic `eval` option");
+                                        }
+                                    }
+                                }
+                            }
+                            // Options argument is not a static object literal —
+                            // we can't inspect it for `eval: true`
+                            _ => {
+                                dynamic_warning = Some("has a dynamic options argument");
+                            }
+                        }
+                    }
+                    if let Some(warning) = dynamic_warning {
+                        let (args, hints) = explain_args(args);
+                        handler.span_warn_with_code(
+                            span,
+                            &format!("new Worker({args}) {warning}{hints}"),
+                            DiagnosticId::Lint(
+                                errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
+                            ),
+                        );
+                        if ignore_dynamic_requests {
+                            return Ok(());
+                        }
+                    }
+
                     let pat = js_value_to_pattern(&args[0]);
                     if !pat.has_constant_parts() {
                         let (args, hints) = explain_args(args);
@@ -2179,7 +2267,7 @@ where
                     span,
                     &format!("new Worker({args}) is not statically analyze-able{hints}",),
                     DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                        errors::failed_to_analyze::ecmascript::NEW_WORKER.to_string(),
                     ),
                 );
                 // Ignore (e.g. dynamic parameter or string literal)
@@ -2238,6 +2326,7 @@ where
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
                         error_mode,
+                        attributes.chunking_type,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2247,6 +2336,57 @@ where
             handler.span_warn_with_code(
                 span,
                 &format!("require({args}) is not statically analyze-able{hints}",),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::REQUIRE.to_string()),
+            )
+        }
+        WellKnownFunctionKind::RequireFrom(rel) => {
+            let args = linked_args().await?;
+            if args.len() == 1 {
+                let pat = js_value_to_pattern(&args[0]);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("createRequire()({args}) is very dynamic{hints}",),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::REQUIRE.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        return Ok(());
+                    }
+                }
+                let origin = ResolvedVc::upcast(
+                    PlainResolveOrigin::new(
+                        origin.asset_context(),
+                        origin
+                            .origin_path()
+                            .await?
+                            .parent()
+                            .join(rel.as_str())?
+                            .join("_")?,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+
+                analysis.add_reference_code_gen(
+                    CjsRequireAssetReference::new(
+                        origin,
+                        Request::parse(pat).to_resolved().await?,
+                        issue_source(source, span),
+                        error_mode,
+                        attributes.chunking_type,
+                    ),
+                    ast_path.to_vec().into(),
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("createRequire()({args}) is not statically analyze-able{hints}",),
                 DiagnosticId::Error(errors::failed_to_analyze::ecmascript::REQUIRE.to_string()),
             )
         }
@@ -2291,6 +2431,7 @@ where
                         Request::parse(pat).to_resolved().await?,
                         issue_source(source, span),
                         error_mode,
+                        attributes.chunking_type,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2377,7 +2518,41 @@ where
                 DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
             )
         }
-
+        WellKnownFunctionKind::FsReadDir if analysis.analyze_mode.is_tracing_assets() => {
+            let args = linked_args().await?;
+            if !args.is_empty() {
+                let pat = js_value_to_pattern(&args[0]);
+                if !pat.has_constant_parts() {
+                    let (args, hints) = explain_args(args);
+                    handler.span_warn_with_code(
+                        span,
+                        &format!("fs.readdir({args}) is very dynamic{hints}"),
+                        DiagnosticId::Lint(
+                            errors::failed_to_analyze::ecmascript::FS_METHOD.to_string(),
+                        ),
+                    );
+                    if ignore_dynamic_requests {
+                        return Ok(());
+                    }
+                }
+                analysis.add_reference(
+                    DirAssetReference::new(
+                        get_traced_project_dir().await?,
+                        Pattern::new(pat),
+                        get_issue_source(),
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+                return Ok(());
+            }
+            let (args, hints) = explain_args(args);
+            handler.span_warn_with_code(
+                span,
+                &format!("fs.readdir({args}) is not statically analyze-able{hints}"),
+                DiagnosticId::Error(errors::failed_to_analyze::ecmascript::FS_METHOD.to_string()),
+            )
+        }
         WellKnownFunctionKind::PathResolve(..) if analysis.analyze_mode.is_tracing_assets() => {
             let parent_path = origin.origin_path().owned().await?.parent();
             let args = linked_args().await?;
@@ -2421,7 +2596,6 @@ where
             );
             return Ok(());
         }
-
         WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
             let context_path = source.ident().path().await?;
             // ignore path.join in `node-gyp`, it will includes too many files
@@ -2914,10 +3088,89 @@ where
                 ),
             )
         }
+        kind @ (WellKnownFunctionKind::ModuleHotAccept
+        | WellKnownFunctionKind::ModuleHotDecline) => {
+            let is_accept = matches!(kind, WellKnownFunctionKind::ModuleHotAccept);
+            let args = linked_args().await?;
+            if let Some(first_arg) = args.first() {
+                if let Some(dep_strings) = extract_hot_dep_strings(first_arg) {
+                    let mut references = Vec::new();
+                    let mut esm_references = Vec::new();
+                    for dep_str in &dep_strings {
+                        let request = Request::parse_string(dep_str.clone()).to_resolved().await?;
+                        let reference = ModuleHotReferenceAssetReference::new(
+                            *origin,
+                            *request,
+                            issue_source(source, span),
+                            error_mode,
+                            state.is_esm,
+                        )
+                        .to_resolved()
+                        .await?;
+                        analysis.add_reference(reference);
+                        references.push(reference);
+
+                        // For accept, find a matching ESM import so we can
+                        // re-assign the namespace binding after the update.
+                        let esm_ref = if is_accept {
+                            state
+                                .imports
+                                .references()
+                                .enumerate()
+                                .find(|(_, r)| r.module_path.to_string_lossy() == dep_str.as_str())
+                                .and_then(|(idx, _)| state.import_references.get(idx).copied())
+                        } else {
+                            None
+                        };
+                        esm_references.push(esm_ref);
+                    }
+                    analysis.add_code_gen(ModuleHotReferenceCodeGen::new(
+                        references,
+                        esm_references,
+                        ast_path.to_vec().into(),
+                    ));
+                } else if first_arg.is_unknown() {
+                    let (args_str, hints) = explain_args(args);
+                    let method = if is_accept { "accept" } else { "decline" };
+                    let error_code = if is_accept {
+                        errors::failed_to_analyze::ecmascript::MODULE_HOT_ACCEPT
+                    } else {
+                        errors::failed_to_analyze::ecmascript::MODULE_HOT_DECLINE
+                    };
+                    handler.span_warn_with_code(
+                        span,
+                        &format!(
+                            "module.hot.{method}({args_str}) is not statically analyzable{hints}",
+                        ),
+                        DiagnosticId::Error(error_code.to_string()),
+                    )
+                }
+            }
+        }
         _ => {}
     };
     Ok(())
 }
+
+/// Extracts dependency strings from the first argument of module.hot.accept/decline.
+/// Returns None if the argument is not a string or array of strings (e.g., it's a function
+/// for self-accept).
+fn extract_hot_dep_strings(arg: &JsValue) -> Option<Vec<RcStr>> {
+    // Single string: module.hot.accept('./dep', cb)
+    if let Some(s) = arg.as_str() {
+        return Some(vec![s.into()]);
+    }
+    // Array of strings: module.hot.accept(['./dep-a', './dep-b'], cb)
+    if let JsValue::Array { items, .. } = arg {
+        let mut deps = Vec::new();
+        for item in items {
+            deps.push(item.as_str()?.into());
+        }
+        return Some(deps);
+    }
+    None
+}
+
 async fn handle_member(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue>> + Send + Sync,
@@ -3089,12 +3342,7 @@ async fn handle_free_var_reference(
                             span.hi.to_u32(),
                         ),
                         Default::default(),
-                        match state.tree_shaking_mode {
-                            Some(
-                                TreeShakingMode::ModuleFragments | TreeShakingMode::ReexportsOnly,
-                            ) => export.clone().map(ModulePart::export),
-                            None => None,
-                        },
+                        export.clone().map(ModulePart::export),
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
@@ -3435,7 +3683,6 @@ async fn value_visitor_inner(
             box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
             ref args,
         ) => {
-            // Only support `createRequire(import.meta.url)` for now
             if let [
                 JsValue::Member(
                     _,
@@ -3445,7 +3692,13 @@ async fn value_visitor_inner(
             ] = &args[..]
                 && prop.as_str() == "url"
             {
+                // `createRequire(import.meta.url)`
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
+            } else if let [JsValue::Url(rel, JsValueUrlKind::Relative)] = &args[..] {
+                // `createRequire(new URL("<rel>", import.meta.url))`
+                JsValue::WellKnownFunction(WellKnownFunctionKind::RequireFrom(Box::new(
+                    rel.clone(),
+                )))
             } else {
                 v.into_unknown(true, "createRequire() non constant")
             }
@@ -3558,7 +3811,7 @@ async fn require_resolve_visitor(
             None,
             ResolveErrorMode::Warn,
         )
-        .resolve()
+        .to_resolved()
         .await?;
         let mut values = resolved
             .primary_sources()
@@ -3716,6 +3969,7 @@ struct ModuleReferencesVisitor<'a> {
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
     var_graph: &'a VarGraph,
+    supports_block_scoping: bool,
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
@@ -3725,6 +3979,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
         analyze_mode: AnalyzeMode,
         var_graph: &'a VarGraph,
+        supports_block_scoping: bool,
     ) -> Self {
         Self {
             analyze_mode,
@@ -3737,6 +3992,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
             webpack_entry: false,
             webpack_chunks: Vec::new(),
             var_graph,
+            supports_block_scoping,
         }
     }
 }
@@ -3812,8 +4068,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3896,8 +4154,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         }
 
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3940,8 +4200,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         };
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3960,8 +4222,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             ),
         );
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3991,8 +4255,10 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
         if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(as_parent_path(ast_path).into()));
+            self.analysis.add_code_gen(EsmModuleItem::new(
+                as_parent_path(ast_path).into(),
+                self.supports_block_scoping,
+            ));
         }
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -4041,7 +4307,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
         if self.analyze_mode.is_code_gen() {
-            self.analysis.add_code_gen(EsmModuleItem::new(path));
+            self.analysis
+                .add_code_gen(EsmModuleItem::new(path, self.supports_block_scoping));
         }
     }
 
@@ -4169,7 +4436,7 @@ pub static TURBOPACK_HELPER_WTF8: Lazy<Wtf8Atom> =
 pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
     let annotations = ImportAnnotations::parse(import.with.as_deref());
 
-    annotations.get(&TURBOPACK_HELPER_WTF8).is_some()
+    annotations.is_some_and(|a| a.get(&TURBOPACK_HELPER_WTF8).is_some())
 }
 
 pub fn is_swc_helper_import(import: &ImportDecl) -> bool {

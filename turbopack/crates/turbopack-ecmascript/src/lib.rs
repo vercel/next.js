@@ -3,7 +3,6 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
-#![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
@@ -23,6 +22,7 @@ pub mod minify;
 pub mod parse;
 mod path_visitor;
 pub mod references;
+pub mod rename;
 pub mod runtime_functions;
 pub mod side_effect_optimization;
 pub mod single_file_ecmascript_output;
@@ -31,7 +31,7 @@ pub(crate) mod static_code;
 mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
-pub(crate) mod transform;
+pub mod transform;
 pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
@@ -77,8 +77,8 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
+    ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -95,7 +95,7 @@ use turbopack_core::{
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
-        FindContextFileResult, ModulePart, find_context_file, origin::ResolveOrigin, package_json,
+        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
         parse::Request,
     },
     source::Source,
@@ -118,10 +118,7 @@ use crate::{
         async_module::OptionAsyncModule,
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
     },
-    side_effect_optimization::{
-        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
-        reference::EcmascriptModulePartReference,
-    },
+    side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
     transform::{remove_directives, remove_shebang},
 };
@@ -599,7 +596,7 @@ async fn determine_module_type_for_directory(
     context_path: FileSystemPath,
 ) -> Result<Vc<ModuleTypeResult>> {
     let find_package_json =
-        find_context_file(context_path, package_json().resolve().await?, false).await?;
+        find_context_file(context_path, *package_json().to_resolved().await?, false).await?;
     let FindContextFileResult::Found(package_json, _) = &*find_package_json else {
         return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
     };
@@ -824,49 +821,12 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
             let async_module_options = self.get_async_module().module_options(async_module_info);
             let content = self.module_content(chunking_context, async_module_info);
             EcmascriptChunkItemContent::new(content, chunking_context, async_module_options)
-                .resolve()
+                .to_resolved()
                 .await
+                .map(|r| *r)
         }
         .instrument(span)
         .await
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptModuleAsset {
-    /// Returns the locals module if the module should be split (has re-exports), otherwise self.
-    ///
-    /// The locals module contains only the local bindings and evaluation side effects,
-    /// while re-exports are handled separately by the facade module.
-    #[turbo_tasks::function]
-    pub async fn get_locals_if_split(
-        self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let should_split = *self.get_exports().split_locals_and_reexports().await?;
-        Ok(if should_split {
-            Vc::upcast(EcmascriptModuleLocalsModule::new(self))
-        } else {
-            Vc::upcast(self)
-        })
-    }
-
-    /// Returns the facade module if the module should be split (has re-exports), otherwise self.
-    ///
-    /// The facade module re-exports all exports from the original module, including
-    /// both local bindings (via the locals module) and re-exports from other modules.
-    #[turbo_tasks::function]
-    pub async fn get_facade_if_split(
-        self: Vc<Self>,
-    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
-        let should_split = *self.get_exports().split_locals_and_reexports().await?;
-        Ok(if should_split {
-            Vc::upcast(EcmascriptModuleFacadeModule::new(
-                Vc::upcast(self),
-                ModulePart::Facade,
-            ))
-        } else {
-            Vc::upcast(self)
-        })
     }
 }
 
@@ -1040,9 +1000,9 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok(
                 part_code_gens
                     .into_iter()
-                    .chain(esm_code_gens.into_iter())
+                    .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
-                    .chain(code_gens.into_iter())
+                    .chain(code_gens)
                     .collect(),
             )
         }
@@ -1559,23 +1519,24 @@ async fn merge_modules(
     let (merged_ast, inserted) = match result {
         Ok(v) => v,
         Err((content_idx, err)) => {
-            return Err(err.context(format!(
-                "Processing {}",
-                contents[content_idx].0.ident().to_string().await?
-            )));
+            return Err(
+                // ast-grep-ignore: no-context-turbofmt
+                err.context(turbofmt!("Processing {}", contents[content_idx].0.ident()).await?),
+            );
         }
     };
 
-    debug_assert!(
-        inserted.len() == contents.len(),
-        "Not all merged modules were inserted: {:?}",
-        contents
-            .iter()
-            .enumerate()
-            .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
-            .try_join()
-            .await?,
-    );
+    if cfg!(debug_assertions) && inserted.len() != contents.len() {
+        bail!(
+            "Not all merged modules were inserted: {:?}",
+            contents
+                .iter()
+                .enumerate()
+                .map(async |(i, m)| Ok((inserted.contains(&i), m.0.ident().to_string().await?)))
+                .try_join()
+                .await?,
+        );
+    }
 
     let comments = contents
         .iter_mut()
@@ -1803,7 +1764,7 @@ async fn process_parse_result(
                         Some(Comment {
                             kind: CommentKind::Line,
                             span: DUMMY_SP,
-                            text: format!(" MERGED MODULE: {}", ident.to_string().await?).into(),
+                            text: (&*turbofmt!(" MERGED MODULE: {}", ident).await?).into(),
                         })
                     } else {
                         None
@@ -1918,15 +1879,18 @@ async fn process_parse_result(
             Ok(match parse_result {
                 ParseResult::Ok { .. } => unreachable!(),
                 ParseResult::Unparsable { messages } => {
-                    let path = ident.path().to_string().await?;
                     let error_messages = messages
                         .as_ref()
                         .and_then(|m| m.first().map(|f| format!("\n{f}")))
                         .unwrap_or("".into());
-                    let msg = format!("Could not parse module '{path}'\n{error_messages}");
+                    let msg = &*turbofmt!(
+                        "Could not parse module '{}'\n{error_messages}",
+                        ident.path()
+                    )
+                    .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -1949,11 +1913,12 @@ async fn process_parse_result(
                     }
                 }
                 ParseResult::NotFound => {
-                    let path = ident.path().to_string().await?;
-                    let msg = format!("Could not parse module '{path}', file not found");
+                    let msg =
+                        &*turbofmt!("Could not parse module '{}', file not found", ident.path())
+                            .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -2767,7 +2732,7 @@ impl CodeGenResultComments {
                 .map_err(|_| anyhow!("Failed to grab lock on the index map for byte positions"))?;
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)
@@ -2784,7 +2749,7 @@ impl CodeGenResultComments {
         let mut push = |module: u32, pos_u32: u32| -> Result<u32> {
             let ix = lookup_table.len() as u32;
             if ix >= 1 << 30 {
-                return Err(anyhow!("Too many byte positions being stored"));
+                bail!("Too many byte positions being stored");
             }
             lookup_table.push(ModulePosition(module, pos_u32));
             Ok(ix)

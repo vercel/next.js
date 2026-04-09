@@ -2,6 +2,7 @@ import type {
   FlightDataPath,
   FlightDataSegment,
   FlightRouterState,
+  PrefetchHints,
   Segment,
   HeadData,
 } from '../../shared/lib/app-router-types'
@@ -37,6 +38,7 @@ export async function walkTreeWithFlightRouterState({
   ctx,
   preloadCallbacks,
   MetadataOutlet,
+  hintTree,
 }: {
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
@@ -50,6 +52,7 @@ export async function walkTreeWithFlightRouterState({
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
   MetadataOutlet: React.ComponentType
+  hintTree: PrefetchHints | null
 }): Promise<FlightDataPath[]> {
   const {
     renderOpts: { nextFontManifest, experimental },
@@ -57,7 +60,12 @@ export async function walkTreeWithFlightRouterState({
     isPrefetch,
     getDynamicParamFromSegment,
     parsedRequestHeaders,
+    workStore,
   } = ctx
+  const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
+  const isStaticGeneration = workStore.isStaticGeneration
+  const isBuildTimePrerendering =
+    ctx.renderOpts.isBuildTimePrerendering ?? false
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
 
@@ -99,8 +107,6 @@ export async function walkTreeWithFlightRouterState({
     !flightRouterState ||
     // Segment in router state does not match current segment
     !matchSegment(actualSegment, flightRouterState[0]) ||
-    // Last item in the tree
-    parallelRoutesKeys.length === 0 ||
     // Explicit refresh
     flightRouterState[3] === 'refetch'
 
@@ -153,10 +159,18 @@ export async function walkTreeWithFlightRouterState({
       ? // Route tree prefetch requests contain some extra information
         await createRouteTreePrefetch(
           loaderTreeToFilter,
+          hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
+          hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment,
           query
         )
@@ -183,10 +197,18 @@ export async function walkTreeWithFlightRouterState({
     const routerState = parsedRequestHeaders.isRouteTreePrefetchRequest
       ? await createRouteTreePrefetch(
           loaderTreeToFilter,
+          hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment
         )
       : await createFlightRouterStateFromLoaderTree(
           loaderTreeToFilter,
+          hintTree,
+          prefetchInliningEnabled,
+          isStaticGeneration,
+          isBuildTimePrerendering,
           getDynamicParamFromSegment,
           query
         )
@@ -214,6 +236,10 @@ export async function walkTreeWithFlightRouterState({
     const routerState = await createFlightRouterStateFromLoaderTree(
       // Create router state using the slice of the loaderTree
       loaderTreeToFilter,
+      hintTree,
+      prefetchInliningEnabled,
+      isStaticGeneration,
+      isBuildTimePrerendering,
       getDynamicParamFromSegment,
       query
     )
@@ -225,6 +251,7 @@ export async function walkTreeWithFlightRouterState({
         ctx,
         loaderTree: loaderTreeToFilter,
         parentParams: currentParams,
+        parentOptionalCatchAllParamName: null,
         parentRuntimePrefetchable: false,
         injectedCSS,
         injectedJS,
@@ -291,6 +318,7 @@ export async function walkTreeWithFlightRouterState({
       rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
       preloadCallbacks,
       MetadataOutlet,
+      hintTree: hintTree?.slots?.[parallelRouteKey] ?? null,
     })
 
     for (const subPath of subPaths) {
@@ -330,10 +358,19 @@ export async function createFullTreeFlightDataForNavigation({
     renderOpts: { experimental },
     query,
     getDynamicParamFromSegment,
+    pagePath,
+    workStore: workStoreForInitialRender,
   } = ctx
+
+  const hintTreeForInitialRender =
+    ctx.renderOpts.prefetchHints?.[pagePath] ?? null
 
   const routerState = await createFlightRouterStateFromLoaderTree(
     loaderTree,
+    hintTreeForInitialRender,
+    Boolean(experimental.prefetchInlining),
+    workStoreForInitialRender.isStaticGeneration,
+    ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
     query
   )
@@ -343,6 +380,7 @@ export async function createFullTreeFlightDataForNavigation({
     ctx,
     loaderTree,
     parentParams: {},
+    parentOptionalCatchAllParamName: null,
     parentRuntimePrefetchable: false,
     injectedCSS,
     injectedJS,

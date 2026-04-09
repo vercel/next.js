@@ -72,6 +72,8 @@ fn bench_small_apps(c: &mut Criterion) {
                                 full_stats: false,
                                 target: None,
                                 worker_threads: None,
+                                persistent_caching: false,
+                                cache_dir: None,
                             },
                             no_sourcemap: false,
                             no_minify: false,

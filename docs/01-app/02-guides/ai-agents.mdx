@@ -66,9 +66,9 @@ Ensure you are on Next.js `v16.2.0-canary.37` or later, then add the following f
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
 
-# Next.js: ALWAYS read docs before coding
+# This is NOT the Next.js you know
 
-Before any Next.js work, find and read the relevant doc in `node_modules/next/dist/docs/`. Your training data is outdated — the docs are the source of truth.
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 
 <!-- END:nextjs-agent-rules -->
 ```
@@ -78,6 +78,19 @@ Before any Next.js work, find and read the relevant doc in `node_modules/next/di
 ```md filename="CLAUDE.md"
 @AGENTS.md
 ```
+
+<details>
+<summary>For earlier versions</summary>
+
+On version 16.1 and earlier, use the codemod to generate these files automatically:
+
+```bash
+npx @next/codemod@latest agents-md
+```
+
+The codemod outputs the bundled docs to `.next-docs/` in the project root instead of `node_modules/next/dist/docs/`, and the generated agent files will point to that directory.
+
+</details>
 
 ## Understanding AGENTS.md
 
