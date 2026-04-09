@@ -27,10 +27,10 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 import {
+  checkAgentRulesForDev,
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
-  warnIfMissingAgentRules,
 } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
@@ -374,17 +374,21 @@ export async function startServer(
       // Get env info first (fast, doesn't require config)
       const envInfo = isDev ? getEnvInfo(dir) : undefined
 
-      // Agent-rules warning fires BEFORE the banner and Ready line so
-      // it's the very first thing an AI coding agent sees in the
-      // worker output. If we fired it after `Ready in X`, agents would
-      // have already categorized the command as succeeded and would
-      // classify the warning as "trailing noise" — empirically that
-      // bias is stronger than any content framing we put in the
-      // warning itself. Printing before `Ready` forces the warning to
-      // be processed as part of the startup sequence instead of as
-      // post-success trailing output.
+      // Agent-rules gate: hard-fail dev startup when an AI coding
+      // agent is driving but the managed block isn't installed in
+      // AGENTS.md/CLAUDE.md. Fires BEFORE the banner and Ready line so
+      // we never print a success signal the agent could latch onto —
+      // a non-zero exit is the only signal empirically strong enough
+      // to override agents' "Ready + exit 0 = succeeded" pattern
+      // match. The error message itself explains the rationale at
+      // length and surfaces a last-resort `NEXT_DISABLE_AGENT_RULE_CHECK`
+      // env var for locked-down environments.
       if (isDev) {
-        warnIfMissingAgentRules(dir)
+        const agentRulesError = checkAgentRulesForDev(dir)
+        if (agentRulesError !== null) {
+          Log.error(agentRulesError)
+          process.exit(1)
+        }
       }
 
       // Log basic startup info immediately (before loading config)

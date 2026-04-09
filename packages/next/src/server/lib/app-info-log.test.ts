@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { warnIfMissingAgentRules } from './app-info-log'
+import { checkAgentRulesForDev, warnIfMissingAgentRules } from './app-info-log'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 
@@ -25,6 +25,7 @@ function clearAgentEnv() {
   delete process.env.COPILOT_MODEL
   delete process.env.COPILOT_ALLOW_ALL
   delete process.env.COPILOT_GITHUB_TOKEN
+  delete process.env.NEXT_DISABLE_AGENT_RULE_CHECK
 }
 
 describe('warnIfMissingAgentRules', () => {
@@ -156,5 +157,88 @@ describe('warnIfMissingAgentRules', () => {
     } finally {
       fs.rmSync(outerDir, { recursive: true, force: true })
     }
+  })
+})
+
+describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
+  let tmpDir: string
+  let originalEnv: NodeJS.ProcessEnv
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-dev-'))
+    fs.mkdirSync(path.join(tmpDir, '.git'))
+    originalEnv = { ...process.env }
+    clearAgentEnv()
+  })
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+    process.env = originalEnv
+  })
+
+  it('returns null when no agent is detected', () => {
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+  })
+
+  it('returns null when the managed block is installed in AGENTS.md', () => {
+    process.env.CLAUDECODE = '1'
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+  })
+
+  it('returns null when the managed block is installed in CLAUDE.md', () => {
+    process.env.CLAUDECODE = '1'
+    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+  })
+
+  it('returns null when NEXT_DISABLE_AGENT_RULE_CHECK is set', () => {
+    process.env.CLAUDECODE = '1'
+    process.env.NEXT_DISABLE_AGENT_RULE_CHECK = '1'
+    // Neither AGENTS.md nor CLAUDE.md exists — but the bypass env var
+    // is set, so the gate must respect it and stay silent.
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+  })
+
+  it('fires when an agent is detected, rules are missing, and no bypass is set', () => {
+    process.env.CLAUDECODE = '1'
+
+    const error = checkAgentRulesForDev(tmpDir)
+    expect(error).not.toBeNull()
+    const message = error!
+
+    // Leads with `fatal: dev server exited` — the caller will
+    // `process.exit(1)` right after, and this wording makes it clear
+    // in the log that the process terminated intentionally.
+    expect(message.startsWith('fatal: dev server exited')).toBe(true)
+
+    // States the cause.
+    expect(message).toContain('AI coding agent')
+    expect(message).toContain('AGENTS.md')
+    expect(message).toContain('CLAUDE.md')
+
+    // Explains WHY the rules matter in concrete terms. These specific
+    // phrases are what agents weigh heavily when deciding whether to
+    // take the codemod path vs the escape path — losing any of them
+    // significantly weakens the discouragement.
+    expect(message).toContain('trained on older Next.js versions')
+    expect(message).toContain('breaking changes')
+    expect(message).toContain('deprecated APIs')
+    expect(message).toContain('outdated patterns')
+    expect(message).toContain('fail at runtime')
+
+    // Primary fix — the codemod command.
+    expect(message).toContain('npx @next/codemod@canary agents-md')
+
+    // Escape hatch — disclosed, but env var not a CLI flag (agents
+    // grab CLI flags more readily than env vars), and explicitly
+    // framed as "strongly discouraged" with a concrete negative
+    // consequence attached.
+    expect(message).toContain('NEXT_DISABLE_AGENT_RULE_CHECK=1')
+    expect(message).toContain('strongly discouraged')
+    expect(message).toContain('last-resort')
+    expect(message).toContain(
+      'far more time fixing their output than the few seconds the codemod'
+    )
   })
 })
