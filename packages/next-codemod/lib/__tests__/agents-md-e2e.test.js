@@ -458,6 +458,57 @@ Custom team instructions.
       }
     })
 
+    it('strips the legacy NEXT-AGENTS-MD block when upserting the new block', async () => {
+      const originalCwd = process.cwd()
+      process.chdir(fixtureProjectDir)
+
+      // Simulate a project that ran the pre-bundled-docs `agents-md` codemod.
+      // It would have an `AGENTS.md` (or here, `CLAUDE.md` since AGENTS.md
+      // is absent in the fixture) wrapping a `.next-docs/`-style doc index
+      // in the legacy markers — and probably some user content around it.
+      const existingClaude = `# My Project
+
+Custom rules above.
+
+<!-- NEXT-AGENTS-MD-START -->[Next.js Docs Index]|root: ./.next-docs|stale doc index here<!-- NEXT-AGENTS-MD-END -->
+
+Custom rules below.
+`
+      fs.writeFileSync(
+        path.join(fixtureProjectDir, 'CLAUDE.md'),
+        existingClaude
+      )
+
+      try {
+        await runAgentsMd({})
+
+        const claudeMdContent = fs.readFileSync(
+          path.join(fixtureProjectDir, 'CLAUDE.md'),
+          'utf-8'
+        )
+
+        // User content above and below is preserved.
+        expect(claudeMdContent).toContain('# My Project')
+        expect(claudeMdContent).toContain('Custom rules above.')
+        expect(claudeMdContent).toContain('Custom rules below.')
+
+        // The new managed block is installed.
+        expect(claudeMdContent).toContain(AGENT_RULES_START_MARKER)
+        expect(claudeMdContent).toContain(AGENT_RULES_END_MARKER)
+        expect(claudeMdContent).toContain('node_modules/next/dist/docs/')
+
+        // The legacy block is gone — both markers and the stale doc index
+        // payload between them.
+        expect(claudeMdContent).not.toContain('<!-- NEXT-AGENTS-MD-START -->')
+        expect(claudeMdContent).not.toContain('<!-- NEXT-AGENTS-MD-END -->')
+        expect(claudeMdContent).not.toContain('[Next.js Docs Index]')
+        expect(claudeMdContent).not.toContain('./.next-docs')
+        expect(claudeMdContent).not.toContain('stale doc index here')
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
     it('replaces the agent-rules block in place when the marker is already present', async () => {
       const originalCwd = process.cwd()
       process.chdir(fixtureProjectDir)

@@ -93,6 +93,19 @@ export const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 export const AGENT_RULES_END_MARKER = '<!-- END:nextjs-agent-rules -->'
 
 /**
+ * Marker pair used by the *legacy* `agents-md` codemod (the git-clone +
+ * `.next-docs/` index workflow). Projects that ran the codemod on a Next.js
+ * version older than the bundled-docs era still have a block delimited by
+ * these markers in their `AGENTS.md` / `CLAUDE.md`. Whenever the new
+ * fast-path upserts the canonical block, we strip the legacy block first
+ * so the file ends up with one source of truth instead of both blocks
+ * coexisting (the legacy one points at a `.next-docs/` directory that
+ * may no longer exist or be up to date).
+ */
+const LEGACY_AGENT_RULES_START_MARKER = '<!-- NEXT-AGENTS-MD-START -->'
+const LEGACY_AGENT_RULES_END_MARKER = '<!-- NEXT-AGENTS-MD-END -->'
+
+/**
  * Build the canonical agent-rules block, parameterized by the path agents
  * should read for the bundled docs. For a single-package project the path is
  * `node_modules/next/dist/docs/` (same as `create-next-app`); for a monorepo
@@ -202,8 +215,22 @@ function upsertFile(filePath: string, block: string): BundledDocsFileAction {
  * markers are already present, the block between them is replaced. Otherwise
  * the block is appended after the existing content. If the block is already
  * present verbatim, the input is returned unchanged.
+ *
+ * Also strips any leftover *legacy* agent-rules block (delimited by the old
+ * `<!-- NEXT-AGENTS-MD-START -->` / `<!-- NEXT-AGENTS-MD-END -->` markers)
+ * so projects that ran the pre-bundled-docs version of this codemod end up
+ * with a single, current block instead of two stale-and-current blocks
+ * coexisting in the same file.
  */
 function upsertAgentRulesBlock(existing: string, block: string): string {
+  // Migration step: drop the legacy block first. Older projects that ran
+  // `agents-md` against a pre-16.2 Next.js still have a `NEXT-AGENTS-MD-*`
+  // wrapper around a `.next-docs/`-style doc index. The legacy block points
+  // at a directory that probably doesn't exist anymore (or has gone stale
+  // versus the bundled docs), so we remove it before injecting the new
+  // canonical block. Surrounding content is preserved.
+  existing = stripLegacyAgentRulesBlock(existing)
+
   const startIdx = existing.indexOf(AGENT_RULES_START_MARKER)
   const endIdx = existing.indexOf(AGENT_RULES_END_MARKER)
 
@@ -217,6 +244,47 @@ function upsertAgentRulesBlock(existing: string, block: string): string {
   const separator =
     existing.length === 0 || existing.endsWith('\n') ? '\n' : '\n\n'
   return existing + separator + block + '\n'
+}
+
+/**
+ * Strip the legacy `<!-- NEXT-AGENTS-MD-START -->...<!-- NEXT-AGENTS-MD-END -->`
+ * block from a file's contents, including any whitespace immediately
+ * surrounding it so we don't leave a stray blank line behind. If no legacy
+ * block is present, returns the input unchanged.
+ *
+ * The legacy block was written by the pre-bundled-docs version of the
+ * `agents-md` codemod, which generated a custom doc index pointing at a
+ * `.next-docs/` directory. That directory and the index inside the block
+ * were tied to a specific Next.js version and almost certainly no longer
+ * match the project's current install, so we drop the entire block when
+ * we install the new managed block.
+ */
+function stripLegacyAgentRulesBlock(existing: string): string {
+  const startIdx = existing.indexOf(LEGACY_AGENT_RULES_START_MARKER)
+  if (startIdx === -1) return existing
+  const endIdx = existing.indexOf(LEGACY_AGENT_RULES_END_MARKER, startIdx)
+  if (endIdx === -1) return existing
+
+  // Expand the slice outward to swallow leading/trailing whitespace so we
+  // don't leave a stray blank line where the block used to be.
+  let cutStart = startIdx
+  while (cutStart > 0 && /\s/.test(existing[cutStart - 1])) {
+    cutStart--
+  }
+  let cutEnd = endIdx + LEGACY_AGENT_RULES_END_MARKER.length
+  while (cutEnd < existing.length && /\s/.test(existing[cutEnd])) {
+    cutEnd++
+  }
+
+  const before = existing.slice(0, cutStart)
+  const after = existing.slice(cutEnd)
+
+  // Re-join with a single newline if both sides have content, so we don't
+  // accidentally fuse the surrounding paragraphs.
+  if (before.length > 0 && after.length > 0) {
+    return before + '\n\n' + after
+  }
+  return before + after
 }
 
 function versionToGitHubTag(version: string): string {
