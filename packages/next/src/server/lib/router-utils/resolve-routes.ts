@@ -21,7 +21,10 @@ import {
   getRedirectStatus,
   allowedStatusCodes,
 } from '../../../lib/redirect-status'
-import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
+import {
+  normalizeRepeatedSlashes,
+  DecodeError,
+} from '../../../shared/lib/utils'
 import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
@@ -312,7 +315,17 @@ export function getResolveRoutes(
         if (invokedOutputs?.has(route.page)) {
           continue
         }
-        const params = route.match(localeResult.pathname)
+        let params: ReturnType<typeof route.match>
+        try {
+          params = route.match(localeResult.pathname)
+        } catch (err) {
+          if (err instanceof DecodeError) {
+            // Malformed percent-encoding in a dynamic segment cannot be decoded;
+            // treat as no match so the request falls through to a 404.
+            continue
+          }
+          throw err
+        }
 
         if (params) {
           const pageOutput = await fsChecker.getItem(
@@ -384,7 +397,16 @@ export function getResolveRoutes(
           curPathname = maybeAddTrailingSlash(curPathname)
         }
       }
-      let params = route.match(curPathname)
+      let params: ReturnType<typeof route.match>
+      try {
+        params = route.match(curPathname)
+      } catch (err) {
+        if (err instanceof DecodeError) {
+          // Malformed percent-encoding cannot be decoded; skip this route.
+          return
+        }
+        throw err
+      }
 
       if ((route.has || route.missing) && params) {
         const hasParams = matchHas(
