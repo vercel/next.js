@@ -172,9 +172,9 @@ export default async function Page() {
 
 ## `generateStaticParams`
 
-**With Cache Components,** [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) stays available for [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes). What **differs from before** is stricter validation, how unknown params are handled, and how `next build` prints the route table. Use [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) and [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) for Suspense requirements, unknown params, and the full rules.
+**Still supported.** [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) works with [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) when you use Cache Components. What changes is validation, how unknown params are handled, and how `next build` prints `Route (app)`. Suspense boundaries, params you do not list at build time, and patterns that skip `generateStaticParams` are covered in [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) and [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components).
 
-**Different from before:** `return []` is no longer allowed and becomes a [build error](/docs/messages/empty-generate-static-params). Return at least one sample param, or drop `generateStaticParams` and use request-time patterns instead (see those docs).
+Returning an empty array from `generateStaticParams` is a common pattern that no longer works: it becomes a [build error](/docs/messages/empty-generate-static-params). Return at least one sample param, or drop `generateStaticParams` and handle dynamic params at request time using those guides.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before
@@ -232,7 +232,7 @@ export default async function Page({ params }) {
 }
 ```
 
-The `Route (app)` section at the end of `next build` shows how each route was prerendered. With Cache Components, the table differs from a build without it. Compare the examples below. In the legend, **`◐`** means a static prerendered shell with dynamic content streamed on the request—that is [Partial Prerendering (PPR)](/docs/app/guides/public-static-pages#partial-prerendering). For more information, see [Building](/docs/app/guides/building).
+That `Route (app)` output is where the classification changes show up. The next two blocks use one `/products/[id]` app without Cache Components, then with it:
 
 **Before Cache Components:**
 
@@ -262,6 +262,8 @@ Route (app)
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
+
+In the legend, **`◐`** means a static prerendered shell with dynamic content streamed on the request—that is [Partial Prerendering (PPR)](/docs/app/guides/public-static-pages#partial-prerendering). For more information, see [Building](/docs/app/guides/building).
 
 ## `runtime = 'edge'`
 
