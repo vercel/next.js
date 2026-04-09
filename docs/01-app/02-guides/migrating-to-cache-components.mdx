@@ -182,6 +182,6 @@ export default async function Page() {
 
 ## UI state preservation
 
-**Review your cleanup and reset logic.** With Cache Components, Next.js preserves pages across navigations using React's [`<Activity>`](https://react.dev/reference/react/Activity) component instead of unmounting them. Components stay mounted with `display: none`, so React state, form values, and scroll position persist when users navigate back.
+**Review your cleanup and reset logic.** With Cache Components, Next.js preserves pages across navigations using React's [`<Activity>`](https://react.dev/reference/react/Activity) component in [`"hidden"`](https://react.dev/reference/react/Activity#activity) mode instead of unmounting them. React state, form values, and scroll position persist when users navigate back. Effects are cleaned up when a route is hidden and recreated when it becomes visible again.
 
-Code that relied on unmounting to reset state — cleanup effects, analytics events, or transient UI like dropdowns — may need adjustment. See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for patterns on choosing what to preserve and what to reset.
+Code that relied on unmounting to reset state — such as analytics events or transient UI like dropdowns — may need adjustment. See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for patterns on choosing what to preserve and what to reset.
