@@ -27,10 +27,10 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 import {
-  checkAgentRulesForDev,
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  warnIfMissingAgentRules,
 } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
@@ -508,29 +508,14 @@ export async function startServer(
             cacheComponents: initResult.cacheComponents,
           })
 
-          // Agent-rules gate. Runs here (after the banner/URL/Ready
-          // line has already been printed) rather than in the parent
-          // CLI so we don't drag the `app-info-log` import chain — and
-          // the config-schema zod dependency it pulls in — into every
-          // `next dev` cold start. Trade-off: blocked runs pay the
-          // full startup cost before the check fires, which is
-          // deliberate.
-          //
-          // First failure hard-exits with the full fatal message
-          // (`fatal:` + cause + accuracy benefit + primary fix +
-          // discouraged escape hatch). Second+ consecutive failures
-          // print the softened install instruction but let the server
-          // keep running — that's the retry-unblocks mechanism the
-          // fatal message explicitly discloses and discourages. Uses
-          // `Log.error` + `process.exit(1)` matching the lockfile
-          // "Another next dev server is already running" error path.
-          const agentRulesCheck = checkAgentRulesForDev(dir)
-          if (agentRulesCheck !== null) {
-            Log.error(agentRulesCheck.message)
-            if (agentRulesCheck.fatal) {
-              process.exit(1)
-            }
-          }
+          // Non-fatal warning if the Next.js agent-rules block isn't
+          // installed and an AI coding agent is driving. Fires here
+          // (after the banner/URL/Ready line) rather than in the
+          // parent CLI so we don't drag the `app-info-log` import
+          // chain into every `next dev` cold start. Same function is
+          // called at the end of `next build` — one shared path,
+          // `Log.warn`-based, never blocks startup.
+          warnIfMissingAgentRules(dir)
         }
 
         handlersReady()

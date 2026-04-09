@@ -1,10 +1,9 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { warnIfMissingAgentRules, checkAgentRulesForDev } from './app-info-log'
+import { warnIfMissingAgentRules } from './app-info-log'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
-const GATE_STATE_FILE = path.join('.next', 'dev', 'agent-rules-gate-fired')
 
 // Clear every env var `detectAgent()` inspects so the base state is
 // "no agent detected" regardless of what the host has set.
@@ -28,210 +27,119 @@ function clearAgentEnv() {
   delete process.env.COPILOT_GITHUB_TOKEN
 }
 
-describe('warnIfMissingAgentRules (build-side notice)', () => {
+describe('warnIfMissingAgentRules', () => {
   let tmpDir: string
-  let errorSpy: jest.SpyInstance
+  let warnSpy: jest.SpyInstance
   let originalEnv: NodeJS.ProcessEnv
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-'))
-    // `Log.error` ultimately calls `console.error`; stubbing at that level
+    // Drop a `.git` sentinel at the tmp dir root so the walk-up inside
+    // `hasAgentRulesInstalled` stops at the fixture boundary instead of
+    // leaking into the developer's home directory.
+    fs.mkdirSync(path.join(tmpDir, '.git'))
+    // `Log.warn` ultimately calls `console.warn`; stubbing at that level
     // avoids `jest.spyOn` issues with `* as` namespace imports.
-    errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
     originalEnv = { ...process.env }
     clearAgentEnv()
   })
 
   afterEach(() => {
-    errorSpy.mockRestore()
+    warnSpy.mockRestore()
     fs.rmSync(tmpDir, { recursive: true, force: true })
     process.env = originalEnv
   })
 
-  it('is silent when no agent is detected', () => {
+  it('is silent when no agent is detected, regardless of file state', () => {
     warnIfMissingAgentRules(tmpDir)
-    expect(errorSpy).not.toHaveBeenCalled()
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
   it('is silent when the managed block is installed in AGENTS.md', () => {
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
     warnIfMissingAgentRules(tmpDir)
-    expect(errorSpy).not.toHaveBeenCalled()
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
   it('is silent when the managed block is installed in CLAUDE.md', () => {
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
     warnIfMissingAgentRules(tmpDir)
-    expect(errorSpy).not.toHaveBeenCalled()
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
   it('fires when AGENTS.md exists without the managed block', () => {
-    // A custom AGENTS.md without our marker does NOT count as installed —
-    // what we care about is the Next.js directive, not file existence.
+    // File existence alone isn't enough — we care specifically about
+    // the Next.js directive, so a custom AGENTS.md without the marker
+    // still counts as "not installed".
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(
       path.join(tmpDir, 'AGENTS.md'),
       '# Team rules\n\nUse tabs, not spaces.\n'
     )
     warnIfMissingAgentRules(tmpDir)
-    expect(errorSpy).toHaveBeenCalledTimes(1)
+    expect(warnSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('prints the build-side notice when an agent is detected and the block is missing', () => {
+  it('fires when an agent is detected and neither file exists', () => {
     process.env.CLAUDECODE = '1'
     warnIfMissingAgentRules(tmpDir)
-    expect(errorSpy).toHaveBeenCalledTimes(1)
-    const loggedMessage = errorSpy.mock.calls[0].join(' ')
+    expect(warnSpy).toHaveBeenCalledTimes(1)
 
-    // Install command + explanation of WHY it matters.
+    const loggedMessage = warnSpy.mock.calls[0].join(' ')
+    // Install command + explanation of why it matters.
     expect(loggedMessage).toContain('npx @next/codemod@canary agents-md')
     expect(loggedMessage).toContain('AGENTS.md')
     expect(loggedMessage).toContain('CLAUDE.md')
     expect(loggedMessage).toContain('version-matched')
     expect(loggedMessage).toContain('accuracy')
 
-    // Build-side notice is not a hard-exit; no `fatal:` or "exited".
+    // Non-fatal warning: no `fatal:` prefix, no "exited" symptom, no
+    // escape-hatch disclosure — this path no longer blocks startup, so
+    // none of that framing applies.
     expect(loggedMessage).not.toContain('fatal:')
     expect(loggedMessage).not.toContain('dev server exited')
-  })
-})
-
-describe('checkAgentRulesForDev (dev-side gate with retry unblock)', () => {
-  let tmpDir: string
-  let originalEnv: NodeJS.ProcessEnv
-
-  beforeEach(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-dev-'))
-    originalEnv = { ...process.env }
-    clearAgentEnv()
+    expect(loggedMessage).not.toContain('strongly discouraged')
   })
 
-  afterEach(() => {
-    fs.rmSync(tmpDir, { recursive: true, force: true })
-    process.env = originalEnv
-  })
-
-  it('returns null when no agent is detected', () => {
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
-  })
-
-  it('returns null when the managed block is installed in AGENTS.md', () => {
+  it('walks up from a subdirectory to find AGENTS.md at the project root', () => {
+    // Simulates running `next dev` from `apps/web/` in a monorepo where
+    // AGENTS.md lives at the repo root. The walk-up should find it and
+    // the gate stays silent.
     process.env.CLAUDECODE = '1'
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
-  })
-
-  it('returns null when the managed block is installed in CLAUDE.md', () => {
-    process.env.CLAUDECODE = '1'
-    fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
-  })
-
-  it('fires even when AGENTS.md exists but is missing the managed block', () => {
-    // File existence alone isn't enough — we care specifically about the
-    // managed block that the codemod installs. A custom AGENTS.md still
-    // triggers the gate.
-    process.env.CLAUDECODE = '1'
-    fs.writeFileSync(
-      path.join(tmpDir, 'AGENTS.md'),
-      '# Team rules\n\nUse tabs, not spaces.\n'
-    )
-    const result = checkAgentRulesForDev(tmpDir)
-    expect(result).not.toBeNull()
-    expect(result!.fatal).toBe(true)
-  })
-
-  it('clears prior gate state when the managed block is installed', () => {
-    process.env.CLAUDECODE = '1'
-    // Pre-seed the state file to simulate a prior failure.
-    fs.mkdirSync(path.join(tmpDir, '.next', 'dev'), { recursive: true })
-    fs.writeFileSync(path.join(tmpDir, GATE_STATE_FILE), '')
+    const subDir = path.join(tmpDir, 'apps', 'web')
+    fs.mkdirSync(subDir, { recursive: true })
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
 
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
+    warnIfMissingAgentRules(subDir)
+    expect(warnSpy).not.toHaveBeenCalled()
   })
 
-  it('first failure returns the full fatal message with exit/benefit/escape discouragement', () => {
+  it('stops the walk-up at the .git project boundary', () => {
+    // A stray AGENTS.md above the `.git` boundary must NOT be picked
+    // up — that would be leaking agent guidance from an unrelated
+    // parent directory into this project.
     process.env.CLAUDECODE = '1'
+    const outerDir = fs.mkdtempSync(path.join(os.tmpdir(), 'outer-'))
+    try {
+      // Put the tmpDir's .git boundary one level in, and an AGENTS.md
+      // with the marker ABOVE the boundary.
+      fs.writeFileSync(
+        path.join(outerDir, 'AGENTS.md'),
+        `${AGENT_RULES_MARKER}\n`
+      )
+      const innerDir = path.join(outerDir, 'project')
+      fs.mkdirSync(innerDir)
+      fs.mkdirSync(path.join(innerDir, '.git'))
 
-    const result = checkAgentRulesForDev(tmpDir)
-    expect(result).not.toBeNull()
-    expect(result!.fatal).toBe(true)
-
-    const message = result!.message
-
-    // Leads with git-style `fatal:` and an explicit exit symptom.
-    expect(message.startsWith('fatal: dev server exited')).toBe(true)
-
-    // States the cause.
-    expect(message).toContain('AI coding agent')
-    expect(message).toContain('AGENTS.md')
-    expect(message).toContain('CLAUDE.md')
-
-    // Explains WHY it matters (accuracy via version-matched docs).
-    expect(message).toContain('version-matched')
-    expect(message).toContain('accuracy')
-
-    // Primary fix.
-    expect(message).toContain('npx @next/codemod@canary agents-md')
-
-    // Escape hatch disclosed AND discouraged, with a concrete reason.
-    expect(message).toContain('re-running')
-    expect(message).toContain('strongly discouraged')
-    expect(message).toContain('stale API knowledge')
-
-    // State file was written so the next run is treated as a repeat.
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
-  })
-
-  it('second failure is non-fatal and drops the fatal/exit/escape-hatch wording', () => {
-    process.env.CLAUDECODE = '1'
-
-    const first = checkAgentRulesForDev(tmpDir)
-    const second = checkAgentRulesForDev(tmpDir)
-
-    expect(first).not.toBeNull()
-    expect(second).not.toBeNull()
-    expect(first!.fatal).toBe(true)
-    expect(second!.fatal).toBe(false)
-
-    const message = second!.message
-
-    // Softened message still tells the agent what's missing, the install
-    // command, and why it matters.
-    expect(message).toContain('npx @next/codemod@canary agents-md')
-    expect(message).toContain('version-matched')
-    expect(message).toContain('accuracy')
-
-    // But drops the first-run-only framing: no `fatal:`, no "exited", no
-    // escape-hatch disclosure (the server has already unblocked by virtue
-    // of being on the second run; re-disclosing the mechanism would be
-    // noise).
-    expect(message).not.toContain('fatal:')
-    expect(message).not.toContain('dev server exited')
-    expect(message).not.toContain('strongly discouraged')
-  })
-
-  it('state resets after install + removal: first failure is fatal again', () => {
-    process.env.CLAUDECODE = '1'
-
-    // First failure: fatal, state written.
-    const firstFailure = checkAgentRulesForDev(tmpDir)
-    expect(firstFailure!.fatal).toBe(true)
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
-
-    // User installs rules. State cleared.
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
-    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
-
-    // User removes the managed block again. Next failure must start a
-    // fresh cycle — fatal again, not immediately soft.
-    fs.unlinkSync(path.join(tmpDir, 'AGENTS.md'))
-    const freshFailure = checkAgentRulesForDev(tmpDir)
-    expect(freshFailure!.fatal).toBe(true)
+      warnIfMissingAgentRules(innerDir)
+      // The stray outer AGENTS.md must NOT count — we stopped at the
+      // `.git` boundary.
+      expect(warnSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      fs.rmSync(outerDir, { recursive: true, force: true })
+    }
   })
 })
