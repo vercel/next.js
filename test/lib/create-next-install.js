@@ -27,7 +27,17 @@ async function installDependencies(cwd, tmpDir) {
   await execa('pnpm', args, {
     cwd,
     stdio: ['ignore', 'inherit', 'inherit'],
-    env: process.env,
+    env: {
+      ...process.env,
+      // pnpm reads this despite claims it ignores `npm_config_*` env variables.
+      // This isn't set in CI but some local environments set this from the
+      // pnpm-workspace.yaml for unknown reasons.
+      // minimumReleaseAgeExclude is not propagated with environment variables
+      // so some installs would just fail.
+      // TODO: ideally every test fixture would run with minimumReleaseAgeExclude but
+      // that requires some work in monorepo test suites.
+      npm_config_minimum_release_age: undefined,
+    },
   })
 }
 
