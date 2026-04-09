@@ -116,18 +116,15 @@ enum ActiveWriteState {
     Error,
 }
 
-/// A batch of superseded files whose deletion failed and is being retried.
+/// A single superseded file whose deletion failed and is being retried.
 ///
-/// On Linux/macOS, deleting a memory-mapped file is safe and these lists are
+/// On Linux/macOS, deleting a memory-mapped file is safe and this list is
 /// normally empty. On Windows, open memory maps prevent deletion; failed files
 /// are collected here and retried on the next commit or shutdown.
-struct DeferredDeletion {
-    /// Sequence numbers of `.sst` files that could not be deleted yet.
-    sst: Vec<u32>,
-    /// Sequence numbers of `.meta` files that could not be deleted yet.
-    meta: Vec<u32>,
-    /// Sequence numbers of `.blob` files that could not be deleted yet.
-    blob: Vec<u32>,
+enum DeferredDeletion {
+    Sst(u32),
+    Meta(u32),
+    Blob(u32),
 }
 
 /// RAII guard for an active write operation.
@@ -1008,16 +1005,18 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // works even if readers have the files memory-mapped. On Windows, open
         // memory maps prevent deletion; any file that fails is kept in
         // `deferred_deletions` and retried on the next commit or at shutdown.
-        let failed_sst = Self::try_delete_files(&self.path, &sst_seq_numbers_to_delete, "sst");
-        let failed_meta = Self::try_delete_files(&self.path, &meta_seq_numbers_to_delete, "meta");
-        let failed_blob = Self::try_delete_files(&self.path, &blob_seq_numbers_to_delete, "blob");
-        if !failed_sst.is_empty() || !failed_meta.is_empty() || !failed_blob.is_empty() {
-            self.deferred_deletions.lock().push(DeferredDeletion {
-                sst: failed_sst,
-                meta: failed_meta,
-                blob: failed_blob,
-            });
-        }
+        self.deferred_deletions.lock().extend(
+            Self::try_delete_files(&self.path, &sst_seq_numbers_to_delete, "sst")
+                .map(DeferredDeletion::Sst)
+                .chain(
+                    Self::try_delete_files(&self.path, &meta_seq_numbers_to_delete, "meta")
+                        .map(DeferredDeletion::Meta),
+                )
+                .chain(
+                    Self::try_delete_files(&self.path, &blob_seq_numbers_to_delete, "blob")
+                        .map(DeferredDeletion::Blob),
+                ),
+        );
 
         // Retry any deletions that failed in earlier commits.
         self.retry_deferred_deletions();
@@ -1989,12 +1988,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         Ok(())
     }
 
-    /// Attempts to delete a list of files with the given extension, returning those that failed.
-    fn try_delete_files(dir: &Path, seqs: &[u32], ext: &str) -> Vec<u32> {
+    /// Attempts to delete files with the given extension, returning an iterator of sequence
+    /// numbers for files that could not be deleted (e.g. due to open memory maps on Windows).
+    fn try_delete_files<'a>(
+        dir: &'a Path,
+        seqs: &'a [u32],
+        ext: &'a str,
+    ) -> impl Iterator<Item = u32> + 'a {
         seqs.iter()
-            .filter(|&&seq| fs::remove_file(dir.join(format!("{seq:08}.{ext}"))).is_err())
             .copied()
-            .collect()
+            .filter(move |&seq| fs::remove_file(dir.join(format!("{seq:08}.{ext}"))).is_err())
     }
 
     /// Retries deletion of files that previously failed (typically due to open memory maps on
@@ -2003,18 +2006,14 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     /// any leftover files on the next open via the `.del` file.
     fn retry_deferred_deletions(&self) {
         let mut deferred = self.deferred_deletions.lock();
-        deferred.retain_mut(|batch| {
-            batch.sst.retain(|&seq| {
-                fs::remove_file(self.path.join(format!("{seq:08}.sst"))).is_err()
-            });
-            batch.meta.retain(|&seq| {
-                fs::remove_file(self.path.join(format!("{seq:08}.meta"))).is_err()
-            });
-            batch.blob.retain(|&seq| {
-                fs::remove_file(self.path.join(format!("{seq:08}.blob"))).is_err()
-            });
-            // Keep the batch only if some files still couldn't be deleted.
-            !batch.sst.is_empty() || !batch.meta.is_empty() || !batch.blob.is_empty()
+        deferred.retain(|entry| {
+            let (seq, ext) = match *entry {
+                DeferredDeletion::Sst(seq) => (seq, "sst"),
+                DeferredDeletion::Meta(seq) => (seq, "meta"),
+                DeferredDeletion::Blob(seq) => (seq, "blob"),
+            };
+            // Keep the entry only if deletion still fails.
+            fs::remove_file(self.path.join(format!("{seq:08}.{ext}"))).is_err()
         });
     }
 }
