@@ -1017,6 +1017,32 @@ async function exportAppImpl(
       })
     )
 
+    const fallbackHtmlPaths: string[] = []
+
+    // Check for route name collisions with __fallback
+    const fallbackPaths = new Set<string>()
+    for (const [dynamicRoute, prerenderInfo] of Object.entries(
+      prerenderManifest.dynamicRoutes
+    )) {
+      if (
+        prerenderInfo.fallbackRouteParams &&
+        prerenderInfo.fallbackRouteParams.length > 0
+      ) {
+        const path = getFallbackExportPath(dynamicRoute)
+        if (path) fallbackPaths.add(path)
+      }
+    }
+
+    for (const route of Object.keys(prerenderManifest.routes)) {
+      if (fallbackPaths.has(route)) {
+        throw new ExportError(
+          `The route "${route}" conflicts with the internal "__fallback" path used by dynamic route fallbacks in static export mode. ` +
+            `Please rename this route to something else.\n\n` +
+            `Learn more: https://nextjs.org/docs/app/guides/static-exports`
+        )
+      }
+    }
+
     await Promise.all(
       Object.entries(prerenderManifest.dynamicRoutes).map(
         async ([dynamicRoute, prerenderInfo]) => {
@@ -1073,6 +1099,7 @@ async function exportAppImpl(
           await fs.mkdir(dirname(jsonDest), { recursive: true })
           await fs.copyFile(htmlSrc, htmlDest)
           await fs.copyFile(jsonSrc, jsonDest)
+          fallbackHtmlPaths.push(htmlDest)
 
           const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
 
@@ -1101,7 +1128,7 @@ async function exportAppImpl(
     if (
       hasOutputExportDynamicFallbackRoutes(allExportPaths, prerenderManifest)
     ) {
-      await writeOutputExportFallbackHtml(outDir)
+      await writeOutputExportFallbackHtml(outDir, fallbackHtmlPaths)
     }
   }
 
@@ -1164,21 +1191,49 @@ function getFallbackExportPath(routePath: string): string | null {
   return getOutputExportFallbackPath(staticPrefix)
 }
 
-async function writeOutputExportFallbackHtml(outDir: string): Promise<void> {
-  const fallbackSource = [
+async function writeOutputExportFallbackHtml(
+  outDir: string,
+  fallbackHtmlPaths: string[]
+): Promise<void> {
+  // Prefer the shallowest __fallback HTML: it's a proper PPR shell with the
+  // root layout rendered and Suspense boundaries for param-dependent content.
+  // Shorter paths are shallower (closer to root layout only).
+  const sortedFallbackPaths = [...fallbackHtmlPaths].sort(
+    (a, b) => a.length - b.length
+  )
+  const pprShellSource = sortedFallbackPaths[0]
+
+  // Fall back to index.html or 404.html if no __fallback HTML exists
+  const genericSource = [
     join(outDir, 'index.html'),
     join(outDir, '404.html'),
   ].find((candidate) => existsSync(candidate))
 
+  const fallbackSource = pprShellSource ?? genericSource
   if (!fallbackSource) {
     return
   }
 
   const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
   const exportFallbackScript = '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
+
+  let injection: string
+  if (pprShellSource) {
+    // PPR shell already has meaningful content (root layout + Suspense
+    // boundaries), no need to hide it
+    injection = exportFallbackScript
+  } else {
+    // Generic source (index.html / 404.html) has wrong page content.
+    // Hide it to prevent a flash of the wrong page before React takes
+    // over with createRoot. Removed in app-index.tsx after React commits.
+    const exportFallbackStyle =
+      '<style id="__next-export-fallback-style">#__next{visibility:hidden}</style>'
+    injection = `${exportFallbackStyle}${exportFallbackScript}`
+  }
+
   const patchedFallbackHtml = fallbackHtml.includes('</head>')
-    ? fallbackHtml.replace('</head>', `${exportFallbackScript}</head>`)
-    : exportFallbackScript + fallbackHtml
+    ? fallbackHtml.replace('</head>', `${injection}</head>`)
+    : injection + fallbackHtml
 
   await fs.writeFile(join(outDir, '_fallback.html'), patchedFallbackHtml)
 }
