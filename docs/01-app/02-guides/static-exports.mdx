@@ -146,9 +146,9 @@ export default function Page() {
 }
 ```
 
-### Dynamic Routes with Cache Components
+### App Router Dynamic Routes
 
-When [Cache Components](/docs/app/getting-started/caching) are enabled, dynamic routes in the App Router can use a static export without enumerating every param in [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
+When [Cache Components](/docs/app/getting-started/caching) are enabled, dynamic routes in the App Router can use `output: 'export'` without enumerating every param in [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
 During `next build`, Next.js renders a shared fallback shell for the route. Param-independent layouts and Server Components are prerendered into the shell, while param-dependent parts of the route render on the client after navigation or page load.
 

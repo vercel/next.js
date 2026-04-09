@@ -608,4 +608,4 @@ If everything worked, you now have a functioning Next.js application running as 
 - **Optimize third-party scripts** with the [`<Script>` component](/docs/app/guides/scripts)
 - **Enable ESLint** with Next.js [recommended rules](/docs/app/api-reference/config/eslint#setup-eslint)
 
-> **Note**: Using a static export (`output: 'export'`) [does not currently support](https://github.com/vercel/next.js/issues/54393) the `useParams` hook or other server features. To use all Next.js features, remove `output: 'export'` from your `next.config.ts`.
+> **Note**: Static export (`output: 'export'`) still does not support server runtime features that require a server. However, App Router dynamic routes can use `useParams` in this mode when `cacheComponents: true` is enabled. To use the full set of Next.js server features, remove `output: 'export'` from your `next.config.ts`.

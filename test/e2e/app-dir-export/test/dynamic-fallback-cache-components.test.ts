@@ -12,12 +12,12 @@ const { next, skipped, isNextDev } = nextTestSetup({
 })
 
 if (skipped) {
-  describe.skip('app dir - with output export - cacheComponents fallback dynamic params', () => {})
+  describe.skip('app dir - output export dynamic routes with Cache Components', () => {})
 } else {
   const describeProduction = isNextDev ? describe.skip : describe
 
   describeProduction(
-    'app dir - with output export - cacheComponents fallback dynamic params',
+    'app dir - output export dynamic routes with Cache Components',
     () => {
       let port: number
       let stopOrKill: (() => Promise<void>) | undefined

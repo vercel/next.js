@@ -311,7 +311,7 @@ When using [Cache Components](/docs/app/getting-started/caching) with dynamic ro
 
 For server deployments, `generateStaticParams` must return **at least one param**. Empty arrays cause a [build error](/docs/messages/empty-generate-static-params). This allows Cache Components to validate your route doesn't incorrectly access `cookies()`, `headers()`, or `searchParams` at runtime.
 
-When using [`output: 'export'`](/docs/app/guides/static-exports), `generateStaticParams` becomes optional for dynamic routes when `cacheComponents: true` is enabled. If you omit it, Next.js emits a fallback shell for the route and resolves param-dependent content on the client. If you provide it, the returned params are prerendered and all other params use the fallback shell.
+When using [`output: 'export'`](/docs/app/guides/static-exports) with App Router dynamic routes, `generateStaticParams` becomes optional when `cacheComponents: true` is enabled. If you omit it, Next.js emits a fallback shell for the route and resolves param-dependent content on the client. If you provide it, the returned params are prerendered and all other params use the fallback shell.
 
 > **Good to know**: If you don't know the actual param values at build time, you can return a placeholder param (e.g., `[{ slug: '__placeholder__' }]`) for validation, then handle it in your page with `notFound()`. However, this prevents build time validation from working effectively and may cause runtime errors.
 
