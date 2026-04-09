@@ -62,10 +62,10 @@ npx create-next-app@canary --no-agents-md
 On Next.js `v16.2.0-canary.37` or later, run the codemod from your Next.js app directory to install the agent rules automatically:
 
 ```bash
-npx @next/codemod@canary upgrade-agents-md
+npx @next/codemod@canary upgrade agents-md
 ```
 
-In a monorepo, run the command from inside the app package (e.g. `apps/web/`), not the monorepo root. `AGENTS.md` belongs next to the `package.json` that declares `next`, because that's where AI coding agents look for it. `upgrade-agents-md` aborts with an actionable error if it can't resolve `next` from the current directory.
+In a monorepo, run the command from inside the app package (e.g. `apps/web/`), not the monorepo root. `AGENTS.md` belongs next to the `package.json` that declares `next`, because that's where AI coding agents look for it. The command aborts with an actionable error if it can't resolve `next` from the current directory.
 
 `codemod upgrade` also runs this scaffold automatically as a post-upgrade step, so upgrading Next.js in an existing project picks up the agent rules for free.
 

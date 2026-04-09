@@ -1,5 +1,6 @@
 /**
- * CLI handler for `npx @next/codemod upgrade-agents-md`.
+ * CLI handler for `npx @next/codemod upgrade agents-md` — the
+ * `agents-md` subcommand nested under `upgrade`.
  *
  * This is the "fast path" variant of the `agents-md` codemod. It
  * upserts the canonical create-next-app-style agent-rules block into

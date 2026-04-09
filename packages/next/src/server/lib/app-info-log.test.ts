@@ -93,7 +93,7 @@ describe('warnIfMissingAgentRules', () => {
 
     // Install command + both filenames.
     expect(loggedMessage).toContain(
-      'npx @next/codemod@canary upgrade-agents-md'
+      'npx @next/codemod@canary upgrade agents-md'
     )
     expect(loggedMessage).toContain('AGENTS.md')
     expect(loggedMessage).toContain('CLAUDE.md')
@@ -226,7 +226,7 @@ describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
     expect(message).toContain('fail at runtime')
 
     // Primary fix — the codemod command.
-    expect(message).toContain('npx @next/codemod@canary upgrade-agents-md')
+    expect(message).toContain('npx @next/codemod@canary upgrade agents-md')
 
     // Escape hatch — disclosed, but env var not a CLI flag (agents
     // grab CLI flags more readily than env vars), and explicitly

@@ -139,7 +139,7 @@ function tryReadFile(filePath: string): string | null {
  * the sub-package (e.g. `apps/web/`), never the monorepo root.
  *
  * The only supported way to install the marker is via
- * `npx @next/codemod@canary upgrade-agents-md`, which writes the
+ * `npx @next/codemod@canary upgrade agents-md`, which writes the
  * managed block to the same project directory — keeping the check and
  * the codemod anchored on the same location.
  */
@@ -168,7 +168,7 @@ function hasAgentRulesInstalled(dir: string): boolean {
  */
 const BYPASS_ENV_VAR = 'NEXT_DISABLE_AGENT_RULE_CHECK'
 
-const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary upgrade-agents-md'
+const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary upgrade agents-md'
 
 /**
  * Print a yellow `⚠` warning at the end of `next build` when an AI
