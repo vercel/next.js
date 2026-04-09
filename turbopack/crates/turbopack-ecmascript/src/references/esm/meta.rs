@@ -72,14 +72,14 @@ impl ImportMetaBinding {
             // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
             let turbopack_module: Expr = TURBOPACK_MODULE.into();
             quote!(
-                "const $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
+                "var $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
                 m: Expr = turbopack_module,
             )
         } else {
             quote!(
-                "const $name = { get url() { return $path } };" as Stmt,
+                "var $name = { get url() { return $path } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
             )

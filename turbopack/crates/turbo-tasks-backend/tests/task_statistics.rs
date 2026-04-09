@@ -139,14 +139,16 @@ async fn test_dyn_trait_methods() -> Result<()> {
         enable_stats();
         for i in 0..10 {
             let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
-            let _ = tokio::try_join!(wvc.double().resolve(), wvc.double().resolve()).unwrap();
-            let _ = tokio::try_join!(wvc.double_vc().resolve(), wvc.double_vc().resolve()).unwrap();
+            let _ =
+                tokio::try_join!(wvc.double().to_resolved(), wvc.double().to_resolved()).unwrap();
+            let _ = tokio::try_join!(wvc.double_vc().to_resolved(), wvc.double_vc().to_resolved())
+                .unwrap();
         }
         // use cached results
         for i in 0..5 {
             let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
-            let _ = wvc.double().resolve().await.unwrap();
-            let _ = wvc.double_vc().resolve().await.unwrap();
+            let _ = wvc.double().to_resolved().await.unwrap();
+            let _ = wvc.double_vc().to_resolved().await.unwrap();
         }
         // use cached results without dynamic dispatch
         for i in 0..2 {

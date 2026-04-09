@@ -26,7 +26,9 @@ pub async fn get_browser_runtime_code(
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
 ) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(*environment).resolve().await?;
+    let asset_context = *get_runtime_asset_context(*environment)
+        .to_resolved()
+        .await?;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
@@ -88,17 +90,26 @@ pub async fn get_browser_runtime_code(
     let chunk_loading_global = chunk_loading_global.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
+    if *environment
+        .runtime_versions()
+        .supports_arrow_functions()
+        .await?
+    {
+        code += "(() => {\n";
+    } else {
+        code += "(function(){\n";
+    }
+
     writedoc!(
         code,
         r#"
-            (() => {{
             if (!Array.isArray(globalThis[{}])) {{
                 return;
             }}
 
-            const CHUNK_BASE_PATH = {};
-            const RELATIVE_ROOT_PATH = {};
-            const RUNTIME_PUBLIC_PATH = {};
+            var CHUNK_BASE_PATH = {};
+            var RELATIVE_ROOT_PATH = {};
+            var RUNTIME_PUBLIC_PATH = {};
         "#,
         StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
@@ -111,7 +122,7 @@ pub async fn get_browser_runtime_code(
             writedoc!(
                 code,
                 r#"
-                    const ASSET_SUFFIX = "";
+                    var ASSET_SUFFIX = "";
                 "#
             )?;
         }
@@ -119,7 +130,7 @@ pub async fn get_browser_runtime_code(
             writedoc!(
                 code,
                 r#"
-                    const ASSET_SUFFIX = {};
+                    var ASSET_SUFFIX = {};
                 "#,
                 StringifyJs(suffix.as_str())
             )?;
@@ -131,7 +142,7 @@ pub async fn get_browser_runtime_code(
             writedoc!(
                 code,
                 r#"
-                    const ASSET_SUFFIX = getAssetSuffixFromScriptSrc();
+                    var ASSET_SUFFIX = getAssetSuffixFromScriptSrc();
                 "#
             )?;
         }
@@ -139,7 +150,7 @@ pub async fn get_browser_runtime_code(
             writedoc!(
                 code,
                 r#"
-                    const ASSET_SUFFIX = globalThis[{}] || "";
+                    var ASSET_SUFFIX = globalThis[{}] || "";
                 "#,
                 StringifyJs(global_name)
             )?;
@@ -151,7 +162,7 @@ pub async fn get_browser_runtime_code(
     writedoc!(
         code,
         r#"
-            const WORKER_FORWARDED_GLOBALS = {};
+            var WORKER_FORWARDED_GLOBALS = {};
         "#,
         StringifyJs(&*worker_forwarded_globals)
     )?;
@@ -205,7 +216,7 @@ pub async fn get_browser_runtime_code(
     writedoc!(
         code,
         r#"
-            const chunksToRegister = globalThis[{chunk_loading_global}];
+            var chunksToRegister = globalThis[{chunk_loading_global}];
             globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
             chunksToRegister.forEach(registerChunk);
         "#,
@@ -215,7 +226,7 @@ pub async fn get_browser_runtime_code(
         writedoc!(
             code,
             r#"
-            const chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
+            var chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
             globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
             chunkListsToRegister.forEach(registerChunkList);
         "#,

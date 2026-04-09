@@ -64,10 +64,10 @@ impl EcmascriptBuildNodeRuntimeChunk {
         writedoc!(
             code,
             r#"
-                const RUNTIME_PUBLIC_PATH = {};
-                const RELATIVE_ROOT_PATH = {};
-                const ASSET_PREFIX = {};
-                const WORKER_FORWARDED_GLOBALS = {};
+                var RUNTIME_PUBLIC_PATH = {};
+                var RELATIVE_ROOT_PATH = {};
+                var ASSET_PREFIX = {};
+                var WORKER_FORWARDED_GLOBALS = {};
             "#,
             StringifyJs(runtime_public_path),
             StringifyJs(output_root_to_root_path.as_str()),
@@ -83,7 +83,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     // Apply forwarded globals from workerData if running in a worker thread
                     if (typeof require !== 'undefined') {{
                         try {{
-                            const {{ workerData }} = require('worker_threads');
+                            var {{ workerData }} = require('worker_threads');
                             if (workerData?.__turbopack_globals__) {{
                                 Object.assign(globalThis, workerData.__turbopack_globals__);
                                 // Remove internal data so it's not visible to user code

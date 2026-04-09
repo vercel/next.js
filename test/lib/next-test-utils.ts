@@ -28,6 +28,7 @@ import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { Playwright } from 'next-webdriver'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -538,7 +539,7 @@ export function nextBuild(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommand(['build', dir, ...args], opts)
@@ -566,7 +567,7 @@ export function nextStart(
   if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
     opts.env ??= {}
     opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
-    opts.env.__NEXT_IMMUTABLE_ASSET_TOKEN = 'test-immutable-tkn-7890'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
   }
 
   return runNextCommandDev(
@@ -1649,6 +1650,49 @@ export async function getRedboxCause(
   })
 }
 
+export async function getRedboxAggregateErrors(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const aggregateElements = root?.querySelectorAll(
+      '[data-nextjs-error-aggregate-error]'
+    )
+    if (!aggregateElements || aggregateElements.length === 0) return null
+
+    const entries: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of aggregateElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      entries.push({
+        label:
+          el.querySelector('.error-aggregate-error-label')?.innerText ?? null,
+        message:
+          el.querySelector('.error-aggregate-error-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return entries
+  })
+}
+
 export async function getRedboxCallStack(
   browser: Playwright
 ): Promise<string[] | null> {
@@ -1665,8 +1709,11 @@ export async function getRedboxCallStack(
     if (frameElements !== undefined) {
       let foundInternalFrame = false
       for (const frameElement of frameElements) {
-        // Skip frames that belong to an Error.cause section
-        if (frameElement.closest('[data-nextjs-error-cause]')) {
+        // Skip frames that belong to an Error.cause or AggregateError section
+        if (
+          frameElement.closest('[data-nextjs-error-cause]') ||
+          frameElement.closest('[data-nextjs-error-aggregate-error]')
+        ) {
           continue
         }
         // `innerText` will be "${methodName}\n${location}".
@@ -2088,9 +2135,11 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
 
   const deploymentId: string | undefined =
     requiredServerFiles?.config?.deploymentId
-  const immutableAssetToken: string | undefined =
-    requiredServerFiles?.config?.experimental?.immutableAssetToken
-  const assetToken: string | undefined = immutableAssetToken || deploymentId
+
+  const assetToken: string | undefined = requiredServerFiles?.config
+    ?.experimental?.supportsImmutableAssets
+    ? undefined
+    : deploymentId
 
   return {
     deploymentId,
@@ -2102,4 +2151,12 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
       return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
     },
   }
+}
+
+export async function listClientChunks(distDir: string) {
+  return (
+    await recursiveReadDir(path.join(distDir, 'static'), {
+      relativePathnames: false,
+    })
+  ).map((f) => path.relative(distDir, f))
 }
