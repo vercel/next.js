@@ -22,12 +22,6 @@ pub struct SnapshotItem {
     pub task_type_hash: Option<TaskTypeHash>,
 }
 
-impl SnapshotItem {
-    pub fn is_empty(&self) -> bool {
-        self.meta.is_none() && self.data.is_none() && self.task_type_hash.is_none()
-    }
-}
-
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
 ///
 /// This encodes the task type directly to a hasher, avoiding intermediate buffer allocation.
