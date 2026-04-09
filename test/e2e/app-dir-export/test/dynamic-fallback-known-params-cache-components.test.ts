@@ -72,6 +72,113 @@ export default function Page(props) {
 `
         )
 
+        await next.patchFile(
+          'app/org/page.js',
+          `import Link from 'next/link'
+
+export default function OrgIndexPage() {
+  return (
+    <main>
+      <h1>Org index</h1>
+      <ul>
+        <li>
+          <Link href="/org/acme/chat/thread-123">
+            Visit known org chat thread
+          </Link>
+        </li>
+        <li>
+          <Link href="/org/acme/chat/thread-789">
+            Visit fallback org chat thread
+          </Link>
+        </li>
+      </ul>
+    </main>
+  )
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/org-client.js',
+          `'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function OrgClient() {
+  const params = useParams()
+
+  return <p id="org-name">Org {params.org}</p>
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/layout.js',
+          `import { Suspense } from 'react'
+import OrgClient from './org-client'
+
+export default function OrgLayout({ children }) {
+  return (
+    <main>
+      <Suspense fallback={<p id="org-name">Loading org...</p>}>
+        <OrgClient />
+      </Suspense>
+      {children}
+    </main>
+  )
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/chat/[thread]/thread-client.js',
+          `'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function OrgThreadClient() {
+  const params = useParams()
+
+  return <h1>{params.org}:{params.thread}</h1>
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/chat/[thread]/page.js',
+          `import Link from 'next/link'
+import { Suspense } from 'react'
+import OrgThreadClient from './thread-client'
+
+export function generateStaticParams() {
+  return [
+    { org: 'acme', thread: 'thread-123' },
+    { org: 'acme', thread: 'thread-456' },
+  ]
+}
+
+export default function OrgThreadPage() {
+  return (
+    <>
+      <Suspense fallback={<h1>Loading org thread...</h1>}>
+        <OrgThreadClient />
+      </Suspense>
+      <ul>
+        <li>
+          <Link href="/org">Visit org index</Link>
+        </li>
+        <li>
+          <Link href="/org/acme/chat/thread-789">
+            Visit fallback org chat thread
+          </Link>
+        </li>
+      </ul>
+    </>
+  )
+}
+`
+        )
+
         await next.deleteFile('app/api/json/route.js')
         await next.deleteFile('app/api/txt/route.js')
 
@@ -117,6 +224,9 @@ export default function Page(props) {
           )
         ).toBe(true)
         expect(
+          await fs.pathExists(join(outDir, 'org', '__fallback', 'index.txt'))
+        ).toBe(true)
+        expect(
           await fs.pathExists(join(outDir, 'another', 'first', 'index.html'))
         ).toBe(true)
         expect(
@@ -124,6 +234,16 @@ export default function Page(props) {
         ).toBe(true)
         expect(
           await fs.pathExists(join(outDir, 'another', 'third', 'index.html'))
+        ).toBe(false)
+        expect(
+          await fs.pathExists(
+            join(outDir, 'org', 'acme', 'chat', 'thread-123', 'index.html')
+          )
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(outDir, 'org', 'acme', 'chat', 'thread-789', 'index.html')
+          )
         ).toBe(false)
       })
 
@@ -138,6 +258,35 @@ export default function Page(props) {
           await browser.get(`http://localhost:${port}/another/third/`)
           await retry(async () => {
             expect(await browser.elementByCss('h1').text()).toBe('third')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('serves both prerendered and fallback params for nested dynamic routes', async () => {
+        const browser = await webdriver(port, '/org/acme/chat/thread-123/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org acme'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-123'
+            )
+          })
+
+          await browser.get(
+            `http://localhost:${port}/org/acme/chat/thread-789/`
+          )
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org acme'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-789'
+            )
           })
         } finally {
           await browser.close()

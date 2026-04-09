@@ -326,6 +326,101 @@ export default function InboxModalPage() {
 `
         )
 
+        await next.patchFile(
+          'app/org/page.js',
+          `import Link from 'next/link'
+
+export default function OrgIndexPage() {
+  return (
+    <main>
+      <h1>Org index</h1>
+      <ul>
+        <li>
+          <Link href="/org/acme/chat/thread-123">
+            Visit org chat thread 123
+          </Link>
+        </li>
+      </ul>
+    </main>
+  )
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/org-client.js',
+          `'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function OrgClient() {
+  const params = useParams()
+
+  return <p id="org-name">Org {params.org}</p>
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/layout.js',
+          `import { Suspense } from 'react'
+import OrgClient from './org-client'
+
+export default function OrgLayout({ children }) {
+  return (
+    <main>
+      <Suspense fallback={<p id="org-name">Loading org...</p>}>
+        <OrgClient />
+      </Suspense>
+      {children}
+    </main>
+  )
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/chat/[thread]/thread-client.js',
+          `'use client'
+
+import { useParams } from 'next/navigation'
+
+export default function OrgThreadClient() {
+  const params = useParams()
+
+  return <h1>{params.org}:{params.thread}</h1>
+}
+`
+        )
+
+        await next.patchFile(
+          'app/org/[org]/chat/[thread]/page.js',
+          `import Link from 'next/link'
+import { Suspense } from 'react'
+import OrgThreadClient from './thread-client'
+
+export default function OrgThreadPage() {
+  return (
+    <>
+      <Suspense fallback={<h1>Loading org thread...</h1>}>
+        <OrgThreadClient />
+      </Suspense>
+      <ul>
+        <li>
+          <Link href="/org">Visit org index</Link>
+        </li>
+        <li>
+          <Link href="/org/acme/chat/thread-456">
+            Visit org chat thread 456
+          </Link>
+        </li>
+      </ul>
+    </>
+  )
+}
+`
+        )
+
         await next.deleteFile('app/api/json/route.js')
         await next.deleteFile('app/api/txt/route.js')
 
@@ -395,7 +490,15 @@ export default function InboxModalPage() {
           await fs.pathExists(join(outDir, 'inbox', '__fallback', 'index.txt'))
         ).toBe(true)
         expect(
+          await fs.pathExists(join(outDir, 'org', '__fallback', 'index.txt'))
+        ).toBe(true)
+        expect(
           await fs.pathExists(join(outDir, 'another', 'first', 'index.html'))
+        ).toBe(false)
+        expect(
+          await fs.pathExists(
+            join(outDir, 'org', 'acme', 'chat', 'thread-123', 'index.html')
+          )
         ).toBe(false)
       })
 
@@ -530,6 +633,52 @@ export default function InboxModalPage() {
             expect(await browser.elementByCss('h1').text()).toBe('thread-456')
             expect(await browser.elementByCss('#modal-thread').text()).toBe(
               'Modal thread-456'
+            )
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('renders nested fallback params across multiple dynamic segments', async () => {
+        const browser = await webdriver(port, '/org/umbrella/chat/thread-789/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org umbrella'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'umbrella:thread-789'
+            )
+          })
+
+          await browser.elementByCss('a[href="/org/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Org index')
+          })
+
+          await browser
+            .elementByCss('a[href="/org/acme/chat/thread-123/"]')
+            .click()
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org acme'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-123'
+            )
+          })
+
+          await browser
+            .elementByCss('a[href="/org/acme/chat/thread-456/"]')
+            .click()
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org acme'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'acme:thread-456'
             )
           })
         } finally {
