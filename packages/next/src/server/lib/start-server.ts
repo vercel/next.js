@@ -19,14 +19,19 @@ import { exec } from 'child_process'
 import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import { RESTART_EXIT_CODE } from './utils'
+import { printAndExit, RESTART_EXIT_CODE } from './utils'
 import { formatHostname } from './format-hostname'
 import { initialize } from './router-server'
 import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
+import {
+  checkAgentRulesForDev,
+  getEnvInfo,
+  logExperimentalInfo,
+  logStartInfo,
+} from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
   type Span,
@@ -502,6 +507,28 @@ export async function startServer(
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
           })
+
+          // Agent-rules gate. Runs here (after the banner/URL/Ready line
+          // has already been printed) rather than in the parent CLI so
+          // we don't drag the `app-info-log` import chain — and the
+          // config-schema zod dependency it pulls in — into every
+          // `next dev` cold start. Trade-off: blocked runs pay the full
+          // startup cost before the check fires, which is deliberate.
+          //
+          // First failure in an agent-driven session is fatal (hard exit
+          // so the agent runs the codemod). Second+ consecutive failures
+          // print the same message but let the server keep running —
+          // that's the escape hatch for users who legitimately don't
+          // want an AGENTS.md, and it's deliberately never advertised in
+          // the message so agents can't game it.
+          const agentRulesCheck = checkAgentRulesForDev(dir)
+          if (agentRulesCheck !== null) {
+            if (agentRulesCheck.fatal) {
+              printAndExit(agentRulesCheck.message)
+            } else {
+              Log.error(agentRulesCheck.message)
+            }
+          }
         }
 
         handlersReady()

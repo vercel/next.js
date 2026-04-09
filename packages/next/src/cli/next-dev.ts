@@ -15,7 +15,6 @@ import {
   type DebugAddress,
 } from '../server/lib/utils'
 import * as Log from '../build/output/log'
-import { checkAgentRulesForDev } from '../server/lib/app-info-log'
 import { getProjectDir } from '../lib/get-project-dir'
 import path from 'path'
 import { traceGlobals } from '../trace/shared'
@@ -182,24 +181,6 @@ const nextDev = async (
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
-  }
-
-  // Agent-rules gate. The first time `next dev` runs without the Next.js
-  // agent rules installed in an agent-driven session, we hard-exit so the
-  // agent is forced to run the codemod. Subsequent runs print the same
-  // message but let the dev server start anyway — that's the escape hatch
-  // for users who legitimately don't want an AGENTS.md (restart twice and
-  // they're through), and it deliberately isn't mentioned in the message
-  // so agents don't game it. State is tracked in `.next/dev/` and reset
-  // whenever the rules become installed. Runs before the worker fork so
-  // the first-failure hard-exit doesn't waste startup.
-  const agentRulesCheck = checkAgentRulesForDev(dir)
-  if (agentRulesCheck !== null) {
-    if (agentRulesCheck.fatal) {
-      printAndExit(agentRulesCheck.message)
-    } else {
-      Log.error(agentRulesCheck.message)
-    }
   }
 
   if (options.experimentalCpuProf) {
