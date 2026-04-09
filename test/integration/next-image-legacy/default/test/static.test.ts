@@ -98,7 +98,7 @@ const runTests = () => {
   it('should load direct imported image', async () => {
     const src = await browser.elementById('basic-static').getAttribute('src')
     expect(src).toMatch(
-      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/
+      /_next\/image\?url=%2F_next%2Fstatic%2F(immutable%2F)?media%2Ftest-rect(.+)\.jpg&w=828&q=75/
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
@@ -110,7 +110,7 @@ const runTests = () => {
       .elementById('basic-staticprop')
       .getAttribute('src')
     expect(src).toMatch(
-      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fexif-rotation(.+)\.jpg&w=256&q=75/
+      /_next\/image\?url=%2F_next%2Fstatic%2F(immutable%2F)?media%2Fexif-rotation(.+)\.jpg&w=256&q=75/
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)

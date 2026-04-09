@@ -223,6 +223,7 @@ export const experimentalSchema = {
   partialFallbacks: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
+  unstableIO: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
@@ -419,7 +420,7 @@ export const experimentalSchema = {
   lockDistDir: z.boolean().optional(),
   hideLogsAfterAbort: z.boolean().optional(),
   runtimeServerDeploymentId: z.boolean().optional(),
-  immutableAssetToken: z.string().optional(),
+  supportsImmutableAssets: z.boolean().optional(),
   deferredEntries: z.array(z.string()).optional(),
   onBeforeDeferredEntries: z.function().returns(z.promise(z.void())).optional(),
   reportSystemEnvInlining: z.enum(['warn', 'error']).optional(),

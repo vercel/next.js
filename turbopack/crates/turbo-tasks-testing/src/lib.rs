@@ -279,6 +279,7 @@ impl TurboTasksApi for VcStorage {
         _is_serializable_cell_content: bool,
         content: CellContent,
         _updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        _content_hash: Option<[u8; 16]>,
         _verification_mode: VerificationMode,
     ) {
         let mut map = self.cells.lock().unwrap();

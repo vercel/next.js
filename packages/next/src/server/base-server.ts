@@ -476,9 +476,9 @@ export default abstract class Server<
       process.env.NEXT_DEPLOYMENT_ID = id
     }
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
-      this.nextConfig.experimental.immutableAssetToken || this.deploymentId
-        ? `?dpl=${this.nextConfig.experimental.immutableAssetToken || this.deploymentId}`
-        : ''
+      this.nextConfig.experimental.supportsImmutableAssets || !this.deploymentId
+        ? ''
+        : `?dpl=${this.deploymentId}`
 
     this.hostname = hostname
     if (this.hostname) {

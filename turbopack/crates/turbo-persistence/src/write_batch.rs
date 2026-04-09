@@ -141,7 +141,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         Ok(collector)
     }
 
-    #[tracing::instrument(level = "trace", skip(self, collector))]
+    #[tracing::instrument(level = "trace", skip(self, collector), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     fn flush_thread_local_collector(
         &self,
         family: u32,
@@ -243,7 +243,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
     ///
     /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
     /// family.
-    #[tracing::instrument(level = "trace", skip(self))]
+    #[tracing::instrument(level = "trace", skip(self), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
         // Flush the thread local collectors to the global collector.
         let mut collectors = Vec::new();
@@ -452,7 +452,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
 
     /// Creates a new SST file with the given collector data.
     /// Returns a tuple of (sequence number, file).
-    #[tracing::instrument(level = "trace", skip(self, collector_data))]
+    #[tracing::instrument(level = "trace", skip(self, collector_data), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     fn create_sst_file(
         &self,
         family: u32,

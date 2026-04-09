@@ -29,3 +29,18 @@ ignoredBuiltDependencies:
   - ssh2
   - unrs-resolver
   - wasm-pack
+blockExoticSubdeps: true
+minimumReleaseAge: 2880 # 48 hrs
+minimumReleaseAgeExclude:
+  - '@next/*'
+  - '@turbo/*'
+  - '@vercel/*'
+  - '@workflow/*'
+  - babel-plugin-react-compiler
+  - next
+  - react
+  - react-dom
+  - react-is
+  - react-server-dom-*
+  - scheduler
+  - turbo

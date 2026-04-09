@@ -1180,13 +1180,12 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export RUST_BACKTRACE=1
 
         node run-tests.js \
           --timings \
@@ -1208,13 +1207,12 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export RUST_BACKTRACE=1
 
         node run-tests.js \
           --timings \

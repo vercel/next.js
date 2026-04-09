@@ -2,6 +2,7 @@
 import { getImageProps } from 'next/image'
 
 let deploymentId: string | undefined
+let assetToken: string | undefined
 jest.mock('next/dist/shared/lib/deployment-id.js', () => {
   return {
     __esModule: true,
@@ -16,10 +17,14 @@ jest.mock('next/dist/shared/lib/deployment-id.js', () => {
       return ''
     },
     getAssetToken() {
-      throw new Error("getAssetToken shouldn't be called ")
+      return assetToken
     },
     getAssetTokenQuery(ampersand = false) {
-      throw new Error("getAssetTokenQuery shouldn't be called ")
+      let token = assetToken
+      if (token) {
+        return `${ampersand ? '&' : '?'}at=${token}`
+      }
+      return ''
     },
   }
 })
@@ -658,6 +663,68 @@ describe('getImageProps()', () => {
         [
           'src',
           '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
+        ],
+      ])
+    } finally {
+      deploymentId = undefined
+    }
+  })
+  it('should add query string for imported local immutable image when assetToken is set', async () => {
+    try {
+      deploymentId = 'dpl_123'
+      assetToken = 'dpl_789'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/_next/static/immutable/media/test.abc123.png',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
+        ],
+        [
+          'src',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
+        ],
+      ])
+    } finally {
+      assetToken = undefined
+      deploymentId = undefined
+    }
+  })
+  it('should not add query string for imported local immutable image when assetToken is empty', async () => {
+    try {
+      deploymentId = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/_next/static/immutable/media/test.abc123.png',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=128&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75 2x',
+        ],
+        [
+          'src',
+          '/_next/image?url=%2F_next%2Fstatic%2Fimmutable%2Fmedia%2Ftest.abc123.png&w=256&q=75',
         ],
       ])
     } finally {
