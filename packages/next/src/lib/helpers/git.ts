@@ -20,9 +20,10 @@ export function getGitBranch(cwd: string): string {
     return process.env.VERCEL_GIT_COMMIT_REF
   }
   try {
-    const branch = gitExec('rev-parse --abbrev-ref HEAD', cwd)
-    // "HEAD" indicates a detached HEAD state — treat as unknown.
-    return branch === 'HEAD' ? '' : branch
+    // symbolic-ref --short HEAD: returns the branch name for regular branches,
+    // works on repos with no commits, and exits non-zero in detached HEAD state
+    // (caught below and treated as unknown).
+    return gitExec('symbolic-ref --short HEAD', cwd)
   } catch {
     return ''
   }
