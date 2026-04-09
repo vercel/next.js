@@ -172,9 +172,9 @@ export default async function Page() {
 
 ## `generateStaticParams`
 
-**Still supported.** Keep using [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) for [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes). With Cache Components, use [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) and [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) as the source of truth for validation, Suspense, and unknown params.
+**With Cache Components,** [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) stays available for [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes). What **differs from before** is stricter validation, how unknown params are handled, and how `next build` prints the route table. Use [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) and [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) for Suspense requirements, unknown params, and the full rules.
 
-If you previously used `return []`, that pattern becomes a [build error](/docs/messages/empty-generate-static-params); apply the fixes described in those docs (at least one sample param, or no `generateStaticParams` plus request-time patterns).
+**Different from before:** `return []` is no longer allowed and becomes a [build error](/docs/messages/empty-generate-static-params). Return at least one sample param, or drop `generateStaticParams` and use request-time patterns instead (see those docs).
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before
@@ -232,7 +232,36 @@ export default async function Page({ params }) {
 }
 ```
 
-> **Good to know:** With Cache Components, each listed param shows its own symbol in the [build output](/docs/app/guides/building) — `○` if the page is fully static, or `◐` if it contains streamed content. See [Partial prerendering](/docs/app/guides/public-static-pages#partial-prerendering) for more details.
+> **Good to know:** In the `Route (app)` section, `next build` nests each path from `generateStaticParams` under the dynamic segment row. The segment row has no symbol; each nested line has its own symbol. **Before Cache Components**, prerendered param paths use **`●` (SSG)**. **With Cache Components**, set [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents). Prerendered param paths use **`○` (Static)** or **`◐` (Partial Prerender)**. The dynamic segment is also listed as a nested **`◐`** row. The lines after the table define each symbol from the build. See the [Building](/docs/app/guides/building) guide for all route indicators and [Partial prerendering](/docs/app/guides/public-static-pages#partial-prerendering) for **`◐`**.
+
+**Before Cache Components:**
+
+```bash filename="Terminal"
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└   /products/[id]
+  ├ ● /products/1
+  └ ● /products/2
+
+○  (Static)  prerendered as static content
+●  (SSG)     prerendered as static HTML (uses generateStaticParams)
+```
+
+**With Cache Components:**
+
+```bash filename="Terminal"
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└   /products/[id]
+  ├ ◐ /products/[id]
+  ├ ○ /products/1
+  └ ○ /products/2
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
 
 ## `runtime = 'edge'`
 
