@@ -1,4 +1,5 @@
 import { getOutputExportFallbackPath } from '../lib/output-export-dynamic-fallback'
+import { RSC_CONTENT_TYPE_HEADER } from './components/app-router-headers'
 
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
   const segments = pathname.split('/').filter(Boolean)
@@ -43,16 +44,12 @@ export async function fetchOutputExportDataResponse(
   for (const dataUrl of getOutputExportDataCandidates(renderedUrl)) {
     const response = await fetch(dataUrl, init)
     const contentType = response.headers.get('content-type') || ''
-    // Reject HTML responses (likely the host's error page) and responses
-    // with no content-type (likely a piped error document). Accept any
-    // other type: static hosts serve .txt as text/plain, application/
-    // octet-stream, or other types depending on configuration.
-    const isValidResponse =
-      contentType !== '' &&
-      !contentType.startsWith('text/html') &&
-      !contentType.startsWith('application/xhtml')
+    const isFlightResponse =
+      contentType.startsWith(RSC_CONTENT_TYPE_HEADER) ||
+      contentType.startsWith('text/plain') ||
+      contentType.startsWith('application/octet-stream')
 
-    if (response.ok && response.body && isValidResponse) {
+    if (response.ok && response.body && isFlightResponse) {
       return response
     }
   }
