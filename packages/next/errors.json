@@ -1156,5 +1156,6 @@
   "1155": "Not implemented",
   "1156": "Cannot create a replay stream after the ReplayableNodeStream has been disposed.",
   "1157": "`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.",
-  "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable."
+  "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable.",
+  "1159": "The route \"%s\" conflicts with the internal \"__fallback\" path used by dynamic route fallbacks in static export mode. Please rename this route to something else.\\n\\nLearn more: https://nextjs.org/docs/app/guides/static-exports"
 }

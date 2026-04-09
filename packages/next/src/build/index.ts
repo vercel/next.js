@@ -2389,7 +2389,7 @@ export default async function build(
                               !hasGenerateStaticParams
                             ) {
                               throw new Error(
-                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config.`
+                                `Page "${page}" is missing "generateStaticParams()" so it cannot be used with "output: export" config. Either add generateStaticParams() to enumerate all params, or enable Cache Components (cacheComponents: true) to support dynamic route fallbacks without enumerating every param. Learn more: https://nextjs.org/docs/app/guides/static-exports#app-router-dynamic-routes`
                               )
                             }
 
