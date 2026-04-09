@@ -571,6 +571,7 @@ function makeGetDynamicParamFromSegment(
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   optimisticRouting: boolean
 ): GetDynamicParamFromSegment {
+  console.log('makeGetDynamicParamFromSegment', interpolatedParams)
   return function getDynamicParamFromSegment(loaderTree: LoaderTree) {
     const [segment, , , staticSiblings] = loaderTree
     const segmentParam = getSegmentParam(segment)

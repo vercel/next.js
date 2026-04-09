@@ -225,6 +225,7 @@ export class StagedRenderingController {
       | RenderStage.Runtime
       | RenderStage.Dynamic
   ) {
+    console.log(`----------- ${RenderStage[stage]} -----------`)
     // If we're already at the target stage or beyond, do nothing.
     // (this can happen e.g. if sync IO advanced us to the dynamic stage)
     if (stage <= this.currentStage) {

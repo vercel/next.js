@@ -59,7 +59,8 @@ async fn dynamic_image_metadata_with_generator_source(
             const imageModule = {{ {exported_fields_excluding_default} }}
 
             export default async function (props) {{
-                const {{ __metadata_id__: _, ...params }} = await props.params
+                // const {{ __metadata_id__: _, ...params }} = await props.params
+                const params = await props.params
                 const imageUrl = fillDynamicMetadataSegment({pathname_prefix}, {page_segment}, params)
 
                 const {{ generateImageMetadata }} = imageModule
@@ -132,11 +133,13 @@ async fn dynamic_image_metadata_without_generator_source(
         r#"
             import {{ {exported_fields_excluding_default} }} from {resource_path}
             import {{ fillDynamicMetadataSegment }} from 'next/dist/lib/metadata/get-metadata-route'
+            import {{ excludeMetadataIdFromServerParams }} from 'next/dist/server/app-render/instant-validation/metadata-image-params'
 
             const imageModule = {{ {exported_fields_excluding_default} }}
 
             export default async function (props) {{
-                const {{ __metadata_id__: _, ...params }} = await props.params
+                // const {{ __metadata_id__: _, ...params }} = await props.params
+                const params = await props.params
                 const imageUrl = fillDynamicMetadataSegment({pathname_prefix}, {page_segment}, params)
 
                 function getImageMetadata(imageMetadata, idParam) {{

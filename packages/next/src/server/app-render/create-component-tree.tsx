@@ -919,6 +919,7 @@ async function createComponentTreeInternal(
     } else {
       // If we are passing params to a server component Page we need to track
       // their usage in case the current render mode tracks dynamic API usage.
+      console.log('segment', segment)
       const params = createServerParamsForServerSegment(
         currentParams,
         optionalCatchAllParamName,
@@ -1102,6 +1103,7 @@ async function createComponentTreeInternal(
         )
       }
     } else {
+      console.log('---------------------\nsegment', segment)
       const params = createServerParamsForServerSegment(
         currentParams,
         optionalCatchAllParamName,
