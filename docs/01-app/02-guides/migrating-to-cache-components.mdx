@@ -188,7 +188,6 @@ If your code relied on unmounting to clear state, you may need to add explicit r
 
 - **Dropdowns and popovers** — stay open when navigating back. Close them in a `useLayoutEffect` cleanup function.
 - **Dialogs with initialization logic** — Effects that depend on dialog state (like focusing an input) won't re-fire if the state was preserved. Derive dialog state from the URL instead.
-- **Forms after submission** — input values persist when returning. Reset with a callback ref or `useLayoutEffect` cleanup.
-- **Action state** — success or error messages from `useActionState` persist. Dispatch a reset action when the component is hidden.
+- **Forms after submission** — input values and `useActionState` results (success/error messages) persist when returning. Reset form fields with a callback ref and dispatch a reset action for action state.
 
 See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for detailed examples of each pattern.
