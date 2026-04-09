@@ -187,7 +187,8 @@ describe('app-dir - errors', () => {
         )
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
-         "⨯ [Error: An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.] {
+         "⨯ Error: this is a test
+             at stringify (<anonymous>) {
            digest: '<digest>'
          }
          "
