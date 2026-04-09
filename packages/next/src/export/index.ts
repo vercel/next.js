@@ -1048,8 +1048,9 @@ async function exportAppImpl(
               .join('/')
           )
 
+          const sourceRoute = normalizePagePath(dynamicRoute)
           const route = normalizePagePath(fallbackRoute)
-          const orig = join(distPagesDir, route)
+          const orig = join(distPagesDir, sourceRoute)
           const htmlSrc = `${orig}.html`
           const jsonSrc = `${orig}${RSC_SUFFIX}`
 
