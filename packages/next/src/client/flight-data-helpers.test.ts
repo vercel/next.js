@@ -6,9 +6,11 @@ import {
 } from './flight-data-helpers'
 import {
   PrefetchHint,
+  type FlightData,
   type InitialRSCPayload,
   type FlightRouterState,
 } from '../shared/lib/app-router-types'
+import type { NormalizedSearch } from './components/segment-cache/cache-key'
 
 describe('prepareFlightRouterStateForRequest', () => {
   describe('HMR refresh handling', () => {
@@ -336,7 +338,7 @@ describe('replaceDeferredRouteParamMarkersInFlightRouterState', () => {
     const result = replaceDeferredRouteParamMarkersInFlightRouterState(
       flightRouterState,
       '/another/third',
-      '' as any
+      '' as NormalizedSearch
     )
 
     expect(result).toBe(flightRouterState)
@@ -379,12 +381,12 @@ describe('fillInFallbackFlightData', () => {
         null,
         false,
       ],
-    ] as const
+    ] as FlightData
 
     const normalizedFlightData = fillInFallbackFlightData(
       flightData,
       '/another/third',
-      '' as `?${string}` | ''
+      '' as NormalizedSearch
     )
     const patchedFlightDataPath = normalizedFlightData[0]
 
@@ -406,6 +408,7 @@ describe('createInitialRSCPayloadFromFallbackPrerender', () => {
     const fallbackInitialRSCPayload: InitialRSCPayload = {
       b: 'build-id',
       c: ['', 'another', '%%drp:slug:abc123%%'],
+      q: '',
       i: false,
       f: [
         [
