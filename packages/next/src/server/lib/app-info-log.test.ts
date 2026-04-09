@@ -140,24 +140,25 @@ describe('checkAgentRulesForDev (dev-side gate with retry softening)', () => {
     expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
   })
 
-  it('first failure is fatal, prefixed with `fatal:`, and writes the state marker', () => {
+  it('first failure is fatal, prefixed with `fatal: dev server exited.`, and writes the state marker', () => {
     process.env.CLAUDECODE = '1'
 
     const result = checkAgentRulesForDev(tmpDir)
     expect(result).not.toBeNull()
     // First failure must be fatal so the caller hard-exits.
     expect(result!.fatal).toBe(true)
-    // First-run messages must lead with the git-style `fatal:` prefix so
-    // agents (which are heavily trained on git output) treat the error as
-    // authoritative rather than as a suggestion.
-    expect(result!.message.startsWith('fatal: ')).toBe(true)
+    // First-run messages lead with `fatal:` (git-style — agents are
+    // heavily trained on this) AND with an explicit "dev server exited"
+    // sentence so the symptom is unambiguous in the log instead of being
+    // inferred from the exit code alone.
+    expect(result!.message.startsWith('fatal: dev server exited. ')).toBe(true)
     assertFactualFrameworkError(result!.message)
 
     // The state file must now exist so the next run sees this as a repeat.
     expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
   })
 
-  it('second failure is non-fatal (soft warning) and drops the `fatal:` prefix', () => {
+  it('second failure is non-fatal (soft warning) and drops the fatal/exit prefix', () => {
     process.env.CLAUDECODE = '1'
 
     const first = checkAgentRulesForDev(tmpDir)
@@ -170,13 +171,17 @@ describe('checkAgentRulesForDev (dev-side gate with retry softening)', () => {
     // the message but lets dev startup continue, so nobody is permanently
     // locked out of the dev server.
     expect(second!.fatal).toBe(false)
-    // Softened messages drop the `fatal:` prefix — they're semantically
-    // less severe (server keeps running) and shouldn't look identical to
-    // the hard-exit case.
+    // Softened messages drop the `fatal:` prefix AND the "dev server
+    // exited" sentence — the server is still running, so claiming
+    // otherwise would be a lie, and the soft warning shouldn't look
+    // identical to the hard-exit case.
     expect(second!.message.startsWith('fatal: ')).toBe(false)
-    // But the body payload is the same — we deliberately don't advertise
-    // the retry-softens behavior or any bypass.
-    expect(second!.message).toBe(first!.message.replace(/^fatal: /, ''))
+    expect(second!.message).not.toContain('dev server exited')
+    // But the install instructions are identical — we deliberately don't
+    // advertise the retry-softens behavior or any bypass.
+    expect(second!.message).toBe(
+      first!.message.replace(/^fatal: dev server exited\. /, '')
+    )
   })
 
   it('state resets after install + removal: first failure is fatal again', () => {
