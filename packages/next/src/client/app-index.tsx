@@ -248,26 +248,11 @@ if (instantTestStaticFetch) {
       initialRSCPayload
     )
   })
-} else if (
-  // @ts-expect-error
-  window.__NEXT_CLIENT_RESUME
-) {
-  const clientResumeFetch: Promise<Response> =
-    // @ts-expect-error
-    window.__NEXT_CLIENT_RESUME
-  initialServerResponse = Promise.resolve(
-    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
-      callServer,
-      findSourceMapURL,
-      debugChannel,
-    })
-  ).then(async (fallbackInitialRSCPayload) =>
-    createInitialRSCPayloadFromFallbackPrerender(
-      await clientResumeFetch,
-      fallbackInitialRSCPayload
-    )
-  )
 } else if (window.__NEXT_EXPORT_FALLBACK) {
+  // This must be checked before __NEXT_CLIENT_RESUME because
+  // _fallback.html may be based on a PPR shell that also sets
+  // __NEXT_CLIENT_RESUME. In export fallback mode, we always
+  // fetch the correct route's RSC payload from the network.
   initialServerResponse = (async () => {
     const renderedUrl = new URL(window.location.href)
     const fallbackResult = await fetchOutputExportFallbackResponse(
@@ -308,6 +293,25 @@ if (instantTestStaticFetch) {
       renderedUrl
     )
   })()
+} else if (
+  // @ts-expect-error
+  window.__NEXT_CLIENT_RESUME
+) {
+  const clientResumeFetch: Promise<Response> =
+    // @ts-expect-error
+    window.__NEXT_CLIENT_RESUME
+  initialServerResponse = Promise.resolve(
+    createFromFetch<InitialRSCPayload>(clientResumeFetch, {
+      callServer,
+      findSourceMapURL,
+      debugChannel,
+    })
+  ).then(async (fallbackInitialRSCPayload) =>
+    createInitialRSCPayloadFromFallbackPrerender(
+      await clientResumeFetch,
+      fallbackInitialRSCPayload
+    )
+  )
 } else {
   initialServerResponse = createFromReadableStream<InitialRSCPayload>(
     readable,
@@ -465,7 +469,19 @@ export async function hydrate(
       )
     }
 
-    ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
+    const root = ReactDOMClient.createRoot(appElement, reactRootOptions)
+    root.render(element)
+
+    // Remove the visibility:hidden style injected by _fallback.html to
+    // prevent flashing stale content. MutationObserver fires after React
+    // commits its first render (replaces #__next children).
+    if (window.__NEXT_EXPORT_FALLBACK) {
+      const observer = new MutationObserver(() => {
+        document.getElementById('__next-export-fallback-style')?.remove()
+        observer.disconnect()
+      })
+      observer.observe(appElement, { childList: true })
+    }
   } else {
     React.startTransition(() => {
       ReactDOMClient.hydrateRoot(appElement, reactEl, {
