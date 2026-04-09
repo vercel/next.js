@@ -232,7 +232,7 @@ export default async function Page({ params }) {
 }
 ```
 
-> **Good to know:** In the `Route (app)` section, `next build` nests each path from `generateStaticParams` under the dynamic segment row. The segment row has no symbol; each nested line has its own symbol. **Before Cache Components**, prerendered param paths use **`●` (SSG)**. **With Cache Components**, set [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents). Prerendered param paths use **`○` (Static)** or **`◐` (Partial Prerender)**. The dynamic segment is also listed as a nested **`◐`** row. The lines after the table define each symbol from the build. See the [Building](/docs/app/guides/building) guide for all route indicators and [Partial prerendering](/docs/app/guides/public-static-pages#partial-prerendering) for **`◐`**.
+The `Route (app)` section at the end of `next build` shows how each route was prerendered. With Cache Components, the table differs from a build without it. Compare the examples below. In the legend, **`◐`** means a static prerendered shell with dynamic content streamed on the request—that is [Partial Prerendering (PPR)](/docs/app/guides/public-static-pages#partial-prerendering). For more information, see [Building](/docs/app/guides/building).
 
 **Before Cache Components:**
 
