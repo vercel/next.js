@@ -206,6 +206,20 @@ export default async function Image() {
 }
 ```
 
+> **Note**: While `ImageResponse` satisfies the return type, in some environments returning it directly may cause build failures. In such cases, you can wrap it in a standard `Response` object.
+
+```js filename="app/about/opengraph-image-wrap.js"
+export default async function Image() {
+  const image = await getImageResponse() // returns ImageResponse
+
+  return new Response(image.body, {
+    headers: {
+      'Content-Type': 'image/png',
+    },
+  })
+}
+```
+
 ```html filename="<head> output"
 <meta property="og:image" content="<generated>" />
 <meta property="og:image:alt" content="About Acme" />
@@ -518,6 +532,26 @@ export default async function Image() {
       </div>
     )
   )
+}
+```
+
+> **Note**: While `ImageResponse` satisfies the return type, in some environments returning it directly may cause build failures. In such cases, you can wrap it in a standard `Response` object.
+
+```jsx filename="app/opengraph-image.js"
+import { ImageResponse } from 'next/og'
+
+export const contentType = 'image/png'
+
+export default async function Image() {
+  const image = new ImageResponse(
+    <div>Hello</div>
+  )
+
+  return new Response(image.body, {
+    headers: {
+      'Content-Type': 'image/png',
+    },
+  })
 }
 ```
 
