@@ -2,6 +2,12 @@
 title: Migrating to Cache Components
 nav_title: Migrating to Cache Components
 description: Learn how to migrate from route segment configs to Cache Components in Next.js.
+related:
+  title: Next Steps
+  description: Learn about other behavior changes when Cache Components is enabled.
+  links:
+    - app/guides/preserving-ui-state
+    - app/api-reference/config/next-config-js/cacheComponents
 ---
 
 When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
@@ -173,3 +179,9 @@ export default async function Page() {
 ## `runtime = 'edge'`
 
 **Not supported.** Cache Components requires the Node.js runtime. Switch to the Node.js runtime (the default) by removing the `runtime = 'edge'` export. If you need edge behavior for specific routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
+
+## UI state preservation
+
+Cache Components changes how navigation works. Instead of unmounting pages when navigating away, Next.js preserves them using React's [`<Activity>`](https://react.dev/reference/react/Activity) component. Pages are hidden with `display: none` but remain in the DOM, so React state, form input values, scroll position, and other DOM state are preserved when the user navigates back.
+
+This is a significant behavior change. Code that relied on components unmounting on navigation — such as cleanup logic, analytics events, or state resets — may behave differently. See [Preserving UI state across navigations](/docs/app/guides/preserving-ui-state) for patterns on choosing what to preserve and what to reset.
