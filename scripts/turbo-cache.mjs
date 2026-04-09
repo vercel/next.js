@@ -77,6 +77,26 @@ export async function getStream(key) {
 }
 
 /**
+ * Download an artifact to a file. Returns true on hit, false on miss.
+ * Uses streaming to handle files larger than 2GB.
+ */
+export async function getToFile(key, destPath) {
+  try {
+    const stream = await getStream(key)
+    await new Promise((resolve, reject) => {
+      const ws = fs.createWriteStream(destPath)
+      stream.pipe(ws)
+      ws.on('finish', resolve)
+      ws.on('error', reject)
+      stream.on('error', reject)
+    })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * Upload an artifact.
  * @param {string} key - hex-only cache key
  * @param {Buffer|Uint8Array|string} data - Buffer/Uint8Array for in-memory,

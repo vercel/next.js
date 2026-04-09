@@ -15,7 +15,6 @@ on:
 env:
   TURBOPACK_BENCH_COUNTS: '100'
   TURBOPACK_BENCH_PROGRESS: '1'
-
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -45,6 +44,11 @@ jobs:
       # We need to install the dependencies for the benchmark apps
       - run: pnpm install
         working-directory: turbopack/benchmark-apps
+
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        with:
+          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
       - name: Build benchmarks for tests
         timeout-minutes: 120

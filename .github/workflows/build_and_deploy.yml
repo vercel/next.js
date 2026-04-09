@@ -253,18 +253,19 @@ jobs:
         if: ${{ matrix.docker }}
         run: node scripts/docker-image-cache.js
 
-      # Try to restore previously-built native binary from turbo cache
-      - name: pull build cache
+      # Compute Rust input fingerprint (turbo hashes all Rust sources)
+      - name: Rust fingerprint
         if: ${{ matrix.docker }}
-        run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.target }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
 
-      - name: check build exists
+      # Try to restore previously-built native binary from turbo cache
+      - name: Restore native binary cache
         if: ${{ matrix.docker }}
-        run: if [ -f packages/next-swc/native/next-swc.*.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
-        id: build-exists
+        id: native-cache
+        run: node scripts/native-cache.js --restore --target ${{ matrix.target }} && echo "HIT=yes" >> $GITHUB_OUTPUT || echo "HIT=no" >> $GITHUB_OUTPUT
 
       - name: Build in docker
-        if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
         run: |
           docker run --rm \
             -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
@@ -282,15 +283,12 @@ jobs:
             ${{ matrix.docker }} \
             -xeo pipefail scripts/docker-native-build.sh
 
-      - name: cache build
-        if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: pnpm dlx turbo@${TURBO_VERSION} run cache-build-native --force -- ${{ matrix.target }}
+      - name: Save native binary cache
+        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
+        run: node scripts/native-cache.js --save --target ${{ matrix.target }}
 
       - name: 'Build'
         if: ${{ !matrix.docker }}
-        env:
-          # We don't want incremental builds on CI
-          CARGO_INCREMENTAL: 0
         run: |
           echo "Host arch: $(uname -m)"
           echo "Node arch: $(node -e 'console.log(process.arch)')"

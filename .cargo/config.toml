@@ -53,7 +53,12 @@ rustflags = ["-Clink-arg=--icf=all"]
 # rust-lld is not yet the default on Windows (tracking: rust-lang/rust#71520).
 [target.'cfg(windows)']
 linker = "rust-lld"
-rustflags = ["-Ctarget-feature=+crt-static"]
+rustflags = [
+  "-Ctarget-feature=+crt-static",
+  # /Brepro makes MSVC link.exe produce deterministic PE timestamps,
+  # improving sccache hit rates by making .rlib/.rmeta output reproducible.
+  "-Clink-arg=/Brepro",
+]
 
 # Musl targets: disable static CRT linking. We produce dynamic .node shared
 # libraries (N-API addons), not static binaries.
