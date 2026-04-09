@@ -4,11 +4,11 @@ nav_title: Migrating to Cache Components
 description: Learn how to migrate from route segment configs to Cache Components in Next.js.
 ---
 
-When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, use [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife) instead of route segment configs like `dynamic`, `revalidate`, and `fetchCache`.
 
 ## `dynamic = "force-dynamic"`
 
-**Not needed.** All pages are dynamic by default.
+**Not needed.** Cache Components already uses a default rendering model (static shells plus streamed or dynamic work). You do not need `force-dynamic` to opt into that split—remove the export.
 
 ```tsx filename="app/page.tsx" switcher
 // Before - No longer needed
@@ -96,7 +96,7 @@ export default async function Page() {
 
 ## `revalidate`
 
-**Replace with `cacheLife`.** Use the `cacheLife` function to define cache duration instead of the route segment config.
+**Replace with `cacheLife`.** Use the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) function with a [preset profile](/docs/app/api-reference/functions/cacheLife#using-preset-profiles) instead of the route segment config. For example, `revalidate = 3600` maps loosely to the `'hours'` profile; adjust the profile to match how often your data changes.
 
 ```tsx filename="app/page.tsx" switcher
 // Before
@@ -172,9 +172,13 @@ export default async function Page() {
 
 ## `generateStaticParams`
 
-**Still supported.** [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) works with [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) when you use Cache Components. What changes is validation, how unknown params are handled, and how `next build` prints `Route (app)`. Suspense boundaries, params you do not list at build time, and patterns that skip `generateStaticParams` are covered in [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) and [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components).
+**Still supported.** [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) works with [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) when you use Cache Components.
 
-Returning an empty array from `generateStaticParams` is a common pattern that no longer works: it becomes a [build error](/docs/messages/empty-generate-static-params). Return at least one sample param, or drop `generateStaticParams` and handle dynamic params at request time using those guides.
+**Different from before:** validation is stricter, unknown params are handled differently, and the `Route (app)` section from `next build` looks different.
+
+[`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) covers Suspense, params you skip at build time, and the rest of the `generateStaticParams` contract. [Dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) covers routes that resolve `params` only at request time, including when you omit `generateStaticParams`.
+
+With Cache Components, Partial Prerendering applies to eligible routes, so returning `[]` from `generateStaticParams` triggers a [build error](/docs/messages/empty-generate-static-params): the build needs at least one path to validate the prerendered shell. Return at least one sample param (`After` below), or remove `generateStaticParams` and use the request-time patterns in [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components).
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before
@@ -232,7 +236,7 @@ export default async function Page({ params }) {
 }
 ```
 
-That `Route (app)` output is where the classification changes show up. The next two blocks use one `/products/[id]` app without Cache Components, then with it:
+Exact `Route (app)` formatting can differ slightly by Next.js version; the following is representative. For `/products/[id]` with `generateStaticParams`, compare output without Cache Components and with Cache Components enabled:
 
 **Before Cache Components:**
 
