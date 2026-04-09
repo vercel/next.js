@@ -1229,13 +1229,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         Some(encoded)
                     }
                     Err(err) => {
-                        eprintln!(
+                        panic!(
                             "Serializing task {} failed ({:?}): {:?}",
                             self.debug_get_task_description(task_id),
                             category,
                             err
                         );
-                        None
                     }
                 }
             };
@@ -1288,7 +1287,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         };
 
-        // take_snapshot already filters empty items and empty shards in parallel
         let task_snapshots = self.storage.take_snapshot(snapshot_guard, &process);
 
         drop(snapshot_span);
@@ -3778,6 +3776,13 @@ fn far_future() -> Instant {
 /// buffer.
 /// This allows reusing the buffer across multiple encode calls to optimize allocations and
 /// resulting buffer sizes.
+///
+/// TODO: The `Result` return type is an artifact of the bincode `Encode` trait requiring
+/// fallible encoding. In practice, encoding to a `SmallVec` is infallible (no I/O), and the only
+/// real failure mode — a `TypedSharedReference` whose value type has no bincode impl — is a
+/// programmer error caught by the panic in the caller. Consider making the bincode encoding trait
+/// infallible (i.e. returning `()` instead of `Result<(), EncodeError>`) to eliminate the
+/// spurious `Result` threading throughout the encode path.
 fn encode_task_data(
     task: TaskId,
     data: &TaskStorage,
