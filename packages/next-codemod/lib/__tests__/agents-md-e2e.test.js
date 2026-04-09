@@ -370,6 +370,24 @@ This is my project documentation.
       expect(hasBundledDocs(legacyFixture)).toBe(false)
     })
 
+    it('aborts with a clear error when run outside any Next.js project', async () => {
+      // Simulates running the codemod in a directory with no
+      // `package.json` anywhere up the tree that declares `next`.
+      // Falling through to the interactive legacy flow here would be
+      // incoherent — there's no Next.js install to install agent
+      // rules *for*. The codemod must abort with an actionable
+      // message instead.
+      const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-md-bare-'))
+      const originalCwd = process.cwd()
+      process.chdir(bareDir)
+      try {
+        await expect(runAgentsMd({})).rejects.toThrow(/No Next\.js project found/)
+      } finally {
+        process.chdir(originalCwd)
+        fs.rmSync(bareDir, { recursive: true, force: true })
+      }
+    })
+
     it('writes AGENTS.md + CLAUDE.md and skips .next-docs when bundled docs exist', async () => {
       const originalCwd = process.cwd()
       process.chdir(fixtureProjectDir)
