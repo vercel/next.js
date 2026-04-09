@@ -9,19 +9,21 @@ const CONFIG_ERROR =
   'Server Actions Size Limit must be a valid number or filesize format larger than 1MB'
 
 describe('app-dir action size limit invalid config', () => {
-  const { next, isNextStart, isNextDeploy, skipped } = nextTestSetup({
-    files: __dirname,
-    overrideFiles: process.env.TEST_NODE_MIDDLEWARE
-      ? {
-          'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
-        }
-      : {},
-    skipStart: true,
-    dependencies: {
-      nanoid: '4.0.1',
-      'server-only': 'latest',
-    },
-  })
+  const { next, isNextDev, isNextStart, isNextDeploy, skipped } = nextTestSetup(
+    {
+      files: __dirname,
+      overrideFiles: process.env.TEST_NODE_MIDDLEWARE
+        ? {
+            'middleware.js': new FileRef(join(__dirname, 'middleware-node.js')),
+          }
+        : {},
+      skipStart: true,
+      dependencies: {
+        nanoid: '4.0.1',
+        'server-only': 'latest',
+      },
+    }
+  )
   if (skipped) return
 
   const logs: string[] = []
@@ -123,7 +125,7 @@ describe('app-dir action size limit invalid config', () => {
           )
         )
         expect(logs).not.toContainEqual(
-          expect.stringContaining('Error: Body exceeded 2mb limit')
+          expect.stringContaining('Body exceeded 2mb limit')
         )
       }
     })
@@ -149,7 +151,12 @@ describe('app-dir action size limit invalid config', () => {
       if (!isNextDeploy) {
         await retry(() => {
           expect(logs).toContainEqual(
-            expect.stringContaining('Error: Body exceeded 2mb limit')
+            expect.stringContaining(
+              isNextDev
+                ? 'Error: Body exceeded 2mb limit'
+                : // Minified ApiError class name
+                  '[Error]: Body exceeded 2mb limit'
+            )
           )
           expect(logs).toContainEqual(
             expect.stringContaining(
@@ -187,7 +194,7 @@ describe('app-dir action size limit invalid config', () => {
           )
         )
         expect(logs).not.toContainEqual(
-          expect.stringContaining('Error: Body exceeded 2mb limit')
+          expect.stringContaining('Body exceeded 2mb limit')
         )
       }
     })
@@ -212,7 +219,7 @@ describe('app-dir action size limit invalid config', () => {
           )
         )
         expect(logs).not.toContainEqual(
-          expect.stringContaining('Error: Body exceeded 2mb limit')
+          expect.stringContaining('Body exceeded 2mb limit')
         )
       }
     })
@@ -238,7 +245,12 @@ describe('app-dir action size limit invalid config', () => {
       if (!isNextDeploy) {
         await retry(() => {
           expect(logs).toContainEqual(
-            expect.stringContaining('Error: Body exceeded 2mb limit')
+            expect.stringContaining(
+              isNextDev
+                ? 'Error: Body exceeded 2mb limit'
+                : // Minified ApiError class name
+                  '[Error]: Body exceeded 2mb limit'
+            )
           )
           expect(logs).toContainEqual(
             expect.stringContaining(
