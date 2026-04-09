@@ -24,6 +24,12 @@ async function installDependencies(cwd, tmpDir) {
     args.push('--prefer-offline')
   }
 
+  console.log({ cwd })
+  console.log(process.env)
+  await execa('pnpm', ['--version'], {
+    cwd,
+    stdio: ['ignore', 'inherit', 'inherit'],
+  })
   await execa('pnpm', args, {
     cwd,
     stdio: ['ignore', 'inherit', 'inherit'],
