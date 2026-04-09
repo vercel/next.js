@@ -247,10 +247,8 @@ impl VisitMut for Analyzer<'_> {
                     }
                 }
 
-                Decl::Var(d) => {
-                    if d.decls.is_empty() {
-                        *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                    }
+                Decl::Var(d) if d.decls.is_empty() => {
+                    *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                 }
                 _ => {}
             }
@@ -544,52 +542,44 @@ impl VisitMut for NextSsg {
 
         if self.in_lhs_of_var {
             match p {
-                Pat::Ident(name) => {
-                    if self.should_remove(name.id.to_id()) {
-                        self.state.should_run_again = true;
-                        tracing::trace!(
-                            "Dropping var `{}{:?}` because it should be removed",
-                            name.id.sym,
-                            name.id.ctxt
-                        );
+                Pat::Ident(name) if self.should_remove(name.id.to_id()) => {
+                    self.state.should_run_again = true;
+                    tracing::trace!(
+                        "Dropping var `{}{:?}` because it should be removed",
+                        name.id.sym,
+                        name.id.ctxt
+                    );
 
+                    *p = Pat::Invalid(Invalid { span: DUMMY_SP });
+                }
+                Pat::Array(arr) if !arr.elems.is_empty() => {
+                    arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
+
+                    if arr.elems.is_empty() {
                         *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
-                Pat::Array(arr) => {
-                    if !arr.elems.is_empty() {
-                        arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
+                Pat::Object(obj) if !obj.props.is_empty() => {
+                    obj.props.retain_mut(|prop| match prop {
+                        ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
+                        ObjectPatProp::Assign(prop) => {
+                            if self.should_remove(prop.key.to_id()) {
+                                self.mark_as_candidate(&mut prop.value);
 
-                        if arr.elems.is_empty() {
-                            *p = Pat::Invalid(Invalid { span: DUMMY_SP });
-                        }
-                    }
-                }
-                Pat::Object(obj) => {
-                    if !obj.props.is_empty() {
-                        obj.props.retain_mut(|prop| match prop {
-                            ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
-                            ObjectPatProp::Assign(prop) => {
-                                if self.should_remove(prop.key.to_id()) {
-                                    self.mark_as_candidate(&mut prop.value);
-
-                                    false
-                                } else {
-                                    true
-                                }
+                                false
+                            } else {
+                                true
                             }
-                            ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
-                        });
-
-                        if obj.props.is_empty() {
-                            *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                         }
-                    }
-                }
-                Pat::Rest(rest) => {
-                    if rest.arg.is_invalid() {
+                        ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
+                    });
+
+                    if obj.props.is_empty() {
                         *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
+                }
+                Pat::Rest(rest) if rest.arg.is_invalid() => {
+                    *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                 }
                 _ => {}
             }

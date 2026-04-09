@@ -1,5 +1,6 @@
 import path from 'path'
 import { pathToFileURL } from 'url'
+import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { arch, platform } from 'os'
 import { platformArchTriples } from 'next/dist/compiled/@napi-rs/triples'
 import * as Log from '../output/log'
@@ -40,7 +41,6 @@ import type {
   WrittenEndpoint,
 } from './types'
 import { runLoaderWorkerPool } from './loaderWorkerPool'
-import { throwTurbopackInternalError } from '../../shared/lib/turbopack/internal-error'
 
 export enum HmrTarget {
   Client = 'client',
@@ -230,16 +230,6 @@ export async function loadBindings(
   }
 
   pendingBindings = new Promise(async (resolve, reject) => {
-    if (!lockfilePatchPromise.cur) {
-      // always run lockfile check once so that it gets patched
-      // even if it doesn't fail to load locally
-      lockfilePatchPromise.cur = (
-        require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
-      )
-        .patchIncorrectLockfile(process.cwd())
-        .catch(console.error)
-    }
-
     let attempts: any[] = []
     const disableWasmFallback = process.env.NEXT_DISABLE_SWC_WASM
     const unsupportedPlatform = triples.some(
@@ -429,7 +419,14 @@ async function logLoadFailure(attempts: any, triedWasm = false) {
     wasm: triedWasm ? 'failed' : undefined,
     nativeBindingsErrorCode: lastNativeBindingsLoadErrorCode,
   })
-  await (lockfilePatchPromise.cur || Promise.resolve())
+  if (!lockfilePatchPromise.cur) {
+    lockfilePatchPromise.cur = (
+      require('../../lib/patch-incorrect-lockfile') as typeof import('../../lib/patch-incorrect-lockfile')
+    )
+      .patchIncorrectLockfile(process.cwd())
+      .catch(console.error)
+  }
+  await lockfilePatchPromise.cur
 
   Log.error(
     `Failed to load SWC binary for ${PlatformName}/${ArchName}, see more info here: https://nextjs.org/docs/messages/failed-loading-swc`
@@ -711,6 +708,13 @@ function bindingToApi(
       return napiResult
     }
 
+    async getAllCompilationIssues(): Promise<TurbopackResult<void>> {
+      const napiResult = (await binding.projectGetAllCompilationIssues(
+        this._nativeProject
+      )) as TurbopackResult<void>
+      return napiResult
+    }
+
     async writeAllEntrypointsToDisk(
       appDirOnly: boolean
     ): Promise<TurbopackResult<Partial<RawEntrypoints>>> {
@@ -940,12 +944,15 @@ function bindingToApi(
 
     // cacheHandler can be an absolute path, we need it to be relative for turbopack.
     if (nextConfigSerializable.cacheHandler) {
+      const resolvedCacheHandler = resolveCacheHandlerPathToFilesystem(
+        nextConfigSerializable.cacheHandler
+      )
       nextConfigSerializable.cacheHandler =
         './' +
         normalizePathOnWindows(
-          path.isAbsolute(nextConfigSerializable.cacheHandler)
-            ? path.relative(projectPath, nextConfigSerializable.cacheHandler)
-            : nextConfigSerializable.cacheHandler
+          path.isAbsolute(resolvedCacheHandler)
+            ? path.relative(projectPath, resolvedCacheHandler)
+            : resolvedCacheHandler
         )
     }
     if (nextConfigSerializable.cacheHandlers) {
@@ -954,15 +961,18 @@ function bindingToApi(
           nextConfigSerializable.cacheHandlers as Record<string, string>
         )
           .filter(([_, value]) => value != null)
-          .map(([key, value]) => [
-            key,
-            './' +
-              normalizePathOnWindows(
-                path.isAbsolute(value)
-                  ? path.relative(projectPath, value)
-                  : value
-              ),
-          ])
+          .map(([key, value]) => {
+            const resolved = resolveCacheHandlerPathToFilesystem(value)
+            return [
+              key,
+              './' +
+                normalizePathOnWindows(
+                  path.isAbsolute(resolved)
+                    ? path.relative(projectPath, resolved)
+                    : resolved
+                ),
+            ]
+          })
       )
     }
 
@@ -1243,7 +1253,9 @@ function bindingToApi(
         await rustifyProjectOptions(options),
         turboEngineOptions || {},
         {
-          throwTurbopackInternalError,
+          throwTurbopackInternalError: (
+            require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
+          ).throwTurbopackInternalError,
           onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
       )
@@ -1345,6 +1357,11 @@ async function loadWasm(importPath = '') {
             '`css.lightning.transformStyleAttr` is not supported by the wasm bindings.'
           )
         },
+        featureNamesToMask: function (_names: string[]) {
+          throw new Error(
+            '`css.lightning.featureNamesToMask` is not supported by the wasm bindings.'
+          )
+        },
       },
     },
     isWasm: true,
@@ -1385,6 +1402,11 @@ async function loadWasm(importPath = '') {
         throw new Error(
           `Turbopack trace server is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.`
+        )
+      },
+      databaseCompact(_path: string): Promise<void> {
+        throw new Error(
+          'Turbopack database compaction is not supported on this platform'
         )
       },
     },
@@ -1631,6 +1653,9 @@ function loadNative(importPath?: string): Binding {
             port
           )
         },
+        databaseCompact(dbPath: string) {
+          return (customBindings ?? bindings).turbopackDatabaseCompact(dbPath)
+        },
       },
       mdx: {
         compile(src: string, options: any) {
@@ -1649,6 +1674,9 @@ function loadNative(importPath?: string): Binding {
             return bindings.lightningCssTransformStyleAttribute(
               transformAttrOptions
             )
+          },
+          featureNamesToMask(names: string[]) {
+            return bindings.lightningcssFeatureNamesToMaskNapi(names)
           },
         },
       },

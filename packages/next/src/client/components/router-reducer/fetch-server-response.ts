@@ -25,7 +25,6 @@ import {
   RSC_CONTENT_TYPE_HEADER,
   NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
-  NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../app-router-headers'
@@ -42,7 +41,11 @@ import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import { stripIsPartialByte } from '../segment-cache/cache'
+import {
+  stripIsPartialByte,
+  createNonTaskyPrefetchResponseStream,
+} from '../segment-cache/cache'
+import { UnknownDynamicStaleTime } from '../segment-cache/bfcache'
 
 const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
@@ -81,7 +84,7 @@ type SpaFetchServerResponseResult = {
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
   postponed: boolean
-  staleTime: number
+  dynamicStaleTime: number
   staticStageData: StaticStageData | null
   runtimePrefetchStream: ReadableStream<Uint8Array> | null
   responseHeaders: Headers
@@ -190,19 +193,20 @@ export async function fetchServerResponse(
       shouldImmediatelyDecode
     )
 
+    // If the fetch succeeds while we're in the offline state, notify the
+    // offline module so it can short-circuit the polling loop.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { notifyOnline } =
+        require('../offline') as typeof import('../offline')
+      notifyOnline()
+    }
+
     const responseUrl = urlToUrlWithoutFlightMarker(new URL(res.url))
     const canonicalUrl = res.redirected ? responseUrl : originalUrl
 
     const contentType = res.headers.get('content-type') || ''
     const interception = !!res.headers.get('vary')?.includes(NEXT_URL)
     const postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
-    const staleTimeHeaderSeconds = res.headers.get(
-      NEXT_ROUTER_STALE_TIME_HEADER
-    )
-    const staleTime =
-      staleTimeHeaderSeconds !== null
-        ? parseInt(staleTimeHeaderSeconds, 10) * 1000
-        : -1
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
     if (process.env.NODE_ENV === 'production') {
@@ -289,13 +293,39 @@ export async function fetchServerResponse(
       couldBeIntercepted: interception,
       supportsPerSegmentPrefetching: flightResponse.S,
       postponed,
-      staleTime,
+      // The dynamicStaleTime is only present in the response body when
+      // a page exports unstable_dynamicStaleTime and this is a dynamic render.
+      // When absent (UnknownDynamicStaleTime), the client falls back to the
+      // global DYNAMIC_STALETIME_MS. The value is in seconds.
+      dynamicStaleTime: flightResponse.d ?? UnknownDynamicStaleTime,
       staticStageData,
       runtimePrefetchStream: flightResponse.p ?? null,
       responseHeaders: res.headers,
       debugInfo: flightResponsePromise._debugInfo ?? null,
     }
   } catch (err) {
+    // If the fetch rejected due to a network error, wait for connectivity
+    // to be restored and then retry. checkOfflineError returns true for
+    // network errors (and starts the polling loop); returns false for
+    // intentional aborts/timeouts, which fall through to the MPA fallback.
+    //
+    // Note: when the user navigates multiple times while offline, each
+    // navigation queues a separate retry here. Once connectivity returns,
+    // all pending retries resume simultaneously. This is mitigated in PR 3
+    // by reusing back-forward cache entries during offline navigation, which
+    // avoids issuing new fetches in the first place.
+    if (process.env.__NEXT_USE_OFFLINE && !isPageUnloading) {
+      const { checkOfflineError, getOffline, waitForConnection } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(err)) {
+        const offline = getOffline()
+        if (offline !== null) {
+          await waitForConnection(offline)
+        }
+        return fetchServerResponse(url, options)
+      }
+    }
+
     if (!isPageUnloading) {
       console.error(
         `Failed to fetch RSC payload for ${originalUrl}. Falling back to browser navigation.`,
@@ -434,9 +464,9 @@ export async function resolveStaticStageData<
 }
 
 /**
- * Truncates a Flight stream clone at the given byte boundary and decodes the
- * static stage prefix. Used by both the navigation path and the initial HTML
- * hydration path.
+ * Truncates and buffers a Flight stream clone at the given byte boundary and
+ * decodes the static stage prefix. Used by both the navigation path and the
+ * initial HTML hydration path.
  */
 export async function decodeStaticStage<T>(
   responseBodyClone: ReadableStream<Uint8Array>,
@@ -445,12 +475,15 @@ export async function decodeStaticStage<T>(
 ): Promise<T> {
   const staticStageByteLength = await staticStageByteLengthPromise
 
-  const truncatedStream = truncateStream(
+  // Buffer the truncated stream into a single chunk before passing it to
+  // Flight. This ensures all model data is available synchronously, which is
+  // required for readVaryParams to synchronously read the thenable status.
+  const { stream } = await createNonTaskyPrefetchResponseStream(
     responseBodyClone,
     staticStageByteLength
   )
 
-  return createFromNextReadableStream<T>(truncatedStream, headers, {
+  return createFromNextReadableStream<T>(stream, headers, {
     allowPartialStream: true,
   })
 }
@@ -635,43 +668,5 @@ function createFromNextFetch<T>(
     callServer,
     findSourceMapURL,
     debugChannel: createDebugChannel && createDebugChannel(requestHeaders),
-  })
-}
-
-function truncateStream(
-  stream: ReadableStream<Uint8Array>,
-  byteLength: number
-): ReadableStream<Uint8Array> {
-  const reader = stream.getReader()
-  let remaining = byteLength
-
-  return new ReadableStream({
-    async pull(controller) {
-      if (remaining <= 0) {
-        reader.cancel()
-        controller.close()
-        return
-      }
-
-      const { done, value } = await reader.read()
-
-      if (done) {
-        controller.close()
-        return
-      }
-
-      if (value.byteLength <= remaining) {
-        controller.enqueue(value)
-        remaining -= value.byteLength
-      } else {
-        controller.enqueue(value.subarray(0, remaining))
-        remaining = 0
-        reader.cancel()
-        controller.close()
-      }
-    },
-    cancel() {
-      reader.cancel()
-    },
   })
 }

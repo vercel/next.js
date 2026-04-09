@@ -3130,7 +3130,8 @@ function propagateContextChanges(
             renderLanes,
             workInProgress
           ),
-          (nextFiber = forcePropagateEntireTree ? fiber.child : null))
+          (nextFiber = fiber.child),
+          (nextFiber = null !== nextFiber ? nextFiber.sibling : null))
         : (nextFiber = fiber.child);
     if (null !== nextFiber) nextFiber.return = fiber;
     else
@@ -9027,8 +9028,18 @@ function safelyAttachRef(current, nearestMountedAncestor) {
           instanceToUse = instance.ref;
           break;
         case 7:
-          null === current.stateNode &&
-            (current.stateNode = new FragmentInstance(current));
+          if (null === current.stateNode) {
+            var fragmentInstance = new FragmentInstance(current);
+            traverseVisibleHostChildren(
+              current.child,
+              !1,
+              addFragmentHandleToFiber,
+              fragmentInstance,
+              void 0,
+              void 0
+            );
+            current.stateNode = fragmentInstance;
+          }
           instanceToUse = current.stateNode;
           break;
         default:
@@ -9109,9 +9120,10 @@ function commitNewChildToFragmentInstances(fiber, parentFragmentInstances) {
 function commitFragmentInstanceDeletionEffects(fiber) {
   for (var parent = fiber.return; null !== parent; ) {
     if (isFragmentInstanceParent(parent)) {
+      var fragmentInstance = parent.stateNode;
       var childInstance = fiber.stateNode;
       if (3 !== childInstance.nodeType) {
-        var eventListeners = parent.stateNode._eventListeners;
+        var eventListeners = fragmentInstance._eventListeners;
         if (null !== eventListeners)
           for (var i = 0; i < eventListeners.length; i++) {
             var _eventListeners$i4 = eventListeners[i];
@@ -9121,6 +9133,8 @@ function commitFragmentInstanceDeletionEffects(fiber) {
               _eventListeners$i4.optionsOrUseCapture
             );
           }
+        null != childInstance.reactFragments &&
+          childInstance.reactFragments.delete(fragmentInstance);
       }
     }
     if (isHostParent(parent)) break;
@@ -13028,7 +13042,7 @@ function flushSpawnedWork() {
       ? root === rootWithNestedUpdates
         ? nestedUpdateCount++
         : ((nestedUpdateCount = 0), (rootWithNestedUpdates = root))
-      : (nestedUpdateCount = 0);
+      : ((nestedUpdateCount = 0), (rootWithNestedUpdates = null));
     flushSyncWorkAcrossRoots_impl(0, !1);
   }
 }
@@ -13164,7 +13178,9 @@ function pingSuspendedRoot(root, wakeable, pingedLanes) {
       (workInProgressRootRenderLanes & 62914560) ===
         workInProgressRootRenderLanes &&
       300 > now() - globalMostRecentFallbackTime)
-      ? 0 === (executionContext & 2) && prepareFreshStack(root, 0)
+      ? 0 === (executionContext & 2)
+        ? prepareFreshStack(root, 0)
+        : (workInProgressRootPingedLanes |= pingedLanes)
       : (workInProgressRootPingedLanes |= pingedLanes),
     workInProgressSuspendedRetryLanes === workInProgressRootRenderLanes &&
       (workInProgressSuspendedRetryLanes = 0));
@@ -16233,6 +16249,15 @@ FragmentInstance.prototype.scrollIntoView = function (alignToTop) {
       result += resolvedAlignToTop ? -1 : 1;
     }
 };
+function addFragmentHandleToFiber(child, fragmentInstance) {
+  child = getInstanceFromHostFiber(child);
+  null != child && addFragmentHandleToInstance(child, fragmentInstance);
+  return !1;
+}
+function addFragmentHandleToInstance(instance, fragmentInstance) {
+  null == instance.reactFragments && (instance.reactFragments = new Set());
+  instance.reactFragments.add(fragmentInstance);
+}
 function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
   if (3 !== childInstance.nodeType) {
     var eventListeners = fragmentInstance._eventListeners;
@@ -16249,6 +16274,7 @@ function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
       fragmentInstance._observers.forEach(function (observer) {
         observer.observe(childInstance);
       });
+    addFragmentHandleToInstance(childInstance, fragmentInstance);
   }
 }
 function clearContainerSparingly(container) {
@@ -16457,12 +16483,13 @@ function setFocusIfFocusable(node, focusOptions) {
   function handleFocus() {
     didFocus = !0;
   }
+  if (node.ownerDocument.activeElement === node) return !0;
   var didFocus = !1;
   try {
-    node.addEventListener("focus", handleFocus),
+    node.ownerDocument.addEventListener("focus", handleFocus, !0),
       (node.focus || HTMLElement.prototype.focus).call(node, focusOptions);
   } finally {
-    node.removeEventListener("focus", handleFocus);
+    node.ownerDocument.removeEventListener("focus", handleFocus, !0);
   }
   return didFocus;
 }
@@ -18104,16 +18131,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2037 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2043 = React.version;
 if (
-  "19.3.0-canary-46103596-20260305" !==
-  isomorphicReactPackageVersion$jscomp$inline_2037
+  "19.3.0-canary-404b38c7-20260408" !==
+  isomorphicReactPackageVersion$jscomp$inline_2043
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2037,
-      "19.3.0-canary-46103596-20260305"
+      isomorphicReactPackageVersion$jscomp$inline_2043,
+      "19.3.0-canary-404b38c7-20260408"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18133,24 +18160,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2605 = {
+var internals$jscomp$inline_2615 = {
   bundleType: 0,
-  version: "19.3.0-canary-46103596-20260305",
+  version: "19.3.0-canary-404b38c7-20260408",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-46103596-20260305"
+  reconcilerVersion: "19.3.0-canary-404b38c7-20260408"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2606 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2616 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2606.isDisabled &&
-    hook$jscomp$inline_2606.supportsFiber
+    !hook$jscomp$inline_2616.isDisabled &&
+    hook$jscomp$inline_2616.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2606.inject(
-        internals$jscomp$inline_2605
+      (rendererID = hook$jscomp$inline_2616.inject(
+        internals$jscomp$inline_2615
       )),
-        (injectedHook = hook$jscomp$inline_2606);
+        (injectedHook = hook$jscomp$inline_2616);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18236,4 +18263,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-46103596-20260305";
+exports.version = "19.3.0-canary-404b38c7-20260408";

@@ -7,10 +7,7 @@ import type {
   StyledComponentsConfig,
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
-import {
-  shouldUseReactServerCondition,
-  isWebpackAppPagesLayer,
-} from '../webpack-layer'
+import { shouldUseReactServerCondition, isWebpackAppPagesLayer } from '../utils'
 import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
 const nextDirname = path.dirname(require.resolve('next/package.json'))
@@ -400,6 +397,7 @@ export function getLoaderSWCOptions({
   optimizeServerReact,
   optimizePackageImports,
   swcPlugins,
+  swcEnvOptions,
   compilerOptions,
   jsConfig,
   supportedBrowsers,
@@ -429,6 +427,7 @@ export function getLoaderSWCOptions({
     NextConfig['experimental']
   >['optimizePackageImports']
   swcPlugins: ExperimentalConfig['swcPlugins']
+  swcEnvOptions?: ExperimentalConfig['swcEnvOptions']
   compilerOptions: NextConfig['compiler']
   jsConfig: any
   supportedBrowsers: string[] | undefined
@@ -542,6 +541,7 @@ export function getLoaderSWCOptions({
         ? {
             env: {
               targets: supportedBrowsers,
+              ...swcEnvOptions,
             },
           }
         : {}),

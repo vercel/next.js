@@ -6,10 +6,11 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
@@ -226,7 +227,7 @@ impl AssetIdent {
         let mut name = if let Some(inner) = context_path.get_path_to(path) {
             escape_file_path(inner)
         } else {
-            escape_file_path(&self.path.value_to_string().await?)
+            escape_file_path(&self.path.to_string_ref().await?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {
@@ -335,8 +336,9 @@ impl AssetIdent {
         }
 
         if has_hash {
-            let hash = encode_hex(hasher.finish());
-            let truncated_hash = &hash[..8];
+            let hash = encode_base38(hasher.finish());
+            // 7 base38 chars ≈ 36 bits of collision resistance
+            let truncated_hash = &hash[..7];
             write!(name, "_{truncated_hash}")?;
         }
 
@@ -357,8 +359,9 @@ impl AssetIdent {
             }
         }
         if i > 0 {
-            let hash = encode_hex(hash_xxh3_hash64(&name.as_bytes()[..i]));
-            let truncated_hash = &hash[..5];
+            let hash = encode_base38(hash_xxh3_hash64(&name.as_bytes()[..i]));
+            // 4 base38 chars ≈ 21 bits — just a short disambiguator prefix
+            let truncated_hash = &hash[..4];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }
         // We need to make sure that `.json` and `.json.js` doesn't end up with the same

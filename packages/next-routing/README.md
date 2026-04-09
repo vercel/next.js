@@ -39,8 +39,10 @@ const result = await resolveRoutes({
   },
 })
 
-if (result.matchedPathname) {
-  console.log('Matched:', result.matchedPathname)
+if (result.resolvedPathname) {
+  console.log('Resolved pathname:', result.resolvedPathname)
+  console.log('Resolved query:', result.resolvedQuery)
+  console.log('Invocation target:', result.invocationTarget)
 }
 ```
 

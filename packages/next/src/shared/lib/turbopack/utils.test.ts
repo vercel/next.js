@@ -3,7 +3,7 @@ import type {
   PlainTraceItem,
   StyledString,
 } from '../../../build/swc/types'
-import { formatIssue } from './format-issue'
+import { formatIssue } from './utils'
 
 function styledText(value: string): StyledString {
   return { type: 'text', value }
@@ -110,6 +110,18 @@ Import traces:
 https://nextjs.org/docs/messages/module-not-found
 
 `)
+  })
+
+  it('includes pre-rendered code frame from Rust', () => {
+    const issue: Issue = {
+      ...baseIssue,
+      importTraces: [],
+      codeFrame:
+        '  1 | const x = 1;\n> 2 | const y = unknown;\n    |             ^^^^^^^\n  3 | const z = 3;',
+    }
+    const output = formatIssue(issue)
+    expect(output).toContain('const y = unknown')
+    expect(output).toContain('^^^^^^^')
   })
 
   it('handles missing layers in traces', () => {

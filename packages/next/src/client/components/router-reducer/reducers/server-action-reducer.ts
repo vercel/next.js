@@ -29,6 +29,7 @@ import type {
   ReducerState,
   ServerActionAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
@@ -67,7 +68,10 @@ import {
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
 import { processFetch } from '../fetch-server-response'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -99,8 +103,9 @@ type FetchServerActionResult = {
 async function fetchServerAction(
   state: ReadonlyReducerState,
   nextUrl: ReadonlyReducerState['nextUrl'],
-  { actionId, actionArgs }: ServerActionAction
+  action: ServerActionAction
 ): Promise<FetchServerActionResult> {
+  const { actionId, actionArgs } = action
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
   const usedArgs = omitUnusedArgs(actionArgs, info)
@@ -136,7 +141,33 @@ async function fetchServerAction(
       .toString(16)
   }
 
-  const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+  let res: Response
+  try {
+    res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+    // If the fetch succeeds while we're in the offline state, notify the
+    // offline module so it can short-circuit the polling loop.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { notifyOnline } =
+        require('../../offline') as typeof import('../../offline')
+      notifyOnline()
+    }
+  } catch (err) {
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError, getOffline, waitForConnection } =
+        require('../../offline') as typeof import('../../offline')
+      if (checkOfflineError(err)) {
+        // It's safe to replay the action because the fetch rejection
+        // means the request never reached the server — there are no
+        // side effects to duplicate.
+        const offline = getOffline()
+        if (offline !== null) {
+          await waitForConnection(offline)
+        }
+        return fetchServerAction(state, nextUrl, action)
+      }
+    }
+    throw err
+  }
 
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
@@ -416,7 +447,7 @@ export function serverActionReducer(
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
-      const shouldScroll = true
+      const scrollBehavior = ScrollBehavior.Default
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
@@ -436,12 +467,16 @@ export function serverActionReducer(
         // subset of the data needed to render the new page, we'll initiate a
         // new fetch, like we would for a normal navigation.
         const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+        const now = Date.now()
+        // TODO: Store the dynamic stale time on the top-level state so it's
+        // known during restores and refreshes.
         const redirectSeed = convertServerPatchToFullTree(
+          now,
           currentFlightRouterState,
           flightData,
-          flightDataRenderedSearch
+          flightDataRenderedSearch,
+          UnknownDynamicStaleTime
         )
-        const now = Date.now()
 
         // Learn the route pattern so we can predict it for future navigations.
         const metadataVaryPath = redirectSeed.metadataVaryPath
@@ -472,7 +507,7 @@ export function serverActionReducer(
           currentFlightRouterState,
           freshnessPolicy,
           nextUrl,
-          shouldScroll,
+          scrollBehavior,
           navigateType,
           null,
           // Server action redirects don't use route prediction - we already
@@ -494,7 +529,7 @@ export function serverActionReducer(
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
-        shouldScroll,
+        scrollBehavior,
         navigateType
       )
     },

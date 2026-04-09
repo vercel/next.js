@@ -177,6 +177,7 @@ declare module 'next/cache' {
     refresh,
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
+  export { unstable_io } from 'next/dist/server/request/io'
 
   ${overloads}
 

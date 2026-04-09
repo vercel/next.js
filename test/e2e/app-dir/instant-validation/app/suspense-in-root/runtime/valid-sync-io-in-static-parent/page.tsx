@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 
 export const unstable_instant = {
   prefetch: 'runtime',
-  samples: [{}],
+  samples: [{ cookies: [] }],
 }
 
 async function Runtime() {

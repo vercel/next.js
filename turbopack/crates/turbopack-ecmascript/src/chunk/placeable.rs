@@ -129,8 +129,8 @@ async fn side_effects_from_package_json(
                 .map(|glob| async move {
                     Ok(match glob {
                         Either::Left(glob) => {
-                            match glob.resolve().await {
-                                Ok(glob) => Either::Left(glob),
+                            match glob.to_resolved().await {
+                                Ok(glob) => Either::Left(*glob),
                                 Err(err) => {
                                     Either::Right(SideEffectsInPackageJsonIssue {
                                         // TODO(PACK-4879): This should point at the buggy glob

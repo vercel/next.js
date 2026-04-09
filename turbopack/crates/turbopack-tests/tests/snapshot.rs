@@ -11,7 +11,7 @@ use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{Effects, ResolvedVc, TurboTasks, ValueToString, Vc, get_effects};
+use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -222,9 +222,14 @@ async fn run(resource: PathBuf) -> Result<()> {
     ));
     tt.run_once(async move {
         #[turbo_tasks::function(operation)]
-        async fn inner_operation(resource: RcStr) -> Result<Vc<Effects>> {
+        async fn inner_operation(resource: RcStr) -> Result<Vc<()>> {
             let out_op = run_test_operation(resource);
-            let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
+            let out_vc = out_op
+                .resolve()
+                .strongly_consistent()
+                .await?
+                .owned()
+                .await?;
 
             let plain_issues = out_op
                 .peek_issues()
@@ -234,10 +239,16 @@ async fn run(resource: PathBuf) -> Result<()> {
             snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
                 .await
                 .context("Unable to handle issues")?;
-
-            Ok(get_effects(out_op).await?.cell())
+            Ok(Vc::cell(()))
         }
-        inner_operation(resource.to_str().unwrap().into())
+
+        #[turbo_tasks::function(operation)]
+        async fn extract_effects(op: OperationVc<()>) -> Result<Vc<Effects>> {
+            let _ = op.resolve().strongly_consistent().await?;
+            Ok(take_effects(op).await?.cell())
+        }
+
+        extract_effects(inner_operation(resource.to_str().unwrap().into()))
             .read_strongly_consistent()
             .await?
             .apply()
@@ -613,12 +624,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
-        walk_asset(asset, &output_path, &mut seen, &mut queue)
-            .await
-            .context(format!(
-                "Failed to walk asset {}",
-                asset.path().to_string().await.context("to_string failed")?
-            ))?;
+        if let Err(error) = walk_asset(asset, &output_path, &mut seen, &mut queue).await {
+            // ast-grep-ignore: no-context-turbofmt
+            return Err(error.context(turbofmt!("Failed to walk asset {}", asset.path()).await?));
+        }
     }
 
     matches_expected(expected_paths, seen)

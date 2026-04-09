@@ -123,6 +123,7 @@ export function getDefineEnv({
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
+  const isUseNodeStreamsEnabled = !!config.experimental.useNodeStreams
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -178,9 +179,12 @@ export function getDefineEnv({
     'process.env.__NEXT_INSTANT_NAV_TOGGLE':
       !!config.experimental.instantNavigationDevToolsToggle,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
+    'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer
+      ? false
+      : isUseNodeStreamsEnabled,
 
-    'process.env.NEXT_IMMUTABLE_ASSET_TOKEN':
-      config.experimental.immutableAssetToken || '',
+    'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
+      config.experimental.supportsImmutableAssets || false,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
@@ -241,6 +245,8 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
+    'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
+    'process.env.__NEXT_UNSTABLE_IO': Boolean(config.experimental.unstableIO),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
       config.experimental.prefetchInlining
     ),

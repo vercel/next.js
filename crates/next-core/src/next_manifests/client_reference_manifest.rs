@@ -7,7 +7,8 @@ use serde::Serialize;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
+    ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -168,10 +169,11 @@ async fn build_manifest(
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
         let prefix_path = next_config.computed_asset_prefix().owned().await?;
-        let runtime_server_deployment_id_available =
-            *next_config.runtime_server_deployment_id_available().await?;
-        let suffix_path = if !runtime_server_deployment_id_available {
-            let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
+        let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
+        let add_deployment_id_at_runtime = *next_config
+            .should_append_server_deployment_id_at_runtime()
+            .await?;
+        let suffix_path = if !add_deployment_id_at_runtime {
             asset_suffix_path.unwrap_or_default()
         } else {
             rcstr!("")
@@ -199,21 +201,24 @@ async fn build_manifest(
             .try_flat_join()
             .await?;
 
-            let async_modules = client_references_ecmascript
-                .iter()
-                .flat_map(|(r, r_val)| {
-                    [
-                        ResolvedVc::upcast(*r),
-                        ResolvedVc::upcast(r_val.client_module),
-                        ResolvedVc::upcast(r_val.ssr_module),
-                    ]
-                }).map(async move |asset| {
-                    Ok(if async_module_info.is_async(asset).await? {
-                        Some(asset)
-                    } else {
-                        None
-                    })
-                }).try_flat_join().await?;
+        let async_modules = client_references_ecmascript
+            .iter()
+            .flat_map(|(r, r_val)| {
+                [
+                    ResolvedVc::upcast(*r),
+                    ResolvedVc::upcast(r_val.client_module),
+                    ResolvedVc::upcast(r_val.ssr_module),
+                ]
+            })
+            .map(async move |asset| {
+                Ok(if async_module_info.is_async(asset).await? {
+                    Some(asset)
+                } else {
+                    None
+                })
+            })
+            .try_flat_join()
+            .await?;
 
         async fn cached_chunk_paths(
             cache: &mut FxHashMap<ResolvedVc<Box<dyn OutputAsset>>, FileSystemPath>,
@@ -414,8 +419,7 @@ async fn build_manifest(
                 .source_path()
                 .await?
                 .with_extension("")
-                .value_to_string()
-                .owned()
+                .to_string_ref()
                 .await?;
             let entry_js_files = entry_manifest
                 .entry_js_files
@@ -482,7 +486,7 @@ async fn build_manifest(
                     "#,
                     entry_name = StringifyJs(&normalized_manifest_entry),
                     manifest = &client_reference_manifest_json,
-                    suffix = if runtime_server_deployment_id_available {
+                    suffix = if add_deployment_id_at_runtime {
                         formatdoc!{
                             r#"
                             for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
@@ -498,7 +502,9 @@ async fn build_manifest(
                     }
                 }))
                 .cell(),
-            ).to_resolved().await?,
+            )
+            .to_resolved()
+            .await?,
             references: ResolvedVc::cell(references.into_iter().collect()),
         }
         .cell())

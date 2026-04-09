@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
 
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
@@ -22,6 +22,7 @@ use crate::{
     SpecifiedModuleType,
     analyzer::{ConstantValue, ObjectPart},
     magic_identifier,
+    references::util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
@@ -39,24 +40,19 @@ pub struct ImportAnnotations {
     turbopack_loader: Option<WebpackLoaderItem>,
     turbopack_rename_as: Option<RcStr>,
     turbopack_module_type: Option<RcStr>,
+    chunking_type: Option<SpecifiedChunkingType>,
 }
 
 /// Enables a specified transition for the annotated import
 static ANNOTATION_TRANSITION: Lazy<Wtf8Atom> =
     Lazy::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
-/// Changes the chunking type for the annotated import
-static ANNOTATION_CHUNKING_TYPE: Lazy<Wtf8Atom> =
-    Lazy::new(|| crate::annotations::ANNOTATION_CHUNKING_TYPE.into());
-
 /// Changes the type of the resolved module (only "json" is supported currently)
 static ATTRIBUTE_MODULE_TYPE: Lazy<Wtf8Atom> = Lazy::new(|| atom!("type").into());
 
 impl ImportAnnotations {
-    pub fn parse(with: Option<&ObjectLit>) -> ImportAnnotations {
-        let Some(with) = with else {
-            return ImportAnnotations::default();
-        };
+    pub fn parse(with: Option<&ObjectLit>) -> Option<ImportAnnotations> {
+        let with = with?;
 
         let mut map = BTreeMap::new();
         let mut turbopack_loader_name: Option<RcStr> = None;
@@ -64,6 +60,7 @@ impl ImportAnnotations {
             serde_json::Map::new();
         let mut turbopack_rename_as: Option<RcStr> = None;
         let mut turbopack_module_type: Option<RcStr> = None;
+        let mut chunking_type: Option<SpecifiedChunkingType> = None;
 
         for prop in &with.props {
             let Some(kv) = prop.as_prop().and_then(|p| p.as_key_value()) else {
@@ -71,13 +68,13 @@ impl ImportAnnotations {
             };
 
             let key_str = match &kv.key {
-                PropName::Ident(ident) => ident.sym.to_string(),
-                PropName::Str(str) => str.value.to_string_lossy().into_owned(),
+                PropName::Ident(ident) => Cow::Borrowed(ident.sym.as_str()),
+                PropName::Str(str) => str.value.to_string_lossy(),
                 _ => continue,
             };
 
             // All turbopack* keys are extracted as string values (per TC39 import attributes spec)
-            match key_str.as_str() {
+            match &*key_str {
                 "turbopackLoader" => {
                     if let Some(Lit::Str(s)) = kv.value.as_lit() {
                         turbopack_loader_name =
@@ -105,6 +102,14 @@ impl ImportAnnotations {
                             Some(RcStr::from(s.value.to_string_lossy().into_owned()));
                     }
                 }
+                "turbopack-chunking-type" => {
+                    if let Some(Lit::Str(s)) = kv.value.as_lit() {
+                        chunking_type = parse_chunking_type_annotation(
+                            kv.value.span(),
+                            &s.value.to_string_lossy(),
+                        );
+                    }
+                }
                 _ => {
                     // For all other keys, only accept string values (per spec)
                     if let Some(Lit::Str(str)) = kv.value.as_lit() {
@@ -124,11 +129,21 @@ impl ImportAnnotations {
             options: turbopack_loader_options,
         });
 
-        ImportAnnotations {
-            map,
-            turbopack_loader,
-            turbopack_rename_as,
-            turbopack_module_type,
+        if !map.is_empty()
+            || turbopack_loader.is_some()
+            || turbopack_rename_as.is_some()
+            || turbopack_module_type.is_some()
+            || chunking_type.is_some()
+        {
+            Some(ImportAnnotations {
+                map,
+                turbopack_loader,
+                turbopack_rename_as,
+                turbopack_module_type,
+                chunking_type,
+            })
+        } else {
+            None
         }
     }
 
@@ -157,12 +172,17 @@ impl ImportAnnotations {
             );
         }
 
-        Some(ImportAnnotations {
-            map,
-            turbopack_loader: None,
-            turbopack_rename_as: None,
-            turbopack_module_type: None,
-        })
+        if !map.is_empty() {
+            Some(ImportAnnotations {
+                map,
+                turbopack_loader: None,
+                turbopack_rename_as: None,
+                turbopack_module_type: None,
+                chunking_type: None,
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns the content on the transition annotation
@@ -172,8 +192,8 @@ impl ImportAnnotations {
     }
 
     /// Returns the content on the chunking-type annotation
-    pub fn chunking_type(&self) -> Option<&Wtf8Atom> {
-        self.get(&ANNOTATION_CHUNKING_TYPE)
+    pub fn chunking_type(&self) -> Option<SpecifiedChunkingType> {
+        self.chunking_type
     }
 
     /// Returns the content on the type attribute
@@ -314,6 +334,15 @@ pub struct ImportAttributes {
     /// const { b } = await import(/* turbopackExports: "b" */ "module");
     /// ```
     pub export_names: Option<SmallVec<[RcStr; 1]>>,
+    /// Whether to use a specific chunking type for this import.
+    //
+    /// This is set by using a or `turbopackChunkingType` comment.
+    ///
+    /// Example:
+    /// ```js
+    /// const a = require(/* turbopackChunkingType: parallel */ "a");
+    /// ```
+    pub chunking_type: Option<SpecifiedChunkingType>,
 }
 
 impl ImportAttributes {
@@ -322,6 +351,7 @@ impl ImportAttributes {
             ignore: false,
             optional: false,
             export_names: None,
+            chunking_type: None,
         }
     }
 
@@ -357,7 +387,7 @@ pub(crate) enum ImportedSymbol {
 pub(crate) struct ImportMapReference {
     pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
-    pub annotations: ImportAnnotations,
+    pub annotations: Option<Arc<ImportAnnotations>>,
     pub issue_source: Option<IssueSource>,
 }
 
@@ -543,7 +573,7 @@ impl Analyzer<'_> {
         span: Span,
         module_path: Wtf8Atom,
         imported_symbol: ImportedSymbol,
-        annotations: ImportAnnotations,
+        annotations: Option<ImportAnnotations>,
     ) -> Option<usize> {
         let issue_source = self
             .source
@@ -553,7 +583,7 @@ impl Analyzer<'_> {
             module_path,
             imported_symbol,
             issue_source,
-            annotations,
+            annotations: annotations.map(Arc::new),
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
             Some(i)
@@ -859,11 +889,11 @@ impl Visit for Analyzer<'_> {
                 _ => None,
             };
 
-            let attributes = parse_directives(comments, n.args.first());
-
-            if let Some((callee_span, attributes)) = callee_span.zip(attributes) {
+            if let Some(callee_span) = callee_span
+                && let Some(attributes) = parse_directives(comments, n.args.first())
+            {
                 self.data.attributes.insert(callee_span.lo, attributes);
-            };
+            }
         }
 
         n.visit_children_with(self);
@@ -877,11 +907,11 @@ impl Visit for Analyzer<'_> {
                 _ => None,
             };
 
-            let attributes = parse_directives(comments, n.args.iter().flatten().next());
-
-            if let Some((callee_span, attributes)) = callee_span.zip(attributes) {
+            if let Some(callee_span) = callee_span
+                && let Some(attributes) = parse_directives(comments, n.args.iter().flatten().next())
+            {
                 self.data.attributes.insert(callee_span.lo, attributes);
-            };
+            }
         }
 
         n.visit_children_with(self);
@@ -894,12 +924,13 @@ fn parse_directives(
     comments: &dyn Comments,
     value: Option<&ExprOrSpread>,
 ) -> Option<ImportAttributes> {
-    let comment_pos = value.map(|arg| arg.span_lo())?;
-    let leading_comments = comments.get_leading(comment_pos)?;
+    let value = value?;
+    let leading_comments = comments.get_leading(value.span_lo())?;
 
     let mut ignore = None;
     let mut optional = None;
     let mut export_names = None;
+    let mut chunking_type = None;
 
     // Process all comments, last one wins for each directive type
     for comment in leading_comments.iter() {
@@ -919,17 +950,21 @@ fn parse_directives(
                 "webpackExports" | "turbopackExports" => {
                     export_names = Some(parse_export_names(val));
                 }
+                "turbopackChunkingType" => {
+                    chunking_type = parse_chunking_type_annotation(value.span(), val);
+                }
                 _ => {} // ignore anything else
             }
         }
     }
 
     // Return Some only if at least one directive was found
-    if ignore.is_some() || optional.is_some() || export_names.is_some() {
+    if ignore.is_some() || optional.is_some() || export_names.is_some() || chunking_type.is_some() {
         Some(ImportAttributes {
             ignore: ignore.unwrap_or(false),
             optional: optional.unwrap_or(false),
             export_names,
+            chunking_type,
         })
     } else {
         None
@@ -1031,7 +1066,7 @@ mod tests {
             props: vec![kv_prop(ident_key("turbopackLoader"), str_lit("raw-loader"))],
         };
 
-        let annotations = ImportAnnotations::parse(Some(&with));
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(annotations.has_turbopack_loader());
 
         let loader = annotations.turbopack_loader().unwrap();
@@ -1053,7 +1088,7 @@ mod tests {
             ],
         };
 
-        let annotations = ImportAnnotations::parse(Some(&with));
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(annotations.has_turbopack_loader());
 
         let loader = annotations.turbopack_loader().unwrap();
@@ -1069,7 +1104,7 @@ mod tests {
             props: vec![kv_prop(ident_key("type"), str_lit("json"))],
         };
 
-        let annotations = ImportAnnotations::parse(Some(&with));
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(!annotations.has_turbopack_loader());
         assert!(annotations.module_type().is_some());
     }
@@ -1077,7 +1112,6 @@ mod tests {
     #[test]
     fn test_parse_empty_with() {
         let annotations = ImportAnnotations::parse(None);
-        assert!(!annotations.has_turbopack_loader());
-        assert!(annotations.module_type().is_none());
+        assert!(annotations.is_none());
     }
 }

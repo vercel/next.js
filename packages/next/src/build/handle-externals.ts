@@ -10,8 +10,7 @@ import {
   NODE_ESM_RESOLVE_OPTIONS,
   NODE_RESOLVE_OPTIONS,
 } from './webpack-config'
-import { isWebpackBundledLayer } from './utils'
-import { shouldUseReactServerCondition } from './webpack-layer'
+import { isWebpackBundledLayer, shouldUseReactServerCondition } from './utils'
 import { normalizePathSep } from '../shared/lib/page-path/normalize-path-sep'
 const reactPackagesRegex = /^(react|react-dom|react-server-dom-webpack)($|\/)/
 

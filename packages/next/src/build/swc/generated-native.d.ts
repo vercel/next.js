@@ -18,6 +18,7 @@ export function lightningCssTransform(args: object): Promise<unknown>
 export function lightningCssTransformStyleAttribute(
   args: object
 ): Promise<unknown>
+export function lightningcssFeatureNamesToMaskNapi(names: Array<string>): number
 
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES
@@ -110,6 +111,14 @@ export declare function codeFrameColumns(
   location: NapiCodeFrameLocation,
   options?: NapiCodeFrameOptions | undefined | null
 ): string | null
+/**
+ * Convert an array of dash-case feature name strings to a lightningcss
+ * `Features` bitmask (u32). Called from the webpack lightningcss-loader to
+ * avoid duplicating the name-to-bit mapping in JavaScript.
+ */
+export declare function lightningcssFeatureNamesToMaskNapi(
+  names: Array<string>
+): number
 export declare function lockfileTryAcquireSync(
   path: string,
   content?: string | undefined | null
@@ -144,8 +153,8 @@ export declare function minify(
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
 export interface NapiAssetPath {
-  path: string
-  contentHash: string
+  path: RcStr
+  contentHash: RcStr
 }
 export interface NapiWrittenEndpoint {
   type: string
@@ -247,8 +256,14 @@ export interface NapiProjectOptions {
   isPersistentCachingEnabled: boolean
   /** The version of Next.js that is running. */
   nextVersion: RcStr
-  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
+  /** Whether server-side HMR is enabled (disabled with --no-server-fast-refresh). */
   serverHmr?: boolean
+  /**
+   * A salt to mix into chunk and asset content hashes, allowing users to
+   * force new filenames without changing file content. Empty string means
+   * no salt.
+   */
+  hashSalt: RcStr
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -293,8 +308,8 @@ export interface NapiPartialProjectOptions {
    * debugging/profiling purposes.
    */
   noMangling?: boolean
-  /** Whether server-side HMR is enabled (requires --experimental-server-fast-refresh). */
-  serverHmr?: boolean
+  /** An optional salt to mix into chunk and asset content hashes. */
+  hashSalt?: RcStr
 }
 export interface NapiDefineEnv {
   client: Array<NapiOptionEnvVar>
@@ -310,6 +325,8 @@ export interface NapiTurboEngineOptions {
   isCi?: boolean
   /** Whether the project is running in a short session. */
   isShortSession?: boolean
+  /** Whether to skip database compaction during shutdown. */
+  skipCompaction?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,
@@ -354,7 +371,7 @@ export interface AppPageNapiRoute {
 }
 export interface NapiRoute {
   /** The router path */
-  pathname: string
+  pathname: RcStr
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   /** The type of route, eg a Page or App */
@@ -474,6 +491,15 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectGetAllCompilationIssues(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
+/**
+ * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
+ *
+ * The `path` should point to the `<distDir>/cache/turbopack` directory.
+ */
+export declare function turbopackDatabaseCompact(path: string): Promise<void>
 /**
  * A version of [`NapiNextTurbopackCallbacks`] that can accepted as an argument to a napi function.
  *
@@ -507,13 +533,25 @@ export declare function rootTaskDispose(rootTask: {
 export interface NapiIssue {
   severity: string
   stage: string
-  filePath: string
+  filePath: RcStr
   title: any
   description?: any
   detail?: any
   source?: NapiIssueSource
-  documentationLink: string
+  additionalSources: Array<NapiAdditionalIssueSource>
+  documentationLink: RcStr
   importTraces: any
+  /**
+   * Pre-rendered code frame for the issue's source location, if available.
+   * Rendered in Rust to avoid transferring full source file content to JS.
+   */
+  codeFrame?: string
+}
+export interface NapiAdditionalIssueSource {
+  description: RcStr
+  source: NapiIssueSource
+  /** Pre-rendered code frame for this additional source location, if available. */
+  codeFrame?: string
 }
 export interface NapiIssueSource {
   source: NapiSource
@@ -524,16 +562,16 @@ export interface NapiIssueSourceRange {
   end: NapiSourcePos
 }
 export interface NapiSource {
-  ident: string
-  content?: string
+  ident: RcStr
+  filePath: RcStr
 }
 export interface NapiSourcePos {
   line: number
   column: number
 }
 export interface NapiDiagnostic {
-  category: string
-  name: string
+  category: RcStr
+  name: RcStr
   payload: Record<string, string>
 }
 export declare function expandNextJsTemplate(

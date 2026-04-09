@@ -6,7 +6,12 @@ import type {
 import './globals'
 
 import { adapter, type NextRequestHint, type EdgeHandler } from './adapter'
-import { IncrementalCache } from '../lib/incremental-cache'
+import {
+  IncrementalCache,
+  type CacheHandler as IncrementalCacheHandler,
+} from '../lib/incremental-cache'
+import type { CacheHandler } from '../lib/cache-handlers/types'
+import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
@@ -18,6 +23,8 @@ import { WebNextRequest } from '../../server/base-http/web'
 
 export interface WrapOptions {
   page: string
+  cacheHandlers?: Record<string, CacheHandler>
+  incrementalCacheHandler?: typeof IncrementalCacheHandler
 }
 
 /**
@@ -34,7 +41,10 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(private readonly routeModule: AppRouteRouteModule) {
+  private constructor(
+    private readonly routeModule: AppRouteRouteModule,
+    private readonly cacheHandlers: Record<string, CacheHandler>
+  ) {
     // TODO: (wyattjoh) possibly allow the module to define it's own matcher
     this.matcher = new RouteMatcher(routeModule.definition)
   }
@@ -53,13 +63,17 @@ export class EdgeRouteModuleWrapper {
     options: WrapOptions
   ): EdgeHandler {
     // Create the module wrapper.
-    const wrapper = new EdgeRouteModuleWrapper(routeModule)
+    const wrapper = new EdgeRouteModuleWrapper(
+      routeModule,
+      options.cacheHandlers ?? {}
+    )
 
     // Return the wrapping function.
     return (opts) => {
       return adapter({
         ...opts,
         IncrementalCache,
+        incrementalCacheHandler: options.incrementalCacheHandler,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
         page: options.page,
@@ -84,6 +98,10 @@ export class EdgeRouteModuleWrapper {
     const { nextConfig } = this.routeModule.getNextConfigEdge(
       new WebNextRequest(request)
     )
+    initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+    for (const [kind, cacheHandler] of Object.entries(this.cacheHandlers)) {
+      setCacheHandler(kind, cacheHandler)
+    }
 
     const { params } = utils.normalizeDynamicRouteParams(
       searchParamsToUrlQuery(request.nextUrl.searchParams),

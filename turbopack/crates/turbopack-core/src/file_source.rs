@@ -56,6 +56,11 @@ impl Source for FileSource {
         }
         ident
     }
+
+    #[turbo_tasks::function]
+    fn description(&self) -> Vc<RcStr> {
+        Vc::cell(format!("file content of {}", self.path).into())
+    }
 }
 
 #[turbo_tasks::value_impl]

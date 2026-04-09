@@ -2,7 +2,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
     chunk::{MinifyType, ModuleId},
     version::Version,
@@ -74,7 +74,7 @@ impl Version for EcmascriptBuildNodeChunkVersion {
             hasher.write_value(hash);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Vc::cell(hex_hash.into())
+        let hash = encode_base64(hash);
+        Vc::cell(hash.into())
     }
 }

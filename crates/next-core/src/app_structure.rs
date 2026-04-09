@@ -7,8 +7,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault,
+    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
 use turbopack_core::issue::{
@@ -325,7 +325,7 @@ async fn get_directory_tree(
 ) -> Result<Vc<DirectoryTree>> {
     let span = tracing::info_span!(
         "read app directory tree",
-        name = display(dir.value_to_string().await?)
+        name = display(dir.to_string_ref().await?)
     );
     get_directory_tree_internal(dir, page_extensions)
         .instrument(span)
@@ -430,15 +430,14 @@ async fn get_directory_tree_internal(
                     },
                 ));
             }
-            DirectoryEntry::Directory(dir) => {
+            DirectoryEntry::Directory(dir)
                 // appDir ignores paths starting with an underscore
-                if !basename.starts_with('_') {
+                if !basename.starts_with('_') => {
                     let result = get_directory_tree(dir.clone(), page_extensions)
                         .to_resolved()
                         .await?;
                     subdirectories.insert(basename.clone(), result);
                 }
-            }
             // TODO(WEB-952) handle symlinks in app dir
             _ => {}
         }
@@ -1264,7 +1263,7 @@ async fn directory_tree_to_loader_tree_internal(
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
-        tree.segment = rcstr!("(slot)");
+        tree.segment = rcstr!("(__SLOT__)");
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())

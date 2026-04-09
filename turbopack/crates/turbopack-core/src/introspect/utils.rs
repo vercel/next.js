@@ -68,7 +68,8 @@ pub async fn children_from_module_references(
     let mut children = FxIndexSet::default();
     let references = references.await?;
     for &reference in &*references {
-        let key = match &*reference.chunking_type().await? {
+        let trait_ref = reference.into_trait_ref().await?;
+        let key = match &trait_ref.chunking_type() {
             None => key.clone(),
             Some(ChunkingType::Parallel { inherit_async, .. }) => {
                 if *inherit_async {
@@ -85,7 +86,7 @@ pub async fn children_from_module_references(
 
         for &module in reference
             .resolve_reference()
-            .resolve()
+            .to_resolved()
             .await?
             .primary_modules()
             .await?

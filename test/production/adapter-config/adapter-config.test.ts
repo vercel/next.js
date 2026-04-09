@@ -102,7 +102,7 @@ describe('adapter-config', () => {
           /\.(png|jpg|jpeg|ico|svg|gif|json|webmanifest|xml|txt)$/
         )
       } else {
-        expect(output.pathname).toStartWith('/docs/_next/static')
+        expect(output.pathname).toMatch(/^\/docs\/_next\/static/)
       }
       // ensure / -> /index normalizing is correct
       expect(output.pathname.includes('/.')).toBe(false)
@@ -340,6 +340,24 @@ describe('adapter-config', () => {
             __NEXT_PREVIEW_MODE_SIGNING_KEY: expect.toBeString(),
           })
         )
+        const edgeRuntime = (
+          route as PageRoutesType & {
+            edgeRuntime?: {
+              modulePath: string
+              entryKey: string
+              handlerExport: string
+            }
+          }
+        ).edgeRuntime
+        expect(edgeRuntime).toEqual(
+          expect.objectContaining({
+            modulePath: expect.toBeString(),
+            entryKey: expect.toBeString(),
+            handlerExport: 'handler',
+          })
+        )
+        expect(edgeRuntime?.entryKey.startsWith('middleware_')).toBe(true)
+        expect(edgeRuntime?.modulePath).toBe(route.filePath)
 
         const stats = await fs.promises.stat(route.filePath)
         expect(stats.isFile()).toBe(true)
@@ -361,6 +379,7 @@ describe('adapter-config', () => {
 
     expect(routing).toEqual({
       beforeMiddleware: expect.toBeArray(),
+      middlewareMatchers: expect.toBeArray(),
       beforeFiles: expect.toBeArray(),
       afterFiles: expect.toBeArray(),
       dynamicRoutes: expect.toBeArray(),

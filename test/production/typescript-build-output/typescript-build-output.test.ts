@@ -4,7 +4,6 @@ describe('typescript-build-output', () => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
 
   if (skipped) {

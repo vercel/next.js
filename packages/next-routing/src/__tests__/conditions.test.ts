@@ -66,7 +66,7 @@ describe('Has conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/admin-dashboard')
+    expect(result.resolvedPathname).toBe('/admin-dashboard')
   })
 
   it('should match route with cookie condition', async () => {
@@ -102,7 +102,7 @@ describe('Has conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/dark-theme-page')
+    expect(result.resolvedPathname).toBe('/dark-theme-page')
   })
 
   it('should match route with query condition', async () => {
@@ -133,7 +133,7 @@ describe('Has conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/preview-page')
+    expect(result.resolvedPathname).toBe('/preview-page')
   })
 
   it('should match route with host condition', async () => {
@@ -163,7 +163,7 @@ describe('Has conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/subdomain-home')
+    expect(result.resolvedPathname).toBe('/subdomain-home')
   })
 
   it('should match when has condition checks key existence only', async () => {
@@ -199,7 +199,7 @@ describe('Has conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/feature-enabled')
+    expect(result.resolvedPathname).toBe('/feature-enabled')
   })
 
   it('should match with regex pattern in has condition', async () => {
@@ -235,7 +235,7 @@ describe('Has conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/mobile')
+    expect(result.resolvedPathname).toBe('/mobile')
   })
 
   it('should require ALL has conditions to match', async () => {
@@ -277,7 +277,7 @@ describe('Has conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/admin-beta-feature')
+    expect(result.resolvedPathname).toBe('/admin-beta-feature')
   })
 
   it('should NOT match when one has condition fails', async () => {
@@ -320,7 +320,7 @@ describe('Has conditions', () => {
     const result = await resolveRoutes(params)
 
     // Should not match the route, so stays at /feature
-    expect(result.matchedPathname).toBe('/feature')
+    expect(result.resolvedPathname).toBe('/feature')
   })
 })
 
@@ -357,7 +357,7 @@ describe('Missing conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/no-debug-page')
+    expect(result.resolvedPathname).toBe('/no-debug-page')
   })
 
   it('should NOT match when missing condition is present', async () => {
@@ -393,7 +393,7 @@ describe('Missing conditions', () => {
     const result = await resolveRoutes(params)
 
     // Route should not match, stays at /page
-    expect(result.matchedPathname).toBe('/page')
+    expect(result.resolvedPathname).toBe('/page')
   })
 
   it('should match when missing cookie is not present', async () => {
@@ -428,7 +428,7 @@ describe('Missing conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/no-tracking')
+    expect(result.resolvedPathname).toBe('/no-tracking')
   })
 
   it('should match when missing query is not present', async () => {
@@ -458,7 +458,7 @@ describe('Missing conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/no-preview')
+    expect(result.resolvedPathname).toBe('/no-preview')
   })
 
   it('should require ALL missing conditions to be absent', async () => {
@@ -498,7 +498,7 @@ describe('Missing conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/standard-page')
+    expect(result.resolvedPathname).toBe('/standard-page')
   })
 })
 
@@ -543,7 +543,7 @@ describe('Combined has and missing conditions', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/member-content')
+    expect(result.resolvedPathname).toBe('/member-content')
   })
 
   it('should NOT match when has is satisfied but missing is present', async () => {
@@ -587,7 +587,7 @@ describe('Combined has and missing conditions', () => {
     const result = await resolveRoutes(params)
 
     // Should not match, stays at /content
-    expect(result.matchedPathname).toBe('/content')
+    expect(result.resolvedPathname).toBe('/content')
   })
 
   it('should NOT match when has fails even if missing is satisfied', async () => {
@@ -631,7 +631,7 @@ describe('Combined has and missing conditions', () => {
     const result = await resolveRoutes(params)
 
     // Should not match, stays at /content
-    expect(result.matchedPathname).toBe('/content')
+    expect(result.resolvedPathname).toBe('/content')
   })
 })
 
@@ -657,7 +657,7 @@ describe('Dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/123')
+    expect(result.resolvedPathname).toBe('/posts/123')
     expect(result.routeMatches).toEqual({
       '1': '123',
     })
@@ -684,7 +684,7 @@ describe('Dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/users/alice/posts/456')
+    expect(result.resolvedPathname).toBe('/users/alice/posts/456')
     expect(result.routeMatches).toEqual({
       '1': 'alice',
       '2': '456',
@@ -726,7 +726,7 @@ describe('Dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/profile/john')
+    expect(result.resolvedPathname).toBe('/profile/john')
     expect(result.routeMatches).toEqual({
       '1': 'john',
     })

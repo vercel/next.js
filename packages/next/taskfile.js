@@ -32,9 +32,23 @@ export async function copy_regenerator_runtime(task, opts) {
 }
 
 export async function copy_docs(task, opts) {
-  // Copy documentation from repo root into the package
+  // Copy documentation from repo root into the package.
+  // Rename .mdx → .md so AI agents find them when globbing for *.md.
   const docsSource = join(__dirname, '../../docs')
-  await task.source(join(docsSource, '**/*')).target('dist/docs')
+  await task
+    .source(join(docsSource, '**/*'))
+    // eslint-disable-next-line require-yield
+    .run({ every: true }, function* (file) {
+      if (file.base.endsWith('.mdx')) {
+        file.base = file.base.replace(/\.mdx$/, '.md')
+      }
+    })
+    .target('dist/docs')
+}
+
+export async function copy_skills(task, opts) {
+  const skillsSource = join(__dirname, '../../skills')
+  await task.source(join(skillsSource, '**/*')).target('dist/skills')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
@@ -1448,7 +1462,11 @@ export async function copy_vendor_react(task_) {
     // TODO-APP: remove unused fields from package.json and unused files
     function overridePackageName(source) {
       const json = JSON.parse(source)
-      json.name = json.name + '-' + channel
+      // avoid infinite suffix addition in case the package name already has the suffix
+      // e.g. if we install from src/compiled instead of npm registry.
+      if (!json.name.endsWith(`-${channel}`)) {
+        json.name = json.name + '-' + channel
+      }
       return JSON.stringify(
         {
           name: json.name,
@@ -1869,6 +1887,14 @@ export async function ncc_strip_ansi(task, opts) {
     .ncc({ packageName: 'strip-ansi', externals })
     .target('src/compiled/strip-ansi')
 }
+externals['@vercel/blob'] = 'next/dist/compiled/@vercel/blob'
+export async function ncc_vercel_blob(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/blob')))
+    .ncc({ packageName: '@vercel/blob', externals })
+    .target('src/compiled/@vercel/blob')
+}
+
 externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
@@ -2164,7 +2190,13 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
+    [
+      'browser_polyfills',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+      'copy_docs',
+      'copy_skills',
+    ],
     opts
   )
 }
@@ -2276,6 +2308,7 @@ export async function ncc(task, opts) {
         'ncc_superstruct',
         'ncc_zod',
         'ncc_zod_validation_error',
+        'ncc_vercel_blob',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',

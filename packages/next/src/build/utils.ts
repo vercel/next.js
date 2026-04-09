@@ -80,7 +80,7 @@ import type {
 } from '../server/route-modules/app-route/module'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { parseAppRoute } from '../shared/lib/router/routes/app'
+import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
 import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
 
@@ -162,7 +162,7 @@ export function isInstrumentationHookFilename(file?: string | null) {
   )
 }
 
-const filterAndSortList = (
+export const filterAndSortList = (
   list: ReadonlyArray<string>,
   routeType: ROUTER_TYPE,
   hasCustomApp: boolean
@@ -211,6 +211,48 @@ export interface PageInfo {
 }
 
 export type PageInfos = Map<string, PageInfo>
+
+function getTreeViewSymbol(
+  item: string,
+  pageInfo: PageInfo | undefined
+): string {
+  if (item === '/_app' || item === '/_app.server') {
+    return ' '
+  }
+
+  if (isEdgeRuntime(pageInfo?.runtime)) {
+    return 'ƒ'
+  }
+
+  if (pageInfo?.isRoutePPREnabled) {
+    if (
+      // If the page has an empty static shell, then it's equivalent to a
+      // dynamic page
+      pageInfo?.hasEmptyStaticShell ||
+      // ensure we don't mark dynamic paths that postponed as being dynamic
+      // since in this case we're able to partially prerender it
+      (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+    ) {
+      return 'ƒ'
+    }
+
+    if (!pageInfo?.hasPostponed) {
+      return '○'
+    }
+
+    return '◐'
+  }
+
+  if (pageInfo?.isStatic) {
+    return '○'
+  }
+
+  if (pageInfo?.isSSG) {
+    return '●'
+  }
+
+  return 'ƒ'
+}
 
 export interface RoutesUsingEdgeRuntime {
   [route: string]: 0
@@ -333,34 +375,8 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      let symbol: string
-
-      if (item === '/_app' || item === '/_app.server') {
-        symbol = ' '
-      } else if (isEdgeRuntime(pageInfo?.runtime)) {
-        symbol = 'ƒ'
-      } else if (pageInfo?.isRoutePPREnabled) {
-        if (
-          // If the page has an empty static shell, then it's equivalent to a
-          // dynamic page
-          pageInfo?.hasEmptyStaticShell ||
-          // ensure we don't mark dynamic paths that postponed as being dynamic
-          // since in this case we're able to partially prerender it
-          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
-        ) {
-          symbol = 'ƒ'
-        } else if (!pageInfo?.hasPostponed) {
-          symbol = '○'
-        } else {
-          symbol = '◐'
-        }
-      } else if (pageInfo?.isStatic) {
-        symbol = '○'
-      } else if (pageInfo?.isSSG) {
-        symbol = '●'
-      } else {
-        symbol = 'ƒ'
-      }
+      const symbol = getTreeViewSymbol(item, pageInfo)
+      const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
       const displayPath = getTreeViewDisplayPath(item)
 
@@ -381,10 +397,14 @@ export async function printTreeView(
         ])
       }
 
-      usedSymbols.add(symbol)
+      // Grouped rows act as headers for the generated outputs below them. The
+      // child rows carry the concrete route symbols instead.
+      if (!hasChildRoutes) {
+        usedSymbols.add(symbol)
+      }
 
       messages.push([
-        `${border} ${symbol} ${displayPath}${
+        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -446,12 +466,17 @@ export async function printTreeView(
         routes.forEach(
           ({ route, duration, avgDuration }, index, { length }) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
+            // Generated child paths can have more precise metadata than the
+            // parent route pattern, so prefer the child entry when present.
+            const routePageInfo = pageInfos.get(route) ?? pageInfo
+            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
+            usedSymbols.add(routeSymbol)
 
             const initialCacheControl =
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol} ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
@@ -667,6 +692,7 @@ export async function isPageStatic({
   cacheHandlers,
   cacheLifeProfiles,
   pprConfig,
+  partialFallbacksEnabled,
   buildId,
   clientAssetToken,
   sriEnabled,
@@ -694,6 +720,7 @@ export async function isPageStatic({
   }
   nextConfigOutput: 'standalone' | 'export' | undefined
   pprConfig: ExperimentalPPRConfig | undefined
+  partialFallbacksEnabled: boolean
   buildId: string
   clientAssetToken: string
   sriEnabled: boolean
@@ -834,7 +861,7 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
-        const route = parseAppRoute(page, true)
+        const route = parseNormalizedAppRoute(page)
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
@@ -857,6 +884,7 @@ export async function isPageStatic({
               ComponentMod,
               nextConfigOutput,
               isRoutePPREnabled,
+              partialFallbacksEnabled,
               buildId,
               rootParamKeys,
             }))
@@ -1489,6 +1517,16 @@ export class NestedMiddlewareError extends Error {
   }
 }
 
+export { getSupportedBrowsers } from './get-supported-browsers'
+
+export function shouldUseReactServerCondition(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(
+    layer && WEBPACK_LAYERS.GROUP.serverOnly.includes(layer as any)
+  )
+}
+
 export function isWebpackClientOnlyLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
@@ -1513,6 +1551,12 @@ export function isWebpackBundledLayer(
   layer: WebpackLayerName | null | undefined
 ): boolean {
   return Boolean(layer && WEBPACK_LAYERS.GROUP.bundled.includes(layer as any))
+}
+
+export function isWebpackAppPagesLayer(
+  layer: WebpackLayerName | null | undefined
+): boolean {
+  return Boolean(layer && WEBPACK_LAYERS.GROUP.appPages.includes(layer as any))
 }
 
 export function collectMeta({

@@ -60,7 +60,7 @@ describe('Redirects with Location header', () => {
     expect(result.redirect).toBeDefined()
     expect(result.redirect?.status).toBe(301)
     expect(result.redirect?.url.pathname).toBe('/new')
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
     expect(result.externalRewrite).toBeUndefined()
   })
 
@@ -292,9 +292,9 @@ describe('Redirects with Refresh header', () => {
 
     const result = await resolveRoutes(params)
 
-    // Should return redirect, not matchedPathname
+    // Should return redirect, not resolvedPathname
     expect(result.redirect).toBeDefined()
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
   })
 })
 
@@ -440,7 +440,7 @@ describe('Redirect edge cases', () => {
 
     // Should not redirect, should rewrite instead
     expect(result.redirect).toBeUndefined()
-    expect(result.matchedPathname).toBe('/target')
+    expect(result.resolvedPathname).toBe('/target')
   })
 
   it('should NOT redirect when status is 3xx but no Location/Refresh header', async () => {
@@ -470,7 +470,7 @@ describe('Redirect edge cases', () => {
 
     // Should not redirect without Location or Refresh header
     expect(result.redirect).toBeUndefined()
-    expect(result.matchedPathname).toBe('/target')
+    expect(result.resolvedPathname).toBe('/target')
   })
 
   it('should stop processing routes after redirect', async () => {
@@ -503,7 +503,7 @@ describe('Redirect edge cases', () => {
 
     expect(result.redirect).toBeDefined()
     expect(result.redirect?.url.pathname).toBe('/redirected')
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
   })
 
   it('should handle case-insensitive Location header check', async () => {
@@ -631,5 +631,102 @@ describe('Redirect priority and precedence', () => {
 
     expect(result.redirect).toBeDefined()
     expect(middlewareMock).not.toHaveBeenCalled()
+  })
+
+  it('should process middleware before beforeMiddleware stop routes without destination', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({
+      responseHeaders: new Headers({
+        'x-nested-header': 'valid',
+      }),
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/$',
+            status: 308,
+            headers: {
+              location: '/en',
+            },
+          },
+        ],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/.*$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      invokeMiddleware: middlewareMock,
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+    expect(result.status).toBe(308)
+    expect(result.resolvedHeaders?.get('location')).toBe('/en')
+    expect(result.resolvedHeaders?.get('x-nested-header')).toBe('valid')
+  })
+
+  it('should preserve request query in location header redirects without destination', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/?hello=world'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/$',
+            status: 308,
+            headers: {
+              location: '/en',
+            },
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.redirect).toBeUndefined()
+    expect(result.status).toBe(308)
+    expect(result.resolvedHeaders?.get('location')).toBe('/en?hello=world')
+  })
+
+  it('should not overwrite existing location query in redirects without destination', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/?hello=world'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/$',
+            status: 308,
+            headers: {
+              location: '/en?from=route',
+            },
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.redirect).toBeUndefined()
+    expect(result.status).toBe(308)
+    expect(result.resolvedHeaders?.get('location')).toBe('/en?from=route')
   })
 })

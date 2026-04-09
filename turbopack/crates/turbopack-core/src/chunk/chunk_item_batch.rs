@@ -20,14 +20,19 @@ use crate::{
     },
 };
 
+/// Converts a [`ChunkableModule`] into a [`ChunkItemWithAsyncModuleInfo`] by resolving its chunk
+/// item and, if the module is async, looking up its referenced async modules from the graph.
+///
+/// Uses keyed access on `async_module_info` so only the queried module's entry is read,
+/// enabling per-key invalidation via `cell = "keyed"` on [`AsyncModulesInfo`].
 pub async fn attach_async_info_to_chunkable_module(
     module: ResolvedVc<Box<dyn ChunkableModule>>,
-    async_module_info: &ReadRef<AsyncModulesInfo>,
+    async_module_info: Vc<AsyncModulesInfo>,
     module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<ChunkItemWithAsyncModuleInfo> {
     let general_module = ResolvedVc::upcast(module);
-    let async_info = if async_module_info.contains(&general_module) {
+    let async_info = if async_module_info.is_async(general_module).await? {
         Some(
             module_graph
                 .referenced_async_modules(*general_module)
@@ -67,7 +72,7 @@ pub struct ChunkItemOrBatchWithAsyncModuleInfos(Vec<ChunkItemOrBatchWithAsyncMod
 impl ChunkItemOrBatchWithAsyncModuleInfo {
     pub async fn from_chunkable_module_or_batch(
         chunkable_module_or_batch: ChunkableModuleOrBatch,
-        async_module_info: &ReadRef<AsyncModulesInfo>,
+        async_module_info: Vc<AsyncModulesInfo>,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Option<Self>> {
@@ -131,7 +136,7 @@ impl ChunkItemBatchWithAsyncModuleInfo {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Self>> {
-        let async_module_info = module_graph.async_module_info().await?;
+        let async_module_info = module_graph.async_module_info();
         let batch = batch.await?;
         let chunk_items = batch
             .modules
@@ -139,7 +144,7 @@ impl ChunkItemBatchWithAsyncModuleInfo {
             .map(|module| {
                 attach_async_info_to_chunkable_module(
                     *module,
-                    &async_module_info,
+                    async_module_info,
                     module_graph,
                     chunking_context,
                 )
@@ -242,7 +247,7 @@ impl ChunkItemBatchGroup {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Self>> {
-        let async_module_info = module_graph.async_module_info().await?;
+        let async_module_info = module_graph.async_module_info();
         let batch_group = batch_group.await?;
         let items = batch_group
             .items
@@ -250,7 +255,7 @@ impl ChunkItemBatchGroup {
             .map(|&batch| {
                 ChunkItemOrBatchWithAsyncModuleInfo::from_chunkable_module_or_batch(
                     batch,
-                    &async_module_info,
+                    async_module_info,
                     module_graph,
                     chunking_context,
                 )

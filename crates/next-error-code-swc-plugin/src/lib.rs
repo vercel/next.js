@@ -57,6 +57,7 @@ fn is_error_class_name(name: &str) -> bool {
         || name == "ExportError"
         || name == "FatalError"
         || name == "ImageError"
+        || name == "InstantValidationError"
         || name == "InvariantError"
         || name == "ModuleBuildError"
         || name == "NestedMiddlewareError"

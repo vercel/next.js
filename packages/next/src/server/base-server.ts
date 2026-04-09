@@ -476,9 +476,9 @@ export default abstract class Server<
       process.env.NEXT_DEPLOYMENT_ID = id
     }
     ;(globalThis as any).NEXT_CLIENT_ASSET_SUFFIX =
-      this.nextConfig.experimental.immutableAssetToken || this.deploymentId
-        ? `?dpl=${this.nextConfig.experimental.immutableAssetToken || this.deploymentId}`
-        : ''
+      this.nextConfig.experimental.supportsImmutableAssets || !this.deploymentId
+        ? ''
+        : `?dpl=${this.deploymentId}`
 
     this.hostname = hostname
     if (this.hostname) {
@@ -584,6 +584,7 @@ export default abstract class Server<
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
+      prefetchHints: {},
       reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
       logServerFunctions:
         typeof this.nextConfig.logging === 'object' &&
@@ -1802,12 +1803,7 @@ export default abstract class Server<
 
       // In dev, we should not cache pages for any reason.
       if (this.dev) {
-        res.setHeader(
-          'Cache-Control',
-          this.nextConfig.experimental.devCacheControlNoCache
-            ? 'no-cache, must-revalidate'
-            : 'no-store, must-revalidate'
-        )
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate')
         cacheControl = undefined
       }
 

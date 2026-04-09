@@ -81,7 +81,6 @@ use crate::{
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
     sri_manifest::get_sri_manifest_asset,
-    webpack_stats::generate_webpack_stats,
 };
 
 #[turbo_tasks::value]
@@ -885,6 +884,7 @@ impl PageEndpoint {
                     self.source(),
                     this.original_name.clone(),
                     *this.pages_structure,
+                    this.pages_project.project().next_config(),
                     runtime,
                 )
                 .await?;
@@ -1347,32 +1347,6 @@ impl PageEndpoint {
             server_assets.push(next_font_manifest_output);
         }
 
-        if *this
-            .pages_project
-            .project()
-            .should_create_webpack_stats()
-            .await?
-        {
-            let webpack_stats = generate_webpack_stats(
-                self.client_module_graph(),
-                this.original_name.clone(),
-                client_assets.await?.into_iter().copied(),
-            )
-            .await?;
-            let stats_output = VirtualOutputAsset::new(
-                node_root.join(&format!(
-                    "server/pages{manifest_path_prefix}/webpack-stats.json",
-                ))?,
-                AssetContent::file(
-                    FileContent::Content(File::from(serde_json::to_string_pretty(&webpack_stats)?))
-                        .cell(),
-                ),
-            )
-            .to_resolved()
-            .await?;
-            server_assets.push(ResolvedVc::upcast(stats_output));
-        }
-
         let page_output = match *ssr_chunk.await? {
             SsrChunk::NodeJs {
                 entry,
@@ -1510,6 +1484,13 @@ impl PageEndpoint {
                     } else {
                         None
                     };
+                    let entrypoint_asset = *assets_ref
+                        .last()
+                        .context("expected assets for edge pages endpoint")?;
+                    let entrypoint = node_root
+                        .get_path_to(&*entrypoint_asset.path().await?)
+                        .context("expected edge pages asset to be within node root")?
+                        .into();
 
                     let edge_function_definition = EdgeFunctionDefinition {
                         files: file_paths_from_root.into_iter().collect(),
@@ -1517,6 +1498,7 @@ impl PageEndpoint {
                         assets: paths_to_bindings(all_assets),
                         name: pages_function_name(&this.original_name).into(),
                         page: this.original_name.clone(),
+                        entrypoint,
                         regions,
                         matchers: vec![matchers],
                         env: this.pages_project.project().edge_env().owned().await?,
