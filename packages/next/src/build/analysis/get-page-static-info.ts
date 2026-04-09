@@ -479,7 +479,11 @@ export function getMiddlewareMatchers(
       if (!isRoot) {
         const parsed = tryToParsePath(originalSource)
         if (parsed.regexStr && new RegExp(parsed.regexStr).test('/')) {
-          const optionalSource = `/:nextData(_next/data/[^/]{1,})?{${originalSource}}?{(\\.json)}?`
+          const i18nPrefix =
+            i18n?.locales && matcher.locale !== false
+              ? '/:nextInternalLocale((?!_next/)[^/.]{1,})'
+              : ''
+          const optionalSource = `/:nextData(_next/data/[^/]{1,})?${i18nPrefix}{${originalSource}}?{(\\.json)}?`
           const candidateSource = `${nextConfig.basePath}${optionalSource}`
           const candidateParsed = tryToParsePath(candidateSource)
           if (!candidateParsed.error) {
