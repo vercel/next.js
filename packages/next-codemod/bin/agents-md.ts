@@ -10,16 +10,12 @@ import pc from 'picocolors'
 import { BadInput } from './shared'
 import {
   getNextjsVersion,
-  findNextProjectDir,
-  hasBundledDocs,
-  writeBundledDocsAgentFiles,
   pullDocs,
   collectDocFiles,
   buildDocTree,
   generateClaudeMdIndex,
   injectIntoClaudeMd,
   ensureGitignoreEntry,
-  type BundledDocsFileAction,
 } from '../lib/agents-md'
 import { onCancel } from '../lib/utils'
 
@@ -40,39 +36,6 @@ function formatSize(bytes: number): string {
 
 export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
   const cwd = process.cwd()
-
-  // Locate the Next.js project dir — the nearest `package.json`
-  // walking up from `cwd` that declares `next` as a dependency, or a
-  // workspace sub-package for monorepo-root invocations. This is the
-  // canonical anchor for AGENTS.md / CLAUDE.md. Skipped when
-  // `--version` is explicitly passed, since that signals the user
-  // wants to pull docs for a specific (potentially not-yet-installed)
-  // version via the legacy git-clone flow.
-  if (!options.version) {
-    const projectDir = findNextProjectDir(cwd)
-    if (projectDir === null) {
-      // No Next.js project found anywhere above `cwd` and no
-      // workspace sub-package declares `next`. Running the
-      // agent-rules codemod here doesn't mean anything — there's no
-      // Next.js install to point agents at. Abort with a clear
-      // message instead of silently falling through to the
-      // interactive legacy flow (which would prompt for a version
-      // and git-clone docs for a project that doesn't exist).
-      throw new BadInput(
-        `No Next.js project found at ${pc.cyan(cwd)} or any ancestor directory. ` +
-          `Run this codemod from a directory whose \`package.json\` declares \`next\` as a dependency, ` +
-          `or cd into the Next.js app's sub-package in a monorepo.`
-      )
-    }
-    if (hasBundledDocs(projectDir)) {
-      runBundledDocsFastPath(projectDir)
-      return
-    }
-    // `projectDir` is a valid Next.js project but on an older
-    // version without bundled docs — fall through to the legacy
-    // git-clone flow below, which will auto-detect the installed
-    // version via `getNextjsVersion(cwd)` downstream.
-  }
 
   // Mode logic:
   // 1. No flags → interactive mode (prompts for version + target file)
@@ -165,41 +128,6 @@ export async function runAgentsMd(options: AgentsMdOptions): Promise<void> {
       `${pc.green('✓')} Added ${pc.bold(DOCS_DIR_NAME)} to .gitignore`
     )
   }
-  console.log('')
-}
-
-function runBundledDocsFastPath(projectDir: string): void {
-  const detectedVersion = getNextjsVersion(projectDir).version
-  const versionLabel = detectedVersion
-    ? pc.cyan(detectedVersion)
-    : pc.cyan('next')
-
-  console.log(
-    `\nDetected bundled docs for Next.js ${versionLabel} in ${pc.cyan(projectDir)}.`
-  )
-  console.log(
-    pc.gray(
-      '  Skipping git clone — writing the agent rules into the existing AGENTS.md or CLAUDE.md.\n'
-    )
-  )
-
-  const result = writeBundledDocsAgentFiles(projectDir)
-
-  const describe = (file: string, action: BundledDocsFileAction) => {
-    // Don't list files we didn't touch at all.
-    if (action === 'skipped') return
-    const symbol = action === 'unchanged' ? pc.gray('•') : pc.green('✓')
-    const verb =
-      action === 'created'
-        ? 'Created'
-        : action === 'updated'
-          ? 'Updated'
-          : 'Up to date:'
-    console.log(`${symbol} ${verb} ${pc.bold(file)}`)
-  }
-
-  describe('AGENTS.md', result.agentsMd)
-  describe('CLAUDE.md', result.claudeMd)
   console.log('')
 }
 

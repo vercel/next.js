@@ -44,82 +44,61 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
 }
 
 /**
- * Find the Next.js project directory — the canonical location for
- * AGENTS.md / CLAUDE.md. This is the nearest ancestor directory with
- * a `package.json` that declares `next` as a dependency.
+ * Assert that `cwd` is a valid Next.js project directory, matching
+ * the same strict check `@next/codemod upgrade` uses:
  *
- * In a monorepo, this resolves to the *sub-package* that actually
- * uses Next.js (e.g. `apps/web/`), never the monorepo root that
- * wraps it. That's because AI coding agents locate agent-rules files
- * by reading from the package they're currently working in — so
- * AGENTS.md must be co-located with the package.json that declares
- * the dependency.
+ *   1. `cwd/package.json` must exist directly (no walk-up).
+ *   2. `next` must be resolvable from `cwd` via Node's module
+ *      resolution (walks up through parent `node_modules/`).
  *
- * Resolution order:
- *   1. Walk up from `cwd` looking for a `package.json` that has
- *      `next` in `dependencies` / `devDependencies` / `peerDependencies`.
- *      Covers the common case (user `cd`'d into the package).
- *   2. If nothing found walking up, fall back to walking the detected
- *      workspace packages from `cwd`. Covers the less-common case
- *      where the user runs the codemod from the monorepo root without
- *      cd'ing into the sub-package first.
+ * Both `upgrade-agents-md` and the `upgrade` post-scaffold hook
+ * require running from the Next.js app directory for this reason —
+ * the AGENTS.md location must be co-located with `package.json`, and
+ * the bundled docs must be resolvable from that same location. Users
+ * running from a subdirectory or from the monorepo root will hit
+ * this and get a clear "cd into the app directory" message.
  *
- * Returns `null` if no Next.js project is found anywhere in the walk.
+ * Returns the resolved `cwd` on success, throws `BadInput` on
+ * failure.
  */
-export function findNextProjectDir(cwd: string): string | null {
-  let currentDir = path.resolve(cwd)
-  while (true) {
-    if (packageJsonHasNext(currentDir)) return currentDir
-    const parent = path.dirname(currentDir)
-    if (parent === currentDir) break
-    currentDir = parent
-  }
-
-  // Fallback for monorepo-root invocations: walk the workspace
-  // packages and find the first one that declares next.
-  const workspace = detectWorkspace(cwd)
-  if (workspace.isMonorepo && workspace.packages.length > 0) {
-    for (const pkgPath of expandWorkspacePatterns(cwd, workspace.packages)) {
-      if (packageJsonHasNext(pkgPath)) return pkgPath
-    }
-  }
-
-  return null
-}
-
-function packageJsonHasNext(dir: string): boolean {
-  try {
-    const content = fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')
-    const pkg = JSON.parse(content)
-    return Boolean(
-      pkg.dependencies?.next ||
-        pkg.devDependencies?.next ||
-        pkg.peerDependencies?.next
+export function requireNextProjectDir(cwd: string): string {
+  const resolved = path.resolve(cwd)
+  const pkgJsonPath = path.join(resolved, 'package.json')
+  if (!fs.existsSync(pkgJsonPath)) {
+    throw new Error(
+      `No package.json found at ${resolved}. Run this command from the Next.js app directory.`
     )
-  } catch {
-    return false
   }
+  try {
+    require.resolve('next/package.json', { paths: [resolved] })
+  } catch {
+    throw new Error(
+      `Failed to resolve next from ${resolved}. If you're using a monorepo, run this command from the Next.js app directory.`
+    )
+  }
+  return resolved
 }
 
 /**
- * Returns true when the Next.js install in `projectDir` ships
- * version-matched bundled docs at `node_modules/next/dist/docs/`.
- * Used to decide between the fast path (which only writes AGENTS.md)
- * and the legacy git-clone flow.
+ * Returns true when the Next.js install resolvable from `projectDir`
+ * ships version-matched bundled docs at `node_modules/next/dist/docs/`.
  *
- * Checked directly at `projectDir/node_modules/next/...` — no Node-
- * resolution walk-up — because that's the only layout where the
- * `node_modules/next/dist/docs/` string we bake into the managed
- * block is guaranteed to resolve correctly from the AGENTS.md
- * location. pnpm's symlinked `node_modules/next` at the sub-package
- * satisfies this. Hoisted `node_modules` layouts that only have
- * `next` at the monorepo root won't match here and will cleanly
- * fall back to the legacy git-clone flow.
+ * Uses `require.resolve` so it correctly finds next in both flat
+ * layouts and hoisted monorepos — then checks whether `dist/docs/`
+ * is present in that install. The managed block always writes the
+ * path as `node_modules/next/dist/docs/` because at a valid
+ * Next.js project dir that string will resolve correctly via Node's
+ * parent-directory `node_modules` walk-up.
  */
 export function hasBundledDocs(projectDir: string): boolean {
-  return isDirectory(
-    path.join(projectDir, 'node_modules', 'next', 'dist', 'docs')
-  )
+  try {
+    const nextPkgPath = require.resolve('next/package.json', {
+      paths: [projectDir],
+    })
+    return isDirectory(path.join(path.dirname(nextPkgPath), 'dist', 'docs'))
+  } catch {
+    return false
+  }
 }
 
 /**

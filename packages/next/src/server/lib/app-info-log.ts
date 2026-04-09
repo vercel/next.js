@@ -132,53 +132,22 @@ function tryReadFile(filePath: string): string | null {
 }
 
 /**
- * Walk up from `startDir` to the nearest directory containing
- * `package.json` — that's the canonical "Next.js project root" and
- * the single authoritative location for `AGENTS.md` / `CLAUDE.md`.
- *
- * In a monorepo this resolves to the *sub-package* (e.g.
- * `apps/web/`), never the monorepo root, because the sub-package's
- * `package.json` is strictly closer to wherever `next dev` was
- * invoked. This matches how AI coding agents locate agent-rules
- * files by default: they read from the project root, which for them
- * is the package they're currently working in.
- *
- * Returns `null` when no `package.json` exists in any ancestor
- * directory (a degenerate setup where running `next dev` would also
- * fail for other reasons).
- */
-function findProjectDir(startDir: string): string | null {
-  let currentDir = path.resolve(startDir)
-  while (true) {
-    if (fs.existsSync(path.join(currentDir, 'package.json'))) {
-      return currentDir
-    }
-    const parent = path.dirname(currentDir)
-    if (parent === currentDir) return null
-    currentDir = parent
-  }
-}
-
-/**
- * Returns true when `AGENTS.md` or `CLAUDE.md` at the Next.js project
- * root (nearest `package.json` walking up from `dir`) contains the
- * managed agent-rules marker. Anchored to the project root rather
- * than walking recursively because that's the only location agents
- * natively look for the files.
+ * Returns true when `AGENTS.md` or `CLAUDE.md` at `dir` contains the
+ * managed agent-rules marker. `dir` is the Next.js project directory
+ * — the same level as `package.json` and the only place AI coding
+ * agents natively look for agent-rules files. In a monorepo that's
+ * the sub-package (e.g. `apps/web/`), never the monorepo root.
  *
  * The only supported way to install the marker is via
- * `npx @next/codemod@canary agents-md`, which writes the managed
- * block to the same project-root directory, keeping the check and
- * the codemod perfectly consistent.
+ * `npx @next/codemod@canary upgrade-agents-md`, which writes the
+ * managed block to the same project directory — keeping the check and
+ * the codemod anchored on the same location.
  */
 function hasAgentRulesInstalled(dir: string): boolean {
-  const projectDir = findProjectDir(dir)
-  if (projectDir === null) return false
-
-  const agentsMdContents = tryReadFile(path.join(projectDir, 'AGENTS.md'))
+  const agentsMdContents = tryReadFile(path.join(dir, 'AGENTS.md'))
   if (agentsMdContents?.includes(AGENT_RULES_MARKER)) return true
 
-  const claudeMdContents = tryReadFile(path.join(projectDir, 'CLAUDE.md'))
+  const claudeMdContents = tryReadFile(path.join(dir, 'CLAUDE.md'))
   if (claudeMdContents?.includes(AGENT_RULES_MARKER)) return true
 
   return false
@@ -199,7 +168,7 @@ function hasAgentRulesInstalled(dir: string): boolean {
  */
 const BYPASS_ENV_VAR = 'NEXT_DISABLE_AGENT_RULE_CHECK'
 
-const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary agents-md'
+const AGENTS_MD_INSTALL_COMMAND = 'npx @next/codemod@canary upgrade-agents-md'
 
 /**
  * Print a yellow `⚠` warning at the end of `next build` when an AI

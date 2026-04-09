@@ -18,7 +18,7 @@ import {
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import {
-  findNextProjectDir,
+  requireNextProjectDir,
   hasBundledDocs,
   writeBundledDocsAgentFiles,
 } from '../lib/agents-md'
@@ -427,15 +427,16 @@ export async function runUpgrade(
 
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
-  // Scaffold `AGENTS.md` + `CLAUDE.md` at the Next.js project dir
-  // (the package.json that declares `next`, never the monorepo root)
-  // if the upgraded Next.js ships version-matched bundled docs.
-  // Mirrors what `create-next-app` does for new projects so existing
-  // projects pick up the agent rules as a natural side effect of
-  // upgrading. No-op on older versions or hoisted layouts where
-  // `node_modules/next/dist/docs/` isn't at the project dir.
-  const projectDir = findNextProjectDir(cwd)
-  if (projectDir !== null && hasBundledDocs(projectDir)) {
+  // Scaffold `AGENTS.md` + `CLAUDE.md` at the Next.js project dir if
+  // the upgraded Next.js ships version-matched bundled docs. `upgrade`
+  // already anchors on `cwd` (see `getInstalledNextVersion` above), so
+  // we reuse the same strict-cwd check here instead of walking up —
+  // the project dir is always `cwd`. Mirrors what `create-next-app`
+  // does for new projects so existing projects pick up the agent
+  // rules as a natural side effect of upgrading. No-op on older
+  // versions without bundled docs.
+  const projectDir = requireNextProjectDir(cwd)
+  if (hasBundledDocs(projectDir)) {
     const result = writeBundledDocsAgentFiles(projectDir)
     const touched: string[] = []
     if (result.agentsMd === 'created' || result.agentsMd === 'updated') {

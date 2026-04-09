@@ -12,6 +12,7 @@
 import { Command } from 'commander'
 import { runUpgrade } from './upgrade'
 import { runAgentsMd } from './agents-md'
+import { runUpgradeAgentsMd } from './upgrade-agents-md'
 import { runTransform } from './transform'
 import { BadInput } from './shared'
 
@@ -91,6 +92,24 @@ program
   .action(async (options) => {
     try {
       await runAgentsMd(options)
+    } catch (error) {
+      if (error instanceof BadInput) {
+        console.error(error.message)
+      } else {
+        console.error(error)
+      }
+      process.exit(1)
+    }
+  })
+
+program
+  .command('upgrade-agents-md')
+  .description(
+    'Scaffold AGENTS.md / CLAUDE.md from the bundled Next.js docs (Next.js 16.2+). Must be run from the Next.js app directory.'
+  )
+  .action(async () => {
+    try {
+      await runUpgradeAgentsMd()
     } catch (error) {
       if (error instanceof BadInput) {
         console.error(error.message)

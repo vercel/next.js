@@ -5,9 +5,10 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { runAgentsMd } = require('../../bin/agents-md')
+const { runUpgradeAgentsMd } = require('../../bin/upgrade-agents-md')
 const {
   getNextjsVersion,
-  findNextProjectDir,
+  requireNextProjectDir,
   hasBundledDocs,
   AGENT_RULES_START_MARKER,
   AGENT_RULES_END_MARKER,
@@ -325,7 +326,7 @@ This is my project documentation.
     }
   }, 30000) // Increase timeout for git clone
 
-  describe('bundled docs fast path', () => {
+  describe('upgrade-agents-md (bundled docs fast path)', () => {
     let fixtureProjectDir
 
     beforeEach(() => {
@@ -343,48 +344,70 @@ This is my project documentation.
       }
     })
 
-    it('findNextProjectDir + hasBundledDocs fork correctly for each layout', () => {
+    it('requireNextProjectDir + hasBundledDocs correctly gate the fast path', () => {
       // Flat layout: project dir is the fixture root itself; bundled
       // docs are detected because `node_modules/next/dist/docs` exists.
-      expect(findNextProjectDir(fixtureProjectDir)).toBe(fixtureProjectDir)
+      expect(requireNextProjectDir(fixtureProjectDir)).toBe(fixtureProjectDir)
       expect(hasBundledDocs(fixtureProjectDir)).toBe(true)
 
-      // A project with no `next` installed at all returns null for
-      // findNextProjectDir (nothing to anchor on).
+      // A project with no `next` installed at all throws — strict cwd
+      // check, same contract as `codemod upgrade`.
       const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-md-bare-'))
       try {
-        expect(findNextProjectDir(bareDir)).toBeNull()
+        expect(() => requireNextProjectDir(bareDir)).toThrow(
+          /No package\.json found|Failed to resolve next/
+        )
       } finally {
         fs.rmSync(bareDir, { recursive: true, force: true })
       }
 
       // A project with `next` declared in package.json but no
       // `dist/docs/` (e.g. 15.x) resolves the project dir but
-      // hasBundledDocs returns false — this is the legacy-flow fork
-      // point.
+      // hasBundledDocs returns false — upgrade-agents-md refuses to
+      // proceed on that install.
       const legacyFixture = path.join(
         __dirname,
         'fixtures/agents-md/next-specific-version'
       )
-      expect(findNextProjectDir(legacyFixture)).toBe(legacyFixture)
+      expect(requireNextProjectDir(legacyFixture)).toBe(legacyFixture)
       expect(hasBundledDocs(legacyFixture)).toBe(false)
     })
 
     it('aborts with a clear error when run outside any Next.js project', async () => {
-      // Simulates running the codemod in a directory with no
-      // `package.json` anywhere up the tree that declares `next`.
-      // Falling through to the interactive legacy flow here would be
-      // incoherent — there's no Next.js install to install agent
-      // rules *for*. The codemod must abort with an actionable
-      // message instead.
+      // No `package.json` at cwd — running the bundled-docs command
+      // here would have nothing to install rules *for*. The strict
+      // cwd check must abort with an actionable message instead of
+      // silently falling through.
       const bareDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agents-md-bare-'))
       const originalCwd = process.cwd()
       process.chdir(bareDir)
       try {
-        await expect(runAgentsMd({})).rejects.toThrow(/No Next\.js project found/)
+        await expect(runUpgradeAgentsMd()).rejects.toThrow(
+          /No package\.json found|Failed to resolve next/
+        )
       } finally {
         process.chdir(originalCwd)
         fs.rmSync(bareDir, { recursive: true, force: true })
+      }
+    })
+
+    it('aborts when the installed Next.js has no bundled docs', async () => {
+      // A real Next.js project but on an older version that predates
+      // bundled docs. `upgrade-agents-md` must refuse and point the
+      // user at the legacy `agents-md` command instead of silently
+      // no-op'ing.
+      const legacyFixture = path.join(
+        __dirname,
+        'fixtures/agents-md/next-specific-version'
+      )
+      const originalCwd = process.cwd()
+      process.chdir(legacyFixture)
+      try {
+        await expect(runUpgradeAgentsMd()).rejects.toThrow(
+          /does not ship bundled docs/
+        )
+      } finally {
+        process.chdir(originalCwd)
       }
     })
 
@@ -393,7 +416,7 @@ This is my project documentation.
       process.chdir(fixtureProjectDir)
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         const agentsMdPath = path.join(fixtureProjectDir, 'AGENTS.md')
         const claudeMdPath = path.join(fixtureProjectDir, 'CLAUDE.md')
@@ -413,7 +436,6 @@ This is my project documentation.
         expect(claudeMdContent.trim()).toBe('@AGENTS.md')
 
         const output = consoleOutput.join('\n')
-        expect(output).toContain('bundled docs')
         expect(output).toContain('AGENTS.md')
         expect(output).toContain('CLAUDE.md')
         expect(output).not.toContain('Downloading Next.js')
@@ -427,14 +449,14 @@ This is my project documentation.
       process.chdir(fixtureProjectDir)
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         const agentsMdPath = path.join(fixtureProjectDir, 'AGENTS.md')
         const claudeMdPath = path.join(fixtureProjectDir, 'CLAUDE.md')
         const firstAgents = fs.readFileSync(agentsMdPath, 'utf-8')
         const firstClaude = fs.readFileSync(claudeMdPath, 'utf-8')
 
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         expect(fs.readFileSync(agentsMdPath, 'utf-8')).toBe(firstAgents)
         expect(fs.readFileSync(claudeMdPath, 'utf-8')).toBe(firstClaude)
@@ -459,7 +481,7 @@ Custom team instructions.
       )
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         const agentsMdContent = fs.readFileSync(
           path.join(fixtureProjectDir, 'AGENTS.md'),
@@ -485,9 +507,9 @@ Custom team instructions.
       process.chdir(fixtureProjectDir)
 
       // Simulate a project that ran the pre-bundled-docs `agents-md` codemod.
-      // It would have an `AGENTS.md` (or here, `CLAUDE.md` since AGENTS.md
-      // is absent in the fixture) wrapping a `.next-docs/`-style doc index
-      // in the legacy markers — and probably some user content around it.
+      // Its `CLAUDE.md` wraps a `.next-docs/`-style doc index in the legacy
+      // markers, with user content around it. `upgrade-agents-md` must strip
+      // the stale legacy block so the file ends up with one source of truth.
       const existingClaude = `# My Project
 
 Custom rules above.
@@ -502,7 +524,7 @@ Custom rules below.
       )
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         const claudeMdContent = fs.readFileSync(
           path.join(fixtureProjectDir, 'CLAUDE.md'),
@@ -549,7 +571,7 @@ Footer content.
       )
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         const agentsMdContent = fs.readFileSync(
           path.join(fixtureProjectDir, 'AGENTS.md'),
@@ -581,7 +603,7 @@ Footer content.
       )
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         const claudeMdContent = fs.readFileSync(
           path.join(fixtureProjectDir, 'CLAUDE.md'),
@@ -618,7 +640,7 @@ Footer content.
       )
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         const agentsMdContent = fs.readFileSync(
           path.join(fixtureProjectDir, 'AGENTS.md'),
@@ -636,38 +658,9 @@ Footer content.
         process.chdir(originalCwd)
       }
     })
-
-    it('--version flag forces the legacy flow even when bundled docs exist', async () => {
-      const originalCwd = process.cwd()
-      process.chdir(fixtureProjectDir)
-
-      try {
-        await runAgentsMd({
-          version: '15.0.0',
-          output: 'CLAUDE.md',
-        })
-
-        // Legacy flow: .next-docs/ directory created from git clone.
-        const dotNextDocsPath = path.join(fixtureProjectDir, '.next-docs')
-        expect(fs.existsSync(dotNextDocsPath)).toBe(true)
-
-        const claudeMdContent = fs.readFileSync(
-          path.join(fixtureProjectDir, 'CLAUDE.md'),
-          'utf-8'
-        )
-        expect(claudeMdContent).toContain('<!-- NEXT-AGENTS-MD-START -->')
-        expect(claudeMdContent).toContain('[Next.js Docs Index]')
-
-        const output = consoleOutput.join('\n')
-        expect(output).toContain('Downloading Next.js')
-        expect(output).toContain('15.0.0')
-      } finally {
-        process.chdir(originalCwd)
-      }
-    }, 30000)
   })
 
-  describe('bundled docs fast path (monorepo)', () => {
+  describe('upgrade-agents-md (monorepo)', () => {
     let monorepoProjectDir
 
     beforeEach(() => {
@@ -685,39 +678,39 @@ Footer content.
       }
     })
 
-    it('findNextProjectDir resolves to the sub-package, not the monorepo root', () => {
+    it('refuses to run from the monorepo root (strict cwd check)', async () => {
       // In the monorepo fixture, `next` is declared in
       // `apps/web/package.json`, NOT in the monorepo root's
-      // `package.json`. findNextProjectDir must return the
-      // sub-package dir — that's the canonical location for
-      // AGENTS.md, per the "package.json level" rule.
-      const expectedProjectDir = path.join(
-        monorepoProjectDir,
-        'apps',
-        'web'
-      )
-      expect(findNextProjectDir(monorepoProjectDir)).toBe(expectedProjectDir)
-      expect(hasBundledDocs(expectedProjectDir)).toBe(true)
-    })
-
-    it('writes AGENTS.md into the sub-package with a local docs path', async () => {
+      // `package.json`. `upgrade-agents-md` anchors strictly on
+      // `cwd` — same contract as `codemod upgrade` — so invoking it
+      // from the monorepo root must abort with an actionable
+      // message instead of walking up or silently targeting the
+      // wrong directory.
       const originalCwd = process.cwd()
       process.chdir(monorepoProjectDir)
+      try {
+        await expect(runUpgradeAgentsMd()).rejects.toThrow(
+          /Failed to resolve next/
+        )
+      } finally {
+        process.chdir(originalCwd)
+      }
+    })
+
+    it('writes AGENTS.md into the sub-package when invoked from there', async () => {
+      const subPackageDir = path.join(monorepoProjectDir, 'apps', 'web')
+      const originalCwd = process.cwd()
+      process.chdir(subPackageDir)
 
       try {
-        await runAgentsMd({})
+        await runUpgradeAgentsMd()
 
         // AGENTS.md must land at the sub-package, NOT at the monorepo
         // root. Agents locate agent-rules files at the package level
         // they're working in, so `apps/web/AGENTS.md` is the only
         // location they'll actually read.
         const rootAgentsPath = path.join(monorepoProjectDir, 'AGENTS.md')
-        const subPackageAgentsPath = path.join(
-          monorepoProjectDir,
-          'apps',
-          'web',
-          'AGENTS.md'
-        )
+        const subPackageAgentsPath = path.join(subPackageDir, 'AGENTS.md')
         expect(fs.existsSync(rootAgentsPath)).toBe(false)
         expect(fs.existsSync(subPackageAgentsPath)).toBe(true)
 
@@ -725,10 +718,10 @@ Footer content.
           subPackageAgentsPath,
           'utf-8'
         )
-        // Because AGENTS.md is now co-located with the sub-package's
-        // own `node_modules/next/`, the block references the plain
+        // Because AGENTS.md is co-located with the sub-package's own
+        // `node_modules/next/`, the block references the plain
         // `node_modules/next/dist/docs/` path — same string we'd
-        // write for a flat project. No more monorepo-relative paths.
+        // write for a flat project. No monorepo-relative paths.
         expect(agentsMdContent).toContain(AGENT_RULES_START_MARKER)
         expect(agentsMdContent).toContain('`node_modules/next/dist/docs/`')
         expect(agentsMdContent).not.toContain(

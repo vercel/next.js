@@ -92,7 +92,9 @@ describe('warnIfMissingAgentRules', () => {
     const loggedMessage = warnSpy.mock.calls[0].join(' ')
 
     // Install command + both filenames.
-    expect(loggedMessage).toContain('npx @next/codemod@canary agents-md')
+    expect(loggedMessage).toContain(
+      'npx @next/codemod@canary upgrade-agents-md'
+    )
     expect(loggedMessage).toContain('AGENTS.md')
     expect(loggedMessage).toContain('CLAUDE.md')
 
@@ -120,33 +122,20 @@ describe('warnIfMissingAgentRules', () => {
     expect(loggedMessage).not.toContain('strongly discouraged')
   })
 
-  it('anchors the check at the nearest package.json walking up from a subdirectory', () => {
-    // Simulates running `next dev` from a nested source directory.
-    // The check anchors on the nearest `package.json` walking up,
-    // so AGENTS.md at the fixture root (which has package.json)
-    // is the file we check. AGENTS.md at the subdir itself would
-    // NOT be checked because it's "below" the package.json level.
-    process.env.CLAUDECODE = '1'
-    const subDir = path.join(tmpDir, 'src', 'app')
-    fs.mkdirSync(subDir, { recursive: true })
-    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-
-    warnIfMissingAgentRules(subDir)
-    expect(warnSpy).not.toHaveBeenCalled()
-  })
-
-  it('anchors on the nearest package.json, not the monorepo root', () => {
-    // Monorepo layout: package.json at both the root and at
-    // `apps/web/`. The check from `apps/web/` must anchor on
-    // `apps/web/package.json` — the *nearest* one — and look for
-    // AGENTS.md there, NOT at the monorepo root. A marker at the
-    // monorepo root must not count.
+  it('only checks the Next.js project directory — a marker in an ancestor does not count', () => {
+    // The check is strictly anchored on `dir` (the Next.js project
+    // directory — `next dev` already resolves this via
+    // `getProjectDir` before calling into the gate). A marker
+    // dropped at a parent directory is irrelevant: AI agents read
+    // agent-rules files from the package they're working in, not
+    // from some ancestor. In a monorepo this means the marker must
+    // live in the app sub-package, never at the monorepo root.
     process.env.CLAUDECODE = '1'
     const appDir = path.join(tmpDir, 'apps', 'web')
     fs.mkdirSync(appDir, { recursive: true })
     fs.writeFileSync(path.join(appDir, 'package.json'), '{"name": "web"}')
-    // Put the marker at the monorepo root (wrong place for an
-    // `apps/web/` invocation).
+    // Marker at the monorepo root — wrong place for an
+    // `apps/web/` invocation.
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
 
     warnIfMissingAgentRules(appDir)
@@ -154,7 +143,7 @@ describe('warnIfMissingAgentRules', () => {
   })
 
   it('respects the marker when it is in the sub-package, not the monorepo root', () => {
-    // Same monorepo layout as above, but the marker is now in the
+    // Same monorepo layout, but the marker is now in the
     // sub-package (where it belongs). The check must find it.
     process.env.CLAUDECODE = '1'
     const appDir = path.join(tmpDir, 'apps', 'web')
@@ -237,7 +226,7 @@ describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
     expect(message).toContain('fail at runtime')
 
     // Primary fix — the codemod command.
-    expect(message).toContain('npx @next/codemod@canary agents-md')
+    expect(message).toContain('npx @next/codemod@canary upgrade-agents-md')
 
     // Escape hatch — disclosed, but env var not a CLI flag (agents
     // grab CLI flags more readily than env vars), and explicitly
