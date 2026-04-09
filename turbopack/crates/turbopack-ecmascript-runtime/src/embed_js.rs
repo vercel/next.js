@@ -1,8 +1,12 @@
 use anyhow::Result;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{FileContent, FileSystem, FileSystemPath, embed_directory};
-use turbopack_core::{code_builder::Code, context::AssetContext};
+use turbopack_core::{
+    code_builder::Code,
+    context::AssetContext,
+    resolve::options::{ImportMap, ImportMapping},
+};
 use turbopack_ecmascript::StaticEcmascriptCode;
 
 #[turbo_tasks::function]
@@ -32,4 +36,24 @@ pub async fn embed_static_code(
         generate_source_map,
     )
     .code())
+}
+
+/// Returns an [ImportMap] containing aliases for all built-in `@turbopack/*`
+/// modules backed by the embedded turbopack-ecmascript-runtime filesystem.
+///
+/// Callers should merge this into their [ResolveOptionsContext] so that
+/// generated virtual modules (e.g. from [BytesSourceTransform]) can resolve
+/// their imports.  As more parts of the turbopack runtime are extracted into
+/// importable modules they should be added here.
+#[turbo_tasks::function]
+pub async fn turbopack_internal_import_map() -> Result<Vc<ImportMap>> {
+    let embed_root = embed_fs().root().owned().await?;
+
+    let mut import_map = ImportMap::default();
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/base64"),
+        ImportMapping::PrimaryAlternative(rcstr!("./shared/base64.ts"), Some(embed_root))
+            .resolved_cell(),
+    );
+    Ok(import_map.cell())
 }

@@ -1,3 +1,11 @@
+'use turbopack no side effects'
+
+// Evaluate the ES2024 feature check once at module load time.
+const _fromBase64: ((s: string) => Uint8Array) | null =
+  typeof (Uint8Array as any).fromBase64 === 'function'
+    ? (Uint8Array as any).fromBase64
+    : null
+
 /**
  * Decodes a base64 string to a Uint8Array.
  *
@@ -5,8 +13,8 @@
  * with an `atob()`-based fallback for older environments.
  */
 export function base64Decode(base64: string): Uint8Array {
-  if (typeof (Uint8Array as any).fromBase64 === 'function') {
-    return (Uint8Array as any).fromBase64(base64)
+  if (_fromBase64 !== null) {
+    return _fromBase64(base64)
   }
   const binaryString = atob(base64)
   const buffer = new Uint8Array(binaryString.length)

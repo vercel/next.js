@@ -1397,26 +1397,18 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
     );
 }
 
-/// Inserts an alias to @vercel/turbopack-dev into an import map.
+/// Inserts aliases for @vercel/turbopack-ecmascript-runtime and all built-in
+/// @turbopack/* modules into an import map.
 async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
-    let embed_root = turbopack_ecmascript_runtime::embed_fs()
-        .root()
-        .owned()
-        .await?;
-
     insert_package_alias(
         import_map,
         "@vercel/turbopack-ecmascript-runtime/",
-        embed_root.clone(),
+        turbopack_ecmascript_runtime::embed_fs()
+            .root()
+            .owned()
+            .await?,
     );
-
-    // Exact alias for the shared base64 decode helper, used by BytesSourceTransform.
-    import_map.insert_exact_alias(
-        rcstr!("@turbopack/base64"),
-        ImportMapping::PrimaryAlternative(rcstr!("./shared/base64.ts"), Some(embed_root))
-            .resolved_cell(),
-    );
-
+    import_map.extend_ref(&*turbopack_ecmascript_runtime::turbopack_internal_import_map().await?);
     Ok(())
 }
 
