@@ -414,6 +414,15 @@ where
         Ok(())
     }
 
+    /// Registers an order dependency from the currently executing task to this Vc's task.
+    ///
+    /// This affects only scheduling order during invalidation: the current task will be
+    /// scheduled after this Vc's task. It does NOT cause invalidation when this Vc's
+    /// output changes — use `.await` or `.resolve()` for that.
+    pub fn add_order_dependency(self) {
+        self.node.add_order_dependency();
+    }
+
     /// Do not use this: Use [`Vc::to_resolved`] instead. If you must have a resolved [`Vc`] type
     /// and not a [`ResolvedVc`] type, simply deref the result of [`Vc::to_resolved`].
     pub fn resolve(self) -> ResolveVcFuture<T> {

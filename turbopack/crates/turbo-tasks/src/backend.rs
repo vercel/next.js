@@ -631,6 +631,17 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
+    /// Registers an order dependency: `reader` should be scheduled after `dependency`.
+    /// This affects leaf distance propagation only, not invalidation.
+    fn add_order_dependency(
+        &self,
+        _dependency: TaskId,
+        _reader: TaskId,
+        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        // Default: no-op
+    }
+
     fn mark_own_task_as_finished(
         &self,
         _task: TaskId,

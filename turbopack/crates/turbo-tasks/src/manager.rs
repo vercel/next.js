@@ -183,6 +183,10 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
 
     fn connect_task(&self, task: TaskId);
 
+    /// Registers an order dependency from the currently executing task to the given task.
+    /// This only affects leaf distance propagation and scheduling order, not invalidation.
+    fn add_order_dependency(&self, task: TaskId);
+
     /// Wraps the given future in the current task.
     ///
     /// Beware: this method is not safe to use in production code. It is only intended for use in
@@ -1635,6 +1639,12 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
     fn connect_task(&self, task: TaskId) {
         self.backend
             .connect_task(task, current_task_if_available("connecting task"), self);
+    }
+
+    fn add_order_dependency(&self, task: TaskId) {
+        if let Some(reader) = current_task_if_available("add_order_dependency") {
+            self.backend.add_order_dependency(task, reader, self);
+        }
     }
 
     fn mark_own_task_as_finished(&self, task: TaskId) {

@@ -1975,6 +1975,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                 let outdated_output_dependencies = task.iter_output_dependencies().collect();
                 task.set_outdated_output_dependencies(outdated_output_dependencies);
+
+                let outdated_order_dependencies = task.iter_order_dependencies().collect();
+                task.set_outdated_order_dependencies(outdated_order_dependencies);
             }
         }
 
@@ -2306,6 +2309,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             old_edges.extend(
                 task.iter_outdated_output_dependencies()
                     .map(OutdatedEdge::OutputDependency),
+            );
+            old_edges.extend(
+                task.iter_outdated_order_dependencies()
+                    .map(OutdatedEdge::OrderDependency),
             );
         }
 
@@ -3127,6 +3134,40 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         ConnectChildOperation::run(parent_task, task, None, self.execute_context(turbo_tasks));
     }
 
+    fn add_order_dependency(
+        &self,
+        dependency: TaskId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let (mut dep_task, mut reader_task) =
+            ctx.task_pair(dependency, reader, TaskDataCategory::Data);
+        let mut queue = LeafDistanceUpdateQueue::new();
+
+        if dep_task.add_order_dependent(reader) {
+            // Ensure that dependent leaf distance is strictly monotonic increasing
+            let leaf_distance = dep_task.get_leaf_distance().copied().unwrap_or_default();
+            let reader_leaf_distance = reader_task.get_leaf_distance().copied().unwrap_or_default();
+            if reader_leaf_distance.distance <= leaf_distance.distance {
+                queue.push(
+                    reader,
+                    leaf_distance.distance,
+                    leaf_distance.max_distance_in_buffer,
+                );
+            }
+        }
+
+        drop(dep_task);
+
+        if !reader_task.remove_outdated_order_dependencies(&dependency) {
+            let _ = reader_task.add_order_dependencies(dependency);
+        }
+        drop(reader_task);
+
+        queue.execute(&mut ctx);
+    }
+
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
         let task_id = self.transient_task_id_factory.get();
         {
@@ -3648,6 +3689,15 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.connect_task(task, parent_task, turbo_tasks);
+    }
+
+    fn add_order_dependency(
+        &self,
+        dependency: TaskId,
+        reader: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0.add_order_dependency(dependency, reader, turbo_tasks);
     }
 
     fn create_transient_task(

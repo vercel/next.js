@@ -177,6 +177,18 @@ impl RawVc {
         tt.connect_task(*task_id);
     }
 
+    pub(crate) fn add_order_dependency(&self) {
+        let tt = turbo_tasks();
+        match self {
+            RawVc::TaskOutput(task_id) | RawVc::TaskCell(task_id, ..) => {
+                tt.add_order_dependency(*task_id);
+            }
+            RawVc::LocalOutput(..) => {
+                // Local outputs are in the same task, so order dependencies are meaningless.
+            }
+        }
+    }
+
     pub fn try_get_task_id(&self) -> Option<TaskId> {
         match self {
             RawVc::TaskOutput(t) | RawVc::TaskCell(t, ..) => Some(*t),

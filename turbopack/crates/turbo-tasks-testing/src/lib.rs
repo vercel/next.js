@@ -291,6 +291,10 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
+    fn add_order_dependency(&self, _task: TaskId) {
+        // no-op
+    }
+
     fn mark_own_task_as_finished(&self, _task: TaskId) {
         // no-op
     }

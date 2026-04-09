@@ -164,7 +164,10 @@ impl LeafDistanceUpdateQueue {
         // TODO Technically CellDependent is also needed, but there are cycles in the CellDependent
         // graph. So we need to handle that properly first. When enabling this, make sure to also
         // call the leaf update queue when adding CellDependents.
-        for dependent_id in task.iter_output_dependent() {
+        for dependent_id in task
+            .iter_output_dependent()
+            .chain(task.iter_order_dependent())
+        {
             self.push(
                 dependent_id,
                 leaf_distance.distance,

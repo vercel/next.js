@@ -77,6 +77,12 @@ struct TaskStorageSchema {
     #[field(storage = "auto_set", category = "data", inline, filter_transient)]
     output_dependent: AutoSet<TaskId>,
 
+    /// Tasks that have an order dependency on this task.
+    /// Order dependencies only affect leaf distance propagation and scheduling order,
+    /// not invalidation.
+    #[field(storage = "auto_set", category = "data", filter_transient)]
+    order_dependent: AutoSet<TaskId>,
+
     /// The task's output value.
     /// Filtered during serialization to skip transient outputs (referencing transient tasks).
     #[field(storage = "direct", category = "meta", inline, filter_transient)]
@@ -248,6 +254,18 @@ struct TaskStorageSchema {
     )]
     collectibles_dependencies: AutoSet<CollectiblesRef>,
 
+    /// Tasks this task has order dependencies on.
+    /// Order dependencies only affect leaf distance propagation and scheduling order,
+    /// not invalidation.
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        filter_transient,
+        shrink_on_completion,
+        drop_on_completion_if_immutable
+    )]
+    order_dependencies: AutoSet<TaskId>,
+
     /// Outdated output dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
     outdated_output_dependencies: AutoSet<TaskId>,
@@ -259,6 +277,10 @@ struct TaskStorageSchema {
     /// Outdated collectibles dependencies to be cleaned up (transient).
     #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
     outdated_collectibles_dependencies: AutoSet<CollectiblesRef>,
+
+    /// Outdated order dependencies to be cleaned up (transient).
+    #[field(storage = "auto_set", category = "transient", shrink_on_completion)]
+    outdated_order_dependencies: AutoSet<TaskId>,
 
     // =========================================================================
     // DEPENDENTS - Tasks that depend on this task's cells

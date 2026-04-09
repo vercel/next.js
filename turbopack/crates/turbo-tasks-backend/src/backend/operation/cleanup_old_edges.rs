@@ -41,6 +41,7 @@ pub enum OutdatedEdge {
     Collectible(CollectibleRef, i32),
     CellDependency(CellRef, Option<u64>),
     OutputDependency(TaskId),
+    OrderDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
 }
 
@@ -191,6 +192,16 @@ impl Operation for CleanupOldEdgesOperation {
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
                                     task.remove_output_dependencies(&output_task_id);
+                                }
+                            }
+                            OutdatedEdge::OrderDependency(order_task_id) => {
+                                {
+                                    let mut task = ctx.task(order_task_id, TaskDataCategory::Data);
+                                    task.remove_order_dependent(&task_id);
+                                }
+                                {
+                                    let mut task = ctx.task(task_id, TaskDataCategory::Data);
+                                    task.remove_order_dependencies(&order_task_id);
                                 }
                             }
                             OutdatedEdge::CollectiblesDependency(CollectiblesRef {
