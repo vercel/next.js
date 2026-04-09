@@ -27,7 +27,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 import {
-  checkAgentRulesForDev,
+  checkAgentRules,
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
@@ -384,7 +384,7 @@ export async function startServer(
       // length and surfaces a last-resort `NEXT_DISABLE_AGENT_RULE_CHECK`
       // env var for locked-down environments.
       if (isDev) {
-        const agentRulesError = checkAgentRulesForDev(dir)
+        const agentRulesError = checkAgentRules(dir, 'dev')
         if (agentRulesError !== null) {
           Log.error(agentRulesError)
           process.exit(1)

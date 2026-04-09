@@ -4,8 +4,8 @@ import { saveCpuProfile } from '../server/lib/cpu-profile'
 import { existsSync } from 'fs'
 import { italic } from '../lib/picocolors'
 import build from '../build'
-import { warn } from '../build/output/log'
-import { warnIfMissingAgentRules } from '../server/lib/app-info-log'
+import { warn, error as logError } from '../build/output/log'
+import { checkAgentRules } from '../server/lib/app-info-log'
 import { printAndExit } from '../server/lib/utils'
 import isError from '../lib/is-error'
 import { getProjectDir } from '../lib/get-project-dir'
@@ -104,6 +104,19 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
+  // Agent-rules gate: hard-fail `next build` when an AI coding agent
+  // is driving the build and the managed block isn't installed in
+  // AGENTS.md/CLAUDE.md. Fires before any bundling work so the
+  // developer doesn't burn minutes on a build they're about to throw
+  // away. Safe to fail hard here because `detectAgent()` only
+  // inspects env vars set by AI coding tools — CI pipelines don't
+  // set them, so this gate never fires on a real build server.
+  const agentRulesError = checkAgentRules(dir, 'build')
+  if (agentRulesError !== null) {
+    logError(agentRulesError)
+    process.exit(1)
+  }
+
   // Resolve selective build paths
   let resolvedBuildPaths: { app: string[]; pages: string[] } | undefined
 
@@ -148,15 +161,6 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     resolvedBuildPaths,
     enabledFeatures
   )
-    .then((result) => {
-      // Fire the agent-rules warning as the very last line of `next build`
-      // output when an AI coding agent is driving the build. Tail-of-log
-      // recency means agents are much more likely to surface this than a
-      // warning buried early in the build pipeline. `warnIfMissingAgentRules`
-      // is already gated on `detectAgent()`, so humans never see it.
-      warnIfMissingAgentRules(dir)
-      return result
-    })
     .catch((err) => {
       if (experimentalDebugMemoryUsage) {
         disableMemoryDebuggingMode()
