@@ -236,7 +236,7 @@ export default async function Page({ params }) {
 }
 ```
 
-Exact `Route (app)` lines can differ slightly by Next.js version. The snippets below show a representative `/products/[id]` route with `generateStaticParams`. When Cache Components is on, you may see **`◐` (Partial Prerender)** on the dynamic segment and **`○` (Static)** on prerendered param paths instead of **`●` (SSG)**. Use this as a quick legend for your own `next build` output, not a checklist to match line for line.
+With Cache Components enabled, [Partial Prerendering (PPR)](/docs/app/guides/public-static-pages#partial-prerendering) is the default for eligible routes, so the `Route (app)` section from `next build` reflects that model. Exact lines can differ slightly by Next.js version. The snippets below show a representative `/products/[id]` route with `generateStaticParams`. You may see **`◐` (Partial Prerender)** on the dynamic segment and **`○` (Static)** on prerendered param paths where you previously saw **`●` (SSG)**.
 
 **Before Cache Components:**
 
@@ -267,7 +267,7 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-In the legend, **`◐`** means a static prerendered shell with dynamic content streamed on the request. That behavior is [Partial Prerendering (PPR)](/docs/app/guides/public-static-pages#partial-prerendering). See [Building](/docs/app/guides/building) for the full `next build` output reference.
+In the legend, **`◐`** marks a static prerendered shell with dynamic content streamed on the request. See [Building](/docs/app/guides/building) for the full `next build` output reference.
 
 ## `runtime = 'edge'`
 
