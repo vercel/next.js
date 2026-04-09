@@ -1,7 +1,9 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { warnIfMissingAgentRules, getAgentRulesDevError } from './app-info-log'
+import { warnIfMissingAgentRules, checkAgentRulesForDev } from './app-info-log'
+
+const GATE_STATE_FILE = path.join('.next', 'dev', 'agent-rules-gate-fired')
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 
@@ -95,7 +97,7 @@ describe('warnIfMissingAgentRules (build-side notice)', () => {
   })
 })
 
-describe('getAgentRulesDevError (dev-side hard gate)', () => {
+describe('checkAgentRulesForDev (dev-side gate with retry softening)', () => {
   let tmpDir: string
   let originalEnv: NodeJS.ProcessEnv
 
@@ -111,25 +113,82 @@ describe('getAgentRulesDevError (dev-side hard gate)', () => {
   })
 
   it('returns null when no agent is detected', () => {
-    expect(getAgentRulesDevError(tmpDir)).toBeNull()
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
   })
 
   it('returns null when the marker is installed in AGENTS.md', () => {
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(getAgentRulesDevError(tmpDir)).toBeNull()
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
   })
 
   it('returns null when the marker is installed in CLAUDE.md', () => {
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(getAgentRulesDevError(tmpDir)).toBeNull()
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('returns a factual framework error when rules are missing', () => {
+  it('clears prior gate state when the marker is (re-)installed', () => {
     process.env.CLAUDECODE = '1'
-    const error = getAgentRulesDevError(tmpDir)
-    expect(error).not.toBeNull()
-    assertFactualFrameworkError(error!)
+    // Pre-seed the gate state file to simulate a prior failure.
+    fs.mkdirSync(path.join(tmpDir, '.next', 'dev'), { recursive: true })
+    fs.writeFileSync(path.join(tmpDir, GATE_STATE_FILE), '')
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
+
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+    // State file must be cleared so a future regression starts fresh.
+    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
+  })
+
+  it('first failure is fatal and writes the gate state marker', () => {
+    process.env.CLAUDECODE = '1'
+
+    const result = checkAgentRulesForDev(tmpDir)
+    expect(result).not.toBeNull()
+    // First failure must be fatal so the caller hard-exits.
+    expect(result!.fatal).toBe(true)
+    assertFactualFrameworkError(result!.message)
+
+    // The state file must now exist so the next run sees this as a repeat.
+    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
+  })
+
+  it('second failure is non-fatal (soft warning) with the same message', () => {
+    process.env.CLAUDECODE = '1'
+
+    const first = checkAgentRulesForDev(tmpDir)
+    const second = checkAgentRulesForDev(tmpDir)
+
+    expect(first).not.toBeNull()
+    expect(second).not.toBeNull()
+    expect(first!.fatal).toBe(true)
+    // Crucially: the second consecutive failure is soft. The caller logs
+    // the message but lets dev startup continue, so nobody is permanently
+    // locked out of the dev server.
+    expect(second!.fatal).toBe(false)
+    // The message body is identical — we deliberately do NOT advertise the
+    // retry-softens behavior or any bypass, so agents can't game it.
+    expect(second!.message).toBe(first!.message)
+  })
+
+  it('state resets after install + removal: first failure is fatal again', () => {
+    process.env.CLAUDECODE = '1'
+
+    // First failure: fatal, state written.
+    const firstFailure = checkAgentRulesForDev(tmpDir)
+    expect(firstFailure!.fatal).toBe(true)
+    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(true)
+
+    // User installs rules. State cleared.
+    fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
+    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+    expect(fs.existsSync(path.join(tmpDir, GATE_STATE_FILE))).toBe(false)
+
+    // User removes rules. Next failure must start a fresh cycle — fatal
+    // again, not immediately soft.
+    fs.unlinkSync(path.join(tmpDir, 'AGENTS.md'))
+    const freshFailure = checkAgentRulesForDev(tmpDir)
+    expect(freshFailure).not.toBeNull()
+    expect(freshFailure!.fatal).toBe(true)
   })
 })
