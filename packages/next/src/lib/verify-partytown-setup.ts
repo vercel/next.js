@@ -91,7 +91,8 @@ export async function verifyPartytownSetup(
     // Don't show a stack trace when there is an error due to missing dependencies
     if (err instanceof FatalError) {
       console.error(err.message)
-      process.exit(1)
+      // Throw to allow finally blocks to run (e.g., telemetry flush)
+      throw err
     }
     throw err
   }

@@ -1,5 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox } from 'next-test-utils'
+import { waitForNoRedbox } from 'next-test-utils'
 
 describe('hello-world', () => {
   const { next } = nextTestSetup({
@@ -11,7 +11,7 @@ describe('hello-world', () => {
   if (isNextDev) {
     it('should not indicate there is an error when incidental math.random calls occur during component tree generation during dev', async () => {
       const browser = await next.browser('/')
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
 
       // The redbox assertion is currently unreliable in this test and so this is an additional check to ensure the CLI didn't print anything with `Math.random()` in it.
       expect(next.cliOutput).not.toContain('Math.random()')

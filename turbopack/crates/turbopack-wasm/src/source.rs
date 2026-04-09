@@ -1,5 +1,6 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
@@ -17,11 +18,11 @@ use turbopack_core::{
     Debug,
     Copy,
     Clone,
-    Serialize,
-    Deserialize,
     TaskInput,
     TraceRawVcs,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum WebAssemblySourceType {
     /// Binary WebAssembly files (.wasm).
@@ -59,6 +60,14 @@ impl Source for WebAssemblySource {
                 .with_path(self.source.ident().path().await?.append("_.wasm")?),
         })
     }
+
+    #[turbo_tasks::function]
+    async fn description(&self) -> Result<Vc<RcStr>> {
+        let inner = self.source.description().await?;
+        Ok(Vc::cell(
+            format!("WebAssembly transform of {}", inner).into(),
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -79,6 +88,8 @@ impl Asset for WebAssemblySource {
         let bytes = file.content().to_bytes();
         let parsed = wat::parse_bytes(&bytes)?;
 
-        Ok(AssetContent::file(File::from(&*parsed).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(&*parsed)).cell(),
+        ))
     }
 }

@@ -96,7 +96,7 @@ ${componentFiles
 // See https://nextjs.org/docs/advanced-features/dynamic-import
 // At the end you will have single preloaded script for each lazy loading module.
 // Editing mode doesn't work well with dynamic components in nextjs: dynamic components are not displayed without refresh after a rendering is added.
-// This happens beacuse Sitecore editors simply insert updated HTML generated on server side. This conflicts with nextjs dynamic logic as no HTML gets rendered for dynamic component
+// This happens because Sitecore editors simply insert updated HTML generated on server side. This conflicts with nextjs dynamic logic as no HTML gets rendered for dynamic component
 // So we use require() to obtain dynamic components in editing mode while preserving dynamic logic for non-editing scenarios
 // As we need to be able to seamlessly work with dynamic components in both editing and normal modes, different componentFactory functions will be passed to app
 

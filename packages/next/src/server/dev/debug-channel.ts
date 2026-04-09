@@ -1,30 +1,35 @@
+import type { Readable } from 'node:stream'
 import { createBufferedTransformStream } from '../stream-utils/node-web-streams-helper'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
 } from './hot-reloader-types'
+import type { AnyStream } from '../app-render/stream-ops'
 
-export interface ReactDebugChannelForBrowser {
-  readonly readable: ReadableStream<Uint8Array>
-  // Might also get a writable stream as return channel in the future.
+function toWebReadableStream(stream: AnyStream): ReadableStream<Uint8Array> {
+  if (stream instanceof ReadableStream) {
+    return stream
+  }
+  const { Readable: ReadableClass } =
+    require('node:stream') as typeof import('node:stream')
+  return ReadableClass.toWeb(stream as Readable) as ReadableStream<Uint8Array>
 }
 
-const reactDebugChannelsByRequestId = new Map<
+export interface ReactDebugChannelForBrowser {
+  readonly readable: AnyStream
+}
+
+const reactDebugChannelsByHtmlRequestId = new Map<
   string,
   ReactDebugChannelForBrowser
 >()
 
 export function connectReactDebugChannel(
   requestId: string,
+  debugChannel: ReactDebugChannelForBrowser,
   sendToClient: (message: HmrMessageSentToBrowser) => void
 ) {
-  const debugChannel = reactDebugChannelsByRequestId.get(requestId)
-
-  if (!debugChannel) {
-    return
-  }
-
-  const reader = debugChannel.readable
+  const reader = toWebReadableStream(debugChannel.readable)
     .pipeThrough(
       // We're sending the chunks in batches to reduce overhead in the browser.
       createBufferedTransformStream({ maxBufferByteLength: 128 * 1024 })
@@ -37,8 +42,6 @@ export function connectReactDebugChannel(
       requestId,
       chunk: null,
     })
-
-    reactDebugChannelsByRequestId.delete(requestId)
   }
 
   const onError = (err: unknown) => {
@@ -63,13 +66,30 @@ export function connectReactDebugChannel(
   reader.read().then(progress, onError)
 }
 
-export function setReactDebugChannel(
-  requestId: string,
-  debugChannel: ReactDebugChannelForBrowser
+export function connectReactDebugChannelForHtmlRequest(
+  htmlRequestId: string,
+  sendToClient: (message: HmrMessageSentToBrowser) => void
 ) {
-  reactDebugChannelsByRequestId.set(requestId, debugChannel)
+  const debugChannel = reactDebugChannelsByHtmlRequestId.get(htmlRequestId)
+
+  if (!debugChannel) {
+    return
+  }
+
+  reactDebugChannelsByHtmlRequestId.delete(htmlRequestId)
+
+  connectReactDebugChannel(htmlRequestId, debugChannel, sendToClient)
 }
 
-export function deleteReactDebugChannel(requestId: string) {
-  reactDebugChannelsByRequestId.delete(requestId)
+export function setReactDebugChannelForHtmlRequest(
+  htmlRequestId: string,
+  debugChannel: ReactDebugChannelForBrowser
+) {
+  // TODO: Clean up after a timeout, in case the client never connects, e.g.
+  // when CURL'ing the page, or loading the page with JavaScript disabled etc.
+  reactDebugChannelsByHtmlRequestId.set(htmlRequestId, debugChannel)
+}
+
+export function deleteReactDebugChannelForHtmlRequest(htmlRequestId: string) {
+  reactDebugChannelsByHtmlRequestId.delete(htmlRequestId)
 }

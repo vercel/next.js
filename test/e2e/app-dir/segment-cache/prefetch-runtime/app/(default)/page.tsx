@@ -175,16 +175,7 @@ export default async function Page() {
           private, short stale
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/caches/private-short-stale"
-                prefetch={'auto'}
-              />
-            </li>
-            <li>
-              <DebugLinkAccordion
-                href="/caches/private-short-stale"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/caches/private-short-stale" />
             </li>
           </ul>
         </li>
@@ -192,16 +183,7 @@ export default async function Page() {
           public, short expire, long enough stale
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/caches/public-short-expire-long-stale"
-                prefetch={'auto'}
-              />
-            </li>
-            <li>
-              <DebugLinkAccordion
-                href="/caches/public-short-expire-long-stale"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/caches/public-short-expire-long-stale" />
             </li>
           </ul>
         </li>
@@ -209,16 +191,7 @@ export default async function Page() {
           public, short expire, short stale
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/caches/public-short-expire-short-stale"
-                prefetch={'auto'}
-              />
-            </li>
-            <li>
-              <DebugLinkAccordion
-                href="/caches/public-short-expire-short-stale"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/caches/public-short-expire-short-stale" />
             </li>
           </ul>
         </li>
@@ -226,16 +199,7 @@ export default async function Page() {
           public, cacheLife("seconds")
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/caches/public-seconds"
-                prefetch={'auto'}
-              />
-            </li>
-            <li>
-              <DebugLinkAccordion
-                href="/caches/public-seconds"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/caches/public-seconds" />
             </li>
           </ul>
         </li>
@@ -243,16 +207,7 @@ export default async function Page() {
           private, cacheLife("seconds")
           <ul>
             <li>
-              <DebugLinkAccordion
-                href="/caches/private-seconds"
-                prefetch={'auto'}
-              />
-            </li>
-            <li>
-              <DebugLinkAccordion
-                href="/caches/private-seconds"
-                prefetch={true}
-              />
+              <DebugLinkAccordion href="/caches/private-seconds" />
             </li>
           </ul>
         </li>

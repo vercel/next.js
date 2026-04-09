@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 
 describe('app dir', () => {
   const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
@@ -43,7 +43,7 @@ describe('app dir', () => {
         })
 
         // It should not have an error
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         // HMR should still work
         await next.patchFile(

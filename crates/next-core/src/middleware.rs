@@ -4,13 +4,14 @@ use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
+    file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
     reference_type::ReferenceType,
 };
 use turbopack_ecmascript::chunk::{EcmascriptChunkPlaceable, EcmascriptExports};
 
-use crate::util::load_next_js_template;
+use crate::{next_config::NextConfig, util::load_next_js_template};
 
 #[turbo_tasks::function]
 pub async fn middleware_files(page_extensions: Vc<Vec<RcStr>>) -> Result<Vc<Vec<RcStr>>> {
@@ -33,6 +34,7 @@ pub async fn get_middleware_module(
     project_root: FileSystemPath,
     userland_module: ResolvedVc<Box<dyn Module>>,
     is_proxy: bool,
+    next_config: Vc<NextConfig>,
 ) -> Result<Vc<Box<dyn Module>>> {
     const INNER: &str = "INNER_MIDDLEWARE_MODULE";
 
@@ -46,7 +48,7 @@ pub async fn get_middleware_module(
 
     // Validate that the module has the required exports
     if let Some(ecma_module) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*userland_module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(userland_module)
     {
         let exports = ecma_module.get_exports().await?;
 
@@ -86,20 +88,44 @@ pub async fn get_middleware_module(
     }
     // If we can't cast to EcmascriptChunkPlaceable, continue without validation
     // (might be a special module type that doesn't support export checking)
+    let mut incremental_cache_handler_import = None;
+    let mut cache_handler_inner_assets = fxindexmap! {};
+
+    for cache_handler_path in next_config
+        .cache_handler(project_root.clone())
+        .await?
+        .into_iter()
+    {
+        let cache_handler_inner = rcstr!("INNER_INCREMENTAL_CACHE_HANDLER");
+        incremental_cache_handler_import = Some(cache_handler_inner.clone());
+        let cache_handler_module = asset_context
+            .process(
+                Vc::upcast(FileSource::new(cache_handler_path.clone())),
+                ReferenceType::Undefined,
+            )
+            .module()
+            .to_resolved()
+            .await?;
+        cache_handler_inner_assets.insert(cache_handler_inner, cache_handler_module);
+    }
 
     // Load the file from the next.js codebase.
     let source = load_next_js_template(
         "middleware.js",
         project_root,
-        &[("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
-        &[],
-        &[],
+        [("VAR_USERLAND", INNER), ("VAR_DEFINITION_PAGE", page_path)],
+        [],
+        [(
+            "incrementalCacheHandler",
+            incremental_cache_handler_import.as_deref(),
+        )],
     )
     .await?;
 
-    let inner_assets = fxindexmap! {
+    let mut inner_assets = fxindexmap! {
         rcstr!(INNER) => userland_module
     };
+    inner_assets.extend(cache_handler_inner_assets);
 
     let module = asset_context
         .process(
@@ -122,7 +148,7 @@ struct MiddlewareMissingExportIssue {
 impl Issue for MiddlewareMissingExportIssue {
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.into()
+        IssueStage::Transform.cell()
     }
 
     fn severity(&self) -> IssueSeverity {

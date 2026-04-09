@@ -3,6 +3,7 @@ import {
   getParsedDebugAddress,
   formatNodeOptions,
   tokenizeArgs,
+  getParsedNodeOptions,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
@@ -47,22 +48,48 @@ describe('formatNodeOptions', () => {
       normal: '1234',
     })
 
-    expect(result).toBe(
-      '--spaces="thing with spaces" --spacesAndQuotes="thing with \\"spaces\\"" --normal=1234'
-    )
+    expect(result).toEqual({
+      execArgv: [],
+      nodeOptions:
+        '--spaces="thing with spaces" --spacesAndQuotes="thing with \\"spaces\\"" --normal=1234',
+    })
+    expect(result.execArgv).toEqual([])
+  })
+
+  it('separates exec-argv-only options from NODE_OPTIONS', () => {
+    const result = formatNodeOptions({
+      'enable-source-maps': true,
+      'experimental-network-inspection': true,
+      'experimental-storage-inspection': true,
+      'experimental-worker-inspection': true,
+      'experimental-inspector-network-resource': true,
+      'max-old-space-size': '4096',
+    })
+
+    expect(result).toEqual({
+      nodeOptions: '--enable-source-maps --max-old-space-size=4096',
+      execArgv: [
+        '--experimental-network-inspection',
+        '--experimental-storage-inspection',
+        '--experimental-worker-inspection',
+        '--experimental-inspector-network-resource',
+      ],
+    })
   })
 })
 
 describe('getParsedDebugAddress', () => {
   it('supports the flag with an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect=1234'
-    const result = getParsedDebugAddress()
+    const nodeOptions = getParsedNodeOptions()
+    const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 
   it('supports the flag without an equal sign', () => {
     process.env.NODE_OPTIONS = '--inspect 1234'
-    const result = getParsedDebugAddress()
+    const nodeOptions = getParsedNodeOptions()
+    const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
   })
 })

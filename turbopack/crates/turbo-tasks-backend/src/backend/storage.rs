@@ -1,20 +1,21 @@
 use std::{
+    cell::Cell,
     hash::Hash,
     ops::{Deref, DerefMut},
-    sync::{Arc, atomic::AtomicBool},
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+    },
 };
 
-use bitfield::bitfield;
-use smallvec::SmallVec;
-use turbo_tasks::{FxDashMap, TaskId, parallel};
+use thread_local::ThreadLocal;
+use turbo_bincode::TurboBincodeBuffer;
+use turbo_tasks::{FxDashMap, TaskId, event::Event, parallel};
 
 use crate::{
-    backend::dynamic_storage::DynamicStorage,
-    data::{
-        AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
-        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
-    },
-    data_storage::{AutoMapStorage, OptionStorage},
+    backend::storage_schema::TaskStorage,
+    backing_storage::SnapshotItem,
+    database::key_value_database::KeySpace,
     utils::{
         dash_map_drop_contents::drop_contents,
         dash_map_multi::{RefMut, get_multiple_mut},
@@ -36,6 +37,14 @@ impl TaskDataCategory {
             TaskDataCategory::All => unreachable!(),
         }
     }
+
+    pub fn includes_data(self) -> bool {
+        matches!(self, TaskDataCategory::Data | TaskDataCategory::All)
+    }
+
+    pub fn includes_meta(self) -> bool {
+        matches!(self, TaskDataCategory::Meta | TaskDataCategory::All)
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -44,574 +53,50 @@ pub enum SpecificTaskDataCategory {
     Data,
 }
 
-impl IntoIterator for TaskDataCategory {
-    type Item = TaskDataCategory;
-
-    type IntoIter = TaskDataCategoryIterator;
-
-    fn into_iter(self) -> Self::IntoIter {
-        match self {
-            TaskDataCategory::Meta => TaskDataCategoryIterator::Meta,
-            TaskDataCategory::Data => TaskDataCategoryIterator::Data,
-            TaskDataCategory::All => TaskDataCategoryIterator::All,
-        }
-    }
-}
-
-pub enum TaskDataCategoryIterator {
-    All,
-    Meta,
-    Data,
-    None,
-}
-
-impl Iterator for TaskDataCategoryIterator {
-    type Item = TaskDataCategory;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self {
-            TaskDataCategoryIterator::All => {
-                *self = TaskDataCategoryIterator::Data;
-                Some(TaskDataCategory::Meta)
-            }
-            TaskDataCategoryIterator::Meta => {
-                *self = TaskDataCategoryIterator::None;
-                Some(TaskDataCategory::Meta)
-            }
-            TaskDataCategoryIterator::Data => {
-                *self = TaskDataCategoryIterator::None;
-                Some(TaskDataCategory::Data)
-            }
-            TaskDataCategoryIterator::None => None,
-        }
-    }
-}
-
-bitfield! {
-    // Note: Due to alignment in InnerStorage it doesn't matter if this struct is 1 or 4 bytes.
-    #[derive(Clone, Default)]
-    pub struct InnerStorageState(u32);
-    impl Debug;
-    pub meta_restored, set_meta_restored: 0;
-    pub data_restored, set_data_restored: 1;
-    /// Item was modified before snapshot mode was entered.
-    pub meta_modified, set_meta_modified: 2;
-    pub data_modified, set_data_modified: 3;
-    /// Item was modified after snapshot mode was entered. A snapshot was taken.
-    pub meta_snapshot, set_meta_snapshot: 4;
-    pub data_snapshot, set_data_snapshot: 5;
-    /// Prefetched dependencies
-    pub prefetched, set_prefetched: 6;
-}
-
-impl InnerStorageState {
-    pub fn set_restored(&mut self, category: TaskDataCategory) {
+impl From<SpecificTaskDataCategory> for TaskDataCategory {
+    fn from(category: SpecificTaskDataCategory) -> Self {
         match category {
-            TaskDataCategory::Meta => {
-                self.set_meta_restored(true);
-            }
-            TaskDataCategory::Data => {
-                self.set_data_restored(true);
-            }
-            TaskDataCategory::All => {
-                self.set_meta_restored(true);
-                self.set_data_restored(true);
-            }
-        }
-    }
-
-    pub fn is_restored(&self, category: TaskDataCategory) -> bool {
-        match category {
-            TaskDataCategory::Meta => self.meta_restored(),
-            TaskDataCategory::Data => self.data_restored(),
-            TaskDataCategory::All => self.meta_restored() && self.data_restored(),
-        }
-    }
-
-    pub fn any_snapshot(&self) -> bool {
-        self.meta_snapshot() || self.data_snapshot()
-    }
-
-    pub fn any_modified(&self) -> bool {
-        self.meta_modified() || self.data_modified()
-    }
-}
-
-pub struct InnerStorageSnapshot {
-    aggregation_number: OptionStorage<AggregationNumber>,
-    output_dependent: AutoMapStorage<TaskId, ()>,
-    output: OptionStorage<OutputValue>,
-    upper: AutoMapStorage<TaskId, u32>,
-    dynamic: DynamicStorage,
-    pub meta_modified: bool,
-    pub data_modified: bool,
-}
-
-impl From<&InnerStorage> for InnerStorageSnapshot {
-    fn from(inner: &InnerStorage) -> Self {
-        Self {
-            aggregation_number: inner.aggregation_number.clone(),
-            output_dependent: inner.output_dependent.clone(),
-            output: inner.output.clone(),
-            upper: inner.upper.clone(),
-            dynamic: inner.dynamic.snapshot_for_persisting(),
-            meta_modified: inner.state.meta_modified(),
-            data_modified: inner.state.data_modified(),
+            SpecificTaskDataCategory::Meta => TaskDataCategory::Meta,
+            SpecificTaskDataCategory::Data => TaskDataCategory::Data,
         }
     }
 }
 
-impl InnerStorageSnapshot {
-    pub fn iter_all(
-        &self,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        use crate::data_storage::Storage;
-        self.dynamic
-            .iter_all()
-            .chain(self.aggregation_number.iter().map(|(_, value)| {
-                (
-                    CachedDataItemKey::AggregationNumber {},
-                    CachedDataItemValueRef::AggregationNumber { value },
-                )
-            }))
-            .chain(self.output.iter().map(|(_, value)| {
-                (
-                    CachedDataItemKey::Output {},
-                    CachedDataItemValueRef::Output { value },
-                )
-            }))
-            .chain(self.upper.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::Upper { task: *k },
-                    CachedDataItemValueRef::Upper { value },
-                )
-            }))
-            .chain(self.output_dependent.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::OutputDependent { task: *k },
-                    CachedDataItemValueRef::OutputDependent { value },
-                )
-            }))
-    }
-
-    pub fn len(&self) -> usize {
-        use crate::data_storage::Storage;
-        self.dynamic.len()
-            + self.aggregation_number.len()
-            + self.output.len()
-            + self.upper.len()
-            + self.output_dependent.len()
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct InnerStorage {
-    aggregation_number: OptionStorage<AggregationNumber>,
-    output_dependent: AutoMapStorage<TaskId, ()>,
-    output: OptionStorage<OutputValue>,
-    upper: AutoMapStorage<TaskId, u32>,
-    dynamic: DynamicStorage,
-    state: InnerStorageState,
-}
-
-impl InnerStorage {
-    fn new() -> Self {
-        Self {
-            aggregation_number: Default::default(),
-            output_dependent: Default::default(),
-            output: Default::default(),
-            upper: Default::default(),
-            dynamic: DynamicStorage::new(),
-            state: InnerStorageState::default(),
-        }
-    }
-
-    pub fn state(&self) -> &InnerStorageState {
-        &self.state
-    }
-
-    pub fn state_mut(&mut self) -> &mut InnerStorageState {
-        &mut self.state
-    }
-}
-
-#[macro_export]
-macro_rules! generate_inner_storage_internal {
-    // Matching on CachedDataItem with a $value
-    (CachedDataItem: $self:ident, $item:ident, $value:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $key_field:ident => $field:ident,) => {
-        if let CachedDataItem::$tag { $key_field, $value } = $item {
-            let result = $self.$field.$fn($key_field, $($args)*);
-            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag $key_field => $field);
-        }
-    };
-    (CachedDataItem: $self:ident, $item:ident, $value:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident => $field:ident,) => {
-        if let CachedDataItem::$tag { $value } = $item {
-            let result = $self.$field.$fn((), $($args)*);
-            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag => $field);
-        }
-    };
-    (CachedDataItem: $self:ident, $item:ident, $value:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
-        $crate::generate_inner_storage_internal!(CachedDataItem: $self, $item, $value, $return_ty, $fn($($args)*): $tag $($key_field)? => $field,);
-        $crate::generate_inner_storage_internal!(CachedDataItem: $self, $item, $value, $return_ty, $fn($($args)*): $($config)+)
-    };
-    // Matching on CachedDataItemKey without a $value
-    (CachedDataItemKey: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $key_field:ident => $field:ident,) => {
-        if let CachedDataItemKey::$tag { $key_field } = $item {
-            let result = $self.$field.$fn($key_field, $($args)*);
-            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag $key_field => $field);
-        }
-    };
-    (CachedDataItemKey: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident => $field:ident,) => {
-        if let CachedDataItemKey::$tag { } = $item {
-            let result = $self.$field.$fn(&(), $($args)*);
-            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag => $field);
-        }
-    };
-    (CachedDataItemKey: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
-        $crate::generate_inner_storage_internal!(CachedDataItemKey: $self, $item, $return_ty, $fn($($args)*): $tag $($key_field)? => $field,);
-        $crate::generate_inner_storage_internal!(CachedDataItemKey: $self, $item, $return_ty, $fn($($args)*): $($config)+)
-    };
-    // Matching on CachedDataItemType without a $value
-    (CachedDataItemType: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident,) => {
-        if let CachedDataItemType::$tag = $item {
-            let result = $self.$field.$fn($($args)*);
-            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag $($key_field)? => $field);
-        }
-    };
-    (CachedDataItemType: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
-        $crate::generate_inner_storage_internal!(CachedDataItemType: $self, $item, $return_ty, $fn($($args)*): $tag $($key_field)? => $field,);
-        $crate::generate_inner_storage_internal!(CachedDataItemType: $self, $item, $return_ty, $fn($($args)*): $($config)+)
-    };
-
-    // fn update
-    (update: $self:ident, $key:ident, $update:ident: $tag:ident $key_field:ident => $field:ident,) => {
-        if let CachedDataItemKey::$tag { $key_field } = $key {
-            $self.$field.update($key_field, |old| {
-                let old = old.map(|old| CachedDataItemValue::$tag { value: old });
-                let new = $update(old);
-                new.map(|new| if let CachedDataItemValue::$tag { value } = new {
-                    value
-                } else {
-                    unreachable!()
-                })
-            });
-            return;
-        }
-    };
-    (update: $self:ident, $key:ident, $update:ident: $tag:ident => $field:ident,) => {
-        if let CachedDataItemKey::$tag { } = $key {
-            $self.$field.update((), |old| {
-                let old = old.map(|old| CachedDataItemValue::$tag { value: old });
-                let new = $update(old);
-                new.map(|new| if let CachedDataItemValue::$tag { value } = new {
-                    value
-                } else {
-                    unreachable!()
-                })
-            });
-            return;
-        }
-    };
-    (update: $self:ident, $key:ident, $update:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
-        $crate::generate_inner_storage_internal!(update: $self, $key, $update: $tag $($key_field)? => $field,);
-        $crate::generate_inner_storage_internal!(update: $self, $key, $update: $($config)+)
-    };
-
-    // fn get_mut_or_insert_with
-    (get_mut_or_insert_with: $self:ident, $key:ident, $insert_with:ident: $tag:ident $key_field:ident => $field:ident,) => {
-        if let CachedDataItemKey::$tag { $key_field } = $key {
-            let value = $self.$field.get_mut_or_insert_with($key_field, || {
-                let value = $insert_with();
-                if let CachedDataItemValue::$tag { value } = value {
-                    value
-                } else {
-                    unreachable!()
-                }
-            });
-            return CachedDataItemValueRefMut::$tag { value };
-        }
-    };
-    (get_mut_or_insert_with: $self:ident, $key:ident, $insert_with:ident: $tag:ident => $field:ident,) => {
-        if let CachedDataItemKey::$tag { } = $key {
-            let value = $self.$field.get_mut_or_insert_with((), || {
-                let value = $insert_with();
-                if let CachedDataItemValue::$tag { value } = value {
-                    value
-                } else {
-                    unreachable!()
-                }
-            });
-            return CachedDataItemValueRefMut::$tag { value };
-        }
-    };
-    (get_mut_or_insert_with: $self:ident, $key:ident, $insert_with:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
-        $crate::generate_inner_storage_internal!(get_mut_or_insert_with: $self, $key, $insert_with: $tag $($key_field)? => $field,);
-        $crate::generate_inner_storage_internal!(get_mut_or_insert_with: $self, $key, $insert_with: $($config)+)
-    };
-
-    // fn extract_if
-    (extract_if: $self:ident, $ty:ident, $f:ident: $tag:ident $key_field:ident => $field:ident,) => {
-        if let CachedDataItemType::$tag = $ty {
-            let iter = $self.$field.extract_if(move |key, value| {
-                $f(CachedDataItemKey::$tag { $key_field: *key }, CachedDataItemValueRef::$tag { value })
-            }).map(|($key_field, value)| CachedDataItem::$tag { $key_field, value });
-            return InnerStorageIter::$tag(iter);
-        }
-    };
-    (extract_if: $self:ident, $ty:ident, $f:ident: $tag:ident => $field:ident,) => {
-        if let CachedDataItemType::$tag = $ty {
-            let iter = $self.$field.extract_if(move |_, value| {
-                $f(CachedDataItemKey::$tag { }, CachedDataItemValueRef::$tag { value })
-            }).map(|(_, value)| CachedDataItem::$tag { value });
-            return InnerStorageIter::$tag(iter);
-        }
-    };
-    (extract_if: $self:ident, $ty:ident, $f:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
-        $crate::generate_inner_storage_internal!(extract_if: $self, $ty, $f: $tag $($key_field)? => $field,);
-        $crate::generate_inner_storage_internal!(extract_if: $self, $ty, $f: $($config)+)
-    };
-
-    // fn iter
-    (iter: $self:ident, $ty:ident: $tag:ident $key_field:ident => $field:ident,) => {
-        if let CachedDataItemType::$tag = $ty {
-            let iter = $self.$field.iter().map(|($key_field, value)| (CachedDataItemKey::$tag { $key_field: *$key_field }, CachedDataItemValueRef::$tag { value }));
-            return InnerStorageIter::$tag(iter);
-        }
-    };
-    (iter: $self:ident, $ty:ident: $tag:ident => $field:ident,) => {
-        if let CachedDataItemType::$tag = $ty {
-            let iter = $self.$field.iter().map(|(_, value)| (CachedDataItemKey::$tag { }, CachedDataItemValueRef::$tag { value }));
-            return InnerStorageIter::$tag(iter);
-        }
-    };
-    (iter: $self:ident, $ty:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
-        $crate::generate_inner_storage_internal!(iter: $self, $ty: $tag $($key_field)? => $field,);
-        $crate::generate_inner_storage_internal!(iter: $self, $ty: $($config)+)
-    };
-
-
-    // Return value handling
-    (return_value: $result:ident, none: $($more:tt)*) => {
-        $result
-    };
-    (return_value: $result:ident, option_value: $tag:ident $($more:tt)*) => {
-        $result.map(|value| CachedDataItemValue::$tag { value })
-    };
-    (return_value: $result:ident, option_ref: $tag:ident $($more:tt)*) => {
-        $result.map(|value| CachedDataItemValueRef::$tag { value })
-    };
-    (return_value: $result:ident, option_ref_mut: $tag:ident $($more:tt)*) => {
-        $result.map(|value| CachedDataItemValueRefMut::$tag { value })
-    };
-
-    // Input value handling
-    (input_value: $input:ident, option_value: $tag:ident $($more:tt)*) => {
-        $input.map(|value| {
-            if let CachedDataItemValue::$tag { value } = value {
-                value
-            } else {
-                unreachable!()
-            }
-        })
-    };
-
-}
-
-macro_rules! generate_inner_storage {
-    ($($config:tt)*) => {
-        impl InnerStorage {
-            pub fn add(&mut self, item: CachedDataItem) -> bool {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, none, add(value): $($config)*);
-                self.dynamic.add(item)
-            }
-
-            pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, option_value, insert(value): $($config)*);
-                self.dynamic.insert(item)
-            }
-
-            pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_value, remove(): $($config)*);
-                self.dynamic.remove(key)
-            }
-
-            pub fn count(&self, ty: CachedDataItemType) -> usize {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, len(): $($config)*);
-                self.dynamic.count(ty)
-            }
-
-            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
-                self.dynamic.get(key)
-            }
-
-            pub fn contains_key(&self, key: &CachedDataItemKey) -> bool {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, none, contains_key(): $($config)*);
-                self.dynamic.contains_key(key)
-            }
-
-            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
-                self.dynamic.get_mut(key)
-            }
-
-            pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, shrink_to_fit(): $($config)*);
-                self.dynamic.shrink_to_fit(ty)
-            }
-
-            pub fn update(
-                &mut self,
-                key: CachedDataItemKey,
-                update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
-            ) {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(update: self, key, update: $($config)*);
-                self.dynamic.update(key, update)
-            }
-
-            pub fn extract_if<'l, F>(
-                &'l mut self,
-                ty: CachedDataItemType,
-                mut f: F,
-            ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
-            where
-                F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
-            {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(extract_if: self, ty, f: $($config)*);
-                InnerStorageIter::Dynamic(self.dynamic.extract_if(ty, f))
-            }
-
-            pub fn get_mut_or_insert_with(
-                &mut self,
-                key: CachedDataItemKey,
-                f: impl FnOnce() -> CachedDataItemValue,
-            ) -> CachedDataItemValueRefMut<'_>
-            {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(get_mut_or_insert_with: self, key, f: $($config)*);
-                self.dynamic.get_mut_or_insert_with(key, f)
-            }
-
-            pub fn iter(
-                &self,
-                ty: CachedDataItemType,
-            ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>
-            {
-                use crate::data_storage::Storage;
-                $crate::generate_inner_storage_internal!(iter: self, ty: $($config)*);
-                InnerStorageIter::Dynamic(self.dynamic.iter(ty))
-            }
-
-        }
-    };
-}
-
-generate_inner_storage!(
-    AggregationNumber => aggregation_number,
-    OutputDependent task => output_dependent,
-    Output => output,
-    Upper task => upper,
-);
-
-enum InnerStorageIter<A, B, C, D, E> {
-    AggregationNumber(A),
-    OutputDependent(B),
-    Output(C),
-    Upper(D),
-    Dynamic(E),
-}
-
-impl<T, A, B, C, D, E> Iterator for InnerStorageIter<A, B, C, D, E>
-where
-    A: Iterator<Item = T>,
-    B: Iterator<Item = T>,
-    C: Iterator<Item = T>,
-    D: Iterator<Item = T>,
-    E: Iterator<Item = T>,
-{
-    type Item = T;
-
-    fn next(&mut self) -> Option<Self::Item> {
+impl SpecificTaskDataCategory {
+    /// Returns the KeySpace for storing data of this category
+    pub fn key_space(self) -> KeySpace {
         match self {
-            InnerStorageIter::AggregationNumber(iter) => iter.next(),
-            InnerStorageIter::OutputDependent(iter) => iter.next(),
-            InnerStorageIter::Output(iter) => iter.next(),
-            InnerStorageIter::Upper(iter) => iter.next(),
-            InnerStorageIter::Dynamic(iter) => iter.next(),
+            SpecificTaskDataCategory::Meta => KeySpace::TaskMeta,
+            SpecificTaskDataCategory::Data => KeySpace::TaskData,
         }
     }
-}
-
-impl InnerStorage {
-    pub fn iter_all(
-        &self,
-    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        use crate::data_storage::Storage;
-        self.dynamic
-            .iter_all()
-            .chain(self.aggregation_number.iter().map(|(_, value)| {
-                (
-                    CachedDataItemKey::AggregationNumber {},
-                    CachedDataItemValueRef::AggregationNumber { value },
-                )
-            }))
-            .chain(self.output.iter().map(|(_, value)| {
-                (
-                    CachedDataItemKey::Output {},
-                    CachedDataItemValueRef::Output { value },
-                )
-            }))
-            .chain(self.upper.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::Upper { task: *k },
-                    CachedDataItemValueRef::Upper { value },
-                )
-            }))
-            .chain(self.output_dependent.iter().map(|(k, value)| {
-                (
-                    CachedDataItemKey::OutputDependent { task: *k },
-                    CachedDataItemValueRef::OutputDependent { value },
-                )
-            }))
-    }
-
-    pub fn len(&self) -> usize {
-        use crate::data_storage::Storage;
-        self.dynamic.len()
-            + self.aggregation_number.len()
-            + self.output.len()
-            + self.upper.len()
-            + self.output_dependent.len()
-    }
-}
-
-enum ModifiedState {
-    /// It was modified before snapshot mode was entered, but it was not accessed during snapshot
-    /// mode.
-    Modified,
-    /// Snapshot(Some):
-    /// It was modified before snapshot mode was entered and it was accessed again during snapshot
-    /// mode. A copy of the version of the item when snapshot mode was entered is stored here.
-    /// Snapshot(None):
-    /// It was not modified before snapshot mode was entered, but it was accessed during snapshot
-    /// mode. Or the snapshot was already taken out by the snapshot operation.
-    Snapshot(Option<Box<InnerStorageSnapshot>>),
 }
 
 pub struct Storage {
     snapshot_mode: AtomicBool,
-    modified: FxDashMap<TaskId, ModifiedState>,
-    map: FxDashMap<TaskId, Box<InnerStorage>>,
+    /// Per-shard counts of tasks with modified flags set. Incremented when a task
+    /// transitions from unmodified to modified (outside snapshot mode). Reset to zero when
+    /// snapshot mode begins, and re-incremented in `end_snapshot` for tasks that still have
+    /// modifications (promoted from `modified_during_snapshot`). Used to skip unmodified shards
+    /// in `take_snapshot`, avoiding unnecessary iteration and enabling early returns
+    ///
+    /// Indexed by `map.determine_shard(map.hash_usize(&key))` and guaranteed by construction so
+    /// that  `shard_modified_counts.len()==map.shards().len()`
+    ///
+    /// Should only be modified while holding the corresponding dashmap shard lock.
+    shard_modified_counts: Box<[AtomicU64]>,
+    /// Stores snapshots of task state for tasks accessed during snapshot mode.
+    /// - `Some(snapshot)`: Task was modified before snapshot mode and accessed again during it.
+    ///   Contains a copy of the pre-snapshot state that needs to be persisted.
+    /// - `None`: Task was first modified during snapshot mode (not part of current snapshot). Will
+    ///   be marked as modified at the beginning of the next snapshot cycle.
+    snapshots: FxDashMap<TaskId, Option<Box<TaskStorage>>>,
+    map: FxDashMap<TaskId, Box<TaskStorage>>,
+    /// A shared event notified whenever any task finishes restoring (successfully or not).
+    ///
+    /// Threads waiting for another thread's in-progress restore subscribe to this event,
+    /// then re-check the specific task's `restoring`/`restored` bits after waking.
+    pub(crate) restored: Event,
 }
 
 impl Storage {
@@ -621,167 +106,246 @@ impl Storage {
         } else {
             1024 * 1024
         };
-        let modified_capacity: usize = if small_preallocation { 0 } else { 1024 };
 
+        let map = FxDashMap::with_capacity_and_hasher_and_shard_amount(
+            map_capacity,
+            Default::default(),
+            shard_amount,
+        );
+        let num_shards = map.shards().len();
+        let shard_modified_counts = (0..num_shards)
+            .map(|_| AtomicU64::new(0))
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
         Self {
             snapshot_mode: AtomicBool::new(false),
-            modified: FxDashMap::with_capacity_and_hasher_and_shard_amount(
-                modified_capacity,
+            shard_modified_counts,
+            snapshots: FxDashMap::with_capacity_and_hasher_and_shard_amount(
+                // We expect very few updates to this map since it will only happen when updates
+                // race with snapshots.  This never happens in a build and only rarely happens in
+                // dev sessions
+                0,
                 Default::default(),
                 shard_amount,
             ),
-            map: FxDashMap::with_capacity_and_hasher_and_shard_amount(
-                map_capacity,
-                Default::default(),
-                shard_amount,
-            ),
+            map,
+            restored: Event::new(|| || "Storage::restored".to_string()),
         }
     }
 
-    /// Processes every modified item (resp. a snapshot of it) with the given functions and returns
-    /// the results. Ends snapshot mode afterwards.
-    /// preprocess is potentially called within a lock, so it should be fast.
-    /// process is called outside of locks, so it could do more expensive operations.
+    /// Returns the shard index for the given key in the `map` DashMap.
+    fn shard_index(&self, key: &TaskId) -> usize {
+        let hash = self.map.hash_usize(key);
+        self.map.determine_shard(hash)
+    }
+
+    /// Promote `modified_during_snapshot` → `modified` flags on a task, and increment the
+    /// per-shard modified count if the task was not already marked as modified.
+    ///
+    /// This is used after persisting a snapshot: _during_snapshot flags represent changes
+    /// that occurred concurrently and were not included in the persisted snapshot, so they
+    /// must be carried forward as `modified` for the next snapshot cycle.
+    fn promote_during_snapshot_flags(&self, task_id: &TaskId, task: &mut TaskStorage) {
+        let already_modified = task.flags.any_modified();
+        let mut promoted = false;
+        if task.flags.meta_modified_during_snapshot() {
+            task.flags.set_meta_modified_during_snapshot(false);
+            task.flags.set_meta_modified(true);
+            promoted = true;
+        }
+        if task.flags.data_modified_during_snapshot() {
+            task.flags.set_data_modified_during_snapshot(false);
+            task.flags.set_data_modified(true);
+            promoted = true;
+        }
+        if !already_modified && promoted {
+            let shard_idx = self.shard_index(task_id);
+            self.shard_modified_counts[shard_idx].fetch_add(1, Ordering::Relaxed);
+        }
+    }
+
+    /// Mark a newly allocated task as restored (skip DB queries) and new (include in persistence
+    /// snapshots).
+    pub fn initialize_new_task(&self, task_id: TaskId) {
+        let mut task = self.access_mut(task_id);
+        task.flags.set_restored(TaskDataCategory::All);
+        task.flags.set_new_task(true);
+    }
+
+    /// Processes every modified item (resp. a snapshot of it) with the given function and returns
+    /// the results. Ends snapshot mode when the returned `SnapshotGuard` (held by each shard) is
+    /// dropped.
+    ///
+    /// `process` is called while holding a read lock on the task storage, so it can access
+    /// the TaskStorage directly without cloning.
+    ///
+    /// Both callbacks receive a mutable scratch buffer that can be reused across iterations
+    /// to avoid repeated allocations.
+    ///
+    /// The returned shards implement `IntoIterator`. Empty shards (no modified or snapshot
+    /// entries) are filtered out, but shards may still yield no items if all entries produce
+    /// empty `SnapshotItem`s (this is rare and only happens under error conditions).
     pub fn take_snapshot<
         'l,
-        T,
-        R,
-        PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
-        P: Fn(TaskId, T) -> R + Sync,
-        PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+        P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
     >(
         &'l self,
-        preprocess: &'l PP,
+        guard: SnapshotGuard<'l>,
         process: &'l P,
-        process_snapshot: &'l PS,
-    ) -> Vec<SnapshotShard<'l, PP, P, PS>> {
-        if !self.snapshot_mode() {
-            self.start_snapshot();
-        }
+    ) -> Vec<SnapshotShard<'l, P>> {
+        let guard = Arc::new(guard);
 
-        let guard = Arc::new(SnapshotGuard { storage: self });
+        let shards: Vec<_> = self.map.shards().iter().enumerate().collect();
 
         // The number of shards is much larger than the number of threads, so the effect of the
         // locks held is negligible.
-        parallel::map_collect::<_, _, Vec<_>>(self.modified.shards(), |shard| {
-            let mut direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
-            let mut modified: SmallVec<[TaskId; 4]> = SmallVec::new();
+        parallel::map_collect::<_, _, Vec<_>>(&shards, |&(shard_idx, shard)| {
+            // Check how many modifications there are in this shard, because we have entered
+            // snapshot_mode, there are no racing writes
+            // So we can safely clear it out now that we are processing the modifications
+            let modified_count = self.shard_modified_counts[shard_idx].swap(0, Ordering::Relaxed);
+            if modified_count == 0 {
+                return None;
+            }
+            let mut direct_snapshots: Vec<(TaskId, Box<TaskStorage>)> = Vec::new();
+            let mut modified = Vec::with_capacity(modified_count as usize);
             {
-                // Take the snapshots from the modified map
-                let guard = shard.write();
-                // Safety: guard must outlive the iterator.
-                for bucket in unsafe { guard.iter() } {
+                let shard_guard = shard.read();
+                // Safety: shard_guard must outlive the iterator.
+                for bucket in unsafe { shard_guard.iter() } {
                     // Safety: the guard guarantees that the bucket is not removed and the ptr
                     // is valid.
-                    let (key, shared_value) = unsafe { bucket.as_mut() };
-                    let modified_state = shared_value.get_mut();
-                    match modified_state {
-                        ModifiedState::Modified => {
+                    let (key, shared_value) = unsafe { bucket.as_ref() };
+                    let flags = &shared_value.get().flags;
+                    // Only check modified flags here — transient tasks never have
+                    // modified flags set (track_modification guards against it), so
+                    // this naturally excludes them. new_task is always
+                    // accompanied by modified flags (set_persistent_task_type calls
+                    // track_modification), so any_modified() is sufficient.
+                    if flags.any_modified() {
+                        debug_assert!(
+                            !key.is_transient(),
+                            "found a modified transient task: {:?}",
+                            shared_value.get().get_persistent_task_type()
+                        );
+
+                        if flags.any_modified_during_snapshot() {
+                            // Task was modified during snapshot mode, so a snapshot
+                            // copy must exist in the snapshots map (created by the
+                            // (true, true) case in track_modification_internal).
+                            // Remove the entry entirely so end_snapshot doesn't
+                            // double-process this task.  When iterating in `next` we will
+                            // re-synchronize the task flags.
+                            let (_, snapshot) = self.snapshots.remove(key).expect(
+                                "task with modified_during_snapshot must have a snapshots entry",
+                            );
+                            let snapshot = snapshot.expect(
+                                "snapshot entry for modified_during_snapshot task must contain a \
+                                 value",
+                            );
+                            direct_snapshots.push((*key, snapshot));
+                        } else {
                             modified.push(*key);
-                        }
-                        ModifiedState::Snapshot(snapshot) => {
-                            if let Some(snapshot) = snapshot.take() {
-                                direct_snapshots.push((*key, snapshot));
-                            }
                         }
                     }
                 }
-                // Safety: guard must outlive the iterator.
-                drop(guard);
+                // Safety: shard_guard must outlive the iterator.
+                drop(shard_guard);
             }
 
-            SnapshotShard {
+            // Early return for shards with no entries at all
+            if direct_snapshots.is_empty() && modified.is_empty() {
+                return None;
+            }
+
+            Some(SnapshotShard {
+                shard_idx,
                 direct_snapshots,
                 modified,
                 storage: self,
-                guard: Some(guard.clone()),
                 process,
-                preprocess,
-                process_snapshot,
-            }
+                _guard: guard.clone(),
+            })
         })
+        .into_iter()
+        .flatten()
+        .collect()
     }
 
-    /// Start snapshot mode.
-    pub fn start_snapshot(&self) {
-        self.snapshot_mode
-            .store(true, std::sync::atomic::Ordering::Release);
+    /// Enter snapshot mode and return a guard that will call `end_snapshot` on drop.
+    ///
+    /// Returns whether any shard has modifications. Per-shard counts are reset
+    /// in `take_snapshot` as each shard is processed, not here — resetting eagerly
+    /// would lose track of modifications for shards that haven't been persisted yet.
+    ///
+    /// Safety invariant: `start_snapshot` and `end_snapshot` are always called
+    /// sequentially within a single `snapshot_and_persist` invocation (the sole
+    /// caller). There is no concurrent snapshot lifecycle, so they cannot race.
+    pub fn start_snapshot(&self) -> (SnapshotGuard<'_>, bool) {
+        // Enter snapshot mode first so concurrent track_modification calls switch
+        // to the _during_snapshot path and stop incrementing shard_modified_counts.
+        self.snapshot_mode.store(true, Ordering::Release);
+        // Check if any shard has modifications. Don't reset counts here —
+        // take_snapshot resets per-shard counts as it processes each shard,
+        // which avoids losing track of modifications for shards that haven't
+        // been persisted yet.
+        let has_modifications = self
+            .shard_modified_counts
+            .iter()
+            .any(|c| c.load(Ordering::Relaxed) > 0);
+        (SnapshotGuard::new(self), has_modifications)
     }
 
     /// End snapshot mode.
-    /// Items that have snapshots will be kept as modified since they have been accessed during the
-    /// snapshot mode. Items that are modified will be removed and considered as unmodified.
-    /// When items are accessed in future they will be marked as modified.
+    ///
+    /// Modified/new flags on tasks are cleared incrementally during snapshot iteration
+    /// (in `take_snapshot` for direct_snapshots, and in `SnapshotShardIter::next` for
+    /// modified tasks), so no full-map scan is needed here.
+    ///
+    /// This method only needs to:
+    /// 1. Leave snapshot mode so new modifications go to the modified flags directly.
+    /// 2. Promote `modified_during_snapshot` → `modified` for tasks that were accessed during
+    ///    snapshot mode (tracked in the small `snapshots` map).
     fn end_snapshot(&self) {
-        // We are still in snapshot mode, so all accessed items would be stored as snapshot.
-        // This means we can start by removing all modified items.
-        let mut removed_modified = Vec::new();
-        self.modified.retain(|key, inner| {
-            if matches!(inner, ModifiedState::Modified) {
-                removed_modified.push(*key);
-                false
-            } else {
-                true
+        // Leave snapshot mode first. After this, concurrent track_modification calls
+        // will set modified flags directly instead of going through the snapshots map.
+        self.snapshot_mode.store(false, Ordering::Release);
+
+        // Promote modified_during_snapshot → modified for tasks that had snapshots.
+        // The snapshots map should be small (only tasks concurrently accessed during snapshot
+        // mode). Increment the per-shard modified counts for promoted tasks.
+
+        // Lock Ordering: Note, in track_modification_internal, we modify the snapshots map while
+        // holding a StorageWriteGuard and here we do the opposite.  This is fine because that code
+        // only runs when `snapshot_mode==true` and this loop only runs when it is false.
+        parallel::for_each(self.snapshots.shards(), |shard| {
+            let mut shard_guard = shard.write();
+            for (key, _) in shard_guard.drain() {
+                if let Some(mut inner) = self.map.get_mut(&key) {
+                    self.promote_during_snapshot_flags(&key, &mut inner);
+                }
             }
+            // If we are saving a non-trivial amount of memory just clear it out.
+            if shard_guard.capacity() > 1024 {
+                shard_guard.shrink_to(0, |_entry| {
+                    unreachable!("nothing is hashed when resizing an empty shard to zero");
+                });
+            }
+            // Safety: shard_guard must outlive the iterator.
+            drop(shard_guard);
         });
-
-        // We also need to unset all the modified flags.
-        for key in removed_modified {
-            if let Some(mut inner) = self.map.get_mut(&key) {
-                let state = inner.state_mut();
-                state.set_data_modified(false);
-                state.set_meta_modified(false);
-            }
-        }
-
-        // Now modified only contains snapshots.
-        // We leave snapshot mode. Any access would be stored as modified and not as snapshot.
-        self.snapshot_mode
-            .store(false, std::sync::atomic::Ordering::Release);
-
-        // We can change all the snapshots to modified now.
-        let mut removed_snapshots = Vec::new();
-        for mut item in self.modified.iter_mut() {
-            match item.value() {
-                ModifiedState::Snapshot(_) => {
-                    removed_snapshots.push(*item.key());
-                    *item.value_mut() = ModifiedState::Modified;
-                }
-                ModifiedState::Modified => {
-                    // This means it was concurrently modified.
-                    // It's already in the correct state.
-                }
-            }
-        }
-
-        // And update the flags
-        for key in removed_snapshots {
-            if let Some(mut inner) = self.map.get_mut(&key) {
-                let state = inner.state_mut();
-                if state.meta_snapshot() {
-                    state.set_meta_snapshot(false);
-                    state.set_meta_modified(true);
-                }
-                if state.data_snapshot() {
-                    state.set_data_snapshot(false);
-                    state.set_data_modified(true);
-                }
-            }
-        }
-
-        // Remove excessive capacity in modified
-        self.modified.shrink_to_fit();
     }
 
+    /// Returns true if actively snapshotting (modifications should go to snapshots map).
+    /// Returns false if inactive (modifications go to modified list).
     fn snapshot_mode(&self) -> bool {
-        self.snapshot_mode
-            .load(std::sync::atomic::Ordering::Acquire)
+        self.snapshot_mode.load(Ordering::Acquire)
     }
 
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
-            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(InnerStorage::new())),
+            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(TaskStorage::new())),
         };
         StorageWriteGuard {
             storage: self,
@@ -794,7 +358,7 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(InnerStorage::new()));
+        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(TaskStorage::new()));
         (
             StorageWriteGuard {
                 storage: self,
@@ -809,81 +373,103 @@ impl Storage {
 
     pub fn drop_contents(&self) {
         drop_contents(&self.map);
-        drop_contents(&self.modified);
+        drop_contents(&self.snapshots);
     }
 }
 
 pub struct StorageWriteGuard<'a> {
     storage: &'a Storage,
-    inner: RefMut<'a, TaskId, Box<InnerStorage>>,
+    inner: RefMut<'a, TaskId, Box<TaskStorage>>,
 }
 
 impl StorageWriteGuard<'_> {
     /// Tracks mutation of this task
-    pub fn track_modification(&mut self, category: SpecificTaskDataCategory) {
-        let state = self.inner.state();
-        let snapshot = match category {
-            SpecificTaskDataCategory::Meta => state.meta_snapshot(),
-            SpecificTaskDataCategory::Data => state.data_snapshot(),
-        };
-        if !snapshot {
-            let modified = match category {
-                SpecificTaskDataCategory::Meta => state.meta_modified(),
-                SpecificTaskDataCategory::Data => state.data_modified(),
-            };
-            match (self.storage.snapshot_mode(), modified) {
-                (false, false) => {
-                    // Not in snapshot mode and item is unmodified
-                    if !state.any_snapshot() && !state.any_modified() {
-                        self.storage
-                            .modified
-                            .insert(*self.inner.key(), ModifiedState::Modified);
-                    }
-                    let state = self.inner.state_mut();
-                    match category {
-                        SpecificTaskDataCategory::Meta => state.set_meta_modified(true),
-                        SpecificTaskDataCategory::Data => state.set_data_modified(true),
-                    }
+    #[inline(always)]
+    pub fn track_modification(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        #[allow(unused_variables)] name: &str,
+    ) {
+        debug_assert!(
+            !self.inner.key().is_transient(),
+            "transient task_ids should never be enqueued to be persisted"
+        );
+        self.track_modification_internal(
+            category,
+            #[cfg(feature = "trace_task_modification")]
+            name,
+        );
+    }
+
+    fn track_modification_internal(
+        &mut self,
+        category: SpecificTaskDataCategory,
+        #[cfg(feature = "trace_task_modification")] name: &str,
+    ) {
+        // Transient tasks are never persisted, so tracking modifications is meaningless.
+        // All callers (TaskGuard, invalidate_serialization) already
+        // guard against this, but we enforce it here as defense-in-depth.
+        debug_assert!(
+            !self.inner.key().is_transient(),
+            "track_modification called on transient task {:?}",
+            self.inner.key()
+        );
+        let flags = &self.inner.flags;
+        if flags.is_modified_during_snapshot(category) {
+            // We can early return since `end_snapshot` is responsible for reconciling.
+            return;
+        }
+        #[cfg(feature = "trace_task_modification")]
+        let _span = (!modified).then(|| tracing::trace_span!("mark_modified", name).entered());
+        match (self.storage.snapshot_mode(), flags.is_modified(category)) {
+            (false, false) => {
+                // Not in snapshot mode and item is unmodified
+                if !flags.any_modified() {
+                    let shard_idx = self.storage.shard_index(self.inner.key());
+                    self.storage.shard_modified_counts[shard_idx].fetch_add(1, Ordering::Relaxed);
                 }
-                (false, true) => {
-                    // Not in snapshot mode and item is already modified
-                    // Do nothing
+                self.inner.flags.set_modified(category, true);
+            }
+            (false, true) => {
+                // Not in snapshot mode and item is already modified
+                // Do nothing
+            }
+            (true, false) => {
+                // In snapshot mode and item is unmodified (so it's not part of the snapshot)
+                // Mark it so it gets re-added as Modified after this snapshot completes.
+                // Insert a None entry into snapshots so end_snapshot discovers this task
+                // and promotes its _during_snapshot flags.
+                if !flags.any_modified_during_snapshot() {
+                    self.storage.snapshots.insert(*self.inner.key(), None);
                 }
-                (true, false) => {
-                    // In snapshot mode and item is unmodified (so it's not part of the snapshot)
-                    if !state.any_snapshot() {
-                        self.storage
-                            .modified
-                            .insert(*self.inner.key(), ModifiedState::Snapshot(None));
-                    }
-                    let state = self.inner.state_mut();
-                    match category {
-                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
-                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
-                    }
+                self.inner
+                    .flags
+                    .set_modified_during_snapshot(category, true);
+            }
+            (true, true) => {
+                // In snapshot mode and item is modified (so it's part of the snapshot)
+                // We need to store the original version that is part of the snapshot
+                if !flags.any_modified_during_snapshot() {
+                    // Snapshot all non-transient fields but keep the modified bits since
+                    // save_snapshot relies on them
+                    let mut snapshot = self.inner.clone_snapshot();
+                    snapshot.flags.set_data_modified(flags.data_modified());
+                    snapshot.flags.set_meta_modified(flags.meta_modified());
+                    snapshot.flags.set_new_task(flags.new_task());
+                    self.storage
+                        .snapshots
+                        .insert(*self.inner.key(), Some(Box::new(snapshot)));
                 }
-                (true, true) => {
-                    // In snapshot mode and item is modified (so it's part of the snapshot)
-                    // We need to store the original version that is part of the snapshot
-                    if !state.any_snapshot() {
-                        self.storage.modified.insert(
-                            *self.inner.key(),
-                            ModifiedState::Snapshot(Some(Box::new((&**self.inner).into()))),
-                        );
-                    }
-                    let state = self.inner.state_mut();
-                    match category {
-                        SpecificTaskDataCategory::Meta => state.set_meta_snapshot(true),
-                        SpecificTaskDataCategory::Data => state.set_data_snapshot(true),
-                    }
-                }
+                self.inner
+                    .flags
+                    .set_modified_during_snapshot(category, true);
             }
         }
     }
 }
 
 impl Deref for StorageWriteGuard<'_> {
-    type Target = InnerStorage;
+    type Target = TaskStorage;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -896,199 +482,76 @@ impl DerefMut for StorageWriteGuard<'_> {
     }
 }
 
-macro_rules! count {
-    ($task:ident, $key:ident) => {{ $task.count($crate::data::CachedDataItemType::$key) }};
-}
+/// How big of a buffer to allocate initially. Based on metrics from a large
+/// application this should cover about 98% of values with no resizes.
+const SCRATCH_BUFFER_INITIAL_SIZE: usize = 4096;
 
-macro_rules! get {
-    ($task:ident, $key:ident $input:tt) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValueRef::$key {
-            value,
-        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input) {
-            Some(value)
-        } else {
-            None
-        }
-    }};
-    ($task:ident, $key:ident) => {
-        $crate::backend::storage::get!($task, $key {})
-    };
-}
-
-macro_rules! get_mut {
-    ($task:ident, $key:ident $input:tt) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValueRefMut::$key {
-            value,
-        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input) {
-            let () = $crate::data::allow_mut_access::$key;
-            Some(value)
-        } else {
-            None
-        }
-    }};
-    ($task:ident, $key:ident) => {
-        $crate::backend::storage::get_mut!($task, $key {})
-    };
-}
-
-macro_rules! get_mut_or_insert_with {
-    ($task:ident, $key:ident $input:tt, $f:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        let () = $crate::data::allow_mut_access::$key;
-        let functor = $f;
-        let $crate::data::CachedDataItemValueRefMut::$key {
-            value,
-        } = $task.get_mut_or_insert_with($crate::data::CachedDataItemKey::$key $input, move || $crate::data::CachedDataItemValue::$key { value: functor() }) else {
-            unreachable!()
-        };
-        value
-    }};
-    ($task:ident, $key:ident, $f:expr) => {
-        $crate::backend::storage::get_mut_or_insert_with!($task, $key {}, $f)
-    };
-}
-
-/// Creates an iterator over all [`CachedDataItemKey::$key`][crate::data::CachedDataItemKey]s in
-/// `$task` matching the given `$key_pattern`, optional `$value_pattern`, and optional `if $cond`.
+/// State machine for a per-thread scratch buffer slot.
 ///
-/// Each element in the iterator is determined by `$iter_item`, which may use fields extracted by
-/// `$key_pattern` or `$value_pattern`.
-macro_rules! iter_many {
-    ($task:ident, $key:ident $key_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        $task
-            .iter($crate::data::CachedDataItemType::$key)
-            .filter_map(|(key, _)| match key {
-                $crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
-                    $iter_item
-                ),
-                _ => None,
-            })
-    }};
-    ($task:ident, $key:ident $input:tt $value_pattern:tt $(if $cond:expr)? => $iter_item:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        $task
-            .iter($crate::data::CachedDataItemType::$key)
-            .filter_map(|(key, value)| match (key, value) {
-                (
-                    $crate::data::CachedDataItemKey::$key $input,
-                    $crate::data::CachedDataItemValueRef::$key { value: $value_pattern }
-                ) $(if $cond)? => Some($iter_item),
-                _ => None,
-            })
-    }};
-}
-
-/// A thin wrapper around [`iter_many`] that calls [`Iterator::collect`].
+/// Transitions:
+/// - `Uninit` → `Taken` (first take)
+/// - `Available` → `Taken` (subsequent takes)
+/// - `Taken` → `Available` (return)
 ///
-/// Note that the return type of [`Iterator::collect`] may be ambiguous in certain contexts, so
-/// using this macro may require explicit type annotations on variables.
-macro_rules! get_many {
-    ($($args:tt)*) => {
-        $crate::backend::storage::iter_many!($($args)*).collect()
-    };
+/// Any other transition is a bug (e.g. double-take or double-return).
+#[derive(Default)]
+enum ScratchBufferSlot {
+    /// No buffer has been allocated on this thread yet.
+    #[default]
+    Uninit,
+    /// The buffer is currently checked out.
+    Taken,
+    /// The buffer is available for reuse.
+    Available(TurboBincodeBuffer),
 }
-
-macro_rules! update {
-    ($task:ident, $key:ident $input:tt, $update:expr) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        #[allow(unused_mut)]
-        let mut update = $update;
-        $task.update($crate::data::CachedDataItemKey::$key $input, |old| {
-            update(old.and_then(|old| {
-                if let $crate::data::CachedDataItemValue::$key { value } = old {
-                    Some(value)
-                } else {
-                    None
-                }
-            }))
-            .map(|new| $crate::data::CachedDataItemValue::$key { value: new })
-        })
-    }};
-    ($task:ident, $key:ident, $update:expr) => {
-        $crate::backend::storage::update!($task, $key {}, $update)
-    };
-}
-
-macro_rules! update_count {
-    ($task:ident, $key:ident $input:tt, -$update:expr) => {{
-        let update = $update;
-        let mut state_change = false;
-        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-            #[allow(unused_comparisons, reason = "type of update might be unsigned, where update < 0 is always false")]
-            if let Some(old) = old {
-                let new = old - update;
-                state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
-                (new != 0).then_some(new)
-            } else {
-                state_change = update < 0;
-                (update != 0).then_some(-update)
-            }
-        });
-        state_change
-    }};
-    ($task:ident, $key:ident $input:tt, $update:expr) => {
-        match $update {
-            update => {
-                let mut state_change = false;
-                $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-                    if let Some(old) = old {
-                        let new = old + update;
-                        state_change = old <= 0 && new > 0 || old > 0 && new <= 0;
-                        (new != 0).then_some(new)
-                    } else {
-                        state_change = update > 0;
-                        (update != 0).then_some(update)
-                    }
-                });
-                state_change
-            }
-        }
-    };
-    ($task:ident, $key:ident, -$update:expr) => {
-        $crate::backend::storage::update_count!($task, $key {}, -$update)
-    };    ($task:ident, $key:ident, $update:expr) => {
-        $crate::backend::storage::update_count!($task, $key {}, $update)
-    };
-}
-
-macro_rules! remove {
-    ($task:ident, $key:ident $input:tt) => {{
-        #[allow(unused_imports)]
-        use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key { value }) = $task.remove(
-            &$crate::data::CachedDataItemKey::$key $input
-        ) {
-            Some(value)
-        } else {
-            None
-        }
-    }};
-    ($task:ident, $key:ident) => {
-        $crate::backend::storage::remove!($task, $key {})
-    };
-}
-
-pub(crate) use count;
-pub(crate) use get;
-pub(crate) use get_many;
-pub(crate) use get_mut;
-pub(crate) use get_mut_or_insert_with;
-pub(crate) use iter_many;
-pub(crate) use remove;
-pub(crate) use update;
-pub(crate) use update_count;
 
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,
+    /// Per-thread scratch buffers for encoding task data. Buffers are taken
+    /// by `SnapshotShardIter` on creation and returned on drop, allowing reuse
+    /// across multiple shards processed by the same thread. When the guard is
+    /// dropped (after all iterators are done), the `ThreadLocal` drops too,
+    /// freeing all buffers.
+    scratch_buffers: ThreadLocal<Cell<ScratchBufferSlot>>,
+}
+
+impl<'l> SnapshotGuard<'l> {
+    fn new(storage: &'l Storage) -> Self {
+        Self {
+            storage,
+            scratch_buffers: ThreadLocal::new(),
+        }
+    }
+
+    fn take_scratch_buffer(&self) -> TurboBincodeBuffer {
+        let cell = self.scratch_buffers.get_or_default();
+        match cell.take() {
+            ScratchBufferSlot::Available(buf) => {
+                cell.set(ScratchBufferSlot::Taken);
+                buf
+            }
+            ScratchBufferSlot::Uninit => {
+                cell.set(ScratchBufferSlot::Taken);
+                TurboBincodeBuffer::with_capacity(SCRATCH_BUFFER_INITIAL_SIZE)
+            }
+            ScratchBufferSlot::Taken => {
+                panic!("scratch buffer taken twice without being returned");
+            }
+        }
+    }
+
+    fn return_scratch_buffer(&self, buffer: TurboBincodeBuffer) {
+        let cell = self.scratch_buffers.get_or_default();
+        match cell.take() {
+            ScratchBufferSlot::Taken => cell.set(ScratchBufferSlot::Available(buffer)),
+            ScratchBufferSlot::Available(_) => {
+                panic!("scratch buffer returned without being taken (already available)");
+            }
+            ScratchBufferSlot::Uninit => {
+                panic!("scratch buffer returned without being taken (uninit)");
+            }
+        }
+    }
 }
 
 impl Drop for SnapshotGuard<'_> {
@@ -1097,50 +560,135 @@ impl Drop for SnapshotGuard<'_> {
     }
 }
 
-pub struct SnapshotShard<'l, PP, P, PS> {
-    direct_snapshots: Vec<(TaskId, Box<InnerStorageSnapshot>)>,
-    modified: SmallVec<[TaskId; 4]>,
+pub struct SnapshotShard<'l, P> {
+    shard_idx: usize,
+    direct_snapshots: Vec<(TaskId, Box<TaskStorage>)>,
+    modified: Vec<TaskId>,
     storage: &'l Storage,
-    guard: Option<Arc<SnapshotGuard<'l>>>,
     process: &'l P,
-    preprocess: &'l PP,
-    process_snapshot: &'l PS,
+    /// Held for its `Drop` impl — ensures snapshot mode ends when all shards are done.
+    _guard: Arc<SnapshotGuard<'l>>,
 }
 
-impl<'l, T, R, PP, P, PS> Iterator for SnapshotShard<'l, PP, P, PS>
+impl<'l, P> IntoIterator for SnapshotShard<'l, P>
 where
-    PP: for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
-    P: Fn(TaskId, T) -> R + Sync,
-    PS: Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
+    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
 {
-    type Item = R;
+    type Item = SnapshotItem;
+    type IntoIter = SnapshotShardIter<'l, P>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let buffer = self._guard.take_scratch_buffer();
+        SnapshotShardIter {
+            shard: self,
+            buffer,
+        }
+    }
+}
+
+/// Iterator over a single shard's snapshot items. Holds a thread-local scratch
+/// buffer for the duration of iteration and returns it on drop.
+pub struct SnapshotShardIter<'l, P> {
+    shard: SnapshotShard<'l, P>,
+    buffer: TurboBincodeBuffer,
+}
+
+impl<'l, P> Iterator for SnapshotShardIter<'l, P>
+where
+    P: Fn(TaskId, &TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
+{
+    type Item = SnapshotItem;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some((task_id, snapshot)) = self.direct_snapshots.pop() {
-            return Some((self.process_snapshot)(task_id, snapshot));
-        }
-        while let Some(task_id) = self.modified.pop() {
-            let inner = self.storage.map.get(&task_id).unwrap();
-            let state = inner.state();
-            if !state.any_snapshot() {
-                let preprocessed = (self.preprocess)(task_id, &inner);
-                drop(inner);
-                return Some((self.process)(task_id, preprocessed));
+        // direct_snapshots: these tasks had a snapshot copy created by
+        // track_modification. We encode from the owned snapshot copy,
+        // clear the stale modified flags, and promote any _during_snapshot
+        // flags so the task stays dirty for the next cycle.
+        while let Some((task_id, snapshot)) = self.shard.direct_snapshots.pop() {
+            let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
+            let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
+            if !item.is_empty() {
+                // Successfully encoded — clear pre-snapshot flags. Since we removed
+                // this task's entry from the snapshots map in take_snapshot,
+                // end_snapshot won't see it, so we must promote here.
+                inner.flags.set_data_modified(false);
+                inner.flags.set_meta_modified(false);
+                inner.flags.set_new_task(false);
+                self.shard
+                    .storage
+                    .promote_during_snapshot_flags(&task_id, &mut inner);
+                return Some(item);
             } else {
+                // Error path: encoding failed. Re-mark dirty for next cycle.
+                std::hint::cold_path();
+                self.shard.storage.shard_modified_counts[self.shard.shard_idx]
+                    .fetch_add(1, Ordering::Relaxed);
+                self.shard
+                    .storage
+                    .promote_during_snapshot_flags(&task_id, &mut inner);
+            }
+        }
+        // modified tasks: acquire a write lock to encode and clear flags in one pass.
+        while let Some(task_id) = self.shard.modified.pop() {
+            let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
+            if !inner.flags.any_modified_during_snapshot() {
+                let item = (self.shard.process)(task_id, &inner, &mut self.buffer);
+                if !item.is_empty() {
+                    // Successfully encoded — clear flags.
+                    inner.flags.set_data_modified(false);
+                    inner.flags.set_meta_modified(false);
+                    inner.flags.set_new_task(false);
+                    return Some(item);
+                }
+                // Error path: encoding failed. Re-mark dirty for next cycle.
+                std::hint::cold_path();
+                self.shard.storage.shard_modified_counts[self.shard.shard_idx]
+                    .fetch_add(1, Ordering::Relaxed);
+            } else {
+                // Task was modified again during snapshot mode. A snapshot copy was
+                // created in track_modification_internal. Use that for encoding.
+                // Promote modified_during_snapshot → modified so the task stays dirty
+                // for the next snapshot cycle (the original has diverged from what
+                // we're about to persist).
+                debug_assert!(!inner.flags.any_modified(), "cannot already be modified");
+                self.shard
+                    .storage
+                    .promote_during_snapshot_flags(&task_id, &mut inner);
                 drop(inner);
-                let maybe_snapshot = {
-                    let mut modified_state = self.storage.modified.get_mut(&task_id).unwrap();
-                    let ModifiedState::Snapshot(snapshot) = &mut *modified_state else {
-                        unreachable!("The snapshot bit was set, so it must be in Snapshot state");
-                    };
-                    snapshot.take()
-                };
-                if let Some(snapshot) = maybe_snapshot {
-                    return Some((self.process_snapshot)(task_id, snapshot));
+
+                // Take the snapshot and remove from the snapshots map so
+                // end_snapshot doesn't double-process this task.
+                let snapshot = self
+                    .shard
+                    .storage
+                    .snapshots
+                    .remove(&task_id)
+                    .expect("The snapshot bit was set, so it must be in Snapshot state")
+                    .1;
+
+                if let Some(snapshot) = snapshot {
+                    let item = (self.shard.process)(task_id, &snapshot, &mut self.buffer);
+                    if !item.is_empty() {
+                        // Successfully encoded the snapshot — clear new_task since it
+                        // was captured in the snapshot. The promoted modified flags
+                        // keep the task dirty for future changes.
+                        if let Some(mut inner) = self.shard.storage.map.get_mut(&task_id) {
+                            inner.flags.set_new_task(false);
+                        }
+                        return Some(item);
+                    }
+                    // Encoding failed — new_task flag stays set for retry.
                 }
             }
         }
-        self.guard = None;
         None
+    }
+}
+
+impl<P> Drop for SnapshotShardIter<'_, P> {
+    fn drop(&mut self) {
+        self.shard
+            ._guard
+            .return_scratch_buffer(std::mem::take(&mut self.buffer));
     }
 }

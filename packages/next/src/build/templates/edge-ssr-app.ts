@@ -1,14 +1,15 @@
 import '../../server/web/globals'
-import { adapter, type NextRequestHint } from '../../server/web/adapter'
+import {
+  adapter,
+  type EdgeHandler,
+  type NextRequestHint,
+} from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 
 import * as pageMod from 'VAR_USERLAND'
 
-import type { RequestData } from '../../server/web/types'
-import type { NextConfigComplete } from '../../server/config-shared'
-import { setReferenceManifestsSingleton } from '../../server/app-render/encryption-utils'
-import { createServerModuleMap } from '../../server/app-render/action-utils'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
@@ -25,14 +26,13 @@ import { interopDefault } from '../../lib/interop-default'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { checkIsOnDemandRevalidate } from '../../server/api-utils'
 import { CloseController } from '../../server/web/web-on-close'
+import { parseMaxPostponedStateSize } from '../../shared/lib/size-limit'
+import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
+import type { RequestMeta } from '../../server/request-meta'
 
 declare const incrementalCacheHandler: any
-declare const nextConfig: NextConfigComplete
 // OPTIONAL_IMPORT:incrementalCacheHandler
-// INJECT:nextConfig
-
-// Initialize the cache handlers interface.
-initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+// INJECT_RAW:cacheHandlerImports
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -40,13 +40,10 @@ const rscManifest = self.__RSC_MANIFEST?.['VAR_PAGE']
 const rscServerManifest = maybeJSONParse(self.__RSC_SERVER_MANIFEST)
 
 if (rscManifest && rscServerManifest) {
-  setReferenceManifestsSingleton({
+  setManifestsSingleton({
     page: 'VAR_PAGE',
     clientReferenceManifest: rscManifest,
     serverActionsManifest: rscServerManifest,
-    serverModuleMap: createServerModuleMap({
-      serverActionsManifest: rscServerManifest,
-    }),
   })
 }
 
@@ -78,18 +75,23 @@ async function requestHandler(
     query,
     params,
     buildId,
+    nextConfig,
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
     nextFontManifest,
     resolvedPathname,
-    serverActionsManifest,
     interceptionRoutePatterns,
     routerServerContext,
+    deploymentId,
+    clientAssetToken,
   } = prepareResult
+
+  // Initialize the cache handlers interface.
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
@@ -107,6 +109,8 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
+      deploymentId,
+      clientAssetToken,
     },
     fallbackRouteParams: null,
 
@@ -129,8 +133,6 @@ async function requestHandler(
       reactLoadableManifest,
       subresourceIntegrityManifest,
       dynamicCssManifest,
-      serverActionsManifest,
-      clientReferenceManifest,
       setIsrStatus: routerServerContext?.setIsrStatus,
 
       dir: pageRouteModule.relativeProjectDir,
@@ -144,7 +146,6 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId: nextConfig.deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
@@ -153,19 +154,27 @@ async function requestHandler(
       cacheLifeProfiles: nextConfig.cacheLife,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
+      logServerFunctions:
+        typeof nextConfig.logging === 'object' &&
+        Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
-        clientSegmentCache: Boolean(nextConfig.experimental.clientSegmentCache),
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+        optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
           nextConfig.experimental.clientParamParsingOrigins,
+        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
+          nextConfig.experimental.maxPostponedStateSize
+        ),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(
@@ -181,14 +190,19 @@ async function requestHandler(
       },
       onAfterTaskError: () => {},
 
-      onInstrumentationRequestError: (error, _request, errorContext) =>
+      onInstrumentationRequestError: (
+        error,
+        _request,
+        errorContext,
+        silenceLog
+      ) =>
         pageRouteModule.onRequestError(
           baseReq,
           error,
           errorContext,
+          silenceLog,
           routerServerContext
         ),
-      dev: pageRouteModule.isDev,
     },
   }
   let finalStatus = 200
@@ -320,12 +334,18 @@ async function requestHandler(
 
       return renderResultToResponse(result)
     } catch (err) {
-      await pageRouteModule.onRequestError(baseReq, err, {
-        routerKind: 'App Router',
-        routePath: normalizedSrcPage,
-        routeType: 'render',
-        revalidateReason: undefined,
-      })
+      const silenceLog = false
+      await pageRouteModule.onRequestError(
+        baseReq,
+        err,
+        {
+          routerKind: 'App Router',
+          routePath: normalizedSrcPage,
+          routeType: 'render',
+          revalidateReason: undefined,
+        },
+        silenceLog
+      )
       // rethrow so that we can handle serving error page
       throw err
     }
@@ -350,11 +370,59 @@ async function requestHandler(
   )
 }
 
-export default function nHandler(opts: { page: string; request: RequestData }) {
+const internalHandler: EdgeHandler = (opts) => {
   return adapter({
     ...opts,
     IncrementalCache,
     handler: requestHandler,
     incrementalCacheHandler,
+    page: 'VAR_PAGE',
   })
 }
+
+export async function handler(
+  request: Request,
+  ctx: {
+    waitUntil?: (prom: Promise<void>) => void
+    signal?: AbortSignal
+    requestMeta?: RequestMeta
+  }
+): Promise<Response> {
+  const result = await internalHandler({
+    request: {
+      url: request.url,
+      method: request.method,
+      headers: toNodeOutgoingHttpHeaders(request.headers),
+      nextConfig: {
+        basePath: process.env.__NEXT_BASE_PATH,
+        i18n: process.env.__NEXT_I18N_CONFIG as any,
+        trailingSlash: Boolean(process.env.__NEXT_TRAILING_SLASH),
+        experimental: {
+          cacheLife: process.env.__NEXT_CACHE_LIFE as any,
+          authInterrupts: Boolean(
+            process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS
+          ),
+          clientParamParsingOrigins: process.env
+            .__NEXT_CLIENT_PARAM_PARSING_ORIGINS as any,
+        },
+      },
+      page: {
+        name: 'VAR_PAGE',
+      },
+      body:
+        request.method !== 'GET' && request.method !== 'HEAD'
+          ? (request.body ?? undefined)
+          : undefined,
+      waitUntil: ctx.waitUntil,
+      requestMeta: ctx.requestMeta,
+      signal: ctx.signal || new AbortController().signal,
+    },
+  })
+
+  ctx.waitUntil?.(result.waitUntil)
+
+  return result.response
+}
+
+// backwards compat
+export default internalHandler

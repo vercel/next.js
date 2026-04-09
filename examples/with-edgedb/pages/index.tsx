@@ -1,4 +1,5 @@
 import React from "react";
+import "../styles/global.css";
 import { GetServerSideProps } from "next";
 import Layout from "../components/Layout";
 import Post from "../components/Post";

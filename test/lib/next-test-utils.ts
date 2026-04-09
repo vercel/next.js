@@ -16,6 +16,7 @@ import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
 import fetch from 'node-fetch'
+import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
 import { once } from 'events'
@@ -27,6 +28,7 @@ import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import { Playwright } from 'next-webdriver'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -35,6 +37,8 @@ import escapeRegex from 'escape-string-regexp'
 // TODO: Create dedicated Jest environment that sets up these matchers
 // Edge Runtime unit tests fail with "EvalError: Code generation from strings disallowed for this context" if these matchers are imported in those tests.
 import './add-redbox-matchers'
+import { NextInstance } from 'e2e-utils'
+import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
 
 export { shouldUseTurbopack }
 
@@ -197,6 +201,53 @@ export function fetchViaHTTP(
   return fetch(getFullUrl(appPort, url), opts)
 }
 
+export function expectVaryHeaderToContain(
+  varyHeader: string | null,
+  expectedFields: string[]
+) {
+  const varyFields = new Set(
+    (varyHeader ?? '')
+      .split(',')
+      .map((field) => field.trim().toLowerCase())
+      .filter(Boolean)
+  )
+
+  for (const expectedField of expectedFields) {
+    expect(varyFields.has(expectedField.toLowerCase())).toBe(true)
+  }
+}
+
+/**
+ * Creates request options with a unique x-invocation-id header for testing
+ * cache deduplication in minimal mode. Use this when you need to ensure each
+ * request is treated as independent, or when multiple requests need to share
+ * the same invocation ID.
+ *
+ * @example
+ * // Independent requests (each gets its own invocation ID)
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ * const res2 = await fetchViaHTTP(appPort, '/page', undefined, withInvocationId())
+ *
+ * @example
+ * // Grouped requests (share the same invocation ID for cache testing)
+ * const sharedOpts = withInvocationId()
+ * const res1 = await fetchViaHTTP(appPort, '/page', undefined, sharedOpts)
+ * const res2 = await fetchViaHTTP(appPort, '/_next/data/.../page.json', undefined, sharedOpts)
+ *
+ * @param opts - Optional existing RequestInit to merge with
+ * @returns RequestInit with x-invocation-id header added
+ */
+export function withInvocationId(opts?: RequestInit): RequestInit {
+  const invocationId = `test:${nanoid()}`
+  return {
+    ...opts,
+    headers: {
+      ...opts?.headers,
+      'x-invocation-id': invocationId,
+    },
+  }
+}
+
 export function renderViaHTTP(
   appPort: string | number,
   pathname: string,
@@ -231,6 +282,7 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+  disableAutoSkewProtection?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -249,7 +301,7 @@ export function runNextCommand(
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
@@ -356,6 +408,7 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
+  disableAutoSkewProtection?: boolean
 
   stderr?: false
   stdout?: false
@@ -483,6 +536,12 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -505,6 +564,12 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
+  }
+
   return runNextCommandDev(
     ['start', '-p', port as string, '--hostname', '::', dir],
     undefined,
@@ -697,29 +762,22 @@ export async function startCleanStaticServer(dir: string) {
 /**
  * Check for content in 1 second intervals timing out after 30 seconds.
  * @deprecated use retry + expect instead
- * @param {() => Promise<unknown> | unknown} contentFn
- * @param {RegExp | string | number} regex
- * @param {boolean} hardError
- * @param {number} maxRetries
- * @returns {Promise<boolean>}
  */
 export async function check(
-  contentFn: () => any | Promise<any>,
-  regex: any,
-  hardError = true,
-  maxRetries = 30
-) {
-  let content
-  let lastErr
+  contentFn: () => unknown | Promise<unknown>,
+  regex: boolean | number | string | RegExp
+): Promise<boolean> {
+  let content: unknown
+  let lastErr: unknown
 
-  for (let tries = 0; tries < maxRetries; tries++) {
+  for (let tries = 0; tries < 30; tries++) {
     try {
       content = await contentFn()
-      if (typeof regex !== typeof /regex/) {
+      if (typeof regex !== 'object') {
         if (regex === content) {
           return true
         }
-      } else if (regex.test(content)) {
+      } else if (regex.test('' + content)) {
         // found the content
         return true
       }
@@ -730,11 +788,7 @@ export async function check(
     }
   }
   console.error('TIMED OUT CHECK: ', { regex, content, lastErr })
-
-  if (hardError) {
-    throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
-  }
-  return false
+  throw new Error('TIMED OUT: ' + regex + '\n\n' + content + '\n\n' + lastErr)
 }
 
 export class File {
@@ -795,7 +849,7 @@ export async function retry<T>(
   fn: () => T | Promise<T>,
   duration: number = 3000,
   interval: number = 500,
-  description?: string
+  description: string = fn.name
 ): Promise<T> {
   if (duration % interval !== 0) {
     throw new Error(
@@ -825,13 +879,13 @@ export async function retry<T>(
   throw new Error('Duration cannot be less than 0.')
 }
 
-export async function assertHasRedbox(browser: Playwright) {
+export async function waitForRedbox(browser: Playwright) {
   const redbox = browser.locateRedbox()
   try {
     await redbox.waitFor({ timeout: 5000 })
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found no visible one.')
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, waitForRedbox)
     throw error
   }
 
@@ -843,12 +897,12 @@ export async function assertHasRedbox(browser: Playwright) {
     const error = new Error('Redbox still had suspended content after 10s', {
       cause,
     })
-    Error.captureStackTrace(error, assertHasRedbox)
+    Error.captureStackTrace(error, waitForRedbox)
     throw error
   }
 }
 
-export async function assertNoRedbox(
+export async function waitForNoRedbox(
   browser: Playwright,
   { waitInMs = 5000 }: { waitInMs?: number } = {}
 ) {
@@ -868,25 +922,28 @@ export async function assertNoRedbox(
         `description: ${redboxDescription}\n` +
         `source: ${redboxSource}`
     )
-    Error.captureStackTrace(error, assertNoRedbox)
+    Error.captureStackTrace(error, waitForNoRedbox)
     throw error
   }
 }
 
-export async function assertNoErrorToast(browser: Playwright): Promise<void> {
+export async function waitForNoErrorToast(
+  browser: Playwright,
+  { waitInMs }: { waitInMs?: number } = {}
+): Promise<void> {
   let didOpenRedbox = false
 
   try {
-    await browser.waitForElementByCss('[data-issues]').click()
+    await browser.waitForElementByCss('[data-issues]', waitInMs).click()
     didOpenRedbox = true
   } catch {
     // We expect this to fail.
   }
 
   if (didOpenRedbox) {
-    // If a redbox was opened unexpectedly, we use the `assertNoRedbox` helper
+    // If a redbox was opened unexpectedly, we use the `waitForNoRedbox` helper
     // to print a useful error message containing the redbox contents.
-    await assertNoRedbox(browser, {
+    await waitForNoRedbox(browser, {
       // We already know the redbox is open, so we can skip waiting for it.
       waitInMs: 0,
     })
@@ -923,13 +980,13 @@ export async function getToastErrorCount(browser: Playwright): Promise<number> {
 
 /**
  * Has retried version of {@link hasErrorToast} built-in.
- * Success implies {@link assertHasRedbox}.
+ * Success implies {@link waitForRedbox}.
  */
 export async function openRedbox(browser: Playwright): Promise<void> {
   const redbox = browser.locateRedbox()
   if (await redbox.isVisible()) {
     const error = new Error(
-      'Redbox is already open. Use `assertHasRedbox` instead.'
+      'Redbox is already open. Use `waitForRedbox` instead.'
     )
     Error.captureStackTrace(error, openRedbox)
     throw error
@@ -942,19 +999,19 @@ export async function openRedbox(browser: Playwright): Promise<void> {
     Error.captureStackTrace(error, openRedbox)
     throw error
   }
-  await assertHasRedbox(browser)
+  await waitForRedbox(browser)
 }
 
-export async function openDevToolsIndicatorPopover(
+export async function toggleDevToolsIndicatorPopover(
   browser: Playwright
 ): Promise<void> {
-  const devToolsIndicator = await assertHasDevToolsIndicator(browser)
+  const devToolsIndicator = await waitForDevToolsIndicator(browser)
 
   try {
     await devToolsIndicator.click()
   } catch (cause) {
-    const error = new Error('No DevTools Indicator to open.', { cause })
-    Error.captureStackTrace(error, openDevToolsIndicatorPopover)
+    const error = new Error('No DevTools Indicator to toggle.', { cause })
+    Error.captureStackTrace(error, toggleDevToolsIndicatorPopover)
     throw error
   }
 }
@@ -968,7 +1025,7 @@ export async function getSegmentExplorerRoute(browser: Playwright) {
 
 export async function getSegmentExplorerContent(browser: Playwright) {
   // open the devtool button
-  await openDevToolsIndicatorPopover(browser)
+  await toggleDevToolsIndicatorPopover(browser)
 
   // open the segment explorer
   await browser.elementByCss('[data-segment-explorer]').click()
@@ -1006,7 +1063,7 @@ export async function hasDevToolsPanel(browser: Playwright) {
   return result
 }
 
-export async function assertHasDevToolsIndicator(browser: Playwright) {
+export async function waitForDevToolsIndicator(browser: Playwright) {
   const devToolsIndicator = browser.locateDevToolsIndicator()
   try {
     await devToolsIndicator.waitFor({ timeout: 5000 })
@@ -1014,7 +1071,7 @@ export async function assertHasDevToolsIndicator(browser: Playwright) {
     const error = new Error(
       'Expected DevTools Indicator but found no visible one.'
     )
-    Error.captureStackTrace(error, assertHasDevToolsIndicator)
+    Error.captureStackTrace(error, waitForDevToolsIndicator)
     throw error
   }
 
@@ -1033,37 +1090,39 @@ export async function assertNoDevToolsIndicator(browser: Playwright) {
   }
 }
 
-export async function assertStaticIndicator(
+export async function waitForStaticIndicator(
   browser: Playwright,
   expectedRouteType: 'Static' | 'Dynamic' | undefined
 ): Promise<void> {
-  await openDevToolsIndicatorPopover(browser)
+  await toggleDevToolsIndicatorPopover(browser)
 
-  const routeType = await browser.eval(() => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
+  await retry(async () => {
+    const routeType = await browser.eval(() => {
+      const portal = [].slice
+        .call(document.querySelectorAll('nextjs-portal'))
+        .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
 
-    return (
-      portal?.shadowRoot
-        // 'Route\nStatic' || 'Route\nDynamic'
-        ?.querySelector('[data-nextjs-route-type]')
-        ?.innerText.split('\n')
-        .pop()
-    )
-  })
-
-  if (routeType !== expectedRouteType) {
-    if (expectedRouteType) {
-      throw new Error(
-        `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+      return (
+        portal?.shadowRoot
+          // 'Route\nStatic' || 'Route\nDynamic'
+          ?.querySelector('[data-nextjs-route-type]')
+          ?.innerText.split('\n')
+          .pop()
       )
-    } else {
-      throw new Error(
-        `Expected no static indicator, found ${routeType} instead.`
-      )
+    })
+
+    if (routeType !== expectedRouteType) {
+      if (expectedRouteType) {
+        throw new Error(
+          `Expected static indicator with route type ${expectedRouteType}, found ${routeType} instead.`
+        )
+      } else {
+        throw new Error(
+          `Expected no static indicator, found ${routeType} instead.`
+        )
+      }
     }
-  }
+  })
 }
 
 export function getRedboxHeader(browser: Playwright): Promise<string | null> {
@@ -1161,6 +1220,22 @@ export function getRedboxDescription(
     const root = portal.shadowRoot
     return (
       root.querySelector('#nextjs__container_errors_desc')?.innerText ?? null
+    )
+  })
+}
+
+export function getRedboxErrorCode(
+  browser: Playwright
+): Promise<string | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal.shadowRoot
+    return (
+      root
+        .querySelector('[data-nextjs-error-code]')
+        ?.getAttribute('data-nextjs-error-code') ?? null
     )
   })
 }
@@ -1446,24 +1521,76 @@ export function getSnapshotTestDescribe(variant: TestVariants) {
   return shouldSkip ? describe.skip : describe
 }
 
+const nextjsClientComponentNames = [
+  // Pages Router
+  'App',
+  'AppContainer',
+  'Container',
+  'Head',
+  'PagesDevOverlayBridge',
+  'PagesDevOverlayErrorBoundary',
+  'PathnameContextProviderAdapter',
+  // App Router
+  'ClientPageRoot',
+  'ClientSegmentRoot',
+  'HTTPAccessFallbackBoundary',
+  'HTTPAccessFallbackErrorBoundary',
+  'InnerLayoutRouter',
+  'InnerScrollAndFocusHandlerOld',
+  'InnerScrollHandlerNew',
+  'RedirectBoundary',
+  'RedirectErrorBoundary',
+  'RenderFromTemplateContext',
+  'Root',
+  'ScrollAndMaybeFocusHandler',
+  'SegmentViewNode',
+  'SegmentTrieNode',
+  // These are added due to user actions e.g. loading.js -> LoadingBoundary
+  // They may be relevant in some context in the future.
+  // Consider including them in different assertions.
+  'ErrorBoundary',
+  'LoadingBoundary',
+]
+const nextjsClientComponentStackFrame = new RegExp(
+  `^(\\s*)<(${nextjsClientComponentNames.join('|')})(>| )`
+)
+
 /**
  * @returns `null` if there are no frames
  */
 export async function getRedboxComponentStack(
-  browser: Playwright
+  browser: Playwright,
+  includeNextjsInternalComponents = false
 ): Promise<string | null> {
-  const componentStackFrameElements = await browser.elementsByCss(
+  const componentStackTraceElements = await browser.elementsByCss(
     '[data-nextjs-container-errors-pseudo-html] code'
   )
-  if (componentStackFrameElements.length === 0) {
+  if (componentStackTraceElements.length === 0) {
     return null
   }
 
-  const componentStackFrameTexts = await Promise.all(
-    componentStackFrameElements.map((f) => f.innerText())
-  )
+  const componentStackTrace = await componentStackTraceElements[0].innerText()
+  const componentStackFrames = componentStackTrace.split('\n')
 
-  return componentStackFrameTexts.join('\n').trim()
+  return componentStackFrames
+    .map((componentStackFrame) => {
+      if (!includeNextjsInternalComponents) {
+        const componentStackFrameMatch = componentStackFrame.match(
+          nextjsClientComponentStackFrame
+        )
+        // React component stack frames aren't subject to ignore-listing.
+        // They're not relevant for our tests though.
+        // If you need to assert on Next.js internal component frames,
+        // use `getRedboxComponentStack(browser, true)` instead.
+        if (componentStackFrameMatch) {
+          return componentStackFrameMatch[1] + '<Next.js Internal Component>'
+        }
+      }
+
+      return componentStackFrame
+    })
+    .join('\n')
+    .trim()
 }
 
 export async function hasRedboxCallStack(browser: Playwright) {
@@ -1474,6 +1601,95 @@ export async function hasRedboxCallStack(browser: Playwright) {
     const root = portal?.shadowRoot
 
     return root?.querySelectorAll('[data-nextjs-call-stack-frame]').length > 0
+  })
+}
+
+export interface RedboxCauseEntry {
+  label: string | null
+  message: string | null
+  source: string | null
+  stack: string[]
+}
+
+export async function getRedboxCause(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const causeElements = root?.querySelectorAll('[data-nextjs-error-cause]')
+    if (!causeElements || causeElements.length === 0) return null
+
+    const causes: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of causeElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      causes.push({
+        label: el.querySelector('.error-cause-label')?.innerText ?? null,
+        message: el.querySelector('.error-cause-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return causes
+  })
+}
+
+export async function getRedboxAggregateErrors(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const aggregateElements = root?.querySelectorAll(
+      '[data-nextjs-error-aggregate-error]'
+    )
+    if (!aggregateElements || aggregateElements.length === 0) return null
+
+    const entries: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of aggregateElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      entries.push({
+        label:
+          el.querySelector('.error-aggregate-error-label')?.innerText ?? null,
+        message:
+          el.querySelector('.error-aggregate-error-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return entries
   })
 }
 
@@ -1493,6 +1709,13 @@ export async function getRedboxCallStack(
     if (frameElements !== undefined) {
       let foundInternalFrame = false
       for (const frameElement of frameElements) {
+        // Skip frames that belong to an Error.cause or AggregateError section
+        if (
+          frameElement.closest('[data-nextjs-error-cause]') ||
+          frameElement.closest('[data-nextjs-error-aggregate-error]')
+        ) {
+          continue
+        }
         // `innerText` will be "${methodName}\n${location}".
         // Ideally `innerText` would be "${methodName} ${location}"
         // so that c&p automatically does the right thing.
@@ -1728,33 +1951,6 @@ export const checkLink = (
   content: string | string[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
-export async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const stackFramesContent = (
-    await Promise.all(
-      stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('.call-stack-frame-method-name')
-        const sourceEl = await frame.$('[data-has-source="true"]')
-        const functionName = functionNameEl
-          ? await functionNameEl.innerText()
-          : ''
-        const source = sourceEl ? await sourceEl.innerText() : ''
-
-        if (!functionName) {
-          return ''
-        }
-        return `at ${functionName} (${source})`
-      })
-    )
-  )
-    .filter(Boolean)
-    .join('\n')
-
-  return stackFramesContent
-}
-
 export async function toggleCollapseCallStackFrames(browser: Playwright) {
   const button = await browser.elementByCss(
     '[data-nextjs-call-stack-ignored-list-toggle-button]'
@@ -1878,4 +2074,89 @@ export function getDistDir(): '.next' | '.next/dev' {
   return (global as any).isNextDev || process.env.NEXT_TEST_MODE === 'dev'
     ? '.next/dev'
     : '.next'
+}
+
+/**
+ * Loads and returns the client reference manifest for a given route
+ */
+export function getClientReferenceManifest(
+  next: NextInstance,
+  route: string
+): ClientReferenceManifest {
+  const manifestPath = path.join(
+    next.testDir,
+    next.distDir,
+    `server/app${route}_client-reference-manifest.js`
+  )
+  const modulePath = require.resolve(manifestPath)
+
+  // Clear global
+  delete (globalThis as any).__RSC_MANIFEST
+
+  // Need to use jest.isolateModules because Jest messes with require.cache and `delete
+  // require.cache[modulePath]` doesn't actually work anymore
+  jest.isolateModules(() => {
+    // Load the manifest (it sets globalThis.__RSC_MANIFEST)
+    require(modulePath)
+  })
+
+  const manifest = (globalThis as any).__RSC_MANIFEST[
+    route
+  ] as ClientReferenceManifest
+
+  // Sanity check
+  expect(
+    manifest.clientModules ||
+      manifest.ssrModuleMapping ||
+      manifest.rscModuleMapping
+  ).toBeDefined()
+
+  return manifest
+}
+
+export const getCacheHeader = (curRes: Response) =>
+  // favor generic header
+  curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+export function getDeploymentId(appDir: string, isDev: boolean) {
+  let requiredServerFiles
+  if (!isDev) {
+    // File isn't written in dev, but it might still exist because it was created by a prior
+    // production build.
+    try {
+      requiredServerFiles = JSON.parse(
+        readFileSync(
+          path.join(appDir, getDistDir(), 'required-server-files.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
+  const deploymentId: string | undefined =
+    requiredServerFiles?.config?.deploymentId
+
+  const assetToken: string | undefined = requiredServerFiles?.config
+    ?.experimental?.supportsImmutableAssets
+    ? undefined
+    : deploymentId
+
+  return {
+    deploymentId,
+    getDeploymentIdQuery(ampersand = false) {
+      return deploymentId ? `${ampersand ? '&' : '?'}dpl=${deploymentId}` : ''
+    },
+    assetToken,
+    getAssetQuery(ampersand = false) {
+      return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
+    },
+  }
+}
+
+export async function listClientChunks(distDir: string) {
+  return (
+    await recursiveReadDir(path.join(distDir, 'static'), {
+      relativePathnames: false,
+    })
+  ).map((f) => path.relative(distDir, f))
 }

@@ -1,5 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { check, retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 import { SavedSpan } from './constants'
@@ -11,6 +11,7 @@ const EXTERNAL = {
 } as const
 
 const COLLECTOR_PORT = 9001
+const isStartMode = process.env.NEXT_TEST_MODE === 'start'
 
 describe('opentelemetry', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -170,7 +171,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 7 : 6,
+                          'next.clientComponentLoadCount': isNextDev ? 8 : 7,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -578,7 +579,7 @@ describe('opentelemetry', () => {
                       },
                       {
                         attributes: {
-                          'next.clientComponentLoadCount': isNextDev ? 10 : 8,
+                          'next.clientComponentLoadCount': isNextDev ? 12 : 10,
                           'next.span_type':
                             'NextNodeServer.clientComponentLoading',
                         },
@@ -603,6 +604,129 @@ describe('opentelemetry', () => {
                     name: 'resolve page components',
                     attributes: {
                       'next.route': '/app/[param]/rsc-fetch/error',
+                      'next.span_name': 'resolve page components',
+                      'next.span_type': 'NextNodeServer.findPageComponents',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          it('should handle error inside Suspense boundary', async () => {
+            await next.fetch('/app/param/loading/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /app/[param]/loading/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/app/[param]/loading/error',
+                  // The response starts streaming before the error,
+                  // so HTTP status is 200 (unlike synchronous errors which get 500)
+                  'http.status_code': 200,
+                  'http.target': '/app/param/loading/error',
+                  'next.route': '/app/[param]/loading/error',
+                  'next.rsc': false,
+                  'next.span_name': 'GET /app/[param]/loading/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'render route (app) /app/[param]/loading/error',
+                    attributes: {
+                      'next.route': '/app/[param]/loading/error',
+                      'next.span_name':
+                        'render route (app) /app/[param]/loading/error',
+                      'next.span_type': 'AppRender.getBodyResult',
+                      'error.type': 'Error',
+                    },
+                    kind: 0,
+                    // The render span should have error status because an error
+                    // was thrown inside a Suspense boundary during streaming
+                    status: {
+                      code: 2,
+                      message: 'Error inside Suspense boundary',
+                    },
+                    spans: [
+                      {
+                        name: 'build component tree',
+                        attributes: {
+                          'next.span_name': 'build component tree',
+                          'next.span_type':
+                            'NextNodeServer.createComponentTree',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                        spans: [
+                          {
+                            name: 'resolve segment modules',
+                            attributes: {
+                              'next.segment': '__PAGE__',
+                              'next.span_name': 'resolve segment modules',
+                              'next.span_type':
+                                'NextNodeServer.getLayoutOrPageModule',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
+                          {
+                            name: 'resolve segment modules',
+                            attributes: {
+                              'next.segment': '[param]',
+                              'next.span_name': 'resolve segment modules',
+                              'next.span_type':
+                                'NextNodeServer.getLayoutOrPageModule',
+                            },
+                            kind: 0,
+                            status: { code: 0 },
+                          },
+                        ],
+                      },
+                      {
+                        name: 'generateMetadata /app/[param]/layout',
+                        attributes: {
+                          'next.page': '/app/[param]/layout',
+                          'next.span_name':
+                            'generateMetadata /app/[param]/layout',
+                          'next.span_type': 'ResolveMetadata.generateMetadata',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        attributes: {
+                          'next.clientComponentLoadCount': isNextDev ? 9 : 8,
+                          'next.span_type':
+                            'NextNodeServer.clientComponentLoading',
+                        },
+                        kind: 0,
+                        name: 'NextNodeServer.clientComponentLoading',
+                        status: {
+                          code: 0,
+                        },
+                      },
+                      {
+                        name: 'start response',
+                        attributes: {
+                          'next.span_name': 'start response',
+                          'next.span_type': 'NextNodeServer.startResponse',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'resolve page components',
+                    attributes: {
+                      'next.route': '/app/[param]/loading/error',
                       'next.span_name': 'resolve page components',
                       'next.span_type': 'NextNodeServer.findPageComponents',
                     },
@@ -1118,6 +1242,311 @@ describe('opentelemetry with disabled fetch tracing', () => {
   )
 })
 
+describe('opentelemetry with custom server', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+    dependencies: require('./package.json').dependencies,
+    startCommand: 'pnpm start',
+    packageJson: {
+      scripts: {
+        start: 'pnpm tsx custom-server.ts',
+      },
+    },
+    serverReadyPattern: /- Local:/,
+    env: {
+      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+      NEXT_TELEMETRY_DISABLED: '1',
+      NODE_ENV: isNextDev ? 'development' : 'production',
+    },
+  })
+
+  if (skipped) {
+    return
+  }
+
+  let collector: Collector
+
+  function getCollector(): Collector {
+    return collector
+  }
+
+  beforeEach(async () => {
+    collector = await connectCollector({ port: COLLECTOR_PORT })
+  })
+
+  afterEach(async () => {
+    await collector.shutdown()
+  })
+
+  it('should set attributes correctly on handleRequest span', async () => {
+    await next.fetch('/app/param/rsc-fetch')
+
+    await expectTrace(getCollector(), [
+      {
+        name: 'custom-server-request',
+        traceId: '[trace-id]',
+        parentId: undefined,
+        spans: [
+          {
+            name: 'GET /app/[param]/rsc-fetch',
+            attributes: {
+              'http.method': 'GET',
+              'http.route': '/app/[param]/rsc-fetch',
+              'http.status_code': 200,
+              'http.target': '/app/param/rsc-fetch',
+              'next.route': '/app/[param]/rsc-fetch',
+              'next.rsc': false,
+              'next.span_name': 'GET /app/[param]/rsc-fetch',
+              'next.span_type': 'BaseServer.handleRequest',
+            },
+            kind: 1,
+            status: { code: 0 },
+            spans: [
+              {
+                name: 'render route (app) /app/[param]/rsc-fetch',
+                attributes: {
+                  'next.route': '/app/[param]/rsc-fetch',
+                  'next.span_name': 'render route (app) /app/[param]/rsc-fetch',
+                  'next.span_type': 'AppRender.getBodyResult',
+                },
+                kind: 0,
+                status: { code: 0 },
+                spans: [
+                  {
+                    name: 'build component tree',
+                    attributes: {
+                      'next.span_name': 'build component tree',
+                      'next.span_type': 'NextNodeServer.createComponentTree',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                    spans: [
+                      {
+                        name: 'resolve segment modules',
+                        attributes: {
+                          'next.segment': '__PAGE__',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                      {
+                        name: 'resolve segment modules',
+                        attributes: {
+                          'next.segment': '[param]',
+                          'next.span_name': 'resolve segment modules',
+                          'next.span_type':
+                            'NextNodeServer.getLayoutOrPageModule',
+                        },
+                        kind: 0,
+                        status: { code: 0 },
+                      },
+                    ],
+                  },
+                  {
+                    name: 'fetch GET https://example.vercel.sh/',
+                    attributes: {
+                      'http.method': 'GET',
+                      'http.url': 'https://example.vercel.sh/',
+                      'net.peer.name': 'example.vercel.sh',
+                      'next.span_name': 'fetch GET https://example.vercel.sh/',
+                      'next.span_type': 'AppRender.fetch',
+                    },
+                    kind: 2,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'generateMetadata /app/[param]/layout',
+                    attributes: {
+                      'next.page': '/app/[param]/layout',
+                      'next.span_name': 'generateMetadata /app/[param]/layout',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    name: 'generateMetadata /app/[param]/rsc-fetch/page',
+                    attributes: {
+                      'next.page': '/app/[param]/rsc-fetch/page',
+                      'next.span_name':
+                        'generateMetadata /app/[param]/rsc-fetch/page',
+                      'next.span_type': 'ResolveMetadata.generateMetadata',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  {
+                    attributes: {
+                      'next.clientComponentLoadCount': isNextDev ? 8 : 7,
+                      'next.span_type': 'NextNodeServer.clientComponentLoading',
+                    },
+                    kind: 0,
+                    name: 'NextNodeServer.clientComponentLoading',
+                    status: {
+                      code: 0,
+                    },
+                  },
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+              {
+                name: 'resolve page components',
+                attributes: {
+                  'next.route': '/app/[param]/rsc-fetch',
+                  'next.span_name': 'resolve page components',
+                  'next.span_type': 'NextNodeServer.findPageComponents',
+                },
+                kind: 0,
+                status: { code: 0 },
+              },
+            ],
+          },
+        ],
+      },
+    ])
+  })
+})
+
+if (isStartMode) {
+  describe('opentelemetry with direct entrypoint handler', () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      dependencies: require('./package.json').dependencies,
+      startCommand: 'pnpm start-entrypoint',
+      packageJson: {
+        scripts: {
+          'start-entrypoint': 'pnpm tsx custom-entrypoint-server.ts',
+        },
+      },
+      serverReadyPattern: /- Local:/,
+      env: {
+        TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+        NEXT_TELEMETRY_DISABLED: '1',
+        NODE_ENV: 'production',
+      },
+    })
+
+    if (skipped) {
+      return
+    }
+
+    let collector: Collector
+
+    function getCollector(): Collector {
+      return collector
+    }
+
+    beforeEach(async () => {
+      collector = await connectCollector({ port: COLLECTOR_PORT })
+    })
+
+    afterEach(async () => {
+      await collector.shutdown()
+    })
+
+    const directEntrypointCases = [
+      { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
+      { pathname: '/api/app/param/data', route: '/api/app/[param]/data' },
+      {
+        pathname: '/pages/param/getServerSideProps',
+        route: '/pages/[param]/getServerSideProps',
+      },
+      {
+        pathname: '/api/pages/param/basic',
+        route: '/api/pages/[param]/basic',
+      },
+    ] as const
+
+    describe.each(directEntrypointCases)(
+      'direct entrypoint $pathname',
+      ({ pathname, route }) => {
+        it(`should add route names to handleRequest and parent spans for direct entrypoint ${pathname}`, async () => {
+          const response = await next.fetch(pathname)
+          expect(response.status).toBe(200)
+
+          await retry(
+            async () => {
+              const spans = collector.getSpans()
+              const handleRequestSpan = spans.find((span) => {
+                if (
+                  span.attributes?.['next.span_type'] !==
+                  'BaseServer.handleRequest'
+                ) {
+                  return false
+                }
+                const target = span.attributes?.['http.target'] as
+                  | string
+                  | undefined
+                return Boolean(target && target.includes(pathname))
+              })
+
+              expect(handleRequestSpan).toBeDefined()
+              expect(handleRequestSpan!.name).toBe(`GET ${route}`)
+              expect(handleRequestSpan!.attributes?.['http.target']).toContain(
+                pathname
+              )
+              expect(handleRequestSpan!.attributes?.['next.route']).toBe(route)
+              expect(handleRequestSpan!.attributes?.['http.route']).toBe(route)
+              expect(handleRequestSpan!.attributes?.['next.span_name']).toBe(
+                `GET ${route}`
+              )
+
+              const parentSpan = spans.find(
+                (span) =>
+                  span.traceId === handleRequestSpan!.traceId &&
+                  !span.parentId &&
+                  !span.attributes?.['next.span_type'] &&
+                  span.name === handleRequestSpan!.name
+              )
+              expect(parentSpan).toBeDefined()
+              expect(parentSpan!.name).toBe(`GET ${route}`)
+            },
+            30_000,
+            1_000,
+            `direct entrypoint span route naming ${pathname}`
+          )
+        })
+
+        it(`should propagate incoming context without next-server wrapper for direct entrypoint ${pathname}`, async () => {
+          const response = await next.fetch(pathname, {
+            headers: {
+              traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+            },
+          })
+          expect(response.status).toBe(200)
+
+          await expectTrace(getCollector(), [
+            {
+              name: `GET ${route}`,
+              traceId: EXTERNAL.traceId,
+              parentId: EXTERNAL.spanId,
+              attributes: {
+                'http.target': pathname,
+                'next.span_type': 'BaseServer.handleRequest',
+                'http.route': route,
+                'next.route': route,
+              },
+            },
+          ])
+        })
+      }
+    )
+  })
+}
+
 type HierSavedSpan = SavedSpan & { spans?: HierSavedSpan[] }
 type SpanMatch = Omit<Partial<HierSavedSpan>, 'spans'> & { spans?: SpanMatch[] }
 
@@ -1126,6 +1555,14 @@ async function expectTrace(
   match: SpanMatch[],
   edgeOnly?: boolean
 ) {
+  // Extract expected http.target values from the match to filter out extra spans
+  // that may be generated in production mode (e.g., RSC prefetch requests)
+  const expectedTargets = new Set(
+    match
+      .map((m) => m.attributes?.['http.target'] as string | undefined)
+      .filter(Boolean)
+  )
+
   await check(async () => {
     const traces = collector.getSpans()
 
@@ -1181,7 +1618,19 @@ async function expectTrace(
       })
     }
 
-    tree.sort((a, b) => {
+    // Filter root spans to only those matching expected http.target values
+    // This prevents flakiness from extra spans in prod mode (RSC prefetch, etc.)
+    const filteredTree =
+      expectedTargets.size > 0
+        ? tree.filter((span) => {
+            const target = span.attributes?.['http.target'] as
+              | string
+              | undefined
+            return target && expectedTargets.has(target)
+          })
+        : tree
+
+    filteredTree.sort((a, b) => {
       const runtimeDiff = (a.runtime ?? '').localeCompare(b.runtime ?? '')
       if (runtimeDiff !== 0) {
         return runtimeDiff
@@ -1189,7 +1638,7 @@ async function expectTrace(
       return a.name.localeCompare(b.name)
     })
 
-    expect(tree).toMatchObject(match)
+    expect(filteredTree).toMatchObject(match)
     return 'success'
   }, 'success')
 }

@@ -13,6 +13,15 @@ const myFont2 = localFont({
   preload: false,
   variable: '--my-font',
 })
+const myFont1Override = localFont({
+  src: '../fonts/my-font.woff2',
+  declarations: [
+    {
+      prop: 'font-family',
+      value: 'foobar',
+    },
+  ],
+})
 
 const roboto = localFont({
   preload: false,
@@ -133,6 +142,9 @@ export default function WithFonts() {
       </div>
       <div id="second-local-font" className={myFont2.className}>
         {JSON.stringify(myFont2)}
+      </div>
+      <div id="first-local-font-override" className={myFont1Override.className}>
+        {JSON.stringify(myFont1Override)}
       </div>
       <div id="roboto-local-font" className={roboto.className}>
         {JSON.stringify(roboto)}

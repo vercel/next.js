@@ -2,19 +2,24 @@ use std::{
     cmp::min,
     io::{BufRead, Result as IoResult, Write},
     ops,
+    sync::Arc,
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use tracing::instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::rope::{Rope, RopeBuilder};
+use turbo_tasks_fs::{
+    File, FileContent,
+    rope::{Rope, RopeBuilder},
+};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use crate::{
     debug_id::generate_debug_id,
     output::OutputAsset,
-    source_map::{GenerateSourceMap, OptionStringifiedSourceMap, SourceMap, SourceMapAsset},
+    source_map::{GenerateSourceMap, SourceMap, SourceMapAsset},
     source_pos::SourcePos,
 };
 
@@ -22,12 +27,25 @@ use crate::{
 pub type Mapping = (usize, Option<Rope>);
 
 /// Code stores combined output code and the source map of that output code.
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone)]
+#[turbo_tasks::value(shared, serialization = "hash")]
+#[derive(Debug, Clone, Encode, Decode)]
 pub struct Code {
     code: Rope,
-    mappings: Vec<Mapping>,
+    mappings: Arc<Vec<Mapping>>,
     should_generate_debug_id: bool,
+}
+
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct PersistedCode(Code);
+
+#[turbo_tasks::value_impl]
+impl PersistedCode {
+    #[turbo_tasks::function]
+    async fn to_code(self: Vc<Self>) -> Result<Vc<Code>> {
+        // PersistedCode is transparent over Code; owned() yields Code directly.
+        Ok(self.owned().await?.cell())
+    }
 }
 
 impl Code {
@@ -47,6 +65,12 @@ impl Code {
     /// Take the source code out of the Code.
     pub fn into_source_code(self) -> Rope {
         self.code
+    }
+
+    /// Stores this `Code` as a [`PersistedCode`] (fully serialized) and returns a `Vc<Code>`
+    /// backed by the persisted version, avoiding an intermediate hash-mode `Code` cell.
+    pub fn cell_persisted(self) -> Vc<Code> {
+        PersistedCode::to_code(PersistedCode(self).cell())
     }
 
     // Formats the code with the source map and debug id comments as
@@ -207,7 +231,7 @@ impl CodeBuilder {
     pub fn build(self) -> Code {
         Code {
             code: self.code.build(),
-            mappings: self.mappings.unwrap_or_default(),
+            mappings: Arc::new(self.mappings.unwrap_or_default()),
             should_generate_debug_id: self.should_generate_debug_id,
         }
     }
@@ -255,13 +279,9 @@ impl GenerateSourceMap for Code {
     /// far the simplest way to concatenate the source maps of the multiple
     /// chunk items into a single map file.
     #[turbo_tasks::function]
-    pub async fn generate_source_map(
-        self: ResolvedVc<Self>,
-    ) -> Result<Vc<OptionStringifiedSourceMap>> {
+    pub async fn generate_source_map(self: ResolvedVc<Self>) -> Result<Vc<FileContent>> {
         let debug_id = self.debug_id().owned().await?;
-        Ok(Vc::cell(Some(
-            self.await?.generate_source_map_ref(debug_id),
-        )))
+        Ok(FileContent::Content(File::from(self.await?.generate_source_map_ref(debug_id))).cell())
     }
 }
 
@@ -303,7 +323,7 @@ impl Code {
 
         let mut sections = Vec::with_capacity(self.mappings.len());
         let mut read = self.code.read();
-        for (byte_pos, map) in &self.mappings {
+        for (byte_pos, map) in self.mappings.iter() {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
                 // `fill_buf` never returns an error.

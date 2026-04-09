@@ -28,9 +28,9 @@ This module doesn't have an associated type`)
         expect(
           next.cliOutput.match(/Unknown module type/g).length
         ).toBeLessThanOrEqual(1)
-        expect(
-          next.cliOutput.match(/Missing module type/g).length
-        ).toBeLessThanOrEqual(1)
+        expect(next.cliOutput.match(/Missing module type/g)?.length ?? 0).toBe(
+          0
+        )
       } else {
         expect(next.cliOutput).toContain(`pkg/index.ts
 Module parse failed: Unexpected token`)

@@ -5,9 +5,9 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use bincode::{Decode, Encode};
 use regex::Regex;
 use rustc_hash::{FxHashMap, FxHashSet};
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -19,7 +19,8 @@ use turbo_tasks_fs::{
 use turbo_unix_path::normalize_path;
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug, Default)]
+#[derive(Hash, Clone, Debug, Default, ValueToString)]
+#[value_to_string(self.describe_as_string())]
 pub enum Pattern {
     Constant(RcStr),
     #[default]
@@ -1228,7 +1229,10 @@ impl Pattern {
     /// Calls `cb` on all constants that are at the end of the pattern and
     /// replaces the given final constant with the returned pattern. Returns
     /// true if replacements were performed.
-    pub fn replace_final_constants(&mut self, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> bool {
+    pub fn replace_final_constants(
+        &mut self,
+        cb: &mut impl FnMut(&RcStr) -> Option<Pattern>,
+    ) -> bool {
         let mut replaced = false;
         match self {
             Pattern::Constant(c) => {
@@ -1480,24 +1484,8 @@ impl Pattern {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for Pattern {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.describe_as_string().into())
-    }
-}
-
 #[derive(
-    Debug,
-    PartialEq,
-    Eq,
-    Clone,
-    TraceRawVcs,
-    Serialize,
-    Deserialize,
-    ValueDebugFormat,
-    NonLocalValue,
+    Debug, PartialEq, Eq, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 pub enum PatternMatch {
     File(RcStr, FileSystemPath),
@@ -1521,6 +1509,7 @@ impl PatternMatch {
 // TODO this isn't super efficient
 // avoid storing a large list of matches
 #[turbo_tasks::value(transparent)]
+#[derive(Debug)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the
@@ -1561,9 +1550,9 @@ pub async fn read_matches(
                     if last_segment.is_empty() {
                         // This means we don't have a last segment, so we just have a directory
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(parent_path)?
+                            lookup_dir.try_join_inside(parent_path)
                         } else {
-                            lookup_dir.try_join(parent_path)?
+                            lookup_dir.try_join(parent_path)
                         };
                         let Some(fs_path) = joined else {
                             continue;
@@ -1579,9 +1568,9 @@ pub async fn read_matches(
                         Entry::Occupied(e) => Some(e.into_mut()),
                         Entry::Vacant(e) => {
                             let path_option = if force_in_lookup_dir {
-                                lookup_dir.try_join_inside(parent_path)?
+                                lookup_dir.try_join_inside(parent_path)
                             } else {
-                                lookup_dir.try_join(parent_path)?
+                                lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
                                 Some(e.insert((path.raw_read_dir().await?, path)))
@@ -1635,15 +1624,15 @@ pub async fn read_matches(
                     let subpath = &str[..=str.rfind('/').unwrap()];
                     if handled.insert(subpath) {
                         let joined = if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(subpath)?
+                            lookup_dir.try_join_inside(subpath)
                         } else {
-                            lookup_dir.try_join(subpath)?
+                            lookup_dir.try_join(subpath)
                         };
                         let Some(fs_path) = joined else {
                             continue;
                         };
                         nested.push((
-                            0,
+                            index,
                             read_matches(
                                 fs_path.clone(),
                                 concat(&prefix, subpath).into(),
@@ -1913,6 +1902,7 @@ mod tests {
 
     use rstest::*;
     use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
     use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
@@ -2489,12 +2479,12 @@ mod tests {
 
     #[test]
     fn replace_final_constants() {
-        fn f(mut p: Pattern, cb: &impl Fn(&RcStr) -> Option<Pattern>) -> Pattern {
+        fn f(mut p: Pattern, cb: &mut impl FnMut(&RcStr) -> Option<Pattern>) -> Pattern {
             p.replace_final_constants(cb);
             p
         }
 
-        let js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
+        let mut js_to_ts_tsx = |c: &RcStr| -> Option<Pattern> {
             c.strip_suffix(".js").map(|rest| {
                 let new_ending = Pattern::Alternatives(vec![
                     Pattern::Constant(rcstr!(".ts")),
@@ -2520,7 +2510,7 @@ mod tests {
                         Pattern::Constant(rcstr!(".node")),
                     ])
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),
@@ -2543,7 +2533,7 @@ mod tests {
                     Pattern::Constant(rcstr!("/")),
                     Pattern::Constant(rcstr!("abc.js")),
                 ]),
-                &js_to_ts_tsx
+                &mut js_to_ts_tsx
             ),
             Pattern::Concatenation(vec![
                 Pattern::Constant(rcstr!(".")),
@@ -2667,22 +2657,30 @@ mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async {
-            let root = DiskFileSystem::new(
-                rcstr!("test"),
-                Path::new(env!("CARGO_MANIFEST_DIR"))
-                    .join("tests/pattern/read_matches")
-                    .to_str()
-                    .unwrap()
-                    .into(),
-            )
-            .root()
-            .owned()
-            .await?;
+            #[turbo_tasks::value]
+            struct ReadMatchesOutput {
+                dynamic: Vec<String>,
+                dynamic_file_suffix: Vec<String>,
+                node_modules_dynamic: Vec<String>,
+                extension_ordering: Vec<String>,
+                subpath_ordering: Vec<String>,
+            }
 
-            // node_modules shouldn't be matched by Dynamic here
-            assert_eq!(
-                vec!["index.js", "sub", "sub/", "sub/foo-a.js", "sub/foo-b.js"],
-                read_matches(
+            #[turbo_tasks::function(operation)]
+            async fn read_matches_operation() -> anyhow::Result<Vc<ReadMatchesOutput>> {
+                let root = DiskFileSystem::new(
+                    rcstr!("test"),
+                    Path::new(env!("CARGO_MANIFEST_DIR"))
+                        .join("tests/pattern/read_matches")
+                        .to_str()
+                        .unwrap()
+                        .into(),
+                )
+                .root()
+                .owned()
+                .await?;
+
+                let dynamic = read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2690,14 +2688,10 @@ mod tests {
                 )
                 .await?
                 .into_iter()
-                .map(|m| m.name())
-                .collect::<Vec<_>>()
-            );
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
 
-            // basic dynamic file suffix
-            assert_eq!(
-                vec!["sub/foo-a.js", "sub/foo-b.js"],
-                read_matches(
+                let dynamic_file_suffix = read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2708,15 +2702,10 @@ mod tests {
                 )
                 .await?
                 .into_iter()
-                .map(|m| m.name())
-                .collect::<Vec<_>>()
-            );
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
 
-            // read_matches "node_modules/<dynamic>" should not return anything inside. We never
-            // want to enumerate the list of packages here.
-            assert_eq!(
-                vec!["node_modules"] as Vec<&str>,
-                read_matches(
+                let node_modules_dynamic = read_matches(
                     root.clone(),
                     rcstr!(""),
                     false,
@@ -2724,11 +2713,125 @@ mod tests {
                 )
                 .await?
                 .into_iter()
-                .map(|m| m.name())
-                .collect::<Vec<_>>()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                // Test: extension ordering is preserved (fast path, until_end=true)
+                // When both Component.web.tsx and Component.tsx exist, the order of
+                // alternatives determines which comes first in results.
+                let extension_ordering = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new(Pattern::Alternatives(vec![
+                        Pattern::Constant(rcstr!("extensions/Component")),
+                        Pattern::Constant(rcstr!("extensions/Component.web.tsx")),
+                        Pattern::Constant(rcstr!("extensions/Component.tsx")),
+                    ])),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                // Test: subpath ordering is preserved (fast path, until_end=false)
+                // When alternatives route to different subdirectories, the index ordering
+                // must be respected. This exercises the fix for the hardcoded `0` bug.
+                let subpath_ordering = read_matches(
+                    root.clone(),
+                    rcstr!(""),
+                    false,
+                    Pattern::new({
+                        let mut p = Pattern::Alternatives(vec![
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("prio/a/")),
+                                Pattern::Dynamic,
+                            ]),
+                            Pattern::Concatenation(vec![
+                                Pattern::Constant(rcstr!("prio/b/")),
+                                Pattern::Dynamic,
+                            ]),
+                        ]);
+                        p.normalize();
+                        p
+                    }),
+                )
+                .await?
+                .into_iter()
+                .map(|m| m.name().to_string())
+                .collect::<Vec<_>>();
+
+                Ok(ReadMatchesOutput {
+                    dynamic,
+                    dynamic_file_suffix,
+                    node_modules_dynamic,
+                    extension_ordering,
+                    subpath_ordering,
+                }
+                .cell())
+            }
+
+            let matches = read_matches_operation().read_strongly_consistent().await?;
+
+            // node_modules shouldn't be matched by Dynamic here
+            assert_eq!(
+                matches.dynamic,
+                &[
+                    "extensions",
+                    "extensions/",
+                    "extensions/Component.tsx",
+                    "extensions/Component.web.tsx",
+                    "index.js",
+                    "prio",
+                    "prio/",
+                    "prio/a",
+                    "prio/a/",
+                    "prio/a/Component.tsx",
+                    "prio/b",
+                    "prio/b/",
+                    "prio/b/Component.tsx",
+                    "sub",
+                    "sub/",
+                    "sub/foo-a.js",
+                    "sub/foo-b.js",
+                ]
             );
 
-            anyhow::Ok(())
+            // basic dynamic file suffix
+            assert_eq!(
+                matches.dynamic_file_suffix,
+                &["sub/foo-a.js", "sub/foo-b.js"]
+            );
+
+            // read_matches "node_modules/<dynamic>" should not return anything inside. We never
+            // want to enumerate the list of packages here.
+            assert_eq!(matches.node_modules_dynamic, &["node_modules"]);
+
+            // extension ordering: .web.tsx (index 1) must come before .tsx (index 2)
+            assert_eq!(
+                matches.extension_ordering,
+                &["extensions/Component.web.tsx", "extensions/Component.tsx",]
+            );
+
+            // subpath ordering: prio/a/ alternatives (index 0) must come before prio/b/
+            // alternatives (index 1). This verifies the fix for the hardcoded `0` bug in
+            // the until_end=false branch of the fast path.
+            assert!(
+                matches
+                    .subpath_ordering
+                    .iter()
+                    .position(|s| s.starts_with("prio/a/"))
+                    .unwrap()
+                    < matches
+                        .subpath_ordering
+                        .iter()
+                        .position(|s| s.starts_with("prio/b/"))
+                        .unwrap(),
+                "Expected prio/a/ results before prio/b/ results, got: {:?}",
+                matches.subpath_ordering
+            );
+
+            Ok(())
         })
         .await
         .unwrap();

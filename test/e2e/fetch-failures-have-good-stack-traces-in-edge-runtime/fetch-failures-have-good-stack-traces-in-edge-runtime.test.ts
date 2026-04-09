@@ -40,13 +40,14 @@ describe('fetch failures have good stack traces in edge runtime', () => {
             '\n  7 | }' +
             '\n  8 |' +
             // TODO(veil): Why double error?
-            '\n ⨯ Error [TypeError]: fetch failed'
+            '\n⨯ Error [TypeError]: fetch failed'
         )
 
         // Turbopack produces incorrect mappings in the sourcemap.
         // eslint-disable-next-line jest/no-standalone-expect
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "fetch failed",
            "environmentLabel": null,
            "label": "Runtime TypeError",

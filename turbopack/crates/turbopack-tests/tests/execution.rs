@@ -8,16 +8,16 @@ mod util;
 use std::{env, path::PathBuf};
 
 use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use dunce::canonicalize;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TurboTasks, Vc, apply_effects,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput, TurboTasks,
+    Vc, debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     DiskFileSystem, FileContent, FileSystem, FileSystemEntryType, FileSystemPath,
@@ -26,8 +26,6 @@ use turbo_tasks_fs::{
 use turbo_unix_path::sys_to_unix;
 use turbopack::{
     ModuleAssetContext,
-    css::chunk::CssChunkType,
-    ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType},
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
 };
 use turbopack_core::{
@@ -39,9 +37,9 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    issue::CollectibleIssuesExt,
+    issue::{CollectibleIssuesExt, IssueFilter},
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroupEntry, export_usage::compute_export_usage_info,
+        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
     },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
@@ -49,8 +47,14 @@ use turbopack_core::{
         options::{ImportMap, ImportMapping},
     },
 };
+use turbopack_css::chunk::CssChunkType;
+use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
 use turbopack_ecmascript_runtime::RuntimeType;
-use turbopack_node::{debug::should_debug, evaluate::evaluate};
+use turbopack_node::{
+    child_process_backend,
+    debug::should_debug,
+    evaluate::{evaluate, get_evaluate_entries},
+};
 use turbopack_nodejs::NodeJsChunkingContext;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 use turbopack_test_utils::{jest::JestRunResult, snapshot::UPDATE};
@@ -68,7 +72,7 @@ struct RunTestResult {
 }
 
 #[turbo_tasks::value]
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct JsResult {
     uncaught_exceptions: Vec<String>,
@@ -127,6 +131,7 @@ fn test_skipped_fails(resource: PathBuf) {
                 .test_results
                 .into_iter()
                 .any(|r| !r.errors.is_empty()),
+        "Expected an error, but the test passed?"
     );
 }
 
@@ -208,54 +213,89 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         noop_backing_storage(),
     ));
 
-    tt.run_once(async move {
-        let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
-        let result = emit_op.read_strongly_consistent().owned().await?;
-        apply_effects(emit_op).await?;
+    #[turbo_tasks::value(serialization = "none")]
+    struct JsResultWithEffects {
+        result: ReadRef<JsResult>,
+        effects: Effects,
+    }
 
-        Ok(result)
+    #[turbo_tasks::function(operation)]
+    async fn run_inner_operation(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResult>> {
+        let prepared_test = prepare_test(resource).to_resolved().await?;
+        let run_result_op = run_test_operation(prepared_test);
+        if snapshot_mode == IssueSnapshotMode::Snapshots {
+            snapshot_issues(*prepared_test, run_result_op).await?;
+        }
+
+        let result = (*run_result_op.connect().await?.js_result.await?).clone();
+
+        Ok(result.cell())
+    }
+
+    /// Wrapper operation that collects all effects (including snapshot issue file writes) from
+    /// [`run_inner_operation`].
+    #[turbo_tasks::function(operation)]
+    async fn run_inner_operation_with_effects(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResultWithEffects>> {
+        let op = run_inner_operation(resource, snapshot_mode);
+        let result = op.connect().await?.clone();
+        let effects = take_effects(op).await?;
+        Ok(JsResultWithEffects { result, effects }.cell())
+    }
+
+    tt.run_once(async move {
+        let result_with_effects =
+            run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode)
+                .read_strongly_consistent()
+                .await?;
+        result_with_effects.effects.apply().await?;
+
+        Ok((*result_with_effects.result).clone())
     })
     .await
 }
 
-#[turbo_tasks::function(operation)]
-async fn run_inner_operation(
-    resource: RcStr,
-    snapshot_mode: IssueSnapshotMode,
-) -> Result<Vc<JsResult>> {
-    let prepared_test = prepare_test(resource).to_resolved().await?;
-    let run_result_op = run_test_operation(prepared_test);
-    if snapshot_mode == IssueSnapshotMode::Snapshots {
-        snapshot_issues(*prepared_test, run_result_op).await?;
-    }
-
-    Ok(*run_result_op.connect().await?.js_result)
-}
-
 #[derive(
-    PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
+    PartialEq, Eq, Debug, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     #[serde(default = "default_tree_shaking_mode")]
     tree_shaking_mode: Option<TreeShakingMode>,
-    remove_unused_exports: Option<bool>,
-    scope_hoisting: Option<bool>,
+    #[serde(default = "default_true")]
+    remove_unused_imports: bool,
+    #[serde(default = "default_true")]
+    remove_unused_exports: bool,
+    #[serde(default = "default_true")]
+    scope_hoisting: bool,
     #[serde(default)]
     minify: bool,
+    #[serde(default)]
+    production_chunking: bool,
 }
 
 fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
     Some(TreeShakingMode::ReexportsOnly)
 }
 
+fn default_true() -> bool {
+    true
+}
+
 impl Default for TestOptions {
     fn default() -> Self {
         Self {
             tree_shaking_mode: default_tree_shaking_mode(),
-            remove_unused_exports: None,
-            scope_hoisting: None,
+            remove_unused_exports: default_true(),
+            remove_unused_imports: default_true(),
+            scope_hoisting: default_true(),
             minify: false,
+            production_chunking: false,
         }
     }
 }
@@ -283,11 +323,13 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
     let project_root = project_fs.root().owned().await?;
 
-    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
-        "stripping repo root {:?} from resource path {:?}",
-        &*REPO_ROOT,
-        resource_path.display()
-    ))?;
+    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).with_context(|| {
+        format!(
+            "stripping repo root {:?} from resource path {:?}",
+            &*REPO_ROOT,
+            resource_path.display()
+        )
+    })?;
     let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
     let path = root_fs.root().await?.join(&relative_path)?;
     let project_path = project_root.join(&relative_path)?;
@@ -347,8 +389,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .defines(
             compile_time_defines!(
                 process.turbopack = true,
-                process.env.TURBOPACK = true,
-                process.env.NODE_ENV = "development",
+                process.env.TURBOPACK = "1",
+                process.env.NODE_ENV = "production",
             )
             .resolved_cell(),
         )
@@ -392,8 +434,6 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         .resolved_cell(),
     );
 
-    let remove_unused_exports = options.remove_unused_exports.unwrap_or(true);
-
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
         compile_time_info,
@@ -402,13 +442,16 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                enable_import_as_bytes: true,
                 import_externals: true,
+                enable_exports_info_inlining: true,
+                infer_module_side_effects: true,
                 ..Default::default()
             },
             environment: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ModuleOptionsContext {
                     tree_shaking_mode: options.tree_shaking_mode,
                     ..Default::default()
@@ -417,13 +460,15 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
             )],
             ..Default::default()
         }
-        .into(),
+        .cell(),
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
+            enable_node_native_modules: true,
+            enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
-                ContextCondition::InDirectory("node_modules".into()),
+                ContextCondition::InNodeModules,
                 ResolveOptionsContext {
                     enable_node_modules: Some(project_root.clone()),
                     custom_conditions: vec![rcstr!("development")],
@@ -463,15 +508,34 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    // Keep this in sync with what `evaluate` does internally
-    let module_graph = ModuleGraph::from_modules(
-        Vc::cell(vec![ChunkGroupEntry::Entry(vec![
-            jest_entry_asset.to_resolved().await?,
-        ])]),
-        false,
-    );
+    let node_backend = child_process_backend();
 
-    let chunking_context = NodeJsChunkingContext::builder(
+    let entries = get_evaluate_entries(jest_entry_asset, asset_context, node_backend, None);
+
+    let single_graph = SingleModuleGraph::new_with_entries(
+        entries.graph_entries().to_resolved().await?,
+        false,
+        true,
+    );
+    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
+
+    let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
+        Some(compute_binding_usage_info(
+            module_graph,
+            options.remove_unused_imports,
+        ))
+    } else {
+        None
+    };
+    if options.remove_unused_imports
+        && let Some(binding_usage) = binding_usage
+    {
+        module_graph =
+            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+    }
+    let module_graph = module_graph.connect();
+
+    let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
         chunk_root_path.clone(),
         chunk_root_path_in_root_path_offset,
@@ -481,21 +545,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         env,
         RuntimeType::Development,
     )
-    .chunking_config(
-        Vc::<EcmascriptChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            min_chunk_size: 10_000,
-            ..Default::default()
-        },
-    )
-    .chunking_config(
-        Vc::<CssChunkType>::default().to_resolved().await?,
-        ChunkingConfig {
-            max_merge_chunk_size: 100_000,
-            ..Default::default()
-        },
-    )
-    .module_merging(options.scope_hoisting.unwrap_or(true))
+    .source_map_source_type(turbopack_core::chunk::SourceMapSourceType::RelativeUri)
+    .module_merging(options.scope_hoisting)
     .minify_type(if options.minify {
         MinifyType::Minify {
             mangle: Some(MangleType::OptimalSize),
@@ -503,37 +554,60 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
-    .export_usage(if remove_unused_exports {
-        Some(
-            compute_export_usage_info(module_graph.to_resolved().await?)
-                .resolve_strongly_consistent()
-                .await?,
-        )
+    .export_usage(if options.remove_unused_exports {
+        Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {
         None
-    })
-    .build();
+    });
+
+    if options.remove_unused_imports {
+        builder = builder.unused_references(
+            binding_usage
+                .unwrap()
+                .connect()
+                .unused_references()
+                .to_resolved()
+                .await?,
+        );
+    }
+
+    if options.production_chunking {
+        builder = builder
+            .chunking_config(
+                Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    min_chunk_size: 2_000,
+                    max_chunk_count_per_group: 40,
+                    max_merge_chunk_size: 200_000,
+                    ..Default::default()
+                },
+            )
+            .chunking_config(
+                Vc::<CssChunkType>::default().to_resolved().await?,
+                ChunkingConfig {
+                    max_merge_chunk_size: 100_000,
+                    ..Default::default()
+                },
+            )
+            .nested_async_availability(true);
+    }
+    let chunking_context = builder.build();
 
     let res = evaluate(
-        jest_entry_asset,
+        entries,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
+        node_backend,
         Vc::upcast(test_source),
-        asset_context,
         Vc::upcast(chunking_context),
-        None,
+        module_graph,
         vec![],
         Completion::immutable(),
         should_debug("execution_test"),
     )
     .await?;
 
-    let single = res
-        .try_into_single()
-        .await
-        .context("test node result did not emit anything")?;
-
-    let SingleValue::Single(bytes) = single else {
+    let Some(str) = &*res else {
         return Ok(RunTestResult {
             js_result: JsResult {
                 uncaught_exceptions: vec![],
@@ -549,7 +623,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(str)?),
         path: path.clone(),
     }
     .cell())
@@ -561,9 +635,12 @@ async fn snapshot_issues(
     run_result_op: OperationVc<RunTestResult>,
 ) -> Result<Vc<()>> {
     let PreparedTest { path, .. } = &*prepared_test.await?;
-    let _ = run_result_op.resolve_strongly_consistent().await;
+    let _ = run_result_op.resolve().strongly_consistent().await;
 
-    let plain_issues = run_result_op.peek_issues().get_plain_issues().await?;
+    let plain_issues = run_result_op
+        .peek_issues()
+        .get_plain_issues(IssueFilter::everything())
+        .await?;
 
     turbopack_test_utils::snapshot::snapshot_issues(plain_issues, path.join("issues")?, &REPO_ROOT)
         .await

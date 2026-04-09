@@ -284,11 +284,22 @@
       );
     }
     function getElementKey(element, index) {
-      return "object" === typeof element &&
+      if (
+        "object" === typeof element &&
         null !== element &&
         null != element.key
-        ? (checkKeyStringCoercion(element.key), escape("" + element.key))
-        : index.toString(36);
+      ) {
+        if (element.key === REACT_OPTIMISTIC_KEY)
+          return (
+            console.error(
+              "React.Children helpers don't support optimisticKey."
+            ),
+            index.toString(36)
+          );
+        checkKeyStringCoercion(element.key);
+        return escape("" + element.key);
+      }
+      return index.toString(36);
     }
     function resolveThenable(thenable) {
       switch (thenable.status) {
@@ -701,9 +712,9 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_ACTIVITY_TYPE = Symbol.for("react.activity"),
-      REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
+      REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
       didWarnStateUpdateForUnmountedComponent = {},
       ReactNoopUpdateQueue = {
         isMounted: function () {
@@ -1037,7 +1048,9 @@
         }
         JSCompiler_inline_result && (owner = getOwner());
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (key = "" + config.key));
+          (config.key === REACT_OPTIMISTIC_KEY
+            ? (key = REACT_OPTIMISTIC_KEY)
+            : (checkKeyStringCoercion(config.key), (key = "" + config.key)));
         for (propName in config)
           !hasOwnProperty.call(config, propName) ||
             "key" === propName ||
@@ -1099,7 +1112,9 @@
             "Your app (or one of its dependencies) is using an outdated JSX transform. Update to the modern JSX transform for faster performance: https://react.dev/link/new-jsx-transform"
           )),
         hasValidKey(config) &&
-          (checkKeyStringCoercion(config.key), (key = "" + config.key)),
+          (config.key === REACT_OPTIMISTIC_KEY
+            ? (key = REACT_OPTIMISTIC_KEY)
+            : (checkKeyStringCoercion(config.key), (key = "" + config.key))),
         config))
           hasOwnProperty.call(config, propName) &&
             "key" !== propName &&
@@ -1244,6 +1259,7 @@
       });
       return compare;
     };
+    exports.optimisticKey = REACT_OPTIMISTIC_KEY;
     exports.startTransition = startTransition;
     exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
     exports.unstable_getCacheForType = function (resourceType) {
@@ -1251,11 +1267,6 @@
       return dispatcher
         ? dispatcher.getCacheForType(resourceType)
         : resourceType();
-    };
-    exports.unstable_postpone = function (reason) {
-      reason = Error(reason);
-      reason.$$typeof = REACT_POSTPONE_TYPE;
-      throw reason;
     };
     exports.unstable_startGestureTransition = function (
       provider,
@@ -1380,7 +1391,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.3.0-experimental-2bcbf254-20251020";
+    exports.version = "19.3.0-experimental-404b38c7-20260408";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

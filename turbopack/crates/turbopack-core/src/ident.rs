@@ -1,15 +1,16 @@
 use std::fmt::Write;
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, Vc, trace::TraceRawVcs,
+    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
+    trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_hex, hash_xxh3_hash64};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
 
 use crate::resolve::ModulePart;
 
@@ -23,9 +24,9 @@ use crate::resolve::ModulePart;
     Eq,
     PartialEq,
     TraceRawVcs,
-    Serialize,
-    Deserialize,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub struct Layer {
     name: RcStr,
@@ -100,6 +101,7 @@ impl AssetIdent {
         let root = self.path.root().await?;
         let path = self.path.clone();
         self.path = root.join(&pattern.replace('*', &path.path))?;
+        self.content_type = None;
         Ok(())
     }
 }
@@ -223,9 +225,9 @@ impl AssetIdent {
         // For clippy -- This explicit deref is necessary
         let path = &self.path;
         let mut name = if let Some(inner) = context_path.get_path_to(path) {
-            clean_separators(inner)
+            escape_file_path(inner)
         } else {
-            clean_separators(&self.path.value_to_string().await?)
+            escape_file_path(&self.path.to_string_ref().await?)
         };
         let removed_extension = name.ends_with(&*expected_extension);
         if removed_extension {
@@ -334,8 +336,9 @@ impl AssetIdent {
         }
 
         if has_hash {
-            let hash = encode_hex(hasher.finish());
-            let truncated_hash = &hash[..8];
+            let hash = encode_base38(hasher.finish());
+            // 7 base38 chars ≈ 36 bits of collision resistance
+            let truncated_hash = &hash[..7];
             write!(name, "_{truncated_hash}")?;
         }
 
@@ -356,8 +359,9 @@ impl AssetIdent {
             }
         }
         if i > 0 {
-            let hash = encode_hex(hash_xxh3_hash64(&name.as_bytes()[..i]));
-            let truncated_hash = &hash[..5];
+            let hash = encode_base38(hash_xxh3_hash64(&name.as_bytes()[..i]));
+            // 4 base38 chars ≈ 21 bits — just a short disambiguator prefix
+            let truncated_hash = &hash[..4];
             name = format!("{}_{}", truncated_hash, &name[i..]);
         }
         // We need to make sure that `.json` and `.json.js` doesn't end up with the same
@@ -375,12 +379,11 @@ impl AssetIdent {
 impl ValueToString for AssetIdent {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let mut s = self.path.value_to_string().owned().await?.into_owned();
-
-        // The query string is either empty or non-empty starting with `?` so we can just concat
-        s.push_str(&self.query);
-        // ditto for fragment
-        s.push_str(&self.fragment);
+        // The query string/fragment is either empty or non-empty starting with
+        // `?` so we can just concat
+        let mut s = turbofmt!("{}{}{}", self.path, self.query, self.fragment)
+            .await?
+            .into_owned();
 
         if !self.assets.is_empty() {
             s.push_str(" {");
@@ -433,11 +436,49 @@ impl ValueToString for AssetIdent {
     }
 }
 
-fn clean_separators(s: &str) -> String {
-    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?]").unwrap());
+fn escape_file_path(s: &str) -> String {
+    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?:]").unwrap());
     SEPARATOR_REGEX.replace_all(s, "_").to_string()
 }
 
 fn clean_additional_extensions(s: &str) -> String {
     s.replace('.', "_")
+}
+
+#[cfg(test)]
+pub mod tests {
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{FileSystem, VirtualFileSystem};
+
+    use crate::ident::AssetIdent;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_output_name_escaping() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation)]
+            async fn output_name_operation() -> anyhow::Result<Vc<RcStr>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().owned().await?;
+
+                let asset_ident = AssetIdent::from_path(root.join("a:b?c#d.js")?);
+                let output_name = asset_ident
+                    .output_name(root, Some(rcstr!("prefix")), rcstr!(".js"))
+                    .await?;
+                Ok(Vc::cell((*output_name).clone()))
+            }
+
+            let output_name = output_name_operation().read_strongly_consistent().await?;
+            assert_eq!(&*output_name, "prefix-a_b_c_d.js");
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }

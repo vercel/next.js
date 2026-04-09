@@ -159,7 +159,7 @@ function getParamsFromLayoutFilePath({
   for (const segment of segments) {
     const param = getSegmentParam(segment)
     if (param !== null) {
-      paramNames.push(param.param)
+      paramNames.push(param.paramName)
     }
   }
   return paramNames

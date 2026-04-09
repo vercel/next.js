@@ -1253,9 +1253,9 @@ p {
   z-index: 1;
 }
 
-.single-blog .populer,
-.single-post .populer,
-.blog-roll-card .populer {
+.single-blog .popular,
+.single-post .popular,
+.blog-roll-card .popular {
   position: absolute;
   right: 10px;
   top: 18px;

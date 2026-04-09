@@ -2,9 +2,9 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 use syn::{DeriveInput, Field, FieldsNamed, FieldsUnnamed, parse_macro_input};
-use turbo_tasks_macros_shared::{generate_destructuring, match_expansion};
 
 use super::FieldAttributes;
+use crate::expand::{generate_destructuring, match_expansion};
 
 fn filter_field(field: &Field) -> bool {
     !FieldAttributes::from(field.attrs.as_slice()).debug_ignore
@@ -34,6 +34,7 @@ pub fn derive_value_debug_format(input: TokenStream) -> TokenStream {
         match_expansion(&derive_input, &format_named, &format_unnamed, &format_unit);
 
     quote! {
+        #[automatically_derived]
         impl #impl_generics turbo_tasks::debug::ValueDebugFormat for #ident #ty_generics #where_clause {
             fn value_debug_format<'a>(&'a self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'a> {
                 turbo_tasks::debug::ValueDebugFormatString::Async(

@@ -1,0 +1,22 @@
+# Build artifacts
+.next/
+out/
+build/
+
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+
+# Output directories (from eval runs)
+output-*/

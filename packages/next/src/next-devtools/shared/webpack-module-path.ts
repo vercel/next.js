@@ -21,7 +21,7 @@ export function isWebpackInternalResource(file: string) {
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
  */
-export function formatFrameSourceFile(file: string) {
+export function formatStackFrameFile(file: string) {
   for (const regex of replacementRegExes) {
     file = file.replace(regex, '')
   }

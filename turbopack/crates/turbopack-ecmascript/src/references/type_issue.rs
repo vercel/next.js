@@ -83,7 +83,7 @@ impl Issue for SpecifiedModuleTypeIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Analysis.into()
+        IssueStage::Analysis.cell()
     }
 
     #[turbo_tasks::function]

@@ -14,8 +14,11 @@ export function patchConsoleError() {
   }
   window.console.error = function error(...args: any[]) {
     let maybeError: unknown
+    let isReplayedLog = false
     if (process.env.NODE_ENV !== 'production') {
-      const { error: replayedError } = parseConsoleArgs(args)
+      const { error: replayedError, environmentName } = parseConsoleArgs(args)
+      // If environmentName is set, this is a server log replayed by React in the browser
+      isReplayedLog = !!environmentName
       if (replayedError) {
         maybeError = replayedError
       } else if (isError(args[0])) {
@@ -37,7 +40,10 @@ export function patchConsoleError() {
           args
         )
       }
-      forwardErrorLog(args)
+      // Don't forward replayed server logs to terminal - they were already logged on the server
+      if (!isReplayedLog) {
+        forwardErrorLog(args)
+      }
 
       originConsoleError.apply(window.console, args)
     }

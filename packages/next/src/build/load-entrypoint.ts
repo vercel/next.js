@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { loadBindings } from './swc'
+import { getBindingsSync } from './swc'
 
 // NOTE: this should be updated if this loader file is moved.
 const PACKAGE_ROOT = path.normalize(path.join(__dirname, '../..'))
@@ -39,14 +39,12 @@ export async function loadEntrypoint(
   injections?: Record<string, string>,
   imports?: Record<string, string | null>
 ): Promise<string> {
-  let bindings = await loadBindings()
-
   const templatePath = path.resolve(
     path.join(TEMPLATES_ESM_FOLDER, `${entrypoint}.js`)
   )
   let content = await fs.readFile(templatePath)
 
-  return bindings.expandNextJsTemplate(
+  return getBindingsSync().expandNextJsTemplate(
     content,
     // Ensure that we use unix-style path separators for the import paths
     path.join(TEMPLATE_SRC_FOLDER, `${entrypoint}.js`).replace(/\\/g, '/'),

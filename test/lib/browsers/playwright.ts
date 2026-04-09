@@ -12,6 +12,7 @@ import {
   Locator,
   Request as PlaywrightRequest,
   Response as PlaywrightResponse,
+  BrowserContextOptions,
 } from 'playwright'
 import path from 'path'
 
@@ -19,10 +20,13 @@ type EventType = 'request' | 'response'
 
 type PageLog = { source: string; message: string; args: unknown[] }
 
+export type Permissions = BrowserContextOptions['permissions']
+
 let page: Page
 let browser: Browser | undefined
 let context: BrowserContext | undefined
 let contextHasJSEnabled: boolean = true
+let contextPermissions: Permissions = undefined
 let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
@@ -167,7 +171,8 @@ export class Playwright<TCurrent = undefined> {
     javaScriptEnabled: boolean,
     ignoreHTTPSErrors: boolean,
     headless: boolean,
-    userAgent: string | undefined
+    userAgent: string | undefined,
+    permissions: Permissions
   ) {
     let device
 
@@ -182,7 +187,13 @@ export class Playwright<TCurrent = undefined> {
     }
 
     if (browser) {
-      if (contextHasJSEnabled !== javaScriptEnabled) {
+      if (
+        contextHasJSEnabled !== javaScriptEnabled ||
+        // Even triggers on same set of permissions, but we don't want to deal
+        // with the complexity of diffing them, so we just always recreate the
+        // context when permissions are set.
+        contextPermissions !== permissions
+      ) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
         await teardown(this.teardownTracing.bind(this))
         await context?.close()
@@ -192,8 +203,10 @@ export class Playwright<TCurrent = undefined> {
           ignoreHTTPSErrors,
           ...(userAgent ? { userAgent } : {}),
           ...device,
+          permissions,
         })
         contextHasJSEnabled = javaScriptEnabled
+        contextPermissions = permissions
       }
       return
     }
@@ -205,6 +218,7 @@ export class Playwright<TCurrent = undefined> {
       ignoreHTTPSErrors,
       ...(userAgent ? { userAgent } : {}),
       ...device,
+      permissions,
     })
     contextHasJSEnabled = javaScriptEnabled
   }
@@ -214,14 +228,16 @@ export class Playwright<TCurrent = undefined> {
     await page?.close()
   }
 
-  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
+  async launchBrowser(
+    browserName: string,
+    launchOptions: { headless: boolean }
+  ) {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
       return await firefox.launch({
         ...launchOptions,
         firefoxUserPrefs: {
-          ...launchOptions.firefoxUserPrefs,
           // The "fission.webContentIsolationStrategy" pref must be
           // set to 1 on Firefox due to the bug where a new history
           // state is pushed on a page reload.
@@ -231,9 +247,13 @@ export class Playwright<TCurrent = undefined> {
         },
       })
     } else {
+      let launchArgs: string[] = []
+      if (!launchOptions.headless) {
+        launchArgs.push('--auto-open-devtools-for-tabs')
+      }
       return await chromium.launch({
-        devtools: !launchOptions.headless,
         ...launchOptions,
+        args: launchArgs,
         ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
@@ -318,23 +338,29 @@ export class Playwright<TCurrent = undefined> {
     }
 
     page.on('websocket', (ws) => {
+      const decoder = tracePlaywright ? new TextDecoder() : null
       if (tracePlaywright) {
-        page
-          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
-          .catch(() => {})
+        // We're just evaluating a string here so that it appears in Playwright
+        // traces.
+        // console.log spams CI logs. If you already have a browser open, you can
+        // see WebSocket messages in the network tab of dev tools.
+        // TODO: Revisit once https://github.com/microsoft/playwright/issues/10996 is resolved.
+        page.evaluate(`'connected to ws at ${ws.url()}'`).catch(() => {})
 
         ws.on('close', () =>
-          page
-            .evaluate(`console.log('closed websocket ${ws.url()}')`)
-            .catch(() => {})
+          page.evaluate(`'closed websocket ${ws.url()}'`).catch(() => {})
         )
       }
       ws.on('framereceived', (frame) => {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
+          const { payload } = frame
           page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            // Note that passing the payload as a an argument is 2 orders of magnitude more expensive in Playwright.
+            .evaluate(
+              `'received ws message ${JSON.stringify(typeof payload === 'string' ? payload : decoder!.decode(payload))}'`
+            )
             .catch(() => {})
         }
       })
@@ -615,7 +641,7 @@ export class Playwright<TCurrent = undefined> {
   }
 
   locateDevToolsIndicator(): Locator {
-    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]')
+    return page.locator('nextjs-portal [data-nextjs-dev-tools-button]:visible')
   }
 
   locator(selector: string, options?: Parameters<(typeof page)['locator']>[1]) {

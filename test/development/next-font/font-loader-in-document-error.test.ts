@@ -1,6 +1,6 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
-import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { join } from 'path'
 
@@ -18,7 +18,7 @@ describe('font-loader-in-document-error', () => {
 
   test('next/font inside _document', async () => {
     const browser = await webdriver(next.url, '/')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     if (process.env.IS_TURBOPACK_TEST) {
       // TODO: Turbopack doesn't include pages/
       expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`

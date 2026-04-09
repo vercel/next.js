@@ -2,11 +2,8 @@ use anyhow::Result;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileJsonContent, FileSystemPath};
-use turbopack::{
-    module_options::{
-        DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
-    },
-    resolve_options_context::ResolveOptionsContext,
+use turbopack::module_options::{
+    DecoratorsKind, DecoratorsOptions, JsxTransformOptions, TypescriptTransformOptions,
 };
 use turbopack_browser::react_refresh::assert_can_resolve_react_refresh;
 use turbopack_core::{
@@ -15,6 +12,7 @@ use turbopack_core::{
     source::Source,
 };
 use turbopack_ecmascript::typescript::resolve::{read_from_tsconfigs, read_tsconfigs, tsconfig};
+use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 use crate::{mode::NextMode, next_config::NextConfig};
 
@@ -56,9 +54,23 @@ pub async fn get_typescript_transform_options(
 ) -> Result<Vc<TypescriptTransformOptions>> {
     let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
 
-    let use_define_for_class_fields = if let Some(tsconfig) = tsconfig {
-        read_from_tsconfigs(&tsconfig, |json, _| {
-            json["compilerOptions"]["useDefineForClassFields"].as_bool()
+    let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
+        read_from_tsconfigs(tsconfig, |json, _| {
+            json.get("compilerOptions")
+                .and_then(|opts| opts.get("useDefineForClassFields"))
+                .and_then(|v| v.as_bool())
+        })
+        .await?
+        .unwrap_or(false)
+    } else {
+        false
+    };
+
+    let verbatim_module_syntax = if let Some(ref tsconfig) = tsconfig {
+        read_from_tsconfigs(tsconfig, |json, _| {
+            json.get("compilerOptions")
+                .and_then(|opts| opts.get("verbatimModuleSyntax"))
+                .and_then(|v| v.as_bool())
         })
         .await?
         .unwrap_or(false)
@@ -68,6 +80,7 @@ pub async fn get_typescript_transform_options(
 
     let ts_transform_options = TypescriptTransformOptions {
         use_define_for_class_fields,
+        verbatim_module_syntax,
     };
 
     Ok(ts_transform_options.cell())
@@ -84,7 +97,9 @@ pub async fn get_decorators_transform_options(
 
     let experimental_decorators = if let Some(ref tsconfig) = tsconfig {
         read_from_tsconfigs(tsconfig, |json, _| {
-            json["compilerOptions"]["experimentalDecorators"].as_bool()
+            json.get("compilerOptions")
+                .and_then(|opts| opts.get("experimentalDecorators"))
+                .and_then(|v| v.as_bool())
         })
         .await?
         .unwrap_or(false)
@@ -105,7 +120,9 @@ pub async fn get_decorators_transform_options(
 
     let emit_decorators_metadata = if let Some(ref tsconfig) = tsconfig {
         read_from_tsconfigs(tsconfig, |json, _| {
-            json["compilerOptions"]["emitDecoratorMetadata"].as_bool()
+            json.get("compilerOptions")
+                .and_then(|opts| opts.get("emitDecoratorMetadata"))
+                .and_then(|v| v.as_bool())
         })
         .await?
         .unwrap_or(false)
@@ -115,7 +132,9 @@ pub async fn get_decorators_transform_options(
 
     let use_define_for_class_fields = if let Some(ref tsconfig) = tsconfig {
         read_from_tsconfigs(tsconfig, |json, _| {
-            json["compilerOptions"]["useDefineForClassFields"].as_bool()
+            json.get("compilerOptions")
+                .and_then(|opts| opts.get("useDefineForClassFields"))
+                .and_then(|v| v.as_bool())
         })
         .await?
         .unwrap_or(false)
@@ -188,8 +207,10 @@ pub async fn get_jsx_transform_options(
 
     let react_transform_options = if let Some(tsconfig) = tsconfig {
         read_from_tsconfigs(&tsconfig, |json, _| {
-            let jsx_import_source = json["compilerOptions"]["jsxImportSource"]
-                .as_str()
+            let jsx_import_source = json
+                .get("compilerOptions")
+                .and_then(|opts| opts.get("jsxImportSource"))
+                .and_then(|v| v.as_str())
                 .map(|s| s.into());
 
             Some(JsxTransformOptions {

@@ -3,7 +3,7 @@
     "esModuleInterop": true,
     "module": "esnext",
     "jsx": "react-jsx",
-    "target": "es5",
+    "target": "es2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
@@ -15,6 +15,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "exclude": ["node_modules"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/*.test.tsx"],
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"]
 }

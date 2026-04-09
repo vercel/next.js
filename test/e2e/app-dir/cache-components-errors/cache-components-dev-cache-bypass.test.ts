@@ -12,6 +12,8 @@ describe('Cache Components Errors', () => {
   describe('Warning for Bypassing Caches in Dev', () => {
     if (isNextDev) {
       it('warns if you render with cache-control: no-cache in dev on initial page load', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -26,6 +28,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('warns if you render with cache-control: no-cache in dev on client navigation', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/other', {
@@ -40,6 +44,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on initial page load', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/')
@@ -50,6 +56,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on client navigation', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -62,6 +70,8 @@ describe('Cache Components Errors', () => {
       })
     } else {
       it('does not warn if you render with cache-control: no-cache in dev on initial page load', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -74,6 +84,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render with cache-control: no-cache in dev on client navigation', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {
@@ -86,6 +98,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on initial page load in start', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/')
@@ -96,6 +110,8 @@ describe('Cache Components Errors', () => {
       })
 
       it('does not warn if you render without cache-control: no-cache in dev on client navigation in start', async () => {
+        // Wait for pages to be loaded to ensure the logging for the test page is the only thing that can be logged.
+        await next.fetch('/404')
         const from = next.cliOutput.length
 
         await next.fetch('/', {

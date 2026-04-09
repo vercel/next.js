@@ -35,25 +35,56 @@ async function resolveStackFrames(
   return stackFrameResolver(request)
 }
 
-const formatStackFrame = (frame: StackFrameForFormatting): string => {
-  const file = frame.file || '<unknown>'
-  const method = frame.methodName || '<anonymous>'
-  const { line1: line, column1: column } = frame
-  return line && column
-    ? `  at ${method} (${file}:${line}:${column})`
-    : line
-      ? `  at ${method} (${file}:${line})`
-      : `  at ${method} (${file})`
+interface StackFrame {
+  file: string
+  methodName: string
+  line: number | null
+  column: number | null
 }
 
-const formatErrorFrames = async (
+interface FormattedRuntimeError {
+  type: string
+  errorName: string
+  message: string
+  stack: StackFrame[]
+}
+
+interface FormattedSessionError {
+  url: string
+  buildError: string | null
+  runtimeErrors: FormattedRuntimeError[]
+}
+
+interface FormattedConfigError {
+  name: string
+  message: string
+  stack: string | null
+}
+
+export interface FormattedErrorsOutput {
+  configErrors: FormattedConfigError[]
+  sessionErrors: FormattedSessionError[]
+}
+
+const formatStackFrameToObject = (
+  frame: StackFrameForFormatting
+): StackFrame => {
+  return {
+    file: frame.file || '<unknown>',
+    methodName: frame.methodName || '<anonymous>',
+    line: frame.line1,
+    column: frame.column1,
+  }
+}
+
+const resolveErrorFrames = async (
   frames: readonly StackFrameForFormatting[],
   context: {
     isServer: boolean
     isEdgeServer: boolean
     isAppDirectory: boolean
   }
-): Promise<string> => {
+): Promise<StackFrame[]> => {
   try {
     const resolvedFrames = await resolveStackFrames({
       frames: frames.map((frame) => ({
@@ -68,132 +99,108 @@ const formatErrorFrames = async (
       isAppDirectory: context.isAppDirectory,
     })
 
-    return (
-      resolvedFrames
-        .filter(
-          (resolvedFrame) =>
-            !(
-              resolvedFrame.status === 'fulfilled' &&
-              resolvedFrame.value.originalStackFrame?.ignored
-            )
-        )
-        .map((resolvedFrame, j) =>
-          resolvedFrame.status === 'fulfilled' &&
-          resolvedFrame.value.originalStackFrame
-            ? formatStackFrame(resolvedFrame.value.originalStackFrame)
-            : formatStackFrame(frames[j])
-        )
-        .join('\n') + '\n'
-    )
+    return resolvedFrames
+      .filter(
+        (resolvedFrame) =>
+          !(
+            resolvedFrame.status === 'fulfilled' &&
+            resolvedFrame.value.originalStackFrame?.ignored
+          )
+      )
+      .map((resolvedFrame, j) =>
+        resolvedFrame.status === 'fulfilled' &&
+        resolvedFrame.value.originalStackFrame
+          ? formatStackFrameToObject(resolvedFrame.value.originalStackFrame)
+          : formatStackFrameToObject(frames[j])
+      )
   } catch {
-    return frames.map(formatStackFrame).join('\n') + '\n'
+    return frames.map(formatStackFrameToObject)
   }
 }
 
-async function formatRuntimeError(
+async function formatRuntimeErrorsToObjects(
   errors: readonly SupportedErrorEvent[],
   isAppDirectory: boolean
-): Promise<string> {
-  const formatError = async (
-    error: SupportedErrorEvent,
-    index: number
-  ): Promise<string> => {
-    const errorHeader = `\n#### Error ${index + 1} (Type: ${error.type})\n\n`
+): Promise<FormattedRuntimeError[]> {
+  const formattedErrors: FormattedRuntimeError[] = []
+
+  for (const error of errors) {
     const errorName = error.error?.name || 'Error'
     const errorMsg = error.error?.message || 'Unknown error'
-    const errorMessage = `**${errorName}**: ${errorMsg}\n\n`
 
-    if (!error.frames?.length) {
-      const stack = error.error?.stack || ''
-      return (
-        errorHeader + errorMessage + (stack ? `\`\`\`\n${stack}\n\`\`\`\n` : '')
-      )
+    let stack: StackFrame[] = []
+    if (error.frames?.length) {
+      const errorSource = getErrorSource(error.error)
+      stack = await resolveErrorFrames(error.frames, {
+        isServer: errorSource === 'server',
+        isEdgeServer: errorSource === 'edge-server',
+        isAppDirectory,
+      })
     }
 
-    const errorSource = getErrorSource(error.error)
-    const frames = await formatErrorFrames(error.frames, {
-      isServer: errorSource === 'server',
-      isEdgeServer: errorSource === 'edge-server',
-      isAppDirectory,
+    formattedErrors.push({
+      type: error.type,
+      errorName,
+      message: errorMsg,
+      stack,
     })
-
-    return errorHeader + errorMessage + `\`\`\`\n${frames}\`\`\`\n`
   }
 
-  const formattedErrors = await Promise.all(errors.map(formatError))
-  return '### Runtime Errors\n' + formattedErrors.join('\n---\n')
+  return formattedErrors
 }
 
 export async function formatErrors(
   errorsByUrl: Map<string, OverlayState>,
   nextInstanceErrors: { nextConfig: unknown[] } = { nextConfig: [] }
-): Promise<string> {
-  let output = ''
-
-  // Format Next.js instance errors first (e.g., next.config.js errors)
-  if (nextInstanceErrors.nextConfig.length > 0) {
-    output += `# Next.js Configuration Errors\n\n`
-    output += `**${nextInstanceErrors.nextConfig.length} error(s) found in next.config**\n\n`
-
-    nextInstanceErrors.nextConfig.forEach((error, index) => {
-      output += `## Error ${index + 1}\n\n`
-      output += '```\n'
-      if (error instanceof Error) {
-        output += `${error.name}: ${error.message}\n`
-        if (error.stack) {
-          output += error.stack
-        }
-      } else {
-        output += String(error)
-      }
-      output += '\n```\n\n'
-    })
-
-    output += '---\n\n'
+): Promise<FormattedErrorsOutput> {
+  const output: FormattedErrorsOutput = {
+    configErrors: [],
+    sessionErrors: [],
   }
 
-  // Format browser session errors
-  if (errorsByUrl.size > 0) {
-    output += `# Found errors in ${errorsByUrl.size} browser session(s)\n\n`
-
-    for (const [url, overlayState] of errorsByUrl) {
-      const totalErrorCount =
-        overlayState.errors.length + (overlayState.buildError ? 1 : 0)
-
-      if (totalErrorCount === 0) continue
-
-      let displayUrl = url
-      try {
-        const urlObj = new URL(url)
-        displayUrl = urlObj.pathname + urlObj.search + urlObj.hash
-      } catch {
-        // If URL parsing fails, use the original URL
-      }
-
-      output += `## Session: ${displayUrl}\n\n`
-      output += `**${totalErrorCount} error(s) found**\n\n`
-
-      // Build errors
-      if (overlayState.buildError) {
-        output += '### Build Error\n\n'
-        output += '```\n'
-        output += overlayState.buildError
-        output += '\n```\n\n'
-      }
-
-      // Runtime errors with source-mapped stack traces
-      if (overlayState.errors.length > 0) {
-        const runtimeErrors = await formatRuntimeError(
-          overlayState.errors,
-          overlayState.routerType === 'app'
-        )
-        output += runtimeErrors
-        output += '\n'
-      }
-
-      output += '---\n\n'
+  // Format Next.js instance errors first (e.g., next.config.js errors)
+  for (const error of nextInstanceErrors.nextConfig) {
+    if (error instanceof Error) {
+      output.configErrors.push({
+        name: error.name,
+        message: error.message,
+        stack: error.stack || null,
+      })
+    } else {
+      output.configErrors.push({
+        name: 'Error',
+        message: String(error),
+        stack: null,
+      })
     }
   }
 
-  return output.trim()
+  // Format browser session errors
+  for (const [url, overlayState] of errorsByUrl) {
+    const totalErrorCount =
+      overlayState.errors.length + (overlayState.buildError ? 1 : 0)
+
+    if (totalErrorCount === 0) continue
+
+    let displayUrl = url
+    try {
+      const urlObj = new URL(url)
+      displayUrl = urlObj.pathname + urlObj.search + urlObj.hash
+    } catch {
+      // If URL parsing fails, use the original URL
+    }
+
+    const runtimeErrors = await formatRuntimeErrorsToObjects(
+      overlayState.errors,
+      overlayState.routerType === 'app'
+    )
+
+    output.sessionErrors.push({
+      url: displayUrl,
+      buildError: overlayState.buildError || null,
+      runtimeErrors,
+    })
+  }
+
+  return output
 }

@@ -86,3 +86,4 @@ export function getSelectedLayoutSegmentPath(
 
 export const PAGE_SEGMENT_KEY = '__PAGE__'
 export const DEFAULT_SEGMENT_KEY = '__DEFAULT__'
+export const NOT_FOUND_SEGMENT_KEY = '/_not-found'

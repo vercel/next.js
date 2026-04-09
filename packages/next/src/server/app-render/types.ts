@@ -3,8 +3,8 @@ import type { ServerRuntime, SizeLimit } from '../../types'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
+  PrefetchInliningConfig,
 } from '../../server/config-shared'
-import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
@@ -20,8 +20,22 @@ import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { PrefetchHints } from '../../shared/lib/app-router-types'
+import type { AnyStream } from './stream-ops'
 
-const dynamicParamTypesSchema = s.enums(['c', 'ci', 'oc', 'd', 'di'])
+const dynamicParamTypesSchema = s.enums([
+  'c',
+  'ci(..)(..)',
+  'ci(.)',
+  'ci(..)',
+  'ci(...)',
+  'oc',
+  'd',
+  'di(..)(..)',
+  'di(.)',
+  'di(..)',
+  'di(...)',
+])
 
 const segmentSchema = s.union([
   s.string(),
@@ -38,6 +52,10 @@ const segmentSchema = s.union([
     s.string(),
     // Dynamic param type
     dynamicParamTypesSchema,
+    // Static siblings at the same URL level. Used by the client router to
+    // determine if a prefetch can be reused when navigating to a static
+    // sibling of a dynamic route. null means siblings are unknown.
+    s.nullable(s.array(s.string())),
   ]),
 ])
 
@@ -50,18 +68,17 @@ export const flightRouterStateSchema: s.Describe<any> = s.tuple([
     s.string(),
     s.lazy(() => flightRouterStateSchema)
   ),
-  s.optional(s.nullable(s.string())),
+  s.optional(s.nullable(s.tuple([s.string(), s.string()]))),
   s.optional(
     s.nullable(
       s.union([
         s.literal('refetch'),
-        s.literal('refresh'),
         s.literal('inside-shared-layout'),
         s.literal('metadata-only'),
       ])
     )
   ),
-  s.optional(s.boolean()),
+  s.optional(s.number()),
 ])
 
 export type ServerOnInstrumentationRequestError = (
@@ -69,19 +86,18 @@ export type ServerOnInstrumentationRequestError = (
   // The request could be middleware, node server or web server request,
   // we normalized them into an aligned format to `onRequestError` API later.
   request: NextRequestHint | BaseNextRequest | IncomingMessage,
-  errorContext: Parameters<InstrumentationOnRequestError>[2]
+  errorContext: Parameters<InstrumentationOnRequestError>[2],
+  silenceLog: boolean
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
   dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
-  dev?: boolean
   basePath: string
   cacheComponents: boolean
   trailingSlash: boolean
   images: ImageConfigComplete
-  clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   supportsDynamicResponse: boolean
   runtime?: ServerRuntime
   serverComponents?: boolean
@@ -97,22 +113,21 @@ export interface RenderOptsPartial {
   }
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
-  setCacheStatus?: (
-    status: ServerCacheStatus,
-    htmlRequestId: string,
-    requestId: string
-  ) => void
+  setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
-    debugChannel: { readable: ReadableStream<Uint8Array> },
+    debugChannel: { readable: AnyStream },
     htmlRequestId: string,
     requestId: string
   ) => void
-  nextExport?: boolean
+  sendErrorsToBrowser?: (
+    errorsRscStream: AnyStream,
+    htmlRequestId: string
+  ) => void
+  isBuildTimePrerendering?: boolean
   nextConfigOutput?: 'standalone' | 'export'
   onInstrumentationRequestError?: ServerOnInstrumentationRequestError
   isDraftMode?: boolean
-  deploymentId?: string
   onUpdateCookies?: (cookies: string[]) => void
   loadConfig?: (
     phase: string,
@@ -125,6 +140,7 @@ export interface RenderOptsPartial {
     bodySizeLimit?: SizeLimit
     allowedOrigins?: string[]
   }
+  logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
   htmlLimitedBots: string | undefined
@@ -137,7 +153,6 @@ export interface RenderOptsPartial {
     expireTime: number | undefined
     staleTimes: ExperimentalConfig['staleTimes'] | undefined
     clientTraceMetadata: string[] | undefined
-    clientSegmentCache: boolean | 'client-only'
 
     /**
      * The origins that are allowed to write the rewritten headers when
@@ -146,8 +161,17 @@ export interface RenderOptsPartial {
      */
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
+    optimisticRouting: boolean
     inlineCss: boolean
+    prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    cachedNavigations: boolean
+
+    /**
+     * The maximum size (in bytes) of the postponed state body for PPR resume
+     * requests. Used to calculate decompression limits (5x this value).
+     */
+    maxPostponedStateSizeBytes: number | undefined
   }
   postponed?: string
 
@@ -172,18 +196,17 @@ export interface RenderOptsPartial {
   isDebugDynamicAccesses?: boolean
 
   /**
-   * This is true when:
-   * - source maps are generated
-   * - source maps are applied
-   * - minification is disabled
-   */
-  hasReadableErrorStacks?: boolean
-
   /**
    * The maximum length of the headers that are emitted by React and added to
    * the response.
    */
   reactMaxHeadersLength: number | undefined
+
+  /**
+   * Per-route prefetch hints from prefetch-hints.json.
+   * Loaded at server startup from the build output.
+   */
+  prefetchHints?: Record<string, PrefetchHints>
 
   isStaticGeneration?: boolean
 
@@ -194,6 +217,13 @@ export interface RenderOptsPartial {
    * Prerendering those routes would catch any invalid dynamic accesses.
    */
   allowEmptyStaticShell?: boolean
+
+  /**
+   * When true, attempt to run build-time instant validation for this prerender.
+   * Only the first prerender per page sets this, since validation uses
+   * unstable_instant.samples and is independent of actual route params.
+   */
+  runInstantValidation?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

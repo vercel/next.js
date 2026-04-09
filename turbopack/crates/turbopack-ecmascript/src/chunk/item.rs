@@ -1,37 +1,66 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use smallvec::SmallVec;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc,
+    NonLocalValue, PrettyPrintError, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
     trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkingContext, ModuleId},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
+        ChunkingContextExt, ModuleId, SourceMapSourceType,
+    },
     code_builder::{Code, CodeBuilder},
-    error::PrettyPrintError,
+    ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
-    source_map::utils::fileify_source_map,
+    module::Module,
+    module_graph::ModuleGraph,
+    output::OutputAssetsReference,
+    source_map::utils::{absolute_fileify_source_map, relative_fileify_source_map},
 };
 
 use crate::{
     EcmascriptModuleContent,
+    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
 };
 
-#[turbo_tasks::value(shared)]
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+    Default,
+    Encode,
+    Decode,
+)]
+pub enum RewriteSourcePath {
+    AbsoluteFilePath(FileSystemPath),
+    RelativeFilePath(FileSystemPath, RcStr),
+    #[default]
+    None,
+}
+
+// Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
+// persisted and we want to avoid duplicating it.
+#[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
     pub source_map: Option<Rope>,
-    pub additional_ids: SmallVec<[ResolvedVc<ModuleId>; 1]>,
+    pub additional_ids: SmallVec<[ModuleId; 1]>,
     pub options: EcmascriptChunkItemOptions,
-    pub rewrite_source_path: Option<FileSystemPath>,
+    pub rewrite_source_path: RewriteSourcePath,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -43,6 +72,11 @@ impl EcmascriptChunkItemContent {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_options: Vc<OptionAsyncModuleOptions>,
     ) -> Result<Vc<Self>> {
+        let supports_arrow_functions = *chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
         let externals = *chunking_context
             .environment()
             .supports_commonjs_externals()
@@ -53,10 +87,18 @@ impl EcmascriptChunkItemContent {
         let strict = content.strict;
 
         Ok(EcmascriptChunkItemContent {
-            rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
-                Some(chunking_context.root_path().owned().await?)
-            } else {
-                None
+            rewrite_source_path: match *chunking_context.source_map_source_type().await? {
+                SourceMapSourceType::AbsoluteFileUri => {
+                    RewriteSourcePath::AbsoluteFilePath(chunking_context.root_path().owned().await?)
+                }
+                SourceMapSourceType::RelativeUri => RewriteSourcePath::RelativeFilePath(
+                    chunking_context.root_path().owned().await?,
+                    chunking_context
+                        .relative_path_from_chunk_root_to_project_root()
+                        .owned()
+                        .await?,
+                ),
+                SourceMapSourceType::TurbopackUri => RewriteSourcePath::None,
             },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map.clone(),
@@ -66,6 +108,7 @@ impl EcmascriptChunkItemContent {
                     strict: true,
                     externals,
                     async_module,
+                    supports_arrow_functions,
                     ..Default::default()
                 }
             } else {
@@ -76,6 +119,7 @@ impl EcmascriptChunkItemContent {
                 EcmascriptChunkItemOptions {
                     strict,
                     externals,
+                    supports_arrow_functions,
                     // These things are not available in ESM
                     module_and_exports: true,
                     ..Default::default()
@@ -90,14 +134,26 @@ impl EcmascriptChunkItemContent {
 impl EcmascriptChunkItemContent {
     async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
         let mut code = CodeBuilder::default();
-        for additional_id in self.additional_ids.iter().try_join().await? {
-            writeln!(code, "{}, ", StringifyJs(&*additional_id))?;
+        for additional_id in self.additional_ids.iter() {
+            writeln!(code, "{}, ", StringifyJs(&additional_id))?;
+        }
+
+        if self.options.supports_arrow_functions {
+            code += "((";
+        } else {
+            code += "(function(";
         }
         if self.options.module_and_exports {
-            code += "((__turbopack_context__, module, exports) => {\n";
+            code += "__turbopack_context__, module, exports";
         } else {
-            code += "((__turbopack_context__) => {\n";
+            code += "__turbopack_context__";
         }
+        if self.options.supports_arrow_functions {
+            code += ") => {\n";
+        } else {
+            code += "){\n";
+        }
+
         if self.options.strict {
             code += "\"use strict\";\n\n";
         } else {
@@ -105,17 +161,34 @@ impl EcmascriptChunkItemContent {
         }
 
         if self.options.async_module.is_some() {
-            writeln!(
-                code,
-                "return {TURBOPACK_ASYNC_MODULE}(async (__turbopack_handle_async_dependencies__, \
-                 __turbopack_async_result__) => {{ try {{\n"
-            )?;
+            write!(code, "return {TURBOPACK_ASYNC_MODULE}")?;
+            if self.options.supports_arrow_functions {
+                code += "(async (";
+            } else {
+                code += "(async function(";
+            }
+            code += "__turbopack_handle_async_dependencies__, __turbopack_async_result__";
+            if self.options.supports_arrow_functions {
+                code += ") => {";
+            } else {
+                code += "){";
+            }
+            code += " try {\n";
         }
 
-        let source_map = if let Some(rewrite_source_path) = &self.rewrite_source_path {
-            fileify_source_map(self.source_map.as_ref(), rewrite_source_path.clone()).await?
-        } else {
-            self.source_map.clone()
+        let source_map = match &self.rewrite_source_path {
+            RewriteSourcePath::AbsoluteFilePath(path) => {
+                absolute_fileify_source_map(self.source_map.as_ref(), path.clone()).await?
+            }
+            RewriteSourcePath::RelativeFilePath(path, relative_path) => {
+                relative_fileify_source_map(
+                    self.source_map.as_ref(),
+                    path.clone(),
+                    relative_path.clone(),
+                )
+                .await?
+            }
+            RewriteSourcePath::None => self.source_map.clone(),
         };
 
         code.push_source(&self.inner_code, source_map);
@@ -135,9 +208,7 @@ impl EcmascriptChunkItemContent {
     }
 }
 
-#[derive(
-    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
-)]
+#[derive(PartialEq, Eq, Default, Debug, Clone, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -150,11 +221,13 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
+    /// Whether the environment supports arrow functions (e.g. when targeting modern browsers).
+    pub supports_arrow_functions: bool,
     pub placeholder_for_future_extensions: (),
 }
 
 #[derive(
-    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+    Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
 )]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
@@ -183,22 +256,21 @@ impl EcmascriptChunkItemWithAsyncInfo {
 }
 
 #[turbo_tasks::value_trait]
-pub trait EcmascriptChunkItem: ChunkItem {
+pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     #[turbo_tasks::function]
     fn content(self: Vc<Self>) -> Vc<EcmascriptChunkItemContent>;
+
+    /// Fetches the content of the chunk item with async module info.
+    /// When `estimated` is true, it's ok to provide an estimated content, since it's only used for
+    /// compute the chunking. When `estimated` is true, this function should not invoke other
+    /// chunking operations that would cause cycles.
     #[turbo_tasks::function]
     fn content_with_async_module_info(
         self: Vc<Self>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent> {
         self.content()
-    }
-
-    /// Specifies which availability information the chunk item needs for code
-    /// generation
-    #[turbo_tasks::function]
-    fn need_async_module_info(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
     }
 }
 
@@ -223,7 +295,7 @@ async fn module_factory_with_code_generation_issue(
     async_module_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<Code>> {
     let content = match chunk_item
-        .content_with_async_module_info(async_module_info)
+        .content_with_async_module_info(async_module_info, false)
         .await
     {
         Ok(item) => item.module_factory().await,
@@ -234,6 +306,8 @@ async fn module_factory_with_code_generation_issue(
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
             let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
+
+            // ast-grep-ignore: no-context-format
             let error = error.context(format!(
                 "An error occurred while generating the chunk item {id}"
             ));
@@ -245,6 +319,7 @@ async fn module_factory_with_code_generation_issue(
                 title: StyledString::Text(rcstr!("Code generation for chunk item errored"))
                     .resolved_cell(),
                 message: StyledString::Text(error_message).resolved_cell(),
+                source: None,
             }
             .resolved_cell()
             .emit();
@@ -252,7 +327,94 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = &js_error_message)?;
             code += "\n}})";
-            code.build().cell()
+            code.build().cell_persisted()
         }
     })
+}
+
+/// Generic chunk item that wraps any EcmascriptChunkPlaceable module.
+/// This replaces the need for individual per-module ChunkItem wrapper structs.
+#[turbo_tasks::value]
+pub struct EcmascriptModuleChunkItem {
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+}
+
+/// Factory function to create an EcmascriptModuleChunkItem.
+/// Use this instead of implementing ChunkableModule::as_chunk_item() on each module.
+pub fn ecmascript_chunk_item(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+) -> Vc<Box<dyn ChunkItem>> {
+    Vc::upcast(
+        EcmascriptModuleChunkItem {
+            module,
+            chunking_context,
+            module_graph,
+        }
+        .cell(),
+    )
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkItem for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
+    }
+
+    #[turbo_tasks::function]
+    fn content_ident(&self) -> Vc<AssetIdent> {
+        self.module
+            .chunk_item_content_ident(*self.chunking_context, *self.module_graph)
+    }
+
+    #[turbo_tasks::function]
+    fn ty(&self) -> Vc<Box<dyn ChunkType>> {
+        Vc::upcast(Vc::<EcmascriptChunkType>::default())
+    }
+
+    #[turbo_tasks::function]
+    fn module(&self) -> Vc<Box<dyn Module>> {
+        Vc::upcast(*self.module)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *self.chunking_context
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn references(&self) -> Vc<turbopack_core::output::OutputAssetsWithReferenced> {
+        self.module
+            .chunk_item_output_assets(*self.chunking_context, *self.module_graph)
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptChunkItem for EcmascriptModuleChunkItem {
+    #[turbo_tasks::function]
+    fn content(&self) -> Vc<EcmascriptChunkItemContent> {
+        self.module
+            .chunk_item_content(*self.chunking_context, *self.module_graph, None, false)
+    }
+
+    #[turbo_tasks::function]
+    fn content_with_async_module_info(
+        &self,
+        async_module_info: Option<Vc<AsyncModuleInfo>>,
+        estimated: bool,
+    ) -> Vc<EcmascriptChunkItemContent> {
+        self.module.chunk_item_content(
+            *self.chunking_context,
+            *self.module_graph,
+            async_module_info,
+            estimated,
+        )
+    }
 }

@@ -1,6 +1,9 @@
 import type { RenderOptsPartial as AppRenderOptsPartial } from '../server/app-render/types'
 import type { RenderOptsPartial as PagesRenderOptsPartial } from '../server/render'
-import type { LoadComponentsReturnType } from '../server/load-components'
+import type {
+  GenericComponentMod,
+  LoadComponentsReturnType,
+} from '../server/load-components'
 import type { OutgoingHttpHeaders } from 'http'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { CacheControl } from '../server/lib/cache-control'
@@ -12,6 +15,8 @@ import type {
 import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
+import type { StaticWorker } from '../build'
+import type { Bundler } from '../lib/bundler'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -19,6 +24,8 @@ export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
 
 export interface ExportPagesInput {
   buildId: string
+  deploymentId: string
+  clientAssetToken: string
   exportPaths: ExportPathEntry[]
   parentSpanId: number
   dir: string
@@ -37,6 +44,8 @@ export interface ExportPagesInput {
 
 export interface ExportPageInput {
   buildId: string
+  deploymentId: string
+  clientAssetToken: string
   exportPath: ExportPathEntry
   distDir: string
   outDir: string
@@ -52,6 +61,7 @@ export interface ExportPageInput {
   debugOutput?: boolean
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
+  enableNodeStreams?: boolean
   sriEnabled: boolean
   renderResumeDataCache: RenderResumeDataCache | undefined
 }
@@ -63,6 +73,7 @@ export type ExportRouteResult =
       ssgNotFound?: boolean
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
+      hasStaticRsc?: boolean
       fetchMetrics?: FetchMetrics
       renderResumeDataCache?: string
     }
@@ -85,10 +96,12 @@ export type ExportPagesResult = {
 export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
-export type WorkerRenderOpts = WorkerRenderOptsPartial &
-  LoadComponentsReturnType
+export type WorkerRenderOpts<
+  NextModule extends GenericComponentMod = GenericComponentMod,
+> = WorkerRenderOptsPartial & LoadComponentsReturnType<NextModule>
 
 export interface ExportAppOptions {
+  staticWorker?: StaticWorker
   outdir: string
   enabledDirectories: NextEnabledDirectories
   silent?: boolean
@@ -101,6 +114,7 @@ export interface ExportAppOptions {
   hasOutdirFromCli?: boolean
   numWorkers: number
   appDirOnly: boolean
+  bundler: Bundler
 }
 
 export type ExportPageMetadata = {
@@ -137,6 +151,10 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+      /**
+       * If the page emitted a static RSC payload.
+       */
+      hasStaticRsc?: boolean
 
       fetchMetrics?: FetchMetrics
     }

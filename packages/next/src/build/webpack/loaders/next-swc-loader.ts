@@ -28,7 +28,8 @@ DEALINGS IN THE SOFTWARE.
 
 import type { NextConfig } from '../../../types'
 import { type WebpackLayerName, WEBPACK_LAYERS } from '../../../lib/constants'
-import { isWasm, transform } from '../../swc'
+import { getBindingsSync, transform } from '../../swc'
+import { installBindings } from '../../swc/install-bindings'
 import { getLoaderSWCOptions } from '../../swc/options'
 import path, { isAbsolute } from 'path'
 import { babelIncludeRegexes } from '../../webpack-config'
@@ -154,6 +155,7 @@ async function loaderTransform(
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
     swcPlugins: nextConfig?.experimental?.swcPlugins,
+    swcEnvOptions: nextConfig?.experimental?.swcEnvOptions,
     compilerOptions: nextConfig?.compiler,
     optimizeServerReact: nextConfig?.experimental?.optimizeServerReact,
     jsConfig,
@@ -166,7 +168,9 @@ async function loaderTransform(
     esm,
     cacheHandlers: nextConfig.cacheHandlers,
     useCacheEnabled: nextConfig.experimental?.useCache,
+    taintEnabled: nextConfig.experimental?.taint,
     trackDynamicImports,
+    pageExtensions: nextConfig.pageExtensions,
   })
 
   const programmaticOptions = {
@@ -251,7 +255,7 @@ export function pitch(this: any) {
       !EXCLUDED_PATHS.test(this.resourcePath) &&
       this.loaders.length - 1 === this.loaderIndex &&
       isAbsolute(this.resourcePath) &&
-      !(await isWasm())
+      !getBindingsSync().isWasm
     ) {
       this.addDependency(this.resourcePath)
       return loaderTransform.call(this)
@@ -268,13 +272,18 @@ export default function swcLoader(
   inputSourceMap: any
 ) {
   const callback = this.async()
-  loaderTransform.call(this, inputSource, inputSourceMap).then(
-    ([transformedSource, outputSourceMap]: any) => {
-      callback(null, transformedSource, outputSourceMap || inputSourceMap)
-    },
-    (err: Error) => {
-      callback(err)
-    }
+  // Install bindings early so they are definitely available to the loader.
+  // When run by webpack in next this is already done with correct configuration so this is a no-op.
+  // In turbopack loaders are run in a subprocess so it may or may not be done.
+  installBindings().then(() =>
+    loaderTransform.call(this, inputSource, inputSourceMap).then(
+      ([transformedSource, outputSourceMap]: any) => {
+        callback(null, transformedSource, outputSourceMap || inputSourceMap)
+      },
+      (err: Error) => {
+        callback(err)
+      }
+    )
   )
 }
 

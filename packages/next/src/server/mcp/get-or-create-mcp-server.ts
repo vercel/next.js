@@ -4,14 +4,22 @@ import { registerGetErrorsTool } from './tools/get-errors'
 import { registerGetPageMetadataTool } from './tools/get-page-metadata'
 import { registerGetLogsTool } from './tools/get-logs'
 import { registerGetActionByIdTool } from './tools/get-server-action-by-id'
+import { registerGetRoutesTool } from './tools/get-routes'
+import { registerGetCompilationIssuesTool } from './tools/get-compilation-issues'
 import type { HmrMessageSentToBrowser } from '../dev/hot-reloader-types'
+import type { NextConfigComplete } from '../config-shared'
+import type { Project } from '../../build/swc/types'
 
 export interface McpServerOptions {
   projectPath: string
   distDir: string
+  nextConfig: NextConfigComplete
+  pagesDir: string | undefined
+  appDir: string | undefined
   sendHmrMessage: (message: HmrMessageSentToBrowser) => void
   getActiveConnectionCount: () => number
   getDevServerUrl: () => string | undefined
+  getTurbopackProject?: () => Project | undefined
 }
 
 let mcpServer: McpServer | undefined
@@ -23,7 +31,7 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
 
   mcpServer = new McpServer({
     name: 'Next.js MCP Server',
-    version: '0.1.0',
+    version: '0.2.0',
   })
 
   registerGetProjectMetadataTool(
@@ -43,6 +51,16 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
   )
   registerGetLogsTool(mcpServer, options.distDir)
   registerGetActionByIdTool(mcpServer, options.distDir)
+  registerGetRoutesTool(mcpServer, {
+    projectPath: options.projectPath,
+    nextConfig: options.nextConfig,
+    pagesDir: options.pagesDir,
+    appDir: options.appDir,
+  })
+
+  if (options.getTurbopackProject) {
+    registerGetCompilationIssuesTool(mcpServer, options.getTurbopackProject)
+  }
 
   return mcpServer
 }

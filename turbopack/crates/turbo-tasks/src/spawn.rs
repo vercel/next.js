@@ -3,24 +3,20 @@ use std::{
     pin::Pin,
     task::{Context, Poll},
     thread,
-    time::{Duration, Instant},
 };
 
 use anyhow::Result;
 use futures::{FutureExt, ready};
 use tokio::runtime::Handle;
 use tracing::{Instrument, Span, info_span};
-use turbo_tasks_malloc::{AllocationInfo, TurboMalloc};
 
 use crate::{
-    TurboTasksPanic,
-    capture_future::{self, CaptureFuture},
-    manager::turbo_tasks_future_scope,
-    turbo_tasks, turbo_tasks_scope,
+    TurboTasksPanic, capture_future::CaptureFuture, manager::turbo_tasks_future_scope, turbo_tasks,
+    turbo_tasks_scope,
 };
 
 pub struct JoinHandle<T> {
-    join_handle: tokio::task::JoinHandle<(Result<T, TurboTasksPanic>, Duration, AllocationInfo)>,
+    join_handle: tokio::task::JoinHandle<Result<T, TurboTasksPanic>>,
 }
 
 impl<T: Send + 'static> JoinHandle<T> {
@@ -35,14 +31,10 @@ impl<T> Future for JoinHandle<T> {
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
         match ready!(this.join_handle.poll_unpin(cx)) {
-            Ok((res, duration, alloc_info)) => {
-                capture_future::add_duration(duration);
-                capture_future::add_allocation_info(alloc_info);
-                match res {
-                    Ok(res) => Poll::Ready(res),
-                    Err(e) => resume_unwind(e.into_panic()),
-                }
-            }
+            Ok(res) => match res {
+                Ok(res) => Poll::Ready(res),
+                Err(e) => resume_unwind(e.into_panic()),
+            },
             Err(e) => resume_unwind(e.into_panic()),
         }
     }
@@ -71,10 +63,7 @@ pub fn spawn_blocking<T: Send + 'static>(
     let span = Span::current();
     let join_handle = tokio::task::spawn_blocking(|| {
         let _guard = span.entered();
-        let start = Instant::now();
-        let start_allocations = TurboMalloc::allocation_counters();
-        let r = turbo_tasks_scope(turbo_tasks, func);
-        (Ok(r), start.elapsed(), start_allocations.until_now())
+        Ok(turbo_tasks_scope(turbo_tasks, func))
     });
     JoinHandle { join_handle }
 }

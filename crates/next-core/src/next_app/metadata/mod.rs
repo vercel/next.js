@@ -92,11 +92,11 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
     let mut ext = path.extension();
 
     let name = stem.unwrap_or_default();
-    if ext == "jpg" {
-        ext = "jpeg"
+    if ext == Some("jpg") {
+        ext = Some("jpeg");
     }
 
-    if name == "favicon" && ext == "ico" {
+    if name == "favicon" && ext == Some("ico") {
         return Ok("image/x-icon".to_string());
     }
     if name == "sitemap" {
@@ -109,7 +109,9 @@ pub(crate) async fn get_content_type(path: FileSystemPath) -> Result<String> {
         return Ok("application/manifest+json".to_string());
     }
 
-    if ext == "png" || ext == "jpeg" || ext == "ico" || ext == "svg" {
+    if let Some(ext) = ext
+        && matches!(ext, "png" | "jpeg" | "ico" | "svg")
+    {
         return Ok(mime_guess::from_ext(ext)
             .first_or_octet_stream()
             .to_string());
@@ -226,10 +228,6 @@ pub fn is_metadata_route_file(
     false
 }
 
-pub fn is_static_metadata_route_file(app_dir_relative_path: &str) -> bool {
-    is_metadata_route_file(app_dir_relative_path, &[], true)
-}
-
 /// Remove the 'app' prefix or '/route' suffix, only check the route name since
 /// they're only allowed in root app directory
 ///
@@ -336,6 +334,8 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
         route += ".txt"
     } else if route == "/manifest" {
         route += ".webmanifest"
+    } else if route.ends_with("/sitemap") {
+        route += ".xml"
     } else {
         suffix = get_metadata_route_suffix(&route);
     }
@@ -384,6 +384,9 @@ mod test {
             ],
             ["/robots.txt", "/robots.txt/route"],
             ["/manifest.webmanifest", "/manifest.webmanifest/route"],
+            ["/sitemap", "/sitemap.xml/route"],
+            ["/sitemap.xml", "/sitemap.xml/route"],
+            ["/blog/sitemap", "/blog/sitemap.xml/route"],
         ];
 
         for [input, expected] in cases {

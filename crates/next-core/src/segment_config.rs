@@ -1,7 +1,8 @@
 use std::{borrow::Cow, future::Future};
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use serde::Deserialize;
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
@@ -42,7 +43,17 @@ use crate::{
 };
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
@@ -54,7 +65,17 @@ pub enum NextSegmentDynamic {
 }
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
@@ -69,7 +90,7 @@ pub enum NextSegmentFetchCache {
 }
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum NextRevalidate {
     #[default]
@@ -95,7 +116,11 @@ pub struct NextSegmentConfig {
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     pub generate_static_params: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub unstable_instant: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -136,13 +161,11 @@ impl NextSegmentConfig {
             name: &str,
         ) -> Result<()> {
             match (a.as_ref(), b) {
-                (Some(a), Some(b)) => {
-                    if *a != *b {
-                        bail!(
-                            "Sibling segment configs have conflicting values for {}",
-                            name
-                        )
-                    }
+                (Some(a), Some(b)) if *a != *b => {
+                    bail!(
+                        "Sibling segment configs have conflicting values for {}",
+                        name
+                    )
                 }
                 (None, Some(b)) => {
                     *a = Some(b.clone());
@@ -235,7 +258,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 
     #[turbo_tasks::function]
     fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.into()
+        IssueStage::Parse.cell()
     }
 
     #[turbo_tasks::function]
@@ -273,17 +296,7 @@ impl Issue for NextSegmentConfigParsingIssue {
 }
 
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum ParseSegmentMode {
     Base,
@@ -417,7 +430,7 @@ pub async fn parse_segment_config_from_source(
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
                         Decl::Class(decl) => {
                             parse(
-                                &decl.ident.sym,
+                                Cow::Borrowed(decl.ident.sym.as_str()),
                                 Some(Cow::Owned(Expr::Class(ClassExpr {
                                     ident: None,
                                     class: decl.class.clone(),
@@ -428,7 +441,7 @@ pub async fn parse_segment_config_from_source(
                         }
                         Decl::Fn(decl) => {
                             parse(
-                                &decl.ident.sym,
+                                Cow::Borrowed(decl.ident.sym.as_str()),
                                 Some(Cow::Owned(Expr::Fn(FnExpr {
                                     ident: None,
                                     function: decl.function.clone(),
@@ -446,7 +459,7 @@ pub async fn parse_segment_config_from_source(
                                 let key = &ident.id.sym;
 
                                 parse(
-                                    key,
+                                    Cow::Borrowed(key.as_str()),
                                     Some(
                                         decl.init.as_deref().map(Cow::Borrowed).unwrap_or_else(
                                             || Cow::Owned(*Expr::undefined(DUMMY_SP)),
@@ -470,8 +483,10 @@ pub async fn parse_segment_config_from_source(
                             if let ExportSpecifier::Named(named) = specifier {
                                 parse(
                                     match named.exported.as_ref().unwrap_or(&named.orig) {
-                                        ModuleExportName::Ident(ident) => &ident.sym,
-                                        ModuleExportName::Str(s) => &*s.value,
+                                        ModuleExportName::Ident(ident) => {
+                                            Cow::Borrowed(ident.sym.as_str())
+                                        }
+                                        ModuleExportName::Str(s) => s.value.to_string_lossy(),
                                     },
                                     None,
                                     specifier.span(),
@@ -491,36 +506,53 @@ pub async fn parse_segment_config_from_source(
     )
     .await?;
 
-    if mode == ParseSegmentMode::App
-        && let Some(span) = config.generate_static_params
-        && module_ast
-            .body
-            .iter()
-            .take_while(|i| match i {
-                ModuleItem::Stmt(stmt) => stmt.directive_continue(),
-                ModuleItem::ModuleDecl(_) => false,
-            })
-            .filter_map(|i| i.as_stmt())
-            .any(|f| match f {
-                Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
-                    Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
-                    _ => false,
-                },
+    let is_client_entry = module_ast
+        .body
+        .iter()
+        .take_while(|i| match i {
+            ModuleItem::Stmt(stmt) => stmt.directive_continue(),
+            ModuleItem::ModuleDecl(_) => false,
+        })
+        .filter_map(|i| i.as_stmt())
+        .any(|f| match f {
+            Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
+                Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
                 _ => false,
-            })
-    {
-        invalid_config(
-            source,
-            "generateStaticParams",
-            span,
-            rcstr!(
-                "App pages cannot use both \"use client\" and export function \
-                 \"generateStaticParams()\"."
-            ),
-            None,
-            IssueSeverity::Error,
-        )
-        .await?;
+            },
+            _ => false,
+        });
+
+    if mode == ParseSegmentMode::App && is_client_entry {
+        if let Some(span) = config.generate_static_params {
+            invalid_config(
+                source,
+                "generateStaticParams",
+                span,
+                rcstr!(
+                    "App pages cannot use both \"use client\" and export function \
+                     \"generateStaticParams()\"."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
+
+        if let Some(span) = config.unstable_instant {
+            invalid_config(
+                source,
+                "unstable_instant",
+                span,
+                rcstr!(
+                    "App pages cannot export \"unstable_instant\" from a Client Component module. \
+                     To use this API, convert this module to a Server Component by removing the \
+                     \"use client\" directive."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
     }
 
     Ok(config.cell())
@@ -560,7 +592,7 @@ async fn parse_config_value(
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
     eval_context: &EvalContext,
-    key: &str,
+    key: Cow<'_, str>,
     init: Option<Cow<'_, Expr>>,
     span: Span,
 ) -> Result<()> {
@@ -586,7 +618,7 @@ async fn parse_config_value(
         })
     };
 
-    match key {
+    match &*key {
         "config" => {
             let Some(value) = get_value() else {
                 return invalid_config(
@@ -800,9 +832,9 @@ async fn parse_config_value(
             };
 
             match value {
-                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if *val >= 0.0 => {
                     config.revalidate = Some(NextRevalidate::Frequency {
-                        seconds: val as u32,
+                        seconds: *val as u32,
                     });
                 }
                 JsValue::Constant(ConstantValue::False) => {
@@ -937,6 +969,9 @@ async fn parse_config_value(
         }
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
+        }
+        "unstable_instant" => {
+            config.unstable_instant = Some(span);
         }
         _ => {}
     }

@@ -212,7 +212,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'justputit', 'd'],
+                ['slug', 'justputit', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },
@@ -220,7 +220,7 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
     const response = await next.fetch(`/prefetch-auto/justputit?_rsc=dcqtr`, {
@@ -247,7 +247,7 @@ describe('app dir - prefetching', () => {
             'prefetch-auto',
             {
               children: [
-                ['slug', 'vercel', 'd'],
+                ['slug', 'vercel', 'd', null],
                 { children: ['__PAGE__', {}] },
               ],
             },
@@ -255,7 +255,7 @@ describe('app dir - prefetching', () => {
         },
         null,
         null,
-        true,
+        16, // PrefetchHint.IsRootLayout
       ])
     )
 
@@ -314,22 +314,20 @@ describe('app dir - prefetching', () => {
       async () => {
         const reveal = await browser.elementByCss('#accordion-to-dynamic-page')
         await reveal.click()
-        await browser.waitForElementByCss('#to-dynamic-page')
-        return await browser.elementByCss('#to-dynamic-page')
+        return browser.elementByCss('#to-dynamic-page')
       },
       { includes: 'Loading Prefetch Auto' }
     )
 
     // Click the link to navigate - should trigger dynamic data fetch
-    await act(
+    const loadingText = await act(
       async () => {
         await link.click()
-        await browser.waitForElementByCss('#loading-text')
-        const loadingText = await browser.elementByCss('#loading-text').text()
-        expect(loadingText).toBe('Loading Prefetch Auto')
+        return browser.elementByCss('#loading-text').text()
       },
       { includes: 'prefetch-auto-page-data' }
     )
+    expect(loadingText).toBe('Loading Prefetch Auto')
 
     // Wait for final data to appear
     await browser.waitForElementByCss('#prefetch-auto-page-data')
@@ -368,9 +366,11 @@ describe('app dir - prefetching', () => {
     await browser.elementById('prefetch-via-link').click()
 
     // Assert that we're on the homepage (check for accordion since links are hidden)
-    expect(
-      await browser.hasElementByCssSelector('#accordion-to-dashboard')
-    ).toBe(true)
+    await retry(async () => {
+      expect(await browser.hasElementByCss('#accordion-to-dashboard')).toBe(
+        true
+      )
+    })
 
     await browser.waitForIdleNetwork()
 
