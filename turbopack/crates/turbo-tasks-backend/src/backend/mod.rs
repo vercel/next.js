@@ -66,7 +66,7 @@ use crate::{
     backing_storage::{BackingStorage, SnapshotItem, compute_task_type_hash},
     data::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
-        InProgressState, InProgressStateInner, OutputValue, TransientTask,
+        InProgressState, InProgressStateInner, LeafDistance, OutputValue, TransientTask,
     },
     error::TaskError,
     utils::{
@@ -77,6 +77,26 @@ use crate::{
         shard_amount::compute_shard_amount,
     },
 };
+
+/// Pushes a leaf-distance update for `reader` onto `queue` if the dependency's leaf
+/// distance is not strictly less than the reader's current leaf distance.
+///
+/// Call this immediately after successfully adding a new dependent edge to ensure the
+/// reader's leaf distance is monotonically increasing relative to its dependency.
+fn push_leaf_distance_update_if_needed(
+    dep_leaf_distance: LeafDistance,
+    reader: TaskId,
+    reader_leaf_distance: LeafDistance,
+    queue: &mut LeafDistanceUpdateQueue,
+) {
+    if reader_leaf_distance.distance <= dep_leaf_distance.distance {
+        queue.push(
+            reader,
+            dep_leaf_distance.distance,
+            dep_leaf_distance.max_distance_in_buffer,
+        );
+    }
+}
 
 /// Threshold for parallelizing making dependent tasks dirty.
 /// If the number of dependent tasks exceeds this threshold,
@@ -751,17 +771,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let mut queue = LeafDistanceUpdateQueue::new();
                 let reader = reader.unwrap();
                 if task.add_output_dependent(reader) {
-                    // Ensure that dependent leaf distance is strictly monotonic increasing
-                    let leaf_distance = task.get_leaf_distance().copied().unwrap_or_default();
-                    let reader_leaf_distance =
-                        reader_task.get_leaf_distance().copied().unwrap_or_default();
-                    if reader_leaf_distance.distance <= leaf_distance.distance {
-                        queue.push(
-                            reader,
-                            leaf_distance.distance,
-                            leaf_distance.max_distance_in_buffer,
-                        );
-                    }
+                    push_leaf_distance_update_if_needed(
+                        task.get_leaf_distance().copied().unwrap_or_default(),
+                        reader,
+                        reader_task.get_leaf_distance().copied().unwrap_or_default(),
+                        &mut queue,
+                    );
                 }
 
                 drop(task);
@@ -3140,22 +3155,35 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         reader: TaskId,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            return;
+        }
+        assert_ne!(
+            dependency, reader,
+            "add_order_dependency called with the same task as both dependency and reader; \
+             self-referential order dependencies are not allowed"
+        );
+
         let mut ctx = self.execute_context(turbo_tasks);
         let (mut dep_task, mut reader_task) =
             ctx.task_pair(dependency, reader, TaskDataCategory::Data);
+
+        if dep_task.immutable() && !cfg!(feature = "verify_immutable") {
+            // Immutable tasks never re-execute and thus never invalidate their dependents.
+            // Order dependencies on them serve no purpose, as invalidation ordering is
+            // irrelevant when no invalidation can ever occur.
+            return;
+        }
+
         let mut queue = LeafDistanceUpdateQueue::new();
 
         if dep_task.add_order_dependent(reader) {
-            // Ensure that dependent leaf distance is strictly monotonic increasing
-            let leaf_distance = dep_task.get_leaf_distance().copied().unwrap_or_default();
-            let reader_leaf_distance = reader_task.get_leaf_distance().copied().unwrap_or_default();
-            if reader_leaf_distance.distance <= leaf_distance.distance {
-                queue.push(
-                    reader,
-                    leaf_distance.distance,
-                    leaf_distance.max_distance_in_buffer,
-                );
-            }
+            push_leaf_distance_update_if_needed(
+                dep_task.get_leaf_distance().copied().unwrap_or_default(),
+                reader,
+                reader_task.get_leaf_distance().copied().unwrap_or_default(),
+                &mut queue,
+            );
         }
 
         drop(dep_task);

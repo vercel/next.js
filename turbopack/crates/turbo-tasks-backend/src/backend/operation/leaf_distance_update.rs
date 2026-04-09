@@ -161,9 +161,10 @@ impl LeafDistanceUpdateQueue {
             // We are within the buffer zone, keep the max as is
             leaf_distance.distance = dependencies_distance + 1;
         }
-        // TODO Technically CellDependent is also needed, but there are cycles in the CellDependent
-        // graph. So we need to handle that properly first. When enabling this, make sure to also
-        // call the leaf update queue when adding CellDependents.
+        // TODO CellDependent is also needed here, but there are cycles in the CellDependent graph
+        // that must be handled first. When enabling this, also call the leaf update queue when
+        // adding CellDependents. Note: OrderDependent does not share this cycle problem since
+        // order dependencies are set manually and cannot be created implicitly through reads.
         for dependent_id in task
             .iter_output_dependent()
             .chain(task.iter_order_dependent())

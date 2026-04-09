@@ -477,6 +477,9 @@ impl TaskExecutionOrder {
                         leaf_distance: *leaf_distance,
                     }
                 } else {
+                    // The parent is Initial (not yet part of any invalidation wave), so
+                    // there is no ordering context to inherit. Keep this task's own
+                    // execution order unchanged.
                     *self
                 }
             }
