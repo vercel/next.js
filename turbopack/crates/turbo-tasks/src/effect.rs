@@ -260,9 +260,9 @@ type UniqueEffectIndices = Result<Vec<(usize, Arc<EffectStateEntry>)>, String>;
 pub struct Effects {
     #[turbo_tasks(debug_ignore)]
     effects: Vec<ReadRef<EffectInstance>>,
-    /// Cached (index, state_entry) pairs after grouping by key and dedup/conflict detection.
+    /// Cached `(index, state_entry)` pairs after grouping by key and dedup/conflict detection.
     /// Computed once on first `apply()` call; reused on subsequent calls to avoid repeated
-    /// HashMap allocation, key() Vec<u8> allocations, and DashMap lookups.
+    /// HashMap allocation, `key()` `Vec<u8>` allocations, and `DashMap` lookups.
     /// `Err` means a conflict was detected.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     unique_indices: OnceLock<UniqueEffectIndices>,

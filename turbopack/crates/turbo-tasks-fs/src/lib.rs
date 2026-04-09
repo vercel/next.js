@@ -49,7 +49,7 @@ use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bincode::{Decode, Encode};
 use bitflags::bitflags;
-use dashmap::DashMap;
+use dashmap::DashSet;
 use dunce::simplified;
 use indexmap::IndexSet;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
@@ -287,7 +287,7 @@ struct DiskFileSystemInner {
     /// create_dir_all).
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip)]
-    created_dirs: DashMap<PathBuf, ()>,
+    created_dirs: DashSet<PathBuf>,
 }
 
 impl DiskFileSystemInner {
@@ -346,7 +346,7 @@ impl DiskFileSystemInner {
                 return;
             };
             let _guard = self.tokio_handle.enter();
-            for (invalidator, _) in invalidators {
+            for invalidator in invalidators {
                 invalidator.invalidate(&*turbo_tasks);
             }
         }
@@ -370,7 +370,7 @@ impl DiskFileSystemInner {
         let invalidators = invalidator_map
             .into_iter()
             .chain(dir_invalidator_map)
-            .flat_map(|(_, invalidators)| invalidators.into_keys())
+            .flat_map(|(_, invalidators)| invalidators.into_iter())
             .collect::<Vec<_>>();
         parallel::for_each_owned(invalidators, |invalidator| {
             invalidator.invalidate(&*turbo_tasks)
@@ -398,7 +398,7 @@ impl DiskFileSystemInner {
             .flat_map(|(path, invalidators)| {
                 let reason_for_path = reason(&path);
                 invalidators
-                    .into_keys()
+                    .into_iter()
                     .map(move |i| (reason_for_path.clone(), i))
             })
             .collect::<Vec<_>>();
@@ -440,7 +440,7 @@ impl DiskFileSystemInner {
                 let reason_for_path = reason(&invalidated_path);
                 invalidators.extend(
                     path_invalidators
-                        .into_keys()
+                        .into_iter()
                         .map(|invalidator| (reason_for_path.clone(), invalidator)),
                 );
             }
@@ -451,7 +451,7 @@ impl DiskFileSystemInner {
                 let reason_for_path = reason(&invalidated_path);
                 invalidators.extend(
                     path_invalidators
-                        .into_keys()
+                        .into_iter()
                         .map(|invalidator| (reason_for_path.clone(), invalidator)),
                 );
             }
@@ -462,7 +462,7 @@ impl DiskFileSystemInner {
                 let reason_for_path = reason(&path);
                 invalidators.extend(
                     path_invalidators
-                        .into_keys()
+                        .into_iter()
                         .map(|invalidator| (reason_for_path.clone(), invalidator)),
                 );
             }
@@ -497,14 +497,14 @@ impl DiskFileSystemInner {
     }
 
     async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
-        if self.created_dirs.contains_key(directory) {
+        if self.created_dirs.contains(directory) {
             return Ok(());
         }
         retry_blocking(|| std::fs::create_dir_all(directory))
             .instrument(tracing::info_span!("create directory", name = ?directory))
             .concurrency_limited(&self.write_semaphore)
             .await?;
-        self.created_dirs.insert(directory.to_path_buf(), ());
+        self.created_dirs.insert(directory.to_path_buf());
         Ok(())
     }
 }
@@ -691,7 +691,7 @@ impl DiskFileSystem {
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
-                created_dirs: DashMap::default(),
+                created_dirs: DashSet::default(),
             }),
         };
 

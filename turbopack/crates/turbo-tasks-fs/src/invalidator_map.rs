@@ -5,10 +5,10 @@ use std::{
 };
 
 use concurrent_queue::ConcurrentQueue;
-use rustc_hash::FxHashMap;
+use rustc_hash::FxHashSet;
 use turbo_tasks::Invalidator;
 
-pub type LockedInvalidatorMap = BTreeMap<PathBuf, FxHashMap<Invalidator, ()>>;
+pub type LockedInvalidatorMap = BTreeMap<PathBuf, FxHashSet<Invalidator>>;
 
 pub struct InvalidatorMap {
     queue: ConcurrentQueue<(PathBuf, Invalidator)>,
@@ -32,7 +32,7 @@ impl InvalidatorMap {
     pub fn lock(&self) -> LockResult<MutexGuard<'_, LockedInvalidatorMap>> {
         let mut guard = self.map.lock()?;
         while let Ok((key, value)) = self.queue.pop() {
-            guard.entry(key).or_default().insert(value, ());
+            guard.entry(key).or_default().insert(value);
         }
         Ok(guard)
     }
