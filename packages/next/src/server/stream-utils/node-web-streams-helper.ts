@@ -135,20 +135,26 @@ export async function webstreamToUint8Array(
 function webToReadable(
   stream: ReadableStream<Uint8Array> | import('node:stream').Readable
 ): import('node:stream').Readable {
-  let Readable: typeof import('node:stream').Readable
-  if (process.env.TURBOPACK) {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
-  } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
-    Readable = (
-      __non_webpack_require__('node:stream') as typeof import('node:stream')
-    ).Readable
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error('webToReadable cannot be used in the edge runtime')
   } else {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+    if (stream instanceof Readable) {
+      return stream
+    }
+    return Readable.fromWeb(stream as import('stream/web').ReadableStream)
   }
-  if (stream instanceof Readable) {
-    return stream
-  }
-  return Readable.fromWeb(stream as import('stream/web').ReadableStream)
 }
 
 export async function nodestreamToUint8Array(
@@ -162,20 +168,29 @@ export async function nodestreamToUint8Array(
 }
 
 export async function streamToUint8Array(stream: AnyStream) {
-  let Readable: typeof import('node:stream').Readable
-  if (process.env.TURBOPACK) {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
-  } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
-    Readable = (
-      __non_webpack_require__('node:stream') as typeof import('node:stream')
-    ).Readable
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    // Edge runtime always uses web streams
+    return webstreamToUint8Array(stream as ReadableStream<Uint8Array>)
   } else {
-    Readable = (require('node:stream') as typeof import('node:stream')).Readable
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    if (stream instanceof Readable) {
+      return nodestreamToUint8Array(stream)
+    }
+
+    return webstreamToUint8Array(stream)
   }
-  if (stream instanceof Readable) {
-    return nodestreamToUint8Array(stream)
-  }
-  return webstreamToUint8Array(stream)
 }
 
 export async function streamToBuffer(
@@ -328,7 +343,7 @@ export function renderToInitialFizzStream({
   )
 }
 
-function createMetadataTransformStream(
+export function createMetadataTransformStream(
   insert: () => Promise<string> | string
 ): TransformStream<Uint8Array, Uint8Array> {
   let chunkIndex = -1
@@ -429,7 +444,7 @@ function createMetadataTransformStream(
   })
 }
 
-function createHeadInsertionTransformStream(
+export function createHeadInsertionTransformStream(
   insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
@@ -653,7 +668,7 @@ export function createInstantTestScriptInsertionTransformStream(
 
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
-function createDeferredSuffixStream(
+export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
@@ -698,7 +713,7 @@ function createDeferredSuffixStream(
   })
 }
 
-function createFlightDataInjectionTransformStream(
+export function createFlightDataInjectionTransformStream(
   stream: ReadableStream<Uint8Array>,
   delayDataUntilFirstHtmlChunk: boolean
 ): TransformStream<Uint8Array, Uint8Array> {
@@ -778,14 +793,17 @@ function createFlightDataInjectionTransformStream(
   })
 }
 
-const CLOSE_TAG = '</body></html>'
+export const CLOSE_TAG = '</body></html>'
 
 /**
  * This transform stream moves the suffix to the end of the stream, so results
  * like `</body></html><script>...</script>` will be transformed to
  * `<script>...</script></body></html>`.
  */
-function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
+export function createMoveSuffixStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
   let foundSuffix = false
 
   return new TransformStream({
@@ -860,7 +878,7 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
-function createHtmlDataDplIdTransformStream(
+export function createHtmlDataDplIdTransformStream(
   dplId: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let didTransform = false
@@ -958,7 +976,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
   })
 }
 
-function chainTransformers<T>(
+export function chainTransformers<T>(
   readable: ReadableStream<T>,
   transformers: ReadonlyArray<TransformStream<T, T> | null>
 ): ReadableStream<T> {

@@ -7,7 +7,6 @@ describe('turbopack-ignore-issue', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
       // turbopack.ignoreIssue is turbopack-only
-      skipDeployment: true,
       nextConfig: {
         turbopack: {
           ignoreIssue: [
@@ -125,7 +124,6 @@ describe('turbopack-ignore-issue', () => {
   describe('without turbopack.ignoreIssue config', () => {
     const { next, skipped, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
 
     if (skipped) return

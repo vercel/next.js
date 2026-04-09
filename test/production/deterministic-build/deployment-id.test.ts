@@ -118,7 +118,7 @@ async function runTest(
   readFiles: (next: NextInstance) => Promise<Map<string, Map<string, string>>>
 ) {
   // Same for both builds
-  next.env['__NEXT_IMMUTABLE_ASSET_TOKEN'] = 'imm-token'
+  next.env['__NEXT_SUPPORTS_IMMUTABLE_ASSETS'] = '1'
 
   // First build
   next.env['NEXT_DEPLOYMENT_ID'] = 'foo-dpl-id'
@@ -216,7 +216,6 @@ const FILES = {
           NOW_BUILDER: '1',
         },
         skipStart: true,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
 
@@ -254,7 +253,6 @@ const FILES = {
               }
             : undefined,
         skipStart: true,
-        skipDeployment: true,
         disableAutoSkewProtection: true,
       })
 

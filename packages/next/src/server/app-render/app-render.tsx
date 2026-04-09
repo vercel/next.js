@@ -46,18 +46,21 @@ import {
   continueStaticFallbackPrerender,
   streamToBuffer,
   streamToString,
-  createInlinedDataStream,
+  createWebInlinedDataStream,
   createPendingStream,
   createOnHeadersCallback,
   resumeAndAbort,
-  renderToFlightStream,
-  renderToFizzStream,
+  renderToWebFlightStream,
   resumeToFizzStream,
   getServerPrerender,
   getClientPrerender,
   processPrelude as processPreludeOp,
   createDocumentClosingStream,
   teeStream,
+  renderToWebFizzStream,
+  renderToNodeFlightStream,
+  renderToNodeFizzStream,
+  createNodeInlinedDataStream,
 } from './stream-ops'
 import type { AnyStream } from './stream-ops'
 import { stripInternalQueries } from '../internal-utils'
@@ -258,7 +261,8 @@ import {
 } from './instant-validation/instant-config'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import {
-  createDebugChannel,
+  createWebDebugChannel,
+  createNodeDebugChannel,
   type DebugChannelPair,
 } from './debug-channel-server'
 import { createNodeStreamWithLateRelease } from './instant-validation/stream-utils'
@@ -840,7 +844,7 @@ async function generateDynamicFlightRenderResult(
     onFlightDataRenderError
   )
 
-  const debugChannel = setReactDebugChannel && createDebugChannel()
+  const debugChannel = setReactDebugChannel && createWebDebugChannel()
 
   if (debugChannel) {
     setReactDebugChannel(debugChannel.clientSide, htmlRequestId, requestId)
@@ -859,7 +863,7 @@ async function generateDynamicFlightRenderResult(
 
   const flightStream = workUnitAsyncStorage.run(
     requestStore,
-    renderToFlightStream,
+    renderToWebFlightStream,
     ctx.componentMod,
     rscPayload,
     clientModules,
@@ -1140,7 +1144,7 @@ async function stagedRenderToReadableStreamWithoutCachesInDev(
       stageController.advanceStage(RenderStage.Static)
       return workUnitAsyncStorage.run(
         requestStore,
-        renderToFlightStream,
+        renderToWebFlightStream,
         ctx.componentMod,
         rscPayload,
         clientModules,
@@ -1306,7 +1310,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       setCacheStatus('bypass', htmlRequestId)
     }
 
-    debugChannel = setReactDebugChannel && createDebugChannel()
+    debugChannel = setReactDebugChannel && createWebDebugChannel()
 
     stream = await stagedRenderToReadableStreamWithoutCachesInDev(
       ctx,
@@ -2920,6 +2924,7 @@ async function renderToStream(
   fallbackParams: OpaqueFallbackRouteParams | null
 ): Promise<AnyStream> {
   /* eslint-disable @next/internal/no-ambiguous-jsx -- React Client */
+  // MARK: renderToStream setup
   const {
     assetPrefix,
     htmlRequestId,
@@ -3027,6 +3032,7 @@ async function renderToStream(
   // Run the rest of the function within the span's context so child spans
   // (like "build component tree", "generateMetadata") are properly parented.
   return getTracer().withSpan(renderSpan, async () => {
+    // MARK: renderToStream errorHandlers
     const { reactServerErrorsByDigest } = workStore
     function onHTMLRenderRSCError(err: DigestedError, silenceLog: boolean) {
       return onInstrumentationRequestError?.(
@@ -3081,6 +3087,7 @@ async function renderToStream(
         // We only have a Prerender environment for projects opted into cacheComponents
         cacheComponents
       ) {
+        // MARK: webstreams dev CacheComponents RSC
         let debugChannel: DebugChannelPair | undefined
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -3167,7 +3174,7 @@ async function renderToStream(
           // We're either bypassing caches or we can't restart the render.
           // Do a dynamic render, but with (basic) environment labels.
 
-          debugChannel = setReactDebugChannel && createDebugChannel()
+          debugChannel = setReactDebugChannel && createWebDebugChannel()
 
           const serverStream =
             await stagedRenderToReadableStreamWithoutCachesInDev(
@@ -3197,6 +3204,7 @@ async function renderToStream(
           )
         }
       } else if (cacheComponents && cachedNavigations) {
+        // MARK: webstreams cacheComponents RSC
         // Production Cache Components + Cached Navigations: use staged
         // rendering so the RSC payload includes the static stage byte length
         // (`l` field), enabling the client to cache the static subset during
@@ -3320,46 +3328,91 @@ async function renderToStream(
 
         reactServerResult = new ReactServerResult(flightStream)
       } else {
-        // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
-        const RSCPayload: RSCPayload & RSCPayloadDevProperties =
-          await workUnitAsyncStorage.run(
-            requestStore,
-            getRSCPayload,
-            tree,
-            ctx,
-            { is404: res.statusCode === 404 }
+        // MARK: nodeStreams RSC
+        if (process.env.__NEXT_USE_NODE_STREAMS) {
+          // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
+          const RSCPayload: RSCPayload & RSCPayloadDevProperties =
+            await workUnitAsyncStorage.run(
+              requestStore,
+              getRSCPayload,
+              tree,
+              ctx,
+              { is404: res.statusCode === 404 }
+            )
+
+          const debugChannel = setReactDebugChannel && createNodeDebugChannel()
+
+          if (debugChannel) {
+            const [readableSsr, readableBrowser] = teeStream(
+              debugChannel.clientSide.readable
+            )
+
+            reactDebugStream = readableSsr
+
+            setReactDebugChannel(
+              { readable: readableBrowser },
+              htmlRequestId,
+              requestId
+            )
+          }
+
+          reactServerResult = new ReactServerResult(
+            workUnitAsyncStorage.run(
+              requestStore,
+              renderToNodeFlightStream,
+              ctx.componentMod,
+              RSCPayload,
+              clientModules,
+              {
+                filterStackFrame,
+                onError: serverComponentsErrorHandler,
+                debugChannel: debugChannel?.serverSide,
+              }
+            )
           )
+        } else {
+          // MARK: webStreams RSC
+          // This is a dynamic render. We don't do dynamic tracking because we're not prerendering
+          const RSCPayload: RSCPayload & RSCPayloadDevProperties =
+            await workUnitAsyncStorage.run(
+              requestStore,
+              getRSCPayload,
+              tree,
+              ctx,
+              { is404: res.statusCode === 404 }
+            )
 
-        const debugChannel = setReactDebugChannel && createDebugChannel()
+          const debugChannel = setReactDebugChannel && createWebDebugChannel()
 
-        if (debugChannel) {
-          const [readableSsr, readableBrowser] = teeStream(
-            debugChannel.clientSide.readable
-          )
+          if (debugChannel) {
+            const [readableSsr, readableBrowser] = teeStream(
+              debugChannel.clientSide.readable
+            )
 
-          reactDebugStream = readableSsr
+            reactDebugStream = readableSsr
 
-          setReactDebugChannel(
-            { readable: readableBrowser },
-            htmlRequestId,
-            requestId
+            setReactDebugChannel(
+              { readable: readableBrowser },
+              htmlRequestId,
+              requestId
+            )
+          }
+
+          reactServerResult = new ReactServerResult(
+            workUnitAsyncStorage.run(
+              requestStore,
+              renderToWebFlightStream,
+              ctx.componentMod,
+              RSCPayload,
+              clientModules,
+              {
+                filterStackFrame,
+                onError: serverComponentsErrorHandler,
+                debugChannel: debugChannel?.serverSide,
+              }
+            )
           )
         }
-
-        reactServerResult = new ReactServerResult(
-          workUnitAsyncStorage.run(
-            requestStore,
-            renderToFlightStream,
-            ctx.componentMod,
-            RSCPayload,
-            clientModules,
-            {
-              filterStackFrame,
-              onError: serverComponentsErrorHandler,
-              debugChannel: debugChannel?.serverSide,
-            }
-          )
-        )
       }
 
       // React doesn't start rendering synchronously but we want the RSC render to have a chance to start
@@ -3367,139 +3420,285 @@ async function renderToStream(
       // one task before continuing
       await waitAtLeastOneReactRenderTask()
 
-      // If provided, the postpone state should be parsed as JSON so it can be
-      // provided to React.
-      if (typeof renderOpts.postponed === 'string') {
-        if (postponedState?.type === DynamicState.DATA) {
-          // We have a complete HTML Document in the prerender but we need to
-          // still include the new server component render because it was not included
-          // in the static prelude.
-          const inlinedDataStream = createInlinedDataStream(
-            reactServerResult.tee(),
-            nonce,
-            formState
-          )
-
-          // End the span since there's no async rendering in this path
-          if (renderSpan.isRecording()) renderSpan.end()
-          return chainStreams(inlinedDataStream, createDocumentClosingStream())
-        } else if (postponedState) {
-          // We assume we have dynamic HTML requiring a resume render to complete
-          const { postponed, preludeState } =
-            getPostponedFromState(postponedState)
-
-          const resumeAppElement = (
-            <App
-              reactServerStream={reactServerResult.tee()}
-              reactDebugStream={reactDebugStream}
-              debugEndTime={undefined}
-              preinitScripts={preinitScripts}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              nonce={nonce}
-              images={ctx.renderOpts.images}
-            />
-          )
-
-          const getServerInsertedHTML = makeGetServerInsertedHTML({
-            polyfills,
-            renderServerInsertedHTML,
-            serverCapturedErrors: allCapturedErrors,
-            basePath,
-            tracingMetadata: tracingMetadata,
-          })
-
-          const { stream: htmlStream, allReady } =
-            await workUnitAsyncStorage.run(
-              requestStore,
-              resumeToFizzStream,
-              resumeAppElement,
-              postponed,
-              { onError: htmlRendererErrorHandler, nonce }
-            )
-
-          // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-          allReady.finally(() => {
-            if (renderSpan.isRecording()) renderSpan.end()
-          })
-
-          return await continueDynamicHTMLResume(htmlStream, {
-            delayDataUntilFirstHtmlChunk:
-              preludeState === DynamicHTMLPreludeState.Empty,
-            inlinedDataStream: createInlinedDataStream(
-              reactServerResult.consume(),
+      // MARK: nodeStreams HTML
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
+        // If provided, the postpone state should be parsed as JSON so it can be
+        // provided to React.
+        if (typeof renderOpts.postponed === 'string') {
+          if (postponedState?.type === DynamicState.DATA) {
+            // We have a complete HTML Document in the prerender but we need to
+            // still include the new server component render because it was not included
+            // in the static prelude.
+            const inlinedDataStream = createWebInlinedDataStream(
+              reactServerResult.tee(),
               nonce,
               formState
-            ),
-            getServerInsertedHTML,
-            getServerInsertedMetadata,
-            deploymentId: ctx.sharedContext.deploymentId,
-          })
-        }
-      }
+            )
 
-      // This is a regular dynamic render
-      const getServerInsertedHTML = makeGetServerInsertedHTML({
-        polyfills,
-        renderServerInsertedHTML,
-        serverCapturedErrors: allCapturedErrors,
-        basePath,
-        tracingMetadata: tracingMetadata,
-      })
+            // End the span since there's no async rendering in this path
+            if (renderSpan.isRecording()) renderSpan.end()
+            return chainStreams(
+              inlinedDataStream,
+              createDocumentClosingStream()
+            )
+          } else if (postponedState) {
+            // We assume we have dynamic HTML requiring a resume render to complete
+            const { postponed, preludeState } =
+              getPostponedFromState(postponedState)
 
-      const generateStaticHTML =
-        supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+            const resumeAppElement = (
+              <App
+                reactServerStream={reactServerResult.tee()}
+                reactDebugStream={reactDebugStream}
+                debugEndTime={undefined}
+                preinitScripts={preinitScripts}
+                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                nonce={nonce}
+                images={ctx.renderOpts.images}
+              />
+            )
 
-      const appElement = (
-        <App
-          reactServerStream={reactServerResult.tee()}
-          reactDebugStream={reactDebugStream}
-          debugEndTime={undefined}
-          preinitScripts={preinitScripts}
-          ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-          nonce={nonce}
-          images={ctx.renderOpts.images}
-        />
-      )
+            const getServerInsertedHTML = makeGetServerInsertedHTML({
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: allCapturedErrors,
+              basePath,
+              tracingMetadata: tracingMetadata,
+            })
 
-      const fizzOptions = {
-        onError: htmlRendererErrorHandler,
-        nonce,
-        onHeaders: (headers: Headers) => {
-          for (const [key, value] of headers) {
-            appendHeader(key, value)
+            const { stream: htmlStream, allReady } =
+              await workUnitAsyncStorage.run(
+                requestStore,
+                resumeToFizzStream,
+                resumeAppElement,
+                postponed,
+                { onError: htmlRendererErrorHandler, nonce }
+              )
+
+            // End the render span only after React completed rendering (including anything inside Suspense boundaries)
+            allReady.finally(() => {
+              if (renderSpan.isRecording()) renderSpan.end()
+            })
+
+            return await continueDynamicHTMLResume(htmlStream, {
+              delayDataUntilFirstHtmlChunk:
+                preludeState === DynamicHTMLPreludeState.Empty,
+              inlinedDataStream: createWebInlinedDataStream(
+                reactServerResult.consume(),
+                nonce,
+                formState
+              ),
+              getServerInsertedHTML,
+              getServerInsertedMetadata,
+              deploymentId: ctx.sharedContext.deploymentId,
+            })
           }
-        },
-        maxHeadersLength: reactMaxHeadersLength,
-        bootstrapScriptContent,
-        bootstrapScripts: [bootstrapScript],
-        formState,
-      }
+        }
 
-      const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
-        requestStore,
-        renderToFizzStream,
-        appElement,
-        fizzOptions
-      )
+        // This is a regular dynamic render
+        const getServerInsertedHTML = makeGetServerInsertedHTML({
+          polyfills,
+          renderServerInsertedHTML,
+          serverCapturedErrors: allCapturedErrors,
+          basePath,
+          tracingMetadata: tracingMetadata,
+        })
 
-      // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-      allReady.finally(() => {
-        if (renderSpan.isRecording()) renderSpan.end()
-      })
+        const generateStaticHTML =
+          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
 
-      return await continueFizzStream(htmlStream, {
-        inlinedDataStream: createInlinedDataStream(
-          reactServerResult.consume(),
+        const appElement = (
+          <App
+            reactServerStream={reactServerResult.tee()}
+            // TODO: Pass Node.js debugStream
+            reactDebugStream={reactDebugStream}
+            debugEndTime={undefined}
+            preinitScripts={preinitScripts}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+            images={ctx.renderOpts.images}
+          />
+        )
+
+        const fizzOptions = {
+          onError: htmlRendererErrorHandler,
           nonce,
-          formState
-        ),
-        isStaticGeneration: generateStaticHTML,
-        allReady,
-        deploymentId: ctx.sharedContext.deploymentId,
-        getServerInsertedHTML,
-        getServerInsertedMetadata,
-        validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
-      })
+          onHeaders: (headers: { [header: string]: string }) => {
+            for (const key in headers) {
+              appendHeader(key, headers[key])
+            }
+          },
+          maxHeadersLength: reactMaxHeadersLength,
+          bootstrapScriptContent,
+          bootstrapScripts: [bootstrapScript],
+          formState,
+        }
+
+        const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
+          requestStore,
+          renderToNodeFizzStream,
+          appElement,
+          fizzOptions
+        )
+
+        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
+        allReady.finally(() => {
+          if (renderSpan.isRecording()) renderSpan.end()
+        })
+
+        return await continueFizzStream(htmlStream, {
+          inlinedDataStream: createNodeInlinedDataStream(
+            reactServerResult.consume(),
+            nonce,
+            formState
+          ),
+          isStaticGeneration: generateStaticHTML,
+          allReady,
+          deploymentId: ctx.sharedContext.deploymentId,
+          getServerInsertedHTML,
+          getServerInsertedMetadata,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+        })
+      } else {
+        // MARK: webStreams HTML
+        // If provided, the postpone state should be parsed as JSON so it can be
+        // provided to React.
+        if (typeof renderOpts.postponed === 'string') {
+          if (postponedState?.type === DynamicState.DATA) {
+            // We have a complete HTML Document in the prerender but we need to
+            // still include the new server component render because it was not included
+            // in the static prelude.
+            const inlinedDataStream = createWebInlinedDataStream(
+              reactServerResult.tee(),
+              nonce,
+              formState
+            )
+
+            // End the span since there's no async rendering in this path
+            if (renderSpan.isRecording()) renderSpan.end()
+            return chainStreams(
+              inlinedDataStream,
+              createDocumentClosingStream()
+            )
+          } else if (postponedState) {
+            // We assume we have dynamic HTML requiring a resume render to complete
+            const { postponed, preludeState } =
+              getPostponedFromState(postponedState)
+
+            const resumeAppElement = (
+              <App
+                reactServerStream={reactServerResult.tee()}
+                reactDebugStream={reactDebugStream}
+                debugEndTime={undefined}
+                preinitScripts={preinitScripts}
+                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                nonce={nonce}
+                images={ctx.renderOpts.images}
+              />
+            )
+
+            const getServerInsertedHTML = makeGetServerInsertedHTML({
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: allCapturedErrors,
+              basePath,
+              tracingMetadata: tracingMetadata,
+            })
+
+            const { stream: htmlStream, allReady } =
+              await workUnitAsyncStorage.run(
+                requestStore,
+                resumeToFizzStream,
+                resumeAppElement,
+                postponed,
+                { onError: htmlRendererErrorHandler, nonce }
+              )
+
+            // End the render span only after React completed rendering (including anything inside Suspense boundaries)
+            allReady.finally(() => {
+              if (renderSpan.isRecording()) renderSpan.end()
+            })
+
+            return await continueDynamicHTMLResume(htmlStream, {
+              delayDataUntilFirstHtmlChunk:
+                preludeState === DynamicHTMLPreludeState.Empty,
+              inlinedDataStream: createWebInlinedDataStream(
+                reactServerResult.consume(),
+                nonce,
+                formState
+              ),
+              getServerInsertedHTML,
+              getServerInsertedMetadata,
+              deploymentId: ctx.sharedContext.deploymentId,
+            })
+          }
+        }
+
+        // This is a regular dynamic render
+        const getServerInsertedHTML = makeGetServerInsertedHTML({
+          polyfills,
+          renderServerInsertedHTML,
+          serverCapturedErrors: allCapturedErrors,
+          basePath,
+          tracingMetadata: tracingMetadata,
+        })
+
+        const generateStaticHTML =
+          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+
+        const appElement = (
+          <App
+            reactServerStream={reactServerResult.tee()}
+            reactDebugStream={reactDebugStream}
+            debugEndTime={undefined}
+            preinitScripts={preinitScripts}
+            ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            nonce={nonce}
+            images={ctx.renderOpts.images}
+          />
+        )
+
+        const fizzOptions = {
+          onError: htmlRendererErrorHandler,
+          nonce,
+          onHeaders: (headers: Headers) => {
+            headers.forEach((value, key) => {
+              appendHeader(key, value)
+            })
+          },
+          maxHeadersLength: reactMaxHeadersLength,
+          bootstrapScriptContent,
+          bootstrapScripts: [bootstrapScript],
+          formState,
+        }
+
+        const { stream: htmlStream, allReady } = await workUnitAsyncStorage.run(
+          requestStore,
+          renderToWebFizzStream,
+          appElement,
+          fizzOptions
+        )
+
+        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
+        allReady.finally(() => {
+          if (renderSpan.isRecording()) renderSpan.end()
+        })
+
+        return await continueFizzStream(htmlStream, {
+          inlinedDataStream: createWebInlinedDataStream(
+            reactServerResult.consume(),
+            nonce,
+            formState
+          ),
+          isStaticGeneration: generateStaticHTML,
+          allReady,
+          deploymentId: ctx.sharedContext.deploymentId,
+          getServerInsertedHTML,
+          getServerInsertedMetadata,
+          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+        })
+      }
+      // MARK: renderToStream errorRecovery
     } catch (err) {
       if (
         isStaticGenBailoutError(err) ||
@@ -3583,7 +3782,7 @@ async function renderToStream(
 
         errorServerStream = workUnitAsyncStorage.run(
           requestStore,
-          renderToFlightStream,
+          renderToWebFlightStream,
           ctx.componentMod,
           errorRSCPayload,
           clientModules,
@@ -3611,7 +3810,7 @@ async function renderToStream(
         const { stream: errorHtmlStream, allReady: errorAllReady } =
           await workUnitAsyncStorage.run(
             requestStore,
-            renderToFizzStream,
+            renderToWebFizzStream,
             <ErrorApp
               reactServerStream={errorServerStream}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
@@ -3633,7 +3832,7 @@ async function renderToStream(
         })
 
         return await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             // This is intentionally using the readable datastream from the
             // main render rather than the flight data from the error page
             // render
@@ -3746,7 +3945,7 @@ async function renderWithRestartOnCacheMissInDev(
   )
   requestStore.cacheSignal = cacheSignal
 
-  let debugChannel = setReactDebugChannel && createDebugChannel()
+  let debugChannel = setReactDebugChannel && createWebDebugChannel()
   const { clientModules } = getClientReferenceManifest()
 
   // Note: The stage controller starts out in the `Before` stage,
@@ -3761,7 +3960,7 @@ async function renderWithRestartOnCacheMissInDev(
       const streamPair = teeStream(
         workUnitAsyncStorage.run(
           requestStore,
-          renderToFlightStream,
+          renderToWebFlightStream,
           ComponentMod,
           initialRscPayload,
           clientModules,
@@ -3914,7 +4113,7 @@ async function renderWithRestartOnCacheMissInDev(
 
   // The initial render already wrote to its debug channel.
   // We're not using it, so we need to create a new one.
-  debugChannel = setReactDebugChannel && createDebugChannel()
+  debugChannel = setReactDebugChannel && createWebDebugChannel()
 
   // Note: The stage controller starts out in the `Before` stage,
   // where sync IO does not cause aborts, so it's okay if it happens before render.
@@ -3928,7 +4127,7 @@ async function renderWithRestartOnCacheMissInDev(
       const streamPair = teeStream(
         workUnitAsyncStorage.run(
           requestStore,
-          renderToFlightStream,
+          renderToWebFlightStream,
           ComponentMod,
           finalRscPayload,
           clientModules,
@@ -4193,6 +4392,7 @@ function createAsyncApiPromises(
       'connection',
       undefined
     ),
+    io: stagedRendering.delayUntilStage(RenderStage.Dynamic, 'io', undefined),
   }
 }
 
@@ -4251,7 +4451,7 @@ async function logMessagesAndSendErrorsToBrowser(
 
     const { clientModules } = getClientReferenceManifest()
 
-    const errorsFlightStream = renderToFlightStream(
+    const errorsFlightStream = renderToWebFlightStream(
       ctx.componentMod,
       { errors, errorCodes },
       clientModules,
@@ -4835,7 +5035,7 @@ async function validateInstantConfigs(
     stageEndTimes,
   } = await collectStagedSegmentData(
     ctx.componentMod,
-    renderToFlightStream,
+    renderToWebFlightStream,
     {
       [RenderStage.Static]: accumulatedChunks.staticChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
@@ -4912,7 +5112,7 @@ async function validateInstantConfigs(
     const { stream: serverStream, debugStream } =
       await createCombinedPayloadStream(
         ctx.componentMod,
-        renderToFlightStream,
+        renderToWebFlightStream,
         payloadResult.payload,
         extraChunksController,
         reactController.signal,
@@ -5226,7 +5426,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
       const stream = workUnitAsyncStorage.run(
         requestStore,
-        renderToFlightStream,
+        renderToWebFlightStream,
         ComponentMod,
         initialRscPayload,
         clientModules,
@@ -5327,7 +5527,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
       const stream = workUnitAsyncStorage.run(
         requestStore,
-        renderToFlightStream,
+        renderToWebFlightStream,
         ComponentMod,
         finalRscPayload,
         clientModules,
@@ -6700,13 +6900,13 @@ async function prerenderToStream(
           // segments, since those are the only ones whose data is not complete.
           const emptyReactServerResult =
             await createReactServerPrerenderResultFromRender(
-              renderToFlightStream(ComponentMod, [], clientModules, {
+              renderToWebFlightStream(ComponentMod, [], clientModules, {
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
               })
             )
           finalStream = await continueStaticFallbackPrerender(htmlStream, {
-            inlinedDataStream: createInlinedDataStream(
+            inlinedDataStream: createWebInlinedDataStream(
               emptyReactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -6718,7 +6918,7 @@ async function prerenderToStream(
         } else {
           // Normal static prerender case, no fallback param handling needed
           finalStream = await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createInlinedDataStream(
+            inlinedDataStream: createWebInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -6777,7 +6977,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             reactServerPrerenderStore,
-            renderToFlightStream,
+            renderToWebFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -6972,7 +7172,7 @@ async function prerenderToStream(
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
           stream: await continueStaticPrerender(htmlStream, {
-            inlinedDataStream: createInlinedDataStream(
+            inlinedDataStream: createWebInlinedDataStream(
               reactServerResult.consumeAsStream(),
               nonce,
               formState
@@ -7015,7 +7215,7 @@ async function prerenderToStream(
         await createReactServerPrerenderResultFromRender(
           workUnitAsyncStorage.run(
             prerenderLegacyStore,
-            renderToFlightStream,
+            renderToWebFlightStream,
             ComponentMod,
             RSCPayload,
             clientModules,
@@ -7028,7 +7228,7 @@ async function prerenderToStream(
 
       const { stream: htmlStream } = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
-        renderToFizzStream,
+        renderToWebFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <App
           reactServerStream={reactServerResult.asUnclosingStream()}
@@ -7070,7 +7270,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(htmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             reactServerResult.consumeAsStream(),
             nonce,
             formState
@@ -7215,7 +7415,7 @@ async function prerenderToStream(
 
     const errorServerStreamRaw = workUnitAsyncStorage.run(
       prerenderLegacyStore,
-      renderToFlightStream,
+      renderToWebFlightStream,
       ComponentMod,
       errorRSCPayload,
       clientModules,
@@ -7241,7 +7441,7 @@ async function prerenderToStream(
     try {
       const { stream: errorHtmlStream } = await workUnitAsyncStorage.run(
         prerenderLegacyStore,
-        renderToFizzStream,
+        renderToWebFizzStream,
         // eslint-disable-next-line @next/internal/no-ambiguous-jsx
         <ErrorApp
           reactServerStream={errorServerStream}
@@ -7283,7 +7483,7 @@ async function prerenderToStream(
         digestErrorsMap: reactServerErrorsByDigest,
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createInlinedDataStream(
+          inlinedDataStream: createWebInlinedDataStream(
             flightStream,
             nonce,
             formState

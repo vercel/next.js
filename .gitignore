@@ -25,6 +25,7 @@ test/node_modules
 pids
 *.cpuprofile
 *.heapsnapshot
+.next-profiles
 
 # coverage
 .nyc_output
