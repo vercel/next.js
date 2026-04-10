@@ -1,6 +1,7 @@
 use std::borrow::Cow;
 
 use anyhow::{Ok, Result};
+use async_trait::async_trait;
 use either::Either;
 use futures::join;
 use next_core::{
@@ -21,7 +22,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
 };
@@ -704,11 +705,11 @@ impl CssGlobalImportIssue {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for CssGlobalImportIssue {
-    #[turbo_tasks::function]
-    async fn title(&self) -> Vc<StyledString> {
-        StyledString::Stack(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Stack(vec![
             StyledString::Text(rcstr!("Failed to compile")),
             StyledString::Text(rcstr!(
                 "Global CSS cannot be imported from files other than your Custom <App>. Due to \
@@ -719,12 +720,10 @@ impl Issue for CssGlobalImportIssue {
             StyledString::Text(rcstr!(
                 "Read more: https://nextjs.org/docs/messages/css-global"
             )),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let parent_path = self.parent_module.ident().path().owned().await?;
         let module_path = self.module.ident().path().owned().await?;
         let relative_import_location = parent_path.parent();
@@ -740,27 +739,22 @@ impl Issue for CssGlobalImportIssue {
                 import_path
             };
 
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Text(format!("Location: {}", parent_path.path).into()),
-                StyledString::Text(format!("Import path: {cleaned_import_path}",).into()),
-            ])
-            .resolved_cell(),
-        )))
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(format!("Location: {}", parent_path.path).into()),
+            StyledString::Text(format!("Import path: {cleaned_import_path}",).into()),
+        ])))
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.parent_module.ident().path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.parent_module.ident().path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
     }
 
     // TODO(PACK-4879): compute the source information by following the module references

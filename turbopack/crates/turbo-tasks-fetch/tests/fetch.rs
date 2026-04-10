@@ -192,7 +192,7 @@ async fn errors_on_failed_connection() {
             ReadRef<FetchErrorKind>,
             RcStr,
             ReadRef<FetchIssue>,
-            ReadRef<StyledString>,
+            StyledString,
         );
 
         #[turbo_tasks::function(operation)]
@@ -206,11 +206,10 @@ async fn errors_on_failed_connection() {
 
             let issue_vc = err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
             let issue = issue_vc.await?;
-            let issue_description = issue_vc
+            let issue_description = issue
                 .description()
                 .await?
-                .expect("description is not None")
-                .await?;
+                .expect("description is not None");
 
             Ok(FetchOutput(err_kind, err_url, issue, issue_description).cell())
         }
@@ -257,7 +256,7 @@ async fn errors_on_404() {
                 ReadRef<FetchErrorKind>,
                 RcStr,
                 ReadRef<FetchIssue>,
-                ReadRef<StyledString>,
+                StyledString,
             );
 
             #[turbo_tasks::function(operation)]
@@ -273,11 +272,8 @@ async fn errors_on_404() {
                 let issue_vc =
                     err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
                 let issue = issue_vc.await?;
-                let issue_description = issue_vc
-                    .description()
-                    .await?
-                    .expect("description is not None")
-                    .await?;
+                let issue_description =
+                    issue.description().await?.expect("description is not None");
 
                 Ok(FetchOutput(err_kind, err_url, issue, issue_description).cell())
             }

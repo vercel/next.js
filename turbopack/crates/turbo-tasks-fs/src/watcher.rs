@@ -386,7 +386,7 @@ impl DiskWatcher {
             let config = config.with_poll_interval(poll_interval);
             NotifyWatcher::Polling(PollWatcher::new(tx, config)?)
         } else {
-            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, Config::default())?)
+            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, config)?)
         };
 
         // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
