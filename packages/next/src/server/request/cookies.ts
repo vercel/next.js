@@ -19,6 +19,7 @@ import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
+  type DynamicAPIExpressionName,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
@@ -32,7 +33,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
 export function cookies(): Promise<ReadonlyRequestCookies> {
-  const callingExpression = 'cookies'
+  const callingExpression: DynamicAPIExpressionName = 'cookies'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 

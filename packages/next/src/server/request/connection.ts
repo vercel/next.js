@@ -7,6 +7,7 @@ import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
+  type DynamicAPIExpressionName,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
@@ -23,7 +24,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
  * During prerendering it will never resolve and during rendering it resolves immediately.
  */
 export function connection(): Promise<void> {
-  const callingExpression = 'connection'
+  const callingExpression: DynamicAPIExpressionName = 'connection'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 

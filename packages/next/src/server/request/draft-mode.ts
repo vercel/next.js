@@ -14,6 +14,7 @@ import {
   abortAndThrowOnSynchronousRequestDataAccess,
   postponeWithTracking,
   trackDynamicDataInDynamicRender,
+  type DynamicAPIExpressionName,
 } from '../app-render/dynamic-rendering'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
@@ -23,7 +24,7 @@ import { delayUntilRuntimeStage } from '../dynamic-rendering-utils'
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 
 export function draftMode(): Promise<DraftMode> {
-  const callingExpression = 'draftMode'
+  const callingExpression: DynamicAPIExpressionName = 'draftMode'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 

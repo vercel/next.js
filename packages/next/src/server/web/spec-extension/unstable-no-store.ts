@@ -1,6 +1,9 @@
 import { workAsyncStorage } from '../../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage.external'
-import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
+import {
+  markCurrentScopeAsDynamic,
+  type DynamicAPIExpressionName,
+} from '../../app-render/dynamic-rendering'
 
 /**
  * This function can be used to declaratively opt out of static rendering and indicate a particular component should not be cached.
@@ -18,7 +21,7 @@ import { markCurrentScopeAsDynamic } from '../../app-render/dynamic-rendering'
  * Read more: [Next.js Docs: `unstable_noStore`](https://nextjs.org/docs/app/api-reference/functions/unstable_noStore)
  */
 export function unstable_noStore() {
-  const callingExpression = 'unstable_noStore()'
+  const callingExpression: DynamicAPIExpressionName = 'unstable_noStore()'
   const store = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (!store) {

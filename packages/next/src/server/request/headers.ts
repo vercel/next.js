@@ -17,6 +17,7 @@ import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
+  type DynamicAPIExpressionName,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
@@ -39,7 +40,7 @@ import { RenderStage } from '../app-render/staged-rendering'
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
 export function headers(): Promise<ReadonlyHeaders> {
-  const callingExpression = 'headers'
+  const callingExpression: DynamicAPIExpressionName = 'headers'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 

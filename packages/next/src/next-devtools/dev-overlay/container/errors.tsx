@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, Suspense, useCallback } from 'react'
 import type { DebugInfo } from '../../shared/types'
+import type { DynamicAPIExpressionName } from '../../../server/app-render/dynamic-rendering'
 import { Overlay, OverlayBackdrop } from '../components/overlay'
 import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../shared/lib/error-source'
@@ -166,9 +167,11 @@ function DynamicMetadataErrorDescription({
 function BlockingPageLoadErrorDescription({
   variant,
   refinement,
+  expression,
 }: {
   variant: 'navigation' | 'runtime'
   refinement: '' | 'generateViewport' | 'generateMetadata'
+  expression?: DynamicAPIExpressionName | (string & {})
 }) {
   if (refinement === 'generateViewport') {
     if (variant === 'navigation') {
@@ -355,6 +358,124 @@ function BlockingPageLoadErrorDescription({
     }
   }
 
+  if (refinement === '') {
+    if (expression === 'cookies') {
+      return (
+        <div className="nextjs__blocking_page_load_error_description">
+          <h3 className="nextjs__blocking_page_load_error_description_title">
+            <code>cookies()</code> is blocking{' '}
+            {variant === 'navigation' ? 'navigation' : 'the initial render'}
+          </h3>
+          <p>
+            This route reads request-time cookie data in a part of the tree that
+            Next.js expected to keep prefetchable and renderable without
+            waiting.
+          </p>
+          <h4>To fix this:</h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Wrap the part that reads <code>cookies()</code> in{' '}
+              <code>{'<Suspense>'}</code>
+            </strong>
+            . This lets the rest of the route render first while the cookie
+            dependent section waits for request-time data.
+          </p>
+          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+            or
+          </h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Move the <code>cookies()</code> call deeper in the tree
+            </strong>
+            . This keeps more of the route available for the initial shell.
+          </p>
+          <p>
+            Learn more:{' '}
+            <a href="https://nextjs.org/docs/messages/blocking-route">
+              https://nextjs.org/docs/messages/blocking-route
+            </a>
+          </p>
+        </div>
+      )
+    }
+
+    if (expression === 'headers') {
+      return (
+        <div className="nextjs__blocking_page_load_error_description">
+          <h3 className="nextjs__blocking_page_load_error_description_title">
+            <code>headers()</code> is blocking{' '}
+            {variant === 'navigation' ? 'navigation' : 'the initial render'}
+          </h3>
+          <p>
+            This route reads request-time header data in a part of the tree that
+            Next.js expected to keep prefetchable and renderable without
+            waiting.
+          </p>
+          <h4>To fix this:</h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Wrap the part that reads <code>headers()</code> in{' '}
+              <code>{'<Suspense>'}</code>
+            </strong>
+            . This lets the rest of the route render first while the
+            header-dependent section waits for request-time data.
+          </p>
+          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+            or
+          </h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Move the <code>headers()</code> call deeper in the tree
+            </strong>
+            . This keeps more of the route available for the initial shell.
+          </p>
+          <p>
+            Learn more:{' '}
+            <a href="https://nextjs.org/docs/messages/blocking-route">
+              https://nextjs.org/docs/messages/blocking-route
+            </a>
+          </p>
+        </div>
+      )
+    }
+
+    if (expression === 'connection') {
+      return (
+        <div className="nextjs__blocking_page_load_error_description">
+          <h3 className="nextjs__blocking_page_load_error_description_title">
+            <code>connection()</code> is blocking{' '}
+            {variant === 'navigation' ? 'navigation' : 'the initial render'}
+          </h3>
+          <p>
+            This route explicitly waits for request-time work before Next.js can
+            continue rendering this part of the tree.
+          </p>
+          <h4>To fix this:</h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>
+              Move <code>connection()</code> behind <code>{'<Suspense>'}</code>
+            </strong>
+            . This allows the rest of the route to render while the request-time
+            section waits.
+          </p>
+          <h4 className="nextjs__blocking_page_load_error_fix_option_separator">
+            or
+          </h4>
+          <p className="nextjs__blocking_page_load_error_fix_option">
+            <strong>Move the request-time work deeper in the tree</strong>. This
+            keeps more of the route available for the initial shell.
+          </p>
+          <p>
+            Learn more:{' '}
+            <a href="https://nextjs.org/docs/messages/blocking-route">
+              https://nextjs.org/docs/messages/blocking-route
+            </a>
+          </p>
+        </div>
+      )
+    }
+  }
+
   if (variant === 'runtime') {
     return (
       <div className="nextjs__blocking_page_load_error_description">
@@ -476,13 +597,19 @@ type HydrationErrorDetails = {
 type BlockingRouteErrorDetails = {
   type: 'blocking-route'
   variant: 'navigation' | 'runtime'
-  refinement: '' | 'generateViewport'
+  refinement: '' | 'generateViewport' | 'generateMetadata'
+  expression?: DynamicAPIExpressionName | (string & {})
 }
 
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
   variant: 'navigation' | 'runtime'
+  expression?: string
 }
+
+type NextStructuredErrorDetails =
+  | BlockingRouteErrorDetails
+  | DynamicMetadataErrorDetails
 
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
@@ -546,7 +673,47 @@ function getHydrationErrorDetails(
   }
 }
 
-function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
+const KNOWN_EXPRESSIONS: DynamicAPIExpressionName[] = [
+  'cookies',
+  'headers',
+  'connection',
+  'draftMode',
+]
+
+function extractExpressionFromMessage(
+  message: string
+): DynamicAPIExpressionName | undefined {
+  for (const expr of KNOWN_EXPRESSIONS) {
+    if (message.includes(`\`${expr}()\``)) {
+      return expr
+    }
+  }
+  return undefined
+}
+
+export function getBlockingRouteErrorDetails(
+  error: Error
+): null | ErrorDetails {
+  const structuredDetails = (
+    error as Error & {
+      __NEXT_ERROR_DETAILS?: NextStructuredErrorDetails
+    }
+  ).__NEXT_ERROR_DETAILS
+
+  if (structuredDetails) {
+    if (structuredDetails.type === 'dynamic-metadata') {
+      return structuredDetails
+    }
+
+    return {
+      ...structuredDetails,
+      refinement:
+        structuredDetails.refinement === 'generateMetadata'
+          ? ''
+          : structuredDetails.refinement,
+    }
+  }
+
   const isBlockingPageLoadError = error.message.includes('/blocking-route')
 
   if (isBlockingPageLoadError) {
@@ -556,6 +723,7 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
       type: 'blocking-route',
       variant: isRuntimeData ? 'runtime' : 'navigation',
       refinement: '',
+      expression: extractExpressionFromMessage(error.message),
     }
   }
 
@@ -755,6 +923,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
         <BlockingPageLoadErrorDescription
           variant={errorDetails.variant}
           refinement={errorDetails.refinement}
+          expression={errorDetails.expression}
         />
       )
       break
