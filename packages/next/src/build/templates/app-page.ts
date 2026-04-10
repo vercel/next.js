@@ -246,6 +246,7 @@ export async function handler(
     clientReferenceManifest,
     subresourceIntegrityManifest,
     prerenderManifest,
+    prefetchHintsManifest,
     isDraftMode,
     resolvedPathname,
     revalidateOnlyGenerated,
@@ -856,6 +857,7 @@ export async function handler(
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
+          prefetchHints: prefetchHintsManifest,
           incrementalCache,
           cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
