@@ -162,9 +162,41 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       process.env.NEXT_TEST_NATIVE_DIR = nativeDir
 
       logger(`Packing packages in ${dir}`)
-      await exec.spawnPromise('pnpm turbo run pack-for-isolated-tests', {
-        cwd: dir,
-      })
+      const turboJsonPath = path.join(dir, 'turbo.json')
+      let hasTurboPackTask = false
+      try {
+        const turboJson = JSON.parse(
+          await fs.readFile(turboJsonPath, { encoding: 'utf8' })
+        )
+        hasTurboPackTask =
+          turboJson.tasks?.['pack-for-isolated-tests'] !== undefined
+      } catch {}
+
+      if (hasTurboPackTask) {
+        await exec.spawnPromise('pnpm turbo run pack-for-isolated-tests', {
+          cwd: dir,
+        })
+      } else {
+        logger(
+          'turbo task pack-for-isolated-tests not found, falling back to pnpm pack per package'
+        )
+        const packagesDir = path.join(dir, 'packages')
+        const packageFolders = await fs.readdir(packagesDir)
+        await Promise.all(
+          packageFolders.map(async (folder) => {
+            const pkgDir = path.join(packagesDir, folder)
+            const pkgJsonPath = path.join(pkgDir, 'package.json')
+            if (!existsSync(pkgJsonPath)) return
+            try {
+              await exec.spawnPromise('pnpm pack --out packed.tgz', {
+                cwd: pkgDir,
+              })
+            } catch (err) {
+              logger(`Failed to pack ${folder}: ${err.message}`)
+            }
+          })
+        )
+      }
 
       logger(`Linking packages in ${dir}`)
       const pkgPaths = await linkPackages({
