@@ -1477,6 +1477,26 @@ describe('app-dir action handling', () => {
       expect(otherPageCookie).toEqual(newCookie)
     })
 
+    it('should refresh cookie-based rewrites when cookies.set is called', async () => {
+      const browser = await next.browser('/rewrite-via-cookie')
+
+      expect(await browser.elementByCss('#signed-out').text()).toBe(
+        'Click to sign in'
+      )
+
+      await browser.elementByCss('#log-in').click()
+
+      await retry(async () => {
+        expect(await browser.eval('document.cookie')).toContain('isLoggedIn=1')
+      })
+
+      await retry(async () => {
+        expect(await browser.elementByCss('body').text()).toContain(
+          'You are logged in!'
+        )
+      })
+    })
+
     // TODO: investigate flakey behavior with revalidate
     it('should revalidate when cookies.set is called in a client action', async () => {
       const browser = await next.browser('/revalidate')
