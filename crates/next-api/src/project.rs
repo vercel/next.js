@@ -855,7 +855,7 @@ impl ProjectContainer {
             hash_salt = options.hash_salt.clone();
         }
 
-        let root_path = Vc::<RcStr>::cell(root_path_str).to_resolved().await?;
+        let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
