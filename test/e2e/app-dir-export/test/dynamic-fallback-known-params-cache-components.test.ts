@@ -391,6 +391,42 @@ export default function OrgThreadPage() {
           await browser.close()
         }
       })
+
+      it('preserves history across prerendered and fallback routes with search params', async () => {
+        const browser = await webdriver(port, '/another/first/?mode=known')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+            expect(await browser.eval('window.location.search')).toBe(
+              '?mode=known'
+            )
+          })
+
+          await browser.elementByCss('a[href="/another/third/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('third')
+            expect(await browser.eval('window.location.pathname')).toBe(
+              '/another/third/'
+            )
+          })
+
+          await browser.back()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+            expect(await browser.eval('window.location.search')).toBe(
+              '?mode=known'
+            )
+          })
+
+          await browser.forward()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('third')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
     }
   )
 }

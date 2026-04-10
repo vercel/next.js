@@ -3,6 +3,7 @@ import {
   fetchOutputExportDataResponse,
   fetchOutputExportFallbackResponse,
   getOutputExportFallbackCandidates,
+  stripOutputExportDataSuffix,
 } from './output-export-fallback'
 
 describe('output export fallback helpers', () => {
@@ -38,6 +39,23 @@ describe('output export fallback helpers', () => {
     expect(
       addOutputExportDataSuffix(new URL('https://example.com/blog/post/')).href
     ).toBe('https://example.com/blog/post/index.txt')
+  })
+
+  it('strips the export data suffix back to the fallback document path', () => {
+    expect(
+      stripOutputExportDataSuffix(
+        new URL('https://example.com/blog/post/index.txt')
+      ).href
+    ).toBe('https://example.com/blog/post')
+
+    expect(
+      stripOutputExportDataSuffix(new URL('https://example.com/blog/post.txt'))
+        .href
+    ).toBe('https://example.com/blog/post.html')
+
+    expect(
+      stripOutputExportDataSuffix(new URL('https://example.com/index.txt')).href
+    ).toBe('https://example.com/')
   })
 
   it('tries both flat and trailing-slash data files', async () => {
