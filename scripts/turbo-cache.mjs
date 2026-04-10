@@ -73,7 +73,30 @@ export async function getStream(key) {
   if (!res.ok) {
     throw new Error(`GET ${key} failed: ${res.status} ${res.statusText}`)
   }
-  return Readable.fromWeb(res.body)
+  // Use a large buffer to avoid backpressure stalls — the default
+  // highWaterMark for Readable.fromWeb() is only 16KB which throttles
+  // throughput when piping large artifacts to shell commands.
+  return Readable.fromWeb(res.body, { highWaterMark: 16 * 1024 * 1024 })
+}
+
+/**
+ * Download an artifact to a file. Returns true on hit, false on miss.
+ * Uses streaming to handle files larger than 2GB.
+ */
+export async function getToFile(key, destPath) {
+  try {
+    const stream = await getStream(key)
+    await new Promise((resolve, reject) => {
+      const ws = fs.createWriteStream(destPath)
+      stream.pipe(ws)
+      ws.on('finish', resolve)
+      ws.on('error', reject)
+      stream.on('error', reject)
+    })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -96,7 +119,9 @@ export async function put(key, data) {
   let body
   if (isFile) {
     // Stream from file — avoids loading into memory
-    body = Readable.toWeb(fs.createReadStream(data))
+    body = Readable.toWeb(
+      fs.createReadStream(data, { highWaterMark: 16 * 1024 * 1024 })
+    )
   } else {
     body = data
   }

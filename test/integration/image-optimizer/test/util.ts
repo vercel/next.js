@@ -12,6 +12,7 @@ import {
   getDistDir,
   killApp,
   launchApp,
+  listClientChunks,
   nextBuild,
   nextStart,
   retry,
@@ -1519,12 +1520,12 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should set cache-control to immutable for static images', async () => {
     if (!ctx.isDev) {
-      const filename = fs
-        .readdirSync(join(ctx.appDir, '.next/static/media'))
-        .find((f) => /^test\.[0-9a-z_-]+\.jpg$/.test(f))
-      expect(filename).toBeString()
+      const file = (await listClientChunks(join(ctx.appDir, '.next'))).find(
+        (f) => /\/test\.[0-9a-z_-]+\.jpg$/.test(f)
+      )
+      expect(file).toBeString()
       const query: Record<string, string> = {
-        url: `/_next/static/media/${filename}`,
+        url: `/_next/${file}`,
         w: String(ctx.w),
         q: String(ctx.q),
       }

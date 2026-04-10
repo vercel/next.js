@@ -232,7 +232,6 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
-    insert_turbopack_dev_alias(&mut import_map).await?;
     insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
     insert_server_only_error_alias(&mut import_map);
@@ -263,8 +262,6 @@ pub async fn get_next_client_fallback_import_map(ty: ClientContextType) -> Resul
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
-
-    insert_turbopack_dev_alias(&mut import_map).await?;
 
     Ok(import_map.cell())
 }
@@ -1188,7 +1185,6 @@ async fn insert_next_shared_aliases(
         ),
     );
 
-    insert_turbopack_dev_alias(import_map).await?;
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
@@ -1223,6 +1219,7 @@ pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileS
 #[turbo_tasks::value(shared)]
 struct MissingNextFolderIssue {
     path: FileSystemPath,
+    root: FileSystemPath,
 }
 
 #[turbo_tasks::value_impl]
@@ -1247,6 +1244,10 @@ impl Issue for MissingNextFolderIssue {
             Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
             _ => "{unknown}".to_string(),
         };
+        let root_path = match to_sys_path(self.root.clone()).await? {
+            Some(path) => path.to_str().unwrap_or("{unknown}").to_string(),
+            _ => "{unknown}".to_string(),
+        };
 
         Ok(StyledString::Stack(vec![
             StyledString::Line(vec![
@@ -1261,10 +1262,14 @@ impl Issue for MissingNextFolderIssue {
                 StyledString::Strong(system_path.into()),
             ]),
             StyledString::Line(vec![
-                StyledString::Text(" To fix this, set ".into()),
+                StyledString::Text("Filesystem root used for resolution: ".into()),
+                StyledString::Strong(root_path.into()),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text("To fix this, set ".into()),
                 StyledString::Code("turbopack.root".into()),
                 StyledString::Text(
-                    " in your Next.js config, or ensure the Next.js package is resolvable from this directory.".into(),
+                    " in your Next.js config, or ensure the Next.js package is resolvable from the project directory.".into(),
                 ),
             ]),
             StyledString::Line(vec![
@@ -1289,13 +1294,14 @@ pub async fn try_get_next_package(
         context_directory.clone(),
         ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
-        node_cjs_resolve_options(root),
+        node_cjs_resolve_options(root.clone()),
     );
     if let Some(source) = &*result.first_source().await? {
         Ok(Vc::cell(Some(source.ident().path().await?.parent())))
     } else {
         MissingNextFolderIssue {
             path: context_directory,
+            root,
         }
         .resolved_cell()
         .emit();
@@ -1395,19 +1401,6 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
         prefix,
         ImportMapping::PrimaryAlternative(rcstr!("./*"), Some(package_root)).resolved_cell(),
     );
-}
-
-/// Inserts an alias to @vercel/turbopack-dev into an import map.
-async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
-    insert_package_alias(
-        import_map,
-        "@vercel/turbopack-ecmascript-runtime/",
-        turbopack_ecmascript_runtime::embed_fs()
-            .root()
-            .owned()
-            .await?,
-    );
-    Ok(())
 }
 
 /// Handles instrumentation-client.ts bundling logic

@@ -947,8 +947,11 @@ impl<E: Entry> StreamingSstWriter<E> {
         // Hashes are already sorted by key_hash (SST invariant), but fingerprints
         // (truncated hashes) may not be sorted, so we sort by `fingerprint & mask`.
         let actual_count = self.collected_fingerprints.len() as u64;
-        let mut builder = qfilter::Builder::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
-            .expect("Filter can't be constructed");
+        let mut builder = qfilter::Builder::new(
+            qfilter::Filter::new(actual_count.max(1), AMQF_FALSE_POSITIVE_RATE)
+                .expect("Filter can't be constructed"),
+        );
+
         let fp_size = builder.fingerprint_size();
         assert!(fp_size < 32, "fp_size {fp_size} exceeds u32");
         let fp_mask = (1u32 << fp_size) - 1;
@@ -1224,25 +1227,17 @@ impl<W: Write> IndexBlockBuilder<W> {
 
 #[cfg(test)]
 mod tests {
-    use std::hash::BuildHasherDefault;
-
-    use quick_cache::sync::Cache;
-    use rustc_hash::FxHasher;
-
     use super::*;
     use crate::{
         key::hash_key,
         lookup_entry::LookupValue,
         static_sorted_file::{
-            BlockWeighter, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
+            BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData,
         },
     };
 
-    type TestBlockCache =
-        Cache<(u32, u16), crate::ArcBytes, BlockWeighter, BuildHasherDefault<FxHasher>>;
-
-    fn make_cache() -> TestBlockCache {
-        TestBlockCache::with(
+    fn make_cache() -> BlockCache {
+        BlockCache::with(
             100,
             4 * 1024 * 1024,
             Default::default(),
@@ -1385,8 +1380,8 @@ mod tests {
     fn assert_lookup(
         sst: &StaticSortedFile,
         entry: &TestEntry,
-        kc: &TestBlockCache,
-        vc: &TestBlockCache,
+        kc: &BlockCache,
+        vc: &BlockCache,
     ) -> Result<()> {
         let result = sst.lookup::<_, false>(entry.hash, &entry.key, kc, vc)?;
         match (&entry.value_kind, result) {

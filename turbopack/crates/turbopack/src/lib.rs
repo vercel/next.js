@@ -7,12 +7,14 @@
 pub mod evaluate_context;
 pub mod global_module_ids;
 pub mod module_options;
+pub mod runtime_asset_context;
 pub mod transition;
 
 use anyhow::{Context as _, Result, bail};
 use module_options::{
     ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
 };
+pub use runtime_asset_context::get_runtime_asset_context;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
@@ -991,10 +993,17 @@ impl AssetContext for ModuleAssetContext {
             self
         };
         // TODO move `apply_commonjs/esm_resolve_options` etc. to here
-        Ok(resolve_options(
+        let options = resolve_options(
             origin_path.parent(),
             *module_asset_context.await?.resolve_options_context,
-        ))
+        );
+        // Inject the turbopack-ecmascript-runtime import map so that
+        // @turbopack/* built-in modules and @vercel/turbopack-ecmascript-runtime/*
+        // paths are always resolvable.
+        let runtime_import_map = turbopack_ecmascript_runtime::turbopack_runtime_import_map()
+            .to_resolved()
+            .await?;
+        Ok(options.with_extended_import_map(*runtime_import_map))
     }
 
     #[turbo_tasks::function]

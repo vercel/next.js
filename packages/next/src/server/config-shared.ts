@@ -430,6 +430,7 @@ export interface ExperimentalConfig {
   partialFallbacks?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
+  unstableIO?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
   prefetchInlining?:
@@ -628,9 +629,32 @@ export interface ExperimentalConfig {
   turbopackMemoryLimit?: number
 
   /**
-   * Selects the runtime backend used by Turbopack for Node.js evaluation.
+   * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
+   * loaders, Babel, or PostCSS.
+   *
+   * This defaults to `'childProcesses'`, which creates a pool of child node.js
+   * processes and communciates with them over sockets.
+   *
+   * `'workerThreads'` should use less memory and CPU. It may become the default
+   * in a future version of Next.js.
+   *
+   * Node.js 24.13.1+ or 25.4.0+ is required for `'workerThreads'` due to memory
+   * safety bugs in older versions. If you use this option with an older Node.js
+   * version, the setting is ignored and a warning is emitted. Bun and Deno are
+   * assumed safe, and are not checked for compatibility.
+   *
+   * - Fix for memory safety issue: <https://github.com/nodejs/node/pull/55877>
+   * - Backported to 25.4.0: <https://github.com/nodejs/node/pull/61400>
+   * - Backported to 24.13.1: <https://github.com/nodejs/node/pull/61661>
+   *
+   * `'forceWorkerThreads'` behaves like `'workerThreads'` but skips the
+   * version-gated downgrade. You should not use this option unless you're
+   * confident that the version check in Next.js is wrong.
    */
-  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+  turbopackPluginRuntimeStrategy?:
+    | 'workerThreads'
+    | 'childProcesses'
+    | 'forceWorkerThreads'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
@@ -1115,10 +1139,11 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * A different token to use for static assets (as opposed to config.deploymentId) which
-   * doesn't have to be unique per deployment.
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
    */
-  immutableAssetToken?: string
+  supportsImmutableAssets?: boolean
 
   /**
    * An array of paths in app or pages directories that should wait to be processed
@@ -1807,9 +1832,10 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
-    partialFallbacks: false,
+    partialFallbacks: true,
     dynamicOnHover: false,
     useOffline: false,
+    unstableIO: false,
     varyParams: false,
     prefetchInlining: false,
     preloadEntriesOnStart: true,
@@ -1956,6 +1982,7 @@ export interface NextConfigRuntime {
     | 'staleTimes'
     | 'dynamicOnHover'
     | 'useOffline'
+    | 'unstableIO'
     | 'optimisticRouting'
     | 'inlineCss'
     | 'prefetchInlining'
@@ -1990,7 +2017,7 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
-    | 'immutableAssetToken'
+    | 'supportsImmutableAssets'
     | 'useNodeStreams'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2023,6 +2050,7 @@ export function getNextConfigRuntime(
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
         useOffline: ex.useOffline,
+        unstableIO: ex.unstableIO,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         prefetchInlining: ex.prefetchInlining,
@@ -2058,7 +2086,7 @@ export function getNextConfigRuntime(
         cachedNavigations: ex.cachedNavigations,
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-        immutableAssetToken: ex.immutableAssetToken,
+        supportsImmutableAssets: ex.supportsImmutableAssets,
         useNodeStreams: ex.useNodeStreams,
 
         trustHostHeader: ex.trustHostHeader,
