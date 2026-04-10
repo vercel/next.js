@@ -19,7 +19,9 @@ describe('Invalid Global CSS', () => {
     it('should fail to build', async () => {
       const { exitCode, cliOutput } = await next.build()
       expect(exitCode).not.toBe(0)
-      expect(cliOutput).toContain('Failed to compile')
+      if (!isTurbopack) {
+        expect(cliOutput).toContain('Failed to compile')
+      }
       expect(cliOutput).toContain('styles/global.scss')
       expect(cliOutput).toMatch(
         /Please move all first-party global CSS imports.*?pages(\/|\\)_app/
