@@ -80,7 +80,12 @@ export function getOriginalCodeFrame(
           column: frame.column1 ?? undefined,
         },
       },
-      { color: colors }
+      {
+        color: colors,
+        // The overlay renders in a browser with horizontal scrolling,
+        // so don't truncate lines to the server's terminal width.
+        maxWidth: 10_000,
+      }
     ) ?? null
   )
 }
