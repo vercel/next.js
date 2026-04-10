@@ -50,11 +50,16 @@ const bfcacheMap: CacheMap<BFCacheEntry> = createCacheMap()
 
 let currentBfCacheVersion = 0
 
-export function invalidateBfCache(): void {
+export function invalidateBfCache(): number {
   if (typeof window === 'undefined') {
-    return
+    return currentBfCacheVersion
   }
   currentBfCacheVersion++
+  return currentBfCacheVersion
+}
+
+export function getCurrentBfCacheVersion(): number {
+  return currentBfCacheVersion
 }
 
 export function writeToBFCache(

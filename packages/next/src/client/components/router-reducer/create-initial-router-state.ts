@@ -15,6 +15,7 @@ import {
 } from '../segment-cache/cache'
 import { FetchStrategy } from '../segment-cache/types'
 import {
+  getCurrentBfCacheVersion,
   UnknownDynamicStaleTime,
   computeDynamicStaleAt,
 } from '../segment-cache/bfcache'
@@ -232,6 +233,7 @@ export function createInitialRouterState({
   // complete tree.)
 
   const initialState = {
+    bfcacheVersion: getCurrentBfCacheVersion(),
     tree: initialTask.route,
     cache: initialTask.node,
     pushRef: {

@@ -202,6 +202,10 @@ export type FocusAndScrollRef = {
  */
 export type AppRouterState = {
   /**
+   * Mirrors the current global BF-cache invalidation version
+   */
+  bfcacheVersion: number
+  /**
    * The router state, this is written into the history state in app-router using replaceState/pushState.
    * - Has to be serializable as it is written into the history state.
    * - Holds which segments and parallel routes are shown on the screen.

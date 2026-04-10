@@ -7,6 +7,7 @@ import React, {
 } from 'react'
 import {
   AppRouterContext,
+  BFCacheVersionContext,
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
@@ -407,7 +408,14 @@ function Router({
     }
   }, [])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
+  const {
+    bfcacheVersion,
+    cache,
+    tree,
+    nextUrl,
+    focusAndScrollRef,
+    previousNextUrl,
+  } = state
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -552,20 +560,22 @@ function Router({
         <PathParamsContext.Provider value={pathParams}>
           <PathnameContext.Provider value={pathname}>
             <SearchParamsContext.Provider value={searchParams}>
-              <GlobalLayoutRouterContext.Provider
-                value={globalLayoutRouterContext}
-              >
-                {/* TODO: We should be able to remove this context. useRouter
-                    should import from app-router-instance instead. It's only
-                    necessary because useRouter is shared between Pages and
-                    App Router. We should fork that module, then remove this
-                    context provider. */}
-                <AppRouterContext.Provider value={publicAppRouterInstance}>
-                  <LayoutRouterContext.Provider value={layoutRouterContext}>
-                    {content}
-                  </LayoutRouterContext.Provider>
-                </AppRouterContext.Provider>
-              </GlobalLayoutRouterContext.Provider>
+              <BFCacheVersionContext.Provider value={bfcacheVersion}>
+                <GlobalLayoutRouterContext.Provider
+                  value={globalLayoutRouterContext}
+                >
+                  {/* TODO: We should be able to remove this context. useRouter
+                      should import from app-router-instance instead. It's only
+                      necessary because useRouter is shared between Pages and
+                      App Router. We should fork that module, then remove this
+                      context provider. */}
+                  <AppRouterContext.Provider value={publicAppRouterInstance}>
+                    <LayoutRouterContext.Provider value={layoutRouterContext}>
+                      {content}
+                    </LayoutRouterContext.Provider>
+                  </AppRouterContext.Provider>
+                </GlobalLayoutRouterContext.Provider>
+              </BFCacheVersionContext.Provider>
             </SearchParamsContext.Provider>
           </PathnameContext.Provider>
         </PathParamsContext.Provider>

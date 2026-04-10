@@ -1,13 +1,20 @@
 'use client'
-import React, { useEffect } from 'react'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
+import React, { useContext, useEffect } from 'react'
+import { BFCacheVersionContext } from '../../shared/lib/app-router-context.shared-runtime'
 import { useRouter } from './navigation'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { type RedirectType, isRedirectError } from './redirect-error'
+import { getCurrentBfCacheVersion } from './segment-cache/bfcache'
 
 interface RedirectBoundaryProps {
-  router: AppRouterInstance
+  bfcacheVersion: number
   children: React.ReactNode
+}
+
+type RedirectBoundaryState = {
+  redirect: string | null
+  redirectType: RedirectType | null
+  redirectVersion: number | null
 }
 
 function HandleRedirect({
@@ -37,11 +44,37 @@ function HandleRedirect({
 
 export class RedirectErrorBoundary extends React.Component<
   RedirectBoundaryProps,
-  { redirect: string | null; redirectType: RedirectType | null }
+  RedirectBoundaryState
 > {
   constructor(props: RedirectBoundaryProps) {
     super(props)
-    this.state = { redirect: null, redirectType: null }
+    this.state = {
+      redirect: null,
+      redirectType: null,
+      redirectVersion: null,
+    }
+  }
+
+  static getDerivedStateFromProps(
+    props: RedirectBoundaryProps,
+    state: RedirectBoundaryState
+  ): RedirectBoundaryState | null {
+    if (
+      state.redirect !== null &&
+      state.redirectType !== null &&
+      state.redirectVersion !== null &&
+      state.redirectVersion !== props.bfcacheVersion
+    ) {
+      // Revalidation invalidates the dynamic server data that produced this
+      // redirect, so we discard it.
+      return {
+        redirect: null,
+        redirectType: null,
+        redirectVersion: null,
+      }
+    }
+
+    return null
   }
 
   static getDerivedStateFromError(error: any) {
@@ -52,10 +85,14 @@ export class RedirectErrorBoundary extends React.Component<
         // The redirect was already handled. We'll still catch the redirect error
         // so that we can remount the subtree, but we don't actually need to trigger the
         // router.push.
-        return { redirect: null, redirectType: null }
+        return { redirect: null, redirectType: null, redirectVersion: null }
       }
 
-      return { redirect: url, redirectType }
+      return {
+        redirect: url,
+        redirectType,
+        redirectVersion: getCurrentBfCacheVersion(),
+      }
     }
     // Re-throw if error is not for redirect
     throw error
@@ -69,7 +106,13 @@ export class RedirectErrorBoundary extends React.Component<
         <HandleRedirect
           redirect={redirect}
           redirectType={redirectType}
-          reset={() => this.setState({ redirect: null })}
+          reset={() =>
+            this.setState({
+              redirect: null,
+              redirectType: null,
+              redirectVersion: null,
+            })
+          }
         />
       )
     }
@@ -79,8 +122,10 @@ export class RedirectErrorBoundary extends React.Component<
 }
 
 export function RedirectBoundary({ children }: { children: React.ReactNode }) {
-  const router = useRouter()
+  const bfcacheVersion = useContext(BFCacheVersionContext)
   return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
+    <RedirectErrorBoundary bfcacheVersion={bfcacheVersion}>
+      {children}
+    </RedirectErrorBoundary>
   )
 }

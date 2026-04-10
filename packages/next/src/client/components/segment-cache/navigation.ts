@@ -58,7 +58,8 @@ export function navigate(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  bfcacheVersion: number = state.bfcacheVersion
 ): AppRouterState | Promise<AppRouterState> {
   // Instant Navigation Testing API: when the lock is active, ensure a
   // prefetch task has been initiated before proceeding with the navigation.
@@ -80,7 +81,8 @@ export function navigate(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType
+        navigateType,
+        bfcacheVersion
       )
     }
   }
@@ -95,7 +97,8 @@ export function navigate(
     nextUrl,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    bfcacheVersion
   )
 }
 
@@ -109,7 +112,8 @@ function navigateImpl(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  bfcacheVersion: number
 ): AppRouterState | Promise<AppRouterState> {
   const now = Date.now()
   const href = url.href
@@ -130,7 +134,8 @@ function navigateImpl(
       freshnessPolicy,
       scrollBehavior,
       navigateType,
-      route
+      route,
+      bfcacheVersion
     )
   }
 
@@ -166,7 +171,8 @@ function navigateImpl(
           freshnessPolicy,
           scrollBehavior,
           navigateType,
-          optimisticRoute
+          optimisticRoute,
+          bfcacheVersion
         )
       }
     }
@@ -188,7 +194,8 @@ function navigateImpl(
     currentFlightRouterState,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    bfcacheVersion
   ).catch(() => {
     // If the navigation fails, return the current state
     return state
@@ -221,7 +228,8 @@ export function navigateToKnownRoute(
   // In these cases, if a mismatch occurs, we still mark the route as having a
   // dynamic rewrite by traversing the known route tree (see
   // dispatchRetryDueToTreeMismatch).
-  routeCacheEntry: FulfilledRouteCacheEntry | null
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  bfcacheVersion: number = state.bfcacheVersion
 ): AppRouterState {
   // A version of navigate() that accepts the target route tree as an argument
   // rather than reading it from the prefetch cache.
@@ -286,11 +294,12 @@ export function navigateToKnownRoute(
       navigateType,
       scrollBehavior,
       accumulation.scrollRef,
-      debugInfo
+      debugInfo,
+      bfcacheVersion
     )
   }
   // Could not perform a SPA navigation. Revert to a full-page (MPA) navigation.
-  return completeHardNavigation(state, url, navigateType)
+  return completeHardNavigation(state, url, navigateType, bfcacheVersion)
 }
 
 function navigateUsingPrefetchedRouteTree(
@@ -305,7 +314,8 @@ function navigateUsingPrefetchedRouteTree(
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
   navigateType: 'push' | 'replace',
-  route: FulfilledRouteCacheEntry
+  route: FulfilledRouteCacheEntry,
+  bfcacheVersion: number
 ): AppRouterState {
   const routeTree = route.tree
   const canonicalUrl = route.canonicalUrl + url.hash
@@ -333,7 +343,8 @@ function navigateUsingPrefetchedRouteTree(
     scrollBehavior,
     navigateType,
     null,
-    route
+    route,
+    bfcacheVersion
   )
 }
 
@@ -360,7 +371,8 @@ async function navigateToUnknownRoute(
   currentFlightRouterState: FlightRouterState,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  bfcacheVersion: number
 ): Promise<AppRouterState> {
   // Runs when a navigation happens but there's no cached prefetch we can use.
   // Don't bother to wait for a prefetch response; go straight to a full
@@ -400,7 +412,12 @@ async function navigateToUnknownRoute(
   if (typeof result === 'string') {
     // This is an MPA navigation.
     const redirectUrl = new URL(result, location.origin)
-    return completeHardNavigation(state, redirectUrl, navigateType)
+    return completeHardNavigation(
+      state,
+      redirectUrl,
+      navigateType,
+      bfcacheVersion
+    )
   }
 
   const {
@@ -524,14 +541,16 @@ async function navigateToUnknownRoute(
     // came directly from the server. If a mismatch occurs during dynamic data
     // fetch, the retry handler will traverse the known route tree to mark the
     // entry as having a dynamic rewrite.
-    null
+    null,
+    bfcacheVersion
   )
 }
 
 export function completeHardNavigation(
   state: AppRouterState,
   url: URL,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  bfcacheVersion: number = state.bfcacheVersion
 ): AppRouterState {
   if (isJavaScriptURLString(url.href)) {
     console.error(
@@ -540,6 +559,7 @@ export function completeHardNavigation(
     return state
   }
   const newState: AppRouterState = {
+    bfcacheVersion,
     canonicalUrl:
       url.origin === location.origin ? createHrefFromUrl(url) : url.href,
     pushRef: {
@@ -574,7 +594,8 @@ export function completeSoftNavigation(
   navigateType: 'push' | 'replace',
   scrollBehavior: ScrollBehavior,
   scrollRef: ScrollRef | null,
-  collectedDebugInfo: Array<unknown> | null
+  collectedDebugInfo: Array<unknown> | null,
+  bfcacheVersion: number = oldState.bfcacheVersion
 ) {
   // The "Next-Url" is a special representation of the URL that Next.js
   // uses to implement interception routes.
@@ -670,6 +691,7 @@ export function completeSoftNavigation(
   }
 
   const newState: AppRouterState = {
+    bfcacheVersion,
     canonicalUrl,
     renderedSearch,
     pushRef: {
@@ -707,9 +729,11 @@ export function completeTraverseNavigation(
   renderedSearch: string,
   cache: CacheNode,
   tree: FlightRouterState,
-  nextUrl: string | null
+  nextUrl: string | null,
+  bfcacheVersion: number = state.bfcacheVersion
 ) {
   return {
+    bfcacheVersion,
     // Set canonical url
     canonicalUrl: createHrefFromUrl(url),
     renderedSearch,
@@ -946,7 +970,8 @@ async function ensurePrefetchThenNavigate(
   nextUrl: string | null,
   freshnessPolicy: FreshnessPolicy,
   scrollBehavior: ScrollBehavior,
-  navigateType: 'push' | 'replace'
+  navigateType: 'push' | 'replace',
+  bfcacheVersion: number
 ): Promise<AppRouterState> {
   const link = getLinkForCurrentNavigation()
   const fetchStrategy = link !== null ? link.fetchStrategy : FetchStrategy.PPR
@@ -985,7 +1010,8 @@ async function ensurePrefetchThenNavigate(
     nextUrl,
     freshnessPolicy,
     scrollBehavior,
-    navigateType
+    navigateType,
+    bfcacheVersion
   )
 
   // Update the cookie with the resolved "to" tree so the devtools

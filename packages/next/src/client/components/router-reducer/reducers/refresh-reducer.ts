@@ -43,7 +43,7 @@ export function refreshDynamicData(
   freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HMRRefresh
 ): ReducerState {
   // During a refresh, invalidate the BFCache, which may contain dynamic data.
-  invalidateBfCache()
+  const bfcacheVersion = invalidateBfCache()
 
   const currentNextUrl = state.nextUrl
 
@@ -97,6 +97,7 @@ export function refreshDynamicData(
     // cache entry to mark as having a dynamic rewrite on mismatch. If a
     // mismatch occurs, the retry handler will traverse the known route tree
     // to find and mark the entry.
-    null
+    null,
+    bfcacheVersion
   )
 }
