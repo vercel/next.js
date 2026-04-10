@@ -380,13 +380,13 @@ impl DiskWatcher {
         let config = Config::default();
         // we should track and invalidate each part of a symlink chain ourselves in
         // turbo-tasks-fs
-        config.with_follow_symlinks(false);
+        let config = config.with_follow_symlinks(false);
 
         let mut notify_watcher = if let Some(poll_interval) = poll_interval {
             let config = config.with_poll_interval(poll_interval);
             NotifyWatcher::Polling(PollWatcher::new(tx, config)?)
         } else {
-            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, Config::default())?)
+            NotifyWatcher::Recommended(RecommendedWatcher::new(tx, config)?)
         };
 
         // TOCTOU: we must watch `root_path` before calling any invalidators and setting up the
