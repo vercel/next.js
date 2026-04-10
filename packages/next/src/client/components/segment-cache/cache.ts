@@ -1278,15 +1278,15 @@ function convertTreePrefetchToRouteTree(
         // read from the cache, since that's effectively what we're
         // doing anyway.
         const childParamKey =
+          isOutputExportMode ||
           // The server omits this field from the prefetch response when
           // cacheComponents is enabled.
-          childParam.key !== null
-            ? childParam.key
-            : // If no param key was sent, use the value parsed on the client.
-              getCacheKeyForDynamicParam(
+          childParam.key === null
+            ? getCacheKeyForDynamicParam(
                 childParamValue,
                 '' as NormalizedSearch
               )
+            : childParam.key
 
         childPartialVaryPath = appendLayoutVaryPath(
           partialVaryPath,
