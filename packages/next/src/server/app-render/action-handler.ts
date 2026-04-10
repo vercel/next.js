@@ -1312,10 +1312,15 @@ async function executeActionAndPrepareForRender<
     const actionResult = await workUnitAsyncStorage.run(requestStore, () =>
       action.apply(null, args)
     )
+    const didModifyCookies =
+      getModifiedCookieValues(requestStore.mutableCookies).length > 0
 
     // If the page was not revalidated, or if the action was forwarded from
-    // another worker, we can skip rendering the page.
+    // another worker, we can skip rendering the page. Cookie mutations are an
+    // exception: they can change route resolution (for example via rewrites),
+    // and the current render context has already matched the original route.
     skipPageRendering ||=
+      didModifyCookies ||
       workStore.pathWasRevalidated === undefined ||
       workStore.pathWasRevalidated === ActionDidNotRevalidate
 
