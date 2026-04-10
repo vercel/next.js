@@ -490,7 +490,7 @@ async function startWatcher(
           Log.warnOnce(
             `The "${MIDDLEWARE_FILENAME}" file convention is deprecated. Please use "${PROXY_FILENAME}" instead.\n\n` +
               `  To migrate automatically, run:\n` +
-              `  npx @next/codemod@latest middleware-to-proxy .\n\n` +
+              `  npx @next/codemod@canary middleware-to-proxy .\n\n` +
               `  Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
           )
         }
