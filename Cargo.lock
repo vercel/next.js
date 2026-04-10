@@ -2623,6 +2623,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
+name = "foldhash-portable"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "631c01cdb9b602a84f0ef5e813d3691936aade6d390dba117f28aa03eb4d0e09"
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6029,13 +6035,13 @@ dependencies = [
 
 [[package]]
 name = "qfilter"
-version = "0.3.0-alpha.3"
+version = "0.3.0-alpha.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fb8c6e59c09e93a6dbc7ff5feff747fc4efc3f5a90c00851e1472ce1bdf2eff"
+checksum = "edd9c903cd64233eb97cf95d96d58645c2b1c0154d30ff835f3bb4be417158b1"
 dependencies = [
+ "foldhash-portable",
  "serde",
  "serde_bytes",
- "xxhash-rust",
 ]
 
 [[package]]
