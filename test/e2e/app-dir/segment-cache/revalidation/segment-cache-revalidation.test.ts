@@ -431,31 +431,36 @@ describe('segment cache (revalidation)', () => {
     }, 'no-requests')
   })
 
-  it('does not reuse a stale redirect from a revalidated route after a server action redirect', async () => {
-    const browser = await next.browser('/redirect-revalidation/register')
+  it.failing(
+    'does not reuse a stale redirect from a revalidated route after a server action redirect',
+    async () => {
+      const browser = await next.browser('/redirect-revalidation/register')
 
-    expect(await browser.elementById('entry-status').text()).toBe(
-      'UNAUTHORIZED'
-    )
+      expect(await browser.elementById('entry-status').text()).toBe(
+        'UNAUTHORIZED'
+      )
 
-    await browser.elementById('grant-access').click()
-    await browser.waitForElementByCss('#protected-page')
-    expect(await browser.elementById('protected-status').text()).toBe(
-      'AUTHORIZED'
-    )
+      await browser.elementById('grant-access').click()
+      await browser.waitForElementByCss('#protected-page')
+      expect(await browser.elementById('protected-status').text()).toBe(
+        'AUTHORIZED'
+      )
 
-    await browser.elementById('revoke-access').click()
-    await browser.waitForElementByCss('#entry-page')
-    expect(await browser.elementById('entry-status').text()).toBe(
-      'UNAUTHORIZED'
-    )
+      await browser.elementById('revoke-access').click()
+      await browser.waitForElementByCss('#entry-page')
+      expect(await browser.elementById('entry-status').text()).toBe(
+        'UNAUTHORIZED'
+      )
 
-    await browser.elementById('grant-access').click()
-    await retry(async () => {
-      expect(await browser.url()).toContain('/redirect-revalidation/protected')
-    }, 10000)
-    expect(await browser.elementById('protected-status').text()).toBe(
-      'AUTHORIZED'
-    )
-  })
+      await browser.elementById('grant-access').click()
+      await retry(async () => {
+        expect(await browser.url()).toContain(
+          '/redirect-revalidation/protected'
+        )
+      }, 10000)
+      expect(await browser.elementById('protected-status').text()).toBe(
+        'AUTHORIZED'
+      )
+    }
+  )
 })

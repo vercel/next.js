@@ -339,13 +339,11 @@ export function serverActionReducer(
       isPrerender,
       couldBeIntercepted,
     }) => {
-      let bfcacheVersion = state.bfcacheVersion
-
       if (revalidationKind !== ActionDidNotRevalidate) {
         // There was either a revalidation or a refresh, or maybe both.
 
         // Evict the BFCache, which may contain dynamic data.
-        bfcacheVersion = invalidateBfCache()
+        invalidateBfCache()
 
         // Store whether this action triggered any revalidation
         // The action queue will use this information to potentially
@@ -386,12 +384,7 @@ export function serverActionReducer(
             navigateType
           )
           reject(redirectError)
-          return completeHardNavigation(
-            state,
-            redirectLocation,
-            navigateType,
-            bfcacheVersion
-          )
+          return completeHardNavigation(state, redirectLocation, navigateType)
         } else {
           // Internal redirect. Triggers an SPA navigation.
           const redirectWithBasepath = createHrefFromUrl(
@@ -431,12 +424,7 @@ export function serverActionReducer(
         // an external redirect.
         // TODO: We should refactor the action response type to be more explicit
         // about the various response types.
-        return completeHardNavigation(
-          state,
-          redirectLocation,
-          navigateType,
-          bfcacheVersion
-        )
+        return completeHardNavigation(state, redirectLocation, navigateType)
       }
 
       if (typeof flightData === 'string') {
@@ -445,8 +433,7 @@ export function serverActionReducer(
         return completeHardNavigation(
           state,
           new URL(flightData, location.origin),
-          navigateType,
-          bfcacheVersion
+          navigateType
         )
       }
 
@@ -527,8 +514,7 @@ export function serverActionReducer(
           // have the route tree from the server response. If a mismatch occurs
           // during dynamic data fetch, the retry handler will traverse the
           // known route tree to mark the entry as having a dynamic rewrite.
-          null,
-          bfcacheVersion
+          null
         )
       }
 
@@ -544,8 +530,7 @@ export function serverActionReducer(
         nextUrl,
         freshnessPolicy,
         scrollBehavior,
-        navigateType,
-        bfcacheVersion
+        navigateType
       )
     },
     (e: any) => {

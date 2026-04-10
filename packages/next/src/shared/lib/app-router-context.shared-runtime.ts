@@ -73,7 +73,6 @@ export interface AppRouterInstance {
 export const AppRouterContext = React.createContext<AppRouterInstance | null>(
   null
 )
-export const BFCacheVersionContext = React.createContext(0)
 export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
   parentCacheNode: CacheNode
@@ -96,7 +95,6 @@ export const TemplateContext = React.createContext<React.ReactNode>(null as any)
 
 if (process.env.NODE_ENV !== 'production') {
   AppRouterContext.displayName = 'AppRouterContext'
-  BFCacheVersionContext.displayName = 'BFCacheVersionContext'
   LayoutRouterContext.displayName = 'LayoutRouterContext'
   GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
   TemplateContext.displayName = 'TemplateContext'
