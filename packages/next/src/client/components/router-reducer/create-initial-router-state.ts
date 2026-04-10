@@ -20,7 +20,10 @@ import {
 } from '../segment-cache/bfcache'
 import { decodeStaticStage } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
-import type { NormalizedSearch } from '../segment-cache/cache-key'
+import type {
+  NormalizedPathname,
+  NormalizedSearch,
+} from '../segment-cache/cache-key'
 
 export interface InitialRouterStateParameters {
   navigatedAt: number
@@ -85,7 +88,8 @@ export function createInitialRouterState({
   const initialRouteTree = convertRootFlightRouterStateToRouteTree(
     initialTree,
     initialRenderedSearch as NormalizedSearch,
-    acc
+    acc,
+    location?.pathname as NormalizedPathname
   )
   const metadataVaryPath = acc.metadataVaryPath
   const initialTask = createInitialCacheNodeForHydration(
