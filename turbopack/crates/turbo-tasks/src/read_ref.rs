@@ -91,10 +91,11 @@ where
 
 impl<T> PartialEq for ReadRef<T>
 where
-    T: PartialEq,
+    T: Eq,
 {
     fn eq(&self, other: &Self) -> bool {
-        Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
+        // Fast path: if both point to the same allocation, they're equal.
+        Self::ptr_eq(self, other) || Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
     }
 }
 
@@ -102,7 +103,7 @@ impl<T> Eq for ReadRef<T> where T: Eq {}
 
 impl<T> PartialOrd for ReadRef<T>
 where
-    T: PartialOrd,
+    T: PartialOrd + Eq,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Self::as_raw_ref(self).partial_cmp(Self::as_raw_ref(other))
@@ -111,7 +112,7 @@ where
 
 impl<T> Ord for ReadRef<T>
 where
-    T: Ord,
+    T: Ord + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         Self::as_raw_ref(self).cmp(Self::as_raw_ref(other))

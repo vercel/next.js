@@ -419,12 +419,12 @@ impl DiskWatcher {
                         invalidators.into_iter().map(move |i| (reason.clone(), i))
                     })
                     .collect::<Vec<_>>();
-                parallel::for_each_owned(invalidators, |(reason, (invalidator, _))| {
+                parallel::for_each_owned(invalidators, |(reason, invalidator)| {
                     invalidator.invalidate_with_reason(&*turbo_tasks, reason);
                 });
             } else {
                 let invalidators = iter
-                    .flat_map(|(_, invalidators)| invalidators.into_keys())
+                    .flat_map(|(_, invalidators)| invalidators.into_iter())
                     .collect::<Vec<_>>();
                 parallel::for_each_owned(invalidators, |invalidator| {
                     invalidator.invalidate(&*turbo_tasks);
@@ -786,9 +786,9 @@ fn invalidate_path(
 ) {
     for path in paths {
         if let Some(invalidators) = invalidator_map.remove(&path) {
-            invalidators.into_iter().for_each(|(i, _)| {
-                invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i)
-            });
+            invalidators
+                .into_iter()
+                .for_each(|i| invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i));
         }
     }
 }
@@ -802,9 +802,9 @@ fn invalidate_path_and_children_execute(
 ) {
     for path in paths {
         for (_, invalidators) in invalidator_map.extract_path_with_children(&path) {
-            invalidators.into_iter().for_each(|(i, _)| {
-                invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i)
-            });
+            invalidators
+                .into_iter()
+                .for_each(|i| invalidate(inner, turbo_tasks, report_invalidation_reason, &path, i));
         }
     }
 }
