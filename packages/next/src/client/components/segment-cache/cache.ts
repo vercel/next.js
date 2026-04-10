@@ -94,7 +94,6 @@ import type {
   NavigationFlightResponse,
 } from '../../../shared/lib/app-router-types'
 import {
-  fillInFallbackFlightData,
   type NormalizedFlightData,
   normalizeFlightData,
   prepareFlightRouterStateForRequest,
@@ -1604,21 +1603,6 @@ export function convertRouteTreeToFlightRouterState(
   return flightRouterState
 }
 
-function normalizeFlightDataForResponse(
-  flightData: FlightData,
-  response: RSCResponse<unknown> | Response
-): NormalizedFlightData[] | string {
-  return normalizeFlightData(
-    isOutputExportMode
-      ? fillInFallbackFlightData(
-          flightData,
-          getRenderedPathname(response),
-          getRenderedSearch(response)
-        )
-      : flightData
-  )
-}
-
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
   key: RouteCacheKey
@@ -2281,7 +2265,7 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // in the LRU as more data comes in.
     const buildId =
       response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
-    const flightDatas = normalizeFlightDataForResponse(serverData.f, response)
+    const flightDatas = normalizeFlightData(serverData.f)
     if (typeof flightDatas === 'string') {
       rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
       return null
@@ -2358,10 +2342,7 @@ function writeDynamicTreeResponseIntoCache(
 ): void {
   const renderedSearch = getRenderedSearch(response)
 
-  const normalizedFlightDataResult = normalizeFlightDataForResponse(
-    serverData.f,
-    response
-  )
+  const normalizedFlightDataResult = normalizeFlightData(serverData.f)
   if (
     // A string result means navigating to this route will result in an
     // MPA navigation.
