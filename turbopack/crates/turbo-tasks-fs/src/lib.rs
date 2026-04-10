@@ -729,7 +729,7 @@ impl DiskFileSystem {
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
     ) -> Result<Vc<Self>> {
-        let root = (*root.await?).clone();
+        let root = root.owned().await?;
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,
