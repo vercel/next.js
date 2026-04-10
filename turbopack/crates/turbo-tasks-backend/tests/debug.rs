@@ -4,17 +4,17 @@
 
 use std::sync::Mutex;
 
-use turbo_tasks::{
-    ResolvedVc, Vc,
-    debug::{ValueDebug, ValueDebugString},
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc, debug::ValueDebug};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[turbo_tasks::function(operation)]
-fn dbg_operation(value: ResolvedVc<Box<dyn ValueDebug>>) -> Vc<ValueDebugString> {
-    value.dbg()
+async fn dbg_operation(value: ResolvedVc<Box<dyn ValueDebug>>) -> anyhow::Result<Vc<RcStr>> {
+    let trait_ref = value.into_trait_ref().await?;
+    let s = trait_ref.dbg().await?;
+    Ok(Vc::cell(s.into()))
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -23,7 +23,7 @@ async fn test_primitive_debug() {
         let a = ResolvedVc::<u32>::cell(42);
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -42,7 +42,7 @@ async fn test_transparent_debug() {
         let a = Transparent(42).resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -61,7 +61,7 @@ async fn test_enum_none_debug() {
         let a = Enum::None.resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -80,7 +80,7 @@ async fn test_enum_transparent_debug() {
         let a = Enum::Transparent(Transparent(42).resolved_cell()).resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -99,7 +99,7 @@ async fn test_enum_inner_vc_debug() {
         let a = Enum::Enum(Enum::None.resolved_cell()).resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -118,7 +118,7 @@ async fn test_struct_unit_debug() {
         let a = StructUnit.resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -140,7 +140,7 @@ async fn test_struct_transparent_debug() {
         .resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -159,7 +159,7 @@ async fn test_struct_option_debug() {
         let a = StructWithOption { option: None }.resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -173,7 +173,7 @@ async fn test_struct_option_debug() {
         .resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(b))
                     .read_strongly_consistent()
                     .await?,
@@ -193,7 +193,7 @@ async fn test_struct_vec_debug() {
         let a = StructWithVec { vec: Vec::new() }.resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,
@@ -207,7 +207,7 @@ async fn test_struct_vec_debug() {
         .resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(b))
                     .read_strongly_consistent()
                     .await?,
@@ -231,7 +231,7 @@ async fn test_struct_ignore_debug() {
         .resolved_cell();
         assert_eq!(
             format!(
-                "{:?}",
+                "{}",
                 dbg_operation(ResolvedVc::upcast(a))
                     .read_strongly_consistent()
                     .await?,

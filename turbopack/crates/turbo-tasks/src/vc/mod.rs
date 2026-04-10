@@ -482,10 +482,9 @@ where
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Async(Box::pin(async move {
-            Ok({
-                let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);
-                vc_value_debug.dbg_depth(depth).await?.to_string()
-            })
+            let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);
+            let trait_ref = vc_value_debug.into_trait_ref().await?;
+            trait_ref.dbg_depth(depth).await
         }))
     }
 }
