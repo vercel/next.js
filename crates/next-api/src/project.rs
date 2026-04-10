@@ -20,7 +20,7 @@ use next_core::{
     },
     next_edge::context::EdgeChunkingContextOptions,
     next_server::{
-        ServerChunkingContextOptions, ServerContextType, get_server_chunking_context,
+        ServerChunkingContextOptions, ServerContextType,
         get_server_chunking_context_with_client_assets, get_server_compile_time_info,
         get_server_module_options_context, get_server_resolve_options_context,
     },
@@ -1593,7 +1593,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) async fn server_chunking_context(
         self: Vc<Self>,
-        client_assets: bool,
     ) -> Result<Vc<NodeJsChunkingContext>> {
         let css_url_suffix = self.next_config().asset_suffix_path();
         let options = ServerChunkingContextOptions {
@@ -1623,11 +1622,7 @@ impl Project {
             css_url_suffix,
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
         };
-        Ok(if client_assets {
-            get_server_chunking_context_with_client_assets(options)
-        } else {
-            get_server_chunking_context(options)
-        })
+        Ok(get_server_chunking_context_with_client_assets(options))
     }
 
     #[turbo_tasks::function]
@@ -1678,7 +1673,7 @@ impl Project {
     ) -> Vc<Box<dyn ChunkingContext>> {
         match runtime {
             NextRuntime::Edge => self.edge_chunking_context(client_assets),
-            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context(client_assets)),
+            NextRuntime::NodeJs => Vc::upcast(self.server_chunking_context()),
         }
     }
 
