@@ -28,7 +28,7 @@ async fn main() -> Result<()> {
 
     let task = tt.spawn_root_task(|| {
         Box::pin(async {
-            let root: turbo_rcstr::RcStr = current_dir().unwrap().to_str().unwrap().into();
+            let root = RcStr::from(current_dir().unwrap().to_str().unwrap());
             let disk_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(root));
             disk_fs.await?.start_watching(None).await?;
 
