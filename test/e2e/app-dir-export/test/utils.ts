@@ -17,18 +17,13 @@ import {
   stopApp,
   fetchViaHTTP,
 } from 'next-test-utils'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
 
-type ExportTestNext = {
-  build(): Promise<void>
-  testDir: string
-}
-
 export async function buildAndStartOutputExportServer(
-  next: Pick<ExportTestNext, 'build' | 'testDir'>,
+  next: Pick<NextInstance, 'build' | 'testDir'>,
   {
     trailingSlash,
     useFallbackDocument,
