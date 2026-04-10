@@ -7,10 +7,9 @@ use std::{
 };
 
 use anyhow::{Result, bail};
-use dashmap::DashMap;
 use futures::{StreamExt, TryStreamExt};
 use parking_lot::Mutex;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_dyn_eq_hash::DynPartialEq;
 
@@ -96,7 +95,7 @@ impl Default for EffectStateEntry {
 /// (e.g. DiskFileSystemInner).
 #[derive(Default)]
 pub struct EffectStateStorage {
-    effect_state: DashMap<Vec<u8>, Arc<EffectStateEntry>>,
+    effect_state: Mutex<FxHashMap<Vec<u8>, Arc<EffectStateEntry>>>,
 }
 
 // Private wrapper trait to allow dynamic dispatch of an `Effect`. This is similar to the pattern
@@ -249,7 +248,7 @@ pub async fn take_effects(source: impl CollectiblesSource) -> Result<Effects> {
 
 /// Cached result of grouping effects by key and dedup/conflict detection.
 /// Each entry is (index into `effects`, Arc to per-key state entry).
-/// The `Arc<EffectStateEntry>` is resolved once and cached to avoid DashMap lookups on
+/// The `Arc<EffectStateEntry>` is resolved once and cached to avoid repeated map lookups on
 /// subsequent `apply()` calls.
 type UniqueEffectIndices = Result<Vec<(usize, Arc<EffectStateEntry>)>, String>;
 
@@ -262,7 +261,7 @@ pub struct Effects {
     effects: Vec<ReadRef<EffectInstance>>,
     /// Cached `(index, state_entry)` pairs after grouping by key and dedup/conflict detection.
     /// Computed once on first `apply()` call; reused on subsequent calls to avoid repeated
-    /// HashMap allocation, `key()` `Vec<u8>` allocations, and `DashMap` lookups.
+    /// key allocations and map lookups.
     /// `Err` means a conflict was detected.
     #[turbo_tasks(debug_ignore, trace_ignore)]
     unique_indices: OnceLock<UniqueEffectIndices>,
@@ -311,11 +310,10 @@ impl Effects {
 
         async {
             // Compute unique (index, state_entry) pairs once; reuse on later calls.
-            // The Arc<EffectStateEntry> is resolved from the DashMap on first call and cached
-            // here, so subsequent apply() calls bypass the DashMap lookup entirely.
+            // The Arc<EffectStateEntry> is resolved from the state map on first call and cached
+            // here, so subsequent apply() calls bypass the map lookup entirely.
             let unique_indices = self.unique_indices.get_or_init(|| {
-                let mut by_key: rustc_hash::FxHashMap<Vec<u8>, Vec<usize>> =
-                    rustc_hash::FxHashMap::default();
+                let mut by_key: FxHashMap<Vec<u8>, Vec<usize>> = FxHashMap::default();
                 for (i, effect) in self.effects.iter().enumerate() {
                     let key = effect.inner.key();
                     by_key.entry(key).or_default().push(i);
@@ -339,6 +337,7 @@ impl Effects {
                     // Look up or create the per-key state entry and cache the Arc directly.
                     let entry = state_storage
                         .effect_state
+                        .lock()
                         .entry(key)
                         .or_insert_with(|| Arc::new(EffectStateEntry::default()))
                         .clone();
@@ -352,7 +351,7 @@ impl Effects {
             };
 
             // Apply effects using cached (index, state_entry) pairs.
-            // Hot path: no DashMap lookup — Arc<EffectStateEntry> is cached in unique_indices.
+            // Hot path: no map lookup — Arc<EffectStateEntry> is cached in unique_indices.
             futures::stream::iter(unique_indices.iter())
                 .map(Ok::<_, anyhow::Error>)
                 .try_for_each_concurrent(APPLY_EFFECTS_CONCURRENCY_LIMIT, async |(idx, entry)| {
@@ -394,7 +393,7 @@ impl Effects {
                 })
                 .await?;
 
-            Ok::<(), anyhow::Error>(())
+            anyhow::Ok(())
         }
         .instrument(span)
         .await

@@ -78,6 +78,7 @@ use turbo_unix_path::{
 use crate::{
     attach::AttachedFileSystem,
     glob::Glob,
+    invalidation::Write,
     invalidator_map::InvalidatorMap,
     json::UnparsableJson,
     mutex_map::MutexMap,
@@ -346,8 +347,11 @@ impl DiskFileSystemInner {
                 return;
             };
             let _guard = self.tokio_handle.enter();
+            let reason = Write {
+                path: full_path.to_string_lossy().into_owned(),
+            };
             for invalidator in invalidators {
-                invalidator.invalidate(&*turbo_tasks);
+                invalidator.invalidate_with_reason(&*turbo_tasks, reason.clone());
             }
         }
     }
@@ -986,53 +990,73 @@ impl FileSystem for DiskFileSystem {
 
                 match &*self.content {
                     PersistedFileContent::Content(..) => {
-                        let create_directory = compare == FileComparison::Create;
-                        if create_directory && let Some(parent) = full_path.parent() {
-                            self.inner.create_directory(parent).await.with_context(|| {
-                                format!(
-                                    "failed to create directory {parent:?} for write to \
-                                     {full_path:?}",
-                                )
-                            })?;
-                        }
-
                         let content = self.content.clone();
-                        retry_blocking(|| {
-                            let mut f = std::fs::File::create(&full_path)?;
-                            let PersistedFileContent::Content(file) = &*content else {
-                                unreachable!()
-                            };
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(unix)]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()?;
-
-                            static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
-                                std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
-                                    .is_some_and(|v| v == "1" || v == "true")
-                            });
-                            if *WRITE_VERSION {
-                                let mut full_path = full_path.clone().into_owned();
-                                let hash = hash_xxh3_hash64(file);
-                                let ext = full_path.extension();
-                                let ext = if let Some(ext) = ext {
-                                    format!("{:016x}.{}", hash, ext.to_string_lossy())
-                                } else {
-                                    format!("{hash:016x}")
-                                };
-                                full_path.set_extension(ext);
+                        let make_write = |full_path: Cow<'_, Path>| {
+                            let content = content.clone();
+                            let span = tracing::info_span!("write file", name = ?full_path);
+                            let full_path = full_path.into_owned();
+                            retry_blocking(move || {
                                 let mut f = std::fs::File::create(&full_path)?;
+                                let PersistedFileContent::Content(file) = &*content else {
+                                    unreachable!()
+                                };
                                 std::io::copy(&mut file.read(), &mut f)?;
                                 #[cfg(unix)]
                                 f.set_permissions(file.meta.permissions.into())?;
                                 f.flush()?;
+
+                                static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                                    std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
+                                        .is_some_and(|v| v == "1" || v == "true")
+                                });
+                                if *WRITE_VERSION {
+                                    let mut full_path = full_path.clone();
+                                    let hash = hash_xxh3_hash64(file);
+                                    let ext = full_path.extension();
+                                    let ext = if let Some(ext) = ext {
+                                        format!("{:016x}.{}", hash, ext.to_string_lossy())
+                                    } else {
+                                        format!("{hash:016x}")
+                                    };
+                                    full_path.set_extension(ext);
+                                    let mut f = std::fs::File::create(&full_path)?;
+                                    std::io::copy(&mut file.read(), &mut f)?;
+                                    #[cfg(unix)]
+                                    f.set_permissions(file.meta.permissions.into())?;
+                                    f.flush()?;
+                                }
+                                Ok::<(), io::Error>(())
+                            })
+                            .instrument(span)
+                            .concurrency_limited(&self.inner.write_semaphore)
+                        };
+
+                        match make_write(full_path.clone()).await {
+                            Err(e) if e.kind() == ErrorKind::NotFound => {
+                                // The parent directory doesn't exist yet. Create it and retry,
+                                // but only if we haven't already created it (to avoid masking
+                                // persistent errors).
+                                if let Some(parent) = full_path.parent()
+                                    && !self.inner.created_dirs.contains(parent)
+                                {
+                                    self.inner.create_directory(parent).await.with_context(
+                                        || {
+                                            format!(
+                                                "failed to create directory {parent:?} for write \
+                                                 to {full_path:?}",
+                                            )
+                                        },
+                                    )?;
+                                }
+                                make_write(full_path.clone())
+                                    .await
+                                    .with_context(|| format!("failed to write to {full_path:?}"))?;
                             }
-                            Ok::<(), io::Error>(())
-                        })
-                        .instrument(tracing::info_span!("write file", name = ?full_path))
-                        .concurrency_limited(&self.inner.write_semaphore)
-                        .await
-                        .with_context(|| format!("failed to write to {full_path:?}"))?;
+                            result => {
+                                result
+                                    .with_context(|| format!("failed to write to {full_path:?}"))?;
+                            }
+                        }
                     }
                     PersistedFileContent::NotFound => {
                         retry_blocking(|| std::fs::remove_file(&full_path))
@@ -1182,16 +1206,6 @@ impl FileSystem for DiskFileSystem {
                     } => {
                         let full_path = full_path.into_owned();
 
-                        let create_directory = old_content.is_none();
-                        if create_directory && let Some(parent) = full_path.parent() {
-                            self.inner.create_directory(parent).await.with_context(|| {
-                                format!(
-                                    "failed to create directory {parent:?} for write link to \
-                                     {full_path:?}",
-                                )
-                            })?;
-                        }
-
                         #[derive(thiserror::Error, Debug)]
                         #[error("{msg}: {source}")]
                         struct SymlinkCreationError {
@@ -1260,15 +1274,65 @@ impl FileSystem for DiskFileSystem {
                             };
                             message
                         };
-                        retry_blocking_custom(try_create_link, can_retry_link)
+                        let write_result = retry_blocking_custom(try_create_link, can_retry_link)
                             .instrument(tracing::info_span!(
                                 "write symlink",
                                 name = ?full_path,
                                 target = ?target,
                             ))
                             .concurrency_limited(&self.inner.write_semaphore)
-                            .await
-                            .with_context(err_context)?;
+                            .await;
+
+                        match write_result {
+                            Err(ref e) if e.source.kind() == ErrorKind::NotFound => {
+                                // Parent directory doesn't exist. Create it and retry once,
+                                // but only if we haven't already created it.
+                                if let Some(parent) = full_path.parent()
+                                    && !self.inner.created_dirs.contains(parent)
+                                {
+                                    self.inner.create_directory(parent).await.with_context(
+                                        || {
+                                            format!(
+                                                "failed to create directory {parent:?} for write \
+                                                 link to {full_path:?}",
+                                            )
+                                        },
+                                    )?;
+                                }
+                                // After the first attempt, any pre-existing link was already
+                                // removed (has_old_content is now false), so just create.
+                                retry_blocking_custom(
+                                    || {
+                                        #[cfg(not(windows))]
+                                        let io_result =
+                                            std::os::unix::fs::symlink(&target, &full_path);
+                                        #[cfg(windows)]
+                                        let io_result = if is_directory {
+                                            std::os::windows::fs::junction_point(
+                                                &target, &full_path,
+                                            )
+                                        } else {
+                                            std::os::windows::fs::symlink_file(&target, &full_path)
+                                        };
+                                        io_result.map_err(|err| SymlinkCreationError {
+                                            msg: "creation of a new symbolic link or junction \
+                                                  point failed",
+                                            source: err,
+                                        })
+                                    },
+                                    |e: &SymlinkCreationError| can_retry(&e.source),
+                                )
+                                .instrument(tracing::info_span!(
+                                    "write symlink",
+                                    name = ?full_path,
+                                    target = ?target,
+                                ))
+                                .concurrency_limited(&self.inner.write_semaphore)
+                                .await
+                                .with_context(err_context)?;
+                            }
+                            result => result.with_context(err_context)?,
+                        }
                     }
                     OsSpecificLinkContent::Invalid => {
                         bail!("invalid symlink target: {full_path:?}");

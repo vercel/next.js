@@ -96,6 +96,49 @@ impl InvalidationReasonKind for WatchStartKind {
     }
 }
 
+/// Invalidation was caused by a write operation on the filesystem
+#[derive(PartialEq, Eq, Hash, Clone)]
+pub(crate) struct Write {
+    pub path: String,
+}
+
+impl InvalidationReason for Write {
+    fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
+        Some(StaticOrArc::Static(&WRITE_KIND))
+    }
+}
+
+impl Display for Write {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} written", self.path)
+    }
+}
+
+/// Invalidation kind for [Write]
+#[derive(PartialEq, Eq, Hash)]
+struct WriteKind;
+
+static WRITE_KIND: WriteKind = WriteKind;
+
+impl InvalidationReasonKind for WriteKind {
+    fn fmt(
+        &self,
+        reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
+        f: &mut Formatter<'_>,
+    ) -> std::fmt::Result {
+        let first_reason: &dyn InvalidationReason = &*reasons[0];
+        write!(
+            f,
+            "{} files written ({}, ...)",
+            reasons.len(),
+            (first_reason as &dyn Any)
+                .downcast_ref::<Write>()
+                .unwrap()
+                .path
+        )
+    }
+}
+
 /// Invalidation was caused by initialization of a project or filesystem.
 #[derive(PartialEq, Eq, Hash, Clone)]
 pub struct Initialize {
