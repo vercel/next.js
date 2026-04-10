@@ -3556,125 +3556,61 @@ export default async function build(
             }
           })
 
-          const moveExportedPage = async (
-            originPage: string,
+          // Update pages manifest entries for exported pages.
+          // The export worker writes pages directly to .next/server/pages/,
+          // so no file moving is needed — only the manifest must be updated.
+          const updatePagesManifestForExportedPage = (
             page: string,
-            file: string,
-            isSsg: boolean,
-            ext: 'html' | 'json',
-            additionalSsgFile = false
+            isSsg: boolean
           ) => {
-            return staticGenerationSpan
-              .traceChild('move-exported-page')
-              .traceAsyncFn(async () => {
-                file = `${file}.${ext}`
-                const orig = path.join(outdir, file)
-                const pagePath = getPagePath(
-                  originPage,
-                  distDir,
-                  undefined,
-                  false
-                )
+            const isUnusedStaticStatusPage =
+              STATIC_STATUS_PAGES.includes(page) &&
+              !usedStaticStatusPages.includes(page)
 
-                const relativeDest = path
-                  .relative(
-                    path.join(distDir, SERVER_DIRECTORY),
-                    path.join(
-                      path.join(
-                        pagePath,
-                        // strip leading / and then recurse number of nested dirs
-                        // to place from base folder
-                        originPage
-                          .slice(1)
-                          .split('/')
-                          .map(() => '..')
-                          .join('/')
-                      ),
-                      file
-                    )
-                  )
-                  .replace(/\\/g, '/')
+            // SSG pages don't get manifest entries
+            if (isSsg) return
 
-                if (
-                  !isSsg &&
-                  !(
-                    // don't add static status page to manifest if it's
-                    // the default generated version e.g. no pages/500
-                    (
-                      STATIC_STATUS_PAGES.includes(page) &&
-                      !usedStaticStatusPages.includes(page)
-                    )
-                  )
-                ) {
-                  pagesManifest[page] = relativeDest
-                }
-
-                const dest = path.join(distDir, SERVER_DIRECTORY, relativeDest)
-                const isNotFound =
-                  prerenderManifest.notFoundRoutes.includes(page)
-
-                // for SSG files with i18n the non-prerendered variants are
-                // output with the locale prefixed so don't attempt moving
-                // without the prefix
-                if ((!i18n || additionalSsgFile) && !isNotFound) {
-                  await fs.mkdir(path.dirname(dest), { recursive: true })
-                  await fs.rename(orig, dest)
-                } else if (i18n && !isSsg) {
-                  // this will be updated with the locale prefixed variant
-                  // since all files are output with the locale prefix
-                  delete pagesManifest[page]
-                }
-
-                if (i18n) {
-                  if (additionalSsgFile) return
-
-                  const localeExt = page === '/' ? path.extname(file) : ''
-                  const relativeDestNoPages = relativeDest.slice(
-                    'pages/'.length
-                  )
-
-                  for (const locale of i18n.locales) {
-                    const curPath = `/${locale}${page === '/' ? '' : page}`
-
-                    if (
-                      isSsg &&
-                      prerenderManifest.notFoundRoutes.includes(curPath)
-                    ) {
-                      continue
-                    }
-
-                    const updatedRelativeDest = path
-                      .join(
-                        'pages',
-                        locale + localeExt,
-                        // if it's the top-most index page we want it to be locale.EXT
-                        // instead of locale/index.html
-                        page === '/' ? '' : relativeDestNoPages
-                      )
-                      .replace(/\\/g, '/')
-
-                    const updatedOrig = path.join(
-                      outdir,
-                      locale + localeExt,
-                      page === '/' ? '' : file
-                    )
-                    const updatedDest = path.join(
-                      distDir,
-                      SERVER_DIRECTORY,
-                      updatedRelativeDest
-                    )
-
-                    if (!isSsg) {
-                      pagesManifest[curPath] = updatedRelativeDest
-                    }
-                    await fs.mkdir(path.dirname(updatedDest), {
-                      recursive: true,
-                    })
-                    await fs.rename(updatedOrig, updatedDest)
-                  }
-                }
-              })
+            if (i18n) {
+              // Replace non-locale entry with per-locale entries
+              delete pagesManifest[page]
+              for (const locale of i18n.locales) {
+                const curPath = `/${locale}${page === '/' ? '' : page}`
+                if (prerenderManifest.notFoundRoutes.includes(curPath)) continue
+                const relativeDest =
+                  page === '/'
+                    ? `pages/${locale}.html`
+                    : `pages${normalizePagePath(curPath)}.html`
+                pagesManifest[curPath] = relativeDest
+              }
+            } else if (!isUnusedStaticStatusPage) {
+              const file = normalizePagePath(page)
+              pagesManifest[page] = `pages${file}.html`
+            }
           }
+
+          // The export worker writes files directly to server/pages/,
+          // so we must delete files for notFound routes that shouldn't be served.
+          const deleteNotFoundPageFiles = (normalizedPath: string) =>
+            Promise.all([
+              fs.rm(
+                path.join(
+                  distDir,
+                  SERVER_DIRECTORY,
+                  'pages',
+                  `${normalizedPath}.html`
+                ),
+                { force: true }
+              ),
+              fs.rm(
+                path.join(
+                  distDir,
+                  SERVER_DIRECTORY,
+                  'pages',
+                  `${normalizedPath}.json`
+                ),
+                { force: true }
+              ),
+            ])
 
           async function moveExportedAppNotFoundTo404() {
             return staticGenerationSpan
@@ -3760,19 +3696,19 @@ export default async function build(
           if (hasStaticApp404) {
             await moveExportedAppNotFoundTo404()
           } else {
-            // Only move /404 to /404 when there is no custom 404 as in that case we don't know about the 404 page
+            // Update manifest for default 404 page
             if (
               !hasPages404 &&
               !hasApp404 &&
               useStaticPages404 &&
               !appDirOnly
             ) {
-              await moveExportedPage('/_error', '/404', '/404', false, 'html')
+              updatePagesManifestForExportedPage('/404', false)
             }
           }
 
           if (useDefaultStatic500 && !appDirOnly) {
-            await moveExportedPage('/_error', '/500', '/500', false, 'html')
+            updatePagesManifestForExportedPage('/500', false)
           }
 
           // If there's app router and no pages router, use app router built-in 500.html
@@ -3815,19 +3751,21 @@ export default async function build(
             const hasHtmlOutput = !(isSsg && isDynamic && !isStaticSsgFallback)
 
             if (hasHtmlOutput) {
-              await moveExportedPage(page, page, file, isSsg, 'html')
+              updatePagesManifestForExportedPage(page, isSsg)
             }
 
             if (isSsg) {
-              // For a non-dynamic SSG page, we must copy its data file
-              // from export, we already moved the HTML file above
               if (!isDynamic) {
-                await moveExportedPage(page, page, file, isSsg, 'json')
-
                 if (i18n) {
                   // TODO: do we want to show all locale variants in build output
                   for (const locale of i18n.locales) {
                     const localePage = `/${locale}${page === '/' ? '' : page}`
+
+                    if (prerenderManifest.notFoundRoutes.includes(localePage)) {
+                      await deleteNotFoundPageFiles(
+                        normalizePagePath(localePage)
+                      )
+                    }
 
                     const cacheControl = getCacheControl(localePage)
 
@@ -3847,6 +3785,10 @@ export default async function build(
                     }
                   }
                 } else {
+                  if (prerenderManifest.notFoundRoutes.includes(page)) {
+                    await deleteNotFoundPageFiles(file)
+                  }
+
                   const cacheControl = getCacheControl(page)
 
                   prerenderManifest.routes[page] = {
@@ -3869,28 +3811,17 @@ export default async function build(
                   pageInfo.initialCacheControl = getCacheControl(page)
                 }
               } else {
-                // For a dynamic SSG page, we did not copy its data exports and only
-                // copy the fallback HTML file (if present).
-                // We must also copy specific versions of this page as defined by
-                // `getStaticPaths` (additionalSsgPaths).
+                // For a dynamic SSG page, the export worker already wrote
+                // the HTML/JSON files directly to their final location.
+                // We only need to update the prerender manifest.
                 for (const route of additionalPaths.get(page) ?? []) {
-                  const pageFile = normalizePagePath(route.pathname)
-                  await moveExportedPage(
-                    page,
-                    route.pathname,
-                    pageFile,
-                    isSsg,
-                    'html',
-                    true
-                  )
-                  await moveExportedPage(
-                    page,
-                    route.pathname,
-                    pageFile,
-                    isSsg,
-                    'json',
-                    true
-                  )
+                  if (
+                    prerenderManifest.notFoundRoutes.includes(route.pathname)
+                  ) {
+                    await deleteNotFoundPageFiles(
+                      normalizePagePath(route.pathname)
+                    )
+                  }
 
                   const cacheControl = getCacheControl(route.pathname)
 
@@ -3918,8 +3849,6 @@ export default async function build(
             }
           }
 
-          // remove temporary export folder
-          await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
         })
 
