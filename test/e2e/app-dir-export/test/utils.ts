@@ -4,6 +4,9 @@ import { join } from 'path'
 import { promisify } from 'util'
 import fs from 'fs-extra'
 import globOrig from 'glob'
+import express from 'express'
+import http from 'http'
+import { createReadStream } from 'fs'
 import {
   waitForRedbox,
   getRedboxHeader,
@@ -18,6 +21,68 @@ import { nextTestSetup } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
+
+type ExportTestNext = {
+  build(): Promise<void>
+  testDir: string
+}
+
+export async function buildAndStartOutputExportServer(
+  next: Pick<ExportTestNext, 'build' | 'testDir'>,
+  {
+    trailingSlash,
+    useFallbackDocument,
+  }: {
+    trailingSlash: boolean
+    useFallbackDocument: boolean
+  }
+) {
+  await next.build()
+
+  const port = await findPort()
+  const outDir = join(next.testDir, 'out')
+
+  if (!useFallbackDocument) {
+    const app = await startStaticServer(outDir, null, port)
+    return {
+      port,
+      stopOrKill: () => stopApp(app),
+    }
+  }
+
+  if (trailingSlash) {
+    const app = await startStaticServer(
+      outDir,
+      join(outDir, '_fallback.html'),
+      port
+    )
+    return {
+      port,
+      stopOrKill: () => stopApp(app),
+    }
+  }
+
+  const app = express()
+  const server = http.createServer(app)
+  const fallbackHtml = join(outDir, '_fallback.html')
+
+  app.use(
+    express.static(outDir, {
+      extensions: ['html'],
+      redirect: false,
+    })
+  )
+  app.use((req, res) => {
+    createReadStream(fallbackHtml).pipe(res)
+  })
+
+  await new Promise<void>((resolve) => server.listen(port, resolve))
+
+  return {
+    port,
+    stopOrKill: () => stopApp(server),
+  }
+}
 
 export const expectedWhenTrailingSlashTrue = [
   '404.html',
