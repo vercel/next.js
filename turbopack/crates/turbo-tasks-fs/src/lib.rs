@@ -2724,14 +2724,10 @@ impl FileSystem for NullFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) -> Vc<()> {
-        Vc::default()
-    }
+    fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) {}
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Vc<()> {
-        Vc::default()
-    }
+    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) {}
 
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Vc<FileMeta> {
