@@ -2586,6 +2586,13 @@ function writeSeedDataIntoCache(
     PendingSegmentCacheEntry
   > | null
 ) {
+  if (
+    process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
+    containsDeferredRouteParamMarker(seedData)
+  ) {
+    return
+  }
+
   // This function is used to write the result of a runtime server request
   // (CacheNodeSeedData) into the prefetch cache.
   const rsc = seedData[0]
@@ -2628,6 +2635,45 @@ function writeSeedDataIntoCache(
       }
     }
   }
+}
+
+function containsDeferredRouteParamMarker(
+  value: unknown,
+  seen: Set<object> = new Set()
+): boolean {
+  if (typeof value === 'string') {
+    return value.includes('%%drp:')
+  }
+
+  if (value === null || value === undefined) {
+    return false
+  }
+
+  if (typeof value !== 'object') {
+    return false
+  }
+
+  if (seen.has(value)) {
+    return false
+  }
+  seen.add(value)
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      if (containsDeferredRouteParamMarker(item, seen)) {
+        return true
+      }
+    }
+    return false
+  }
+
+  for (const item of Object.values(value)) {
+    if (containsDeferredRouteParamMarker(item, seen)) {
+      return true
+    }
+  }
+
+  return false
 }
 
 function fulfillEntrySpawnedByRuntimePrefetch(
