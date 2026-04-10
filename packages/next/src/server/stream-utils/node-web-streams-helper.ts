@@ -534,7 +534,7 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
     undefined //       headers[NEXT_URL]
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  const NEXT_CLIENT_RESUME_SCRIPT = `<script>try{var u=sessionStorage.getItem('${originalUrlSessionKey}');var r=location.pathname;if(u){r=r.endsWith('/')?r+'index.txt':r+'.txt'}__NEXT_CLIENT_RESUME=fetch(r+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}});if(u){window.${originalUrlGlobalKey}=u;history.replaceState(null,'',u);sessionStorage.removeItem('${originalUrlSessionKey}')}}catch{}</script>`
+  const NEXT_CLIENT_RESUME_SCRIPT = `<script>try{var u=sessionStorage.getItem('${originalUrlSessionKey}');var r=location.pathname;if(u){r=r.endsWith('.html')?r.slice(0,-5)+'.txt':r.endsWith('/')?r+'index.txt':r+'.txt'}__NEXT_CLIENT_RESUME=fetch(r+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}});if(u){window.${originalUrlGlobalKey}=u;history.replaceState(null,'',u);sessionStorage.removeItem('${originalUrlSessionKey}')}}catch{}</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({

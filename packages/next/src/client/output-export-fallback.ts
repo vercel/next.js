@@ -28,9 +28,9 @@ export function addOutputExportDataSuffix(url: URL): URL {
 export function stripOutputExportDataSuffix(url: URL): URL {
   const nextUrl = new URL(url)
   if (nextUrl.pathname.endsWith('/index.txt')) {
-    nextUrl.pathname = nextUrl.pathname.slice(0, -9)
+    nextUrl.pathname = nextUrl.pathname.slice(0, -10) || '/'
   } else if (nextUrl.pathname.endsWith('.txt')) {
-    nextUrl.pathname = nextUrl.pathname.slice(0, -4)
+    nextUrl.pathname = `${nextUrl.pathname.slice(0, -4)}.html`
   }
   return nextUrl
 }

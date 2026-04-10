@@ -790,6 +790,68 @@ export default function OrgThreadPage() {
         }
       })
 
+      it('preserves search params and hash across fallback hard loads', async () => {
+        const browser = await webdriver(
+          port,
+          '/another/query-param/?tab=notes#anchor'
+        )
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('query-param')
+            expect(
+              await browser.eval(
+                'window.location.pathname + window.location.search + window.location.hash'
+              )
+            ).toBe('/another/query-param/?tab=notes#anchor')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('supports a longer history sequence across static and fallback routes', async () => {
+        const browser = await webdriver(port, '/another/history-one/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('history-one')
+          })
+
+          await browser.elementByCss('a[href="/another/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Another')
+          })
+
+          await browser.elementByCss('a[href="/another/third/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('third')
+          })
+
+          await browser.back()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Another')
+          })
+
+          await browser.back()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('history-one')
+          })
+
+          await browser.forward()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Another')
+          })
+
+          await browser.forward()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('third')
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('shows Suspense fallback UI during hard load of a fallback route', async () => {
         const browser = await webdriver(port, '/another/suspense-test/')
 
