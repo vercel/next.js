@@ -230,7 +230,7 @@ pub async fn get_app_client_references_chunks(
                 }
 
                 let parent_chunk_group = if let Some(server_component) = server_component {
-                    ChunkGroup::Shared(ResolvedVc::upcast(server_component.await?.module))
+                    ChunkGroup::Shared(ResolvedVc::upcast(server_component))
                 } else {
                     server_utils_chunk_group.clone()
                 };
