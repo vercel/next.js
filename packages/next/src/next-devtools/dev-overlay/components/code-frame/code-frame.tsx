@@ -212,7 +212,8 @@ export const CODE_FRAME_STYLES = `
   }
 
   [data-nextjs-codeframe] div > pre {
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
     display: inline-block;
   }
 
