@@ -985,11 +985,8 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn worker_chunk_context(
-        self: Vc<Self>,
-        is_esm: bool,
-    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        if !is_esm {
+    async fn esm_chunking_context(self: Vc<Self>) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        if self.await?.esm_chunks {
             return Ok(Vc::upcast(self));
         }
         let mut inner = (*self.await?).clone();

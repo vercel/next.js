@@ -737,10 +737,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn worker_chunk_context(
-        self: Vc<Self>,
-        _is_esm: bool,
-    ) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    async fn esm_chunking_context(self: Vc<Self>) -> Result<Vc<Box<dyn ChunkingContext>>> {
         Ok(Vc::upcast(self))
     }
 }

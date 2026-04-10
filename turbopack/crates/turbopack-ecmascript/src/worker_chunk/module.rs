@@ -68,7 +68,11 @@ impl WorkerLoaderModule {
                 // When `is_esm` is true, use a derived context that emits ESM chunks so the
                 // worker runtime can load dependencies via `import()` instead of
                 // `importScripts` (which is forbidden in module workers).
-                let worker_context = chunking_context.worker_chunk_context(this.is_esm);
+                let worker_context = if this.is_esm {
+                    chunking_context.esm_chunking_context()
+                } else {
+                    chunking_context
+                };
                 worker_context.evaluated_chunk_group_assets(
                     this.inner
                         .ident()

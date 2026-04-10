@@ -98,7 +98,24 @@ pub async fn get_browser_runtime_code(
     let chunk_loading_global = chunk_loading_global.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
-    if *environment
+    if esm_chunks {
+        // In ESM mode the evaluate chunk is itself an ES module, so top-level `await` is
+        // available.  We make the IIFE async and await it at the module level so that
+        // `import(evaluate_chunk)` only resolves after `registerChunk` (and all its async
+        // sub-tasks — loading other chunks, instantiating runtime modules) has completed.
+        // This is required for SharedWorkers where the `connect` event fires right after the
+        // module's top-level execution is done; without the await, `shared-worker.ts`'s
+        // `addEventListener('connect', ...)` would not yet have been registered.
+        if *environment
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?
+        {
+            code += "await (async () => {\n";
+        } else {
+            code += "await (async function(){\n";
+        }
+    } else if *environment
         .runtime_versions()
         .supports_arrow_functions()
         .await?
@@ -109,7 +126,7 @@ pub async fn get_browser_runtime_code(
     }
 
     if !esm_chunks {
-        // In classic script mode the IIFE bails out if TURBOPACK is not yet an array
+        // In classic script mode the IIFE bails out if TURBOPACK is not an array
         // (i.e., a second evaluate chunk ran before the first finished bootstrapping).
         writedoc!(
             code,
@@ -254,10 +271,12 @@ pub async fn get_browser_runtime_code(
         // ESM mode: the RuntimeParams are in __turbopack_params__ (a const defined before
         // the runtime IIFE in the same evaluate chunk file). No TURBOPACK global to drain.
         // Pass an empty string as the chunk path — the ESM registerChunk ignores it.
+        // We await here (inside the async IIFE) so the module-level `await` at the top
+        // propagates all the way through chunk loading and module instantiation.
         writedoc!(
             code,
             r#"
-                BACKEND.registerChunk("", __turbopack_params__);
+                await BACKEND.registerChunk("", __turbopack_params__);
             "#,
         )?;
     } else {

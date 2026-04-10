@@ -56,6 +56,7 @@ export function getRequiredScripts(
       'Invariant: missing bootstrap script. This is a bug in Next.js'
     )
   }
+  const preinitFn = isEsmChunks ? ReactDOM.preinitModule : ReactDOM.preinit
   if (SRIManifest) {
     bootstrapScript.src = `${assetPrefix}/_next/` + files[0] + qs
     bootstrapScript.integrity = SRIManifest[files[0]]
@@ -65,29 +66,15 @@ export function getRequiredScripts(
       const integrity = SRIManifest[files[i]]
       preinitScriptCommands.push(src, integrity)
     }
-    if (isEsmChunks) {
-      preinitScripts = () => {
-        // preinitScriptCommands is a double indexed array of src/integrity pairs
-        for (let i = 0; i < preinitScriptCommands.length; i += 2) {
-          ReactDOM.preinitModule(preinitScriptCommands[i], {
-            as: 'script',
-            integrity: preinitScriptCommands[i + 1],
-            crossOrigin,
-            nonce,
-          })
-        }
-      }
-    } else {
-      preinitScripts = () => {
-        // preinitScriptCommands is a double indexed array of src/integrity pairs
-        for (let i = 0; i < preinitScriptCommands.length; i += 2) {
-          ReactDOM.preinit(preinitScriptCommands[i], {
-            as: 'script',
-            integrity: preinitScriptCommands[i + 1],
-            crossOrigin,
-            nonce,
-          })
-        }
+    preinitScripts = () => {
+      // preinitScriptCommands is a double indexed array of src/integrity pairs
+      for (let i = 0; i < preinitScriptCommands.length; i += 2) {
+        preinitFn(preinitScriptCommands[i], {
+          as: 'script',
+          integrity: preinitScriptCommands[i + 1],
+          crossOrigin,
+          nonce,
+        })
       }
     }
   } else {
@@ -97,27 +84,14 @@ export function getRequiredScripts(
       const src = `${assetPrefix}/_next/` + files[i] + qs
       preinitScriptCommands.push(src)
     }
-    if (isEsmChunks) {
-      preinitScripts = () => {
-        // preinitScriptCommands is a singled indexed array of src values
-        for (let i = 0; i < preinitScriptCommands.length; i++) {
-          ReactDOM.preinitModule(preinitScriptCommands[i], {
-            as: 'script',
-            nonce,
-            crossOrigin,
-          })
-        }
-      }
-    } else {
-      preinitScripts = () => {
-        // preinitScriptCommands is a singled indexed array of src values
-        for (let i = 0; i < preinitScriptCommands.length; i++) {
-          ReactDOM.preinit(preinitScriptCommands[i], {
-            as: 'script',
-            nonce,
-            crossOrigin,
-          })
-        }
+    preinitScripts = () => {
+      // preinitScriptCommands is a singled indexed array of src values
+      for (let i = 0; i < preinitScriptCommands.length; i++) {
+        preinitFn(preinitScriptCommands[i], {
+          as: 'script',
+          nonce,
+          crossOrigin,
+        })
       }
     }
   }

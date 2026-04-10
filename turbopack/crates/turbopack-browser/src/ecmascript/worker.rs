@@ -267,10 +267,6 @@ fn generate_module_worker_bootstrap_code(forwarded_globals: &[RcStr]) -> Result<
             {globals}
         }});
 
-        // Restore original chunk order (params are stored reversed) so that
-        // TURBOPACK_NEXT_CHUNK_URLS matches the original order.
-        chunkUrls.reverse();
-
         await Promise.all(chunkUrls.map(function(chunk) {{
             var chunkUrl = new URL(chunk, location.origin);
             if (chunkUrl.origin !== location.origin) {{
