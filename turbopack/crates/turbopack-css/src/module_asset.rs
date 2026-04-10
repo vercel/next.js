@@ -29,10 +29,7 @@ use turbopack_ecmascript::{
 
 use crate::{
     process::{CssWithPlaceholderResult, ProcessCss},
-    references::{
-        compose::{CssModuleComposable, CssModuleComposeReference},
-        internal::InternalCssAssetReference,
-    },
+    references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
 
 /// A [CSS Module, as in `.module.css`][spec]. For a global CSS module, see [`CssModule`].
@@ -244,9 +241,6 @@ impl EcmascriptCssModule {
         Ok(Vc::cell(references))
     }
 }
-
-#[turbo_tasks::value_impl]
-impl CssModuleComposable for EcmascriptCssModule {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptCssModule {

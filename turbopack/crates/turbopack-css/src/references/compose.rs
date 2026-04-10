@@ -10,12 +10,7 @@ use turbopack_core::{
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
 };
 
-use crate::references::css_resolve;
-
-/// Marker trait for CSS module files (`.module.css`) that can be used as the
-/// target of a `composes: ... from ...;` rule.
-#[turbo_tasks::value_trait]
-pub(crate) trait CssModuleComposable {}
+use crate::{module_asset::EcmascriptCssModule, references::css_resolve};
 
 /// A `composes: ... from ...` CSS module reference.
 #[turbo_tasks::value]
@@ -53,7 +48,7 @@ impl ModuleReference for CssModuleComposeReference {
         let resolved = result.first_module().await?;
         let file_path = self.origin.origin_path().to_resolved().await?;
         if let Some(module) = &*resolved {
-            if ResolvedVc::try_sidecast::<Box<dyn CssModuleComposable>>(*module).is_none() {
+            if ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*module).is_none() {
                 CssModuleComposesIssue {
                     severity: IssueSeverity::Error,
                     file_path,
