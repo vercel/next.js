@@ -19,7 +19,9 @@ use crate::{
     base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
     next_app::{
         AppPage,
-        metadata::{get_content_type, image::dynamic_image_metadata_source},
+        metadata::{
+            fill_static_metadata_segment, get_content_type, image::dynamic_image_metadata_source,
+        },
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
@@ -290,7 +292,7 @@ impl AppPageLoaderTreeBuilder {
         };
 
         let s = "      ";
-        writeln!(self.loader_tree_code, "{s}(async (props) => {{")?;
+        writeln!(self.loader_tree_code, "{s}(async () => {{")?;
         writeln!(
             self.loader_tree_code,
             "{s}  const mod = interopDefault(await {identifier}());"
@@ -307,13 +309,14 @@ impl AppPageLoaderTreeBuilder {
         } else {
             app_page.to_string()
         };
-        let metadata_route = &*get_metadata_route_name(item.clone().into()).await?;
+        let metadata_route = fill_static_metadata_segment(
+            &pathname_prefix,
+            &get_metadata_route_name(item.clone().into()).await?,
+        );
         writeln!(
             self.loader_tree_code,
-            "{s}    url: fillMetadataSegment({}, await props.params, {}, true) + \
-             `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
-            StringifyJs(&pathname_prefix),
-            StringifyJs(metadata_route),
+            "{s}    url: {} + `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
+            StringifyJs(&metadata_route),
         )?;
 
         let numeric_sizes = name == "twitter" || name == "openGraph";

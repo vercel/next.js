@@ -144,6 +144,9 @@ pub fn match_global_metadata_file<'a>(
     })
 }
 
+static PARAMETER_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^([^\[]*)\[((?:\[[^\]]*\])|[^\]]+)\](.*)$").unwrap());
+
 fn split_directory(path: &str) -> (Option<&str>, &str) {
     if let Some((dir, basename)) = path.rsplit_once('/') {
         if dir.is_empty() {
@@ -175,6 +178,67 @@ pub(crate) fn split_extension(path: &str) -> (&str, Option<&str>) {
 
 fn file_stem(path: &str) -> &str {
     split_extension(path).0
+}
+
+fn join_path(dir: &str, basename: &str) -> String {
+    if dir.is_empty() || dir == "/" {
+        format!("/{basename}")
+    } else {
+        format!("{}/{}", dir.trim_end_matches('/'), basename)
+    }
+}
+
+fn normalize_app_path(route: &str) -> String {
+    let segments: Vec<&str> = route.split('/').collect();
+    let last_index = segments.len().saturating_sub(1);
+    let mut pathname = String::new();
+
+    for (index, segment) in segments.into_iter().enumerate() {
+        if segment.is_empty()
+            || (segment.starts_with('(') && segment.ends_with(')'))
+            || segment.starts_with('@')
+            || ((segment == "page" || segment == "route") && index == last_index)
+        {
+            continue;
+        }
+
+        pathname.push('/');
+        pathname.push_str(segment);
+    }
+
+    if pathname.is_empty() {
+        "/".to_string()
+    } else {
+        pathname
+    }
+}
+
+fn normalize_static_metadata_route_segment(segment: &str) -> String {
+    let mut normalized_segment = segment.to_string();
+
+    while let Some(captures) = PARAMETER_PATTERN.captures(&normalized_segment) {
+        let prefix = captures.get(1).map(|m| m.as_str()).unwrap_or_default();
+        let suffix = captures.get(3).map(|m| m.as_str()).unwrap_or_default();
+        normalized_segment = format!("{prefix}-{suffix}");
+    }
+
+    normalized_segment
+}
+
+fn get_static_metadata_route(segment: &str) -> String {
+    let pathname = normalize_app_path(segment);
+    let mut route = String::new();
+
+    for segment in pathname.split('/').filter(|segment| !segment.is_empty()) {
+        route.push('/');
+        route.push_str(&normalize_static_metadata_route_segment(segment));
+    }
+
+    if route.is_empty() {
+        "/".to_string()
+    } else {
+        route
+    }
 }
 
 /// When you only pass the file extension as `[]`, it will only match the static
@@ -319,6 +383,23 @@ fn get_metadata_route_suffix(page: &str) -> Option<String> {
     }
 }
 
+pub fn fill_static_metadata_segment(segment: &str, last_segment: &str) -> String {
+    let route = get_static_metadata_route(segment);
+    let (name, ext) = split_extension(last_segment);
+    let page_path = join_path(segment, name);
+    let route_suffix = get_metadata_route_suffix(&page_path)
+        .map(|suffix| format!("-{suffix}"))
+        .unwrap_or_default();
+    let filename = format!(
+        "{}{}{}",
+        name,
+        route_suffix,
+        ext.map(|ext| format!(".{ext}")).unwrap_or_default()
+    );
+
+    join_path(&route, &filename)
+}
+
 /// Map metadata page key to the corresponding route
 ///
 /// static file page key:    /app/robots.txt -> /robots.txt -> /robots.txt/route
@@ -368,7 +449,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
 #[cfg(test)]
 mod test {
-    use super::{djb2_hash, format_radix, normalize_metadata_route};
+    use super::{djb2_hash, fill_static_metadata_segment, format_radix, normalize_metadata_route};
     use crate::next_app::AppPage;
 
     #[test]
@@ -401,5 +482,21 @@ mod test {
     fn test_format_radix_doesnt_panic_with_result_less_than_6_characters() {
         let hash = format_radix(djb2_hash("/lookup/[domain]/(dns)"), 36);
         assert!(hash.len() < 6);
+    }
+
+    #[test]
+    fn test_fill_static_metadata_segment() {
+        assert_eq!(
+            fill_static_metadata_segment("/", "favicon.ico"),
+            "/favicon.ico"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/blog/[slug]", "favicon.ico"),
+            "/blog/-/favicon.ico"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/client/(meme)/more-route", "twitter-image.png"),
+            "/client/more-route/twitter-image-769mad.png"
+        );
     }
 }
