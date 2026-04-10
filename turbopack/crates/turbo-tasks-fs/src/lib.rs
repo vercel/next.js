@@ -49,7 +49,6 @@ use anyhow::{Context, Result, anyhow, bail};
 use auto_hash_map::{AutoMap, AutoSet};
 use bincode::{Decode, Encode};
 use bitflags::bitflags;
-use dashmap::DashSet;
 use dunce::simplified;
 use indexmap::IndexSet;
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
@@ -284,11 +283,6 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip)]
     effect_state_storage: EffectStateStorage,
-    /// Tracks directories already created during effect application (avoids redundant
-    /// create_dir_all).
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip)]
-    created_dirs: DashSet<PathBuf>,
 }
 
 impl DiskFileSystemInner {
@@ -499,18 +493,6 @@ impl DiskFileSystemInner {
 
         Ok(())
     }
-
-    async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
-        if self.created_dirs.contains(directory) {
-            return Ok(());
-        }
-        retry_blocking(|| std::fs::create_dir_all(directory))
-            .instrument(tracing::info_span!("create directory", name = ?directory))
-            .concurrency_limited(&self.write_semaphore)
-            .await?;
-        self.created_dirs.insert(directory.to_path_buf());
-        Ok(())
-    }
 }
 
 #[derive(Clone, ValueToString)]
@@ -695,7 +677,6 @@ impl DiskFileSystem {
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
-                created_dirs: DashSet::default(),
             }),
         };
 
@@ -1033,20 +1014,21 @@ impl FileSystem for DiskFileSystem {
 
                         match make_write(full_path.clone()).await {
                             Err(e) if e.kind() == ErrorKind::NotFound => {
-                                // The parent directory doesn't exist yet. Create it and retry,
-                                // but only if we haven't already created it (to avoid masking
-                                // persistent errors).
-                                if let Some(parent) = full_path.parent()
-                                    && !self.inner.created_dirs.contains(parent)
-                                {
-                                    self.inner.create_directory(parent).await.with_context(
-                                        || {
+                                // The parent directory doesn't exist. Create it and retry once.
+                                if let Some(parent) = full_path.parent() {
+                                    retry_blocking(|| std::fs::create_dir_all(parent))
+                                        .instrument(tracing::info_span!(
+                                            "create directory",
+                                            name = ?parent
+                                        ))
+                                        .concurrency_limited(&self.inner.write_semaphore)
+                                        .await
+                                        .with_context(|| {
                                             format!(
                                                 "failed to create directory {parent:?} for write \
                                                  to {full_path:?}",
                                             )
-                                        },
-                                    )?;
+                                        })?;
                                 }
                                 make_write(full_path.clone())
                                     .await
@@ -1285,19 +1267,21 @@ impl FileSystem for DiskFileSystem {
 
                         match write_result {
                             Err(ref e) if e.source.kind() == ErrorKind::NotFound => {
-                                // Parent directory doesn't exist. Create it and retry once,
-                                // but only if we haven't already created it.
-                                if let Some(parent) = full_path.parent()
-                                    && !self.inner.created_dirs.contains(parent)
-                                {
-                                    self.inner.create_directory(parent).await.with_context(
-                                        || {
+                                // Parent directory doesn't exist. Create it and retry once.
+                                if let Some(parent) = full_path.parent() {
+                                    retry_blocking(|| std::fs::create_dir_all(parent))
+                                        .instrument(tracing::info_span!(
+                                            "create directory",
+                                            name = ?parent
+                                        ))
+                                        .concurrency_limited(&self.inner.write_semaphore)
+                                        .await
+                                        .with_context(|| {
                                             format!(
                                                 "failed to create directory {parent:?} for write \
                                                  link to {full_path:?}",
                                             )
-                                        },
-                                    )?;
+                                        })?;
                                 }
                                 // After the first attempt, any pre-existing link was already
                                 // removed (has_old_content is now false), so just create.
