@@ -2,23 +2,14 @@ import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry } from 'next-test-utils'
+import path from 'path'
 
 const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
 
-describe('partial-fallback-shell-upgrade', () => {
-  const { next, isNextDev } = nextTestSetup({
-    files: __dirname,
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
-  })
+type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
-  if (isNextDev) {
-    it('skipped in dev', () => {})
-    return
-  }
-
-  async function fetchSplitHTML(pathname: string) {
+function createSplitHTMLFetcher(next: NextInstance) {
+  return async function fetchSplitHTML(pathname: string) {
     let response: Awaited<ReturnType<typeof next.fetch>> | undefined
     const [staticPart, dynamicPart] = await splitResponseWithPPRSentinel(
       async () => {
@@ -35,11 +26,26 @@ describe('partial-fallback-shell-upgrade', () => {
 
     return {
       response: response!,
-      staticPart,
       dynamicPart,
       static$: cheerio.load(staticPart),
     }
   }
+}
+
+describe('partial-fallback-shell-upgrade', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'default'),
+    // The latest changes to support this behavior on deployed infra are available in the adapter,
+    // and are not being backported to the CLI
+    skipDeployment: !isAdapterTest,
+  })
+
+  if (isNextDev) {
+    it('skipped in dev', () => {})
+    return
+  }
+
+  const fetchSplitHTML = createSplitHTMLFetcher(next)
 
   it('should upgrade the fallback shell to a route shell', async () => {
     const pathname = '/two'
@@ -134,6 +140,62 @@ describe('partial-fallback-shell-upgrade', () => {
       6000,
       500,
       'shell should remain partial when remaining params are dynamic'
+    )
+  })
+})
+
+describe('partial-fallback-shell-upgrade when disabled', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'disabled'),
+    // The latest changes to support this behavior on deployed infra are available in the adapter,
+    // and are not being backported to the CLI
+    skipDeployment: !isAdapterTest,
+  })
+
+  if (isNextDev) {
+    it('skipped in dev', () => {})
+    return
+  }
+
+  const fetchSplitHTML = createSplitHTMLFetcher(next)
+
+  it('should keep serving the generic shell when partialFallbacks is disabled', async () => {
+    const firstResult = await fetchSplitHTML('/prefix/c/foo')
+
+    expect(firstResult.response.status).toBe(200)
+    expect(firstResult.static$('#one').length).toBe(0)
+    expect(firstResult.static$('#one-fallback').text()).toBe('loading one...')
+    expect(firstResult.static$('#two-fallback').length).toBe(0)
+    expect(firstResult.static$('#two').length).toBe(0)
+    expect(firstResult.dynamicPart).toContain('<div id="one">c</div>')
+    expect(firstResult.dynamicPart).toContain('<div id="two">foo</div>')
+
+    const start = Date.now()
+
+    await retry(
+      async () => {
+        const secondResult = await fetchSplitHTML('/prefix/c/bar')
+
+        expect(secondResult.response.status).toBe(200)
+        expect(secondResult.static$('#one').length).toBe(0)
+        expect(secondResult.static$('#one-fallback').text()).toBe(
+          'loading one...'
+        )
+        expect(secondResult.static$('#two-fallback').length).toBe(0)
+        expect(secondResult.static$('#two').length).toBe(0)
+        expect(secondResult.dynamicPart).toContain('<div id="one">c</div>')
+        expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
+        expect(secondResult.dynamicPart).not.toContain(
+          '<div id="two">foo</div>'
+        )
+
+        if (Date.now() - start < 5000) {
+          throw new Error('continue polling generic shell')
+        }
+      },
+      6000,
+      500,
+      'generic shell should remain unupgraded when partialFallbacks is disabled'
     )
   })
 })

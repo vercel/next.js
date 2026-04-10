@@ -4,7 +4,7 @@
 const nextConfig = {
   cacheComponents: true,
   experimental: {
-    partialFallbacks: true,
+    partialFallbacks: false,
   },
 }
 

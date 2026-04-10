@@ -1832,7 +1832,7 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
-    partialFallbacks: false,
+    partialFallbacks: true,
     dynamicOnHover: false,
     useOffline: false,
     unstableIO: false,
