@@ -73,7 +73,10 @@ export async function getStream(key) {
   if (!res.ok) {
     throw new Error(`GET ${key} failed: ${res.status} ${res.statusText}`)
   }
-  return Readable.fromWeb(res.body)
+  // Use a large buffer to avoid backpressure stalls — the default
+  // highWaterMark for Readable.fromWeb() is only 16KB which throttles
+  // throughput when piping large artifacts to shell commands.
+  return Readable.fromWeb(res.body, { highWaterMark: 16 * 1024 * 1024 })
 }
 
 /**
@@ -116,7 +119,9 @@ export async function put(key, data) {
   let body
   if (isFile) {
     // Stream from file — avoids loading into memory
-    body = Readable.toWeb(fs.createReadStream(data))
+    body = Readable.toWeb(
+      fs.createReadStream(data, { highWaterMark: 16 * 1024 * 1024 })
+    )
   } else {
     body = data
   }
