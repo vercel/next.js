@@ -66,11 +66,10 @@ async function createFlightRouterStateFromLoaderTreeImpl(
       // hints should always be available from the manifest during ISR.
       prefetchHints |= PrefetchHint.PrefetchDisabled
     } else {
-      // At runtime with no hint tree, this is a fully dynamic route with no
-      // manifest entry. Treat every segment as unprefetchable. Do NOT set
-      // InliningHintsStale — that would cause the client to enter an
-      // infinite re-fetch loop trying to get hints that will never exist.
-      prefetchHints |= PrefetchHint.PrefetchDisabled
+      // At runtime with no hint tree. This can happen for dynamic pages
+      // without cacheComponents (no static shell, so no prerender pass
+      // to compute hints). Don't disable prefetching — just skip the
+      // inlining hint system and let prefetching proceed normally.
     }
   }
 
