@@ -19,6 +19,8 @@ import { DEV_TOOLS_INFO_USER_PREFERENCES_STYLES } from '../components/errors/dev
 import { FADER_STYLES } from '../components/fader'
 import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
 import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
+import { COLLAPSIBLE_STYLES } from '../components/collapsible/collapsible'
+import { BLOCKING_ROUTE_GUIDANCE_STYLES } from '../components/blocking-route-guidance/blocking-route-guidance'
 
 export function ComponentStyles() {
   return (
@@ -44,6 +46,8 @@ export function ComponentStyles() {
         ${DEV_TOOLS_INFO_USER_PREFERENCES_STYLES}
         ${FADER_STYLES}
         ${SHORTCUT_RECORDER_STYLES}
+        ${COLLAPSIBLE_STYLES}
+        ${BLOCKING_ROUTE_GUIDANCE_STYLES}
       `}
     </style>
   )
