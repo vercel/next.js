@@ -29,7 +29,7 @@ const runTests = (mode: 'dev' | 'server') => {
     const browser = await webdriver(appPort, '/prefix/')
     const img = await browser.elementById('import-img')
     const src = await img.getAttribute('src')
-    expect(stripTestHash(src)).toBe(
+    expect(normalizeURL(src)).toBe(
       `/prefix/_next/image/?url=%2Fprefix%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
     )
     const res = await fetchViaHTTP(appPort, src)
@@ -77,6 +77,8 @@ describe('Image Component basePath + trailingSlash Tests', () => {
   )
 })
 
-function stripTestHash(text: string) {
-  return text.replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
 }

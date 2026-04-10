@@ -1,21 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+import { listClientChunks } from 'next-test-utils'
 import { join } from 'path'
-import { readdir } from 'fs/promises'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
-
-async function getFilenames(dir: string, ext: string): Promise<string[]> {
-  const entries: string[] = []
-  try {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      if (!entry.isDirectory() && entry.name.endsWith(ext)) {
-        entries.push(entry.name)
-      }
-    }
-  } catch {
-    // directory may not exist
-  }
-  return entries
-}
 
 describe('NEXT_HASH_SALT', () => {
   const { next } = nextTestSetup({
@@ -23,30 +8,16 @@ describe('NEXT_HASH_SALT', () => {
     skipStart: true,
   })
 
-  const chunksDir = () => join(next.testDir, '.next/static/chunks')
-  const mediaDir = () => join(next.testDir, '.next/static/media')
-  // Turbopack places CSS in .next/static/chunks/ rather than .next/static/css/,
-  // so search the entire static tree for .css files.
-  const staticDir = () => join(next.testDir, '.next/static')
-
-  async function getCssFilenames(): Promise<string[]> {
-    try {
-      const paths = await recursiveReadDir(staticDir(), {
-        pathnameFilter: (f) => f.endsWith('.css'),
-      })
-      return paths.map((p) => p.replace(/.*[\\/]/, ''))
-    } catch {
-      return []
-    }
-  }
-
   /** Build with the given salt and return { chunks, images, css } filename lists. */
   async function buildWithSalt(salt: string) {
-    await next.build({ env: { NEXT_HASH_SALT: salt } })
-    const chunks = await getFilenames(chunksDir(), '.js')
-    const images = await getFilenames(mediaDir(), '.png')
-    const css = await getCssFilenames()
     await next.clean()
+    await next.build({ env: { NEXT_HASH_SALT: salt } })
+    const files = await listClientChunks(join(next.testDir, next.distDir))
+    const chunks = files.filter(
+      (f) => f.includes('/chunks/') && f.endsWith('.js')
+    )
+    const images = files.filter((f) => f.endsWith('.png'))
+    const css = files.filter((f) => f.endsWith('.css'))
     return { chunks, images, css }
   }
 
@@ -109,8 +80,6 @@ describe('experimental.outputHashSalt', () => {
     skipStart: true,
   })
 
-  const chunksDir = () => join(next.testDir, '.next/static/chunks')
-
   async function buildWithSalts(opts: {
     configSalt?: string
     envSalt?: string
@@ -118,9 +87,11 @@ describe('experimental.outputHashSalt', () => {
     const env: Record<string, string> = {}
     if (opts.configSalt) env.OUTPUT_HASH_SALT_CONFIG = opts.configSalt
     if (opts.envSalt) env.NEXT_HASH_SALT = opts.envSalt
-    await next.build({ env })
-    const chunks = await getFilenames(chunksDir(), '.js')
     await next.clean()
+    await next.build({ env })
+    const chunks = (
+      await listClientChunks(join(next.testDir, next.distDir))
+    ).filter((f) => f.includes('/chunks/') && f.endsWith('.js'))
     return chunks
   }
 

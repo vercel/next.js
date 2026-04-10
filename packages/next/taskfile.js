@@ -1887,6 +1887,14 @@ export async function ncc_strip_ansi(task, opts) {
     .ncc({ packageName: 'strip-ansi', externals })
     .target('src/compiled/strip-ansi')
 }
+externals['@vercel/blob'] = 'next/dist/compiled/@vercel/blob'
+export async function ncc_vercel_blob(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('@vercel/blob')))
+    .ncc({ packageName: '@vercel/blob', externals })
+    .target('src/compiled/@vercel/blob')
+}
+
 externals['@vercel/nft'] = 'next/dist/compiled/@vercel/nft'
 export async function ncc_nft(task, opts) {
   await task
@@ -2101,6 +2109,14 @@ export async function ncc_webpack_bundle_packages(task, opts) {
     .target('src/compiled/webpack/')
 }
 
+externals['write-file-atomic'] = 'next/dist/compiled/write-file-atomic'
+export async function ncc_write_file_atomic(task, opts) {
+  await task
+    .source(relative(__dirname, require.resolve('write-file-atomic')))
+    .ncc({ packageName: 'write-file-atomic', externals })
+    .target('src/compiled/write-file-atomic')
+}
+
 externals['ws'] = 'next/dist/compiled/ws'
 export async function ncc_ws(task, opts) {
   await task
@@ -2300,6 +2316,7 @@ export async function ncc(task, opts) {
         'ncc_superstruct',
         'ncc_zod',
         'ncc_zod_validation_error',
+        'ncc_vercel_blob',
         'ncc_nft',
         'ncc_tar',
         'ncc_terser',
@@ -2311,6 +2328,7 @@ export async function ncc(task, opts) {
         'ncc_webpack_bundle5',
         'ncc_webpack_sources1',
         'ncc_webpack_sources3',
+        'ncc_write_file_atomic',
         'ncc_ws',
         'ncc_ua_parser_js',
         'ncc_minimatch',

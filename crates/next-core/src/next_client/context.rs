@@ -457,6 +457,7 @@ pub struct ClientChunkingContextOptions {
     pub root_path: FileSystemPath,
     pub client_root: FileSystemPath,
     pub client_root_to_root_path: RcStr,
+    pub client_static_folder_name: RcStr,
     pub asset_prefix: Vc<RcStr>,
     pub environment: Vc<Environment>,
     pub module_id_strategy: Vc<ModuleIdStrategy>,
@@ -482,6 +483,7 @@ pub async fn get_client_chunking_context(
         root_path,
         client_root,
         client_root_to_root_path,
+        client_static_folder_name,
         asset_prefix,
         environment,
         module_id_strategy,
@@ -505,8 +507,12 @@ pub async fn get_client_chunking_context(
         client_root.clone(),
         client_root_to_root_path,
         client_root.clone(),
-        client_root.join("static/chunks")?,
-        get_client_assets_path(client_root.clone()).owned().await?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("chunks")?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
@@ -563,11 +569,6 @@ pub async fn get_client_chunking_context(
     }
 
     Ok(Vc::upcast(builder.build()))
-}
-
-#[turbo_tasks::function]
-pub fn get_client_assets_path(client_root: FileSystemPath) -> Result<Vc<FileSystemPath>> {
-    Ok(client_root.join("static/media")?.cell())
 }
 
 #[turbo_tasks::function]

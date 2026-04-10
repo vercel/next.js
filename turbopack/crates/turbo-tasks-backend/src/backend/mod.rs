@@ -1229,13 +1229,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         Some(encoded)
                     }
                     Err(err) => {
-                        eprintln!(
+                        panic!(
                             "Serializing task {} failed ({:?}): {:?}",
                             self.debug_get_task_description(task_id),
                             category,
                             err
                         );
-                        None
                     }
                 }
             };
@@ -1288,7 +1287,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         };
 
-        // take_snapshot already filters empty items and empty shards in parallel
         let task_snapshots = self.storage.take_snapshot(snapshot_guard, &process);
 
         drop(snapshot_span);
@@ -1563,10 +1561,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // We're creating a new task.
                     let task_type = Arc::new(task_type);
                     let task_id = self.persisted_task_id_factory.get();
-                    e.insert(task_type.clone(), task_id);
-                    // Mark the task as new in storage.
-                    // Do this after e.insert so we aren't holding the task_cache lock
+                    // Initialize storage BEFORE making task_id visible in the cache.
+                    // This ensures any thread that reads task_id from the cache sees
+                    // the storage entry already initialized (restored flags set).
                     self.storage.initialize_new_task(task_id);
+                    e.insert(task_type.clone(), task_id);
                     // insert() consumes e, releasing the lock
                     self.track_cache_miss(&task_type);
                     is_new = true;
@@ -1638,8 +1637,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             RawEntry::Vacant(e) => {
                 let task_type = Arc::new(task_type);
                 let task_id = self.transient_task_id_factory.get();
-                e.insert(task_type.clone(), task_id);
+                // Initialize storage BEFORE making task_id visible in the cache.
                 self.storage.initialize_new_task(task_id);
+                e.insert(task_type.clone(), task_id);
                 self.track_cache_miss(&task_type);
 
                 if is_root {
@@ -3776,6 +3776,13 @@ fn far_future() -> Instant {
 /// buffer.
 /// This allows reusing the buffer across multiple encode calls to optimize allocations and
 /// resulting buffer sizes.
+///
+/// TODO: The `Result` return type is an artifact of the bincode `Encode` trait requiring
+/// fallible encoding. In practice, encoding to a `SmallVec` is infallible (no I/O), and the only
+/// real failure mode — a `TypedSharedReference` whose value type has no bincode impl — is a
+/// programmer error caught by the panic in the caller. Consider making the bincode encoding trait
+/// infallible (i.e. returning `()` instead of `Result<(), EncodeError>`) to eliminate the
+/// spurious `Result` threading throughout the encode path.
 fn encode_task_data(
     task: TaskId,
     data: &TaskStorage,

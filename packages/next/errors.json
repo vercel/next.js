@@ -1154,5 +1154,7 @@
   "1153": "renderToPipeableStream is not implemented",
   "1154": "not implemented",
   "1155": "Not implemented",
-  "1156": "Cannot create a replay stream after the ReplayableNodeStream has been disposed."
+  "1156": "Cannot create a replay stream after the ReplayableNodeStream has been disposed.",
+  "1157": "`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.",
+  "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable."
 }
