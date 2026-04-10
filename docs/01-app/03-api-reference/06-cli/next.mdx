@@ -313,6 +313,12 @@ next build --debug-build-paths="app/**/page.tsx"
 next build --debug-build-paths="pages/*.tsx"
 ```
 
+> **Good to know**: If your routes are inside [route groups](/docs/app/building-your-application/routing/route-groups), include the group folder in the path. For example, a page at `app/(marketing)/about/page.tsx` must be referenced with the full path including the route group:
+>
+> ```bash filename="Terminal"
+> next build --debug-build-paths="app/(marketing)/about/page.tsx"
+> ```
+
 ### Changing the default port
 
 By default, Next.js uses `http://localhost:3000` during development and with `next start`. The default port can be changed with the `-p` option, like so:
