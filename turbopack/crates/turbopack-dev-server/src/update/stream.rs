@@ -1,6 +1,7 @@
 use std::pin::Pin;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
@@ -13,8 +14,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     issue::{
-        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, OptionStyledString,
-        PlainIssue, StyledString,
+        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
+        StyledString,
     },
     server_fs::ServerFileSystem,
     version::{
@@ -253,15 +254,13 @@ async fn compute_update_stream(
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<ComputeUpdateStreamSender>,
-) -> Vc<()> {
+) -> () {
     let item = get_update_stream_item_operation(resource, from, get_content)
         .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
     let _ = sender.0.send(item).await;
-
-    Default::default()
 }
 
 pub(super) struct UpdateStream(
@@ -376,34 +375,29 @@ struct FatalStreamIssue {
     resource: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FatalStreamIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Fatal
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other(rcstr!("websocket")).cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Other(rcstr!("websocket"))
     }
 
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(ServerFileSystem::new()
-            .root()
-            .await?
-            .join(&self.resource)?
-            .cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        ServerFileSystem::new().root().await?.join(&self.resource)
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Fatal error while getting content to stream")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Fatal error while getting content to stream"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.description.await?).clone()))
     }
 }
 

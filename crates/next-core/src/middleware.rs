@@ -1,11 +1,12 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     module::Module,
     reference_type::ReferenceType,
 };
@@ -144,34 +145,30 @@ struct MiddlewareMissingExportIssue {
     file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MiddlewareMissingExportIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         let title_text = format!(
             "{} is missing expected function export name",
             self.file_type
         );
-
-        Ok(StyledString::Text(title_text.into()).cell())
+        Ok(StyledString::Text(title_text.into()))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let type_description = if self.file_type == "Proxy" {
             "proxy (previously called middleware)"
         } else {
@@ -201,8 +198,6 @@ impl Issue for MiddlewareMissingExportIssue {
             self.function_name
         );
 
-        Ok(Vc::cell(Some(
-            StyledString::Text(description_text.into()).resolved_cell(),
-        )))
+        Ok(Some(StyledString::Text(description_text.into())))
     }
 }

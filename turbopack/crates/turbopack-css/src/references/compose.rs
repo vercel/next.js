@@ -1,10 +1,11 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbofmt};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::ChunkingType,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference::ModuleReference,
     reference_type::CssReferenceSubType,
     resolve::{ModuleResolveResult, origin::ResolveOrigin, parse::Request},
@@ -95,34 +96,28 @@ struct CssModuleComposesIssue {
     message: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for CssModuleComposesIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
             "An issue occurred while resolving a CSS module `composes:` rule"
-        ))
-        .cell()
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        *self.file_path
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.file_path.owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.message.clone()).resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.message.clone())))
     }
 }

@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -11,9 +12,7 @@ use turbo_tasks_fs::{FileJsonContent, FileSystemPath};
 use super::issue::Issue;
 use crate::{
     asset::Asset,
-    issue::{
-        IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString,
-    },
+    issue::{IssueExt, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 
@@ -69,32 +68,28 @@ pub struct PackageJsonIssue {
     pub source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for PackageJsonIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error parsing package.json file")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Error parsing package.json file"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.error_message.clone()).resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.error_message.clone())))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }

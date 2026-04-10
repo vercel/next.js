@@ -1,6 +1,7 @@
 use std::{collections::BTreeSet, sync::LazyLock};
 
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
@@ -9,7 +10,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{self, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbopack::module_options::{ConditionItem, LoaderRuleItem};
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
     source::Source,
@@ -362,50 +363,43 @@ struct BabelPluginReactCompilerResolutionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for BabelPluginReactCompilerResolutionIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.config_file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Failed to resolve package ")),
             StyledString::Code(self.failed_resolution.clone()),
             StyledString::Text(rcstr!(" while attempting to resolve React Compiler")),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("React compiler is enabled in ")),
-                StyledString::Code(self.config_file_path.path.clone()),
-                StyledString::Text(rcstr!(
-                    ". We attempted to resolve React Compiler relative to the "
-                )),
-                StyledString::Code(rcstr!("next")),
-                StyledString::Text(rcstr!(" package. Is ")),
-                StyledString::Code(rcstr!(BABEL_PLUGIN_REACT_COMPILER)),
-                StyledString::Text(rcstr!(" installed in your ")),
-                StyledString::Code(rcstr!("node_modules")),
-                StyledString::Text(rcstr!(" directory?")),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("React compiler is enabled in ")),
+            StyledString::Code(self.config_file_path.path.clone()),
+            StyledString::Text(rcstr!(
+                ". We attempted to resolve React Compiler relative to the "
+            )),
+            StyledString::Code(rcstr!("next")),
+            StyledString::Text(rcstr!(" package. Is ")),
+            StyledString::Code(rcstr!(BABEL_PLUGIN_REACT_COMPILER)),
+            StyledString::Text(rcstr!(" installed in your ")),
+            StyledString::Code(rcstr!("node_modules")),
+            StyledString::Text(rcstr!(" directory?")),
+        ])))
     }
 }
 
@@ -415,41 +409,34 @@ struct ReactPackageJsonParseIssue {
     error: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReactPackageJsonParseIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Failed to parse ")),
             StyledString::Code(rcstr!("react/package.json")),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!(
-                    "Could not determine the React version for React Compiler target detection: "
-                )),
-                StyledString::Text(self.error.clone()),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!(
+                "Could not determine the React version for React Compiler target detection: "
+            )),
+            StyledString::Text(self.error.clone()),
+        ])))
     }
 }

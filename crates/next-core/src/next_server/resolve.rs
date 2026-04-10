@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_taskless::NEVER_EXTERNAL_RE;
 use turbo_rcstr::{RcStr, rcstr};
@@ -8,7 +9,7 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{ReferenceType, ReferenceTypeCondition},
     resolve::{
         ExternalTraced, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
@@ -372,46 +373,39 @@ struct ExternalizeIssue {
     reason: Vec<StyledString>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ExternalizeIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Package ")),
             StyledString::Code(self.package.clone()),
             StyledString::Text(rcstr!(" can't be external")),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("The request ")),
-                    StyledString::Code(self.request_str.clone()),
-                    StyledString::Text(rcstr!(" matches ")),
-                    StyledString::Code(rcstr!("serverExternalPackages")),
-                    StyledString::Text(rcstr!(" (or the default list).")),
-                ]),
-                StyledString::Line(self.reason.clone()),
-            ])
-            .resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("The request ")),
+                StyledString::Code(self.request_str.clone()),
+                StyledString::Text(rcstr!(" matches ")),
+                StyledString::Code(rcstr!("serverExternalPackages")),
+                StyledString::Text(rcstr!(" (or the default list).")),
+            ]),
+            StyledString::Line(self.reason.clone()),
+        ])))
     }
 }

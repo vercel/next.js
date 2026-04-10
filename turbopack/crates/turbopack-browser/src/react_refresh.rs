@@ -1,9 +1,10 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::parse::Request,
 };
@@ -78,40 +79,36 @@ pub struct ReactRefreshResolvingIssue {
     path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReactRefreshResolvingIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Could not resolve React Refresh runtime")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Could not resolve React Refresh runtime"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!(
-                    "React Refresh will be disabled.\nTo enable React Refresh, install the "
-                )),
-                StyledString::Code(rcstr!("react-refresh")),
-                StyledString::Text(rcstr!(" and ")),
-                StyledString::Code(rcstr!("@next/react-refresh-utils")),
-                StyledString::Text(rcstr!(" modules.")),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!(
+                "React Refresh will be disabled.\nTo enable React Refresh, install the "
+            )),
+            StyledString::Code(rcstr!("react-refresh")),
+            StyledString::Text(rcstr!(" and ")),
+            StyledString::Code(rcstr!("@next/react-refresh-utils")),
+            StyledString::Text(rcstr!(" modules.")),
+        ])))
     }
 }

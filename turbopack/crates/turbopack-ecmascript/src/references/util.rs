@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use swc_core::{
     common::{
@@ -14,10 +15,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     self,
     chunk::ChunkingType,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     resolve::{ModuleResolveResult, parse::Request, pattern::Pattern},
 };
 
@@ -98,10 +96,10 @@ struct TooManyMatchesWarning {
     pattern: ResolvedVc<Pattern>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for TooManyMatchesWarning {
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(
             turbofmt!(
                 "The file pattern {} matches {} files in {}",
@@ -110,37 +108,29 @@ impl Issue for TooManyMatchesWarning {
                 self.context_dir
             )
             .await?,
-        )
-        .cell())
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "Overly broad patterns can lead to build performance issues and over bundling."
-            ))
-            .resolved_cell(),
         ))
     }
 
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "Overly broad patterns can lead to build performance issues and over bundling."
+        ))))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 

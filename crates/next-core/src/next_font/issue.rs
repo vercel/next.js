@@ -1,6 +1,8 @@
-use turbo_tasks::{ResolvedVc, Vc};
+use anyhow::Result;
+use async_trait::async_trait;
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
 
 #[turbo_tasks::value(shared)]
 pub(crate) struct NextFontIssue {
@@ -10,29 +12,26 @@ pub(crate) struct NextFontIssue {
     pub(crate) severity: IssueSeverity,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for NextFontIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        *self.title
+    async fn title(&self) -> Result<StyledString> {
+        self.title.owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(self.description.owned().await?))
     }
 }

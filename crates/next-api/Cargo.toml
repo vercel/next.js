@@ -19,6 +19,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 bincode = { workspace = true }
 byteorder = { workspace = true }
 either = { workspace = true }

@@ -1,14 +1,11 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{Issue, IssueStage, OptionStyledString, StyledString};
-use crate::{
-    ident::AssetIdent,
-    issue::{IssueExt, IssueSource, OptionIssueSource},
-    source::Source,
-};
+use super::{Issue, IssueSource, IssueStage, StyledString};
+use crate::{ident::AssetIdent, issue::IssueExt, source::Source};
 
 #[turbo_tasks::value]
 pub struct ModuleIssue {
@@ -37,38 +34,33 @@ impl ModuleIssue {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ModuleIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.ident.path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        *self.title
+    async fn title(&self) -> Result<StyledString> {
+        Ok((*self.title.await?).clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.description.await?).clone()))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+    fn source(&self) -> Option<IssueSource> {
+        self.source
     }
 }
 
 #[turbo_tasks::function]
 pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Result<()> {
-    ModuleIssue {
-        ident: source.ident().to_resolved().await?,
+    ModuleIssue {ident: source.ident().to_resolved().await?,
         title: StyledString::Text(rcstr!("Unknown module type")).resolved_cell(),
         description: StyledString::Text(
             r"This module doesn't have an associated type. Use a known file extension, or register a loader for it.
@@ -76,8 +68,7 @@ pub async fn emit_unknown_module_type_error(source: Vc<Box<dyn Source>>) -> Resu
 Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders".into(),
         )
         .resolved_cell(),
-        source: Some(IssueSource::from_source_only(source.to_resolved().await?)),
-    }
+        source: Some(IssueSource::from_source_only(source.to_resolved().await?)),}
     .resolved_cell()
     .emit();
 

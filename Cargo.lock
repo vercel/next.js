@@ -4755,6 +4755,7 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "byteorder",
  "either",
@@ -10011,6 +10012,7 @@ name = "turbo-tasks-fetch"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "mockito",
  "quick_cache",
  "reqwest",
@@ -10236,6 +10238,7 @@ name = "turbopack-browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "either",
  "indoc",
@@ -10384,6 +10387,7 @@ name = "turbopack-css"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "indoc",
  "lightningcss",
@@ -10409,6 +10413,7 @@ name = "turbopack-dev-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "auto-hash-map",
  "bincode 2.0.1",
  "flate2",
@@ -10546,6 +10551,7 @@ name = "turbopack-env"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-env",
@@ -10559,6 +10565,7 @@ name = "turbopack-image"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.21.4",
  "bincode 2.0.1",
  "image",
@@ -10579,6 +10586,7 @@ name = "turbopack-mdx"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "markdown",
  "mdxjs",
  "serde",
@@ -10686,6 +10694,7 @@ name = "turbopack-resolve"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "next-taskless",
  "regex",

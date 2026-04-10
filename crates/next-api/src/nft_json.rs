@@ -1,6 +1,7 @@
 use std::collections::{BTreeSet, HashSet, VecDeque};
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::{RcStr, rcstr};
@@ -15,7 +16,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
 
@@ -544,6 +545,7 @@ struct ForbiddenTracedFileIssue {
     path: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ForbiddenTracedFileIssue {
     fn severity(&self) -> IssueSeverity {
@@ -552,23 +554,21 @@ impl Issue for ForbiddenTracedFileIssue {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Misc.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Misc
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.file.path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Encountered unexpected file in NFT list")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Encountered unexpected file in NFT list"
+        )))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let mut stack = vec![
             StyledString::Text(rcstr!(
                 "A file was traced that indicates that the whole project was traced \
@@ -625,7 +625,7 @@ impl Issue for ForbiddenTracedFileIssue {
             ])
         }
 
-        Ok(Vc::cell(Some(StyledString::Stack(stack).resolved_cell())))
+        Ok(Some(StyledString::Stack(stack)))
     }
 }
 

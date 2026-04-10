@@ -1,4 +1,5 @@
 use anyhow::{Ok, Result};
+use async_trait::async_trait;
 use futures::join;
 use smallvec::{SmallVec, smallvec};
 use tracing::Instrument;
@@ -10,7 +11,7 @@ use turbo_tasks_fs::{FileContent, FileSystemPath, rebase};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
 };
@@ -300,34 +301,28 @@ struct EmitConflictIssue {
     detail: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EmitConflictIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.asset_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.asset_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Emit.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Emit
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
             "Two or more assets with different content were emitted to the same output path".into(),
-        )
-        .cell()
+        ))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.detail.clone()).resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.detail.clone())))
     }
 }
