@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="6a138f62-859e-e13c-84a0-d111b048d46a")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="f4476787-0394-ca0a-ac3d-03d90c7ca07d")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -12,7 +12,6 @@ var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
-var CROSS_ORIGIN = null;
 var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
@@ -733,44 +732,30 @@ browserContextPrototype.P = resolveAbsolutePath;
 }
 browserContextPrototype.q = exportUrl;
 /**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
-    const isSharedWorker = WorkerConstructor.name === 'SharedWorker';
-    const chunkUrls = moduleChunks.map((chunk)=>getChunkRelativeUrl(chunk)).reverse();
-    const params = [
-        chunkUrls,
-        ASSET_SUFFIX
-    ];
-    for (const globalName of WORKER_FORWARDED_GLOBALS){
-        params.push(globalThis[globalName]);
-    }
-    const url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
-    const paramsJson = JSON.stringify(params);
-    if (isSharedWorker) {
-        url.searchParams.set('params', paramsJson);
-    } else {
-        url.hash = '#params=' + encodeURIComponent(paramsJson);
-    }
-    // Remove type: "module" from options since our worker entrypoint is not a module
-    const options = workerOptions ? {
-        ...workerOptions,
-        type: undefined
-    } : undefined;
-    return new WorkerConstructor(url, options);
+ * Returns the full chunk URL for a chunk path, including CHUNK_BASE_PATH prefix
+ * and ASSET_SUFFIX. Used by extracted worker/wasm modules.
+ */ function chunkUrl(chunkPath) {
+    return getChunkRelativeUrl(chunkPath);
 }
-browserContextPrototype.b = createWorker;
+browserContextPrototype.w = chunkUrl;
+/**
+ * Returns the ASSET_SUFFIX string. Used by extracted worker modules.
+ */ function assetSuffix() {
+    return ASSET_SUFFIX;
+}
+browserContextPrototype.X = assetSuffix;
+/**
+ * Returns the list of worker-forwarded global names.
+ */ function forwardedGlobals() {
+    return WORKER_FORWARDED_GLOBALS;
+}
+browserContextPrototype.b = forwardedGlobals;
+/**
+ * Resolves a chunk path. On browser, returns the path as-is (not applicable).
+ */ function resolveChunkPath(chunkPath) {
+    return chunkPath;
+}
+browserContextPrototype.u = resolveChunkPath;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -841,14 +826,6 @@ function isJs(chunkUrlOrPath) {
 function isCss(chunkUrl) {
     return endsWithExtension(chunkUrl, '.css');
 }
-function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-utils.ts" />
 /// <reference path="./runtime-types.d.ts" />
 /// <reference path="./dev-extensions.ts" />
@@ -2006,15 +1983,6 @@ let BACKEND;
      * has been loaded.
      */ loadChunkCached (sourceType, chunkUrl) {
             return doLoadChunk(sourceType, chunkUrl);
-        },
-        async loadWebAssembly (_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-            const req = fetchWebAssembly(wasmChunkPath);
-            const { instance } = await WebAssembly.instantiateStreaming(req, importsObj);
-            return instance.exports;
-        },
-        async loadWebAssemblyModule (_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-            const req = fetchWebAssembly(wasmChunkPath);
-            return await WebAssembly.compileStreaming(req);
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -2084,7 +2052,6 @@ let BACKEND;
                 } else {
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
-                    link.crossOrigin = CROSS_ORIGIN;
                     link.href = chunkUrl;
                     link.onerror = ()=>{
                         resolver.reject();
@@ -2109,7 +2076,6 @@ let BACKEND;
                     }
                 } else {
                     const script = document.createElement('script');
-                    script.crossOrigin = CROSS_ORIGIN;
                     script.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
@@ -2126,9 +2092,6 @@ let BACKEND;
         }
         resolver.loadingStarted = true;
         return resolver.promise;
-    }
-    function fetchWebAssembly(wasmChunkPath) {
-        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 /**
@@ -2185,7 +2148,6 @@ let DEV_BACKEND;
                 }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
-                link.crossOrigin = CROSS_ORIGIN;
                 if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
                     // Firefox won't reload CSS files that were previously loaded on the
                     // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
@@ -2247,5 +2209,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=6a138f62-859e-e13c-84a0-d111b048d46a
+//# debugId=f4476787-0394-ca0a-ac3d-03d90c7ca07d
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

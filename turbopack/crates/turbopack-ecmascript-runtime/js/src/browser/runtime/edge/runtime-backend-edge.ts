@@ -56,27 +56,6 @@ let BACKEND: RuntimeBackend
     loadChunkCached(_sourceType: SourceType, _chunkUrl: ChunkUrl) {
       throw new Error('chunk loading is not supported')
     },
-
-    async loadWebAssembly(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      chunkPath: ChunkPath,
-      edgeModule: () => WebAssembly.Module,
-      imports: WebAssembly.Imports
-    ): Promise<Exports> {
-      const module = await loadEdgeWasm(chunkPath, edgeModule)
-
-      return await WebAssembly.instantiate(module, imports)
-    },
-
-    async loadWebAssemblyModule(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      chunkPath: ChunkPath,
-      edgeModule: () => WebAssembly.Module
-    ): Promise<WebAssembly.Module> {
-      return loadEdgeWasm(chunkPath, edgeModule)
-    },
   }
 
   const registeredChunks: Set<ChunkPath> = new Set()
@@ -148,23 +127,5 @@ let BACKEND: RuntimeBackend
     for (const moduleId of runtimeModuleIds) {
       getOrInstantiateRuntimeModule(chunkPath, moduleId)
     }
-  }
-
-  async function loadEdgeWasm(
-    chunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module
-  ): Promise<WebAssembly.Module> {
-    let module
-    try {
-      module = edgeModule()
-    } catch (_e) {}
-
-    if (!module) {
-      throw new Error(
-        `dynamically loading WebAssembly is not supported in this runtime as global was not injected for chunk '${chunkPath}'`
-      )
-    }
-
-    return module
   }
 })()
