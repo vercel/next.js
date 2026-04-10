@@ -10,10 +10,6 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext, ModuleChunkItemIdExt},
     context::{AssetContext, ProcessResult},
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
@@ -33,7 +29,10 @@ use turbopack_ecmascript::{
 
 use crate::{
     process::{CssWithPlaceholderResult, ProcessCss},
-    references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
+    references::{
+        compose::{CssModuleComposable, CssModuleComposeReference},
+        internal::InternalCssAssetReference,
+    },
 };
 
 /// A [CSS Module, as in `.module.css`][spec]. For a global CSS module, see [`CssModule`].
@@ -230,50 +229,11 @@ impl EcmascriptCssModule {
     #[turbo_tasks::function]
     async fn module_references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
-        let this = self.await?;
 
         for (_, class_names) in &*self.classes().await? {
             for class_name in class_names {
                 match class_name {
                     ModuleCssClass::Import { from, .. } => {
-                        // Validate that the composes reference resolves to a CSS module.
-                        // This runs during module graph building so issues are surfaced
-                        // by get_compilation_issues.
-                        let resolved_module = from.resolve_reference().first_module().await?;
-                        if let Some(resolved_module) = &*resolved_module {
-                            if ResolvedVc::try_downcast_type::<EcmascriptCssModule>(
-                                *resolved_module,
-                            )
-                            .is_none()
-                            {
-                                CssModuleComposesIssue {
-                                    severity: IssueSeverity::Error,
-                                    source: IssueSource::from_source_only(this.source),
-                                    message: turbofmt!(
-                                        "Module {} referenced in `composes: ... from ...;` is not \
-                                         a CSS module.\n",
-                                        from.await?.request
-                                    )
-                                    .await?,
-                                }
-                                .resolved_cell()
-                                .emit();
-                            }
-                        } else {
-                            CssModuleComposesIssue {
-                                severity: IssueSeverity::Error,
-                                source: IssueSource::from_source_only(this.source),
-                                message: turbofmt!(
-                                    "Module {} referenced in `composes: ... from ...;` can't be \
-                                     resolved.\n",
-                                    from.await?.request
-                                )
-                                .await?,
-                            }
-                            .resolved_cell()
-                            .emit();
-                        }
-
                         references.push(ResolvedVc::upcast(*from));
                     }
                     ModuleCssClass::Local { .. } | ModuleCssClass::Global { .. } => {}
@@ -284,6 +244,9 @@ impl EcmascriptCssModule {
         Ok(Vc::cell(references))
     }
 }
+
+#[turbo_tasks::value_impl]
+impl CssModuleComposable for EcmascriptCssModule {}
 
 #[turbo_tasks::value_impl]
 impl ChunkableModule for EcmascriptCssModule {
@@ -327,14 +290,14 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
                         let resolved_module = from.resolve_reference().first_module().await?;
 
                         let Some(resolved_module) = &*resolved_module else {
-                            // Issue already emitted during module_references()
+                            // Issue already emitted by CssModuleComposeReference::resolve_reference
                             continue;
                         };
 
                         let Some(css_module) =
                             ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*resolved_module)
                         else {
-                            // Issue already emitted during module_references()
+                            // Issue already emitted by CssModuleComposeReference::resolve_reference
                             continue;
                         };
 
@@ -425,48 +388,4 @@ fn generate_minimal_source_map(filename: String, source: String) -> Result<Rope>
     sm.new_source_file(FileName::Custom(filename).into(), source);
     let map = generate_js_source_map(&*sm, mappings, None, true, true, Default::default())?;
     Ok(map)
-}
-
-#[turbo_tasks::value(shared)]
-struct CssModuleComposesIssue {
-    severity: IssueSeverity,
-    source: IssueSource,
-    message: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl Issue for CssModuleComposesIssue {
-    fn severity(&self) -> IssueSeverity {
-        self.severity
-    }
-
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
-            "An issue occurred while resolving a CSS module `composes:` rule"
-        ))
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
-    }
-
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.message.clone()).resolved_cell(),
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
-    }
 }
