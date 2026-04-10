@@ -525,6 +525,8 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
   TransformStream<Uint8Array, Uint8Array>
 > {
   const segmentPath = '/_full'
+  const originalUrlSessionKey = '__NEXT_EXPORT_ORIGINAL_URL'
+  const originalUrlGlobalKey = '__NEXT_EXPORT_ORIGINAL_URL'
   const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
     '/_full', //       headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
@@ -532,7 +534,7 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
     undefined //       headers[NEXT_URL]
   )
   const searchStr = `${NEXT_RSC_UNION_QUERY}=${cacheBustingHeader}`
-  const NEXT_CLIENT_RESUME_SCRIPT = `<script>__NEXT_CLIENT_RESUME=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}})</script>`
+  const NEXT_CLIENT_RESUME_SCRIPT = `<script>try{var u=sessionStorage.getItem('${originalUrlSessionKey}');var r=location.pathname;if(u){r=r.endsWith('/')?r+'index.txt':r+'.txt'}__NEXT_CLIENT_RESUME=fetch(r+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}': '1','${NEXT_ROUTER_PREFETCH_HEADER}': '1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}': '${segmentPath}'}});if(u){window.${originalUrlGlobalKey}=u;history.replaceState(null,'',u);sessionStorage.removeItem('${originalUrlSessionKey}')}}catch{}</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({

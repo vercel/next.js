@@ -5,10 +5,12 @@ export function getOutputExportFallbackCandidates(pathname: string): string[] {
   const segments = pathname.split('/').filter(Boolean)
   const candidates: string[] = []
 
-  for (let i = segments.length; i >= 0; i--) {
+  for (let i = 1; i <= segments.length; i++) {
     const prefix = segments.slice(0, i).join('/')
     candidates.push(getOutputExportFallbackPath(prefix))
   }
+
+  candidates.push(getOutputExportFallbackPath(''))
 
   return candidates
 }
@@ -19,6 +21,16 @@ export function addOutputExportDataSuffix(url: URL): URL {
     nextUrl.pathname += 'index.txt'
   } else {
     nextUrl.pathname += '.txt'
+  }
+  return nextUrl
+}
+
+export function stripOutputExportDataSuffix(url: URL): URL {
+  const nextUrl = new URL(url)
+  if (nextUrl.pathname.endsWith('/index.txt')) {
+    nextUrl.pathname = nextUrl.pathname.slice(0, -9)
+  } else if (nextUrl.pathname.endsWith('.txt')) {
+    nextUrl.pathname = nextUrl.pathname.slice(0, -4)
   }
   return nextUrl
 }
@@ -60,7 +72,7 @@ export async function fetchOutputExportDataResponse(
 export async function fetchOutputExportFallbackResponse(
   renderedUrl: URL,
   init?: RequestInit
-): Promise<{ response: Response; renderedUrl: URL } | null> {
+): Promise<{ response: Response; renderedUrl: URL; fallbackUrl: URL } | null> {
   for (const candidate of getOutputExportFallbackCandidates(
     renderedUrl.pathname
   )) {
@@ -69,7 +81,7 @@ export async function fetchOutputExportFallbackResponse(
 
     const response = await fetchOutputExportDataResponse(candidateUrl, init)
     if (response) {
-      return { response, renderedUrl }
+      return { response, renderedUrl, fallbackUrl: candidateUrl }
     }
   }
 

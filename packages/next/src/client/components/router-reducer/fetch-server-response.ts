@@ -187,7 +187,8 @@ export async function fetchServerResponse(
     // TODO: Remove this check once the old PPR flag is removed
     const isLegacyPPR =
       process.env.__NEXT_PPR && !process.env.__NEXT_CACHE_COMPONENTS
-    const shouldImmediatelyDecode = !isLegacyPPR
+    const shouldImmediatelyDecode =
+      !isLegacyPPR && process.env.__NEXT_CONFIG_OUTPUT !== 'export'
     let usedOutputExportFallback = false
     let res = await createFetch<NavigationFlightResponse>(
       url,
@@ -239,7 +240,7 @@ export async function fetchServerResponse(
           new URL(fallbackResult.response.url),
           headers,
           'auto',
-          shouldImmediatelyDecode
+          false
         )
 
         res = {
@@ -251,7 +252,11 @@ export async function fetchServerResponse(
         canonicalUrl = originalUrl
         contentType = res.headers.get('content-type') || ''
         interception = !!res.headers.get('vary')?.includes(NEXT_URL)
-        postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
+        // Static export fallback payloads are partial-by-construction, but
+        // static hosts cannot attach the normal postpone header. Treat them as
+        // partial so Flight decoding accepts the closed stream and the router
+        // keeps the fallback shell suspended until dynamic holes resolve.
+        postponed = true
         isFlightResponse = true
       }
     }
