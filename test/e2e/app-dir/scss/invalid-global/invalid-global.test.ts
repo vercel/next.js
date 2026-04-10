@@ -39,11 +39,12 @@ describe('Invalid Global CSS', () => {
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./pages/index.js
-         Failed to compile
-             Global CSS cannot be imported from files other than your Custom <App>. Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to pages/_app.js. Or convert the import to Component-Level CSS (CSS Modules).
-             Read more: https://nextjs.org/docs/messages/css-global
+         Global CSS cannot be imported from files other than your Custom <App>.
+         Due to the Global nature of stylesheets, and to avoid conflicts, Please move all first-party global CSS imports to pages/_app.js. Or convert the import to Component-Level CSS (CSS Modules).
          Location: pages/index.js
-         Import path: ../styles/global.scss"
+         Import path: ../styles/global.scss
+
+         https://nextjs.org/docs/messages/css-global"
         `)
       } else if (isRspack) {
         expect(errorSource).toMatchInlineSnapshot(`

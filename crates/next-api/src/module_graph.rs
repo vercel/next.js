@@ -709,18 +709,13 @@ impl CssGlobalImportIssue {
 #[turbo_tasks::value_impl]
 impl Issue for CssGlobalImportIssue {
     async fn title(&self) -> Result<StyledString> {
-        Ok(StyledString::Stack(vec![
-            StyledString::Text(rcstr!("Failed to compile")),
-            StyledString::Text(rcstr!(
-                "Global CSS cannot be imported from files other than your Custom <App>. Due to \
-                 the Global nature of stylesheets, and to avoid conflicts, Please move all \
-                 first-party global CSS imports to pages/_app.js. Or convert the import to \
-                 Component-Level CSS (CSS Modules)."
-            )),
-            StyledString::Text(rcstr!(
-                "Read more: https://nextjs.org/docs/messages/css-global"
-            )),
-        ]))
+        Ok(StyledString::Text(rcstr!(
+            "Global CSS cannot be imported from files other than your Custom <App>."
+        )))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/messages/css-global")
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
@@ -740,8 +735,19 @@ impl Issue for CssGlobalImportIssue {
             };
 
         Ok(Some(StyledString::Stack(vec![
-            StyledString::Text(format!("Location: {}", parent_path.path).into()),
-            StyledString::Text(format!("Import path: {cleaned_import_path}",).into()),
+            StyledString::Text(rcstr!(
+                "Due to the Global nature of stylesheets, and to avoid conflicts, Please move all \
+                 first-party global CSS imports to pages/_app.js. Or convert the import to \
+                 Component-Level CSS (CSS Modules)."
+            )),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Location: ")),
+                StyledString::Code(parent_path.path.clone()),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Import path: ")),
+                StyledString::Code(cleaned_import_path),
+            ]),
         ])))
     }
 
