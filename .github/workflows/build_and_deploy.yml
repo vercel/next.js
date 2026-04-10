@@ -579,6 +579,11 @@ jobs:
     env:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github
+
       - name: Collect bytesize metrics
         uses: actions/download-artifact@v8
         with:
@@ -586,14 +591,17 @@ jobs:
           merge-multiple: true
           path: turbopack-bin-size
 
+      - name: Install datadog-ci
+        uses: ./.github/actions/setup-datadog-ci
+
       - name: Upload to Datadog
         run: |
           ls -al turbopack-bin-size
 
           for filename in turbopack-bin-size/*; do
-            export BYTESIZE+=" --metrics $(cat $filename)"
+            export BYTESIZE+=" --measures $(cat $filename)"
           done
 
           echo "Reporting $BYTESIZE"
 
-          npx @datadog/datadog-ci@2.23.1 metric --no-fail --level pipeline $BYTESIZE
+          "$DATADOG_CI_PATH" measure --no-fail --level pipeline $BYTESIZE

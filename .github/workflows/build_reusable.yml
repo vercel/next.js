@@ -348,13 +348,17 @@ jobs:
           name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
           path: packages/next/dist/compiled/next-server/report.*.html
 
+      - name: Install datadog-ci
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
+        uses: ./.github/actions/setup-datadog-ci
+
       - name: Upload test report to datadog
         if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
         run: |
           # Add a `test.type` tag to distinguish between turbopack and next.js runs
           # Add a `nextjs.test_session.name` tag to help identify the job
           if [ -d ./test/test-junit-report ]; then
-            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+            "$DATADOG_CI_PATH" junit upload \
               --service nextjs \
               --tags test.type:nextjs \
               --tags test_session.name:"${{ inputs.stepName }}" \
@@ -362,7 +366,7 @@ jobs:
               ./test/test-junit-report
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
-            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+            "$DATADOG_CI_PATH" junit upload \
               --service nextjs \
               --tags test.type:turbopack \
               --tags test_session.name:"${{ inputs.stepName }}" \
