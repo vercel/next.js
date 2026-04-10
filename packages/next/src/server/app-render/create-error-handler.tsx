@@ -60,11 +60,6 @@ export function createReactServerErrorHandler(
   spanToRecordOn?: any
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
-    if (typeof thrownValue === 'string') {
-      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      return stringHash(thrownValue).toString()
-    }
-
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
 
@@ -103,11 +98,14 @@ export function createReactServerErrorHandler(
         // but has a digest from other means. Keep the error as-is.
       }
     } else {
-      err.digest = createDigestWithErrorCode(
-        err,
-        // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-        stringHash(err.message + (err.stack || '')).toString()
-      )
+      // TODO-APP: look at using webcrypto instead of string-hash. Requires a promise to be awaited.
+      err.digest =
+        typeof thrownValue === 'string'
+          ? stringHash(thrownValue).toString()
+          : createDigestWithErrorCode(
+              err,
+              stringHash(err.message + (err.stack || '')).toString()
+            )
     }
 
     // @TODO by putting this here and not at the top it is possible that
