@@ -261,7 +261,11 @@ export async function createOriginalStackFrame({
     originalStackFrame: traced,
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
-        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent)
+        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent, {
+          // The overlay renders in a browser with horizontal scrolling,
+          // so don't truncate lines to the server's terminal width.
+          maxWidth: 10_000,
+        })
       }
       return originalCodeFrame
     },

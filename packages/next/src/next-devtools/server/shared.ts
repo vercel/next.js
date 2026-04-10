@@ -25,6 +25,11 @@ export interface OriginalStackFrameResponse {
   originalCodeFrame: string | null
 }
 
+type CodeFrameRenderOptions = {
+  colors?: boolean
+  maxWidth?: number
+}
+
 export function ignoreListAnonymousStackFramesIfSandwiched(
   responses: OriginalStackFramesResponse
 ): void {
@@ -65,11 +70,19 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
 export function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colors: boolean = process.stdout.isTTY
+  colorsOrOptions: boolean | CodeFrameRenderOptions = process.stdout.isTTY
 ): string | null {
   if (!source || frame.line1 == null) {
     return null
   }
+
+  const { colors, maxWidth } =
+    typeof colorsOrOptions === 'boolean'
+      ? { colors: colorsOrOptions, maxWidth: undefined }
+      : {
+          colors: colorsOrOptions.colors ?? process.stdout.isTTY,
+          maxWidth: colorsOrOptions.maxWidth,
+        }
 
   return (
     codeFrameColumns(
@@ -82,9 +95,7 @@ export function getOriginalCodeFrame(
       },
       {
         color: colors,
-        // The overlay renders in a browser with horizontal scrolling,
-        // so don't truncate lines to the server's terminal width.
-        maxWidth: 10_000,
+        maxWidth,
       }
     ) ?? null
   )
