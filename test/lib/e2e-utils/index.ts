@@ -334,9 +334,7 @@ export function nextTestSetup(
       // Gracefully destroy the instance if `createNext` success.
       // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
       // by attempting to destroy on undefined.
-      if (next && !(next as any).isDestroyed) {
-        await next.destroy()
-      }
+      await next?.destroy()
     })
   }
 
