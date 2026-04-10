@@ -1,63 +1,54 @@
 /* eslint-env jest */
 
 import { join } from 'path'
-import cheerio from 'cheerio'
 import * as path from 'path'
-import {
-  renderViaHTTP,
-  findPort,
-  launchApp,
-  killApp,
-  File,
-} from 'next-test-utils'
+import { nextTestSetup, type NextInstance } from 'e2e-utils'
+import { File } from 'next-test-utils'
 import * as JSON5 from 'json5'
 
-const appDir = join(__dirname, '..')
-let appPort
-let app
-
-async function get$(path, query?: any) {
-  const html = await renderViaHTTP(appPort, path, query)
-  return cheerio.load(html)
-}
-
-function runTests() {
+function runTests(next: NextInstance) {
   describe('default behavior', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {})
-    })
-    afterAll(() => killApp(app))
-
     it('should alias components', async () => {
-      const $ = await get$('/basic-alias')
+      const $ = await next.render$('/basic-alias')
       expect($('body').text()).toMatch(/World/)
     })
 
     it('should resolve the first item in the array first', async () => {
-      const $ = await get$('/resolve-order')
+      const $ = await next.render$('/resolve-order')
       expect($('body').text()).toMatch(/Hello from a/)
     })
 
     it('should resolve the second item in as a fallback', async () => {
-      const $ = await get$('/resolve-fallback')
+      const $ = await next.render$('/resolve-fallback')
       expect($('body').text()).toMatch(/Hello from only b/)
     })
 
     it('should resolve a single matching alias', async () => {
-      const $ = await get$('/single-alias')
+      const $ = await next.render$('/single-alias')
       expect($('body').text()).toMatch(/Hello/)
     })
 
     it('should not resolve to .d.ts files', async () => {
-      const $ = await get$('/alias-to-d-ts')
+      const $ = await next.render$('/alias-to-d-ts')
       expect($('body').text()).toMatch(/Not aliased to d\.ts file/)
+    })
+
+    it('should handle typescript paths alias correctly', async () => {
+      const html = await next.render('/button')
+      expect(html).toContain('Hello')
     })
   })
 }
 
 describe('typescript paths', () => {
-  runTests()
+  const { next } = nextTestSetup({
+    files: join(__dirname, '..'),
+    dependencies: {
+      // `baseUrl` is deprecated in TypeScript 6.
+      typescript: '5.9.3',
+    },
+  })
+  runTests(next)
 })
 
 const tsconfig = new File(path.resolve(__dirname, '../tsconfig.json'))
@@ -83,5 +74,7 @@ describe('typescript paths without baseurl', () => {
     tsconfig.restore()
   })
 
-  runTests()
+  const { next } = nextTestSetup({ files: join(__dirname, '..') })
+
+  runTests(next)
 })

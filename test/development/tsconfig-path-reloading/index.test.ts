@@ -17,12 +17,20 @@ describe('tsconfig-path-reloading', () => {
   const tsConfigFile = 'tsconfig.json'
   const indexPage = 'pages/index.tsx'
 
-  function runTests({ addAfterStart }: { addAfterStart?: boolean }) {
+  function runTests({
+    addAfterStart,
+    testBaseUrl,
+  }: {
+    addAfterStart?: boolean
+    testBaseUrl: boolean
+  }) {
     beforeAll(async () => {
       let tsConfigContent = await fs.readFile(
         join(__dirname, 'app/tsconfig.json'),
         'utf8'
       )
+
+      const typescriptVersion = testBaseUrl ? '5.9.3' : 'latest'
 
       next = await createNext({
         files: {
@@ -36,7 +44,7 @@ describe('tsconfig-path-reloading', () => {
               }),
         },
         dependencies: {
-          typescript: 'latest',
+          typescript: typescriptVersion,
           '@types/react': 'latest',
           '@types/node': 'latest',
         },
@@ -183,10 +191,18 @@ describe('tsconfig-path-reloading', () => {
   }
 
   describe('tsconfig', () => {
-    runTests({})
+    runTests({ testBaseUrl: true })
+  })
+
+  describe('tsconfig without baseUrl', () => {
+    runTests({ testBaseUrl: false })
   })
 
   describe('tsconfig added after starting dev', () => {
-    runTests({ addAfterStart: true })
+    runTests({ testBaseUrl: true, addAfterStart: true })
+  })
+
+  describe('tsconfig without baseUrl added after starting dev', () => {
+    runTests({ testBaseUrl: false, addAfterStart: true })
   })
 })

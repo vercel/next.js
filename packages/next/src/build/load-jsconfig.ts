@@ -102,9 +102,18 @@ export default async function loadJsConfig(
       isImplicit: false,
     }
   } else {
-    if (implicitBaseurl) {
+    // TypeScript 5.0+: `pathsBasePath` is the directory of the tsconfig that
+    // defines `paths`. For paths inherited from an extended base tsconfig (e.g.
+    // a workspace-root tsconfig.base.json for nx monorepo), this is the base
+    // config's directory — not the app tsconfig dir. Using it ensures JsConfigPathsPlugin
+    // joins path-mapping values against the correct base so `baseUrl` is not required
+    // for path aliases to work in webpack.
+    const pathsBasePath: string | undefined =
+      jsConfig?.compilerOptions?.pathsBasePath
+    const effectiveBaseUrl = pathsBasePath ?? implicitBaseurl
+    if (effectiveBaseUrl) {
       resolvedBaseUrl = {
-        baseUrl: implicitBaseurl,
+        baseUrl: effectiveBaseUrl,
         isImplicit: true,
       }
     }
