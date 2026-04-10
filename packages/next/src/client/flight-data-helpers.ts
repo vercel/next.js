@@ -149,6 +149,21 @@ export function fillInFallbackFlightData<T extends FlightData>(
   return filledFlightData as T
 }
 
+export function replaceDeferredRouteParamMarkersInFlightRouterState(
+  flightRouterState: FlightRouterState,
+  renderedPathname: string,
+  renderedSearch: NormalizedSearch
+): FlightRouterState {
+  const pathnameParts = getPathnameParts(renderedPathname)
+  replaceDeferredRouteParamMarkersInFlightRouterStateImpl(
+    flightRouterState,
+    renderedSearch,
+    pathnameParts,
+    0
+  )
+  return flightRouterState
+}
+
 function fillInFallbackFlightDataPath(
   flightDataPath: FlightDataPath,
   renderedSearch: NormalizedSearch,
@@ -368,6 +383,42 @@ function fillInFallbackFlightRouterStateImpl(
     flightRouterState[4],
   ]
   return newState
+}
+
+function replaceDeferredRouteParamMarkersInFlightRouterStateImpl(
+  flightRouterState: FlightRouterState,
+  renderedSearch: NormalizedSearch,
+  pathnameParts: Array<string>,
+  pathnamePartsIndex: number
+): number {
+  const originalSegment = flightRouterState[0]
+  const { segment: resolvedSegment, nextPathnamePartsIndex } =
+    fillInFallbackSegment(
+      originalSegment,
+      renderedSearch,
+      pathnameParts,
+      pathnamePartsIndex
+    )
+
+  if (
+    Array.isArray(originalSegment) &&
+    originalSegment[1].startsWith('%%drp:') &&
+    Array.isArray(resolvedSegment)
+  ) {
+    flightRouterState[0] = resolvedSegment
+  }
+
+  const children = flightRouterState[1]
+  for (const child of Object.values(children)) {
+    replaceDeferredRouteParamMarkersInFlightRouterStateImpl(
+      child,
+      renderedSearch,
+      pathnameParts,
+      nextPathnamePartsIndex
+    )
+  }
+
+  return nextPathnamePartsIndex
 }
 
 function fillInFallbackSegment(
