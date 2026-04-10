@@ -2,7 +2,6 @@ import {
   createInitialRSCPayloadFromFallbackPrerender,
   fillInFallbackFlightData,
   prepareFlightRouterStateForRequest,
-  replaceDeferredRouteParamMarkersInFlightRouterState,
 } from './flight-data-helpers'
 import {
   PrefetchHint,
@@ -304,57 +303,6 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(sidebarRoute[2]).toBeUndefined() // URL stripped
       expect(sidebarRoute[3]).toBeUndefined() // null marker stripped
     })
-  })
-})
-
-describe('replaceDeferredRouteParamMarkersInFlightRouterState', () => {
-  it('replaces deferred param markers in place while preserving router state metadata', () => {
-    const flightRouterState: FlightRouterState = [
-      '',
-      {
-        children: [
-          'another',
-          {
-            children: [
-              ['slug', '%%drp:slug:abc123%%', 'd', null],
-              {
-                children: ['__PAGE__', {}, ['/another/third', ''], 'refetch'],
-              },
-              ['/another/third', ''],
-              null,
-              PrefetchHint.IsRootLayout,
-            ],
-          },
-          null,
-          null,
-          PrefetchHint.IsRootLayout,
-        ],
-      },
-      null,
-      null,
-      PrefetchHint.IsRootLayout,
-    ]
-
-    const result = replaceDeferredRouteParamMarkersInFlightRouterState(
-      flightRouterState,
-      '/another/third',
-      '' as NormalizedSearch
-    )
-
-    expect(result).toBe(flightRouterState)
-    expect(flightRouterState[1].children[1].children[0]).toEqual([
-      'slug',
-      'third',
-      'd',
-      null,
-    ])
-    expect(flightRouterState[1].children[1].children[2]).toEqual([
-      '/another/third',
-      '',
-    ])
-    expect(flightRouterState[1].children[1].children[4]).toBe(
-      PrefetchHint.IsRootLayout
-    )
   })
 })
 
