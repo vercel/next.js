@@ -20,6 +20,10 @@ export function lightningCssTransformStyleAttribute(
 ): Promise<unknown>
 export function lightningcssFeatureNamesToMaskNapi(names: Array<string>): number
 
+// Optional: only available when built with the "plugin" feature.
+// Returns the runtime_id that identifies this registration.
+export function registerWasmPluginRuntime(jsManager: object): number
+
 // GENERATED-TYPES-BELOW
 // DO NOT MANUALLY EDIT THESE TYPES
 // You can regenerate this file by running `pnpm swc-build-native` in the root of the repo.
@@ -59,6 +63,43 @@ export declare function recvTaskMessageInWorker(
   workerId: number
 ): Promise<NapiTaskMessage>
 export declare function sendTaskMessage(message: NapiTaskMessage): Promise<void>
+/**
+ * Called by worker after WASM instantiation to register a dispatch callback.
+ *
+ * The `ops` object must have these methods:
+ *   - transform(programPtr, programLen, unresolvedMark, commentsProxy) → number
+ *   - getDiag() → number
+ *   - readBuf(ptr, len) → Buffer
+ *   - writeBuf(ptr, data: Buffer) → void
+ *   - alloc(size) → number
+ *   - free(ptr, size) → number
+ *
+ * A TSFN is created targeting this worker's event loop. When Rust needs to
+ * call a WASM export, it posts to this TSFN, which runs the appropriate
+ * method on `ops` and sends the result back via a sync channel.
+ */
+export declare function wasmWorkerRegisterCallback(
+  runtimeId: number,
+  instanceId: number,
+  ops: object
+): void
+/**
+ * Called by worker when WASM hits a host function import.
+ * Runs the Func closure synchronously on the worker thread and returns the result.
+ *
+ * The worker provides a `memoryAccessor` object with methods to read/write WASM memory:
+ *   - readBuf(ptr, len) → Buffer
+ *   - writeBuf(ptr, data: Buffer) → void
+ *   - alloc(size) → number
+ *   - free(ptr, size) → number
+ */
+export declare function wasmWorkerDispatchHostFn(
+  runtimeId: number,
+  instanceId: number,
+  fnIndex: number,
+  args: Array<number>,
+  memoryAccessor: object
+): unknown
 export interface NapiLocation {
   line: number
   column?: number
@@ -264,6 +305,10 @@ export interface NapiProjectOptions {
    * no salt.
    */
   hashSalt: RcStr
+   * The runtime_id from registerWasmPluginRuntime, used to look up the
+   * NAPI-based WASM plugin runtime. Omit or pass 0 if no plugins are used.
+   */
+  wasmPluginRuntimeId?: number
 }
 /** [NapiProjectOptions] with all fields optional. */
 export interface NapiPartialProjectOptions {
@@ -615,6 +660,12 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
+/**
+ * Register the NAPI-based WASM plugin runtime.
+ * Must be called from JS before any SWC transforms that use plugins.
+ * Returns the runtime_id that identifies this registration.
+ */
+export declare function registerWasmPluginRuntime(jsManager: object): number
 export declare function startTurbopackTraceServer(
   path: string,
   port?: number | undefined | null

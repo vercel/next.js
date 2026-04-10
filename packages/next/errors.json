@@ -1156,5 +1156,15 @@
   "1155": "Not implemented",
   "1156": "Cannot create a replay stream after the ReplayableNodeStream has been disposed.",
   "1157": "`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.",
-  "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable."
+  "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable.",
+  "1159": "WASM instance %s not found",
+  "1160": "WASM module %s not found",
+  "1161": "Unexpected optype: %s",
+  "1162": "Module %s not found",
+  "1163": "No active instance for memory operation",
+  "1164": "Unknown request type: %s",
+  "1165": "Instance %s not found",
+  "1166": "wasm-worker must be run as a worker thread",
+  "1167": "wasm-manager: nativeBindingsPath not set",
+  "1168": "Instance %s not found for host fn"
 }

@@ -375,6 +375,9 @@ pub struct ProjectOptions {
     /// force new filenames without changing file content. Empty string means
     /// no salt.
     pub hash_salt: RcStr,
+    /// The runtime_id from register_wasm_plugin_runtime, used to look up the
+    /// NAPI-based WASM plugin runtime. 0 means no runtime registered.
+    pub wasm_plugin_runtime_id: u64,
 }
 
 #[derive(Default)]
@@ -824,6 +827,7 @@ impl ProjectContainer {
         let is_persistent_caching_enabled;
         let server_hmr;
         let hash_salt;
+        let wasm_plugin_runtime_id;
         {
             let options = self.options_state.get();
             let options = options
@@ -853,6 +857,7 @@ impl ProjectContainer {
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
             hash_salt = options.hash_salt.clone();
+            wasm_plugin_runtime_id = options.wasm_plugin_runtime_id;
         }
 
         let dist_dir = next_config.dist_dir().owned().await?;
@@ -884,6 +889,7 @@ impl ProjectContainer {
             is_persistent_caching_enabled,
             server_hmr,
             hash_salt,
+            wasm_plugin_runtime_id,
         }
         .cell())
     }
@@ -991,6 +997,9 @@ pub struct Project {
     /// A salt to mix into chunk and asset content hashes. Empty string means
     /// no salt.
     hash_salt: RcStr,
+    /// The runtime_id from register_wasm_plugin_runtime, used to look up the
+    /// NAPI-based WASM plugin runtime. 0 means no runtime registered.
+    wasm_plugin_runtime_id: u64,
 }
 
 #[turbo_tasks::value]
@@ -1243,6 +1252,11 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn encryption_key(&self) -> Vc<RcStr> {
         Vc::cell(self.encryption_key.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub(super) fn wasm_plugin_runtime_id(&self) -> Vc<u64> {
+        Vc::cell(self.wasm_plugin_runtime_id)
     }
 
     #[turbo_tasks::function]
@@ -1942,6 +1956,7 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.wasm_plugin_runtime_id().await?,
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2005,6 +2020,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.wasm_plugin_runtime_id().await?,
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2120,6 +2136,7 @@ impl Project {
                 self.encryption_key(),
                 self.server_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.wasm_plugin_runtime_id().await?,
             ),
             get_server_resolve_options_context(
                 self.project_path().owned().await?,
@@ -2183,6 +2200,7 @@ impl Project {
                 self.encryption_key(),
                 self.edge_compile_time_info().environment(),
                 self.client_compile_time_info().environment(),
+                *self.wasm_plugin_runtime_id().await?,
             ),
             get_edge_resolve_options_context(
                 self.project_path().owned().await?,

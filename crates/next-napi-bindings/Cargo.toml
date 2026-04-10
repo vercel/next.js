@@ -18,7 +18,7 @@ plugin = [
     "swc_core/__plugin_transform_host",
     "swc_core/__plugin_transform_host_schema_v1",
     "swc_core/plugin_transform_host_native_filesystem_cache",
-    "dep:swc_plugin_backend_wasmtime",
+    "dep:swc_plugin_backend_napi",
     "next-custom-transforms/plugin",
     "next-core/plugin",
     "turbopack-ecmascript-plugins",
@@ -54,7 +54,7 @@ ignored = [
     # directly import it
     "turbopack-ecmascript-plugins",
     # used conditionally behind the `plugin` feature flag
-    "swc_plugin_backend_wasmtime",
+    "swc_plugin_backend_napi",
 ]
 
 [dependencies]
@@ -110,7 +110,7 @@ swc_core = { workspace = true, features = [
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
-swc_plugin_backend_wasmtime = { workspace = true, optional = true }
+swc_plugin_backend_napi = { workspace = true, optional = true }
 lightningcss = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true, features = ["napi"] }

@@ -12,6 +12,7 @@ members = [
   "crates/next-core",
   "crates/next-custom-transforms",
   "crates/next-taskless",
+  "crates/swc-plugin-backend-napi",
   "turbopack/crates/*",
   "turbopack/crates/*/fuzz",
   "turbopack/xtask",
@@ -218,6 +219,7 @@ swc_core = { version = "63.1.0", default-features = false, features = [
 
 swc_plugin_backend_wasmtime = "9.0.0"
 testing = "22.0.0"
+swc_plugin_backend_napi = { path = "crates/swc-plugin-backend-napi" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"

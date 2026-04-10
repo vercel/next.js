@@ -155,6 +155,7 @@
     "@swc/cli": "0.1.55",
     "@swc/core": "1.11.24",
     "@swc/helpers": "0.5.15",
+    "@swc/plugin-react-remove-properties": "11.1.0",
     "@swc/types": "0.1.7",
     "@taskr/esnext": "1.1.0",
     "@testing-library/jest-dom": "6.1.2",

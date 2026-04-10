@@ -418,6 +418,7 @@ pub async fn get_server_module_options_context(
     encryption_key: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
     client_environment: ResolvedVc<Environment>,
+    wasm_plugin_runtime_id: u64,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -537,7 +538,12 @@ pub async fn get_server_module_options_context(
         get_react_remove_properties_transform_rule(next_config).await?,
         get_emotion_transform_rule(next_config).await?,
         get_relay_transform_rule(next_config, project_path.clone()).await?,
-        get_swc_ecma_transform_plugin_rule(next_config, project_path.clone()).await?,
+        get_swc_ecma_transform_plugin_rule(
+            next_config,
+            project_path.clone(),
+            wasm_plugin_runtime_id,
+        )
+        .await?,
     ]
     .into_iter()
     .flatten()
