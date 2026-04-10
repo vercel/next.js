@@ -168,7 +168,7 @@ function setupServerHmr(
 
   /**
    * Subscribe to HMR updates for a server chunk.
-   * @param chunkPath - Server chunk output path (e.g., "server/chunks/ssr/..._.js")
+   * @param chunkPath - Server chunk output path (e.g., "server/chunks/..._.js")
    */
   function subscribeToServerHmr(chunkPath: string) {
     if (serverHmrSubscriptions.has(chunkPath)) {
