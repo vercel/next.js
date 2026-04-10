@@ -6,10 +6,14 @@ import path from 'path'
 
 const NextESLintRule = rules['no-html-link-for-pages']
 
+
 const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withPageExtensions = path.join(__dirname, 'with-page-extensions')
+const withMjsConfig = path.join(__dirname, 'with-mjs-config')
+const withEmptyExtensions = path.join(__dirname, 'with-empty-extensions')
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +30,18 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withPageExtensions: new Linter({
+    cwd: withPageExtensions,
+    configType: 'eslintrc',
+  }),
+  withMjsConfig: new Linter({
+    cwd: withMjsConfig,
+    configType: 'eslintrc',
+  }),
+  withEmptyExtensions: new Linter({
+    cwd: withEmptyExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -256,6 +272,10 @@ export class Blah extends Head {
 }
 `
 describe('no-html-link-for-pages', function () {
+  beforeEach(() => {
+    jest.resetModules()
+  })
+
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
     linters.withNestedPages.verify(
@@ -493,6 +513,81 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  
+  it('invalid static route with pageExtensions', function () {
+    const [report] = linters.withPageExtensions.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  
+  it('invalid about route with pageExtensions', function () {
+    const aboutInvalidCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/about'>About</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withPageExtensions.verify(
+      aboutInvalidCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  
+  it('valid link element with pageExtensions', function () {
+    const [report] = linters.withPageExtensions.verify(
+      validCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('falls back to default extensions when config is .mjs (ESM)', function () {
+    const [report] = linters.withMjsConfig.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+
+  it('falls back to default extensions when pageExtensions is empty array', function () {
+    const [report] = linters.withEmptyExtensions.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
