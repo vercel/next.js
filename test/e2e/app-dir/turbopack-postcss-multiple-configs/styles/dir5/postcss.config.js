@@ -1,3 +1,3 @@
 module.exports = {
-  plugins: [require('../postcss-plugin.js')],
+  plugins: [require('../postcss-plugin.js')({ color: 'magenta' })],
 }

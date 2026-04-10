@@ -21,14 +21,20 @@ describe('turbopack-postcss-multiple-configs', () => {
     await next.start()
   })
 
+  // Each directory's postcss.config.js passes a unique color option to the
+  // shared plugin, which replaces `color: red` with the given color.
+  // In production mode the CSS minifier may shorten named colors to hex
+  // (e.g. blue → #00f), so we match on patterns that cover both forms.
+  const DIR_COLORS: Record<number, string | RegExp> = {
+    1: /blue|#00f/,
+    2: /purple|#800080/,
+    3: /orange|#ffa500/,
+    4: /cyan|#0ff/,
+    5: /magenta|#f0f/,
+  }
+
   const DIRS = 5
   const FILES_PER_DIR = 3
-
-  // Verifies that per-directory postcss.config.js files are resolved correctly
-  // when experimental.turbopackLocalPostcssConfig is enabled. Each of the 5
-  // style directories has its own PostCSS config that transforms `color: red`
-  // to `color: green`. The root postcss.config.js is a no-op, so if only the
-  // root config were used, the CSS would still contain red.
 
   it('should render all elements with CSS module classes applied', async () => {
     const $ = await next.render$('/')
@@ -45,13 +51,20 @@ describe('turbopack-postcss-multiple-configs', () => {
     }
   })
 
-  it('should apply per-directory PostCSS transforms (color: red → green)', async () => {
+  it('should apply per-directory PostCSS transforms with distinct colors', async () => {
     const cssContent = await collectCss(next)
 
-    // The per-directory PostCSS plugins transform `color: red` to `color: green`.
-    // If per-directory resolution works, CSS contains green and no red.
-    expect(cssContent).toContain('green')
+    // Each directory's PostCSS config passes a unique color option.
+    // Verify every expected color appears in the output.
+    for (const [, pattern] of Object.entries(DIR_COLORS)) {
+      expect(cssContent).toMatch(pattern)
+    }
+
+    // No original `color: red` should remain — all were transformed.
     expect(cssContent).not.toMatch(/color\s*:\s*red/)
+
+    // The old hardcoded green should NOT appear, proving options are used.
+    expect(cssContent).not.toMatch(/green|#0f0|#008000/)
   })
 })
 

@@ -1,11 +1,11 @@
 // Shared PostCSS plugin used by each per-directory postcss.config.js.
-// Transforms `color: red` → `color: green` to verify PostCSS processing.
-const plugin = () => ({
+// Accepts { color: '<name>' } option and transforms `color: red` to the given color.
+const plugin = (opts = {}) => ({
   postcssPlugin: 'test-color-transform',
   Declaration: {
     color(decl) {
       if (decl.value === 'red') {
-        decl.value = 'green'
+        decl.value = opts.color || 'green'
       }
     },
   },
