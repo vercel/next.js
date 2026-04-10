@@ -75,14 +75,18 @@ async function restore() {
 
   console.log('Native cache HIT — downloading...')
   const tarFile = tmpFile('native-cache.tar.zst')
-  const ok = await cache.getToFile(key, tarFile)
-  if (!ok) {
+  const result = await cache.getToFile(key, tarFile)
+  if (!result.ok) {
     console.log('Download failed')
     return false
   }
 
-  const size = fs.statSync(tarFile).size
-  console.log(`Downloaded ${(size / 1024 / 1024).toFixed(0)} MB`)
+  if (result.stats) {
+    console.log(`Downloaded (${cache.formatStats(result.stats)})`)
+  } else {
+    const size = fs.statSync(tarFile).size
+    console.log(`Downloaded ${(size / 1024 / 1024).toFixed(0)} MB`)
+  }
   fs.mkdirSync(NATIVE_DIR, { recursive: true })
   sh(`zstd -d -c "${tarFile}" | tar xf - -C "${NATIVE_DIR}"`)
   fs.unlinkSync(tarFile)

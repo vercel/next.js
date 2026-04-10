@@ -248,21 +248,21 @@ jobs:
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
-      # Build or restore the Docker image via turbo-cache.js.
-      - name: Build/restore Docker image
-        if: ${{ matrix.docker }}
-        run: node scripts/docker-image-cache.js
-
-      # Compute Rust input fingerprint (turbo hashes all Rust sources)
+      # Try to restore the native binary BEFORE loading the Docker image.
+      # If the binary cache hits, we skip the expensive Docker image restore entirely.
       - name: Rust fingerprint
         if: ${{ matrix.docker }}
         run: pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
 
-      # Try to restore previously-built native binary from turbo cache
       - name: Restore native binary cache
         if: ${{ matrix.docker }}
         id: native-cache
         run: node scripts/native-cache.js --restore --target ${{ matrix.target }} && echo "HIT=yes" >> $GITHUB_OUTPUT || echo "HIT=no" >> $GITHUB_OUTPUT
+
+      # Only load the Docker image if we need to compile (native cache miss)
+      - name: Build/restore Docker image
+        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
+        run: node scripts/docker-image-cache.js
 
       - name: Build in docker
         if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
