@@ -243,7 +243,7 @@ jobs:
       - name: Upload test report to datadog
         run: |
           if [ -d ./test/test-junit-report ]; then
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
+            DD_ENV=ci npx @datadog/datadog-ci@5.12.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
 
   upload-adapter-test-results:
