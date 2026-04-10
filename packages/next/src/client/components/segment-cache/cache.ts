@@ -1380,14 +1380,19 @@ function convertTreePrefetchToRouteTree(
 export function convertRootFlightRouterStateToRouteTree(
   flightRouterState: FlightRouterState,
   renderedSearch: NormalizedSearch,
-  acc: RouteTreeAccumulator
+  acc: RouteTreeAccumulator,
+  renderedPathname?: NormalizedPathname
 ): RouteTree {
+  const pathnameParts =
+    renderedPathname?.split('/').filter((part) => part !== '') ?? null
   return convertFlightRouterStateToRouteTree(
     flightRouterState,
     ROOT_SEGMENT_REQUEST_KEY,
     null,
     renderedSearch,
-    acc
+    acc,
+    pathnameParts,
+    0
   )
 }
 
@@ -1421,7 +1426,9 @@ export function convertReusedFlightRouterStateToRouteTree(
     requestKey,
     parentPartialVaryPath,
     renderedSearch,
-    acc
+    acc,
+    null,
+    0
   )
 }
 
@@ -1430,7 +1437,9 @@ function convertFlightRouterStateToRouteTree(
   requestKey: SegmentRequestKey,
   parentPartialVaryPath: PartialSegmentVaryPath | null,
   parentRenderedSearch: NormalizedSearch,
-  acc: RouteTreeAccumulator
+  acc: RouteTreeAccumulator,
+  pathnameParts: string[] | null,
+  pathnamePartsIndex: number
 ): RouteTree {
   const originalSegment = flightRouterState[0]
 
@@ -1453,21 +1462,37 @@ function convertFlightRouterStateToRouteTree(
   let partialVaryPath: PartialSegmentVaryPath | null
   let isPage: boolean
   let varyPath: SegmentVaryPath
+  let childPathnamePartsIndex = pathnamePartsIndex
   if (Array.isArray(originalSegment)) {
     isPage = false
-    const paramCacheKey = originalSegment[1]
     const paramName = originalSegment[0]
+    const paramType = originalSegment[2]
+    let paramCacheKey = originalSegment[1]
+    if (pathnameParts !== null && paramCacheKey.startsWith('%%drp:')) {
+      const paramValue = parseDynamicParamFromURLPart(
+        paramType,
+        pathnameParts,
+        pathnamePartsIndex
+      )
+      paramCacheKey = getCacheKeyForDynamicParam(paramValue, renderedSearch)
+      segment = [paramName, paramCacheKey, paramType, originalSegment[3]]
+    } else {
+      segment = originalSegment
+    }
     partialVaryPath = appendLayoutVaryPath(
       parentPartialVaryPath,
       paramCacheKey,
       paramName
     )
     varyPath = finalizeLayoutVaryPath(requestKey, partialVaryPath)
-    segment = originalSegment
+    childPathnamePartsIndex = pathnamePartsIndex + 1
   } else {
     // This segment does not have a param. Inherit the partial vary path of
     // the parent.
     partialVaryPath = parentPartialVaryPath
+    childPathnamePartsIndex = doesStaticSegmentAppearInURL(originalSegment)
+      ? pathnamePartsIndex + 1
+      : pathnamePartsIndex
     if (requestKey.endsWith(PAGE_SEGMENT_KEY)) {
       // This is a page segment.
       isPage = true
@@ -1528,7 +1553,9 @@ function convertFlightRouterStateToRouteTree(
       childRequestKey,
       partialVaryPath,
       renderedSearch,
-      acc
+      acc,
+      pathnameParts,
+      childPathnamePartsIndex
     )
     if (slots === null) {
       slots = {
@@ -2357,7 +2384,8 @@ function writeDynamicTreeResponseIntoCache(
   const routeTree = convertRootFlightRouterStateToRouteTree(
     flightRouterState,
     renderedSearch,
-    acc
+    acc,
+    originalPathname as NormalizedPathname
   )
   const metadataVaryPath = acc.metadataVaryPath
   if (metadataVaryPath === null) {
