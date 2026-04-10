@@ -133,18 +133,9 @@ export function fillInFallbackFlightData<T extends FlightData>(
   }
 
   const pathnameParts = getPathnameParts(renderedPathname)
-  const replacements = collectFallbackParamReplacementMap(
-    flightData,
-    pathnameParts,
-    renderedSearch
-  )
   const filledFlightData = flightData.map((flightDataPath) =>
     fillInFallbackFlightDataPath(flightDataPath, renderedSearch, pathnameParts)
   ) as FlightDataPath[]
-
-  if (replacements.size > 0) {
-    replaceDeferredRouteParamMarkersInValue(filledFlightData, replacements)
-  }
 
   return filledFlightData as T
 }
@@ -195,122 +186,8 @@ function fillInFallbackFlightDataPath(
   ]
 }
 
-function collectFallbackParamReplacementMap(
-  flightData: FlightData | FlightDataPath[],
-  pathnameParts: Array<string>,
-  renderedSearch: NormalizedSearch
-): Map<string, string> {
-  const replacements = new Map<string, string>()
-  const flightDataPaths = Array.isArray(flightData) ? flightData : []
-
-  for (const flightDataPath of flightDataPaths) {
-    const flightDataPathLength = 4
-    const tree = flightDataPath[flightDataPath.length - flightDataPathLength]
-    collectFallbackParamReplacementMapFromTree(
-      tree as FlightRouterState,
-      renderedSearch,
-      pathnameParts,
-      0,
-      replacements
-    )
-  }
-
-  return replacements
-}
-
 function getPathnameParts(renderedPathname: string): Array<string> {
   return renderedPathname.split('/').filter((part) => part !== '')
-}
-
-function collectFallbackParamReplacementMapFromTree(
-  flightRouterState: FlightRouterState,
-  renderedSearch: NormalizedSearch,
-  pathnameParts: Array<string>,
-  pathnamePartsIndex: number,
-  replacements: Map<string, string>
-): void {
-  const originalSegment = flightRouterState[0]
-  const { nextPathnamePartsIndex } = fillInFallbackSegment(
-    originalSegment,
-    renderedSearch,
-    pathnameParts,
-    pathnamePartsIndex
-  )
-
-  if (
-    Array.isArray(originalSegment) &&
-    originalSegment[1].startsWith('%%drp:')
-  ) {
-    const paramValue = parseDynamicParamFromURLPart(
-      originalSegment[2],
-      pathnameParts,
-      pathnamePartsIndex
-    )
-    replacements.set(
-      originalSegment[0],
-      getCacheKeyForDynamicParam(paramValue, renderedSearch)
-    )
-  }
-
-  const children = flightRouterState[1]
-  for (const child of Object.values(children)) {
-    collectFallbackParamReplacementMapFromTree(
-      child,
-      renderedSearch,
-      pathnameParts,
-      nextPathnamePartsIndex,
-      replacements
-    )
-  }
-}
-
-function replaceDeferredRouteParamMarkersInValue(
-  value: unknown,
-  replacements: Map<string, string>,
-  seen: Set<object> = new Set()
-): void {
-  if (typeof value === 'string') {
-    return
-  }
-
-  if (value === null || value === undefined || typeof value !== 'object') {
-    return
-  }
-
-  if (seen.has(value)) {
-    return
-  }
-  seen.add(value)
-
-  if (Array.isArray(value)) {
-    for (let i = 0; i < value.length; i++) {
-      const item = value[i]
-      if (typeof item === 'string') {
-        value[i] = replaceDeferredRouteParamMarkerString(item, replacements)
-      } else {
-        replaceDeferredRouteParamMarkersInValue(item, replacements, seen)
-      }
-    }
-    return
-  }
-
-  for (const [key, item] of Object.entries(value)) {
-    if (typeof item === 'string') {
-      ;(value as Record<string, unknown>)[key] =
-        replaceDeferredRouteParamMarkerString(item, replacements)
-    } else {
-      replaceDeferredRouteParamMarkersInValue(item, replacements, seen)
-    }
-  }
-}
-
-function replaceDeferredRouteParamMarkerString(
-  value: string,
-  replacements: Map<string, string>
-): string {
-  return value.replace(/%%drp:([^:]+):[^%]+%%/g, (match, paramName) => {
-    return replacements.get(paramName) ?? match
-  })
 }
 
 function fillInFallbackFlightRouterStateFromParts(
