@@ -758,6 +758,10 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
+declare module 'next/dist/compiled/@vercel/blob' {
+  import m from '@vercel/blob'
+  export = m
+}
 declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m
@@ -801,6 +805,16 @@ declare module 'next/dist/compiled/web-vitals' {
   export = m
 }
 declare module 'next/dist/compiled/web-vitals-attribution' {}
+
+declare module 'next/dist/compiled/write-file-atomic' {
+  function writeFileAtomicSync(
+    filename: string,
+    data: string | Buffer,
+    options?: { mode?: number; chown?: { uid: number; gid: number } }
+  ): void
+  export const sync: typeof writeFileAtomicSync
+  export default writeFileAtomicSync
+}
 
 declare module 'next/dist/compiled/ws' {
   import m from 'ws'

@@ -959,6 +959,13 @@ pub enum ReactCompilerPanicThreshold {
     AllErrors,
 }
 
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ReactCompilerTarget {
+    #[serde(rename = "18")]
+    React18,
+}
+
 /// Subset of react compiler options, we pass these options through to the webpack loader, so it
 /// must be serializable
 #[turbo_tasks::value(shared, operation)]
@@ -969,6 +976,8 @@ pub struct ReactCompilerOptions {
     pub compilation_mode: ReactCompilerCompilationMode,
     #[serde(default)]
     pub panic_threshold: ReactCompilerPanicThreshold,
+    #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub target: Option<ReactCompilerTarget>,
 }
 
 #[derive(
