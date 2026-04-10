@@ -1369,6 +1369,7 @@ When a user tries to navigate away using `CustomLink` while the form has unsaved
 
 | Version   | Changes                                                                                                                                                                      |
 | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `v16.2.0` | Add `transitionTypes` prop.                                                                                                                                                  |
 | `v15.4.0` | Add `auto` as an alias to the default `prefetch` behavior.                                                                                                                   |
 | `v15.3.0` | Add `onNavigate` API                                                                                                                                                         |
 | `v13.0.0` | No longer requires a child `<a>` tag. A [codemod](/docs/app/guides/upgrading/codemods#remove-a-tags-from-link-components) is provided to automatically update your codebase. |
