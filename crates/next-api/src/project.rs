@@ -1087,7 +1087,7 @@ impl Project {
 
         Ok(DiskFileSystem::new_with_denied_paths(
             rcstr!(PROJECT_FILESYSTEM_NAME),
-            self.root_path.clone(),
+            Vc::cell(self.root_path.clone()),
             vec![denied_path],
         ))
     }
@@ -1100,7 +1100,7 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
+        DiskFileSystem::new(rcstr!("output"), Vc::cell(self.root_path.clone()))
     }
 
     #[turbo_tasks::function]
