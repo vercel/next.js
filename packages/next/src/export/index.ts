@@ -1181,20 +1181,18 @@ async function writeOutputExportFallbackHtml(
   outDir: string,
   fallbackHtmlPaths: string[]
 ): Promise<void> {
-  // Prefer the shallowest __fallback HTML: it's a proper PPR shell with the
-  // root layout rendered and Suspense boundaries for param-dependent content.
-  // Shorter paths are shallower (closer to root layout only).
-  const sortedFallbackPaths = [...fallbackHtmlPaths].sort(
-    (a, b) => a.length - b.length
-  )
-  const pprShellSource = sortedFallbackPaths[0]
-
-  // Fall back to index.html or 404.html if no __fallback HTML exists
+  // Prefer a shallow __fallback shell for the global fallback entry point so
+  // hard loads start from a real PPR shell instead of unrelated index content.
+  // Fall back to a generic document only if no __fallback shell exists.
   const genericSource = [
     join(outDir, 'index.html'),
     join(outDir, '404.html'),
   ].find((candidate) => existsSync(candidate))
 
+  const sortedFallbackPaths = [...fallbackHtmlPaths].sort(
+    (a, b) => a.length - b.length
+  )
+  const pprShellSource = sortedFallbackPaths[0]
   const fallbackSource = pprShellSource ?? genericSource
   if (!fallbackSource) {
     return
@@ -1204,7 +1202,7 @@ async function writeOutputExportFallbackHtml(
   const exportFallbackScript = '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
 
   let injection: string
-  if (pprShellSource) {
+  if (fallbackSource === pprShellSource) {
     // PPR shell already has meaningful content (root layout + Suspense
     // boundaries), no need to hide it
     injection = exportFallbackScript

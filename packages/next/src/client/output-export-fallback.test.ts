@@ -13,12 +13,12 @@ describe('output export fallback helpers', () => {
     jest.restoreAllMocks()
   })
 
-  it('discovers fallback candidates from deepest static prefix to root', () => {
+  it('discovers fallback candidates from shallowest static prefix to root', () => {
     expect(getOutputExportFallbackCandidates('/org/acme/chat/123')).toEqual([
-      '/org/acme/chat/123/__fallback',
-      '/org/acme/chat/__fallback',
-      '/org/acme/__fallback',
       '/org/__fallback',
+      '/org/acme/__fallback',
+      '/org/acme/chat/__fallback',
+      '/org/acme/chat/123/__fallback',
       '/__fallback',
     ])
   })
@@ -69,28 +69,21 @@ describe('output export fallback helpers', () => {
     ])
   })
 
-  it('walks parent prefixes until a fallback payload is found', async () => {
+  it('walks prefixes from the root until a fallback payload is found', async () => {
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
 
-      if (url.endsWith('/org/acme/chat/__fallback.txt')) {
-        return new Response('not found', {
-          status: 404,
-          headers: { 'content-type': 'text/html' },
-        })
-      }
-
-      if (url.endsWith('/org/acme/chat/__fallback/index.txt')) {
-        return new Response('not found', {
-          status: 404,
-          headers: { 'content-type': 'text/html' },
-        })
-      }
-
-      if (url.endsWith('/org/acme/__fallback.txt')) {
+      if (url.endsWith('/org/__fallback.txt')) {
         return new Response('payload', {
           status: 200,
           headers: { 'content-type': 'text/plain' },
+        })
+      }
+
+      if (url.endsWith('/org/__fallback/index.txt')) {
+        return new Response('not found', {
+          status: 404,
+          headers: { 'content-type': 'text/html' },
         })
       }
 
@@ -108,11 +101,7 @@ describe('output export fallback helpers', () => {
     expect(result).not.toBeNull()
     expect(result?.renderedUrl.href).toBe(renderedUrl.href)
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'https://example.com/org/acme/chat/123/__fallback.txt',
-      'https://example.com/org/acme/chat/123/__fallback/index.txt',
-      'https://example.com/org/acme/chat/__fallback.txt',
-      'https://example.com/org/acme/chat/__fallback/index.txt',
-      'https://example.com/org/acme/__fallback.txt',
+      'https://example.com/org/__fallback.txt',
     ])
   })
 })
