@@ -572,6 +572,7 @@ pub async fn get_server_module_options_context(
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
+            export_convention: *next_config.css_module_export_convention().await?,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,

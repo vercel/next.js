@@ -185,6 +185,13 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
       })
     )
     .optional(),
+  cssModules: z
+    .object({
+      exportLocalsConvention: z
+        .enum(['asIs', 'camelCase', 'camelCaseOnly', 'dashes', 'dashesOnly'])
+        .optional(),
+    })
+    .optional(),
 })
 
 export const experimentalSchema = {

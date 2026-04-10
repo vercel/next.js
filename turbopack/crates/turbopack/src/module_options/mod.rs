@@ -256,6 +256,7 @@ impl ModuleOptions {
                     source_maps: css_source_maps,
                     ref module_css_condition,
                     lightningcss_features,
+                    export_convention,
                     ..
                 },
             ref static_url_tag,
@@ -499,6 +500,7 @@ impl ModuleOptions {
                                     ecmascript_options_vc,
                                     environment,
                                     lightningcss_features,
+                                    export_convention,
                                 )
                                 .await?,
                         )
@@ -935,7 +937,9 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![module_css_condition.clone()]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule)],
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModule {
+                        export_convention,
+                    })],
                 ),
                 ModuleRule::new_all(
                     RuleCondition::Any(vec![

@@ -9,7 +9,7 @@ use turbopack_core::{
     environment::Environment, reference_type::ReferenceType, source::Source,
     source_transform::SourceTransforms,
 };
-use turbopack_css::CssModuleType;
+use turbopack_css::{CssModuleExportConvention, CssModuleType};
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptOptions, bytes_source_transform::BytesSourceTransform,
     json_source_transform::JsonSourceTransform,
@@ -138,7 +138,9 @@ pub enum ModuleType {
     },
     Raw,
     NodeAddon,
-    CssModule,
+    CssModule {
+        export_convention: CssModuleExportConvention,
+    },
     Css {
         ty: CssModuleType,
         environment: Option<ResolvedVc<Environment>>,
@@ -167,7 +169,7 @@ impl Display for ModuleType {
             ModuleType::EcmascriptExtensionless { .. } => write!(f, "EcmascriptExtensionless"),
             ModuleType::Raw => write!(f, "Raw"),
             ModuleType::NodeAddon => write!(f, "NodeAddon"),
-            ModuleType::CssModule => write!(f, "CssModule"),
+            ModuleType::CssModule { .. } => write!(f, "CssModule"),
             ModuleType::Css { .. } => write!(f, "Css"),
             ModuleType::StaticUrlJs { .. } => write!(f, "StaticUrlJs"),
             ModuleType::StaticUrlCss { .. } => write!(f, "StaticUrlCss"),
@@ -233,6 +235,7 @@ impl ConfiguredModuleType {
         options: ResolvedVc<EcmascriptOptions>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+        export_convention: CssModuleExportConvention,
     ) -> Result<ModuleRuleEffect> {
         Ok(match self {
             ConfiguredModuleType::Bytes => {
@@ -268,7 +271,9 @@ impl ConfiguredModuleType {
                 environment,
                 lightningcss_features,
             }),
-            ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
+            ConfiguredModuleType::CssModule => {
+                ModuleRuleEffect::ModuleType(ModuleType::CssModule { export_convention })
+            }
             ConfiguredModuleType::Json => {
                 ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
                     // TODO: can we switch this to `new_esm`?

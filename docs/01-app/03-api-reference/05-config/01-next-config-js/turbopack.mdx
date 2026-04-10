@@ -51,6 +51,7 @@ The following options are available for the `turbopack` configuration:
 | `resolveAlias`      | Map aliased imports to modules to load in their place.                                                                                   |
 | `resolveExtensions` | List of extensions to resolve when importing files.                                                                                      |
 | `debugIds`          | Enable generation of [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in JavaScript bundles and source maps. |
+| `cssModules`        | Configure CSS Modules behavior.                                                                                                          |
 
 ### Supported loaders
 
@@ -384,10 +385,45 @@ module.exports = {
 
 The option automatically adds a polyfill for debug IDs to the JavaScript bundle to ensure compatibility. The debug IDs are available in the `globalThis._debugIds` global variable.
 
+### CSS Modules
+
+The `cssModules` option controls how [CSS Module](https://github.com/css-modules/css-modules) class names are exported to JavaScript. By default, class names are exported as-is, matching the original CSS. You can configure this with `exportLocalsConvention` to automatically convert class names to camelCase.
+
+This is useful for projects that use kebab-case in CSS (e.g. `.main-content`) but prefer camelCase in JavaScript (e.g. `styles.mainContent`).
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    cssModules: {
+      exportLocalsConvention: 'camelCaseOnly',
+    },
+  },
+}
+```
+
+Available values for `exportLocalsConvention`:
+
+| Value           | Input class     | Exported keys                                  |
+| --------------- | --------------- | ---------------------------------------------- |
+| `asIs`          | `.main-content` | `styles["main-content"]`                       |
+| `camelCase`     | `.main-content` | `styles["main-content"]`, `styles.mainContent` |
+| `camelCaseOnly` | `.main-content` | `styles.mainContent`                           |
+| `dashes`        | `.main-content` | `styles["main-content"]`, `styles.mainContent` |
+| `dashesOnly`    | `.main-content` | `styles.mainContent`                           |
+
+- **`asIs`** (default): Export class names exactly as written in CSS.
+- **`camelCase`**: Export both the original name and a camelCased version. Converts all delimiters (`-`, `_`, `.`, space).
+- **`camelCaseOnly`**: Export only the camelCased version.
+- **`dashes`**: Export both the original name and a camelCased version. Only converts hyphens (`-`).
+- **`dashesOnly`**: Export only the hyphen-converted camelCased version.
+
+> **Good to know**: The difference between `camelCase` and `dashes` is which delimiters are converted. `camelCase` converts hyphens, underscores, dots, and spaces, while `dashes` only converts hyphens. For example, `with_underscore` becomes `withUnderscore` with `camelCase` but stays `with_underscore` with `dashes`.
+
 ## Version History
 
 | Version  | Changes                                              |
 | -------- | ---------------------------------------------------- |
+| `16.2.x` | `turbopack.cssModules` was added.                    |
 | `16.2.0` | `turbopackLoader` import attributes were added.      |
 | `16.2.0` | `turbopack.rules.*.type` was added.                  |
 | `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |

@@ -617,6 +617,32 @@ pub struct TurbopackConfig {
     /// Issue patterns to ignore (suppress) from Turbopack output.
     #[serde(default)]
     pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
+    /// CSS Modules configuration.
+    pub css_modules: Option<TurbopackCssModulesConfig>,
+}
+
+#[derive(
+    Deserialize,
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct TurbopackCssModulesConfig {
+    /// Controls how CSS module class names are exported to JavaScript.
+    ///
+    /// - `"asIs"` (default): export as-is
+    /// - `"camelCase"`: export both original and camelCase
+    /// - `"camelCaseOnly"`: export only camelCase
+    /// - `"dashes"`: export both original and dashes-to-camelCase
+    /// - `"dashesOnly"`: export only dashes-to-camelCase
+    pub export_locals_convention: Option<RcStr>,
 }
 
 #[derive(
@@ -2242,6 +2268,34 @@ impl NextConfig {
             )?,
         }
         .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub fn css_module_export_convention(
+        &self,
+    ) -> Result<Vc<turbopack_css::CssModuleExportConvention>> {
+        let convention = self
+            .turbopack
+            .as_ref()
+            .and_then(|t| t.css_modules.as_ref())
+            .and_then(|c| c.export_locals_convention.as_ref());
+
+        let result = match convention.map(|s| s.as_str()) {
+            Some("camelCase") => turbopack_css::CssModuleExportConvention::CamelCase,
+            Some("camelCaseOnly") => turbopack_css::CssModuleExportConvention::CamelCaseOnly,
+            Some("dashes") => turbopack_css::CssModuleExportConvention::Dashes,
+            Some("dashesOnly") => turbopack_css::CssModuleExportConvention::DashesOnly,
+            Some("asIs") | None => turbopack_css::CssModuleExportConvention::AsIs,
+            Some(other) => {
+                anyhow::bail!(
+                    "Invalid turbopack.cssModules.exportLocalsConvention value: {:?}. Valid \
+                     values are: asIs, camelCase, camelCaseOnly, dashes, dashesOnly",
+                    other
+                );
+            }
+        };
+
+        Ok(result.cell())
     }
 
     #[turbo_tasks::function]
