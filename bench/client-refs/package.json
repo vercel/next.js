@@ -1,0 +1,9 @@
+{
+  "name": "client-refs",
+  "private": true,
+  "license": "MIT",
+  "dependencies": {
+    "next": "workspace:*"
+  },
+  "scripts": {}
+}
