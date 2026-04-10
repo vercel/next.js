@@ -1,18 +1,16 @@
-use std::{fmt::Debug, future::Future, pin::Pin};
+#[cfg(debug_assertions)]
+use std::fmt::Debug;
+use std::{future::Future, pin::Pin};
 
-use auto_hash_map::{AutoMap, AutoSet};
-use smallvec::SmallVec;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet};
 pub use turbo_tasks_macros::ValueDebugFormat;
 
 use crate::{self as turbo_tasks};
 
+#[cfg(debug_assertions)]
 #[doc(hidden)]
 pub mod internal;
+#[cfg(debug_assertions)]
 mod vdbg;
-
-use internal::PassthroughDebug;
 
 /// [`Debug`]-like trait for [`Vc`] types, automatically derived when using
 /// [`macro@turbo_tasks::value`] and [`turbo_tasks::value_trait`].
@@ -40,15 +38,56 @@ pub trait ValueDebug {
 ///
 /// [autoref specialization]: https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
 pub trait ValueDebugFormat {
+    #[cfg(debug_assertions)]
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_>;
 }
 
+/// Output of `ValueDebugFormat::value_debug_format`.
+#[cfg(debug_assertions)]
+pub enum ValueDebugFormatString<'a> {
+    /// For the `T: Debug` fallback implementation, we can output a string
+    /// directly as the result of `format!("{:?}", t)`.
+    Sync(String),
+    /// For the `Vc` types and `Vc`-containing types implementations, we need to
+    /// resolve types asynchronously before we can format them, hence the need
+    /// for a future.
+    Async(
+        core::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<String>> + Send + 'a>>,
+    ),
+}
+
+#[cfg(debug_assertions)]
+impl ValueDebugFormatString<'_> {
+    /// Convert the `ValueDebugFormatString` into a `String`.
+    ///
+    /// This can fail when resolving `Vc` types.
+    pub async fn try_to_string(self) -> anyhow::Result<String> {
+        Ok(match self {
+            ValueDebugFormatString::Sync(value) => value,
+            ValueDebugFormatString::Async(future) => future.await?,
+        })
+    }
+}
+
+#[cfg(debug_assertions)]
+use auto_hash_map::{AutoMap, AutoSet};
+#[cfg(debug_assertions)]
+use internal::PassthroughDebug;
+#[cfg(debug_assertions)]
+use smallvec::SmallVec;
+#[cfg(debug_assertions)]
+use turbo_rcstr::RcStr;
+#[cfg(debug_assertions)]
+use turbo_tasks::{FxIndexMap, FxIndexSet};
+
+#[cfg(debug_assertions)]
 impl ValueDebugFormat for String {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Sync(format!("{self:?}"))
     }
 }
 
+#[cfg(debug_assertions)]
 impl ValueDebugFormat for RcStr {
     fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Sync(format!("{self:?}"))
@@ -60,6 +99,7 @@ impl ValueDebugFormat for RcStr {
 // &T` clause.
 //
 // [1] https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for &T
 where
     T: Debug,
@@ -73,6 +113,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for Option<T>
 where
     T: ValueDebugFormat,
@@ -100,6 +141,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for Vec<T>
 where
     T: ValueDebugFormat,
@@ -131,6 +173,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T, const N: usize> ValueDebugFormat for SmallVec<[T; N]>
 where
     T: ValueDebugFormat,
@@ -162,6 +205,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<K> ValueDebugFormat for AutoSet<K>
 where
     K: ValueDebugFormat,
@@ -193,6 +237,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<K, V, S> ValueDebugFormat for std::collections::HashMap<K, V, S>
 where
     K: Debug,
@@ -230,6 +275,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<K, V> ValueDebugFormat for AutoMap<K, V>
 where
     K: Debug,
@@ -267,6 +313,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for FxIndexSet<T>
 where
     T: ValueDebugFormat,
@@ -295,6 +342,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<K, V> ValueDebugFormat for FxIndexMap<K, V>
 where
     K: ValueDebugFormat,
@@ -336,6 +384,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 macro_rules! tuple_impls {
     ( $( $name:ident )+ ) => {
         impl<$($name: ValueDebugFormat),+> ValueDebugFormat for ($($name,)+)
@@ -358,40 +407,27 @@ macro_rules! tuple_impls {
     };
 }
 
+#[cfg(debug_assertions)]
 tuple_impls! { A }
+#[cfg(debug_assertions)]
 tuple_impls! { A B }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E F }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E F G }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E F G H }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E F G H I }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E F G H I J }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E F G H I J K }
+#[cfg(debug_assertions)]
 tuple_impls! { A B C D E F G H I J K L }
-
-/// Output of `ValueDebugFormat::value_debug_format`.
-pub enum ValueDebugFormatString<'a> {
-    /// For the `T: Debug` fallback implementation, we can output a string
-    /// directly as the result of `format!("{:?}", t)`.
-    Sync(String),
-    /// For the `Vc` types and `Vc`-containing types implementations, we need to
-    /// resolve types asynchronously before we can format them, hence the need
-    /// for a future.
-    Async(
-        core::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<String>> + Send + 'a>>,
-    ),
-}
-
-impl ValueDebugFormatString<'_> {
-    /// Convert the `ValueDebugFormatString` into a `String`.
-    ///
-    /// This can fail when resolving `Vc` types.
-    pub async fn try_to_string(self) -> anyhow::Result<String> {
-        Ok(match self {
-            ValueDebugFormatString::Sync(value) => value,
-            ValueDebugFormatString::Async(future) => future.await?,
-        })
-    }
-}

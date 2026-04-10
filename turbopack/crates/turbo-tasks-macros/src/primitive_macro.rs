@@ -23,6 +23,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
     };
 
     let value_debug_impl = quote! {
+        #[cfg(debug_assertions)]
         #[turbo_tasks::value_impl]
         impl turbo_tasks::debug::ValueDebug for #ty {
             fn dbg_depth<'a>(
@@ -39,6 +40,26 @@ pub fn primitive(input: TokenStream) -> TokenStream {
                 ::std::boxed::Box::pin(async move {
                     use turbo_tasks::debug::ValueDebugFormat;
                     self.value_debug_format(depth).try_to_string().await
+                })
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        #[turbo_tasks::value_impl]
+        impl turbo_tasks::debug::ValueDebug for #ty {
+            fn dbg_depth<'a>(
+                &'a self,
+                _depth: usize,
+            ) -> ::std::pin::Pin<
+                ::std::boxed::Box<
+                    dyn ::std::future::Future<
+                            Output = ::anyhow::Result<::std::string::String>,
+                        > + ::std::marker::Send
+                        + 'a,
+                >,
+            > {
+                ::std::boxed::Box::pin(async move {
+                    Ok(::std::any::type_name::<Self>().to_string())
                 })
             }
         }

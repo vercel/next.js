@@ -10,6 +10,7 @@ pub fn derive_value_debug(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
     let ident = &derive_input.ident;
     quote! {
+        #[cfg(debug_assertions)]
         #[turbo_tasks::value_impl]
         impl turbo_tasks::debug::ValueDebug for #ident {
             fn dbg_depth<'a>(
@@ -26,6 +27,25 @@ pub fn derive_value_debug(input: TokenStream) -> TokenStream {
                     turbo_tasks::debug::ValueDebugFormat::value_debug_format(self, depth)
                         .try_to_string()
                         .await
+                })
+            }
+        }
+
+        #[cfg(not(debug_assertions))]
+        #[turbo_tasks::value_impl]
+        impl turbo_tasks::debug::ValueDebug for #ident {
+            fn dbg_depth<'a>(
+                &'a self,
+                _depth: usize,
+            ) -> ::std::pin::Pin<
+                ::std::boxed::Box<
+                    dyn ::std::future::Future<Output = ::anyhow::Result<::std::string::String>>
+                        + ::std::marker::Send
+                        + 'a,
+                >,
+            > {
+                ::std::boxed::Box::pin(async move {
+                    Ok(::std::any::type_name::<Self>().to_string())
                 })
             }
         }
