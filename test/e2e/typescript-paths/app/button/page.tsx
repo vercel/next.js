@@ -1,4 +1,4 @@
-import Button from '@/ui/button'
+import { Hello } from '@mycomponent'
 import React from 'react'
 
 export default function page() {
@@ -6,5 +6,5 @@ export default function page() {
     throw new Error('React is not resolved correctly.')
   }
 
-  return <Button>click</Button>
+  return <Hello />
 }
