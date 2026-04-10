@@ -75,18 +75,38 @@ jobs:
     secrets: inherit
 
   build-native-windows:
-    name: build-native-windows
-    uses: ./.github/workflows/build_reusable.yml
+    name: build-native-windows (${{ matrix.target }})
+    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
-    with:
-      skipInstallBuild: 'yes'
-      stepName: 'build-native-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
-      buildNativeTarget: 'x86_64-pc-windows-msvc'
-      uploadNativeArtifact: 'next-swc-windows'
-
-    secrets: inherit
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-pc-windows-msvc
+            artifact_name: next-swc-windows-x86_64-pc-windows-msvc
+            napi_glob: next-swc.win32-x64-msvc.node
+          - target: aarch64-pc-windows-msvc
+            artifact_name: next-swc-windows-aarch64-pc-windows-msvc
+            napi_glob: next-swc.win32-arm64-msvc.node
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 25
+      - name: Build Docker image
+        uses: ./.github/actions/docker-buildx
+        with:
+          target: windows
+          image-tag: next-swc-builder-win:latest
+          cache-ref: next-swc-builder-win
+      - name: Cross-compile Windows native binary
+        run: node scripts/docker-native-build.js --quick --skip-image ${{ matrix.target }}
+      - name: Upload Windows native artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: packages/next-swc/native/${{ matrix.napi_glob }}
+          retention-days: 1
 
   build-next:
     name: build-next

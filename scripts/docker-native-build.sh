@@ -66,6 +66,15 @@ case "$TARGET" in
     CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=x86_64-linux-musl -Clink-arg=--sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl -Clink-arg=--gcc-toolchain=/opt/x86_64-linux-musl-cross" ;;
   aarch64-unknown-linux-musl)
     CROSS_FLAGS="$CROSS_FLAGS -Clink-arg=--target=aarch64-linux-musl -Clink-arg=--sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl -Clink-arg=--gcc-toolchain=/opt/aarch64-linux-musl-cross" ;;
+  x86_64-pc-windows-msvc|aarch64-pc-windows-msvc)
+    # Windows cross-compilation is handled by cargo-xwin (invoked by napi-rs).
+    # cargo-xwin downloads the MSVC SDK, sets CC/linker/include paths.
+    # We only need to preserve base rustflags from .cargo/config.toml via
+    # CARGO_ENCODED_RUSTFLAGS (see below).
+    # Note: lld-link must be Rust's bundled LLD (v22+), not system LLD (v10),
+    # to support the EH continuation table that loadcfg.obj references.
+    CROSS_FLAGS=""
+    ;;
   *) echo "Unknown target: $TARGET"; exit 1 ;;
 esac
 
@@ -74,41 +83,64 @@ CROSS_CONFIG="target.${TARGET}.rustflags=[$(echo "$CROSS_FLAGS" | sed 's/\([^ ]*
 
 # Resolve merged RUSTFLAGS (config.toml base + cross overrides)
 RUSTFLAGS=$(cargo rustflags --target "$TARGET" --config "$CROSS_CONFIG")
-export RUSTFLAGS
+
+case "$TARGET" in
+  *-windows-*)
+    # For Windows, cargo-xwin sets its own CARGO_ENCODED_RUSTFLAGS which
+    # overrides config.toml. Pre-seed it with the base flags (tokio_unstable,
+    # share-generics, crt-static, etc.) so cargo-xwin appends to them.
+    CARGO_ENCODED_RUSTFLAGS=$(cargo rustflags --target "$TARGET" --encoded)
+    export CARGO_ENCODED_RUSTFLAGS
+    ;;
+  *)
+    export RUSTFLAGS
+    ;;
+esac
 
 # --- rust-lld symlink ---
 # rustc's gcc-ld/ dir has ld.lld but no 'ld' shim. gnu-lld-cc passes
 # -B<gcc-ld-dir> to clang, which looks for 'ld' there.
-SYSROOT=$(rustc --print sysroot)
-GCC_LD="$SYSROOT/lib/rustlib/${TARGET}/bin/gcc-ld"
-if [ -d "$GCC_LD" ] && [ ! -e "$GCC_LD/ld" ]; then
-  ln -sf ../rust-lld "$GCC_LD/ld"
-fi
+# Windows uses lld-link directly, so this shim is not needed.
+case "$TARGET" in
+  *-windows-*) ;;
+  *)
+    SYSROOT=$(rustc --print sysroot)
+    GCC_LD="$SYSROOT/lib/rustlib/${TARGET}/bin/gcc-ld"
+    if [ -d "$GCC_LD" ] && [ ! -e "$GCC_LD/ld" ]; then
+      ln -sf ../rust-lld "$GCC_LD/ld"
+    fi
+    ;;
+esac
 
 # --- CC/CXX for build scripts (jemalloc, ring, etc.) ---
+# For Windows, cargo-xwin handles CC, CXX, AR, INCLUDE, and LIB automatically.
 TARGET_US=$(echo "$TARGET" | tr '-' '_')
 unset "CC_${TARGET_US}" "CXX_${TARGET_US}" "CFLAGS_${TARGET_US}"
 
-export "CC_${TARGET_US}=clang"
-export "CXX_${TARGET_US}=clang++"
-
 case "$TARGET" in
   x86_64-unknown-linux-gnu)
+    export "CC_${TARGET_US}=clang" "CXX_${TARGET_US}=clang++"
     if [ "$HOST_ARCH" = "x86_64" ]; then
       export "CFLAGS_${TARGET_US}=--target=x86_64-linux-gnu"
     else
       export "CFLAGS_${TARGET_US}=--target=x86_64-linux-gnu --sysroot=/usr/x86_64-linux-gnu"
     fi ;;
   aarch64-unknown-linux-gnu)
+    export "CC_${TARGET_US}=clang" "CXX_${TARGET_US}=clang++"
     if [ "$HOST_ARCH" = "aarch64" ]; then
       export "CFLAGS_${TARGET_US}=--target=aarch64-linux-gnu"
     else
       export "CFLAGS_${TARGET_US}=--target=aarch64-linux-gnu --sysroot=/usr/aarch64-linux-gnu"
     fi ;;
   x86_64-unknown-linux-musl)
+    export "CC_${TARGET_US}=clang" "CXX_${TARGET_US}=clang++"
     export "CFLAGS_${TARGET_US}=--target=x86_64-linux-musl --sysroot=/opt/x86_64-linux-musl-cross/x86_64-linux-musl --gcc-toolchain=/opt/x86_64-linux-musl-cross" ;;
   aarch64-unknown-linux-musl)
+    export "CC_${TARGET_US}=clang" "CXX_${TARGET_US}=clang++"
     export "CFLAGS_${TARGET_US}=--target=aarch64-linux-musl --sysroot=/opt/aarch64-linux-musl-cross/aarch64-linux-musl --gcc-toolchain=/opt/aarch64-linux-musl-cross" ;;
+  x86_64-pc-windows-msvc|aarch64-pc-windows-msvc)
+    # cargo-xwin handles CC, CXX, AR, INCLUDE, and LIB automatically.
+    ;;
 esac
 
 # aarch64 needs larger page size for jemalloc
@@ -134,7 +166,6 @@ echo "-------------------------"
 rustup target add "$TARGET"
 cd packages/next-swc
 npm run "$BUILD_TASK" -- --target "$TARGET"
-llvm-strip -x native/next-swc.*.node
 
 # Show sccache stats if available
 if command -v sccache &>/dev/null; then
@@ -142,18 +173,29 @@ if command -v sccache &>/dev/null; then
   sccache --show-stats || true
 fi
 
-# Post-build verification
-echo "--- Dynamic libraries ---"
-readelf -d native/next-swc.*.node | grep NEEDED
+# Post-build: strip and verify
+case "$TARGET" in
+  *-windows-*)
+    # PE/COFF: strip debug info and show DLL imports
+    llvm-strip --strip-debug native/next-swc.*.node
+    echo "--- PE imports ---"
+    llvm-readobj --coff-imports native/next-swc.*.node || true
+    ;;
+  *)
+    llvm-strip -x native/next-swc.*.node
+    echo "--- Dynamic libraries ---"
+    readelf -d native/next-swc.*.node | grep NEEDED
 
-case "$ABI" in
-  gnu)
-    echo "--- GLIBC symbols by version ---"
-    objdump -T native/next-swc.*.node \
-      | grep 'GLIBC_' \
-      | sed 's/.*\(GLIBC_[^ ]*\) \+/\1 /' \
-      | sort -t. -k2,2n -k3,3n \
-      | awk '{vers[$1] = vers[$1] ? vers[$1] ", " $2 : $2} END {for (v in vers) print v ": " vers[v]}' \
-      | sort -t. -k2,2n -k3,3n
+    case "$ABI" in
+      gnu)
+        echo "--- GLIBC symbols by version ---"
+        objdump -T native/next-swc.*.node \
+          | grep 'GLIBC_' \
+          | sed 's/.*\(GLIBC_[^ ]*\) \+/\1 /' \
+          | sort -t. -k2,2n -k3,3n \
+          | awk '{vers[$1] = vers[$1] ? vers[$1] ", " $2 : $2} END {for (v in vers) print v ": " vers[v]}' \
+          | sort -t. -k2,2n -k3,3n
+        ;;
+    esac
     ;;
 esac
