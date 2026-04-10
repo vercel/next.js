@@ -13,7 +13,8 @@ const fs = require('fs')
 const os = require('os')
 
 const REPO_ROOT = path.resolve(__dirname, '..')
-const DOCKER_IMAGE = 'next-swc-builder:latest'
+const DOCKER_IMAGE_LINUX = 'next-swc-builder:latest'
+const DOCKER_IMAGE_WIN = 'next-swc-builder-win:latest'
 
 const TARGETS = [
   {
@@ -40,6 +41,18 @@ const TARGETS = [
     abi: 'musl',
     napiPlatform: 'linux-arm64-musl',
   },
+  {
+    target: 'x86_64-pc-windows-msvc',
+    arch: 'x86_64',
+    abi: 'msvc',
+    napiPlatform: 'win32-x64-msvc',
+  },
+  {
+    target: 'aarch64-pc-windows-msvc',
+    arch: 'aarch64',
+    abi: 'msvc',
+    napiPlatform: 'win32-arm64-msvc',
+  },
 ]
 
 // Map uname -m to our arch names
@@ -53,6 +66,7 @@ const { values: flags, positionals } = parseArgs({
   options: {
     quick: { type: 'boolean', default: false },
     'host-target': { type: 'boolean', default: false },
+    'skip-image': { type: 'boolean', default: false },
     test: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   },
@@ -61,13 +75,14 @@ const { values: flags, positionals } = parseArgs({
 
 if (flags.help) {
   console.log(
-    'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--test] [filter]'
+    'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--skip-image] [--test] [filter]'
   )
   process.exit(0)
 }
 
 const quick = flags.quick
 const hostTarget = flags['host-target']
+const skipImage = flags['skip-image']
 const test = flags.test
 const filter = positionals[0] || ''
 
@@ -82,13 +97,20 @@ if (targets.length === 0) {
   process.exit(1)
 }
 
+// --- Determine which Docker image stage to use ---
+const isWindows = targets.some((t) => t.target.includes('windows'))
+const dockerStage = isWindows ? 'windows' : 'linux'
+const DOCKER_IMAGE = isWindows ? DOCKER_IMAGE_WIN : DOCKER_IMAGE_LINUX
+
 // --- Build Docker image locally (CI uses .github/actions/docker-buildx instead) ---
 function ensureDockerImage() {
-  console.log(`Building Docker image: ${DOCKER_IMAGE}`)
+  console.log(`Building Docker image: ${DOCKER_IMAGE} (target: ${dockerStage})`)
   execFileSync(
     'docker',
     [
       'build',
+      '--target',
+      dockerStage,
       '-t',
       DOCKER_IMAGE,
       '-f',
@@ -99,7 +121,9 @@ function ensureDockerImage() {
   )
 }
 
-ensureDockerImage()
+if (!skipImage) {
+  ensureDockerImage()
+}
 
 // --- Build targets ---
 const buildTask = quick

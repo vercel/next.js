@@ -1,79 +1,35 @@
 # Multi-stage Dockerfile for building Next.js native binaries (next-swc).
 #
-# Produces a single image that can cross-compile ALL 4 Linux targets
-# (x86_64/aarch64 × gnu/musl) from either an x86_64 or aarch64 host.
+# Two final images share a common base:
+#   - next-swc-builder:latest       — Linux targets (x86_64/aarch64 × gnu/musl)
+#   - next-swc-builder-win:latest   — Windows targets (x86_64/aarch64 × msvc)
 #
 # Build:
-#   docker build -t next-swc-builder:latest -f scripts/native-builder.Dockerfile .
+#   docker build --target linux -t next-swc-builder:latest ...
+#   docker build --target windows -t next-swc-builder-win:latest ...
 #
-# The image includes:
-#   - Ubuntu 20.04 (glibc 2.31 — broad compatibility baseline)
-#   - Clang/LLD for all compilation and linking via --target
-#   - GNU cross-sysroots via crossbuild-essential (Ubuntu multiarch)
-#   - musl sysroots from musl.cc (headers + libs only; clang/lld do the work)
-#   - Node.js 20 (glibc-linked, used as build tool for all targets)
+# The base image includes:
+#   - Ubuntu 22.04 (build host only — output binaries target older glibc/CRT)
+#   - Clang/LLD for compilation and linking
+#   - Node.js 20 (build tool for npm/napi-cli)
 #   - Rust nightly toolchain (pinned to match rust-toolchain.toml)
-#   - @napi-rs/cli for building native Node.js addons
+#   - @napi-rs/cli and cargo-rustflags
 
-FROM ubuntu:20.04 AS builder
+# ============================================================
+# Stage: base — shared toolchain for all targets
+# ============================================================
+FROM ubuntu:22.04 AS base
 
-# Avoid interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
-# If the host provides an apt mirror URL (e.g. Hetzner), use it for the
-# native architecture. The suite names come from the container's own OS.
-ARG APT_MIRROR=
-
-# Enable multiarch for cross-compilation sysroots.
-# Write sources.list from scratch with explicit [arch=...] tags.
-# On arm64 hosts: native packages from ports, foreign amd64 from archive.
-# On amd64 hosts: native packages from archive, foreign arm64 from ports.
-RUN HOST_ARCH=$(dpkg --print-architecture) && \
-    if [ "$HOST_ARCH" = "arm64" ]; then \
-      NATIVE_MIRROR="${APT_MIRROR:-http://ports.ubuntu.com/ubuntu-ports}"; FOREIGN_ARCH=amd64; \
-      FOREIGN_MIRROR="http://archive.ubuntu.com/ubuntu"; \
-    else \
-      NATIVE_MIRROR="${APT_MIRROR:-http://archive.ubuntu.com/ubuntu}"; FOREIGN_ARCH=arm64; \
-      FOREIGN_MIRROR="http://ports.ubuntu.com/ubuntu-ports"; \
-    fi && \
-    dpkg --add-architecture "$FOREIGN_ARCH" && \
-    printf '%s\n' \
-      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} focal main universe" \
-      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} focal-updates main universe" \
-      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} focal-security main universe" \
-      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal main universe" \
-      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-updates main universe" \
-      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-security main universe" \
-      > /etc/apt/sources.list
-  
-# Core build tools + GNU cross-compilation sysroots + Node.js 20 via nodesource.
-# crossbuild-essential installs headers + libs in the multiarch layout
-# that clang finds via --target. Both archs installed so the image
-# works on either host architecture.
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y --no-install-recommends \
-    nodejs \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl ca-certificates \
     clang lld llvm pkg-config wget git xz-utils libssl-dev \
-    crossbuild-essential-amd64 crossbuild-essential-arm64 \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Download musl cross-toolchains from musl.cc for their sysroots
-# (headers, crt files, libc, libgcc). Clang + rust-lld handle compilation
-# and linking; we only need the target libraries.
-# Also copy GCC's crt files and libgcc into the sysroot lib dir — clang 10
-# doesn't search the --gcc-toolchain path for these files.
-# https://musl.cc/
-RUN cd /opt && \
-    for TRIPLE in aarch64-linux-musl x86_64-linux-musl; do \
-      wget -qO- "https://musl.cc/${TRIPLE}-cross.tgz" | tar xz && \
-      cp /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/crt*.o \
-         /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/libgcc.a \
-         /opt/${TRIPLE}-cross/${TRIPLE}/lib/; \
-    done
-
 # Install Rust — pinned nightly from rust-toolchain.toml
-# The COPY of rust-toolchain.toml ensures the image rebuilds when the toolchain changes.
 COPY rust-toolchain.toml /tmp/rust-toolchain.toml
 RUN TOOLCHAIN=$(grep 'channel' /tmp/rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/') && \
     curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | \
@@ -81,13 +37,6 @@ RUN TOOLCHAIN=$(grep 'channel' /tmp/rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1
     rm /tmp/rust-toolchain.toml
 
 ENV PATH="/root/.cargo/bin:${PATH}"
-
-# Add all 4 Linux rustup targets
-RUN rustup target add \
-    x86_64-unknown-linux-gnu \
-    aarch64-unknown-linux-gnu \
-    x86_64-unknown-linux-musl \
-    aarch64-unknown-linux-musl
 
 # Install cargo-binstall, then use it for Rust tools.
 ARG CARGO_BINSTALL_VERSION=1.18.1
@@ -100,3 +49,80 @@ RUN ARCH=$(uname -m) && \
     node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null && sccache --version
 
 WORKDIR /build
+
+# ============================================================
+# Stage: linux — GNU and musl cross-compilation sysroots
+# ============================================================
+FROM base AS linux
+
+# If the host provides an apt mirror URL (e.g. Hetzner), use it for the
+# native architecture. The suite names come from the container's own OS.
+ARG APT_MIRROR=
+
+# Enable multiarch for cross-compilation sysroots.
+RUN HOST_ARCH=$(dpkg --print-architecture) && \
+    if [ "$HOST_ARCH" = "arm64" ]; then \
+      NATIVE_MIRROR="${APT_MIRROR:-http://ports.ubuntu.com/ubuntu-ports}"; FOREIGN_ARCH=amd64; \
+      FOREIGN_MIRROR="http://archive.ubuntu.com/ubuntu"; \
+    else \
+      NATIVE_MIRROR="${APT_MIRROR:-http://archive.ubuntu.com/ubuntu}"; FOREIGN_ARCH=arm64; \
+      FOREIGN_MIRROR="http://ports.ubuntu.com/ubuntu-ports"; \
+    fi && \
+    dpkg --add-architecture "$FOREIGN_ARCH" && \
+    printf '%s\n' \
+      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} jammy main universe" \
+      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} jammy-updates main universe" \
+      "deb [arch=${HOST_ARCH}] ${NATIVE_MIRROR} jammy-security main universe" \
+      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} jammy main universe" \
+      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} jammy-updates main universe" \
+      "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} jammy-security main universe" \
+      > /etc/apt/sources.list && \
+    apt-get update && apt-get install -y --no-install-recommends \
+      crossbuild-essential-amd64 crossbuild-essential-arm64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Download musl cross-toolchains from musl.cc for their sysroots.
+# https://musl.cc/
+RUN cd /opt && \
+    for TRIPLE in aarch64-linux-musl x86_64-linux-musl; do \
+      wget -qO- "https://musl.cc/${TRIPLE}-cross.tgz" | tar xz && \
+      cp /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/crt*.o \
+         /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/libgcc.a \
+         /opt/${TRIPLE}-cross/${TRIPLE}/lib/; \
+    done
+
+RUN rustup target add \
+    x86_64-unknown-linux-gnu \
+    aarch64-unknown-linux-gnu \
+    x86_64-unknown-linux-musl \
+    aarch64-unknown-linux-musl
+
+# ============================================================
+# Stage: windows — MSVC cross-compilation via cargo-xwin
+# ============================================================
+FROM base AS windows
+
+RUN cargo binstall --no-confirm cargo-xwin@0.21.5
+
+RUN rustup target add \
+    x86_64-pc-windows-msvc \
+    aarch64-pc-windows-msvc
+
+# Use Rust's bundled LLD (v22+) for lld-link — it supports /guard:ehcont
+# which the xwin CRT's loadcfg.obj requires. Ubuntu's system LLD is too old.
+# rust-lld auto-detects flavor from argv[0] "lld-link".
+# clang-cl is clang in MSVC-compatible mode (same binary, different argv[0]).
+RUN SYSROOT=$(rustc --print sysroot) && \
+    HOST=$(rustc -vV | grep host | cut -d' ' -f2) && \
+    ln -sf "$SYSROOT/lib/rustlib/$HOST/bin/rust-lld" /usr/local/bin/lld-link && \
+    ln -sf llvm-ar /usr/bin/llvm-lib && \
+    ln -sf clang /usr/bin/clang-cl
+
+# Pre-cache MSVC SDK for cargo-xwin so it doesn't re-download on every build.
+RUN mkdir -p /tmp/_xwin_seed/src && \
+    echo "fn main(){}" > /tmp/_xwin_seed/src/main.rs && \
+    printf '[package]\nname="d"\nversion="0.0.0"\nedition="2021"\n' > /tmp/_xwin_seed/Cargo.toml && \
+    cd /tmp/_xwin_seed && \
+    cargo xwin check --target x86_64-pc-windows-msvc && \
+    cargo xwin check --target aarch64-pc-windows-msvc && \
+    rm -rf /tmp/_xwin_seed
