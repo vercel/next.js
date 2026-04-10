@@ -177,6 +177,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
           cwd: dir,
         })
       } else {
+        // Temporary fallback because stats action run on the canary branch which does not have the pack-for-isolated-tests task yet.
         logger(
           'turbo task pack-for-isolated-tests not found, falling back to pnpm pack per package'
         )
