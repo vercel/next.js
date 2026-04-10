@@ -3,11 +3,7 @@
  * Only included when a .wasm file is actually imported.
  */
 
- 
-
 'use turbopack no side effects'
-
-declare function __turbopack_chunk_url__(chunkPath: string): string
 
 export async function instantiateWebAssembly(
   chunkPath: string,

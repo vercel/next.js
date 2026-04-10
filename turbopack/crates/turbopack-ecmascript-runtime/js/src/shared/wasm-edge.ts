@@ -3,8 +3,6 @@
  * Only included when a .wasm file is actually imported.
  */
 
- 
-
 'use turbopack no side effects'
 
 async function loadEdgeWasm(

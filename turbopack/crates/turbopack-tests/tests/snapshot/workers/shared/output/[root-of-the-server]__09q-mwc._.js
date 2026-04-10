@@ -12,18 +12,18 @@ __turbopack_context__.s([
 /**
  * Browser worker creation module.
  * Only included when a Web Worker or SharedWorker is actually used.
- */ /* eslint-disable @typescript-eslint/no-unused-vars */ 'use turbopack no side effects';
+ */ 'use turbopack no side effects';
 function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
     const isSharedWorker = WorkerConstructor.name === 'SharedWorker';
-    const chunkUrls = moduleChunks.map((chunk)=>__turbopack_chunk_url__(chunk)).reverse();
+    const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.w(chunk)).reverse();
     const params = [
         chunkUrls,
-        __turbopack_asset_suffix__()
+        /*TURBOPACK member replacement*/ __turbopack_context__.X()
     ];
-    for (const globalName of __turbopack_forwarded_globals__()){
+    for (const globalName of /*TURBOPACK member replacement*/ __turbopack_context__.b()){
         params.push(globalThis[globalName]);
     }
-    const url = new URL(__turbopack_chunk_url__(entrypoint), location.origin);
+    const url = new URL(/*TURBOPACK member replacement*/ __turbopack_context__.w(entrypoint), location.origin);
     const paramsJson = JSON.stringify(params);
     if (isSharedWorker) {
         url.searchParams.set('params', paramsJson);

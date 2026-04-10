@@ -3,13 +3,7 @@
  * Only included when a Web Worker or SharedWorker is actually used.
  */
 
- 
-
 'use turbopack no side effects'
-
-declare function __turbopack_chunk_url__(chunkPath: string): string
-declare function __turbopack_forwarded_globals__(): string[]
-declare function __turbopack_asset_suffix__(): string
 
 /**
  * Creates a worker by instantiating the given WorkerConstructor with the

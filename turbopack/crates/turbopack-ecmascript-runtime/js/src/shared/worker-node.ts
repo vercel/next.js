@@ -3,11 +3,7 @@
  * Only included when a Node.js worker_threads Worker is actually used.
  */
 
- 
-
 'use turbopack no side effects'
-
-declare function __turbopack_forwarded_globals__(): string[]
 
 /**
  * Creates a Node.js worker thread by instantiating the given WorkerConstructor

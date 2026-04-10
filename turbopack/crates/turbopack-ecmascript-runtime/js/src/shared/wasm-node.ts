@@ -3,11 +3,7 @@
  * Only included when a .wasm file is actually imported.
  */
 
- 
-
 'use turbopack no side effects'
-
-declare function __turbopack_resolve_chunk_path__(path: string): string
 
 function readWebAssemblyAsResponse(path: string) {
   const { createReadStream } = require('fs') as typeof import('fs')
