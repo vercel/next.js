@@ -232,7 +232,6 @@ pub async fn get_next_client_import_map(
         ClientContextType::Other => {}
     }
 
-    insert_turbopack_dev_alias(&mut import_map).await?;
     insert_instrumentation_client_alias(&mut import_map, project_path).await?;
 
     insert_server_only_error_alias(&mut import_map);
@@ -263,8 +262,6 @@ pub async fn get_next_client_fallback_import_map(ty: ClientContextType) -> Resul
         ClientContextType::Fallback => {}
         ClientContextType::Other => {}
     }
-
-    insert_turbopack_dev_alias(&mut import_map).await?;
 
     Ok(import_map.cell())
 }
@@ -1188,7 +1185,6 @@ async fn insert_next_shared_aliases(
         ),
     );
 
-    insert_turbopack_dev_alias(import_map).await?;
     insert_package_alias(
         import_map,
         "@vercel/turbopack-node/",
@@ -1405,19 +1401,6 @@ fn insert_package_alias(import_map: &mut ImportMap, prefix: &str, package_root: 
         prefix,
         ImportMapping::PrimaryAlternative(rcstr!("./*"), Some(package_root)).resolved_cell(),
     );
-}
-
-/// Inserts an alias to @vercel/turbopack-dev into an import map.
-async fn insert_turbopack_dev_alias(import_map: &mut ImportMap) -> Result<()> {
-    insert_package_alias(
-        import_map,
-        "@vercel/turbopack-ecmascript-runtime/",
-        turbopack_ecmascript_runtime::embed_fs()
-            .root()
-            .owned()
-            .await?,
-    );
-    Ok(())
 }
 
 /// Handles instrumentation-client.ts bundling logic

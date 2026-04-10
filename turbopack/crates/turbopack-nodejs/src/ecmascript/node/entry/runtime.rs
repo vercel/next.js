@@ -97,10 +97,13 @@ impl EcmascriptBuildNodeRuntimeChunk {
             )?;
         }
 
+        let asset_context =
+            turbopack::get_runtime_asset_context(this.chunking_context.environment());
+
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
+                    asset_context,
                     RuntimeType::Development,
                     generate_source_map,
                 );
@@ -108,7 +111,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
+                    asset_context,
                     RuntimeType::Production,
                     generate_source_map,
                 );

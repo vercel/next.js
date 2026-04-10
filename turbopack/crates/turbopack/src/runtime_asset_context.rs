@@ -1,16 +1,18 @@
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Result, Vc};
-use turbopack::{
-    ModuleAssetContext,
-    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
-};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo, context::AssetContext, environment::Environment,
     ident::Layer,
 };
 use turbopack_ecmascript::TreeShakingMode;
 
-/// Returns the runtime asset context to use to process runtime code assets.
+use crate::{
+    ModuleAssetContext,
+    module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
+};
+
+/// Returns the runtime asset context used to compile embedded runtime
+/// TypeScript files (e.g. the turbopack-ecmascript-runtime JS sources).
 #[turbo_tasks::function]
 pub async fn get_runtime_asset_context(
     environment: ResolvedVc<Environment>,
