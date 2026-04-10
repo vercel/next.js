@@ -653,3 +653,398 @@ By library:
   jiff (time):                        111,026  ( 0.6%)
   encoding_rs:                        ~20,000  ( 0.1%)
 ```
+
+---
+
+## 19. Deep Dive: SWC Visitor System — 2.1M Lines (10.8%)
+
+The SWC visitor system (`swc_ecma_visit`) is a code-generated trait framework. For **221 distinct AST node types** and **22 distinct visitor crate namespaces**, it generates `visit_children_with` / `visit_children_with_ast_path` / `visit_mut_children_with` / `fold_children_with` methods.
+
+| Category                               | IR Lines      | Functions |
+| -------------------------------------- | ------------- | --------- |
+| All `swc_ecma_visit` references        | **2,113,042** | 52,304    |
+| `VisitMut` / `visit_mut_children_with` | **1,156,404** | 31,102    |
+| `AstParentKind` (path tracking type)   | **15,887**    | 102       |
+
+### Largest SWC visitor functions
+
+| Lines | Visitor                                                         | Method                      |
+| ----- | --------------------------------------------------------------- | --------------------------- |
+| 8,939 | `swc_css_prefixer::Prefixer`                                    | `visit_mut_declaration`     |
+| 8,836 | `swc_ecma_transforms_module::SystemJs`                          | `fold_module`               |
+| 8,560 | `swc_ecma_minifier::Pure`                                       | `visit_mut_expr`            |
+| 7,726 | `next_custom_transforms::ServerActions<SwcComments>`            | `visit_mut_module_items`    |
+| 7,394 | `next_custom_transforms::ServerActions<SingleThreadedComments>` | `visit_mut_module_items`    |
+| 4,757 | `swc_ecma_visit::NodeRef`                                       | `experimental_raw_children` |
+| 4,515 | `swc_ecma_minifier::Optimizer`                                  | `visit_mut_expr`            |
+| 4,215 | `DecoratorPass`                                                 | `visit_mut_class_members`   |
+| 3,775 | `swc_ecma_minifier::Pure`                                       | `visit_mut_stmt`            |
+| 3,281 | `Expr::visit_children_with_ast_path<ModuleReferencesVisitor>`   | (turbopack analysis)        |
+| 3,235 | `Expr::visit_children_with_ast_path<Analyzer>`                  | (turbopack analysis)        |
+
+### `ServerActions` duplication — 15,120 lines for 2 comment type variants
+
+**Source:** `crates/next-custom-transforms/src/transforms/server_actions.rs`
+
+`ServerActions<C: Comments>` is generic over the comment provider. It gets instantiated for **both** `SwcComments` (7,726 lines) and `SingleThreadedComments` (7,394 lines). The visitor trait (`VisitMut`) is monomorphized per concrete type, duplicating the entire 7K+ line visitor for a difference in how comments are read. Total cost: **15,120 lines**.
+
+### SWC transform crate costs
+
+| Crate                              | IR Lines     | Functions   |
+| ---------------------------------- | ------------ | ----------- |
+| `swc_ecma_transforms_base`         | 233,278      | 4,086       |
+| `swc_ecma_transforms_optimization` | 128,368      | 2,568       |
+| `swc_ecma_transforms_module`       | 109,147      | 2,374       |
+| `swc_ecma_transforms_proposal`     | 103,651      | 2,881       |
+| `swc_ecma_transforms_react`        | 81,754       | 1,418       |
+| `swc_ecma_transforms_typescript`   | 54,780       | 989         |
+| `swc_ecma_compat_es2015`           | —            | —           |
+| **Total SWC transforms**           | **~711,000** | **~14,000** |
+
+### `next_custom_transforms` — 435,013 lines (2.2%)
+
+Next.js custom SWC transforms (server actions, RSC validation, barrel optimization, etc.):
+
+| Lines | Transform                                                       |
+| ----- | --------------------------------------------------------------- |
+| 7,726 | `ServerActions<SwcComments>::visit_mut_module_items`            |
+| 7,394 | `ServerActions<SingleThreadedComments>::visit_mut_module_items` |
+| 2,944 | `TransformOptions::deserialize::visit_map`                      |
+| 2,335 | `OptimizeBarrel::fold_module_items`                             |
+| 1,808 | `custom_before_pass::<SingleThreadedComments>`                  |
+| 1,784 | `ReactServerComponentValidator::visit_module`                   |
+| 1,600 | `DebugInstantStack::visit_mut_module_items`                     |
+
+### `AstParentKind` — 15,887 lines
+
+`AstParentKind` is a large enum tracking the path from root to current node during AST traversal. It has derived `PartialEq`, `PartialOrd`, `Debug`, `Serialize`, `Deserialize` — all generating big match statements:
+
+| Lines | Derived Trait                           |
+| ----- | --------------------------------------- |
+| 4,479 | `Deserialize::visit_enum` (via bincode) |
+| 2,067 | `PartialOrd::partial_cmp`               |
+| 1,753 | `PartialEq::eq`                         |
+| 1,658 | `Debug::fmt`                            |
+| 959   | `Deserialize::visit_u64`                |
+| 713   | `Serialize::serialize` (bincode)        |
+
+---
+
+## 20. Deep Dive: Async Runtime — tokio + futures_util = 1.45M Lines
+
+| Crate          | IR Lines      | Functions  |
+| -------------- | ------------- | ---------- |
+| `tokio`        | 699,290       | 22,315     |
+| `futures_util` | 746,092       | 18,321     |
+| **Total**      | **1,445,382** | **40,636** |
+
+### `FuturesUnordered` — 304,247 lines (1.6%)
+
+`FuturesUnordered` is heavily used in Turbopack for concurrent task execution. Each use site with a different `Future` type creates a new `poll_next` monomorphization:
+
+| Lines  | Copies | Future Type                                                |
+| ------ | ------ | ---------------------------------------------------------- |
+| 698    | 1      | `Effects::apply::{closure#0}`                              |
+| 608 ×3 | 2 each | `make_chunk_group` variants                                |
+| 514 ×2 | 2 each | `ToResolvedVcFuture<ModuleBatchGroup/ChunkItemBatchGroup>` |
+| 512    | 2      | `chunk_group_content` closure                              |
+
+Total: **304,247 lines** across **7,515 functions** from `FuturesUnordered` and related types.
+
+### `JoinAll` — used by `ValueDebugFormat`
+
+The largest `JoinAll` instances come from `ValueDebugFormat`'s async field formatting:
+
+- `drop_in_place<JoinAll<AsyncFormattingField::resolve>>`: 2,060 lines × 21 copies
+- `drop_in_place<JoinAll<value_debug_format_field>>`: 1,085 lines × 12 copies
+
+---
+
+## 21. Deep Dive: hashbrown — 595,178 Lines (3.0%)
+
+**1,353 unique `reserve_rehash` monomorphizations** — one per distinct `HashMap<K,V>` type in the binary.
+
+### hashbrown by operation
+
+| Operation                | IR Lines | Functions |
+| ------------------------ | -------- | --------- |
+| `reserve_rehash`         | 208,986  | 1,353     |
+| other                    | 120,106  | 2,516     |
+| `drop` (ScopeGuard etc.) | 92,621   | 2,559     |
+| `iter` (fold_impl etc.)  | 76,453   | 1,491     |
+| `insert`                 | 62,257   | 479       |
+| `find`                   | 13,244   | 289       |
+| `clone`                  | 10,921   | 205       |
+| `rustc_entry`            | 10,590   | 104       |
+
+### Top HashMap key types (by function count)
+
+| Count | Key Type                      |
+| ----- | ----------------------------- |
+| 976   | `TaskId`                      |
+| 350   | `Arc<CachedTaskType>`         |
+| 283   | `String`                      |
+| 255   | `ValueTypeId`                 |
+| 236   | `(Atom, SyntaxContext)`       |
+| 214   | `Atom`                        |
+| 106   | `ResolvedVc<Box<dyn Module>>` |
+| 104   | `RcStr`                       |
+
+---
+
+## 22. Deep Dive: NAPI Bridge — 835,092 Lines (4.3%)
+
+The NAPI bridge layer connects Turbopack to Node.js:
+
+| Crate                      | IR Lines | Functions |
+| -------------------------- | -------- | --------- |
+| `napi` (framework)         | 835,092  | 18,927    |
+| `next_napi_bindings` (app) | 649,731  | 18,540    |
+
+### Top NAPI functions
+
+| Lines | Function                                                            |
+| ----- | ------------------------------------------------------------------- |
+| 5,520 | `Property::serialize::<napi::Ser>` — lightningcss→JS bridge         |
+| 4,415 | `Options::build_as_input` — SWC transform pipeline monomorphization |
+| 3,333 | `Property::visit_children<JsVisitor>` — lightningcss NAPI visitor   |
+| 2,897 | `LengthValue::serialize::<napi::Ser>`                               |
+| 2,690 | `CssRuleList<AtRule>::minify` — NAPI-specific CSS minification      |
+| 2,620 | `NapiProjectOptions::from_napi_value` — project options parsing     |
+
+### `NapiProjectOptions::from_napi_value` — 2,620 lines
+
+**Source:** `crates/next-napi-bindings/src/next_api/project.rs`
+
+This is the entry point for converting JavaScript project options into Rust structs. The `FromNapiValue` derive generates a sequential field-by-field extraction from the JavaScript object, similar to how bincode `Decode` works for `ExperimentalConfig`.
+
+---
+
+## 23. Deep Dive: turbo-tasks Backend & Persistence — 651K Lines
+
+| Crate                 | IR Lines | Functions |
+| --------------------- | -------- | --------- |
+| `turbo_tasks_backend` | 511,227  | 11,437    |
+| `turbo_persistence`   | 139,837  | 2,605     |
+| `turbo_bincode`       | 729,442  | 11,411    |
+
+### Largest backend functions
+
+| Lines    | Function                                                       | Source                  |
+| -------- | -------------------------------------------------------------- | ----------------------- |
+| 2,322 ×3 | `ExecuteContextImpl::prepare_tasks_with_callback` (3 variants) | Backend task scheduling |
+| 1,656    | `TaskStorage::clone_snapshot`                                  | Snapshot persistence    |
+| 1,610    | `TurboTasksBackendInner::run_backend_job`                      | Job dispatch            |
+| 1,441    | `AggregationUpdateJob::encode` (bincode)                       | Serialization           |
+| 1,410    | `AggregationUpdateJob::decode` (bincode)                       | Deserialization         |
+| 1,313    | `TaskStorage::encode_meta`                                     | Metadata persistence    |
+
+### `AggregationUpdateJob` — 72,535 lines total
+
+The aggregation update system (task dependency propagation) is the largest single feature in the backend, spanning 1,264 functions.
+
+### turbo_persistence: LSM-tree storage
+
+The persistence layer implements an LSM-tree database:
+
+| Lines | Function                                   |
+| ----- | ------------------------------------------ |
+| 1,129 | `TurboPersistence::commit::{closure#4}`    |
+| 1,121 | `WriteBatch::flush_thread_local_collector` |
+| 1,100 | `StreamingSstWriter::close`                |
+| 1,073 | `TurboPersistence::load_directory`         |
+
+---
+
+## 24. Deep Dive: CSS Processing Pipeline — 2.35M Lines (12.0%)
+
+The full CSS pipeline spans multiple crates:
+
+| Crate              | IR Lines      | Functions  |
+| ------------------ | ------------- | ---------- |
+| lightningcss       | 2,339,335     | —          |
+| `swc_css_ast`      | 150,125       | 4,384      |
+| `cssparser`        | 148,482       | 1,292      |
+| `parcel_selectors` | 89,412        | 938        |
+| `swc_css_parser`   | 76,929        | 342        |
+| `swc_css_prefixer` | 21,074        | 649        |
+| `swc_css_visit`    | 17,403        | 261        |
+| `swc_css_codegen`  | 10,647        | 366        |
+| `swc_css_utils`    | 13,490        | 123        |
+| `swc_css_compat`   | 9,535         | 62         |
+| **TOTAL**          | **2,349,278** | **30,471** |
+
+### lightningcss by functional area
+
+| Area                                 | IR Lines | Functions |
+| ------------------------------------ | -------- | --------- |
+| `values` (length, color, calc, etc.) | 795,547  | 10,537    |
+| other (miscellaneous)                | 502,401  | 6,870     |
+| `rules` (at-rules, rule lists)       | 276,816  | 3,843     |
+| `Property` enum operations           | 161,836  | 947       |
+| `border` properties                  | 118,582  | 1,308     |
+| `selector` parsing/matching          | 117,761  | 772       |
+| parsing                              | 75,317   | 1,571     |
+| `animation` properties               | 67,038   | 1,207     |
+| `masking` properties                 | 56,193   | 802       |
+| `font` properties                    | 46,998   | 811       |
+| `background` properties              | 39,170   | 690       |
+| `size` properties                    | 22,082   | 217       |
+| `flex` properties                    | 15,822   | 301       |
+| compat (browser feature checks)      | 9,783    | 38        |
+
+### `Feature::is_compatible` — 8,220 lines (autogenerated)
+
+**Source:** `lightningcss/src/compat.rs` — **entirely autogenerated** by `build-prefixes.js`. Contains hundreds of `Feature` variants (one per CSS spec feature), each with per-browser version range comparisons.
+
+---
+
+## 25. Deep Dive: turbo_tasks_fs — 739,743 Lines (3.8%)
+
+| Lines | Function                                           | Source                                             |
+| ----- | -------------------------------------------------- | -------------------------------------------------- |
+| 3,187 | `FileSystemPath::to_string_ref` (9 copies)         | `turbopack/crates/turbo-tasks-fs/src/lib.rs`       |
+| 2,334 | `resolve_symlink_safely`                           | `turbopack/crates/turbo-tasks-fs/src/read_glob.rs` |
+| 2,180 | `RealPathResultError::as_error_message` (2 copies) | Error formatting                                   |
+
+Most `turbo_tasks_fs` IR comes from **functor closures** — functions that take `FileSystemPath` as a turbo-tasks argument get their `functor::{closure#0}` attributed to this crate.
+
+---
+
+## 26. Deep Dive: allsorts (Font Shaping) — 147,546 Lines
+
+```
+allsorts ← next-core
+```
+
+| Lines | Function                                          |
+| ----- | ------------------------------------------------- |
+| 3,355 | `gsub_apply_indic` — Indic script shaping         |
+| 1,901 | `CFF::subset` — CFF font subsetting               |
+| 1,213 | `Woff2Font::table_provider` — WOFF2 decompression |
+| 1,197 | `CFF::read` — CFF font parsing                    |
+| 935   | `Os2::read_dep` — OS/2 table parsing              |
+| 895   | `gpos_apply_lookup` — GPOS positioning            |
+
+---
+
+## 27. Deep Dive: Regex — 204,466 Lines (1.0%)
+
+| Crate            | IR Lines | Functions |
+| ---------------- | -------- | --------- |
+| `regex_automata` | 157,682  | 1,728     |
+| `regex`          | 46,784   | 604       |
+
+Notable: `regex_automata::Cache` drop generates 3,390 lines × 28 copies = 94,920 line×copies product. `Pool<Cache>::put_value` at 7,103 lines × 18 copies is the 6th largest function by line×copies.
+
+---
+
+## 28. Function Size Distribution
+
+| Range       | Functions | Lines     | % of Total |
+| ----------- | --------- | --------- | ---------- |
+| 1–10        | 105,164   | 436,768   | 2.2%       |
+| 11–50       | 138,341   | 3,751,578 | 19.2%      |
+| 51–100      | 47,633    | 3,325,049 | 17.0%      |
+| 101–500     | 38,409    | 7,557,488 | 38.6%      |
+| 501–1,000   | 2,837     | 1,919,796 | 9.8%       |
+| 1,001–5,000 | 1,176     | 2,116,579 | 10.8%      |
+| 5,001+      | 55        | 476,853   | 2.4%       |
+
+**Key insight:** The "101–500" range accounts for **38.6% of all IR** from only 38,409 functions. These are medium-sized functions — turbo-tasks functor closures (avg ~315 lines), visitor methods, and derived trait impls. They are the primary target for framework-level deduplication.
+
+Only **55 "mega functions"** (>5K lines) exist, totaling 476,853 lines (2.4%). The top 30 are documented in Section 5. Fixing these is high-visibility but low-total-impact compared to the 38K medium functions.
+
+---
+
+## 29. Top 20 Functions by Total Binary Impact (lines × copies)
+
+| lines×copies  | Lines  | Copies | Function                                                  |
+| ------------- | ------ | ------ | --------------------------------------------------------- |
+| **4,556,002** | 10,102 | 451    | `wast::Instruction::encode::encode`                       |
+| **554,820**   | 19,815 | 28     | `drop_in_place::<Expr>`                                   |
+| **451,584**   | 2,016  | 224    | `next_core::next_config::__ctor`                          |
+| **389,376**   | 1,872  | 208    | `turbo_tasks::primitives::__ctor`                         |
+| **368,095**   | 4,045  | 91     | `drop_in_place::<std::io::Error>`                         |
+| **318,536**   | 10,984 | 29     | `drop_in_place::<Stmt>`                                   |
+| **306,852**   | 11,802 | 26     | `drop_in_place::<TsType>`                                 |
+| **289,656**   | 4,023  | 72     | `drop_in_place::<hashbrown::ScopeGuard<rehash_in_place>>` |
+| **207,948**   | 1,333  | 156    | `drop_in_place::<String>`                                 |
+| **140,625**   | 1,125  | 125    | `turbo_tasks_fs::__ctor`                                  |
+| **137,020**   | 5,270  | 26     | `drop_in_place::<Decl>`                                   |
+| **127,854**   | 7,103  | 18     | `regex_automata::Pool<Cache>::put_value`                  |
+| **127,449**   | 1,071  | 119    | `turbopack_core::resolve::__ctor`                         |
+| **124,722**   | 1,066  | 117    | `drop_in_place::<Vec<u8>>`                                |
+| **123,201**   | 1,053  | 117    | `next_core::next_import_map::get_rcstr::__ctor`           |
+| **116,964**   | 1,026  | 114    | `next_api::project::__ctor`                               |
+| **116,334**   | 5,058  | 23     | `RawVc::to_non_local::{closure#0}`                        |
+| **99,225**    | 945    | 105    | `next_core::app_structure::__ctor`                        |
+| **94,920**    | 3,390  | 28     | `drop_in_place::<regex_automata::Cache>`                  |
+| **91,754**    | 3,529  | 26     | `drop_in_place::<AssignTarget>`                           |
+
+The **`wast::Instruction::encode::encode`** dominates by an overwhelming margin: **4.56M line×copies** — 23% of the entire binary's IR by this metric, from a single function encoding WebAssembly opcodes.
+
+---
+
+## 30. Comprehensive Summary
+
+```
+Total IR lines:                    19,584,111  (100.0%)
+
+By runtime layer:
+  Turbo-tasks framework:            3,754,743  (19.2%)
+  Async runtime (tokio+futures):    1,445,382  ( 7.4%)
+  NAPI bridge:                        835,092  ( 4.3%)
+  Backend persistence:                651,064  ( 3.3%)
+  turbo_tasks_fs:                     739,743  ( 3.8%)
+
+By language processing:
+  SWC JS/TS (all crates):           4,614,577  (23.6%)
+    swc_ecma_ast (types):           2,214,702  (11.3%)
+    swc_ecma_visit (visitors):      2,113,042  (10.8%)
+    SWC transforms:                   711,000  ( 3.6%)
+  CSS pipeline (all):               2,349,278  (12.0%)
+    lightningcss:                   2,339,335  (11.9%)
+    swc_css_* crates:                 299,203  ( 1.5%)
+    cssparser + parcel_selectors:     237,894  ( 1.2%)
+  next_custom_transforms:             435,013  ( 2.2%)
+
+By serialization/encoding:
+  serde (all):                      2,256,357  (11.5%)
+    serde_json:                       857,036  ( 4.4%)
+  bincode (turbo-tasks):              772,830  ( 3.9%)
+  turbo_bincode:                      729,442  ( 3.7%)
+
+By derived traits (all types):
+  Deserialize:                      1,682,960  ( 8.6%)
+  Clone:                              210,353  ( 1.1%)
+  PartialEq:                          217,429  ( 1.1%)
+  Debug:                              185,588  ( 0.9%)
+  Serialize:                          154,305  ( 0.8%)
+  Hash:                                46,376  ( 0.2%)
+
+Collections/infrastructure:
+  hashbrown (HashMap):                595,178  ( 3.0%)
+    reserve_rehash monomorphs:      1,353 unique types
+  regex + regex_automata:             204,466  ( 1.0%)
+
+External dependencies:
+  image + moxcms + pxfm:             627,614  ( 3.2%)
+  wast + wasmparser (WASM):           457,426  ( 2.3%)
+  allsorts (fonts):                   147,546  ( 0.8%)
+  rustls (TLS):                       156,765  ( 0.8%)
+  jiff (time):                        111,026  ( 0.6%)
+  encoding_rs:                        ~20,000  ( 0.1%)
+
+Destructors:
+  drop_in_place (all):              1,312,884  ( 6.7%)
+
+Function size distribution:
+  ≤10 lines:    105,164 fns   436,768 lines  ( 2.2%)
+  11-50:        138,341 fns 3,751,578 lines  (19.2%)
+  51-100:        47,633 fns 3,325,049 lines  (17.0%)
+  101-500:       38,409 fns 7,557,488 lines  (38.6%)  ← biggest bucket
+  501-1000:       2,837 fns 1,919,796 lines  ( 9.8%)
+  1001-5000:      1,176 fns 2,116,579 lines  (10.8%)
+  5001+:             55 fns   476,853 lines  ( 2.4%)
+```
