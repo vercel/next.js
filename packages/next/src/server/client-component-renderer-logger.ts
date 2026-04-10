@@ -5,13 +5,14 @@ let clientComponentLoadStart = 0
 let clientComponentLoadTimes = 0
 let clientComponentLoadCount = 0
 
-const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
-  'performance' in globalThis && process.env.NEXT_OTEL_PERFORMANCE_PREFIX
-
 export function wrapClientComponentLoader(
-  ComponentMod: AppPageModule
+  ComponentMod: AppPageModule,
+  isTracingEnabled: boolean
 ): AppPageModule['__next_app__'] {
-  if (!HAS_CLIENT_COMPONENT_METRICS_ENABLED) {
+  if (
+    !('performance' in globalThis) ||
+    (!process.env.NEXT_OTEL_PERFORMANCE_PREFIX && !isTracingEnabled)
+  ) {
     return ComponentMod.__next_app__
   }
 
