@@ -1,5 +1,5 @@
 const __turbopack_params__ = {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_esm_chunks_basic_input_dep_1_o75cw.js","output/1do3_crates_turbopack-tests_tests_snapshot_esm_chunks_basic_input_index_20j0iej.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/esm_chunks/basic/input/index.js [test] (ecmascript)"]};
-(() => {
+await (async () => {
 
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
@@ -1066,7 +1066,7 @@ let BACKEND;
         return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
-BACKEND.registerChunk("", __turbopack_params__);
+await BACKEND.registerChunk("", __turbopack_params__);
 })();
 
 
