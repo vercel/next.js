@@ -151,7 +151,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         #[cfg(feature = "swc_ecma_transform_plugin")]
         {
-            use std::{cell::RefCell, rc::Rc, sync::Arc};
+            use std::{cell::RefCell, env, rc::Rc, sync::Arc};
 
             use anyhow::Context;
             use swc_core::{
@@ -222,8 +222,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
 
                 let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
                     Some(ctx.file_path_str.to_string()),
-                    //[TODO]: Support env-related variable injection, i.e process.env.NODE_ENV
-                    "development".to_string(),
+                    env::var("NODE_ENV").unwrap_or_else(|_| "development".to_string()),
                     None,
                 ));
 
