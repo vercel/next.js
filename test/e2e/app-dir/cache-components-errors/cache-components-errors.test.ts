@@ -87,17 +87,19 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
+             "description": "Runtime data was accessed inside generateMetadata() or file-based metadata
 
-           When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+           When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages.
 
            To fix this:
 
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateMetadata() as part of the HTML document, so it's instantly visible to the user.
+           Remove the Runtime data access from generateMetadata(). This allows Next.js to statically prerender generateMetadata() as part of the HTML document, so it's instantly visible to the user.
 
            or
 
            add connection() inside a <Suspense> somewhere in a Page or Layout. This tells Next.js that the page is intended to have some non-prerenderable parts.
+
+           Note that if you are using file-based metadata, such as icons, inside a route with dynamic params then the only recourse is to make some other part of the page non-prerenderable.
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata",
              "environmentLabel": "Server",
@@ -286,17 +288,19 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
+             "description": "Runtime data was accessed inside generateMetadata() or file-based metadata
 
-           When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+           When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages.
 
            To fix this:
 
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateMetadata() as part of the HTML document, so it's instantly visible to the user.
+           Remove the Runtime data access from generateMetadata(). This allows Next.js to statically prerender generateMetadata() as part of the HTML document, so it's instantly visible to the user.
 
            or
 
            add connection() inside a <Suspense> somewhere in a Page or Layout. This tells Next.js that the page is intended to have some non-prerenderable parts.
+
+           Note that if you are using file-based metadata, such as icons, inside a route with dynamic params then the only recourse is to make some other part of the page non-prerenderable.
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata",
              "environmentLabel": "Server",
@@ -383,17 +387,19 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Data that blocks navigation was accessed inside generateViewport()
+             "description": "Runtime data was accessed inside generateViewport()
 
-           Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
+           Remove the Runtime data requirement from generateViewport. This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
 
            or
 
            Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
+
+           params are usually considered Runtime data but if all params are provided a value using generateStaticParams they can be statically prerendered.
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
              "environmentLabel": "Server",
@@ -455,17 +461,19 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Data that blocks navigation was accessed inside generateViewport()
+             "description": "Runtime data was accessed inside generateViewport()
 
-           Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
+           Remove the Runtime data requirement from generateViewport. This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
 
            or
 
            Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
+
+           params are usually considered Runtime data but if all params are provided a value using generateStaticParams they can be statically prerendered.
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
              "environmentLabel": "Server",
