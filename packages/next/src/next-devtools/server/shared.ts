@@ -72,7 +72,8 @@ export function ignoreListAnonymousStackFramesIfSandwiched(
 export function getOriginalCodeFrame(
   frame: IgnorableStackFrame,
   source: string | null,
-  colorsOrOptions: boolean | CodeFrameRenderOptions = process.stdout.isTTY
+  colorsOrOptions: boolean | CodeFrameRenderOptions = process.stdout?.isTTY ??
+    false
 ): string | null {
   if (!source || frame.line1 == null) {
     return null
@@ -82,7 +83,7 @@ export function getOriginalCodeFrame(
     typeof colorsOrOptions === 'boolean'
       ? { colors: colorsOrOptions, maxWidth: undefined }
       : {
-          colors: colorsOrOptions.colors ?? process.stdout.isTTY,
+          colors: colorsOrOptions.colors ?? process.stdout?.isTTY ?? false,
           maxWidth: colorsOrOptions.maxWidth,
         }
 
