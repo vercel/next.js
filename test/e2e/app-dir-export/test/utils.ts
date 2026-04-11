@@ -10,7 +10,9 @@ import { createReadStream } from 'fs'
 import {
   waitForRedbox,
   getRedboxHeader,
+  getRedboxDescription,
   getRedboxSource,
+  openRedbox,
   retry,
   findPort,
   startStaticServer,
@@ -106,6 +108,35 @@ export async function expectOutputExportDevRedbox({
     const source = await getRedboxSource(browser)
 
     expect(header).toContain(expectedMessage)
+
+    if (expectedSource && source !== null) {
+      expect(source).toContain(expectedSource)
+    }
+  } finally {
+    await browser.close()
+  }
+}
+
+export async function expectOutputExportDevCollapsedRedbox({
+  port,
+  path,
+  expectedMessage,
+  expectedSource,
+}: {
+  port: number
+  path: string
+  expectedMessage: string
+  expectedSource?: string
+}) {
+  const browser = await webdriver(port, path)
+
+  try {
+    await openRedbox(browser)
+
+    const description = await getRedboxDescription(browser)
+    const source = await getRedboxSource(browser)
+
+    expect(description).toContain(expectedMessage)
 
     if (expectedSource && source !== null) {
       expect(source).toContain(expectedSource)

@@ -256,6 +256,32 @@ server {
 
 With `trailingSlash: true`, the same config works because prerendered routes are emitted as `/route/index.html` and unknown paths still fall back to `/_fallback.html`. With `trailingSlash: false`, keep the `try_files $uri $uri.html $uri/ /_fallback.html;` order so prerendered flat files are served before the fallback bootstrap.
 
+#### Server and client boundaries
+
+Fallback routes in `output: 'export'` do not have a runtime server request. For unenumerated paths, request-specific APIs and unresolved fallback params are only available on the client.
+
+Move long-tail fallback content into Client Components if it depends on:
+
+- `await params` for values that were not returned from `generateStaticParams`
+- `searchParams`
+- `headers()`
+- `cookies()`
+- `connection()`
+
+Synchronous platform IO such as `Date.now()`, `Math.random()`, and `crypto.randomUUID()` still follows the normal Cache Components rules. If you want to prerender those values into static output, wrap the read in `use cache`:
+
+```tsx filename="app/page.tsx"
+async function getBuildTimeValue() {
+  'use cache'
+
+  return Date.now()
+}
+
+export default async function Page() {
+  return <p>{await getBuildTimeValue()}</p>
+}
+```
+
 > **Good to know**:
 >
 > - Param-dependent content for fallback routes renders on the client, so use client-side fetching patterns like `fetch`, SWR, or React Query in those parts of the tree.
