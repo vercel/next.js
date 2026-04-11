@@ -6,11 +6,11 @@ export type BlockingRouteErrorDetails = {
 }
 
 function isRuntimeVariant(message: string): boolean {
-  return (
-    message.includes('request-time API') ||
-    message.includes('cookies()') ||
-    message.includes('Runtime data')
-  )
+  if (message.includes('Runtime data')) return true
+  if (message.includes('A request-time API') && !message.includes('Either')) {
+    return true
+  }
+  return false
 }
 
 const API_PATTERNS = [
