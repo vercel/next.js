@@ -1,4 +1,4 @@
-import type { Params } from '../../server/request/params'
+import type { ParamValue, Params } from '../../server/request/params'
 
 import React, { useContext, useMemo, use } from 'react'
 import {
@@ -200,7 +200,17 @@ export function useRouter(): AppRouterInstance {
  * Read more: [Next.js Docs: `useParams`](https://nextjs.org/docs/app/api-reference/functions/use-params)
  */
 // Client components API
-export function useParams<T extends Params = Params>(): T {
+// The generic constraint is expressed with a mapped type rather than
+// `T extends Params` (which is `Record<string, ParamValue>`). `Record` has
+// an index signature, which TypeScript interfaces do not implicitly
+// satisfy, so the bare `extends Params` form forced users with
+// `interface PageParams { ... }` to either add `[key: string]: ParamValue`
+// manually or switch to a `type` alias (see issue #61951). The mapped-type
+// form accepts both interfaces and type aliases while still rejecting
+// types whose values are not `ParamValue`.
+export function useParams<
+  T extends { [K in keyof T]: ParamValue } = Params,
+>(): T {
   useDynamicRouteParams?.('useParams()')
 
   const params = useContext(PathParamsContext) as T
