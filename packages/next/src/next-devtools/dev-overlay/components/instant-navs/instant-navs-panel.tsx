@@ -52,6 +52,8 @@ export function InstantNavsPanel() {
   }
 
   function handleStartClientNav() {
+    window.__NEXT_ARM_INSTANT_NAVIGATION_LOCK?.()
+
     if (typeof cookieStore !== 'undefined') {
       cookieStore.set({
         name: COOKIE_NAME,

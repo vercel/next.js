@@ -81,6 +81,12 @@ function acquireLock(): void {
   lockState = { promise, resolve: resolve! }
 }
 
+export function armNavigationLockForTesting(): void {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    acquireLock()
+  }
+}
+
 function releaseLock(): void {
   if (lockState !== null) {
     lockState.resolve()
