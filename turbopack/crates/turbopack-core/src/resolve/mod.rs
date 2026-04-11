@@ -3740,7 +3740,7 @@ mod tests {
                 fully_specified: bool,
                 custom_extensions: Option<Vec<RcStr>>,
             ) -> anyhow::Result<Vc<ResolveRelativeRequestOutput>> {
-                let fs = DiskFileSystem::new(rcstr!("temp"), path);
+                let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
                 let lookup_path = fs.root().owned().await?;
 
                 let result = resolve_relative_helper(

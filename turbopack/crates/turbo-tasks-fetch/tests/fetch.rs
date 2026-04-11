@@ -180,7 +180,7 @@ async fn invalidation_does_not_invalidate() {
 }
 
 fn get_issue_context() -> Vc<FileSystemPath> {
-    DiskFileSystem::new(rcstr!("root"), rcstr!("/")).root()
+    DiskFileSystem::new(rcstr!("root"), Vc::cell(rcstr!("/"))).root()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

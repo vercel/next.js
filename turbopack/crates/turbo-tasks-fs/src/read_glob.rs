@@ -265,7 +265,7 @@ pub mod tests {
 
     #[turbo_tasks::function(operation)]
     async fn assert_read_glob_basic_operation(path: RcStr) -> anyhow::Result<()> {
-        let fs = DiskFileSystem::new(rcstr!("temp"), path);
+        let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
         let root = fs.root().await?;
         let read_dir = root
             .read_glob(Glob::new(rcstr!("**"), GlobOptions::default()))
@@ -308,7 +308,7 @@ pub mod tests {
 
     #[turbo_tasks::function(operation)]
     async fn assert_read_glob_symlinks_operation(path: RcStr) -> anyhow::Result<()> {
-        let fs = DiskFileSystem::new(rcstr!("temp"), path);
+        let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(path));
         let root = fs.root().await?;
         // Symlinked files
         let read_dir = root
@@ -359,7 +359,8 @@ pub mod tests {
 
     #[turbo_tasks::function(operation)]
     async fn assert_dead_symlink_read_glob_operation(path: RcStr) -> anyhow::Result<()> {
-        let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
+        let fs =
+            Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), Vc::cell(path)));
         let root = fs.root().owned().await?;
         let read_dir = root
             .read_glob(Glob::new(rcstr!("sub/*.js"), GlobOptions::default()))
@@ -481,7 +482,8 @@ pub mod tests {
 
     #[turbo_tasks::function(operation)]
     fn disk_file_system_root_operation(path: RcStr) -> Vc<FileSystemPath> {
-        let fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), path));
+        let fs =
+            Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(rcstr!("temp"), Vc::cell(path)));
         fs.root()
     }
 
