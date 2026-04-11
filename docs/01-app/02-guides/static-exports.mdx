@@ -248,7 +248,7 @@ For example, `/docs/[section]/[page]` is matched before `/docs/[...slug]`, so `/
 
 #### Static host configuration
 
-To serve unenumerated params on a static host, configure the host's 404 or error document to serve `_fallback.html` from the export output:
+To serve unenumerated params on a static host, configure the host's 404 or error document to serve `_fallback.html` from the export output for document navigations:
 
 | Host            | Configuration                                      |
 | --------------- | -------------------------------------------------- |
@@ -258,6 +258,22 @@ To serve unenumerated params on a static host, configure the host's 404 or error
 | GitHub Pages    | Copy `_fallback.html` to `404.html`                |
 
 When a user visits an unenumerated route, the host serves `_fallback.html`. The Next.js client router then discovers the correct fallback shell and renders the page with param-dependent content loading on the client.
+
+When your host supports it, prefer rewriting only document navigations to `_fallback.html`. Internal Next.js data requests such as missing `*.txt` and `*.json` fallback artifacts should stay normal 404s instead of being rewritten to HTML. This keeps the critical path shorter and avoids turning an internal probe into an extra HTML response.
+
+For example, on Nginx you can preserve 404s for missing data assets while still rewriting document navigations:
+
+```nginx filename="nginx.conf"
+location ~ \.(txt|json)$ {
+  try_files $uri =404;
+}
+
+location / {
+  try_files $uri $uri.html $uri/ /_fallback.html;
+}
+```
+
+If your host can only apply one broad catch-all rewrite, `/_fallback.html` will still work, but missing internal data requests may also be rewritten to HTML. The page will still recover, but you may see extra fallback probes in the network waterfall.
 
 For client-side navigations (clicking a `<Link>`), the fallback shell is prefetched during hover, so navigation is instant.
 
