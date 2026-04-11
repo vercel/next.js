@@ -192,22 +192,9 @@ You can combine `generateStaticParams` for known params with `<Suspense>` for re
 
 Large or unbounded slug sets (for example, millions of product pages) are not practical to prerender fully at build time.
 
-The experimental [`partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) flag serves a `<Suspense>` shell from the CDN for unknown slugs while data streams in. After the first visit, the page can be cached and treated as static.
+With Cache Components, Next.js serves a `<Suspense>` shell from the CDN for unknown slugs while data streams in. After the first visit, the page is cached and treated as static on subsequent requests. Keep `generateStaticParams` small and let traffic decide which extra pages warm into cache.
 
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  cacheComponents: true,
-  experimental: {
-    partialFallbacks: true,
-  },
-}
-
-export default nextConfig
-```
-
-Without `partialFallbacks`, unlisted params wait on the server for a full render before the response is sent. With `partialFallbacks`, keep `generateStaticParams` small and let traffic decide which extra pages warm into cache.
+> **Good to know**: This behavior is available from Next.js 16.3. Set `experimental: { partialFallbacks: false }` to opt out and fall back to the previous behavior where unlisted params wait for a full server render before the response is sent.
 
 ## Debugging prerender errors
 
