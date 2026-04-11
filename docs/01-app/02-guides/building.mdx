@@ -94,13 +94,11 @@ export default function Loading() {
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
-└ ◐ /products/[id]
+└ ◐ /products/[id]    # Shell from loading.js, page streams in at request time
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
-
-The `◐` on `/products/[id]` means the route is **Partial Prerender**: the loading fallback is served as a static shell, and the page content streams in at request time.
 
 > **Good to know**: The build prerenders a shell for unlisted params because [partial fallbacks](/docs/app/api-reference/config/next-config-js/partialFallbacks) is enabled by default from Next.js 16.3. If you opt out with `experimental: { partialFallbacks: false }`, the build does not need a loading fallback and `generateStaticParams` alone is enough to prerender the listed params.
 
@@ -141,16 +139,16 @@ Route (app)
 ┌ ○ /
 ├ ○ /_not-found
 └   /products/[id]
-  ├ ◐ /products/[id]
-  ├ ○ /products/1
-  ├ ○ /products/2
-  └ ○ /products/3
+  ├ ◐ /products/[id]    # Shell for unlisted params
+  ├ ○ /products/1       # Fully prerendered
+  ├ ○ /products/2       # Fully prerendered
+  └ ○ /products/3       # Fully prerendered
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-The concrete paths (`/products/1`, `/products/2`, `/products/3`) are `○` (Static) because their params were known at build time. The `◐` row on `/products/[id]` is the shell for unlisted params. When there are more paths than fit in the preview, Next.js prints a short list and ends with `[+N more paths]`.
+When there are more paths than fit in the preview, Next.js prints a short list and ends with `[+N more paths]`.
 
 > **Good to know**: `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
