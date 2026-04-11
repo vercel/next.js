@@ -44,9 +44,10 @@ export function BlockingRouteGuidance({
             <Collapsible title="I'm using params or searchParams">
               <p>
                 Pass the params promise to a child component wrapped in{' '}
-                <code>{'<Suspense>'}</code> and await it there. You can also use{' '}
-                <code>generateStaticParams</code> for known values, or add a{' '}
-                <code>loading.js</code> file.
+                <code>{'<Suspense>'}</code> and await it there, or add a{' '}
+                <code>loading.js</code> file. Use{' '}
+                <code>generateStaticParams</code> to prerender known values at
+                build time.
               </p>
               <DocsLink hash="params-and-searchparams">See example</DocsLink>
             </Collapsible>
