@@ -113,17 +113,6 @@ pub trait ChunkableModule: Module {
     ) -> Vc<Box<dyn ChunkItem>>;
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
-
-#[turbo_tasks::value_impl]
-impl ChunkableModules {
-    #[turbo_tasks::function]
-    pub fn interned(modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>) -> Vc<Self> {
-        Vc::cell(modules)
-    }
-}
-
 /// A [Module] that can be merged with other [Module]s (to perform scope hoisting)
 // TODO currently this is only used for ecmascript modules, and with the current API cannot be used
 // with other module types (as a MergeableModule cannot prevent itself from being merged with other
