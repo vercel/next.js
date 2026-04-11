@@ -2,12 +2,12 @@
 
 import { join } from 'path'
 import {
-  check,
   findPort,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -15,6 +15,17 @@ const appDir = join(__dirname, '../')
 
 let appPort
 let app
+
+const waitForModalOnIndexPage = async (browser) => {
+  await retry(async () => {
+    expect(await browser.elementByCss('#index').text()).toBe('index page')
+    expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
+    expect(await browser.eval('window.beforeNav')).toBe(1)
+    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+      imageId: '123',
+    })
+  })
+}
 
 const runTests = () => {
   it('should allow manual href/as on index page', async () => {
@@ -26,12 +37,7 @@ const runTests = () => {
 
     await browser.elementByCss('#to-modal').click()
 
-    expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-      imageId: '123',
-    })
+    await waitForModalOnIndexPage(browser)
 
     await browser
       .elementByCss('#to-preview')
@@ -86,12 +92,7 @@ const runTests = () => {
       .click()
       .waitForElementByCss('#index')
 
-    expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
-      imageId: '123',
-    })
+    await waitForModalOnIndexPage(browser)
 
     await browser
       .elementByCss('#to-preview')
@@ -108,13 +109,11 @@ const runTests = () => {
 
     expect(await browser.elementByCss('#preview').text()).toBe('preview page')
     expect(await browser.eval('window.beforeNav')).toBe(1)
-    await check(
-      async () =>
-        JSON.parse(
-          await browser.eval('document.querySelector("#query").innerHTML')
-        ).slug,
-      '321'
-    )
+    await retry(async () => {
+      expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
+        slug: '321',
+      })
+    })
 
     await browser
       .elementByCss('#to-another')
