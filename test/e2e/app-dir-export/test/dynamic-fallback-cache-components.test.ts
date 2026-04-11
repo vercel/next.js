@@ -22,12 +22,15 @@ if (skipped) {
     () => {
       let port: number
       let stopOrKill: (() => Promise<void>) | undefined
+      let getRequests: () => string[]
+      let clearRequests: () => void
 
       beforeAll(async () => {
-        ;({ port, stopOrKill } = await buildAndStartOutputExportServer(next, {
-          trailingSlash: true,
-          useFallbackDocument: true,
-        }))
+        ;({ port, stopOrKill, getRequests, clearRequests } =
+          await buildAndStartOutputExportServer(next, {
+            trailingSlash: true,
+            useFallbackDocument: true,
+          }))
       })
 
       afterAll(async () => {
@@ -60,12 +63,19 @@ if (skipped) {
       })
 
       it('renders an unenumerated slug on hard load and client navigation', async () => {
+        clearRequests()
         const browser = await webdriver(port, '/another/third/')
 
         try {
           await retry(async () => {
             expect(await browser.elementByCss('h1').text()).toBe('third')
           })
+
+          expect(
+            getRequests().some((requestPath) =>
+              requestPath.startsWith('/another/__fallback/index.html')
+            )
+          ).toBe(false)
 
           await browser.elementByCss('a[href="/another/"]').click()
           await retry(async () => {

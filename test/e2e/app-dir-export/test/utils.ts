@@ -38,23 +38,19 @@ export async function buildAndStartOutputExportServer(
 
   const port = await findPort()
   const outDir = join(next.testDir, 'out')
+  const requests: string[] = []
+
+  const getRequests = () => [...requests]
+  const clearRequests = () => {
+    requests.length = 0
+  }
 
   if (!useFallbackDocument) {
     const app = await startStaticServer(outDir, null, port)
     return {
       port,
-      stopOrKill: () => stopApp(app),
-    }
-  }
-
-  if (trailingSlash) {
-    const app = await startStaticServer(
-      outDir,
-      join(outDir, '_fallback.html'),
-      port
-    )
-    return {
-      port,
+      getRequests,
+      clearRequests,
       stopOrKill: () => stopApp(app),
     }
   }
@@ -62,6 +58,11 @@ export async function buildAndStartOutputExportServer(
   const app = express()
   const server = http.createServer(app)
   const fallbackHtml = join(outDir, '_fallback.html')
+
+  app.use((req, _res, nextHandler) => {
+    requests.push(req.url || '/')
+    nextHandler()
+  })
 
   app.use(
     express.static(outDir, {
@@ -77,6 +78,8 @@ export async function buildAndStartOutputExportServer(
 
   return {
     port,
+    getRequests,
+    clearRequests,
     stopOrKill: () => stopApp(server),
   }
 }

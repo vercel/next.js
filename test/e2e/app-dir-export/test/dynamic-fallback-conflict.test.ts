@@ -19,12 +19,15 @@ describe('app dir - output export fallback conflicts', () => {
 
   let port: number
   let stopOrKill: (() => Promise<void>) | undefined
+  let getRequests: () => string[]
+  let clearRequests: () => void
 
   beforeAll(async () => {
-    ;({ port, stopOrKill } = await buildAndStartOutputExportServer(next, {
-      trailingSlash: true,
-      useFallbackDocument: true,
-    }))
+    ;({ port, stopOrKill, getRequests, clearRequests } =
+      await buildAndStartOutputExportServer(next, {
+        trailingSlash: true,
+        useFallbackDocument: true,
+      }))
   })
 
   afterAll(async () => {
@@ -91,12 +94,19 @@ describe('app dir - output export fallback conflicts', () => {
   })
 
   it('prefers the more specific route when multiple fallback branches match', async () => {
-    const browser = await webdriver(port, '/docs/api/reference/')
+    clearRequests()
+    const browser = await webdriver(port, '/docs/api/guide/')
 
     try {
       await retry(async () => {
-        expect(await browser.elementByCss('h1').text()).toBe('api:reference')
+        expect(await browser.elementByCss('h1').text()).toBe('api:guide')
       })
+
+      expect(
+        getRequests().some((requestPath) =>
+          requestPath.startsWith('/docs/__fallback/__route_0.html')
+        )
+      ).toBe(false)
     } finally {
       await browser.close()
     }
