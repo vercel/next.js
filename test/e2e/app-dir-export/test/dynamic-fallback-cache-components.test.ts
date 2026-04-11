@@ -149,6 +149,40 @@ if (skipped) {
         }
       })
 
+      it('dedupes fallback artifact prefetches across sibling unknown-param links', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/isolated/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Isolated')
+          })
+
+          clearRequests()
+
+          await act(async () => {
+            await browser
+              .elementByCss('input[data-link-accordion="/isolated/third"]')
+              .click()
+            await browser
+              .elementByCss('input[data-link-accordion="/isolated/fourth"]')
+              .click()
+          })
+
+          const prefetchRequests = getRequests().filter((requestPath) =>
+            requestPath.startsWith('/isolated/__fallback/index.txt')
+          )
+
+          expect(prefetchRequests).toHaveLength(1)
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('renders the app not-found page when no fallback route matches', async () => {
         const browser = await webdriver(port, '/missing/route/')
 
