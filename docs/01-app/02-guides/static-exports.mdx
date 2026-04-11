@@ -233,6 +233,29 @@ When a user visits an unenumerated route, the host serves `_fallback.html`. The 
 
 For client-side navigations (clicking a `<Link>`), the fallback shell is prefetched during hover, so navigation is instant.
 
+For example, with App Router dynamic routes, `output: 'export'`, and `cacheComponents: true`, an Nginx config can serve both prerendered files and unknown params like this:
+
+```nginx filename="nginx.conf"
+server {
+  listen 80;
+  server_name acme.com;
+
+  root /var/www/out;
+
+  location / {
+    # Serve prerendered files when they exist. Otherwise fall back to the
+    # export bootstrap document so the client router can recover the route.
+    try_files $uri $uri.html $uri/ /_fallback.html;
+  }
+
+  location = /_fallback.html {
+    internal;
+  }
+}
+```
+
+With `trailingSlash: true`, the same config works because prerendered routes are emitted as `/route/index.html` and unknown paths still fall back to `/_fallback.html`. With `trailingSlash: false`, keep the `try_files $uri $uri.html $uri/ /_fallback.html;` order so prerendered flat files are served before the fallback bootstrap.
+
 > **Good to know**:
 >
 > - Param-dependent content for fallback routes renders on the client, so use client-side fetching patterns like `fetch`, SWR, or React Query in those parts of the tree.

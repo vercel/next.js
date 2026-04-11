@@ -1264,7 +1264,7 @@ async function writeOutputExportFallbackHtml(
   fallbackHtmlPaths: string[]
 ): Promise<void> {
   // Prefer a shallow __fallback shell for the global fallback entry point so
-  // hard loads start from a real PPR shell instead of unrelated index content.
+  // the bootstrap document still carries the right root structure and assets.
   // Fall back to a generic document only if no __fallback shell exists.
   const genericSource = [
     join(outDir, 'index.html'),
@@ -1282,20 +1282,12 @@ async function writeOutputExportFallbackHtml(
 
   const fallbackHtml = await fs.readFile(fallbackSource, 'utf8')
   const exportFallbackScript = '<script>self.__NEXT_EXPORT_FALLBACK=1</script>'
-
-  let injection: string
-  if (fallbackSource === pprShellSource) {
-    // PPR shell already has meaningful content (root layout + Suspense
-    // boundaries), no need to hide it
-    injection = exportFallbackScript
-  } else {
-    // Generic source (index.html / 404.html) has wrong page content.
-    // Hide it to prevent a flash of the wrong page before React takes
-    // over with createRoot. Removed in app-index.tsx after React commits.
-    const exportFallbackStyle =
-      '<style id="__next-export-fallback-style">#__next{visibility:hidden}</style>'
-    injection = `${exportFallbackStyle}${exportFallbackScript}`
-  }
+  // The global fallback document is only a bootstrap shell. Keep it hidden
+  // until the client resolves the actual route-specific fallback payload and
+  // React commits the real tree. Removed in app-index.tsx after hydration.
+  const exportFallbackStyle =
+    '<style id="__next-export-fallback-style">#__next{visibility:hidden}</style>'
+  const injection = `${exportFallbackStyle}${exportFallbackScript}`
 
   const patchedFallbackHtml = fallbackHtml.includes('</head>')
     ? fallbackHtml.replace('</head>', `${injection}</head>`)

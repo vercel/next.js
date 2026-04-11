@@ -267,7 +267,7 @@ if (skipped) {
         }
       })
 
-      it('generates _fallback.html from a PPR shell instead of index.html', async () => {
+      it('generates a hidden _fallback.html bootstrap document', async () => {
         const outDir = join(next.testDir, 'out')
         const fallbackHtml = await fs.readFile(
           join(outDir, '_fallback.html'),
@@ -276,7 +276,7 @@ if (skipped) {
 
         expect(fallbackHtml).toContain('__NEXT_EXPORT_FALLBACK=1')
         expect(fallbackHtml).not.toContain('>Home<')
-        expect(fallbackHtml).not.toContain('__next-export-fallback-style')
+        expect(fallbackHtml).toContain('__next-export-fallback-style')
       })
 
       it('supports browser back/forward between fallback routes', async () => {
