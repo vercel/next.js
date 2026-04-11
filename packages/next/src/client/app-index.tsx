@@ -32,7 +32,6 @@ import {
   addOutputExportDataSuffix,
   fetchOutputExportDataResponse,
   fetchOutputExportFallbackResponse,
-  stripOutputExportDataSuffix,
 } from './output-export-fallback'
 
 /// <reference types="react-dom/experimental" />
@@ -91,7 +90,6 @@ declare global {
   }
 }
 
-const NEXT_EXPORT_ORIGINAL_URL_SESSION_KEY = '__NEXT_EXPORT_ORIGINAL_URL'
 const outputExportResumeUrl =
   typeof window !== 'undefined' && window.__NEXT_EXPORT_ORIGINAL_URL
     ? new URL(window.__NEXT_EXPORT_ORIGINAL_URL, window.location.href)
@@ -290,19 +288,23 @@ if (instantTestStaticFetch) {
     )
 
     if (fallbackResult !== null) {
-      try {
-        sessionStorage.setItem(
-          NEXT_EXPORT_ORIGINAL_URL_SESSION_KEY,
-          renderedUrl.href
-        )
-      } catch {}
+      const processedResponse = Promise.resolve(fallbackResult.response)
+        .then(processFetch)
+        .then(({ response: processed }) => processed)
 
-      const fallbackDocumentUrl = stripOutputExportDataSuffix(
-        new URL(fallbackResult.response.url)
+      const fallbackInitialRSCPayload =
+        await createFromFetch<InitialRSCPayload>(processedResponse, {
+          callServer,
+          findSourceMapURL,
+          debugChannel,
+          unstable_allowPartialStream: true,
+        })
+
+      return createInitialRSCPayloadFromFallbackPrerender(
+        await processedResponse,
+        fallbackInitialRSCPayload,
+        renderedUrl
       )
-
-      window.location.replace(fallbackDocumentUrl.href)
-      return await new Promise<InitialRSCPayload>(() => {})
     }
 
     const response =
