@@ -1,10 +1,19 @@
 ---
 title: Migrating to Cache Components
 nav_title: Migrating to Cache Components
-description: Learn how to migrate from route segment configs to Cache Components in Next.js.
+description: Learn how to migrate from route segment configs and `unstable_cache` to Cache Components in Next.js.
+related:
+  description: Related guides and references.
+  links:
+    - app/getting-started/caching
+    - app/api-reference/directives/use-cache
+    - app/api-reference/directives/use-cache-remote
+    - app/api-reference/functions/unstable_cache
 ---
 
-When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife). The [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) function is also replaced by `use cache`.
+When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+
+We recommend replacing [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) with [`use cache`](/docs/app/api-reference/directives/use-cache). The build does **not** fail when `unstable_cache` remains in your codebase. See the [`unstable_cache`](#unstable_cache) section.
 
 ## `dynamic = "force-dynamic"`
 
@@ -170,9 +179,21 @@ export default async function Page() {
 }
 ```
 
+## `runtime = 'edge'`
+
+**Not supported.** Cache Components requires the Node.js runtime. Switch to the Node.js runtime (the default) by removing the `runtime = 'edge'` export. If you need edge behavior for specific routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
+
 ## `unstable_cache`
 
-**Replace with `use cache`.** Instead of wrapping a function with `unstable_cache`, add the `use cache` directive at the top of the function. Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) to control duration and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) for on-demand invalidation.
+**Replace with [`use cache`](/docs/app/api-reference/directives/use-cache).** Map `unstable_cache` options to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag) inside the cached function:
+
+- **`revalidate`** → [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) with a [preset](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) or an [inline profile](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) when you need an exact duration in seconds.
+- **`tags`** → [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) with the same strings (one or more arguments).
+- **`keyParts`** → omit. [`use cache`](/docs/app/api-reference/directives/use-cache) derives cache keys from the function's arguments and closure variables.
+
+You often used `unstable_cache` for database queries and other async work that does not use [`fetch`](/docs/app/api-reference/functions/fetch). If you load data with [`fetch`](/docs/app/api-reference/functions/fetch), you can keep using `fetch` cache options for HTTP.
+
+**Consider [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)** only when you need durable, shared caching across instances (typical in serverless). It adds infrastructure cost, lookup latency, and often platform fees. Remote entries are also keyed with the **deployment/build id**, so **new deployments can produce cache misses** you would not expect when coming from `unstable_cache`, which did not use that keying.
 
 ```tsx filename="app/lib/data.ts" switcher
 // Before
@@ -208,8 +229,8 @@ import { cacheLife, cacheTag } from 'next/cache'
 
 export async function getCachedUser(id: string) {
   'use cache'
-  cacheLife('hours')
-  cacheTag('users')
+  cacheLife('hours') // was revalidate: 3600
+  cacheTag('users') // was tags: ['users']
   return getUser(id)
 }
 ```
@@ -220,14 +241,46 @@ import { cacheLife, cacheTag } from 'next/cache'
 
 export async function getCachedUser(id) {
   'use cache'
-  cacheLife('hours')
-  cacheTag('users')
+  cacheLife('hours') // was revalidate: 3600
+  cacheTag('users') // was tags: ['users']
   return getUser(id)
 }
 ```
 
-The `keyParts` array is not needed. `use cache` generates cache keys automatically from the function's arguments and closure variables. Use a [preset profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) like `'hours'` or `'days'` to replace the `revalidate` option, or pass an [inline object](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) for exact seconds.
+After you export `getCachedUser`, **do not** add a **top-level `await`** in the same shared module to “run” it (for example `const user = await getCachedUser('user-1')` at the bottom of `app/lib/data.ts`). That turns the file into an async module, which is not supported in every TypeScript or bundler setup, and it does not match how other examples in these docs structure shared code.
 
-## `runtime = 'edge'`
+**Avoid** (top-level `await` in `app/lib/data`):
 
-**Not supported.** Cache Components requires the Node.js runtime. Switch to the Node.js runtime (the default) by removing the `runtime = 'edge'` export. If you need edge behavior for specific routes, use [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
+```tsx filename="app/lib/data.ts" switcher
+// getCachedUser is defined above in this file
+
+// Avoid: top-level await in a shared module
+const user = await getCachedUser('user-1')
+```
+
+```jsx filename="app/lib/data.js" switcher
+// getCachedUser is defined above in this file
+
+// Avoid: top-level await in a shared module
+const user = await getCachedUser('user-1')
+```
+
+**Prefer** (await inside an async Server Component or route handler):
+
+```tsx filename="app/page.tsx" switcher
+import { getCachedUser } from './lib/data'
+
+export default async function Page() {
+  const user = await getCachedUser('user-1')
+  return <div>...</div>
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { getCachedUser } from './lib/data'
+
+export default async function Page() {
+  const user = await getCachedUser('user-1')
+  return <div>...</div>
+}
+```
