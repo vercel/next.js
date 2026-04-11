@@ -1,112 +1,76 @@
 ---
-title: Uncached data was accessed outside of `<Suspense>`
+title: Page can't load instantly
 ---
 
 ## Why This Error Occurred
 
-When the `cacheComponents` feature is enabled, Next.js expects a parent `Suspense` boundary around any component that awaits data that should be accessed on every user request. The purpose of this requirement is so that Next.js can provide a useful fallback while this data is accessed and rendered.
+Next.js expects a `<Suspense>` boundary around any component that accesses something unavailable at build time. With a `<Suspense>` boundary, Next.js can show a useful fallback while the data is loading. Without one, the page can't be prerendered and every navigation waits for a server round-trip instead of loading instantly.
 
-While some data is inherently only available when a user request is being handled, such as request headers, Next.js assumes that by default any asynchronous data is expected to be accessed each time a user request is being handled unless you specifically cache it using `"use cache"`.
+Some APIs like request headers are inherently per-request. For async data (like `fetch` or database queries), Next.js assumes the data needs to load on every request unless you specifically cache it with `"use cache"`.
 
-This usually happens when a component does one of the following without a parent `<Suspense>` boundary:
+Common causes:
 
-- Awaiting `params` in a Page or Layout, or awaiting `searchParams` in a Page
-- Calling `cookies()`, `headers()`, or `connection()`
+- Calling `cookies()`, `headers()`, `connection()`, or `draftMode()`
+- Awaiting `params` or `searchParams` in a Page or Layout
 - Fetching data that isn't cached with `"use cache"`
 
-The fix depends on what data you're accessing and how you want your app to behave — see the examples below.
+The fix depends on which API you're using. See the examples below.
 
-> **Good to know**: In `next dev`, the error overlay usually points at the failing component. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for prerender stack traces that name the exact component.
+> **Good to know**: In `next dev`, the error overlay shows which API caused the issue and suggests fixes. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for stack traces that name the exact component.
 
 ## Possible Ways to Fix It
 
-### Accessing Data
+### Add a loading.js File
 
-When you access data using `fetch`, a database client, or any other module which does asynchronous IO, Next.js interprets your intent as expecting the data to load on every user request.
+The quickest fix for any cause: add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment. This acts as a `<Suspense>` boundary for the entire page, showing a loading state while the data resolves.
 
-If you are expecting this data to be used while fully or partially prerendering a page you must cache is using `"use cache"`.
+```jsx filename="app/dashboard/loading.js"
+export default function Loading() {
+  return <p>Loading...</p>
+}
+```
+
+This is equivalent to wrapping the page in `<Suspense fallback={<Loading />}>` in the layout. It works for any cause (`cookies()`, `params`, `fetch()`, etc.).
+
+A `loading.js` file replaces the entire page with the fallback, so users see no content until the data resolves. For a better experience, use the patterns below to wrap only the dynamic parts of the page and keep the static shell visible.
+
+Learn more: [`loading.js` file convention](/docs/app/api-reference/file-conventions/loading)
+
+### Request-Time APIs
+
+`cookies()`, `headers()`, `connection()`, `draftMode()`, `params`, and `searchParams` are only available at request time. They can't be resolved during a build, so any component that uses them needs a `<Suspense>` boundary. Caching these APIs with `"use cache"` is not an option because they are inherently per-request.
+
+Where you place the `<Suspense>` boundary determines the fallback UI your users see. It can wrap just the component that needs the data, or it can be higher in the tree (even in the Root Layout).
+
+#### Wrap in Suspense
+
+Wrap the component that uses the request-time API in `<Suspense>`. The static parts of the page (the "shell") will be prerendered and sent immediately, while the dynamic part streams in after.
 
 Before:
 
 ```jsx filename="app/page.js"
-async function getRecentArticles() {
-  return db.query(...)
-}
+import { cookies } from 'next/headers'
 
 export default async function Page() {
-  const articles = await getRecentArticles(token);
-  return <ArticleList articles={articles}>
-}
-```
-
-After:
-
-```jsx filename="app/page.js"
-import { cacheTag, cacheLife } from 'next/cache'
-
-async function getRecentArticles() {
-  "use cache"
-  // This cache can be revalidated by webhook or server action
-  // when you call revalidateTag("articles")
-  cacheTag("articles")
-  // This cache will revalidate after an hour even if no explicit
-  // revalidate instruction was received
-  cacheLife('hours')
-  return db.query(...)
-}
-
-export default async function Page() {
-  const articles = await getRecentArticles(token);
-  return <ArticleList articles={articles}>
-}
-```
-
-If this data should be accessed on every user request you must provide a fallback UI using `Suspense` from React. Where you put this Suspense boundary in your application should be informed by the kind of fallback UI you want to render. It can be immediately above the component accessing this data or even in your Root Layout.
-
-Before:
-
-```jsx filename="app/page.js"
-async function getLatestTransactions() {
-  return db.query(...)
-}
-
-export default async function Page() {
-  const transactions = await getLatestTransactions(token);
-  return <TransactionList transactions={transactions}>
-}
-```
-
-After:
-
-```jsx filename="app/page.js"
-import { Suspense } from 'react'
-
-async function TransactionList() {
-  const transactions = await db.query(...)
-  return ...
-}
-
-function TransactionSkeleton() {
-  return <ul>...</ul>
-}
-
-export default async function Page() {
+  const token = (await cookies()).get('token')
+  const email = await getEmail(token)
   return (
-    <Suspense fallback={<TransactionSkeleton />}>
-      <TransactionList/>
-    </Suspense>
+    <div>
+      <h1>Inbox</h1>
+      <EmailList email={email} />
+    </div>
   )
 }
 ```
 
-### Headers
+After:
 
-If you are accessing request headers using `headers()`, `cookies()`, or `draftMode()`. Consider whether you can move the use of these APIs deeper into your existing component tree.
+```jsx filename="app/page.js" highlight={20-22}
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
 
-Before:
-
-```jsx filename="app/inbox.js"
-export async function Inbox({ token }) {
+async function EmailList() {
+  const token = (await cookies()).get('token')
   const email = await getEmail(token)
   return (
     <ul>
@@ -116,18 +80,38 @@ export async function Inbox({ token }) {
     </ul>
   )
 }
+
+export default function Page() {
+  return (
+    <div>
+      <h1>Inbox</h1>
+      <Suspense fallback={<p>Loading your inbox...</p>}>
+        <EmailList />
+      </Suspense>
+    </div>
+  )
+}
 ```
+
+In this example, `<h1>Inbox</h1>` is part of the shell and loads instantly. `<EmailList>` streams in once the cookies are resolved.
+
+Learn more: [Streaming guide](/docs/app/guides/streaming)
+
+#### Move the Access into a Child
+
+If `cookies()` or `headers()` is called high in the component tree, move it into a smaller child component and wrap only that child in `<Suspense>`. Everything outside the boundary stays prerendered.
+
+Before:
 
 ```jsx filename="app/page.js"
 import { cookies } from 'next/headers'
-
 import { Inbox } from './inbox'
 
 export default async function Page() {
   const token = (await cookies()).get('token')
   return (
     <Suspense fallback="loading your inbox...">
-      <Inbox token={token}>
+      <Inbox token={token} />
     </Suspense>
   )
 }
@@ -151,29 +135,32 @@ export async function Inbox() {
 }
 ```
 
-```jsx filename="app/page.js"
+```jsx filename="app/page.js" highlight={6}
+import { Suspense } from 'react'
 import { Inbox } from './inbox'
 
-export default async function Page() {
+export default function Page() {
   return (
     <Suspense fallback="loading your inbox...">
-      <Inbox>
+      <Inbox />
     </Suspense>
   )
 }
 ```
 
-Alternatively you can add a Suspense boundary above the component that is accessing Request headers.
+The key difference: `cookies()` is now called _inside_ `<Inbox>` (which is inside `<Suspense>`), not in the Page component above it.
 
-### Params and SearchParams
+Learn more: [`cookies` function](/docs/app/api-reference/functions/cookies), [`headers` function](/docs/app/api-reference/functions/headers)
 
-Layout `params` and Page `params` and `searchParams` props are promises. If you await them directly in your Page or Layout component without a `<Suspense>` boundary, the page can be blocked from prerendering. You can fix this by:
+#### Params and SearchParams
+
+Layout `params` and Page `params` and `searchParams` props are promises. If you await them directly in your Page or Layout component without a `<Suspense>` boundary, the page can't be prerendered. You can fix this by:
 
 - Passing the promise to a child component wrapped in `<Suspense>` and awaiting it there
 - Adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment
 - Using [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide known param values at build time (see [below](#generatestaticparams))
 
-For example, `const { id } = await params` directly in a Page component is a common trigger for this error:
+For example, `const { id } = await params` directly in a Page component is a common trigger:
 
 Before:
 
@@ -192,7 +179,7 @@ export default async function ProductPage({ params }) {
 
 After:
 
-```jsx filename="app/product/[id]/page.js"
+```jsx filename="app/product/[id]/page.js" highlight={7-9}
 import { Suspense } from 'react'
 
 export default function ProductPage({ params }) {
@@ -215,60 +202,39 @@ async function ProductDetails({ params }) {
 
 If the entire page depends on `params` and there is no static content to show, adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment is a simpler alternative.
 
-The same pattern applies to `searchParams`:
+The same pattern applies to `searchParams`. Pass the promise to a child component and await it there:
 
 Before:
 
-```jsx filename="app/map.js"
-export async function Map({ lat, lng }) {
-  const mapData = await fetch(`https://...?lat=${lat}&lng=${lng}`)
-  return drawMap(mapData)
-}
-```
-
 ```jsx filename="app/page.js"
-import { cookies } from 'next/headers'
-
-import { Map } from './map'
-
 export default async function Page({ searchParams }) {
-  const { lat, lng } = await searchParams;
-  return (
-    <Suspense fallback="loading your inbox...">
-      <Map lat={lat} lng={lng}>
-    </Suspense>
-  )
+  const { lat, lng } = await searchParams
+  const mapData = await fetch(`https://...?lat=${lat}&lng=${lng}`)
+  return <Map data={mapData} />
 }
 ```
 
 After:
 
-```jsx filename="app/map.js"
-export async function Map({ coords }) {
-  const { lat, lng } = await coords
-  const mapData = await fetch(`https://...?lat=${lat}&lng=${lng}`)
-  return drawMap(mapData)
-}
-```
+```jsx filename="app/page.js" highlight={5-7}
+import { Suspense } from 'react'
 
-```jsx filename="app/page.js"
-import { cookies } from 'next/headers'
-
-import { Map } from './map'
-
-export default async function Page({ searchParams }) {
-  const coords = searchParams.then(sp => ({ lat: sp.lat, lng: sp.lng }))
+export default function Page({ searchParams }) {
   return (
-    <Suspense fallback="loading your inbox...">
-      <Map coord={coords}>
+    <Suspense fallback="Loading map...">
+      <MapView searchParams={searchParams} />
     </Suspense>
   )
 }
+
+async function MapView({ searchParams }) {
+  const { lat, lng } = await searchParams
+  const mapData = await fetch(`https://...?lat=${lat}&lng=${lng}`)
+  return <Map data={mapData} />
+}
 ```
 
-Alternatively you can add a Suspense boundary above the component that is accessing `params` or `searchParams` so Next.js understands what UI should be used when while waiting for this request data to be accessed.
-
-#### `generateStaticParams`
+##### `generateStaticParams`
 
 For Layout and Page `params`, you can use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide sample values for build-time validation, which allows you to await params directly without Suspense.
 
@@ -283,13 +249,106 @@ export default async function Page({ params }) {
 }
 ```
 
-Note that validation is path-dependent. Runtime parameters may trigger conditional branches accessing runtime APIs without Suspense, or dynamic content without Suspense or `use cache`, resulting in errors. See [Dynamic Routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components).
+Note that validation is path-dependent. Runtime parameters may trigger conditional branches accessing runtime APIs without Suspense, or dynamic content without Suspense or `use cache`, resulting in errors.
 
-### Short-lived Caches
+Learn more: [`generateStaticParams` function](/docs/app/api-reference/functions/generate-static-params), [Dynamic Routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components)
 
-`"use cache"` allows you to describe a [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) that might be too short to be practical to prerender. The utility of doing this is that it can still describe a non-zero caching time for the client router cache to reuse the cache entry in the browser and it can also be useful for protecting upstream APIs while experiencing high request traffic.
+### Data Fetching
 
-If you expected the `"use cache"` entry to be prerenderable try describing a slightly longer `cacheLife()`.
+When you access data using `fetch`, a database client, or any other async IO, Next.js assumes the data needs to load on every request unless you specifically cache it with `"use cache"`.
+
+You have two options: **cache the data** so the page can be prerendered, or **stream it** behind a `<Suspense>` boundary so the rest of the page loads instantly while the data resolves.
+
+#### Cache Data with "use cache"
+
+If the data doesn't change on every request, cache it with `"use cache"` so the page can be prerendered.
+
+Before:
+
+```jsx filename="app/page.js"
+async function getRecentArticles() {
+  return db.query(...)
+}
+
+export default async function Page() {
+  const articles = await getRecentArticles()
+  return <ArticleList articles={articles} />
+}
+```
+
+After:
+
+```jsx filename="app/page.js" highlight={4-10}
+import { cacheTag, cacheLife } from 'next/cache'
+
+async function getRecentArticles() {
+  "use cache"
+  // Revalidate by calling revalidateTag("articles")
+  // from a webhook or server action
+  cacheTag("articles")
+  // Revalidate after an hour even without an explicit
+  // revalidation call
+  cacheLife('hours')
+  return db.query(...)
+}
+
+export default async function Page() {
+  const articles = await getRecentArticles()
+  return <ArticleList articles={articles} />
+}
+```
+
+Use [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) so you can revalidate on demand (e.g. from a webhook), and [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to set a time-based expiry.
+
+Learn more: [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
+
+#### Stream Dynamic Data
+
+If the data is personalized or real-time and can't be cached, wrap it in `<Suspense>` so the static parts of the page load instantly while the dynamic part streams in.
+
+Before:
+
+```jsx filename="app/page.js"
+async function getLatestTransactions() {
+  return db.query(...)
+}
+
+export default async function Page() {
+  const transactions = await getLatestTransactions()
+  return <TransactionList transactions={transactions} />
+}
+```
+
+After:
+
+```jsx filename="app/page.js" highlight={14-16}
+import { Suspense } from 'react'
+
+async function TransactionList() {
+  const transactions = await db.query(...)
+  return <ul>{transactions.map((t) => <li key={t.id}>{t.name}</li>)}</ul>
+}
+
+function TransactionSkeleton() {
+  return <ul>...</ul>
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<TransactionSkeleton />}>
+      <TransactionList />
+    </Suspense>
+  )
+}
+```
+
+Learn more: [Streaming guide](/docs/app/guides/streaming)
+
+#### Short-lived Caches
+
+`"use cache"` with a very short [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) (like `'seconds'`) may be too brief for Next.js to prerender the page. Even so, a short cache is still useful: the client router can reuse it, and it protects upstream APIs under high traffic.
+
+If you want the page to be prerenderable, use a slightly longer `cacheLife()`:
 
 Before:
 
@@ -298,16 +357,16 @@ import { cacheLife } from 'next/cache'
 
 async function getDashboard() {
   "use cache"
-  // This cache will revalidate after 1 second. It is so short
-  // Next.js won't prerender it on the server but the client router
-  // can reuse the result for up to 30 seconds unless the user manually refreshes
+  // Revalidates after 1 second. Too short for Next.js
+  // to prerender, but the client router can still reuse
+  // the result briefly.
   cacheLife('seconds')
   return db.query(...)
 }
 
 export default async function Page() {
-  const data = await getDashboard(token);
-  return <Dashboard data={data}>
+  const data = await getDashboard()
+  return <Dashboard data={data} />
 }
 ```
 
@@ -318,19 +377,21 @@ import { cacheLife } from 'next/cache'
 
 async function getDashboard() {
   "use cache"
-  // This cache will revalidate after 1 minute. It's long enough that
-  // Next.js will still produce a fully or partially prerendered page
+  // Revalidates after 1 minute. Long enough for
+  // Next.js to prerender the page.
   cacheLife('minutes')
   return db.query(...)
 }
 
 export default async function Page() {
-  const data = await getDashboard(token);
-  return <Dashboard data={data}>
+  const data = await getDashboard()
+  return <Dashboard data={data} />
 }
 ```
 
-Alternatively you can add a Suspense boundary above the component that is accessing this short-lived cached data so Next.js understands what UI should be used while accessing this data on a user request.
+Alternatively, keep the short cache but add a `<Suspense>` boundary so the page shell can still be prerendered.
+
+Learn more: [`cacheLife` function](/docs/app/api-reference/functions/cacheLife)
 
 ## Useful Links
 
@@ -341,3 +402,5 @@ Alternatively you can add a Suspense boundary above the component that is access
 - [`connection` function](/docs/app/api-reference/functions/connection)
 - [`cacheLife` function](/docs/app/api-reference/functions/cacheLife)
 - [`cacheTag` function](/docs/app/api-reference/functions/cacheTag)
+- [`loading.js` file convention](/docs/app/api-reference/file-conventions/loading)
+- [`generateStaticParams` function](/docs/app/api-reference/functions/generate-static-params)
