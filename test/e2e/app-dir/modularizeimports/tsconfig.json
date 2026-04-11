@@ -12,6 +12,9 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
+    "paths": {
+      "#/design-system/*": ["./design-system/*.js"]
+    },
     "plugins": [
       {
         "name": "next"
