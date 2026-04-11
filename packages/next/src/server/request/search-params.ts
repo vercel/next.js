@@ -40,6 +40,7 @@ import {
 import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
+  throwForOutputExportServerRequestAPI,
 } from './utils'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -227,6 +228,9 @@ function createStaticPrerenderSearchParams(
   switch (prerenderStore.type) {
     case 'prerender':
     case 'prerender-client':
+      if (workStore.nextConfigOutput === 'export') {
+        return makeErroringOutputExportSearchParams(workStore)
+      }
       // We are in a cacheComponents (PPR or otherwise) prerender
       return makeHangingSearchParams(workStore, prerenderStore)
     case 'prerender-ppr':
@@ -392,10 +396,17 @@ function makeErroringSearchParams(
         const expression =
           '`await searchParams`, `searchParams.then`, or similar'
         if (workStore.dynamicShouldError) {
-          throwWithStaticGenerationBailoutErrorWithDynamicError(
-            workStore.route,
-            expression
-          )
+          if (workStore.nextConfigOutput === 'export') {
+            throwForOutputExportSearchParams(
+              workStore,
+              makeErroringSearchParams
+            )
+          } else {
+            throwWithStaticGenerationBailoutErrorWithDynamicError(
+              workStore.route,
+              expression
+            )
+          }
         } else if (prerenderStore.type === 'prerender-ppr') {
           // PPR Prerender (no cacheComponents)
           postponeWithTracking(
@@ -418,6 +429,61 @@ function makeErroringSearchParams(
 
   CachedSearchParams.set(workStore, proxiedPromise)
   return proxiedPromise
+}
+
+function makeErroringOutputExportSearchParams(
+  workStore: WorkStore
+): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParams.get(workStore)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  const underlyingSearchParams = {}
+  const promise = Promise.resolve(underlyingSearchParams)
+
+  const throwError = () =>
+    throwForOutputExportServerRequestAPI(
+      workStore,
+      '`searchParams`',
+      makeErroringOutputExportSearchParams,
+      'search params are only available on the client when exporting to static HTML. Read the current URL in a Client Component instead.'
+    )
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (Object.hasOwn(promise, prop)) {
+        return ReflectAdapter.get(target, prop, receiver)
+      }
+
+      if (typeof prop === 'string') {
+        if (prop === 'then' || prop === 'status') {
+          throwError()
+        }
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    ownKeys() {
+      throwError()
+      return []
+    },
+  })
+
+  CachedSearchParams.set(workStore, proxiedPromise)
+  return proxiedPromise
+}
+
+function throwForOutputExportSearchParams(
+  workStore: WorkStore,
+  constructorOpt: Function
+): never {
+  return throwForOutputExportServerRequestAPI(
+    workStore,
+    '`searchParams`',
+    constructorOpt,
+    'search params are only available on the client when exporting to static HTML. Read the current URL in a Client Component instead.'
+  )
 }
 
 /**
@@ -579,11 +645,21 @@ function instrumentSearchParamsObjectWithDevWarnings(
     get(target, prop, receiver) {
       if (typeof prop === 'string' && promiseInitialized.current) {
         if (workStore.dynamicShouldError) {
-          const expression = describeStringPropertyAccess('searchParams', prop)
-          throwWithStaticGenerationBailoutErrorWithDynamicError(
-            workStore.route,
-            expression
-          )
+          if (workStore.nextConfigOutput === 'export') {
+            throwForOutputExportSearchParams(
+              workStore,
+              instrumentSearchParamsObjectWithDevWarnings
+            )
+          } else {
+            const expression = describeStringPropertyAccess(
+              'searchParams',
+              prop
+            )
+            throwWithStaticGenerationBailoutErrorWithDynamicError(
+              workStore.route,
+              expression
+            )
+          }
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -591,26 +667,40 @@ function instrumentSearchParamsObjectWithDevWarnings(
     has(target, prop) {
       if (typeof prop === 'string') {
         if (workStore.dynamicShouldError) {
-          const expression = describeHasCheckingStringProperty(
-            'searchParams',
-            prop
-          )
-          throwWithStaticGenerationBailoutErrorWithDynamicError(
-            workStore.route,
-            expression
-          )
+          if (workStore.nextConfigOutput === 'export') {
+            throwForOutputExportSearchParams(
+              workStore,
+              instrumentSearchParamsObjectWithDevWarnings
+            )
+          } else {
+            const expression = describeHasCheckingStringProperty(
+              'searchParams',
+              prop
+            )
+            throwWithStaticGenerationBailoutErrorWithDynamicError(
+              workStore.route,
+              expression
+            )
+          }
         }
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
       if (workStore.dynamicShouldError) {
-        const expression =
-          '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
-        throwWithStaticGenerationBailoutErrorWithDynamicError(
-          workStore.route,
-          expression
-        )
+        if (workStore.nextConfigOutput === 'export') {
+          throwForOutputExportSearchParams(
+            workStore,
+            instrumentSearchParamsObjectWithDevWarnings
+          )
+        } else {
+          const expression =
+            '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
+          throwWithStaticGenerationBailoutErrorWithDynamicError(
+            workStore.route,
+            expression
+          )
+        }
       }
       return Reflect.ownKeys(target)
     },
@@ -636,7 +726,11 @@ function instrumentSearchParamsPromiseWithDevWarnings(
 
   return new Proxy(promise, {
     get(target, prop, receiver) {
-      if (prop === 'then' && workStore.dynamicShouldError) {
+      if (
+        prop === 'then' &&
+        workStore.dynamicShouldError &&
+        workStore.nextConfigOutput !== 'export'
+      ) {
         const expression = '`searchParams.then`'
         throwWithStaticGenerationBailoutErrorWithDynamicError(
           workStore.route,
