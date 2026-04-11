@@ -297,7 +297,7 @@ pub async fn run(args: FsWatcher) -> anyhow::Result<()> {
 
 #[turbo_tasks::function(operation)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(rcstr!("project"), fs_root)
+    DiskFileSystem::new(rcstr!("project"), Vc::cell(fs_root))
 }
 
 #[turbo_tasks::function(operation)]

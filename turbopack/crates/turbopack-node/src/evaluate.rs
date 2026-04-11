@@ -1,9 +1,7 @@
-use std::{
-    borrow::Cow, iter, process::ExitStatus, sync::Arc, thread::available_parallelism,
-    time::Duration,
-};
+use std::{iter, process::ExitStatus, sync::Arc, thread::available_parallelism, time::Duration};
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
@@ -12,11 +10,12 @@ use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TaskInput, TryJoinIterExt, Vc, duration_span, fxindexmap, mark_session_dependent,
-    mark_top_level_task, take_effects, trace::TraceRawVcs,
+    TaskInput, TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap,
+    mark_session_dependent, mark_top_level_task, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
+use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use turbopack_core::{
     asset::AssetContent,
     changed::content_changed,
@@ -24,10 +23,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
@@ -149,15 +145,13 @@ async fn emit_evaluate_pool_assets_operation(
         main_entry_ident,
     } = &*entries.await?;
 
-    let module_path = main_entry_ident.path().await?;
-    let file_name = module_path.file_name();
-    let file_name = if file_name.ends_with(".js") {
-        Cow::Borrowed(file_name)
-    } else if let Some(file_name) = file_name.strip_suffix(".ts") {
-        Cow::Owned(format!("{file_name}.js"))
-    } else {
-        Cow::Owned(format!("{file_name}.js"))
+    let module_ident = main_entry_ident.to_string().await?;
+    let module_ident_hash = {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        module_ident.deterministic_hash(&mut hasher);
+        hasher.finish()
     };
+    let file_name = format!("{module_ident_hash:016x}.js");
     let entrypoint = chunking_context.output_root().await?.join(&file_name)?;
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
@@ -457,15 +451,15 @@ pub async fn get_evaluate_entries(
                 runtime_asset.ident().path().await?.join("evaluate.js")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
-                        "import { run } from 'RUNTIME'; run(() => import('INNER'))",
+                        "import {run} from 'RUNTIME'; run(() => import('INNER'))",
                     ))
                     .cell(),
                 ),
             )),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset
-            })),
+            ReferenceType::Internal(ResolvedVc::cell(
+                fxindexmap! {rcstr!("INNER") => module_asset,
+                rcstr!("RUNTIME") => runtime_asset},
+            )),
         )
         .module()
         .to_resolved()
@@ -692,43 +686,36 @@ pub struct EvaluationIssue {
     pub root_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EvaluationIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error evaluating Node.js code")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Error evaluating Node.js code")))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(
-                self.error
-                    .print(
-                        *self.assets_for_source_mapping,
-                        self.assets_root.clone(),
-                        self.root_path.clone(),
-                        FormattingMode::Plain,
-                    )
-                    .await?
-                    .into(),
-            )
-            .resolved_cell(),
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            self.error
+                .print(
+                    *self.assets_for_source_mapping,
+                    self.assets_root.clone(),
+                    self.root_path.clone(),
+                    FormattingMode::Plain,
+                )
+                .await?
+                .into(),
         )))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }

@@ -634,7 +634,7 @@ impl DiskFileSystem {
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
-    pub fn new(name: RcStr, root: RcStr) -> Vc<Self> {
+    pub fn new(name: RcStr, root: Vc<RcStr>) -> Vc<Self> {
         Self::new_internal(name, root, Vec::new())
     }
 
@@ -646,7 +646,11 @@ impl DiskFileSystem {
     ///   [canonicalized][std::fs::canonicalize].
     /// * `denied_paths` - Paths within this filesystem that are not allowed to be accessed or
     ///   navigated into.  These must be normalized, non-empty and relative to the fs root.
-    pub fn new_with_denied_paths(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
+    pub fn new_with_denied_paths(
+        name: RcStr,
+        root: Vc<RcStr>,
+        denied_paths: Vec<RcStr>,
+    ) -> Vc<Self> {
         for denied_path in &denied_paths {
             debug_assert!(!denied_path.is_empty(), "denied_path must not be empty");
             debug_assert!(
@@ -661,7 +665,12 @@ impl DiskFileSystem {
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
     #[turbo_tasks::function]
-    fn new_internal(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
+    async fn new_internal(
+        name: RcStr,
+        root: Vc<RcStr>,
+        denied_paths: Vec<RcStr>,
+    ) -> Result<Vc<Self>> {
+        let root = root.owned().await?;
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,
@@ -680,7 +689,7 @@ impl DiskFileSystem {
             }),
         };
 
-        Self::cell(instance)
+        Ok(Self::cell(instance))
     }
 }
 
@@ -3038,9 +3047,12 @@ mod tests {
     #[turbo_tasks::function(operation)]
     async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
         let sys_root = Path::new(sys_root.as_str());
-        let fs_vc = DiskFileSystem::new(rcstr!("temp"), RcStr::from(sys_root.to_str().unwrap()))
-            .to_resolved()
-            .await?;
+        let fs_vc = DiskFileSystem::new(
+            rcstr!("temp"),
+            Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
+        )
+        .to_resolved()
+        .await?;
         let fs = fs_vc.await?;
         let fs_root_path = fs_vc.root().await?;
 
@@ -3247,7 +3259,7 @@ mod tests {
 
         #[turbo_tasks::function(operation)]
         fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-            DiskFileSystem::new(rcstr!("test"), fs_root)
+            DiskFileSystem::new(rcstr!("test"), Vc::cell(fs_root))
         }
 
         fn disk_file_system_root(fs: ResolvedVc<DiskFileSystem>) -> FileSystemPath {
@@ -3424,8 +3436,11 @@ mod tests {
         async fn test_denied_path_read() {
             #[turbo_tasks::function(operation)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test 1: Reading allowed file should work
@@ -3484,8 +3499,11 @@ mod tests {
         async fn test_denied_path_read_dir() {
             #[turbo_tasks::function(operation)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test: read_dir on root should not include denied_dir
@@ -3543,8 +3561,11 @@ mod tests {
         async fn test_denied_path_read_glob() {
             #[turbo_tasks::function(operation)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test: read_glob with ** should not reveal denied files
@@ -3626,8 +3647,11 @@ mod tests {
                 file_path: RcStr,
                 contents: RcStr,
             ) -> anyhow::Result<Vc<Effects>> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
                 let allowed_file = root_path.join(&file_path)?;
                 let write_op = write_file_operation(allowed_file, contents);
@@ -3642,8 +3666,11 @@ mod tests {
                 denied_file: RcStr,
                 nested_denied_file: RcStr,
             ) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 let path = root_path.join(&denied_file)?;
