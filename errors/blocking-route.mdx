@@ -239,13 +239,19 @@ A `<Suspense>` boundary or `loading.js` file is required when using `params`. In
 
 Adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) prerenders pages for known param values at build time. Unlisted params receive the shell and stream the dynamic content in.
 
+```jsx filename="app/blog/[slug]/loading.js"
+export default function Loading() {
+  return <p>Loading...</p>
+}
+```
+
 ```jsx filename="app/blog/[slug]/page.js"
 export async function generateStaticParams() {
   return [{ slug: 'hello-world' }]
 }
 
 export default async function Page({ params }) {
-  const { slug } = await params // Valid with generateStaticParams
+  const { slug } = await params
   return <div>Blog post: {slug}</div>
 }
 ```
