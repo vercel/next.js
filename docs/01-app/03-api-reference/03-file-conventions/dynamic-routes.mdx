@@ -150,7 +150,7 @@ When using [Cache Components](/docs/app/getting-started/caching) with dynamic ro
 
 Without `generateStaticParams`, param values are unknown during prerendering, making params runtime data. You must wrap param access in `<Suspense>` boundaries to provide fallback UI.
 
-With `generateStaticParams`, you provide sample param values that can be used at build time. The build process validates that dynamic content and other runtime APIs are correctly handled, then generates static HTML files for the samples. Pages rendered with runtime params are saved to disk after a successful first request.
+With `generateStaticParams`, you provide sample param values that can be used at build time. The build process validates that dynamic content and other runtime APIs are correctly handled, then generates static HTML files for the samples. On server deployments, pages rendered with runtime params are saved to disk after a successful first request. With [`output: 'export'`](/docs/app/guides/static-exports), unknown params instead use the export fallback shell and continue rendering on the client until you rebuild.
 
 The sections below demonstrate both patterns.
 
@@ -194,6 +194,8 @@ async function Content({ slug }: { slug: string }) {
 Provide params ahead of time to prerender pages at build time. You can prerender all routes or a subset depending on your needs.
 
 During the build process, the route is executed with each sample param to collect the HTML result. If dynamic content or runtime data are accessed incorrectly, the build will fail.
+
+When multiple dynamic route patterns overlap, matching still follows normal App Router specificity. For example, `/docs/[section]/[page]` is matched before `/docs/[...slug]`.
 
 ```tsx filename="app/blog/[slug]/page.tsx" highlight={3-5,8,19}
 import { Suspense } from 'react'

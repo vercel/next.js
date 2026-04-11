@@ -313,6 +313,8 @@ For server deployments, `generateStaticParams` must return **at least one param*
 
 When using [`output: 'export'`](/docs/app/guides/static-exports) with App Router dynamic routes, `generateStaticParams` becomes optional when `cacheComponents: true` is enabled. If you omit it, Next.js emits a fallback shell for the route and resolves param-dependent content on the client. If you provide it, the returned params are prerendered and all other params use the fallback shell.
 
+When multiple dynamic route patterns share the same static prefix in `output: 'export'`, the fallback shell still follows normal App Router route specificity. For example, if both `/docs/[section]/[page]` and `/docs/[...slug]` exist, params returned by `generateStaticParams` for the specific route are prerendered as usual, while unknown params still fall back and match the most specific route first.
+
 > **Good to know**: If you don't know the actual param values at build time, you can return a placeholder param (e.g., `[{ slug: '__placeholder__' }]`) for validation, then handle it in your page with `notFound()`. However, this prevents build time validation from working effectively and may cause runtime errors.
 
 See the [dynamic routes section](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) for detailed walkthroughs.
