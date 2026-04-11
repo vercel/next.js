@@ -25,6 +25,9 @@ overrides:
 packageExtensionsChecksum: sha256-ylDR55omOZlT4Sfpfh6n7mO2r/cLCmlirAikJ/E/LAw=
 
 patchedDependencies:
+  '@modelcontextprotocol/sdk':
+    hash: f5075d7d8e8be8dffd7af112ef27a83613e5a60e6e47f066a684b37e0f0f246c
+    path: patches/@modelcontextprotocol__sdk.patch
   '@rspack/core@1.6.7':
     hash: 4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d
     path: patches/@rspack__core@1.6.7.patch
@@ -1213,7 +1216,7 @@ importers:
         version: 29.5.0
       '@modelcontextprotocol/sdk':
         specifier: 1.18.1
-        version: 1.18.1
+        version: 1.18.1(patch_hash=f5075d7d8e8be8dffd7af112ef27a83613e5a60e6e47f066a684b37e0f0f246c)
       '@mswjs/interceptors':
         specifier: 0.23.0
         version: 0.23.0
@@ -21638,7 +21641,7 @@ snapshots:
       '@types/react': 19.2.10
       react: 19.3.0-canary-fef12a01-20260413
 
-  '@modelcontextprotocol/sdk@1.18.1':
+  '@modelcontextprotocol/sdk@1.18.1(patch_hash=f5075d7d8e8be8dffd7af112ef27a83613e5a60e6e47f066a684b37e0f0f246c)':
     dependencies:
       ajv: 6.12.6
       content-type: 1.0.5
