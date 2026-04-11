@@ -191,14 +191,14 @@ function getDynamicMetadataErrorDetails(
     return null
   }
 
+  const isRuntime =
+    error.message.includes('Runtime data') ||
+    (error.message.includes('A request-time API') &&
+      !error.message.includes('Either'))
+
   return {
     type: 'dynamic-metadata',
-    variant:
-      error.message.includes('request-time API') ||
-      error.message.includes('cookies()') ||
-      error.message.includes('Runtime data')
-        ? 'runtime'
-        : 'navigation',
+    variant: isRuntime ? 'runtime' : 'navigation',
   }
 }
 
