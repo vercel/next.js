@@ -27,7 +27,11 @@ import {
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
-import { isRequestAPICallableInsideAfter } from './utils'
+import {
+  isRequestAPICallableInsideAfter,
+  shouldErrorForOutputExportServerRequestAPI,
+  throwForOutputExportServerRequestAPI,
+} from './utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -53,6 +57,19 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
       // cookies object without tracking
       const underlyingCookies = createEmptyCookies()
       return makeUntrackedCookies(underlyingCookies)
+    }
+
+    if (
+      workStore.nextConfigOutput === 'export' &&
+      workUnitStore &&
+      shouldErrorForOutputExportServerRequestAPI(workUnitStore, 'request-data')
+    ) {
+      throwForOutputExportServerRequestAPI(
+        workStore,
+        '`cookies()`',
+        cookies,
+        'this API requires a runtime server request, which is not available when exporting to static HTML.'
+      )
     }
 
     if (workStore.dynamicShouldError) {

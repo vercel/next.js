@@ -25,6 +25,7 @@ export interface WorkStore {
    * trailing `/page` or `/route` suffix.
    */
   readonly route: string
+  readonly nextConfigOutput?: 'standalone' | 'export'
 
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }

@@ -13,7 +13,11 @@ import {
   makeHangingPromise,
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
-import { isRequestAPICallableInsideAfter } from './utils'
+import {
+  isRequestAPICallableInsideAfter,
+  shouldErrorForOutputExportServerRequestAPI,
+  throwForOutputExportServerRequestAPI,
+} from './utils'
 import { RenderStage } from '../app-render/staged-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
@@ -42,6 +46,19 @@ export function connection(): Promise<void> {
       // When using forceStatic, we override all other logic and always just
       // return a resolving promise without tracking.
       return Promise.resolve(undefined)
+    }
+
+    if (
+      workStore.nextConfigOutput === 'export' &&
+      workUnitStore &&
+      shouldErrorForOutputExportServerRequestAPI(workUnitStore, 'connection')
+    ) {
+      throwForOutputExportServerRequestAPI(
+        workStore,
+        '`connection()`',
+        connection,
+        'this API requires a runtime server request, which is not available when exporting to static HTML.'
+      )
     }
 
     if (workStore.dynamicShouldError) {
