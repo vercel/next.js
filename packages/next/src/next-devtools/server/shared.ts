@@ -30,7 +30,7 @@ type CodeFrameRenderOptions = {
   maxWidth?: number
 }
 
-export const DEVTOOLS_CODE_FRAME_MAX_WIDTH = 240
+export const DEVTOOLS_CODE_FRAME_MAX_WIDTH = 1000
 
 export function ignoreListAnonymousStackFramesIfSandwiched(
   responses: OriginalStackFramesResponse
