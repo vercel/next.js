@@ -158,7 +158,6 @@ Layout `params` and Page `params` and `searchParams` props are promises. If you 
 
 - Passing the promise to a child component wrapped in `<Suspense>` and awaiting it there
 - Adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to the route segment
-- Using [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide known param values at build time (see [below](#generatestaticparams))
 
 For example, `const { id } = await params` directly in a Page component is a common trigger:
 
@@ -236,7 +235,9 @@ async function MapView({ searchParams }) {
 
 ##### `generateStaticParams`
 
-For Layout and Page `params`, you can use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide sample values for build-time validation, which allows you to await params directly without Suspense.
+A `<Suspense>` boundary or `loading.js` file is required when using `params`. In Next.js 16.3 and later, [partial fallbacks](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) are enabled by default, so the build prerenders a shell for unlisted param values. Without a fallback, the build fails because there is no shell to render.
+
+Adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) prerenders pages for known param values at build time. Unlisted params receive the shell and stream the dynamic content in.
 
 ```jsx filename="app/blog/[slug]/page.js"
 export async function generateStaticParams() {
@@ -244,12 +245,12 @@ export async function generateStaticParams() {
 }
 
 export default async function Page({ params }) {
-  const { slug } = await params //  Valid with generateStaticParams
+  const { slug } = await params // Valid with generateStaticParams
   return <div>Blog post: {slug}</div>
 }
 ```
 
-Note that validation is path-dependent. Runtime parameters may trigger conditional branches accessing runtime APIs without Suspense, or dynamic content without Suspense or `use cache`, resulting in errors.
+Note that validation is path-dependent. Runtime parameters may trigger conditional branches that access runtime APIs without Suspense, or dynamic content without Suspense or `"use cache"`, resulting in errors.
 
 Learn more: [`generateStaticParams` function](/docs/app/api-reference/functions/generate-static-params), [Dynamic Routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components)
 
