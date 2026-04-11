@@ -34,11 +34,12 @@ describe('fetchServerResponse output export fallback', () => {
   const originalOutput = process.env.__NEXT_CONFIG_OUTPUT
   const originalFetch = global.fetch
   const originalLocation = global.location
+  const processEnv = process.env as Record<string, string | undefined>
 
   beforeEach(() => {
-    process.env.NODE_ENV = 'production'
-    process.env.__NEXT_CONFIG_OUTPUT = 'export'
-    global.location = new URL('https://example.com/') as Location
+    processEnv.NODE_ENV = 'production'
+    processEnv.__NEXT_CONFIG_OUTPUT = 'export'
+    global.location = new URL('https://example.com/') as unknown as Location
     setNavigationBuildId('build-id')
     mockCreateFromReadableStream.mockReset()
     mockFetchOutputExportFallbackResponse.mockReset()
@@ -47,8 +48,8 @@ describe('fetchServerResponse output export fallback', () => {
   })
 
   afterEach(() => {
-    process.env.NODE_ENV = originalNodeEnv
-    process.env.__NEXT_CONFIG_OUTPUT = originalOutput
+    processEnv.NODE_ENV = originalNodeEnv
+    processEnv.__NEXT_CONFIG_OUTPUT = originalOutput
     global.fetch = originalFetch
     global.location = originalLocation
     jest.restoreAllMocks()
@@ -72,11 +73,11 @@ describe('fetchServerResponse output export fallback', () => {
     )
 
     global.fetch = jest
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(initialMiss)
+      .fn(async () => initialMiss)
+      .mockImplementationOnce(async () => initialMiss)
       .mockImplementation(async () => {
         throw new Error('unexpected extra fetch')
-      })
+      }) as typeof fetch
 
     mockFetchOutputExportFallbackResponse.mockResolvedValue({
       response: fallbackResponse,
