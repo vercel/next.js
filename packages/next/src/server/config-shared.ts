@@ -754,6 +754,15 @@ export interface ExperimentalConfig {
   turbopackUseBuiltinSass?: boolean
 
   /**
+   * Enable per-directory PostCSS config resolution for Turbopack. When enabled,
+   * Turbopack searches for `postcss.config.js` starting from the CSS file's
+   * parent directory first, then falls back to the project root. When disabled
+   * (default), the project root is checked first, with the CSS file's directory
+   * as a fallback.
+   */
+  turbopackLocalPostcssConfig?: boolean
+
+  /**
    * The module ID strategy to use for Turbopack.
    * If not set, the default is `'named'` for development and `'deterministic'`
    * for production.

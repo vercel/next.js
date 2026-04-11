@@ -1186,6 +1186,11 @@ pub struct ExperimentalConfig {
     /// present.
     #[serde(default)]
     turbopack_use_builtin_babel: Option<bool>,
+    /// Enable per-directory PostCSS config resolution. When true, Turbopack
+    /// searches for postcss.config.js starting from the CSS file's parent
+    /// directory first, then falls back to the project root.
+    #[serde(default)]
+    turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1900,6 +1905,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_sass(&self) -> Vc<Option<bool>> {
         Vc::cell(self.experimental.turbopack_use_builtin_sass)
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_turbopack_local_postcss_config(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_local_postcss_config)
     }
 
     #[turbo_tasks::function]

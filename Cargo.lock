@@ -10659,6 +10659,7 @@ dependencies = [
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbopack-cli-utils",
  "turbopack-core",
