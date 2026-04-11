@@ -2,29 +2,22 @@ export type BlockingRouteErrorDetails = {
   type: 'blocking-route'
   variant: 'navigation' | 'runtime'
   refinement: '' | 'generateViewport'
-  apiName: string | null
+}
+
+export type DynamicMetadataErrorDetails = {
+  type: 'dynamic-metadata'
+  variant: 'navigation' | 'runtime'
 }
 
 function isRuntimeVariant(message: string): boolean {
   if (message.includes('Runtime data')) return true
-  if (message.includes('A request-time API') && !message.includes('Either')) {
+  if (
+    message.includes('A request-time API') &&
+    !message.includes('Either a request-time API')
+  ) {
     return true
   }
   return false
-}
-
-const API_PATTERNS = [
-  /it used [`']?([a-zA-Z]+\(\))[`']?/,
-  /it used [`']?([a-zA-Z]+)[`']?\./,
-  /such as [`']?([a-zA-Z]+\(\))[`']?/,
-]
-
-function extractApiName(message: string): string | null {
-  for (const pattern of API_PATTERNS) {
-    const match = message.match(pattern)
-    if (match) return match[1]
-  }
-  return null
 }
 
 export function getBlockingRouteErrorDetails(
@@ -37,7 +30,6 @@ export function getBlockingRouteErrorDetails(
       type: 'blocking-route',
       variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: '',
-      apiName: extractApiName(error.message),
     }
   }
 
@@ -49,9 +41,21 @@ export function getBlockingRouteErrorDetails(
       type: 'blocking-route',
       variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: 'generateViewport',
-      apiName: extractApiName(error.message),
     }
   }
 
   return null
+}
+
+export function getDynamicMetadataErrorDetails(
+  error: Error
+): DynamicMetadataErrorDetails | null {
+  if (!error.message.includes('/next-prerender-dynamic-metadata')) {
+    return null
+  }
+
+  return {
+    type: 'dynamic-metadata',
+    variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
+  }
 }

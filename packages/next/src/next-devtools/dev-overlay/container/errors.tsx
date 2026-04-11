@@ -21,7 +21,10 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { BlockingRouteGuidance } from '../components/blocking-route-guidance/blocking-route-guidance'
-import { getBlockingRouteErrorDetails } from '../components/blocking-route-guidance/blocking-route-error-details'
+import {
+  getBlockingRouteErrorDetails,
+  getDynamicMetadataErrorDetails,
+} from '../components/blocking-route-guidance/blocking-route-error-details'
 import {
   DynamicMetadataErrorDescription,
   BlockingPageLoadErrorDescription,
@@ -112,10 +115,8 @@ type HydrationErrorDetails = {
 type BlockingRouteErrorDetails =
   import('../components/blocking-route-guidance/blocking-route-error-details').BlockingRouteErrorDetails
 
-type DynamicMetadataErrorDetails = {
-  type: 'dynamic-metadata'
-  variant: 'navigation' | 'runtime'
-}
+type DynamicMetadataErrorDetails =
+  import('../components/blocking-route-guidance/blocking-route-error-details').DynamicMetadataErrorDetails
 
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
@@ -181,24 +182,6 @@ function getHydrationErrorDetails(
     warning: message,
     notes,
     reactOutputComponentDiff: diff,
-  }
-}
-
-function getDynamicMetadataErrorDetails(
-  error: Error
-): DynamicMetadataErrorDetails | null {
-  if (!error.message.includes('/next-prerender-dynamic-metadata')) {
-    return null
-  }
-
-  const isRuntime =
-    error.message.includes('Runtime data') ||
-    (error.message.includes('A request-time API') &&
-      !error.message.includes('Either'))
-
-  return {
-    type: 'dynamic-metadata',
-    variant: isRuntime ? 'runtime' : 'navigation',
   }
 }
 
@@ -377,20 +360,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           />
         )
       } else {
-        errorMessage = errorDetails.apiName ? (
-          <>
-            <code>{errorDetails.apiName}</code> prevents this page from loading
-            instantly.
-          </>
-        ) : (
-          'This page can\u2019t load instantly.'
-        )
-        maybeGuidance = (
-          <BlockingRouteGuidance
-            variant={errorDetails.variant}
-            apiName={errorDetails.apiName}
-          />
-        )
+        errorMessage = 'This page can\u2019t load instantly.'
+        maybeGuidance = <BlockingRouteGuidance variant={errorDetails.variant} />
       }
       break
     case 'dynamic-metadata':

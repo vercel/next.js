@@ -13,10 +13,8 @@ function DocsLink({ hash, children }: { hash: string; children: string }) {
 
 export function BlockingRouteGuidance({
   variant,
-  apiName,
 }: {
   variant: 'runtime' | 'navigation'
-  apiName: string | null
 }) {
   return (
     <div data-nextjs-blocking-route-guidance>
@@ -27,8 +25,7 @@ export function BlockingRouteGuidance({
           <>
             <Collapsible title="I want the rest of the page to load instantly">
               <p>
-                Wrap the component that uses{' '}
-                {apiName ? <code>{apiName}</code> : 'this data'} in{' '}
+                Wrap the component that uses this data in{' '}
                 <code>{'<Suspense fallback={...}>'}</code>. The page shell will
                 be prerendered and this part will stream in after.
               </p>
@@ -37,8 +34,7 @@ export function BlockingRouteGuidance({
 
             <Collapsible title="I can move this into a smaller component">
               <p>
-                Move {apiName ? <code>{apiName}</code> : 'this'} into a child
-                component and wrap only that child in{' '}
+                Move this into a child component and wrap only that child in{' '}
                 <code>{'<Suspense>'}</code>. Everything outside the boundary
                 stays prerendered.
               </p>
