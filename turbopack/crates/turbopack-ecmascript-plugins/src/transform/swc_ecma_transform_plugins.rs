@@ -2,16 +2,15 @@ use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 /// A wrapper around an SWC's ecma transform wasm plugin module bytes, allowing
 /// it to operate with the turbo_tasks caching requirements.
 ///
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
-/// compiled, serialized wasmer::Module instead of raw file bytes to reduce the
+/// compiled, serialized WASM module instead of raw file bytes to reduce the
 /// cost of the compilation.
 #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", shared)]
 pub struct SwcPluginModule {
@@ -28,11 +27,11 @@ impl SwcPluginModule {
             use swc_core::plugin_runner::plugin_module_bytes::{
                 CompiledPluginModuleBytes, RawPluginModuleBytes,
             };
-            use swc_plugin_backend_wasmer::WasmerRuntime;
+            use swc_plugin_backend_wasmtime::WasmtimeRuntime;
 
             Self {
                 plugin: CompiledPluginModuleBytes::from_raw_module(
-                    &WasmerRuntime,
+                    &WasmtimeRuntime,
                     RawPluginModuleBytes::new(plugin_name.to_string(), plugin_bytes),
                 ),
                 name: plugin_name,
@@ -52,39 +51,32 @@ struct UnsupportedSwcEcmaTransformPluginsIssue {
     pub file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
             "Unsupported SWC EcmaScript transform plugins on this platform."
-        ))
-        .cell()
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
-                 platform."
-            ))
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
+             platform."
+        ))))
     }
 }
 
@@ -94,44 +86,37 @@ struct SwcEcmaTransformFailureIssue {
     pub description: StyledString,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for SwcEcmaTransformFailureIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Failed to execute SWC plugin")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Failed to execute SWC plugin")))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Text(rcstr!(
-                    "An unexpected error occurred when executing an SWC EcmaScript transform \
-                     plugin."
-                )),
-                StyledString::Text(rcstr!(
-                    "This might be due to a version mismatch between the plugin and Next.js. \
-                    https://plugins.swc.rs/ can help you find the correct plugin version to use."
-                )),
-                StyledString::Text(Default::default()),
-                self.description.clone(),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(rcstr!(
+                "An unexpected error occurred when executing an SWC EcmaScript transform plugin."
+            )),
+            StyledString::Text(rcstr!(
+                "This might be due to a version mismatch between the plugin and Next.js. \
+                https://plugins.swc.rs/ can help you find the correct plugin version to use."
+            )),
+            StyledString::Text(Default::default()),
+            self.description.clone(),
+        ])))
     }
 }
 
@@ -181,7 +166,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                 plugin::proxies::{COMMENTS, HostCommentsStorage},
                 plugin_runner::plugin_module_bytes::CompiledPluginModuleBytes,
             };
-            use swc_plugin_backend_wasmer::WasmerRuntime;
+            use swc_plugin_backend_wasmtime::WasmtimeRuntime;
             use turbo_tasks::TryJoinIterExt;
 
             let plugins = self
@@ -192,7 +177,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                     Ok((
                         plugin_module.name.clone(),
                         config.clone(),
-                        Box::new(plugin_module.plugin.clone_module(&WasmerRuntime)),
+                        Box::new(plugin_module.plugin.clone_module(&WasmtimeRuntime)),
                     ))
                 })
                 .try_join()
@@ -259,7 +244,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
                             None,
                             plugin_module,
                             Some(plugin_config),
-                            Arc::new(WasmerRuntime),
+                            Arc::new(WasmtimeRuntime),
                         );
 
                     serialized_program = Either::Right(

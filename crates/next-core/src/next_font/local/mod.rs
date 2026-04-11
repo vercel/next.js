@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
@@ -314,30 +315,26 @@ struct FontResolvingIssue {
     font_path: ResolvedVc<RcStr>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FontResolvingIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
+    async fn file_path(&self) -> Result<FileSystemPath> {
         panic!("FontResolvingIssue::file_path should not be called");
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
-    #[turbo_tasks::function]
-    async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
-        let this = self.await?;
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Font file not found: Can't resolve '")),
-            StyledString::Code(this.font_path.owned().await?),
+            StyledString::Code(self.font_path.owned().await?),
             StyledString::Text(rcstr!("'")),
-        ])
-        .cell())
+        ]))
     }
 }

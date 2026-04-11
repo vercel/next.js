@@ -1,6 +1,7 @@
-use std::{future::Future, sync::Arc};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
@@ -37,10 +38,7 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
     source_map::utils::add_default_ignore_list,
 };
@@ -634,45 +632,39 @@ struct ReadSourceIssue {
     severity: IssueSeverity,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ReadSourceIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Reading source code for parsing failed")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Reading source code for parsing failed"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(
-                format!(
-                    "An unexpected error happened while trying to read the source code to parse: \
-                     {}",
-                    self.error
-                )
-                .into(),
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            format!(
+                "An unexpected error happened while trying to read the source code to parse: {}",
+                self.error
             )
-            .resolved_cell(),
-        ))
+            .into(),
+        )))
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Load
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
@@ -800,11 +792,7 @@ mod tests {
     fn test_collect_declare_global_with_content() {
         let ids = parse_and_collect(
             r#"
-            declare global {
-                interface Window {
-                    foo: string;
-                }
-            }
+            declare global {interface Window {foo: string;}}
             "#,
         );
         assert_eq!(ids, vec!["global"]);
