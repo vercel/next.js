@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use bytes::Bytes;
 use futures_retry::{FutureRetry, RetryPolicy};
@@ -24,10 +25,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::{
         GraphEntries, ModuleGraph,
@@ -457,15 +455,15 @@ pub async fn get_evaluate_entries(
                 runtime_asset.ident().path().await?.join("evaluate.js")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
-                        "import { run } from 'RUNTIME'; run(() => import('INNER'))",
+                        "import {run} from 'RUNTIME'; run(() => import('INNER'))",
                     ))
                     .cell(),
                 ),
             )),
-            ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
-                rcstr!("INNER") => module_asset,
-                rcstr!("RUNTIME") => runtime_asset
-            })),
+            ReferenceType::Internal(ResolvedVc::cell(
+                fxindexmap! {rcstr!("INNER") => module_asset,
+                rcstr!("RUNTIME") => runtime_asset},
+            )),
         )
         .module()
         .to_resolved()
@@ -692,43 +690,36 @@ pub struct EvaluationIssue {
     pub root_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for EvaluationIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error evaluating Node.js code")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Error evaluating Node.js code")))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(
-                self.error
-                    .print(
-                        *self.assets_for_source_mapping,
-                        self.assets_root.clone(),
-                        self.root_path.clone(),
-                        FormattingMode::Plain,
-                    )
-                    .await?
-                    .into(),
-            )
-            .resolved_cell(),
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(
+            self.error
+                .print(
+                    *self.assets_for_source_mapping,
+                    self.assets_root.clone(),
+                    self.root_path.clone(),
+                    FormattingMode::Plain,
+                )
+                .await?
+                .into(),
         )))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
