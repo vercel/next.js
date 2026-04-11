@@ -1,7 +1,10 @@
 import {
   addOutputExportDataSuffix,
+  clearOutputExportFallbackManifestCache,
   fetchOutputExportDataResponse,
   fetchOutputExportFallbackResponse,
+  getCachedOutputExportFallbackDataUrl,
+  getCachedOutputExportFallbackRequestUrl,
   getOutputExportFallbackCandidates,
   stripOutputExportDataSuffix,
 } from './output-export-fallback'
@@ -11,6 +14,7 @@ describe('output export fallback helpers', () => {
 
   afterEach(() => {
     global.fetch = originalFetch
+    clearOutputExportFallbackManifestCache()
     jest.restoreAllMocks()
   })
 
@@ -172,6 +176,127 @@ describe('output export fallback helpers', () => {
     expect(result?.fallbackUrl.pathname).toBe('/docs/__fallback/__route_0')
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
       'https://example.com/docs/__fallback.meta.json',
+      'https://example.com/docs/__fallback/__route_0.txt',
+    ])
+  })
+
+  it('caches the resolved fallback data URL for later RSC fetches', async () => {
+    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.endsWith('/docs/__fallback.meta.json')) {
+        return new Response(
+          JSON.stringify({
+            version: 1,
+            routes: [
+              {
+                route: '/docs/[section]/[page]',
+                fallbackPath: '/docs/__fallback/__route_0',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        )
+      }
+
+      if (url.endsWith('/docs/__fallback/__route_0.txt')) {
+        return new Response('payload', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        })
+      }
+
+      return new Response('not found', {
+        status: 404,
+        headers: { 'content-type': 'text/html' },
+      })
+    })
+
+    global.fetch = fetchMock as typeof fetch
+
+    const renderedUrl = new URL('https://example.com/docs/api/reference')
+    await fetchOutputExportFallbackResponse(renderedUrl)
+
+    expect(
+      getCachedOutputExportFallbackDataUrl(
+        new URL('https://example.com/docs/api/reference.txt')
+      )?.href
+    ).toBe('https://example.com/docs/__fallback/__route_0.txt')
+    expect(
+      getCachedOutputExportFallbackDataUrl(
+        new URL('https://example.com/docs/api/reference/index.txt')
+      )?.href
+    ).toBe('https://example.com/docs/__fallback/__route_0.txt')
+    expect(
+      getCachedOutputExportFallbackRequestUrl(
+        new URL('https://example.com/docs/api/reference/__next._head.txt')
+      )?.href
+    ).toBe('https://example.com/docs/__fallback/__route_0/__next._head.txt')
+    expect(
+      getCachedOutputExportFallbackRequestUrl(
+        new URL(
+          'https://example.com/docs/api/reference/__next.docs.$d$section.$d$page.txt'
+        )
+      )?.href
+    ).toBe(
+      'https://example.com/docs/__fallback/__route_0/__next.docs.$d$section.$d$page.txt'
+    )
+  })
+
+  it('caches fallback metadata lookups across sibling routes', async () => {
+    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.endsWith('/docs/__fallback.meta.json')) {
+        return new Response(
+          JSON.stringify({
+            version: 1,
+            routes: [
+              {
+                route: '/docs/[section]/[page]',
+                fallbackPath: '/docs/__fallback/__route_0',
+              },
+              {
+                route: '/docs/[...slug]',
+                fallbackPath: '/docs/__fallback/__route_1',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        )
+      }
+
+      if (url.endsWith('/docs/__fallback/__route_0.txt')) {
+        return new Response('payload', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        })
+      }
+
+      return new Response('not found', {
+        status: 404,
+        headers: { 'content-type': 'text/html' },
+      })
+    })
+
+    global.fetch = fetchMock as typeof fetch
+
+    await fetchOutputExportFallbackResponse(
+      new URL('https://example.com/docs/api/reference')
+    )
+    await fetchOutputExportFallbackResponse(
+      new URL('https://example.com/docs/api/guide')
+    )
+
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/docs/__fallback.meta.json',
+      'https://example.com/docs/__fallback/__route_0.txt',
       'https://example.com/docs/__fallback/__route_0.txt',
     ])
   })

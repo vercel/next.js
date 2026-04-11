@@ -7,6 +7,44 @@ import { RSC_CONTENT_TYPE_HEADER } from './components/app-router-headers'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 
+type OutputExportFallbackManifest = {
+  version: 1
+  routes: OutputExportFallbackManifestEntry[]
+}
+
+const outputExportFallbackManifestCache = new Map<
+  string,
+  Promise<OutputExportFallbackManifest | null>
+>()
+
+function getOutputExportFallbackDataUrlCache(): Map<string, string> {
+  const globalWithCache = globalThis as typeof globalThis & {
+    __NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE?: Map<string, string>
+  }
+  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE
+  if (existing !== undefined) {
+    return existing
+  }
+
+  const cache = new Map<string, string>()
+  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE = cache
+  return cache
+}
+
+function getOutputExportFallbackBasePathCache(): Map<string, string> {
+  const globalWithCache = globalThis as typeof globalThis & {
+    __NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE?: Map<string, string>
+  }
+  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE
+  if (existing !== undefined) {
+    return existing
+  }
+
+  const cache = new Map<string, string>()
+  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE = cache
+  return cache
+}
+
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
   const segments = pathname.split('/').filter(Boolean)
   const candidates: string[] = []
@@ -29,6 +67,20 @@ export function addOutputExportDataSuffix(url: URL): URL {
     nextUrl.pathname += '.txt'
   }
   return nextUrl
+}
+
+export function isOutputExportFlightContentType(contentType: string): boolean {
+  return (
+    contentType.startsWith(RSC_CONTENT_TYPE_HEADER) ||
+    contentType.startsWith('text/plain') ||
+    contentType.startsWith('application/octet-stream')
+  )
+}
+
+export function clearOutputExportFallbackManifestCache(): void {
+  outputExportFallbackManifestCache.clear()
+  getOutputExportFallbackDataUrlCache().clear()
+  getOutputExportFallbackBasePathCache().clear()
 }
 
 export function stripOutputExportDataSuffix(url: URL): URL {
@@ -58,27 +110,37 @@ function matchOutputExportFallbackManifestEntry(
 async function fetchOutputExportFallbackManifest(
   fallbackUrl: URL,
   init?: RequestInit
-): Promise<{
-  version: 1
-  routes: OutputExportFallbackManifestEntry[]
-} | null> {
-  const metadataResponse = await fetch(
-    getOutputExportFallbackMetadataUrl(fallbackUrl),
-    init
-  )
-  if (!metadataResponse.ok) {
-    return null
+): Promise<OutputExportFallbackManifest | null> {
+  const metadataUrl = getOutputExportFallbackMetadataUrl(fallbackUrl)
+  const cacheKey = metadataUrl.href
+  const cached = outputExportFallbackManifestCache.get(cacheKey)
+  if (cached !== undefined) {
+    return cached
   }
 
-  const contentType = metadataResponse.headers.get('content-type') || ''
-  if (
-    !contentType.startsWith('application/json') &&
-    !contentType.startsWith('text/json')
-  ) {
-    return null
-  }
+  const manifestPromise = fetch(metadataUrl, init)
+    .then(async (metadataResponse) => {
+      if (!metadataResponse.ok) {
+        return null
+      }
 
-  return metadataResponse.json()
+      const contentType = metadataResponse.headers.get('content-type') || ''
+      if (
+        !contentType.startsWith('application/json') &&
+        !contentType.startsWith('text/json')
+      ) {
+        return null
+      }
+
+      return metadataResponse.json()
+    })
+    .catch((error) => {
+      outputExportFallbackManifestCache.delete(cacheKey)
+      throw error
+    })
+
+  outputExportFallbackManifestCache.set(cacheKey, manifestPromise)
+  return manifestPromise
 }
 
 function getOutputExportDataCandidates(url: URL): URL[] {
@@ -95,24 +157,83 @@ function getOutputExportDataCandidates(url: URL): URL[] {
   return [direct, trailingSlash]
 }
 
-export async function fetchOutputExportDataResponse(
+function normalizeOutputExportRouteDirectory(pathname: string): string {
+  if (pathname === '/') {
+    return ''
+  }
+  return pathname.endsWith('/') ? pathname.slice(0, -1) : pathname
+}
+
+function cacheOutputExportFallbackDataUrl(
+  renderedUrl: URL,
+  fallbackUrl: URL,
+  resolvedDataUrl: URL
+) {
+  const dataUrlCache = getOutputExportFallbackDataUrlCache()
+  for (const candidateUrl of getOutputExportDataCandidates(renderedUrl)) {
+    dataUrlCache.set(candidateUrl.href, resolvedDataUrl.href)
+  }
+  getOutputExportFallbackBasePathCache().set(
+    normalizeOutputExportRouteDirectory(renderedUrl.pathname),
+    normalizeOutputExportRouteDirectory(fallbackUrl.pathname)
+  )
+}
+
+export function getCachedOutputExportFallbackDataUrl(url: URL): URL | null {
+  const cached = getOutputExportFallbackDataUrlCache().get(url.href)
+  return cached !== undefined ? new URL(cached) : null
+}
+
+export function getCachedOutputExportFallbackRequestUrl(url: URL): URL | null {
+  const cachedDataUrl = getCachedOutputExportFallbackDataUrl(url)
+  if (cachedDataUrl !== null) {
+    return cachedDataUrl
+  }
+
+  const filename = url.pathname.slice(url.pathname.lastIndexOf('/') + 1)
+  if (!filename.startsWith('__next.')) {
+    return null
+  }
+
+  const routeDirectory = normalizeOutputExportRouteDirectory(
+    url.pathname.slice(0, url.pathname.lastIndexOf('/')) || '/'
+  )
+  const fallbackBasePath =
+    getOutputExportFallbackBasePathCache().get(routeDirectory)
+  if (fallbackBasePath === undefined) {
+    return null
+  }
+
+  const nextUrl = new URL(url)
+  nextUrl.pathname = `${fallbackBasePath}/${filename}`
+  return nextUrl
+}
+
+async function fetchOutputExportDataResult(
   renderedUrl: URL,
   init?: RequestInit
-): Promise<Response | null> {
+): Promise<{ response: Response; dataUrl: URL } | null> {
   for (const dataUrl of getOutputExportDataCandidates(renderedUrl)) {
     const response = await fetch(dataUrl, init)
     const contentType = response.headers.get('content-type') || ''
-    const isFlightResponse =
-      contentType.startsWith(RSC_CONTENT_TYPE_HEADER) ||
-      contentType.startsWith('text/plain') ||
-      contentType.startsWith('application/octet-stream')
-
-    if (response.ok && response.body && isFlightResponse) {
-      return response
+    if (
+      response.ok &&
+      response.body &&
+      isOutputExportFlightContentType(contentType)
+    ) {
+      return { response, dataUrl }
     }
   }
 
   return null
+}
+
+export async function fetchOutputExportDataResponse(
+  renderedUrl: URL,
+  init?: RequestInit
+): Promise<Response | null> {
+  const result = await fetchOutputExportDataResult(renderedUrl, init)
+  return result?.response ?? null
 }
 
 export async function fetchOutputExportFallbackResponse(
@@ -140,13 +261,18 @@ export async function fetchOutputExportFallbackResponse(
         const branchFallbackUrl = new URL(renderedUrl)
         branchFallbackUrl.pathname = entry.fallbackPath
 
-        const response = await fetchOutputExportDataResponse(
+        const result = await fetchOutputExportDataResult(
           branchFallbackUrl,
           init
         )
-        if (response) {
+        if (result) {
+          cacheOutputExportFallbackDataUrl(
+            renderedUrl,
+            branchFallbackUrl,
+            result.dataUrl
+          )
           return {
-            response,
+            response: result.response,
             renderedUrl,
             fallbackUrl: branchFallbackUrl,
           }
@@ -154,9 +280,18 @@ export async function fetchOutputExportFallbackResponse(
       }
     }
 
-    const response = await fetchOutputExportDataResponse(candidateUrl, init)
-    if (response) {
-      return { response, renderedUrl, fallbackUrl: candidateUrl }
+    const result = await fetchOutputExportDataResult(candidateUrl, init)
+    if (result) {
+      cacheOutputExportFallbackDataUrl(
+        renderedUrl,
+        candidateUrl,
+        result.dataUrl
+      )
+      return {
+        response: result.response,
+        renderedUrl,
+        fallbackUrl: candidateUrl,
+      }
     }
   }
 

@@ -709,6 +709,11 @@ function pingRootRouteTree(
         // Do not prefetch segment data until we've entered the segment phase.
         return PrefetchTaskExitStatus.Done
       }
+      if (route.hasInlinedSegments) {
+        // Segment data was already written into the cache during route
+        // fulfillment. Skip the per-segment fetch phase.
+        return PrefetchTaskExitStatus.Done
+      }
       // Recursively fill in the segment tree.
       if (!hasNetworkBandwidth(task)) {
         // Stop prefetching segments until there's more bandwidth.
