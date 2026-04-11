@@ -165,19 +165,20 @@ module.exports = nextConfig
 During `next build`, Next.js uses [vary params](/docs/app/api-reference/functions/generate-static-params) to determine which parts of each route depend on which dynamic params. It then renders a fallback shell per dynamic route:
 
 - **Param-independent layouts and components** (those that don't read the dynamic param) render fully as Server Components at build time.
-- **Param-dependent components** (those that `await params`) suspend at the nearest [Suspense boundary](/docs/app/guides/streaming#granular-streaming-with-suspense), showing your `loading.tsx` or `<Suspense fallback>` UI.
+- **Param-dependent boundaries** suspend at the nearest [Suspense boundary](/docs/app/guides/streaming#granular-streaming-with-suspense), showing your `loading.tsx` or `<Suspense fallback>` UI.
 
-Wrap param-dependent content in a Suspense boundary so the fallback shell can show meaningful loading UI:
+For `output: 'export'`, the most ergonomic shape is a shared Server Component shell with a Client Component leaf for paths you did not prerender with `generateStaticParams`. Wrap that client leaf in a Suspense boundary so the fallback shell can show meaningful loading UI:
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import { Suspense } from 'react'
+import { BlogPostClient } from './blog-post-client'
 
-export default function Page({ params }: PageProps<'/blog/[slug]'>) {
+export default function Page() {
   return (
     <main>
       <Sidebar /> {/* Renders fully in the shell (doesn't read slug) */}
       <Suspense fallback={<PostSkeleton />}>
-        <BlogPost params={params} /> {/* Shows skeleton until slug resolves */}
+        <BlogPostClient />
       </Suspense>
     </main>
   )
@@ -186,22 +187,49 @@ export default function Page({ params }: PageProps<'/blog/[slug]'>) {
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
 import { Suspense } from 'react'
+import { BlogPostClient } from './blog-post-client'
 
-export default function Page({ params }) {
+export default function Page() {
   return (
     <main>
       <Sidebar /> {/* Renders fully in the shell (doesn't read slug) */}
       <Suspense fallback={<PostSkeleton />}>
-        <BlogPost params={params} /> {/* Shows skeleton until slug resolves */}
+        <BlogPostClient />
       </Suspense>
     </main>
   )
 }
 ```
 
+```tsx filename="app/blog/[slug]/blog-post-client.tsx" switcher
+'use client'
+
+import { useParams } from 'next/navigation'
+
+export function BlogPostClient() {
+  const { slug } = useParams<{ slug: string }>()
+
+  return <Post slug={slug} />
+}
+```
+
+```jsx filename="app/blog/[slug]/blog-post-client.js" switcher
+'use client'
+
+import { useParams } from 'next/navigation'
+
+export function BlogPostClient() {
+  const { slug } = useParams()
+
+  return <Post slug={slug} />
+}
+```
+
+> **Good to know**: A Suspense boundary lets Next.js emit the fallback shell at build time, but it does not create a runtime server request later. For unknown params in `output: 'export'`, request-specific data must still cross into a Client Component.
+
 #### Combining with `generateStaticParams`
 
-If you export `generateStaticParams`, the returned params are fully prerendered at build time. Any other param values fall back to the shared shell. This lets you prerender your most popular pages while still supporting the long tail:
+If you export `generateStaticParams`, the returned params are fully prerendered at build time, which lets you keep using Server Components at build time for those known paths. Any other param values fall back to the shared shell. In other words, the same route can use both fully prerendered params and fallback-rendered unknown params:
 
 ```tsx filename="app/blog/[slug]/page.tsx"
 // These slugs get full static HTML at build time
@@ -222,12 +250,12 @@ For example, `/docs/[section]/[page]` is matched before `/docs/[...slug]`, so `/
 
 To serve unenumerated params on a static host, configure the host's 404 or error document to serve `_fallback.html` from the export output for document navigations:
 
-| Host            | Configuration                                        |
-| --------------- | ---------------------------------------------------- |
-| Nginx           | `try_files $uri $uri/ /_fallback.html`               |
-| Apache          | `ErrorDocument 404 /_fallback.html`                  |
-| S3 + CloudFront | Custom error response: 404 → `/_fallback.html` (200) |
-| GitHub Pages    | Rename `_fallback.html` to `404.html`                |
+| Host            | Configuration                                      |
+| --------------- | -------------------------------------------------- |
+| Nginx           | `try_files $uri $uri.html $uri/ /_fallback.html`   |
+| Apache          | `ErrorDocument 404 /_fallback.html`                |
+| S3 + CloudFront | Custom error response: 403/404 → `/_fallback.html` |
+| GitHub Pages    | Copy `_fallback.html` to `404.html`                |
 
 When a user visits an unenumerated route, the host serves `_fallback.html`. The Next.js client router then discovers the correct fallback shell and renders the page with param-dependent content loading on the client.
 
@@ -272,6 +300,12 @@ server {
 
 With `trailingSlash: true`, the same config works because prerendered routes are emitted as `/route/index.html` and unknown paths still fall back to `/_fallback.html`. With `trailingSlash: false`, keep the `try_files $uri $uri.html $uri/ /_fallback.html;` order so prerendered flat files are served before the fallback bootstrap.
 
+#### Deployment tips
+
+- **S3 + CloudFront**: If your S3 origin returns `403` for missing files, configure CloudFront custom error responses for both `403` and `404` to serve `/_fallback.html`. Use a `200` response code if you want SPA-style hard navigations for unknown params.
+- **GitHub Pages**: Keep `_fallback.html` as the canonical export artifact, then copy it to `404.html` as part of your deploy step. GitHub Pages uses `404.html` as its static fallback entrypoint.
+- **First paint**: `/_fallback.html` is a bootstrap document, not the final page. The first meaningful UI should come from the resolved fallback route shell, so prefer neutral loading states over route-specific content in that phase.
+
 #### Server and client boundaries
 
 Fallback routes in `output: 'export'` do not have a runtime server request. For unenumerated paths, request-specific APIs and unresolved fallback params are only available on the client.
@@ -301,6 +335,7 @@ export default async function Page() {
 > **Good to know**:
 >
 > - Param-dependent content for fallback routes renders on the client, so use client-side fetching patterns like `fetch`, SWR, or React Query in those parts of the tree.
+> - Prefer `generateStaticParams` for SEO-critical or frequently visited routes, then let other paths use the export fallback shell.
 > - Direct requests for unenumerated params may initially return a 404 status from the static host before the fallback shell loads. SEO-sensitive pages should be listed in `generateStaticParams`.
 > - This mode does not provide ISR. Rebuilding is still required to promote a fallback path to a fully prerendered page.
 > - Route names starting with `__fallback` are reserved and cannot be used with this feature.

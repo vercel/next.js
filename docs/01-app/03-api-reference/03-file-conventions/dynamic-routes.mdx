@@ -160,6 +160,8 @@ All params are runtime data. Param access must be wrapped by Suspense fallback U
 
 > **Good to know**: You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for page-level fallback UI.
 
+> **Good to know**: When using [`output: 'export'`](/docs/app/guides/static-exports), the component that consumes unknown params should typically be a Client Component. That keeps the shared shell static while the long-tail route resolves on the client.
+
 ```tsx filename="app/blog/[slug]/page.tsx"
 import { Suspense } from 'react'
 
@@ -291,7 +293,15 @@ async function PrivatePost({ slug }: { slug: string }) {
 }
 ```
 
-When using [`output: 'export'`](/docs/app/guides/static-exports) for App Router dynamic routes with `cacheComponents: true`, `generateStaticParams` is optional. Next.js emits a shared fallback shell for the dynamic route, prerenders any param-independent layouts or Server Components at build time, and resolves param-dependent content on the client. If you still export `generateStaticParams`, those params are fully prerendered and the rest use the fallback shell.
+When using [`output: 'export'`](/docs/app/guides/static-exports) for App Router dynamic routes with `cacheComponents: true`, `generateStaticParams` is optional. Next.js emits a shared fallback shell for the dynamic route, prerenders any param-independent layouts or Server Components at build time, and resolves param-dependent content on the client. If you still export `generateStaticParams`, those params are fully prerendered so you can keep using Server Components at build time for the paths you know ahead of time, and the rest use the fallback shell. The same route can do both at once: prerender the params you return and fall back for the params you do not return.
+
+For the best ergonomics in `output: 'export'`:
+
+- Keep shared layout and shell content in Server Components.
+- Move param reads and request-specific data for paths you did not prerender into Client Components.
+- Use Suspense to show loading UI while the client resolves those paths.
+
+> **Good to know**: In `output: 'export'`, a Suspense boundary makes the shell prerenderable, but it does not create a runtime server request. Unknown params still need a Client Component boundary if they depend on request-time data.
 
 ## Examples
 

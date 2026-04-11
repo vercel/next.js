@@ -311,9 +311,15 @@ When using [Cache Components](/docs/app/getting-started/caching) with dynamic ro
 
 For server deployments, `generateStaticParams` must return **at least one param**. Empty arrays cause a [build error](/docs/messages/empty-generate-static-params). This allows Cache Components to validate your route doesn't incorrectly access `cookies()`, `headers()`, or `searchParams` at runtime.
 
-When using [`output: 'export'`](/docs/app/guides/static-exports) with App Router dynamic routes, `generateStaticParams` becomes optional when `cacheComponents: true` is enabled. If you omit it, Next.js emits a fallback shell for the route and resolves param-dependent content on the client. If you provide it, the returned params are prerendered and all other params use the fallback shell.
+When using [`output: 'export'`](/docs/app/guides/static-exports) with App Router dynamic routes, `generateStaticParams` becomes optional when `cacheComponents: true` is enabled. If you omit it, Next.js emits a fallback shell for the route and resolves param-dependent content on the client. If you provide it, the returned params are prerendered so you can keep using Server Components at build time for the paths you know ahead of time, and all other params use the fallback shell. The same route can mix both behaviors: prerendered params from `generateStaticParams` and fallback rendering for params you did not return.
 
 When multiple dynamic route patterns share the same static prefix in `output: 'export'`, the fallback shell still follows normal App Router route specificity. For example, if both `/docs/[section]/[page]` and `/docs/[...slug]` exist, params returned by `generateStaticParams` for the specific route are prerendered as usual, while unknown params still fall back and match the most specific route first.
+
+For the best authoring ergonomics in `output: 'export'`:
+
+- Return the params you care about most for SEO or fast first loads.
+- Let other paths use the export fallback shell.
+- Keep param-dependent request data in Client Components for paths you did not prerender.
 
 > **Good to know**: If you don't know the actual param values at build time, you can return a placeholder param (e.g., `[{ slug: '__placeholder__' }]`) for validation, then handle it in your page with `notFound()`. However, this prevents build time validation from working effectively and may cause runtime errors.
 
