@@ -8,25 +8,43 @@ import { removePathPrefix } from '../shared/lib/router/utils/remove-path-prefix'
 import { RSC_CONTENT_TYPE_HEADER } from './components/app-router-headers'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
 type OutputExportFallbackManifest = {
   version: 1
   routes: OutputExportFallbackManifestEntry[]
 }
 
-type OutputExportFallbackCacheStore = {
-  manifests: Map<string, Promise<OutputExportFallbackManifest | null>>
-  dataResponses: Map<string, Promise<OutputExportCachedResponse | null>>
-  dataUrls: Map<string, string>
-  basePaths: Map<string, string>
+const outputExportFallbackManifestCache = new Map<
+  string,
+  Promise<OutputExportFallbackManifest | null>
+>()
+
+function getOutputExportFallbackDataUrlCache(): Map<string, string> {
+  const globalWithCache = globalThis as typeof globalThis & {
+    __NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE?: Map<string, string>
+  }
+  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE
+  if (existing !== undefined) {
+    return existing
+  }
+
+  const cache = new Map<string, string>()
+  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE = cache
+  return cache
 }
 
-type OutputExportCachedResponse = {
-  body: ArrayBuffer
-  headers: Array<[string, string]>
-  status: number
-  statusText: string
+function getOutputExportFallbackBasePathCache(): Map<string, string> {
+  const globalWithCache = globalThis as typeof globalThis & {
+    __NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE?: Map<string, string>
+  }
+  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE
+  if (existing !== undefined) {
+    return existing
+  }
+
+  const cache = new Map<string, string>()
+  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE = cache
+  return cache
 }
 
 function getOutputExportCandidatePrefixes(pathname: string): string[] {
@@ -42,58 +60,9 @@ function getOutputExportCandidatePrefixes(pathname: string): string[] {
   return candidates
 }
 
-function getOutputExportFallbackCacheStore(): OutputExportFallbackCacheStore {
-  const globalWithCache = globalThis as typeof globalThis & {
-    __NEXT_OUTPUT_EXPORT_FALLBACK_CACHE_STORE?: OutputExportFallbackCacheStore
-  }
-  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_CACHE_STORE
-  if (existing !== undefined) {
-    return existing
-  }
-
-  const cacheStore = {
-    manifests: new Map<string, Promise<OutputExportFallbackManifest | null>>(),
-    dataResponses: new Map<
-      string,
-      Promise<OutputExportCachedResponse | null>
-    >(),
-    dataUrls: new Map<string, string>(),
-    basePaths: new Map<string, string>(),
-  }
-  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_CACHE_STORE = cacheStore
-  return cacheStore
-}
-
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
   return getOutputExportCandidatePrefixes(pathname).map((prefix) =>
     getOutputExportFallbackPath(prefix)
-  )
-}
-
-function getOutputExportNotFoundPath(prefix: string): string {
-  return prefix.length > 0 ? `/${prefix}/_not-found` : '/_not-found'
-}
-
-export function getOutputExportNotFoundCandidates(pathname: string): string[] {
-  return getOutputExportCandidatePrefixes(pathname).map((prefix) =>
-    getOutputExportNotFoundPath(prefix)
-  )
-}
-
-export function getConfiguredOutputExportNotFoundCandidate(
-  pathname: string
-): string {
-  const configuredPath = normalizeOutputExportRouteDirectory(
-    normalizePathTrailingSlash(
-      addPathPrefix('/_not-found', process.env.__NEXT_ROUTER_BASEPATH || '')
-    )
-  )
-
-  return (
-    getOutputExportNotFoundCandidates(pathname).find(
-      (candidate) =>
-        normalizeOutputExportRouteDirectory(candidate) === configuredPath
-    ) ?? getOutputExportNotFoundPath('')
   )
 }
 
@@ -116,11 +85,9 @@ export function isOutputExportFlightContentType(contentType: string): boolean {
 }
 
 export function clearOutputExportFallbackManifestCache(): void {
-  const cacheStore = getOutputExportFallbackCacheStore()
-  cacheStore.manifests.clear()
-  cacheStore.dataResponses.clear()
-  cacheStore.dataUrls.clear()
-  cacheStore.basePaths.clear()
+  outputExportFallbackManifestCache.clear()
+  getOutputExportFallbackDataUrlCache().clear()
+  getOutputExportFallbackBasePathCache().clear()
 }
 
 export function stripOutputExportDataSuffix(url: URL): URL {
@@ -154,8 +121,7 @@ async function fetchOutputExportFallbackManifest(
 ): Promise<OutputExportFallbackManifest | null> {
   const metadataUrl = getOutputExportFallbackMetadataUrl(fallbackUrl)
   const cacheKey = metadataUrl.href
-  const manifestCache = getOutputExportFallbackCacheStore().manifests
-  const cached = manifestCache.get(cacheKey)
+  const cached = outputExportFallbackManifestCache.get(cacheKey)
   if (cached !== undefined) {
     return cached
   }
@@ -177,11 +143,11 @@ async function fetchOutputExportFallbackManifest(
       return metadataResponse.json()
     })
     .catch((error) => {
-      manifestCache.delete(cacheKey)
+      outputExportFallbackManifestCache.delete(cacheKey)
       throw error
     })
 
-  manifestCache.set(cacheKey, manifestPromise)
+  outputExportFallbackManifestCache.set(cacheKey, manifestPromise)
   return manifestPromise
 }
 
@@ -199,22 +165,6 @@ function getOutputExportDataCandidates(url: URL): URL[] {
   return [direct, trailingSlash]
 }
 
-function getConfiguredOutputExportDataUrl(
-  url: URL,
-  prefersTrailingSlash: boolean
-): URL {
-  const trailingSlash = process.env.__NEXT_TRAILING_SLASH
-  const configuredUrl = new URL(url)
-  const useTrailingSlash =
-    trailingSlash == null
-      ? prefersTrailingSlash
-      : String(trailingSlash) === 'true'
-  if (useTrailingSlash && !configuredUrl.pathname.endsWith('/')) {
-    configuredUrl.pathname = `${configuredUrl.pathname}/`
-  }
-  return addOutputExportDataSuffix(configuredUrl)
-}
-
 function normalizeOutputExportRouteDirectory(pathname: string): string {
   if (pathname === '/') {
     return ''
@@ -227,18 +177,18 @@ function cacheOutputExportFallbackDataUrl(
   fallbackUrl: URL,
   resolvedDataUrl: URL
 ) {
-  const { dataUrls, basePaths } = getOutputExportFallbackCacheStore()
+  const dataUrlCache = getOutputExportFallbackDataUrlCache()
   for (const candidateUrl of getOutputExportDataCandidates(renderedUrl)) {
-    dataUrls.set(candidateUrl.href, resolvedDataUrl.href)
+    dataUrlCache.set(candidateUrl.href, resolvedDataUrl.href)
   }
-  basePaths.set(
+  getOutputExportFallbackBasePathCache().set(
     normalizeOutputExportRouteDirectory(renderedUrl.pathname),
     normalizeOutputExportRouteDirectory(fallbackUrl.pathname)
   )
 }
 
 export function getCachedOutputExportFallbackDataUrl(url: URL): URL | null {
-  const cached = getOutputExportFallbackCacheStore().dataUrls.get(url.href)
+  const cached = getOutputExportFallbackDataUrlCache().get(url.href)
   return cached !== undefined ? new URL(cached) : null
 }
 
@@ -278,7 +228,7 @@ export function getCachedOutputExportFallbackRequestUrl(url: URL): URL | null {
     url.pathname.slice(0, url.pathname.lastIndexOf('/')) || '/'
   )
   const fallbackBasePath =
-    getOutputExportFallbackCacheStore().basePaths.get(routeDirectory)
+    getOutputExportFallbackBasePathCache().get(routeDirectory)
   if (fallbackBasePath === undefined) {
     return null
   }
@@ -293,83 +243,18 @@ async function fetchOutputExportDataResult(
   init?: RequestInit
 ): Promise<{ response: Response; dataUrl: URL } | null> {
   for (const dataUrl of getOutputExportDataCandidates(renderedUrl)) {
-    const response = await fetchOutputExportDataResponseByUrl(dataUrl, init)
-    if (response !== null) {
+    const response = await fetch(dataUrl, init)
+    const contentType = response.headers.get('content-type') || ''
+    if (
+      response.ok &&
+      response.body &&
+      isOutputExportFlightContentType(contentType)
+    ) {
       return { response, dataUrl }
     }
   }
 
   return null
-}
-
-async function fetchConfiguredOutputExportDataResult(
-  renderedUrl: URL,
-  prefersTrailingSlash: boolean,
-  init?: RequestInit
-): Promise<{ response: Response; dataUrl: URL } | null> {
-  const configuredDataUrl = getConfiguredOutputExportDataUrl(
-    renderedUrl,
-    prefersTrailingSlash
-  )
-
-  const response = await fetchOutputExportDataResponseByUrl(
-    configuredDataUrl,
-    init
-  )
-  if (response === null) {
-    return null
-  }
-
-  return {
-    response,
-    dataUrl: configuredDataUrl,
-  }
-}
-
-async function fetchOutputExportDataResponseByUrl(
-  dataUrl: URL,
-  init?: RequestInit
-): Promise<Response | null> {
-  const cacheKey = dataUrl.href
-  const dataResponseCache = getOutputExportFallbackCacheStore().dataResponses
-
-  let cachedResponse = dataResponseCache.get(cacheKey)
-  if (cachedResponse === undefined) {
-    cachedResponse = fetch(dataUrl, init)
-      .then(async (response) => {
-        const contentType = response.headers.get('content-type') || ''
-        if (
-          !response.ok ||
-          !response.body ||
-          !isOutputExportFlightContentType(contentType)
-        ) {
-          return null
-        }
-
-        return {
-          body: await response.arrayBuffer(),
-          headers: Array.from(response.headers.entries()),
-          status: response.status,
-          statusText: response.statusText,
-        }
-      })
-      .catch((error) => {
-        dataResponseCache.delete(cacheKey)
-        throw error
-      })
-    dataResponseCache.set(cacheKey, cachedResponse)
-  }
-
-  const response = await cachedResponse
-  if (response === null) {
-    return null
-  }
-
-  return new Response(response.body.slice(0), {
-    headers: response.headers,
-    status: response.status,
-    statusText: response.statusText,
-  })
 }
 
 export async function fetchOutputExportDataResponse(
@@ -380,57 +265,10 @@ export async function fetchOutputExportDataResponse(
   return result?.response ?? null
 }
 
-export async function fetchOutputExportNotFoundDataResponse(
-  renderedUrl: URL,
-  init?: RequestInit
-): Promise<Response | null> {
-  for (const candidate of getOutputExportNotFoundCandidates(
-    renderedUrl.pathname
-  )) {
-    const candidateUrl = new URL(renderedUrl)
-    candidateUrl.pathname = candidate
-
-    const result = await fetchOutputExportDataResult(candidateUrl, init)
-    if (result !== null) {
-      cacheOutputExportFallbackDataUrl(
-        renderedUrl,
-        candidateUrl,
-        result.dataUrl
-      )
-      return result.response
-    }
-  }
-
-  return null
-}
-
-export async function fetchOutputExportNotFoundResponse(
-  renderedUrl: URL,
-  init?: RequestInit
-): Promise<Response> {
-  // The raw fallback should preserve the configured app root (for example a
-  // basePath) without probing deeper missing prefixes that may be served by an
-  // HTML fallback document instead of the RSC not-found payload.
-  const candidateUrl = new URL(renderedUrl)
-  candidateUrl.pathname = getConfiguredOutputExportNotFoundCandidate(
-    renderedUrl.pathname
-  )
-  const configuredDataUrl = getConfiguredOutputExportDataUrl(
-    candidateUrl,
-    renderedUrl.pathname.endsWith('/')
-  )
-
-  cacheOutputExportFallbackDataUrl(renderedUrl, candidateUrl, configuredDataUrl)
-
-  return fetch(configuredDataUrl, init)
-}
-
 export async function fetchOutputExportFallbackResponse(
   renderedUrl: URL,
   init?: RequestInit
 ): Promise<{ response: Response; renderedUrl: URL; fallbackUrl: URL } | null> {
-  const prefersTrailingSlash = renderedUrl.pathname.endsWith('/')
-
   for (const candidate of getOutputExportFallbackCandidates(
     renderedUrl.pathname
   )) {
@@ -456,9 +294,8 @@ export async function fetchOutputExportFallbackResponse(
           basePath
         )
 
-        const result = await fetchConfiguredOutputExportDataResult(
+        const result = await fetchOutputExportDataResult(
           branchFallbackUrl,
-          prefersTrailingSlash,
           init
         )
         if (result) {

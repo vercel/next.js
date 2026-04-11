@@ -3,32 +3,19 @@ import {
   clearOutputExportFallbackManifestCache,
   fetchOutputExportDataResponse,
   fetchOutputExportFallbackResponse,
-  fetchOutputExportNotFoundDataResponse,
-  fetchOutputExportNotFoundResponse,
   getCachedOutputExportFallbackDataUrl,
   getCachedOutputExportFallbackRequestUrl,
   getOutputExportFallbackCandidates,
-  getOutputExportNotFoundCandidates,
   stripOutputExportDataSuffix,
 } from './output-export-fallback'
 
 describe('output export fallback helpers', () => {
   const originalFetch = global.fetch
   const originalBasePath = process.env.__NEXT_ROUTER_BASEPATH
-  const originalTrailingSlash = process.env.__NEXT_TRAILING_SLASH
 
   afterEach(() => {
     global.fetch = originalFetch
-    if (originalBasePath === undefined) {
-      delete process.env.__NEXT_ROUTER_BASEPATH
-    } else {
-      process.env.__NEXT_ROUTER_BASEPATH = originalBasePath
-    }
-    if (originalTrailingSlash === undefined) {
-      delete process.env.__NEXT_TRAILING_SLASH
-    } else {
-      process.env.__NEXT_TRAILING_SLASH = originalTrailingSlash
-    }
+    process.env.__NEXT_ROUTER_BASEPATH = originalBasePath
     clearOutputExportFallbackManifestCache()
     jest.restoreAllMocks()
   })
@@ -47,15 +34,6 @@ describe('output export fallback helpers', () => {
     expect(getOutputExportFallbackCandidates('/optional/')).toEqual([
       '/optional/__fallback',
       '/__fallback',
-    ])
-  })
-
-  it('discovers not-found candidates from deepest static prefix to root', () => {
-    expect(getOutputExportNotFoundCandidates('/docs/missing/route')).toEqual([
-      '/docs/missing/route/_not-found',
-      '/docs/missing/_not-found',
-      '/docs/_not-found',
-      '/_not-found',
     ])
   })
 
@@ -115,17 +93,9 @@ describe('output export fallback helpers', () => {
     ])
   })
 
-  it('falls through deeper prefixes before using a shallower direct fallback artifact', async () => {
-    process.env.__NEXT_TRAILING_SLASH = 'false'
+  it('falls through deeper prefixes before using a shallower fallback artifact', async () => {
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
-
-      if (url.endsWith('/docs/guides/export/__fallback.txt')) {
-        return new Response('not found', {
-          status: 404,
-          headers: { 'content-type': 'text/html' },
-        })
-      }
 
       if (url.endsWith('/docs/guides/export/__fallback.meta.json')) {
         return new Response('not found', {
@@ -134,8 +104,15 @@ describe('output export fallback helpers', () => {
         })
       }
 
+      if (url.endsWith('/docs/guides/export/__fallback.txt')) {
+        return new Response('not found', {
+          status: 404,
+          headers: { 'content-type': 'text/html' },
+        })
+      }
+
       if (url.endsWith('/docs/guides/__fallback.txt')) {
-        return new Response('specific payload', {
+        return new Response('payload', {
           status: 200,
           headers: { 'content-type': 'text/plain' },
         })
@@ -156,54 +133,17 @@ describe('output export fallback helpers', () => {
     expect(result?.renderedUrl.href).toBe(renderedUrl.href)
     expect(result?.fallbackUrl.pathname).toBe('/docs/guides/__fallback')
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'https://example.com/docs/guides/export/__fallback.txt',
       'https://example.com/docs/guides/export/__fallback.meta.json',
+      'https://example.com/docs/guides/export/__fallback.txt',
+      'https://example.com/docs/guides/export/__fallback/index.txt',
+      'https://example.com/docs/guides/__fallback.meta.json',
       'https://example.com/docs/guides/__fallback.txt',
     ])
   })
 
-  it('prefers the trailing-slash fallback artifact when the request URL ends with /', async () => {
-    delete process.env.__NEXT_TRAILING_SLASH
-
-    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-
-      if (url.endsWith('/optional/__fallback/index.txt')) {
-        return new Response('flight', {
-          status: 200,
-          headers: { 'content-type': 'text/x-component' },
-        })
-      }
-
-      return new Response('not found', {
-        status: 404,
-        headers: { 'content-type': 'text/html' },
-      })
-    })
-
-    global.fetch = fetchMock as typeof fetch
-
-    const renderedUrl = new URL('https://example.com/optional/')
-    const result = await fetchOutputExportFallbackResponse(renderedUrl)
-
-    expect(result).not.toBeNull()
-    expect(result?.renderedUrl.href).toBe(renderedUrl.href)
-    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'https://example.com/optional/__fallback/index.txt',
-    ])
-  })
-
   it('uses fallback metadata to select the most specific conflicting route', async () => {
-    process.env.__NEXT_TRAILING_SLASH = 'false'
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
-
-      if (url.endsWith('/docs/__fallback.txt')) {
-        return new Response('not found', {
-          status: 404,
-          headers: { 'content-type': 'text/html' },
-        })
-      }
 
       if (url.endsWith('/docs/__fallback.meta.json')) {
         return new Response(
@@ -248,7 +188,6 @@ describe('output export fallback helpers', () => {
     expect(result).not.toBeNull()
     expect(result?.fallbackUrl.pathname).toBe('/docs/__fallback/__route_0')
     const requestedUrls = fetchMock.mock.calls.map(([url]) => String(url))
-    expect(requestedUrls).toContain('https://example.com/docs/__fallback.txt')
     expect(requestedUrls).toContain(
       'https://example.com/docs/__fallback.meta.json'
     )
@@ -320,7 +259,6 @@ describe('output export fallback helpers', () => {
   })
 
   it('caches the resolved fallback data URL for later RSC fetches', async () => {
-    process.env.__NEXT_TRAILING_SLASH = 'false'
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -386,17 +324,9 @@ describe('output export fallback helpers', () => {
     )
   })
 
-  it('dedupes fallback artifact fetches across sibling routes', async () => {
-    process.env.__NEXT_TRAILING_SLASH = 'false'
+  it('caches fallback metadata lookups across sibling routes', async () => {
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
-
-      if (url.endsWith('/docs/__fallback.txt')) {
-        return new Response('not found', {
-          status: 404,
-          headers: { 'content-type': 'text/html' },
-        })
-      }
 
       if (url.endsWith('/docs/__fallback.meta.json')) {
         return new Response(
@@ -442,83 +372,10 @@ describe('output export fallback helpers', () => {
       new URL('https://example.com/docs/api/guide')
     )
 
-    const requestedUrls = fetchMock.mock.calls.map(([url]) => String(url))
-    expect(
-      requestedUrls.filter(
-        (url) => url === 'https://example.com/docs/__fallback.meta.json'
-      )
-    ).toHaveLength(1)
-    expect(
-      requestedUrls.filter(
-        (url) => url === 'https://example.com/docs/__fallback/__route_0.txt'
-      )
-    ).toHaveLength(1)
-  })
-
-  it('tries subpath-prefixed not-found payloads before falling back to root', async () => {
-    process.env.__NEXT_TRAILING_SLASH = 'false'
-    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
-      const url = String(input)
-
-      if (url.endsWith('/docs/_not-found.txt')) {
-        return new Response('not found payload', {
-          status: 200,
-          headers: { 'content-type': 'text/plain' },
-        })
-      }
-
-      return new Response('<!doctype html><title>fallback</title>', {
-        status: 200,
-        headers: { 'content-type': 'text/html' },
-      })
-    })
-
-    global.fetch = fetchMock as typeof fetch
-
-    const response = await fetchOutputExportNotFoundDataResponse(
-      new URL('https://example.com/docs/missing/route')
-    )
-
-    expect(response).not.toBeNull()
-    expect(
-      getCachedOutputExportFallbackDataUrl(
-        new URL('https://example.com/docs/missing/route.txt')
-      )?.href
-    ).toBe('https://example.com/docs/_not-found.txt')
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'https://example.com/docs/missing/route/_not-found.txt',
-      'https://example.com/docs/missing/route/_not-found/index.txt',
-      'https://example.com/docs/missing/_not-found.txt',
-      'https://example.com/docs/missing/_not-found/index.txt',
-      'https://example.com/docs/_not-found.txt',
-    ])
-  })
-
-  it('uses the configured app-root not-found artifact as the raw fallback', async () => {
-    process.env.__NEXT_ROUTER_BASEPATH = '/docs'
-    process.env.__NEXT_TRAILING_SLASH = 'true'
-
-    const fetchMock = jest.fn(async (_input: RequestInfo | URL) => {
-      return new Response('payload', {
-        status: 200,
-        headers: { 'content-type': 'application/octet-stream' },
-      })
-    })
-
-    global.fetch = fetchMock as typeof fetch
-
-    const response = await fetchOutputExportNotFoundResponse(
-      new URL('https://example.com/docs/missing/route/')
-    )
-
-    expect(response.ok).toBe(true)
-    expect(
-      getCachedOutputExportFallbackDataUrl(
-        new URL('https://example.com/docs/missing/route/index.txt')
-      )?.href
-    ).toBe('https://example.com/docs/_not-found/index.txt')
-    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'https://example.com/docs/_not-found/index.txt',
+      'https://example.com/docs/__fallback.meta.json',
+      'https://example.com/docs/__fallback/__route_0.txt',
+      'https://example.com/docs/__fallback/__route_0.txt',
     ])
   })
 })

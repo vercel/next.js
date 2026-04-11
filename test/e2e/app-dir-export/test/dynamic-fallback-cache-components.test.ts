@@ -2,6 +2,8 @@ import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import type * as Playwright from 'playwright'
+import { createRouterAct } from 'router-act'
 import fs from 'fs-extra'
 import { buildAndStartOutputExportServer } from './utils'
 
@@ -86,6 +88,62 @@ if (skipped) {
           await retry(async () => {
             expect(await browser.elementByCss('h1').text()).toBe('third')
           })
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('prefetches fallback payloads for unknown-param links before navigation', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/isolated/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Isolated')
+          })
+
+          await act(async () => {
+            const toggle = await browser.elementByCss(
+              'input[data-link-accordion="/isolated/third"]'
+            )
+            await toggle.click()
+          })
+
+          clearRequests()
+
+          await browser
+            .elementByCss('a[data-accordion-link="/isolated/third"]')
+            .click()
+
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('third')
+          })
+
+          const clickRequests = getRequests()
+          expect(
+            clickRequests.some((requestPath) =>
+              requestPath.startsWith('/isolated/__fallback.meta.json')
+            )
+          ).toBe(false)
+          expect(
+            clickRequests.some((requestPath) =>
+              requestPath.startsWith('/isolated/__fallback/index.txt')
+            )
+          ).toBe(false)
+          expect(
+            clickRequests.some((requestPath) =>
+              requestPath.startsWith('/isolated/third/index.txt')
+            )
+          ).toBe(false)
+          expect(
+            clickRequests.some((requestPath) =>
+              requestPath.startsWith('/isolated/third/__next.')
+            )
+          ).toBe(false)
         } finally {
           await browser.close()
         }

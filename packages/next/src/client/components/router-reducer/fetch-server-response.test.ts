@@ -34,12 +34,11 @@ describe('fetchServerResponse output export fallback', () => {
   const originalOutput = process.env.__NEXT_CONFIG_OUTPUT
   const originalFetch = global.fetch
   const originalLocation = global.location
-  const processEnv = process.env as Record<string, string | undefined>
 
   beforeEach(() => {
-    processEnv.NODE_ENV = 'production'
-    processEnv.__NEXT_CONFIG_OUTPUT = 'export'
-    global.location = new URL('https://example.com/') as unknown as Location
+    process.env.NODE_ENV = 'production'
+    process.env.__NEXT_CONFIG_OUTPUT = 'export'
+    global.location = new URL('https://example.com/') as Location
     setNavigationBuildId('build-id')
     mockCreateFromReadableStream.mockReset()
     mockFetchOutputExportFallbackResponse.mockReset()
@@ -48,8 +47,8 @@ describe('fetchServerResponse output export fallback', () => {
   })
 
   afterEach(() => {
-    processEnv.NODE_ENV = originalNodeEnv
-    processEnv.__NEXT_CONFIG_OUTPUT = originalOutput
+    process.env.NODE_ENV = originalNodeEnv
+    process.env.__NEXT_CONFIG_OUTPUT = originalOutput
     global.fetch = originalFetch
     global.location = originalLocation
     jest.restoreAllMocks()
@@ -73,11 +72,11 @@ describe('fetchServerResponse output export fallback', () => {
     )
 
     global.fetch = jest
-      .fn(async () => initialMiss)
-      .mockImplementationOnce(async () => initialMiss)
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(initialMiss)
       .mockImplementation(async () => {
         throw new Error('unexpected extra fetch')
-      }) as typeof fetch
+      })
 
     mockFetchOutputExportFallbackResponse.mockResolvedValue({
       response: fallbackResponse,
@@ -125,7 +124,6 @@ describe('fetchServerResponse output export fallback', () => {
     expect(typeof result).not.toBe('string')
     if (typeof result !== 'string') {
       expect(result.canonicalUrl.href).toBe(`${origin}/another/third`)
-      expect(result.outputExportFallbackBasePath).toBe('/another/__fallback')
     }
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(mockFetchOutputExportFallbackResponse).toHaveBeenCalledTimes(1)
