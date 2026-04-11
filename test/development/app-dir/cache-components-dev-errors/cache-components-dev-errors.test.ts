@@ -98,20 +98,8 @@ describe('Cache Components Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1084",
-       "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-     This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-     To fix this, you can either:
-
-     Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-     or
-
-     Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-     Learn more: https://nextjs.org/docs/messages/blocking-route",
+       "code": "E394",
+       "description": "This page can’t load instantly.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
        "source": "app/no-accessed-data/page.js (2:9) @ Page
@@ -173,18 +161,13 @@ describe('Cache Components Dev Errors', () => {
         } else {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+             "description": "Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
              "environmentLabel": null,
              "label": "Build Error",
-             "source": "./app/page.tsx
-           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
-              ,-[1:1]
-            1 | export const revalidate = 10
-              :              ^^^^^^^^^^
-            2 | export default function Page() {
-            3 |   return (
-            4 |     <div>Hello World</div>
-              \`----",
+             "source": "./test/tmp/next-test-1775864859772-744/app/page.tsx (1:14)
+           Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+           > 1 | export const revalidate = 10
+               |              ^^^^^^^^^^",
              "stack": [],
            }
           `)

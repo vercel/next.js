@@ -86,7 +86,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1080",
+             "code": "E394",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -107,6 +107,12 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-route/page.tsx (2:9)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
+               "NoopTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts (98:27)",
+               "ProxyTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts (51:20)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
              ],
            }
           `)
@@ -152,20 +158,8 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1084",
-             "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E394",
+             "description": "This page can’t load instantly.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
@@ -291,7 +285,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1080",
+             "code": "E394",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -312,6 +306,12 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateMetadata app/dynamic-metadata-static-with-suspense/page.tsx (2:9)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
+               "NoopTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts (98:27)",
+               "ProxyTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts (51:20)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
              ],
            }
           `)
@@ -382,7 +382,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1077",
+             "code": "E394",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -403,6 +403,12 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateViewport app/dynamic-viewport-static-route/page.tsx (2:9)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
+               "NoopTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts (98:27)",
+               "ProxyTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts (51:20)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
              ],
            }
           `)
@@ -448,7 +454,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1077",
+             "code": "E394",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -469,6 +475,12 @@ describe('Cache Components Errors', () => {
                |         ^",
              "stack": [
                "Module.generateViewport app/dynamic-viewport-dynamic-route/page.tsx (4:9)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
+               "NoopTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/NoopTracer.ts (98:27)",
+               "ProxyTracer.startActiveSpan ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/trace/ProxyTracer.ts (51:20)",
+               "NoopContextManager.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/context/NoopContextManager.ts (31:19)",
+               "ContextAPI.with ../../../node_modules/.pnpm/@opentelemetry+api@1.6.0/node_modules/@opentelemetry/api/src/api/context.ts (77:42)",
              ],
            }
           `)
@@ -534,20 +546,8 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1084",
-               "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E394",
+               "description": "This page can’t load instantly.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -560,20 +560,8 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1084",
-               "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E394",
+               "description": "This page can’t load instantly.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -1164,16 +1152,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-cookies/page.tsx (18:17) @ CookiesReadingComponent
+                   "source": "app/sync-cookies/page.tsx (18:25) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
-                    |                 ^",
+                    |                         ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:17)",
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:25)",
                      "Page app/sync-cookies/page.tsx (11:7)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "description": "<turbopack-module-id>.cookies(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
@@ -1344,16 +1332,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
-                   "source": "app/sync-cookies-runtime/page.tsx (24:17) @ CookiesReadingComponent
+                   "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as any).get('token')
-                    |                 ^",
+                    |                         ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:17)",
+                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:25)",
                      "Page app/sync-cookies-runtime/page.tsx (14:9)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "description": "<turbopack-module-id>.cookies(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:36) @ CookiesReadingComponent
@@ -1410,11 +1398,11 @@ describe('Cache Components Errors', () => {
                  "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
-                 "source": "app/sync-draft-mode/page.tsx (24:21) @ DraftModeReadingComponent
+                 "source": "app/sync-draft-mode/page.tsx (24:31) @ DraftModeReadingComponent
                > 24 |   const isEnabled = (draftMode() as any).isEnabled
-                    |                     ^",
+                    |                               ^",
                  "stack": [
-                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:21)",
+                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:31)",
                    "Page app/sync-draft-mode/page.tsx (13:7)",
                  ],
                }
@@ -1498,16 +1486,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-headers/page.tsx (18:21) @ HeadersReadingComponent
+                   "source": "app/sync-headers/page.tsx (18:29) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
-                    |                     ^",
+                    |                             ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers/page.tsx (18:21)",
+                     "HeadersReadingComponent app/sync-headers/page.tsx (18:29)",
                      "Page app/sync-headers/page.tsx (11:7)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "description": "<turbopack-module-id>.headers(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
@@ -1678,16 +1666,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
-                   "source": "app/sync-headers-runtime/page.tsx (24:21) @ HeadersReadingComponent
+                   "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
                > 24 |   const userAgent = (headers() as any).get('user-agent')
-                    |                     ^",
+                    |                             ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:21)",
+                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:29)",
                      "Page app/sync-headers-runtime/page.tsx (14:9)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "description": "<turbopack-module-id>.headers(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:40) @ HeadersReadingComponent
@@ -1927,22 +1915,8 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1083",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-             To fix this:
-
-             Provide a fallback UI using <Suspense> around this component.
-
-             or
-
-             Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-             In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E394",
+               "description": "This page can’t load instantly.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
@@ -2512,29 +2486,13 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E394",
+                 "description": "This page can’t load instantly.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
+                 "source": null,
                  "stack": [
-                   "Page app/use-cache-low-expire/fast/page.tsx (3:16)",
+                   "Page [Prerender] <anonymous>",
                  ],
                }
               `)
@@ -2647,29 +2605,13 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E394",
+                 "description": "This page can’t load instantly.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
+                 "source": null,
                  "stack": [
-                   "Page app/use-cache-low-expire/slow/page.tsx (3:16)",
+                   "Page [Prerender] <anonymous>",
                  ],
                }
               `)
@@ -2887,29 +2829,13 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E394",
+                 "description": "This page can’t load instantly.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
+                 "source": null,
                  "stack": [
-                   "Page app/use-cache-revalidate-0/fast/page.tsx (3:16)",
+                   "Page [Prerender] <anonymous>",
                  ],
                }
               `)
@@ -3022,29 +2948,13 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E394",
+                 "description": "This page can’t load instantly.",
                  "environmentLabel": "Server",
                  "label": "Blocking Route",
-                 "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
-               > 3 | export default async function Page() {
-                   |                ^",
+                 "source": null,
                  "stack": [
-                   "Page app/use-cache-revalidate-0/slow/page.tsx (3:16)",
+                   "Page [Prerender] <anonymous>",
                  ],
                }
               `)
@@ -3263,27 +3173,22 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1083",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-             To fix this:
-
-             Provide a fallback UI using <Suspense> around this component.
-
-             or
-
-             Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-             In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E394",
+               "description": "This page can’t load instantly.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": null,
+               "source": "../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (545:19) @ Object.resolveToJSON
+             > 545 |             value.then(function (partValue) {
+                   |                   ^",
                "stack": [
-                 "Page [Prerender] <anonymous>",
+                 "Promise.then <anonymous>",
+                 "Object.resolveToJSON ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (545:19)",
+                 "JSON.stringify <anonymous>",
+                 "serializeModel ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (766:21)",
+                 "processReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (774:18)",
+                 "<anonymous> ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5419:21)",
+                 "exports.encodeReply ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (5418:14)",
+                 "Page app/use-cache-params/[slug]/page.tsx (1:16)",
                ],
              }
             `)
@@ -3406,6 +3311,11 @@ describe('Cache Components Errors', () => {
                "stack": [
                  "throwAnError app/use-cache-runtime-error/page.tsx (15:9)",
                  "ThrowingComponent app/use-cache-runtime-error/page.tsx (21:3)",
+                 "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3475:51)",
+                 "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4642:23)",
+                 "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4585:7)",
+                 "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4808:19)",
+                 "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4994:9)",
                ],
              }
             `)
@@ -3475,6 +3385,11 @@ describe('Cache Components Errors', () => {
                   |         ^",
                "stack": [
                  "throwAnError app/use-cache-catch-error/page.tsx (19:9)",
+                 "resolveErrorDev ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (3475:51)",
+                 "processFullStringRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4642:23)",
+                 "processFullBinaryRow ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4585:7)",
+                 "processBinaryChunk ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4808:19)",
+                 "progress ../../../packages/next/dist/compiled/react-server-dom-turbopack/cjs/react-server-dom-turbopack-client.node.development.js (4994:9)",
                  "Page app/use-cache-catch-error/page.tsx (11:7)",
                ],
              }
@@ -3563,11 +3478,11 @@ describe('Cache Components Errors', () => {
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <unknown>
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
                  "stack": [
-                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "<unknown> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
                    "async ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
                  ],
                }
@@ -3804,29 +3719,14 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1083",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-             To fix this:
-
-             Provide a fallback UI using <Suspense> around this component.
-
-             or
-
-             Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-             In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E394",
+               "description": "This page can’t load instantly.",
                "environmentLabel": "Server",
                "label": "Blocking Route",
-               "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
-             > 15 | async function Private() {
-                  | ^",
+               "source": "app/use-cache-private-without-suspense/page.tsx (10:7) @ Page
+             > 10 |       <Private />
+                  |       ^",
                "stack": [
-                 "Private app/use-cache-private-without-suspense/page.tsx (15:1)",
                  "Page app/use-cache-private-without-suspense/page.tsx (10:7)",
                ],
              }
@@ -4635,11 +4535,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/generate-key-pair-sync" used \`require('node:crypto').generateKeyPairSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
                ],
              }
@@ -4761,11 +4661,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/generate-key-sync" used \`require('node:crypto').generateKeySync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
-             > 20 |   const first = crypto
-                  |                 ^",
+               "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
+             > 21 |     .generateKeySync('hmac', {
+                  |      ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6)",
                  "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
                ],
              }
@@ -4887,11 +4787,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/generate-prime-sync" used \`require('node:crypto').generatePrimeSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
              > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
-                  |                                ^",
+                  |                                       ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39)",
                  "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
                ],
              }
@@ -5013,11 +4913,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/get-random-values" used \`crypto.getRandomValues()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:3) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.getRandomValues(first)
-                  |   ^",
+                  |          ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:3)",
+                 "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
                ],
              }
@@ -5139,11 +5039,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/random-bytes" used \`require('node:crypto').randomBytes(size)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomBytes(8)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
                ],
              }
@@ -5265,11 +5165,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/random-fill-sync" used \`require('node:crypto').randomFillSync(...)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.randomFillSync(first, 4, 8)
-                  |   ^",
+                  |          ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
                ],
              }
@@ -5391,11 +5291,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/random-int-between" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128, 256)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
                ],
              }
@@ -5517,11 +5417,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/random-int-up-to" used \`require('node:crypto').randomInt(min, max)\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
                ],
              }
@@ -5643,11 +5543,11 @@ describe('Cache Components Errors', () => {
                "description": "Route "/sync-io-node-crypto/random-uuid" used \`require('node:crypto').randomUUID()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
                "environmentLabel": "Server",
                "label": "Console Error",
-               "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomUUID()
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
                ],
              }
@@ -5748,20 +5648,8 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1084",
-             "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E394",
+             "description": "This page can’t load instantly.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
