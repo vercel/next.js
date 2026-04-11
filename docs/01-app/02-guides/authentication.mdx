@@ -1353,11 +1353,15 @@ Instead, you should do the checks close to your data source or the component tha
 
 For example, consider a shared layout that fetches the user data and displays the user image in a nav. Instead of doing the auth check in the layout, you should fetch the user data (`getUser()`) in the layout and do the auth check in your [DAL](#creating-a-data-access-layer-dal).
 
-This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers forgetting to check the user is authorized to access the data.
+This guarantees that wherever `getUser()` is called within your application, the auth check is performed, and prevents developers from forgetting to check the user is authorized to access the data.
 
-A top-level `await` on `cookies()` or the DAL in a layout delays streaming for the segment. If only the shell needs that data (for example a user menu), move the `await` into a nested Server Component and wrap it in `<Suspense>` so `{children}` are not blocked. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for a full example.
+#### Auth and streaming
 
-Client Components cannot import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through context. See [Context Providers](#context-providers) or [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
+Session and user data often appear in shell UI (header, nav) that repeats across routes. You usually still want **public or cached content** to stream first so an auth-specific read does not block the rest of the page. **Wrap** that UI in `<Suspense>` or move the `await` into a nested Server Component. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for a full example.
+
+A top-level `await` on `cookies()` or the DAL in a layout **delays the first streamed chunk** for that segment and keeps the layout out of the immediate shell. If only part of the shell needs session data (for example a user menu), move the `await` into a nested Server Component and wrap it in `<Suspense>` so `{children}` are not held behind that work.
+
+Client Components cannot import the DAL. Run `verifySession()`, `getUser()`, or similar in a parent Server Component, then pass data to client children as props or through a [Context Provider](#context-providers). If you need session data in a Client Component, pass a promise into context and unwrap it where it is consumed. For patterns that share data across Server Components, see [Sharing data with context and `React.cache`](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache).
 
 #### Auth checks in page components
 
