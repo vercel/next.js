@@ -79,6 +79,42 @@ export async function buildAndStartOutputExportServer(
   }
 }
 
+export async function startOutputExportDevServer(
+  next: Pick<NextInstance, 'start' | 'appPort'>
+) {
+  await next.start()
+  return Number(next.appPort)
+}
+
+export async function expectOutputExportDevRedbox({
+  port,
+  path,
+  expectedMessage,
+  expectedSource,
+}: {
+  port: number
+  path: string
+  expectedMessage: string
+  expectedSource?: string
+}) {
+  const browser = await webdriver(port, path)
+
+  try {
+    await waitForRedbox(browser)
+
+    const header = await getRedboxHeader(browser)
+    const source = await getRedboxSource(browser)
+
+    expect(header).toContain(expectedMessage)
+
+    if (expectedSource && source !== null) {
+      expect(source).toContain(expectedSource)
+    }
+  } finally {
+    await browser.close()
+  }
+}
+
 export const expectedWhenTrailingSlashTrue = [
   '404.html',
   '404/index.html',
