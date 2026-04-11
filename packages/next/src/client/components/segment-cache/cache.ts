@@ -230,6 +230,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   metadata: RouteTree
   supportsPerSegmentPrefetching: boolean
   hasInlinedSegments: boolean
+  outputExportFallbackBasePath: string | null
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
   // to a different route structure (e.g., /foo was rewritten to /bar). Since
@@ -695,6 +696,8 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
     hasInlinedSegments: routeWithNoSearchParams.hasInlinedSegments,
+    outputExportFallbackBasePath:
+      routeWithNoSearchParams.outputExportFallbackBasePath,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
 
     // Override the rendered search with the optimistic value.
@@ -1116,6 +1119,7 @@ export function fulfillRouteCacheEntry(
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.supportsPerSegmentPrefetching = supportsPerSegmentPrefetching
   fulfilledEntry.hasInlinedSegments = false
+  fulfilledEntry.outputExportFallbackBasePath = null
   fulfilledEntry.hasDynamicRewrite = false
   pingBlockedTasks(entry)
   return fulfilledEntry
@@ -1912,6 +1916,7 @@ type OutputExportFallbackNavigationData = {
   couldBeIntercepted: boolean
   flightDatas: NormalizedFlightData[]
   headVaryParams: VaryParams | null
+  outputExportFallbackBasePath: string
   responseSize: number
   staleAt: number
   supportsPerSegmentPrefetching: boolean
@@ -1977,6 +1982,7 @@ async function fetchOutputExportFallbackNavigationData(
     couldBeIntercepted: serverData.i,
     flightDatas,
     headVaryParams,
+    outputExportFallbackBasePath: fallbackResult.fallbackUrl.pathname,
     responseSize,
     staleAt: await getStaleAt(now, serverData.s),
     supportsPerSegmentPrefetching: serverData.S,
@@ -2007,6 +2013,7 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     couldBeIntercepted,
     flightDatas,
     headVaryParams,
+    outputExportFallbackBasePath,
     responseSize,
     staleAt,
     supportsPerSegmentPrefetching,
@@ -2054,6 +2061,7 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     false
   )
   fulfilledEntry.hasInlinedSegments = true
+  fulfilledEntry.outputExportFallbackBasePath = outputExportFallbackBasePath
 
   if (!couldBeIntercepted) {
     const fulfilledVaryPath = getFulfilledRouteVaryPath(
@@ -2200,10 +2208,14 @@ export async function fetchSegmentsOnCacheMiss(
   // Testing API. Static pre-renders don't normally happen during development.
   addInstantPrefetchHeaderIfLocked(headers)
 
-  const requestUrl = isOutputExportMode
-    ? // In output: "export" mode, we need to add the segment path to the URL.
-      addSegmentPathToUrlInOutputExportMode(url, normalizedRequestKey)
-    : url
+  let requestUrl = url
+  if (isOutputExportMode) {
+    requestUrl = getOutputExportSegmentRequestUrl(
+      url,
+      normalizedRequestKey,
+      route.outputExportFallbackBasePath
+    )
+  }
   try {
     const response = await fetchPrefetchResponse(requestUrl, headers)
     if (
@@ -3100,6 +3112,24 @@ function createIncrementalPrefetchResponseStream(
   })
 }
 
+export function getOutputExportSegmentRequestUrl(
+  url: URL,
+  segmentPath: SegmentRequestKey,
+  outputExportFallbackBasePath: string | null
+): URL {
+  const staticUrl = new URL(url)
+  if (outputExportFallbackBasePath !== null) {
+    staticUrl.pathname = outputExportFallbackBasePath
+  }
+  const routeDir = staticUrl.pathname.endsWith('/')
+    ? staticUrl.pathname.slice(0, -1)
+    : staticUrl.pathname
+  const staticExportFilename =
+    convertSegmentPathToStaticExportFilename(segmentPath)
+  staticUrl.pathname = `${routeDir}/${staticExportFilename}`
+  return staticUrl
+}
+
 function addSegmentPathToUrlInOutputExportMode(
   url: URL,
   segmentPath: SegmentRequestKey
@@ -3107,14 +3137,7 @@ function addSegmentPathToUrlInOutputExportMode(
   if (isOutputExportMode) {
     // In output: "export" mode, we cannot use a header to encode the segment
     // path. Instead, we append it to the end of the pathname.
-    const staticUrl = new URL(url)
-    const routeDir = staticUrl.pathname.endsWith('/')
-      ? staticUrl.pathname.slice(0, -1)
-      : staticUrl.pathname
-    const staticExportFilename =
-      convertSegmentPathToStaticExportFilename(segmentPath)
-    staticUrl.pathname = `${routeDir}/${staticExportFilename}`
-    return staticUrl
+    return getOutputExportSegmentRequestUrl(url, segmentPath, null)
   }
   return url
 }
