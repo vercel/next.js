@@ -72,7 +72,6 @@ async function readNormalizedNFT(next, name) {
     describe('with output:standalone', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname,
-        skipDeployment: true,
         dependencies: {
           typescript: '5.9.2',
         },
@@ -220,6 +219,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/compiled/tar/index.min.js",
            "/node_modules/next/dist/compiled/text-table/index.js",
            "/node_modules/next/dist/compiled/watchpack/watchpack.js",
+           "/node_modules/next/dist/compiled/write-file-atomic/index.js",
            "/node_modules/next/dist/compiled/ws/index.js",
            "/node_modules/next/dist/compiled/zod-validation-error/index.js",
            "/node_modules/next/dist/compiled/zod/index.cjs",
@@ -402,7 +402,6 @@ async function readNormalizedNFT(next, name) {
     describe('default mode', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname,
-        skipDeployment: true,
         dependencies: {
           typescript: '5.9.2',
         },

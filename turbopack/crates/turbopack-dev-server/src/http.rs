@@ -11,8 +11,8 @@ use hyper::{
 };
 use mime::Mime;
 use turbo_tasks::{
-    CollectiblesSource, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc, apply_effects,
-    util::SharedError,
+    CollectiblesSource, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    take_effects, util::SharedError,
 };
 use turbo_tasks_bytes::Bytes;
 use turbo_tasks_fs::FileContent;
@@ -71,8 +71,29 @@ async fn get_from_source_operation(
     )
 }
 
-/// Processes an HTTP request within a given content source and returns the
-/// response.
+#[turbo_tasks::value(serialization = "none")]
+struct GetFromSourceResultWithCollectibles {
+    result: ReadRef<GetFromSourceResult>,
+    effects: Effects,
+    content_source_side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_from_source_with_collectibles_operation(
+    source_op: OperationVc<Box<dyn ContentSource>>,
+    request: TransientInstance<SourceRequest>,
+) -> Result<Vc<GetFromSourceResultWithCollectibles>> {
+    let op = get_from_source_operation(source_op, request);
+    let result = op.read_strongly_consistent().await?;
+    Ok(GetFromSourceResultWithCollectibles {
+        result,
+        effects: take_effects(op).await?,
+        content_source_side_effects: op.peek_collectibles(),
+    }
+    .cell())
+}
+
+/// Processes an HTTP request within a given content source and returns the response.
 pub async fn process_request_with_content_source(
     source: OperationVc<Box<dyn ContentSource>>,
     request: Request<hyper::Body>,
@@ -83,20 +104,23 @@ pub async fn process_request_with_content_source(
 )> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
-    let result_op = get_from_source_operation(source, TransientInstance::new(request));
-    let resolved_result = result_op.resolve().strongly_consistent().await?;
-    apply_effects(result_op).await?;
-    let side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>> =
-        result_op.peek_collectibles();
+    let wrapper_op =
+        get_from_source_with_collectibles_operation(source, TransientInstance::new(request));
+    let GetFromSourceResultWithCollectibles {
+        result,
+        effects,
+        content_source_side_effects,
+    } = &*wrapper_op.read_strongly_consistent().await?;
+    effects.apply().await?;
     handle_issues(
-        result_op,
+        wrapper_op,
         issue_reporter,
         IssueSeverity::Fatal,
         Some(&original_path),
         Some("get_from_source_operation"),
     )
     .await?;
-    match &*resolved_result.await? {
+    match &**result {
         GetFromSourceResult::Static {
             content,
             status_code,
@@ -203,7 +227,7 @@ pub async fn process_request_with_content_source(
                     response.body(hyper::Body::wrap_stream(stream::iter(owned_chunks)))?
                 };
 
-                return Ok((response, side_effects));
+                return Ok((response, content_source_side_effects.clone()));
             }
         }
         GetFromSourceResult::HttpProxy(proxy_result) => {
@@ -219,7 +243,7 @@ pub async fn process_request_with_content_source(
 
             return Ok((
                 response.body(hyper::Body::wrap_stream(proxy_result.body.read()))?,
-                side_effects,
+                content_source_side_effects.clone(),
             ));
         }
         GetFromSourceResult::NotFound => {}
@@ -227,7 +251,7 @@ pub async fn process_request_with_content_source(
 
     Ok((
         Response::builder().status(404).body(hyper::Body::empty())?,
-        side_effects,
+        content_source_side_effects.clone(),
     ))
 }
 

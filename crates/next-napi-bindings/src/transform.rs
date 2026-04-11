@@ -129,6 +129,15 @@ impl Task for TransformTask {
                             let mut options = options.patch(&fm);
                             options.swc.unresolved_mark = Some(unresolved_mark);
 
+                            #[cfg(feature = "plugin")]
+                            {
+                                options.swc.runtime_options =
+                                    swc_core::base::config::RuntimeOptions::default()
+                                        .plugin_runtime(std::sync::Arc::new(
+                                            swc_plugin_backend_wasmtime::WasmtimeRuntime,
+                                        ));
+                            }
+
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
 
