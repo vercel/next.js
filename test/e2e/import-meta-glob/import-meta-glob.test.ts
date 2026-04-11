@@ -1,9 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('import-meta-glob', () => {
+// import.meta.glob is a Turbopack-only feature; skip under webpack
+const testFn = process.env.IS_WEBPACK_TEST ? describe.skip : describe
+
+testFn('import-meta-glob', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    // import.meta.glob is only supported in Turbopack
     skipDeployment: true,
   })
 
