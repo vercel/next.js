@@ -210,6 +210,14 @@ export function generateStaticParams() {
 }
 ```
 
+If multiple dynamic route patterns share the same static prefix, fallback matching follows the same specificity rules as the App Router:
+
+- Static segments are matched before dynamic segments.
+- Dynamic segments are matched before catch-all segments.
+- Catch-all segments are matched before optional catch-all segments.
+
+For example, `/docs/[section]/[page]` is matched before `/docs/[...slug]`, so `/docs/api/reference` uses the more specific route while `/docs/guides/export/fallback` still falls through to the catch-all route.
+
 #### Static host configuration
 
 To serve unenumerated params on a static host, configure the host's 404 or error document to serve `_fallback.html` from the export output:

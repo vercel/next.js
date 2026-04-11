@@ -1,5 +1,11 @@
-import { getOutputExportFallbackPath } from '../lib/output-export-dynamic-fallback'
+import {
+  getOutputExportFallbackMetadataPath,
+  getOutputExportFallbackPath,
+  type OutputExportFallbackManifestEntry,
+} from '../lib/output-export-dynamic-fallback'
 import { RSC_CONTENT_TYPE_HEADER } from './components/app-router-headers'
+import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
+import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
   const segments = pathname.split('/').filter(Boolean)
@@ -33,6 +39,46 @@ export function stripOutputExportDataSuffix(url: URL): URL {
     nextUrl.pathname = `${nextUrl.pathname.slice(0, -4)}.html`
   }
   return nextUrl
+}
+
+function getOutputExportFallbackMetadataUrl(url: URL): URL {
+  const nextUrl = new URL(url)
+  nextUrl.pathname = getOutputExportFallbackMetadataPath(nextUrl.pathname)
+  return nextUrl
+}
+
+function matchOutputExportFallbackManifestEntry(
+  entry: OutputExportFallbackManifestEntry,
+  pathname: string
+): boolean {
+  const matcher = getRouteMatcher(getRouteRegex(entry.route))
+  return matcher(pathname) !== false
+}
+
+async function fetchOutputExportFallbackManifest(
+  fallbackUrl: URL,
+  init?: RequestInit
+): Promise<{
+  version: 1
+  routes: OutputExportFallbackManifestEntry[]
+} | null> {
+  const metadataResponse = await fetch(
+    getOutputExportFallbackMetadataUrl(fallbackUrl),
+    init
+  )
+  if (!metadataResponse.ok) {
+    return null
+  }
+
+  const contentType = metadataResponse.headers.get('content-type') || ''
+  if (
+    !contentType.startsWith('application/json') &&
+    !contentType.startsWith('text/json')
+  ) {
+    return null
+  }
+
+  return metadataResponse.json()
 }
 
 function getOutputExportDataCandidates(url: URL): URL[] {
@@ -78,6 +124,35 @@ export async function fetchOutputExportFallbackResponse(
   )) {
     const candidateUrl = new URL(renderedUrl)
     candidateUrl.pathname = candidate
+
+    const fallbackManifest = await fetchOutputExportFallbackManifest(
+      candidateUrl,
+      init
+    )
+    if (fallbackManifest !== null) {
+      for (const entry of fallbackManifest.routes) {
+        if (
+          !matchOutputExportFallbackManifestEntry(entry, renderedUrl.pathname)
+        ) {
+          continue
+        }
+
+        const branchFallbackUrl = new URL(renderedUrl)
+        branchFallbackUrl.pathname = entry.fallbackPath
+
+        const response = await fetchOutputExportDataResponse(
+          branchFallbackUrl,
+          init
+        )
+        if (response) {
+          return {
+            response,
+            renderedUrl,
+            fallbackUrl: branchFallbackUrl,
+          }
+        }
+      }
+    }
 
     const response = await fetchOutputExportDataResponse(candidateUrl, init)
     if (response) {
