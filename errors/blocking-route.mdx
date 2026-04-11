@@ -34,7 +34,7 @@ This is equivalent to wrapping the page in `<Suspense fallback={<Loading />}>` i
 
 A `loading.js` file replaces the entire page with the fallback, so users see no content until the data resolves. For a better experience, use the patterns below to wrap only the dynamic parts of the page and keep the static shell visible.
 
-Learn more: [`loading.js` file convention](/docs/app/api-reference/file-conventions/loading)
+Learn more: [Page-level streaming with `loading.js`](/docs/app/guides/streaming#page-level-streaming-with-loadingjs)
 
 ### Request-Time APIs
 
@@ -95,7 +95,7 @@ export default function Page() {
 
 In this example, `<h1>Inbox</h1>` is part of the shell and loads instantly. `<EmailList>` streams in once the cookies are resolved.
 
-Learn more: [Streaming guide](/docs/app/guides/streaming)
+Learn more: [Granular streaming with `<Suspense>`](/docs/app/guides/streaming#granular-streaming-with-suspense)
 
 #### Move the Access into a Child
 
@@ -150,7 +150,7 @@ export default function Page() {
 
 The key difference: `cookies()` is now called _inside_ `<Inbox>` (which is inside `<Suspense>`), not in the Page component above it.
 
-Learn more: [`cookies` function](/docs/app/api-reference/functions/cookies), [`headers` function](/docs/app/api-reference/functions/headers)
+Learn more: [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down)
 
 #### Params and SearchParams
 
@@ -307,7 +307,7 @@ export default async function Page() {
 
 Use [`cacheTag()`](/docs/app/api-reference/functions/cacheTag) so you can revalidate on demand (e.g. from a webhook), and [`cacheLife()`](/docs/app/api-reference/functions/cacheLife) to set a time-based expiry.
 
-Learn more: [`"use cache"` directive](/docs/app/api-reference/directives/use-cache)
+Learn more: [`"use cache"` directive](/docs/app/api-reference/directives/use-cache), [Public and static pages guide](/docs/app/guides/public-static-pages#cache-components)
 
 #### Stream Dynamic Data
 
@@ -349,7 +349,7 @@ export default function Page() {
 }
 ```
 
-Learn more: [Streaming guide](/docs/app/guides/streaming)
+Learn more: [Granular streaming with `<Suspense>`](/docs/app/guides/streaming#granular-streaming-with-suspense)
 
 #### Short-lived Caches
 
@@ -398,7 +398,7 @@ export default async function Page() {
 
 Alternatively, keep the short cache but add a `<Suspense>` boundary so the page shell can still be prerendered.
 
-Learn more: [`cacheLife` function](/docs/app/api-reference/functions/cacheLife)
+Learn more: [`cacheLife` function](/docs/app/api-reference/functions/cacheLife), [Data-level caching](/docs/app/getting-started/caching#data-level-caching)
 
 ## Useful Links
 
