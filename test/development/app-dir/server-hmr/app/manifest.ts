@@ -1,10 +1,15 @@
-import type { MetadataRoute } from 'next'
+import { depEvaluatedAt, manifestVersion } from './manifest-dep'
 
-export default function manifest(): MetadataRoute.Manifest {
+let _hmrTrigger = 0
+const manifestEvaluatedAt = Date.now()
+
+export default function manifest() {
   return {
-    name: 'Version 0',
+    name: manifestVersion,
     short_name: 'v0',
     start_url: '/',
     display: 'standalone',
+    depEvaluatedAt,
+    manifestEvaluatedAt,
   }
 }
