@@ -13,6 +13,7 @@ import path from 'path'
 import { resolveCacheHandlerPathToFilesystem } from '../lib/format-dynamic-import-path'
 import fs from 'fs/promises'
 import { nonNullable } from '../lib/non-nullable'
+import { isNonSymlinkReadlinkError } from './lib/is-non-symlink-error'
 import * as ciEnvironment from '../server/ci-info'
 import debugOriginal from 'next/dist/compiled/debug'
 import picomatch from 'next/dist/compiled/picomatch'
@@ -322,12 +323,7 @@ export async function collectBuildTraces({
             try {
               return await fs.readlink(p)
             } catch (e) {
-              if (
-                isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
-              ) {
+              if (isNonSymlinkReadlinkError(e)) {
                 return null
               }
               throw e
