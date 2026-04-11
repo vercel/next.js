@@ -553,9 +553,13 @@ pub fn extract_highlights(
                 .copied()
                 .unwrap_or(source.len());
             let (rs, re) = if let Some((trunc_offset, avail_width)) = visible_window {
+                // Snap to char boundaries — trunc_offset/avail_width are
+                // display-column counts, not byte counts.
+                let raw_start = (ls + trunc_offset).min(line_end);
+                let raw_end = (ls + trunc_offset + avail_width).min(line_end);
                 (
-                    (ls + trunc_offset).min(line_end),
-                    (ls + trunc_offset + avail_width).min(line_end),
+                    source.floor_char_boundary(raw_start),
+                    source.ceil_char_boundary(raw_end),
                 )
             } else {
                 (ls, line_end)
@@ -1582,5 +1586,21 @@ pub mod tests {
             "Known limitation: `*/` loses comment highlighting when the skip-scan heuristic \
              starts after the `/*` opener"
         );
+    }
+
+    #[test]
+    fn test_extract_highlights_multibyte_visible_window_panic() {
+        // Regression test for #92641: visible_window with a width that
+        // lands inside a multi-byte character must not panic.
+        let source = "const x = `あ`;";
+        // byte layout: const x = `(10) あ(11,12,13) `(14) ;(15)
+        // avail_width=12 → re = 0+0+12 = byte 12, inside 'あ' (bytes 11..14)
+        let lines = Lines::new(source);
+        let color_scheme = ColorScheme::colored();
+
+        let highlights = extract_highlights(&lines, 0..1, JS, Some((0, 12)));
+        assert_eq!(highlights.len(), 1);
+
+        let _result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
     }
 }
