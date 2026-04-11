@@ -286,9 +286,11 @@ export async function writeOutputExportFallbackHtml(
     '<style id="__next-export-fallback-style">#__next{visibility:hidden}</style>'
   const injection = `${exportFallbackStyle}${exportFallbackScript}`
 
-  const patchedFallbackHtml = fallbackHtml.includes('</head>')
-    ? fallbackHtml.replace('</head>', `${injection}</head>`)
-    : injection + fallbackHtml
+  const patchedFallbackHtml = fallbackHtml.includes('<head>')
+    ? fallbackHtml.replace('<head>', `<head>${injection}`)
+    : fallbackHtml.includes('</head>')
+      ? fallbackHtml.replace('</head>', `${injection}</head>`)
+      : injection + fallbackHtml
 
   await fs.writeFile(join(outDir, '_fallback.html'), patchedFallbackHtml)
 }

@@ -369,6 +369,47 @@ if (skipped) {
         }
       })
 
+      it('loads nested fallback routes without concrete retries or extra probes', async () => {
+        clearRequests()
+        const browser = await webdriver(port, '/org/umbrella/chat/thread-789/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('#org-name').text()).toBe(
+              'Org umbrella'
+            )
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'umbrella:thread-789'
+            )
+          })
+
+          const requests = getRequests()
+
+          expect(
+            requests.some((requestPath) =>
+              requestPath.startsWith('/org/umbrella/chat/thread-789/?_rsc=')
+            )
+          ).toBe(false)
+          expect(
+            requests.some((requestPath) =>
+              requestPath.startsWith('/org/__fallback.meta.json')
+            )
+          ).toBe(false)
+          expect(
+            requests.some((requestPath) =>
+              requestPath.startsWith('/org/__fallback.txt')
+            )
+          ).toBe(false)
+          expect(
+            requests.filter((requestPath) =>
+              requestPath.startsWith('/org/__fallback/index.txt')
+            )
+          ).toHaveLength(1)
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('generates a hidden _fallback.html bootstrap document', async () => {
         const outDir = join(next.testDir, 'out')
         const fallbackHtml = await fs.readFile(

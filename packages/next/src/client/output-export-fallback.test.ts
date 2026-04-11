@@ -11,9 +11,11 @@ import {
 
 describe('output export fallback helpers', () => {
   const originalFetch = global.fetch
+  const originalTrailingSlash = process.env.__NEXT_TRAILING_SLASH
 
   afterEach(() => {
     global.fetch = originalFetch
+    process.env.__NEXT_TRAILING_SLASH = originalTrailingSlash
     clearOutputExportFallbackManifestCache()
     jest.restoreAllMocks()
   })
@@ -91,7 +93,8 @@ describe('output export fallback helpers', () => {
     ])
   })
 
-  it('walks prefixes from the root until a fallback payload is found', async () => {
+  it('tries the direct fallback artifact before manifest lookups', async () => {
+    process.env.__NEXT_TRAILING_SLASH = 'false'
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -99,13 +102,6 @@ describe('output export fallback helpers', () => {
         return new Response('payload', {
           status: 200,
           headers: { 'content-type': 'text/plain' },
-        })
-      }
-
-      if (url.endsWith('/org/__fallback/index.txt')) {
-        return new Response('not found', {
-          status: 404,
-          headers: { 'content-type': 'text/html' },
         })
       }
 
@@ -123,14 +119,54 @@ describe('output export fallback helpers', () => {
     expect(result).not.toBeNull()
     expect(result?.renderedUrl.href).toBe(renderedUrl.href)
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'https://example.com/org/__fallback.meta.json',
       'https://example.com/org/__fallback.txt',
     ])
   })
 
-  it('uses fallback metadata to select the most specific conflicting route', async () => {
+  it('prefers the trailing-slash fallback artifact when the request URL ends with /', async () => {
+    delete process.env.__NEXT_TRAILING_SLASH
+
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
+
+      if (url.endsWith('/org/__fallback/index.txt')) {
+        return new Response('flight', {
+          status: 200,
+          headers: { 'content-type': 'text/x-component' },
+        })
+      }
+
+      return new Response('not found', {
+        status: 404,
+        headers: { 'content-type': 'text/html' },
+      })
+    })
+
+    global.fetch = fetchMock as typeof fetch
+
+    const renderedUrl = new URL(
+      'https://example.com/org/umbrella/chat/thread-789/'
+    )
+    const result = await fetchOutputExportFallbackResponse(renderedUrl)
+
+    expect(result).not.toBeNull()
+    expect(result?.renderedUrl.href).toBe(renderedUrl.href)
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/org/__fallback/index.txt',
+    ])
+  })
+
+  it('uses fallback metadata to select the most specific conflicting route', async () => {
+    process.env.__NEXT_TRAILING_SLASH = 'false'
+    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.endsWith('/docs/__fallback.txt')) {
+        return new Response('not found', {
+          status: 404,
+          headers: { 'content-type': 'text/html' },
+        })
+      }
 
       if (url.endsWith('/docs/__fallback.meta.json')) {
         return new Response(
@@ -175,12 +211,14 @@ describe('output export fallback helpers', () => {
     expect(result).not.toBeNull()
     expect(result?.fallbackUrl.pathname).toBe('/docs/__fallback/__route_0')
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/docs/__fallback.txt',
       'https://example.com/docs/__fallback.meta.json',
       'https://example.com/docs/__fallback/__route_0.txt',
     ])
   })
 
   it('caches the resolved fallback data URL for later RSC fetches', async () => {
+    process.env.__NEXT_TRAILING_SLASH = 'false'
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -247,8 +285,16 @@ describe('output export fallback helpers', () => {
   })
 
   it('dedupes fallback artifact fetches across sibling routes', async () => {
+    process.env.__NEXT_TRAILING_SLASH = 'false'
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
+
+      if (url.endsWith('/docs/__fallback.txt')) {
+        return new Response('not found', {
+          status: 404,
+          headers: { 'content-type': 'text/html' },
+        })
+      }
 
       if (url.endsWith('/docs/__fallback.meta.json')) {
         return new Response(
@@ -295,6 +341,7 @@ describe('output export fallback helpers', () => {
     )
 
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/docs/__fallback.txt',
       'https://example.com/docs/__fallback.meta.json',
       'https://example.com/docs/__fallback/__route_0.txt',
     ])
