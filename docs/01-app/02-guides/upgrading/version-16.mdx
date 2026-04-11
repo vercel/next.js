@@ -1210,14 +1210,22 @@ The indicator itself remains available.
 
 ### `experimental.dynamicIO` and `experimental.useCache`
 
-The `experimental.dynamicIO` and `experimental.useCache` flags are replaced by top-level [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents):
+The `experimental.dynamicIO` and `experimental.useCache` flags are deprecated. Use top-level [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) instead.
 
 ```js filename="next.config.js"
-// Before
+// Before: experimental.useCache
+module.exports = {
+  experimental: {
+    useCache: true,
+  },
+}
+```
+
+```js filename="next.config.js"
+// Before: experimental.dynamicIO
 module.exports = {
   experimental: {
     dynamicIO: true,
-    // or: useCache: true,
   },
 }
 ```
@@ -1228,6 +1236,18 @@ module.exports = {
   cacheComponents: true,
 }
 ```
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+}
+
+export default nextConfig
+```
+
+For more on Cache Components, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
 
 ### `unstable_rootParams`
 

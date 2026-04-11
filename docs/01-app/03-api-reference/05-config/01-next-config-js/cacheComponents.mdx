@@ -25,6 +25,8 @@ When `cacheComponents` is enabled, you can use the following cache functions and
 - The [`cacheLife` function](/docs/app/api-reference/config/next-config-js/cacheLife) with `use cache`
 - The [`cacheTag` function](/docs/app/api-reference/functions/cacheTag)
 
+If you used `experimental.useCache` or `experimental.dynamicIO`, migrate using the [Version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache). To migrate route segment configs and other caching patterns, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
+
 ## Navigation with Activity
 
 When `cacheComponents` is enabled, Next.js uses React's [`<Activity>`](https://react.dev/reference/react/Activity) component to preserve component state during client-side navigation.
@@ -40,27 +42,6 @@ This behavior improves the navigation experience by maintaining UI state (form i
 > **Good to know**: Next.js uses heuristics to keep a few recently visited routes `"hidden"`, while older routes are removed from the DOM to prevent excessive growth.
 
 Some UI patterns behave differently when components stay mounted instead of unmounting. See the [Preserving UI state guide](/docs/app/guides/preserving-ui-state) for handling common patterns like dropdowns, dialogs, and testing.
-
-## Migrating from experimental flags
-
-If your project uses `experimental.useCache` or `experimental.dynamicIO`, replace them with top-level `cacheComponents: true`. These experimental flags are deprecated.
-
-```ts filename="next.config.ts"
-import type { NextConfig } from 'next'
-
-const nextConfig: NextConfig = {
-  // Before
-  // experimental: {
-  //   useCache: true,
-  //   dynamicIO: true,
-  // },
-
-  // After
-  cacheComponents: true,
-}
-
-export default nextConfig
-```
 
 ## Version History
 
