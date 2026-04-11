@@ -2627,6 +2627,7 @@ export async function cache(
             // If this is stale, and we're not in a prerender (i.e. this is
             // dynamic render), then we should warm up the cache with a fresh
             // revalidated entry.
+            const revalidateCacheHandlerKey = cacheHandlerKey
             generateCacheEntry(
               workStore,
               // The background revalidation preserves the outer store for
@@ -2642,30 +2643,38 @@ export async function cache(
               encodedCacheKeyParts,
               fn,
               timeoutError
-            ).then((result) => {
-              if (result.type === 'cached') {
-                const { stream: ignoredStream, pendingCacheResult } = result
+            )
+              .then((result) => {
+                if (result.type === 'cached') {
+                  const { stream: ignoredStream, pendingCacheResult } = result
 
-                const savedCacheResult = saveToResumeDataCache(
-                  prerenderResumeDataCache,
-                  serializedCacheKey,
-                  pendingCacheResult
-                )
-
-                if (cacheHandler) {
-                  saveToCacheHandler(
-                    cacheHandler,
-                    workStore,
-                    id,
+                  const savedCacheResult = saveToResumeDataCache(
+                    prerenderResumeDataCache,
                     serializedCacheKey,
-                    savedCacheResult,
-                    rootParams
+                    pendingCacheResult
                   )
-                }
 
-                ignoredStream.cancel()
-              }
-            })
+                  if (cacheHandler) {
+                    saveToCacheHandler(
+                      cacheHandler,
+                      workStore,
+                      id,
+                      serializedCacheKey,
+                      savedCacheResult,
+                      rootParams
+                    )
+                  }
+
+                  ignoredStream.cancel()
+                }
+              })
+              .catch((error) => {
+                debug?.(
+                  'background cache revalidation failed for',
+                  revalidateCacheHandlerKey,
+                  error
+                )
+              })
           }
         }
       }
