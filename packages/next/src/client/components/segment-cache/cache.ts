@@ -1906,26 +1906,33 @@ export async function fetchRouteOnCacheMiss(
   }
 }
 
-async function fetchRouteOnCacheMissFromOutputExportFallback(
-  entry: PendingRouteCacheEntry,
-  key: RouteCacheKey,
-  headers: RequestHeaders
-): Promise<PrefetchSubtaskResult<null> | null> {
-  const now = Date.now()
-  const renderedUrl = new URL(key.pathname + key.search, location.origin)
+type OutputExportFallbackNavigationData = {
+  buildId: string
+  closed: Promise<void>
+  couldBeIntercepted: boolean
+  flightDatas: NormalizedFlightData[]
+  headVaryParams: VaryParams | null
+  responseSize: number
+  staleAt: number
+  supportsPerSegmentPrefetching: boolean
+}
+
+async function fetchOutputExportFallbackNavigationData(
+  renderedUrl: URL,
+  headers: RequestHeaders,
+  now: number
+): Promise<OutputExportFallbackNavigationData | null> {
   const fallbackResult = await fetchOutputExportFallbackResponse(renderedUrl, {
     credentials: 'same-origin',
     headers,
   })
 
   if (fallbackResult === null) {
-    rejectRouteCacheEntry(entry, now + 10 * 1000)
     return null
   }
 
   const { response } = await processFetch(fallbackResult.response)
   if (!response.body) {
-    rejectRouteCacheEntry(entry, now + 10 * 1000)
     return null
   }
 
@@ -1933,7 +1940,6 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
   const { stream: prefetchStream, size: responseSize } =
     await createNonTaskyPrefetchResponseStream(response.body)
   closed.resolve()
-  setSizeInCacheMap(entry, responseSize)
 
   const serverData =
     await createFromNextReadableStream<NavigationFlightResponse>(
@@ -1942,11 +1948,9 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
       { allowPartialStream: true }
     )
 
-  if (
-    (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b) !==
-    getNavigationBuildId()
-  ) {
-    rejectRouteCacheEntry(entry, now + 10 * 1000)
+  const buildId =
+    response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b
+  if (buildId !== getNavigationBuildId()) {
     return null
   }
 
@@ -1964,9 +1968,51 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
   const flightDatas = normalizeFlightData(patchedFlightData)
 
   if (typeof flightDatas === 'string') {
+    return null
+  }
+
+  return {
+    buildId,
+    closed: closed.promise,
+    couldBeIntercepted: serverData.i,
+    flightDatas,
+    headVaryParams,
+    responseSize,
+    staleAt: await getStaleAt(now, serverData.s),
+    supportsPerSegmentPrefetching: serverData.S,
+  }
+}
+
+async function fetchRouteOnCacheMissFromOutputExportFallback(
+  entry: PendingRouteCacheEntry,
+  key: RouteCacheKey,
+  headers: RequestHeaders
+): Promise<PrefetchSubtaskResult<null> | null> {
+  const now = Date.now()
+  const renderedUrl = new URL(key.pathname + key.search, location.origin)
+  const navigationData = await fetchOutputExportFallbackNavigationData(
+    renderedUrl,
+    headers,
+    now
+  )
+
+  if (navigationData === null) {
     rejectRouteCacheEntry(entry, now + 10 * 1000)
     return null
   }
+
+  const {
+    buildId,
+    closed,
+    couldBeIntercepted,
+    flightDatas,
+    headVaryParams,
+    responseSize,
+    staleAt,
+    supportsPerSegmentPrefetching,
+  } = navigationData
+  const renderedSearch = renderedUrl.search as NormalizedSearch
+  setSizeInCacheMap(entry, responseSize)
 
   const navigationSeed = convertServerPatchToFullTree(
     now,
@@ -1980,15 +2026,14 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     return null
   }
 
-  const fetchStrategy = serverData.S
+  const fetchStrategy = supportsPerSegmentPrefetching
     ? FetchStrategy.PPR
     : FetchStrategy.LoadingBoundary
-  const staleAt = await getStaleAt(now, serverData.s)
   writeDynamicRenderResponseIntoCache(
     now,
     fetchStrategy,
     flightDatas,
-    response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b,
+    buildId,
     false,
     headVaryParams,
     staleAt,
@@ -1996,7 +2041,6 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     null
   )
 
-  const couldBeIntercepted = serverData.i
   const fulfilledEntry = discoverKnownRoute(
     now,
     renderedUrl.pathname,
@@ -2006,7 +2050,7 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     navigationSeed.metadataVaryPath,
     couldBeIntercepted,
     createHrefFromUrl(renderedUrl),
-    serverData.S,
+    supportsPerSegmentPrefetching,
     false
   )
   fulfilledEntry.hasInlinedSegments = true
@@ -2022,7 +2066,7 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     setInCacheMap(routeCacheMap, fulfilledVaryPath, entry, isRevalidation)
   }
 
-  return { value: null, closed: closed.promise }
+  return { value: null, closed }
 }
 
 async function fetchSegmentsFromOutputExportFallback(
@@ -2036,60 +2080,20 @@ async function fetchSegmentsFromOutputExportFallback(
     routeKey.pathname + routeKey.search,
     location.origin
   )
-  const fallbackResult = await fetchOutputExportFallbackResponse(renderedUrl, {
-    credentials: 'same-origin',
+  const navigationData = await fetchOutputExportFallbackNavigationData(
+    renderedUrl,
     headers,
-  })
-
-  if (fallbackResult === null) {
-    rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
-    return null
-  }
-
-  const { response } = await processFetch(fallbackResult.response)
-  if (!response.body) {
-    rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
-    return null
-  }
-
-  const closed = createPromiseWithResolvers<void>()
-  const { stream: prefetchStream } = await createNonTaskyPrefetchResponseStream(
-    response.body
+    now
   )
-  closed.resolve()
 
-  const serverData =
-    await createFromNextReadableStream<NavigationFlightResponse>(
-      prefetchStream,
-      headers,
-      { allowPartialStream: true }
-    )
-
-  if (
-    (response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b) !==
-    getNavigationBuildId()
-  ) {
+  if (navigationData === null) {
     rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
     return null
   }
 
+  const { buildId, closed, flightDatas, headVaryParams, staleAt } =
+    navigationData
   const renderedSearch = renderedUrl.search as NormalizedSearch
-  const headVaryParamsThenable = serverData.h
-  const headVaryParams =
-    headVaryParamsThenable !== null
-      ? readVaryParams(headVaryParamsThenable)
-      : null
-  const patchedFlightData = fillInFallbackFlightData(
-    serverData.f,
-    renderedUrl.pathname,
-    renderedSearch
-  )
-  const flightDatas = normalizeFlightData(patchedFlightData)
-
-  if (typeof flightDatas === 'string') {
-    rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
-    return null
-  }
 
   const spawnedEntries = new Map<SegmentRequestKey, PendingSegmentCacheEntry>()
   let node: SegmentBundle | null = segments
@@ -2122,12 +2126,11 @@ async function fetchSegmentsFromOutputExportFallback(
   // FetchStrategy.PPR; upsertSegmentEntry rejects candidates whose strategy
   // is "less specific" than the existing entry. Using LoadingBoundary here
   // would cause the fallback-written segments to be silently rejected.
-  const staleAt = await getStaleAt(now, serverData.s)
   writeDynamicRenderResponseIntoCache(
     now,
     FetchStrategy.PPR,
     flightDatas,
-    response.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? serverData.b,
+    buildId,
     false,
     headVaryParams,
     staleAt,
@@ -2135,7 +2138,7 @@ async function fetchSegmentsFromOutputExportFallback(
     spawnedEntries
   )
 
-  return { value: null, closed: closed.promise }
+  return { value: null, closed }
 }
 
 function rejectRemainingSegmentsInBundle(

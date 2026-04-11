@@ -246,7 +246,7 @@ describe('output export fallback helpers', () => {
     )
   })
 
-  it('caches fallback metadata lookups across sibling routes', async () => {
+  it('dedupes fallback artifact fetches across sibling routes', async () => {
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
       const url = String(input)
 
@@ -296,7 +296,6 @@ describe('output export fallback helpers', () => {
 
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
       'https://example.com/docs/__fallback.meta.json',
-      'https://example.com/docs/__fallback/__route_0.txt',
       'https://example.com/docs/__fallback/__route_0.txt',
     ])
   })

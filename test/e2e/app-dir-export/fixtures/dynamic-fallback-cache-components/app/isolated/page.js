@@ -10,6 +10,11 @@ export default function Isolated() {
             prefetched isolated third page
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/isolated/fourth" prefetch={true}>
+            prefetched isolated fourth page
+          </LinkAccordion>
+        </li>
       </ul>
     </main>
   )

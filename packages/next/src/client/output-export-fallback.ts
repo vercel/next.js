@@ -12,37 +12,40 @@ type OutputExportFallbackManifest = {
   routes: OutputExportFallbackManifestEntry[]
 }
 
-const outputExportFallbackManifestCache = new Map<
-  string,
-  Promise<OutputExportFallbackManifest | null>
->()
-
-function getOutputExportFallbackDataUrlCache(): Map<string, string> {
-  const globalWithCache = globalThis as typeof globalThis & {
-    __NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE?: Map<string, string>
-  }
-  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE
-  if (existing !== undefined) {
-    return existing
-  }
-
-  const cache = new Map<string, string>()
-  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_DATA_URL_CACHE = cache
-  return cache
+type OutputExportFallbackCacheStore = {
+  manifests: Map<string, Promise<OutputExportFallbackManifest | null>>
+  dataResponses: Map<string, Promise<OutputExportCachedResponse | null>>
+  dataUrls: Map<string, string>
+  basePaths: Map<string, string>
 }
 
-function getOutputExportFallbackBasePathCache(): Map<string, string> {
+type OutputExportCachedResponse = {
+  body: ArrayBuffer
+  headers: Array<[string, string]>
+  status: number
+  statusText: string
+}
+
+function getOutputExportFallbackCacheStore(): OutputExportFallbackCacheStore {
   const globalWithCache = globalThis as typeof globalThis & {
-    __NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE?: Map<string, string>
+    __NEXT_OUTPUT_EXPORT_FALLBACK_CACHE_STORE?: OutputExportFallbackCacheStore
   }
-  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE
+  const existing = globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_CACHE_STORE
   if (existing !== undefined) {
     return existing
   }
 
-  const cache = new Map<string, string>()
-  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_BASE_PATH_CACHE = cache
-  return cache
+  const cacheStore = {
+    manifests: new Map<string, Promise<OutputExportFallbackManifest | null>>(),
+    dataResponses: new Map<
+      string,
+      Promise<OutputExportCachedResponse | null>
+    >(),
+    dataUrls: new Map<string, string>(),
+    basePaths: new Map<string, string>(),
+  }
+  globalWithCache.__NEXT_OUTPUT_EXPORT_FALLBACK_CACHE_STORE = cacheStore
+  return cacheStore
 }
 
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
@@ -78,9 +81,11 @@ export function isOutputExportFlightContentType(contentType: string): boolean {
 }
 
 export function clearOutputExportFallbackManifestCache(): void {
-  outputExportFallbackManifestCache.clear()
-  getOutputExportFallbackDataUrlCache().clear()
-  getOutputExportFallbackBasePathCache().clear()
+  const cacheStore = getOutputExportFallbackCacheStore()
+  cacheStore.manifests.clear()
+  cacheStore.dataResponses.clear()
+  cacheStore.dataUrls.clear()
+  cacheStore.basePaths.clear()
 }
 
 export function stripOutputExportDataSuffix(url: URL): URL {
@@ -113,7 +118,8 @@ async function fetchOutputExportFallbackManifest(
 ): Promise<OutputExportFallbackManifest | null> {
   const metadataUrl = getOutputExportFallbackMetadataUrl(fallbackUrl)
   const cacheKey = metadataUrl.href
-  const cached = outputExportFallbackManifestCache.get(cacheKey)
+  const manifestCache = getOutputExportFallbackCacheStore().manifests
+  const cached = manifestCache.get(cacheKey)
   if (cached !== undefined) {
     return cached
   }
@@ -135,11 +141,11 @@ async function fetchOutputExportFallbackManifest(
       return metadataResponse.json()
     })
     .catch((error) => {
-      outputExportFallbackManifestCache.delete(cacheKey)
+      manifestCache.delete(cacheKey)
       throw error
     })
 
-  outputExportFallbackManifestCache.set(cacheKey, manifestPromise)
+  manifestCache.set(cacheKey, manifestPromise)
   return manifestPromise
 }
 
@@ -169,18 +175,18 @@ function cacheOutputExportFallbackDataUrl(
   fallbackUrl: URL,
   resolvedDataUrl: URL
 ) {
-  const dataUrlCache = getOutputExportFallbackDataUrlCache()
+  const { dataUrls, basePaths } = getOutputExportFallbackCacheStore()
   for (const candidateUrl of getOutputExportDataCandidates(renderedUrl)) {
-    dataUrlCache.set(candidateUrl.href, resolvedDataUrl.href)
+    dataUrls.set(candidateUrl.href, resolvedDataUrl.href)
   }
-  getOutputExportFallbackBasePathCache().set(
+  basePaths.set(
     normalizeOutputExportRouteDirectory(renderedUrl.pathname),
     normalizeOutputExportRouteDirectory(fallbackUrl.pathname)
   )
 }
 
 export function getCachedOutputExportFallbackDataUrl(url: URL): URL | null {
-  const cached = getOutputExportFallbackDataUrlCache().get(url.href)
+  const cached = getOutputExportFallbackCacheStore().dataUrls.get(url.href)
   return cached !== undefined ? new URL(cached) : null
 }
 
@@ -199,7 +205,7 @@ export function getCachedOutputExportFallbackRequestUrl(url: URL): URL | null {
     url.pathname.slice(0, url.pathname.lastIndexOf('/')) || '/'
   )
   const fallbackBasePath =
-    getOutputExportFallbackBasePathCache().get(routeDirectory)
+    getOutputExportFallbackCacheStore().basePaths.get(routeDirectory)
   if (fallbackBasePath === undefined) {
     return null
   }
@@ -214,18 +220,59 @@ async function fetchOutputExportDataResult(
   init?: RequestInit
 ): Promise<{ response: Response; dataUrl: URL } | null> {
   for (const dataUrl of getOutputExportDataCandidates(renderedUrl)) {
-    const response = await fetch(dataUrl, init)
-    const contentType = response.headers.get('content-type') || ''
-    if (
-      response.ok &&
-      response.body &&
-      isOutputExportFlightContentType(contentType)
-    ) {
+    const response = await fetchOutputExportDataResponseByUrl(dataUrl, init)
+    if (response !== null) {
       return { response, dataUrl }
     }
   }
 
   return null
+}
+
+async function fetchOutputExportDataResponseByUrl(
+  dataUrl: URL,
+  init?: RequestInit
+): Promise<Response | null> {
+  const cacheKey = dataUrl.href
+  const dataResponseCache = getOutputExportFallbackCacheStore().dataResponses
+
+  let cachedResponse = dataResponseCache.get(cacheKey)
+  if (cachedResponse === undefined) {
+    cachedResponse = fetch(dataUrl, init)
+      .then(async (response) => {
+        const contentType = response.headers.get('content-type') || ''
+        if (
+          !response.ok ||
+          !response.body ||
+          !isOutputExportFlightContentType(contentType)
+        ) {
+          return null
+        }
+
+        return {
+          body: await response.arrayBuffer(),
+          headers: Array.from(response.headers.entries()),
+          status: response.status,
+          statusText: response.statusText,
+        }
+      })
+      .catch((error) => {
+        dataResponseCache.delete(cacheKey)
+        throw error
+      })
+    dataResponseCache.set(cacheKey, cachedResponse)
+  }
+
+  const response = await cachedResponse
+  if (response === null) {
+    return null
+  }
+
+  return new Response(response.body.slice(0), {
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText,
+  })
 }
 
 export async function fetchOutputExportDataResponse(
