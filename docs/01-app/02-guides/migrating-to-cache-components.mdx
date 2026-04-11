@@ -96,7 +96,7 @@ export default async function Page() {
 
 ## `revalidate`
 
-**Replace with `cacheLife`.** Use the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) function with a [preset profile](/docs/app/api-reference/functions/cacheLife#using-preset-profiles) instead of the route segment config. For example, `revalidate = 3600` often lines up with the `'hours'` profile. Pick the profile that matches how often your data changes.
+**Replace with `cacheLife`.** Use the [`cacheLife`](/docs/app/api-reference/functions/cacheLife) function with a [preset profile](/docs/app/api-reference/functions/cacheLife#using-preset-profiles) instead of the route segment config. For example, `revalidate = 3600` corresponds to the `'hours'` profile.
 
 ```tsx filename="app/page.tsx" switcher
 // Before
@@ -174,11 +174,11 @@ export default async function Page() {
 
 **Still supported.** [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) works with [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) when Cache Components is enabled.
 
-**Different from before:** validation is stricter, unknown params are handled differently, and the `Route (app)` section from `next build` looks different.
+**Different from before:** validation is stricter, unknown params are handled differently, and the `Route (app)` section from `next build` uses different symbols.
 
 [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) covers Suspense, params you skip at build time, and the rest of the `generateStaticParams` contract. [Dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) covers routes that resolve `params` only at request time, including when you omit `generateStaticParams`.
 
-With Cache Components, Partial Prerendering applies to eligible routes, so returning `[]` from `generateStaticParams` triggers a [build error](/docs/messages/empty-generate-static-params). The build needs at least one path to validate the prerendered shell. Return at least one sample param (`After` below), or remove `generateStaticParams` and use the request-time patterns in [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components).
+With Cache Components, Partial Prerendering applies to eligible routes, so returning `[]` from `generateStaticParams` triggers a [build error](/docs/messages/empty-generate-static-params) because the build needs at least one path to validate the prerendered shell. Return at least one sample param (`After` below), or remove `generateStaticParams` and use the request-time patterns in [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components).
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before
@@ -236,7 +236,9 @@ export default async function Page({ params }) {
 }
 ```
 
-With Cache Components enabled, [Partial Prerendering (PPR)](/docs/app/guides/public-static-pages#partial-prerendering) is the default for eligible routes, so the `Route (app)` section from `next build` reflects that model. Exact lines can differ slightly by Next.js version. The snippets below show a representative `/products/[id]` route with `generateStaticParams`. You may see **`◐` (Partial Prerender)** on the dynamic segment and **`○` (Static)** on prerendered param paths where you previously saw **`●` (SSG)**.
+> **Good to know**: Params not returned by `generateStaticParams` are served with the prerendered shell while dynamic content streams in, and the result is cached for subsequent visits. This is the default behavior in Next.js 16.3+. In earlier versions, unlisted params wait for a full server render before the response is sent.
+
+The `Route (app)` section from `next build` reflects these changes. The snippets below show a representative `/products/[id]` route with `generateStaticParams`. You may see **`◐` (Partial Prerender)** on the dynamic segment and **`○` (Static)** on prerendered param paths where you previously saw **`●` (SSG)**.
 
 **Before Cache Components:**
 
@@ -260,7 +262,7 @@ Route (app)
 ├ ○ /_not-found
 └   /products/[id]
   ├ ◐ /products/[id]
-  ├ ○ /products/1
+  ├ ◐ /products/1
   └ ○ /products/2
 
 ○  (Static)             prerendered as static content
