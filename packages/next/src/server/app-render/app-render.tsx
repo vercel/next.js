@@ -2300,9 +2300,10 @@ export type BinaryStreamOf<T> = AnyStream
  */
 function installGlobalModuleLoadingHandlers(
   ComponentMod: AppPageModule,
-  cacheComponents: boolean
+  cacheComponents: boolean,
+  isTracingEnabled: boolean
 ) {
-  const instrumented = wrapClientComponentLoader(ComponentMod)
+  const instrumented = wrapClientComponentLoader(ComponentMod, isTracingEnabled)
 
   // When we are prerendering if there is a cacheSignal for tracking
   // cache reads we track calls to `loadChunk` and `require`. This allows us
@@ -2404,7 +2405,13 @@ async function renderToHTMLOrFlightImpl(
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
-    installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
+    const isTracingEnabled =
+      getTracer().getActiveScopeSpan()?.isRecording() ?? false
+    installGlobalModuleLoadingHandlers(
+      ComponentMod,
+      cacheComponents,
+      isTracingEnabled
+    )
   }
 
   if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
