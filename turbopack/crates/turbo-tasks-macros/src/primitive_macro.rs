@@ -44,25 +44,6 @@ pub fn primitive(input: TokenStream) -> TokenStream {
             }
         }
 
-        #[cfg(not(debug_assertions))]
-        #[turbo_tasks::value_impl]
-        impl turbo_tasks::debug::ValueDebug for #ty {
-            fn dbg_depth<'a>(
-                &'a self,
-                _depth: usize,
-            ) -> ::std::pin::Pin<
-                ::std::boxed::Box<
-                    dyn ::std::future::Future<
-                            Output = ::anyhow::Result<::std::string::String>,
-                        > + ::std::marker::Send
-                        + 'a,
-                >,
-            > {
-                ::std::boxed::Box::pin(async move {
-                    Ok(::std::any::type_name::<Self>().to_string())
-                })
-            }
-        }
     };
 
     let name = global_name_for_type(&ty);

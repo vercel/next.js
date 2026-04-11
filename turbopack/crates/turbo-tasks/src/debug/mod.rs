@@ -1,9 +1,11 @@
 #[cfg(debug_assertions)]
 use std::fmt::Debug;
+#[cfg(debug_assertions)]
 use std::{future::Future, pin::Pin};
 
 pub use turbo_tasks_macros::ValueDebugFormat;
 
+#[cfg(debug_assertions)]
 use crate::{self as turbo_tasks};
 
 #[cfg(debug_assertions)]
@@ -21,6 +23,7 @@ mod vdbg;
 /// let trait_ref = any_vc.into_trait_ref().await?;
 /// println!("{}", trait_ref.dbg().await?);
 /// ```
+#[cfg(debug_assertions)]
 #[turbo_tasks::value_trait(no_debug)]
 pub trait ValueDebug {
     fn dbg(&self) -> Pin<Box<dyn Future<Output = anyhow::Result<String>> + Send + '_>> {
@@ -33,6 +36,15 @@ pub trait ValueDebug {
         depth: usize,
     ) -> Pin<Box<dyn Future<Output = anyhow::Result<String>> + Send + '_>>;
 }
+
+/// In release builds, `ValueDebug` is a no-op marker trait satisfied by all types via a blanket
+/// impl. The [`turbo_tasks::value_trait`] machinery still references it as a supertrait for all
+/// value traits, so it must exist — but it carries no cost and requires no per-type implementation.
+#[cfg(not(debug_assertions))]
+pub trait ValueDebug {}
+
+#[cfg(not(debug_assertions))]
+impl<T: ?Sized> ValueDebug for T {}
 
 /// Use [autoref specialization] to implement [`ValueDebug`] for `T: Debug`.
 ///
