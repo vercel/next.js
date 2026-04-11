@@ -13,13 +13,15 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_esregex::EsRegex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{
+    DirectoryEntry, FileSystemPath, ReadGlobResult,
+    glob::{Glob, GlobOptions},
+};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
@@ -45,7 +47,7 @@ use crate::{
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
-        require_context::{FlatDirList, ResolvedModuleReference},
+        require_context::ResolvedModuleReference,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
@@ -74,36 +76,46 @@ pub struct ImportMetaGlobOptions {
 ///
 /// `args[0]` must be a string literal or an array of string literals.
 /// `args[1]` (optional) must be an object literal with known keys.
+///
+/// ## Unsupported Vite features
+///
+/// - **`import.meta.globEager()`** (removed in Vite 3) is not recognized. Users should migrate to
+///   `import.meta.glob('...', { eager: true })`.
+/// - **`as` option** (deprecated in Vite 5 in favor of `query`) is not supported. Use `query:
+///   '?raw'` or `query: '?url'` instead.
 pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions> {
     if args.is_empty() || args.len() > 2 {
         bail!("import.meta.glob() requires 1 or 2 arguments");
     }
 
     // --- Parse patterns (first argument) ---
-    let patterns = match &args[0] {
-        JsValue::Constant(crate::analyzer::ConstantValue::Str(s)) => {
-            vec![s.as_str().into()]
-        }
-        JsValue::Array { items, .. } => {
-            let mut pats = Vec::with_capacity(items.len());
-            for item in items {
-                if let Some(s) = item.as_str() {
-                    pats.push(s.into());
-                } else {
-                    bail!("import.meta.glob() pattern array elements must be constant strings");
+    let patterns = {
+        let mut pats = Vec::new();
+        match &args[0] {
+            JsValue::Array { items, .. } => {
+                for item in items {
+                    if let Some(s) = item.as_str() {
+                        pats.push(s.into());
+                    } else {
+                        bail!("import.meta.glob() pattern array elements must be constant strings");
+                    }
+                }
+                if pats.is_empty() {
+                    bail!("import.meta.glob() requires at least one pattern");
                 }
             }
-            if pats.is_empty() {
-                bail!("import.meta.glob() requires at least one pattern");
+            _ => {
+                if let Some(s) = args[0].as_str() {
+                    pats.push(s.into());
+                } else {
+                    bail!(
+                        "import.meta.glob() first argument must be a string literal or array of \
+                         string literals"
+                    );
+                }
             }
-            pats
         }
-        _ => {
-            bail!(
-                "import.meta.glob() first argument must be a string literal or array of string \
-                 literals"
-            );
-        }
+        pats
     };
 
     // --- Parse options (second argument, optional) ---
@@ -120,7 +132,14 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                     if let ObjectPart::KeyValue(key, val) = part {
                         match key.as_str() {
                             Some("eager") => {
-                                eager = val.as_bool().unwrap_or(false);
+                                if let Some(b) = val.as_bool() {
+                                    eager = b;
+                                } else {
+                                    bail!(
+                                        "import.meta.glob() 'eager' option must be a constant \
+                                         boolean (true or false)"
+                                    );
+                                }
                             }
                             Some("import") => {
                                 if let Some(s) = val.as_str() {
@@ -158,8 +177,22 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                     );
                                 }
                             }
-                            _ => {
-                                // Ignore unknown options for forward compatibility
+                            // The `as` option was deprecated in Vite 5 in favor of `query`.
+                            // We don't support it; users should use `query` instead.
+                            Some("as") => {
+                                bail!(
+                                    "import.meta.glob() 'as' option is not supported. Use 'query' \
+                                     instead (e.g. {{ query: '?raw' }})"
+                                );
+                            }
+                            Some(other) => {
+                                bail!(
+                                    "import.meta.glob() unsupported option '{other}'. Supported \
+                                     options are: eager, import, query, base"
+                                );
+                            }
+                            None => {
+                                bail!("import.meta.glob() option keys must be constant strings");
                             }
                         }
                     }
@@ -181,74 +214,66 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
 }
 
 // ---------------------------------------------------------------------------
-// Glob pattern → regex conversion
+// Helpers for collecting files from ReadGlobResult
 // ---------------------------------------------------------------------------
 
-/// Convert a glob pattern to a regex string.
+/// Strip the `./` prefix from a Vite-style glob pattern to produce a pattern
+/// compatible with Turbopack's `Glob` (which operates relative to the scan
+/// directory, without a leading `./`).
+fn strip_relative_prefix(pattern: &str) -> &str {
+    pattern.strip_prefix("./").unwrap_or(pattern)
+}
+
+/// Flatten a nested `ReadGlobResult` into a sorted list of
+/// `(base_relative_path, FileSystemPath)` pairs.
 ///
-/// Supports: `*`, `**`, `?`, `{a,b}` alternation.
-/// Patterns like `./dir/*.js` are converted to `^\./dir/[^/]*\.js$`.
-fn glob_to_regex_str(glob: &str) -> String {
-    let mut out = String::from("^");
-    let mut chars = glob.chars().peekable();
-    let mut brace_depth = 0u32;
+/// `ReadGlobResult` stores results in a tree of `HashMap`s keyed by path
+/// segment. This function walks the tree and collects all file entries with
+/// their full relative paths (relative to the directory `read_glob` was called
+/// on).
+async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSystemPath)>> {
+    let mut files = Vec::new();
 
-    while let Some(c) = chars.next() {
-        match c {
-            '*' if chars.peek() == Some(&'*') => {
-                chars.next(); // consume the second `*`
-                if chars.peek() == Some(&'/') {
-                    chars.next(); // consume `/`
-                    out.push_str("(.+/)?"); // `**/` — zero or more path segments
-                } else {
-                    out.push_str(".*"); // `**` at end — anything
-                }
+    // Collect file entries from the current node.
+    fn collect_files(
+        node: &ReadGlobResult,
+        prefix: &str,
+        files: &mut Vec<(RcStr, FileSystemPath)>,
+    ) {
+        for (segment, entry) in &node.results {
+            let full_path = if prefix.is_empty() {
+                segment.to_string()
+            } else {
+                format!("{prefix}/{segment}")
+            };
+            if let DirectoryEntry::File(path) = entry {
+                files.push((full_path.into(), path.clone()));
             }
-            '*' => out.push_str("[^/]*"),
-            '?' => out.push_str("[^/]"),
-            '{' => {
-                brace_depth += 1;
-                out.push('(');
-            }
-            '}' => {
-                brace_depth = brace_depth.saturating_sub(1);
-                out.push(')');
-            }
-            ',' if brace_depth > 0 => out.push('|'),
-            '.' | '+' | '^' | '$' | '|' | '(' | ')' | '[' | ']' | '\\' => {
-                out.push('\\');
-                out.push(c);
-            }
-            _ => out.push(c),
         }
     }
-    out.push('$');
-    out
-}
 
-/// Combine one or more positive glob patterns into a single alternation regex.
-fn globs_to_regex(patterns: &[RcStr]) -> Result<EsRegex> {
-    if patterns.is_empty() {
-        bail!("import.meta.glob() requires at least one positive pattern");
+    // Walk the tree level by level, resolving Vc references as we go.
+    let mut pending: Vec<(String, turbo_tasks::ReadRef<ReadGlobResult>)> = Vec::new();
+    collect_files(result, "", &mut files);
+
+    // Resolve child directories
+    for (segment, inner_vc) in &result.inner {
+        let child_prefix = segment.to_string();
+        let inner = inner_vc.await?;
+        pending.push((child_prefix, inner));
     }
-    let parts: Vec<String> = patterns.iter().map(|p| glob_to_regex_str(p)).collect();
-    EsRegex::new(&parts.join("|"), "")
-}
 
-/// Check if a path matches any negative (exclusion) pattern.
-fn matches_negative_pattern(path: &str, negative_patterns: &[RcStr]) -> bool {
-    for neg in negative_patterns {
-        let regex_str = glob_to_regex_str(neg);
-        // We need to test the filename or the full path against the pattern.
-        // Negative patterns in Vite can be like `!**/bar.js` which should match
-        // against the full relative path.
-        if let Ok(re) = EsRegex::new(&regex_str, "")
-            && re.is_match(path)
-        {
-            return true;
+    while let Some((prefix, node)) = pending.pop() {
+        collect_files(&node, &prefix, &mut files);
+        for (segment, inner_vc) in &node.inner {
+            let child_prefix = format!("{prefix}/{segment}");
+            let inner = inner_vc.await?;
+            pending.push((child_prefix, inner));
         }
     }
-    false
+
+    files.sort_by(|a: &(RcStr, _), b: &(RcStr, _)| a.0.cmp(&b.0));
+    Ok(files)
 }
 
 // ---------------------------------------------------------------------------
@@ -258,6 +283,8 @@ fn matches_negative_pattern(path: &str, negative_patterns: &[RcStr]) -> bool {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ImportMetaGlobMapEntry {
+    /// Path relative to origin (the calling file's directory), used for import
+    /// resolution and as the key in the generated JS object.
     pub origin_relative: RcStr,
     pub request: ResolvedVc<Request>,
     pub result: ResolvedVc<ModuleResolveResult>,
@@ -271,40 +298,53 @@ pub struct ImportMetaGlobMap(
 #[turbo_tasks::value_impl]
 impl ImportMetaGlobMap {
     /// Discover files matching glob patterns and resolve them as ESM imports.
+    ///
+    /// `base_dir` is the directory to scan (origin dir, or origin + base).
+    /// `positive_glob` is a `Glob` matching the wanted files (relative to
+    /// base_dir). `negative_glob` optionally excludes files. Both globs
+    /// operate on paths *relative to base_dir*.
     #[turbo_tasks::function]
     pub(crate) async fn generate(
         origin: Vc<Box<dyn ResolveOrigin>>,
         base_dir: FileSystemPath,
-        positive_patterns: Vec<RcStr>,
-        negative_patterns: Vec<RcStr>,
+        positive_glob: Vc<Glob>,
+        negative_glob: Option<Vc<Glob>>,
         query: Option<RcStr>,
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
         let origin_path = origin.origin_path().await?.parent();
 
-        // Build a regex that matches any of the positive patterns
-        let filter = globs_to_regex(&positive_patterns)?;
+        // Use read_glob for efficient directory-pruning file discovery.
+        let glob_result = base_dir.read_glob(positive_glob).await?;
+        let files = flatten_read_glob(&glob_result).await?;
 
-        // Read files matching the positive patterns
-        let list = &*FlatDirList::read(base_dir.clone(), true, filter.cell()).await?;
+        // Pre-resolve the negative glob (if any) once, outside the loop.
+        let negative = if let Some(neg) = negative_glob {
+            Some(neg.await?)
+        } else {
+            None
+        };
 
         let mut map = FxIndexMap::default();
 
-        for (context_relative, path) in list {
-            // Apply negative pattern filtering
-            if matches_negative_pattern(context_relative, &negative_patterns) {
+        for (base_relative, path) in &files {
+            // Apply negative pattern filtering on the base-relative path.
+            if let Some(ref neg) = negative
+                && neg.matches(base_relative)
+            {
                 continue;
             }
 
-            // Compute the origin-relative path for import resolution
+            // Compute the origin-relative path for import resolution and as the
+            // user-visible key in the result object.
             let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
                 bail!(
                     "import.meta.glob: failed to compute relative path from origin to matched file"
                 );
             };
 
-            // Append query string if specified
+            // Append query string if specified (e.g., `?raw`).
             let request_str: RcStr = if let Some(q) = &query {
                 format!("{origin_relative}{q}").into()
             } else {
@@ -325,7 +365,7 @@ impl ImportMetaGlobMap {
             .await?;
 
             map.insert(
-                context_relative.clone(),
+                origin_relative.clone(),
                 ImportMetaGlobMapEntry {
                     origin_relative,
                     request,
@@ -507,6 +547,8 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
                 }
             };
 
+            // Use the origin-relative path as the key — this is what Vite does
+            // and what the user sees in `Object.keys(modules)`.
             let prop = KeyValueProp {
                 key: PropName::Str(key.as_str().into()),
                 value: Box::new(value_expr),
@@ -589,7 +631,8 @@ impl ImportMetaGlobAssetReference {
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Self> {
-        // Compute the base directory for glob scanning
+        // Compute the base directory for glob scanning.
+        // With `base`, patterns are resolved relative to origin + base.
         let origin_dir = origin.origin_path().await?.parent();
         let base_dir = if let Some(ref b) = base {
             origin_dir.join(b)?
@@ -598,23 +641,53 @@ impl ImportMetaGlobAssetReference {
         };
 
         // Separate positive (matching) and negative (exclusion) patterns.
-        // Negative patterns start with `!`; the `!` is stripped before use.
-        let (positive_patterns, negative_raw): (Vec<_>, Vec<_>) =
+        // Negative patterns start with `!`; the `!` prefix is stripped.
+        let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
             patterns.iter().partition(|p| !p.starts_with('!'));
-        let positive_patterns: Vec<RcStr> = positive_patterns.into_iter().cloned().collect();
-        let negative_patterns: Vec<RcStr> = negative_raw
-            .into_iter()
-            .map(|p| p.strip_prefix('!').unwrap_or(p).into())
+
+        // Build the positive Glob. Turbopack's Glob operates on paths relative
+        // to the scan directory (no leading `./`), so strip that prefix. For
+        // multiple patterns, use `Glob::alternatives` to combine them.
+        let positive_globs: Vec<Vc<Glob>> = positive_raw
+            .iter()
+            .map(|p| Glob::new(strip_relative_prefix(p).into(), GlobOptions::default()))
             .collect();
 
-        // Clone before moving into generate — both the asset and generate need query.
+        let positive_glob = if positive_globs.len() == 1 {
+            positive_globs.into_iter().next().unwrap()
+        } else {
+            Glob::alternatives(positive_globs)
+        };
+
+        // Build the negative Glob (if any). Negative patterns also need `./`
+        // stripped and are combined into a single alternation glob.
+        let negative_glob = if !negative_raw.is_empty() {
+            let neg_globs: Vec<Vc<Glob>> = negative_raw
+                .iter()
+                .map(|p| {
+                    let stripped = p.strip_prefix('!').unwrap_or(p);
+                    let stripped = strip_relative_prefix(stripped);
+                    Glob::new(stripped.into(), GlobOptions::default())
+                })
+                .collect();
+
+            let neg = if neg_globs.len() == 1 {
+                neg_globs.into_iter().next().unwrap()
+            } else {
+                Glob::alternatives(neg_globs)
+            };
+            Some(neg)
+        } else {
+            None
+        };
+
         let asset_query = query.clone();
 
         let map = ImportMetaGlobMap::generate(
             *origin,
             base_dir,
-            positive_patterns,
-            negative_patterns,
+            positive_glob,
+            negative_glob,
             query,
             issue_source,
             error_mode,

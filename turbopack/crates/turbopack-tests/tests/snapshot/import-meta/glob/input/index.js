@@ -10,4 +10,10 @@ const defaultExports = import.meta.glob('./dir/*.js', {
   eager: true,
 })
 
-console.log(lazyModules, eagerModules, defaultExports)
+// Negative pattern (exclude bar.js)
+const filtered = import.meta.glob(['./dir/*.js', '!**/bar.js'], { eager: true })
+
+// Multiple patterns
+const multi = import.meta.glob(['./dir/*.js', './other/*.js'], { eager: true })
+
+console.log(lazyModules, eagerModules, defaultExports, filtered, multi)

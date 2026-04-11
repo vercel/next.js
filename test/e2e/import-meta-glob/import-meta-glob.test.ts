@@ -64,4 +64,23 @@ describe('import-meta-glob', () => {
       './modules/foo.ts': 'foo',
     })
   })
+
+  it('should support multiple patterns', async () => {
+    const $ = await next.render$('/')
+    const multiKeys = JSON.parse($('#multi-keys').text())
+    expect(multiKeys).toEqual([
+      './modules/bar.ts',
+      './modules/foo.ts',
+      './modules/skip.ts',
+      './other/baz.ts',
+    ])
+
+    const multiResults = JSON.parse($('#multi-results').text())
+    expect(multiResults).toEqual({
+      './modules/bar.ts': 'bar',
+      './modules/foo.ts': 'foo',
+      './modules/skip.ts': 'skip',
+      './other/baz.ts': 'baz',
+    })
+  })
 })

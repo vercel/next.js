@@ -15,6 +15,11 @@ const filteredModules = import.meta.glob(['./modules/*.ts', '!**/skip.ts'], {
   eager: true,
 })
 
+// Multiple patterns (modules + other)
+const multiModules = import.meta.glob(['./modules/*.ts', './other/*.ts'], {
+  eager: true,
+})
+
 export default async function Page() {
   // Resolve lazy modules
   const lazyKeys = Object.keys(lazyModules).sort()
@@ -45,6 +50,13 @@ export default async function Page() {
     filteredResults[key] = (filteredModules[key] as any).name
   }
 
+  // Get multi-pattern results (modules + other)
+  const multiKeys = Object.keys(multiModules).sort()
+  const multiResults: Record<string, string> = {}
+  for (const key of multiKeys) {
+    multiResults[key] = (multiModules[key] as any).name
+  }
+
   return (
     <div>
       <div id="lazy-keys">{JSON.stringify(lazyKeys)}</div>
@@ -54,6 +66,8 @@ export default async function Page() {
       <div id="default-results">{JSON.stringify(defaultResults)}</div>
       <div id="filtered-keys">{JSON.stringify(filteredKeys)}</div>
       <div id="filtered-results">{JSON.stringify(filteredResults)}</div>
+      <div id="multi-keys">{JSON.stringify(multiKeys)}</div>
+      <div id="multi-results">{JSON.stringify(multiResults)}</div>
     </div>
   )
 }

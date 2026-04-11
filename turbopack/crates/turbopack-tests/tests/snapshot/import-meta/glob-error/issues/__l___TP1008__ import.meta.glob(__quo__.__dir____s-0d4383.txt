@@ -1,0 +1,13 @@
+error - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/import-meta/glob-error/input/index.js:5:22  TP1008 import.meta.glob("./dir/*.js", {"eager": FreeVar(someVar)}) is not statically analyze-able: import.meta.glob() 'eager' option must be a constant boolean (true or false)
+  
+       1 | // Error: 'as' option is not supported
+       2 | const withAs = import.meta.glob('./dir/*.js', { as: 'raw' })
+       3 | 
+       4 | // Error: non-constant eager
+         +                       v------------------------------------------------v
+       5 + const nonConstEager = import.meta.glob('./dir/*.js', { eager: someVar })
+         +                       ^------------------------------------------------^
+       6 | 
+       7 | // Error: unknown option
+       8 | const unknown = import.meta.glob('./dir/*.js', { exhaust: true })
+       9 |

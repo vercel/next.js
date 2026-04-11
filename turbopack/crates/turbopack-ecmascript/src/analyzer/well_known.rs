@@ -639,7 +639,9 @@ async fn well_known_object_member(
             Some("turbopackHot") if compile_time_info.await?.hot_module_replacement_enabled => {
                 JsValue::WellKnownObject(WellKnownObjectKind::ModuleHot)
             }
-            // import.meta.glob is the Vite-compatible glob import
+            // import.meta.glob is the Vite-compatible glob import.
+            // Note: import.meta.globEager() (removed in Vite 3) is intentionally
+            // not supported. Users should migrate to import.meta.glob('...', { eager: true }).
             Some("glob") => JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
             _ => {
                 return Ok((
