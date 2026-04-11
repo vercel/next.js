@@ -13,14 +13,14 @@ related:
     - app/guides/ci-build-caching
 ---
 
-Run `next build` to compile your app for production: optimized bundles, prerendered pages, and a route table that shows how each URL is served (fully static, partial prerender with streaming, or on demand).
+Run `next build` to compile your app for production: optimized bundles, prerendered pages, and a route table that shows how each URL is served (fully static, partial prerender with streaming, dynamic on demand, or a combination).
 
 ## What `next build` does
 
 `next build` runs in these phases:
 
 1. **Setup.** Loads [environment variables](/docs/app/guides/environment-variables) (`.env` files), validates your [`next.config`](/docs/app/api-reference/config/next-config-js), and generates a [build ID](/docs/app/api-reference/config/next-config-js/generateBuildId).
-2. **Route discovery.** Scans `app/` and `pages/` for routes, proxy, and [instrumentation](/docs/app/api-reference/file-conventions/instrumentation) hooks. Generates TypeScript route definitions.
+2. **Route discovery.** Scans `app/` and `pages/` directories for routes, proxy, and [instrumentation](/docs/app/api-reference/file-conventions/instrumentation) hooks. Generates TypeScript route definitions.
 3. **Compilation.** Bundles client, server, and edge code with [Turbopack](/docs/app/api-reference/turbopack) (or webpack). Transpiles TypeScript and JSX, tree-shakes unused code, and optimizes CSS and fonts. Type checking runs in parallel.
 4. **Static analysis.** Classifies each route for prerendering versus on-demand rendering. Collects [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) output. Checks for [prerender-blocking errors](/docs/messages/blocking-route).
 5. **Prerendering.** Prerenders static pages and PPR shells to HTML. Generates [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation.
@@ -30,7 +30,7 @@ Run `next build` to compile your app for production: optimized bundles, prerende
 
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), Next.js prerenders as much of each route as it can at build time. Request-time data (`params`, `searchParams`, `cookies()`, `headers()`, and similar) is not available during that pass. Wrap that work in [`<Suspense>`](/docs/app/guides/streaming) or [`'use cache'`](/docs/app/api-reference/directives/use-cache), or the build fails with a [prerender-blocking error](/docs/messages/blocking-route).
 
-After a successful build, the route table puts a **symbol on each main route row**. When you use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), the dynamic segment gets one labeled row, and each prerendered URL appears indented underneath that row. The legend at the bottom lists only symbols that appeared in the tree.
+After a successful build, the route table puts a **symbol on each route row** indicating how it is served. When you use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), the dynamic segment gets one labeled row, and each prerendered URL appears indented underneath it. The legend at the bottom lists only symbols that appeared in the tree.
 
 | Symbol | Name              | Behavior                                                                   |
 | ------ | ----------------- | -------------------------------------------------------------------------- |
@@ -39,9 +39,9 @@ After a successful build, the route table puts a **symbol on each main route row
 | `●`    | SSG               | Prerendered static HTML (from `generateStaticParams` or `getStaticProps`). |
 | `ƒ`    | Dynamic           | Server-rendered on demand for every request.                               |
 
-With Cache Components, App Router `page` routes show `○` or `◐`. You still see `ƒ` for API routes, [Proxy](/docs/app/api-reference/file-conventions/proxy) routes, dynamic [metadata](/docs/app/api-reference/functions/generate-metadata) (such as `icon` or `opengraph-image`), and other handlers that render on every request. Without Cache Components, or on the Pages Router, prerendered pages can show `●` (SSG) and on-demand pages can show `ƒ` (Dynamic).
+With Cache Components, App Router `page` routes show `○` or `◐`. You still see `ƒ` for API routes, [Proxy (Middleware)](/docs/app/api-reference/file-conventions/proxy) routes, dynamic [metadata](/docs/app/api-reference/functions/generate-metadata) (such as `icon` or `opengraph-image`), and other handlers that render on every request. Without Cache Components, or on the Pages Router, prerendered pages can show `●` (SSG) and on-demand pages can show `ƒ` (Dynamic).
 
-[Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model with Cache Components. The example below walks through a dynamic segment and shows how its prerendered URLs appear in the route table.
+[Partial Prerendering](/docs/app/getting-started/caching#how-rendering-works) is the default rendering model with Cache Components.
 
 ## Example
 
@@ -116,7 +116,7 @@ Route (app)
 ○  (Static)  prerendered as static content
 ```
 
-The `○` on `├ ○ /products/[id]` means that whole route is **static prerender** (see the legend). The indented lines name each concrete URL Next.js built for the ids you returned from `generateStaticParams`, such as `/products/1`, `/products/2`, and `/products/3`.
+The `○` on `├ ○ /products/[id]` means that route is **Static** (see the legend). The indented lines name each concrete URL Next.js built for the ids you returned from `generateStaticParams`, such as `/products/1`, `/products/2`, and `/products/3`.
 
 When there are more paths than fit in the preview, Next.js prints a short list and ends with `[+N more paths]`.
 
