@@ -183,8 +183,8 @@ export function getDefineEnv({
       ? false
       : isUseNodeStreamsEnabled,
 
-    'process.env.NEXT_IMMUTABLE_ASSET_TOKEN':
-      config.experimental.immutableAssetToken || '',
+    'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
+      config.experimental.supportsImmutableAssets || false,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
@@ -246,6 +246,7 @@ export function getDefineEnv({
       config.experimental.dynamicOnHover
     ),
     'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
+    'process.env.__NEXT_UNSTABLE_IO': Boolean(config.experimental.unstableIO),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
       config.experimental.prefetchInlining
     ),

@@ -1,6 +1,7 @@
 use std::{collections::BTreeSet, str::FromStr};
 
 use anyhow::Result;
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
@@ -10,7 +11,7 @@ use turbopack::module_options::{
     WebpackLoaderBuiltinConditionSet, WebpackLoaderBuiltinConditionSetMatch, WebpackLoadersOptions,
 };
 use turbopack_core::{
-    issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueSeverity, IssueStage, StyledString},
     resolve::{ExternalTraced, ExternalType, options::ImportMapping},
 };
 
@@ -184,54 +185,47 @@ pub struct ManuallyConfiguredBuiltinLoaderIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ManuallyConfiguredBuiltinLoaderIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.config_file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Identified a likely manual configuration of ")),
             StyledString::Code(self.loader.clone()),
             StyledString::Text(rcstr!(" for paths matching ")),
             StyledString::Code(self.glob.clone()),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Text(rcstr!(
-                    "Next.js includes a built-in version of this loader that is configured \
-                     automatically. You may not need to configure this."
-                )),
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("You can silence this warning by setting ")),
-                    StyledString::Code(self.config_key.clone()),
-                    StyledString::Text(rcstr!(" in ")),
-                    StyledString::Text(self.config_file_path.path.clone()),
-                    StyledString::Text(rcstr!(" to ")),
-                    StyledString::Code(rcstr!("true")),
-                    StyledString::Text(rcstr!(" (to silence this warning) or ")),
-                    StyledString::Code(rcstr!("false")),
-                    StyledString::Text(rcstr!(" (to disable the default built-in loader)")),
-                ]),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(rcstr!(
+                "Next.js includes a built-in version of this loader that is configured \
+                 automatically. You may not need to configure this."
+            )),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("You can silence this warning by setting ")),
+                StyledString::Code(self.config_key.clone()),
+                StyledString::Text(rcstr!(" in ")),
+                StyledString::Text(self.config_file_path.path.clone()),
+                StyledString::Text(rcstr!(" to ")),
+                StyledString::Code(rcstr!("true")),
+                StyledString::Text(rcstr!(" (to silence this warning) or ")),
+                StyledString::Code(rcstr!("false")),
+                StyledString::Text(rcstr!(" (to disable the default built-in loader)")),
+            ]),
+        ])))
     }
 }

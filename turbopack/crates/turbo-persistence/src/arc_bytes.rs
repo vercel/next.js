@@ -26,6 +26,9 @@ enum Backing {
 #[derive(Clone)]
 pub struct ArcBytes {
     data: *const [u8],
+    // Safety: Backing should come last so that it is dropped after the data pointer so we don't
+    // create a dangling pointer.  This isn't really a problem since it is technically ok to have
+    // dangling _pointers_.
     backing: Backing,
 }
 
@@ -85,6 +88,17 @@ impl ArcBytes {
     /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
     pub fn is_mmap_backed(&self) -> bool {
         matches!(self.backing, Backing::Mmap { .. })
+    }
+
+    /// Returns `true` if the backing `Arc` allocation is shared (i.e., there
+    /// are other `Arc` clones referencing the same data outside the cache).
+    /// Always returns `false` for mmap-backed bytes, since the mmap `Arc` is
+    /// shared across all slices from the same file and is not a useful signal.
+    pub fn is_shared_arc(&self) -> bool {
+        match &self.backing {
+            Backing::Arc { _backing } => Arc::strong_count(_backing) > 1,
+            Backing::Mmap { .. } => false,
+        }
     }
 }
 

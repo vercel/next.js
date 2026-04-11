@@ -1,6 +1,7 @@
 use std::sync::{Arc, RwLock};
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use lightningcss::{
     css_modules::{CssModuleExport, Pattern, Segment},
     stylesheet::{MinifyOptions, ParserOptions, PrinterOptions, StyleSheet, ToCssResult},
@@ -23,8 +24,8 @@ use turbopack_core::{
     chunk::{ChunkingContext, MinifyType},
     environment::Environment,
     issue::{
-        AdditionalIssueSources, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
-        OptionIssueSource, OptionStyledString, StyledString,
+        AdditionalIssueSource, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
+        StyledString,
     },
     reference::ModuleReferences,
     reference_type::ImportContext,
@@ -756,50 +757,42 @@ struct ParsingIssue {
     source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ParsingIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        self.stage.clone().cell()
+    fn stage(&self) -> IssueStage {
+        self.stage.clone()
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(match self.stage {
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(match self.stage {
             IssueStage::Parse => rcstr!("Parsing CSS source code failed"),
             IssueStage::Transform => rcstr!("Transforming CSS failed"),
             _ => rcstr!("CSS processing failed"),
-        })
-        .cell()
+        }))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(self.msg.clone()).resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.msg.clone())))
     }
 
-    #[turbo_tasks::function]
-    async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
-        if let Some(source) = self.source.to_generated_code_source().await? {
-            return Ok(Vc::cell(vec![source]));
+    async fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
+        if let Some(additional) = self.source.to_generated_code_source().await? {
+            return Ok(vec![additional]);
         }
-        Ok(AdditionalIssueSources::empty())
+        Ok(vec![])
     }
 }
 

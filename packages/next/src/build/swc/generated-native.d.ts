@@ -491,6 +491,9 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectGetAllCompilationIssues(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 /**
  * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
  *

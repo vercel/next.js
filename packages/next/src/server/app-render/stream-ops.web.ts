@@ -20,7 +20,6 @@ import {
   continueStaticFallbackPrerender as webContinueStaticFallbackPrerender,
   continueDynamicHTMLResume as webContinueDynamicHTMLResume,
   streamToBuffer as webStreamToBuffer,
-  streamToUint8Array as webStreamToUint8Array,
   chainStreams as webChainStreams,
   createDocumentClosingStream as webCreateDocumentClosingStream,
 } from '../stream-utils/node-web-streams-helper'
@@ -159,12 +158,6 @@ export async function streamToBuffer(stream: AnyStream): Promise<Buffer> {
   return webStreamToBuffer(stream as ReadableStream<Uint8Array>)
 }
 
-export async function streamToUint8Array(
-  stream: AnyStream
-): Promise<Uint8Array> {
-  return webStreamToUint8Array(stream as ReadableStream<Uint8Array>)
-}
-
 export function chainStreams(...streams: AnyStream[]): AnyStream {
   return webChainStreams(...(streams as ReadableStream<Uint8Array>[]))
 }
@@ -183,7 +176,7 @@ export async function processPrelude(
 // Composed helpers
 // ---------------------------------------------------------------------------
 
-export function createInlinedDataStream(
+export function createWebInlinedDataStream(
   source: AnyStream,
   nonce: string | undefined,
   formState: unknown | null
@@ -193,6 +186,14 @@ export function createInlinedDataStream(
     nonce,
     formState
   )
+}
+
+export function createNodeInlinedDataStream(
+  _source: AnyStream,
+  _nonce: string | undefined,
+  _formState: unknown | null
+): AnyStream {
+  throw new Error('not implemented')
 }
 
 export function createPendingStream(): AnyStream {
@@ -221,7 +222,16 @@ export async function resumeAndAbort(
   )
 }
 
-export function renderToFlightStream(
+export function renderToNodeFlightStream(
+  _ComponentMod: FlightComponentMod,
+  _payload: FlightPayload,
+  _clientModules: FlightClientModules,
+  _opts: FlightRenderOptions
+): AnyStream {
+  throw new Error('not implemented')
+}
+
+export function renderToWebFlightStream(
   ComponentMod: FlightComponentMod,
   payload: FlightPayload,
   clientModules: FlightClientModules,
@@ -234,7 +244,7 @@ export async function streamToString(stream: AnyStream): Promise<string> {
   return webStreamToString(stream as ReadableStream<Uint8Array>)
 }
 
-export async function renderToFizzStream(
+export async function renderToWebFizzStream(
   element: React.ReactElement,
   streamOptions: any
 ): Promise<FizzStreamResult> {
@@ -244,6 +254,13 @@ export async function renderToFizzStream(
     streamOptions,
   })
   return { stream, allReady: stream.allReady, abort: undefined }
+}
+
+export async function renderToNodeFizzStream(
+  _element: React.ReactElement,
+  _streamOptions: any
+): Promise<FizzStreamResult> {
+  throw new Error('Not implemented')
 }
 
 export async function resumeToFizzStream(
