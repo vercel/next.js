@@ -243,8 +243,8 @@ Route (app)
 ┌ ○ /
 ├ ○ /_not-found
 └   /products/[id]
-  ├ ● /products/1
-  └ ● /products/2
+  ├ ● /products/1       # Prerendered via generateStaticParams
+  └ ● /products/2       # Prerendered via generateStaticParams
 
 ○  (Static)  prerendered as static content
 ●  (SSG)     prerendered as static HTML (uses generateStaticParams)
@@ -257,9 +257,9 @@ Route (app)
 ┌ ○ /
 ├ ○ /_not-found
 └   /products/[id]
-  ├ ◐ /products/[id]
-  ├ ○ /products/1
-  └ ○ /products/2
+  ├ ◐ /products/[id]    # Shell for unlisted params
+  ├ ○ /products/1       # Fully prerendered
+  └ ○ /products/2       # Fully prerendered
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
