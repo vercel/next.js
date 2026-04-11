@@ -1478,12 +1478,24 @@ describe('app-dir action handling', () => {
     })
 
     it('should refresh cookie-based rewrites when cookies.set is called', async () => {
-      const browser = await next.browser('/rewrite-via-cookie')
+      const rewriteRequests = []
+      const browser = await next.browser('/rewrite-via-cookie', {
+        beforePageLoad(page) {
+          page.on('request', (request) => {
+            const url = new URL(request.url())
+
+            if (url.pathname === '/rewrite-via-cookie') {
+              rewriteRequests.push(request.method())
+            }
+          })
+        },
+      })
 
       expect(await browser.elementByCss('#signed-out').text()).toBe(
         'Click to sign in'
       )
 
+      rewriteRequests.length = 0
       await browser.elementByCss('#log-in').click()
 
       await retry(async () => {
@@ -1495,6 +1507,8 @@ describe('app-dir action handling', () => {
           'You are logged in!'
         )
       })
+
+      expect(rewriteRequests).toEqual(['POST'])
     })
 
     // TODO: investigate flakey behavior with revalidate
