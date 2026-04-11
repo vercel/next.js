@@ -1,7 +1,7 @@
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
 import {
+  expectOutputExportDevCollapsedRedbox,
   expectOutputExportDevRedbox,
   startOutputExportDevServer,
 } from './utils'
@@ -19,40 +19,6 @@ if (skipped) {
   const describeDevelopment = isNextDev ? describe : describe.skip
   const describeProduction = isNextDev ? describe.skip : describe
 
-  async function expectSyncIOOutputExportDevError({
-    path,
-    expectedMessage,
-    expectedSource,
-  }: {
-    path: string
-    expectedMessage: string
-    expectedSource: string
-  }) {
-    const outputIndex = next.cliOutput.length
-    const browser = await next.browser(path)
-
-    try {
-      await retry(async () => {
-        const logs = await browser.log()
-
-        expect(
-          logs.some(
-            (log) =>
-              log.message.includes(expectedMessage) &&
-              log.message.includes(expectedSource)
-          )
-        ).toBe(true)
-      })
-
-      const cliOutput = next.cliOutput.slice(outputIndex)
-
-      expect(cliOutput).toContain(expectedMessage)
-      expect(cliOutput).toContain(expectedSource)
-    } finally {
-      await browser.close()
-    }
-  }
-
   describeDevelopment('app dir - output export server io', () => {
     let port: number
 
@@ -65,7 +31,8 @@ if (skipped) {
     })
 
     it('shows a redbox when Date.now() is read outside use cache', async () => {
-      await expectSyncIOOutputExportDevError({
+      await expectOutputExportDevCollapsedRedbox({
+        port,
         path: '/needs-time',
         expectedMessage:
           'used `Date.now()` before accessing either uncached data',
@@ -74,7 +41,8 @@ if (skipped) {
     })
 
     it('shows a redbox when Math.random() is read outside use cache', async () => {
-      await expectSyncIOOutputExportDevError({
+      await expectOutputExportDevCollapsedRedbox({
+        port,
         path: '/needs-random',
         expectedMessage:
           'used `Math.random()` before accessing either uncached data',
@@ -83,7 +51,8 @@ if (skipped) {
     })
 
     it('shows a redbox when crypto.randomUUID() is read outside use cache', async () => {
-      await expectSyncIOOutputExportDevError({
+      await expectOutputExportDevCollapsedRedbox({
+        port,
         path: '/needs-crypto',
         expectedMessage:
           'used `crypto.randomUUID()` before accessing either uncached data',
