@@ -13,6 +13,21 @@ function buildExtensionsRegex(extensions: string[]) {
 }
 
 /**
+ * Strip only the matched file extension from a filename.
+ * Unlike /\..+$/ which is greedy, this only removes the actual extension
+ * (e.g., 'my.component.tsx' → 'my.component', not 'my').
+ */
+function stripExtension(filename: string, extensions: string[]): string {
+  for (const ext of extensions) {
+    if (filename.endsWith('.' + ext)) {
+      return filename.slice(0, -(ext.length + 1))
+    }
+  }
+  // Fallback: strip last extension
+  return filename.replace(/\.[^.]+$/, '')
+}
+
+/**
  * Recursively parse directory for page URLs.
  */
 function parseUrlForPages(urlprefix: string, directory: string, extensions: string[] = DEFAULT_EXTENSIONS) {
@@ -23,12 +38,11 @@ function parseUrlForPages(urlprefix: string, directory: string, extensions: stri
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extRegex.test(dirent.name)) {
-      if (/^index\./.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index\..+$/, '')}`
-        )
+      const stripped = stripExtension(dirent.name, extensions)
+      if (stripped === 'index') {
+        res.push(`${urlprefix}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/\..+$/, '')}`)
+      res.push(`${urlprefix}${stripped}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
@@ -50,10 +64,11 @@ function parseUrlForAppDir(urlprefix: string, directory: string, extensions: str
   const res = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extRegex.test(dirent.name)) {
-      if (/^page\./.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page\..+$/, '')}`)
-      } else if (!/^layout\./.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/\..+$/, '')}`)
+      const stripped = stripExtension(dirent.name, extensions)
+      if (stripped === 'page') {
+        res.push(`${urlprefix}`)
+      } else if (stripped !== 'layout') {
+        res.push(`${urlprefix}${stripped}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
