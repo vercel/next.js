@@ -8,16 +8,16 @@ use turbopack_core::{
     chunk::AssetSuffix,
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
-    environment::{ChunkLoading, Environment},
+    environment::ChunkLoading,
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
+use crate::{RuntimeType, embed_js::embed_static_code};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
-    environment: ResolvedVc<Environment>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunk_base_path: Vc<Option<RcStr>>,
     asset_suffix: Vc<AssetSuffix>,
     worker_forwarded_globals: Vc<Vec<RcStr>>,
@@ -26,9 +26,8 @@ pub async fn get_browser_runtime_code(
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
 ) -> Result<Vc<Code>> {
-    let asset_context = *get_runtime_asset_context(*environment)
-        .to_resolved()
-        .await?;
+    let asset_context = *asset_context;
+    let environment = asset_context.compile_time_info().environment();
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,

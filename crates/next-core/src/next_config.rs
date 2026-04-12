@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashSet;
@@ -23,8 +24,7 @@ use turbopack::module_options::{
 use turbopack_core::{
     chunk::SourceMapsType,
     issue::{
-        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage,
-        OptionStyledString, StyledString,
+        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
     resolve::ResolveAliasMap,
 };
@@ -1186,6 +1186,11 @@ pub struct ExperimentalConfig {
     /// present.
     #[serde(default)]
     turbopack_use_builtin_babel: Option<bool>,
+    /// Enable per-directory PostCSS config resolution. When true, Turbopack
+    /// searches for postcss.config.js starting from the CSS file's parent
+    /// directory first, then falls back to the project root.
+    #[serde(default)]
+    turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1489,40 +1494,32 @@ struct InvalidLoaderRuleRenameAsIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleRenameAsIssue {
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.config_file_path.clone().cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(
-            StyledString::Text(format!("Invalid loader rule for extension: {}", self.glob).into())
-                .cell(),
-        )
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!("Invalid loader rule for extension: {}", self.glob).into(),
+        ))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(RcStr::from(format!(
-                "The extension {} contains a wildcard, but the `as` option does not: {}",
-                self.glob, self.rename_as,
-            )))
-            .resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(RcStr::from(format!(
+            "The extension {} contains a wildcard, but the `as` option does not: {}",
+            self.glob, self.rename_as,
+        )))))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(turbopack_config_documentation_link())
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
     }
 }
 
@@ -1533,41 +1530,36 @@ struct InvalidLoaderRuleConditionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleConditionIssue {
-    #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.config_file_path.clone().cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(rcstr!("Invalid condition for Turbopack loader rule")).cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Encountered the following error: ")),
-                    StyledString::Code(self.error_string.clone()),
-                ]),
-                StyledString::Text(rcstr!("While processing the condition:")),
-                StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
-            ])
-            .resolved_cell(),
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Invalid condition for Turbopack loader rule"
         )))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(turbopack_config_documentation_link())
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Encountered the following error: ")),
+                StyledString::Code(self.error_string.clone()),
+            ]),
+            StyledString::Text(rcstr!("While processing the condition:")),
+            StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
     }
 }
 
@@ -1913,6 +1905,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_sass(&self) -> Vc<Option<bool>> {
         Vc::cell(self.experimental.turbopack_use_builtin_sass)
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_turbopack_local_postcss_config(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_local_postcss_config)
     }
 
     #[turbo_tasks::function]

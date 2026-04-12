@@ -446,13 +446,21 @@ pub async fn get_server_module_options_context(
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
+    let local_postcss_config = *next_config
+        .experimental_turbopack_local_postcss_config()
+        .await?;
+    let postcss_config_location = if local_postcss_config == Some(true) {
+        PostCssConfigLocation::LocalPathOrProjectPath
+    } else {
+        PostCssConfigLocation::ProjectPathOrLocalPath
+    };
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
             get_postcss_package_mapping(project_path.clone())
                 .to_resolved()
                 .await?,
         ),
-        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
+        config_location: postcss_config_location,
         ..Default::default()
     };
     let postcss_foreign_transform_options = PostCssTransformOptions {
