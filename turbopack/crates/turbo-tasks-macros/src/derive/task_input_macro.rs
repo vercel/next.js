@@ -1,8 +1,42 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, parse_macro_input, spanned::Spanned};
+use syn::{
+    Data, DeriveInput, GenericArgument, PathArguments, Type, parse_macro_input, spanned::Spanned,
+};
 
 use crate::expand::{generate_exhaustive_destructuring, match_expansion};
+
+/// Returns `true` if the given type syntactically contains a bare `Vc<…>` path segment.
+///
+/// This is used to compute `NEEDS_RESOLVE` in the derive macro without a const-eval expression
+/// that could form a cycle for self-referential types (e.g. a recursive enum with `Box<Self>`).
+fn type_contains_vc(ty: &Type) -> bool {
+    match ty {
+        Type::Path(type_path) => {
+            for segment in &type_path.path.segments {
+                if segment.ident == "Vc" {
+                    return true;
+                }
+                if let PathArguments::AngleBracketed(args) = &segment.arguments {
+                    for arg in &args.args {
+                        if let GenericArgument::Type(inner) = arg {
+                            if type_contains_vc(inner) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            false
+        }
+        Type::Tuple(tuple) => tuple.elems.iter().any(type_contains_vc),
+        Type::Slice(slice) => type_contains_vc(&slice.elem),
+        Type::Array(array) => type_contains_vc(&array.elem),
+        Type::Reference(reference) => type_contains_vc(&reference.elem),
+        Type::Paren(paren) => type_contains_vc(&paren.elem),
+        _ => false,
+    }
+}
 
 pub fn derive_task_input(input: TokenStream) -> TokenStream {
     let derive_input = parse_macro_input!(input as DeriveInput);
@@ -149,6 +183,26 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    // Compute NEEDS_RESOLVE at macro-expansion time by checking whether any field type
+    // syntactically contains a `Vc<…>` path segment.
+    let any_field_needs_resolve = {
+        let all_fields: Vec<_> = match &derive_input.data {
+            Data::Struct(s) => s.fields.iter().map(|f| &f.ty).collect(),
+            Data::Enum(e) => e
+                .variants
+                .iter()
+                .flat_map(|v| v.fields.iter().map(|f| &f.ty))
+                .collect(),
+            _ => vec![],
+        };
+        all_fields.iter().any(|ty| type_contains_vc(ty))
+    };
+    let needs_resolve_impl = if any_field_needs_resolve {
+        quote! { true }
+    } else {
+        quote! { false }
+    };
+
     quote! {
         #[automatically_derived]
         #[turbo_tasks::macro_helpers::async_trait]
@@ -156,6 +210,8 @@ pub fn derive_task_input(input: TokenStream) -> TokenStream {
         where
             #(#generic_params: turbo_tasks::TaskInput,)*
         {
+            const NEEDS_RESOLVE: bool = #needs_resolve_impl;
+
             #[allow(non_snake_case)]
             #[allow(unreachable_code)] // This can occur for enums with no variants.
             fn is_resolved(&self) -> bool {

@@ -83,6 +83,18 @@ use crate::{
 pub trait TaskInput:
     Send + Sync + Clone + Debug + PartialEq + Eq + Hash + TraceRawVcs + Encode + Decode<()>
 {
+    /// `true` if this type may contain unresolved [`Vc`]s that require async resolution before a
+    /// task call can proceed.
+    ///
+    /// When `false`, [`crate::native_function::ArgMeta`] will skip generating the full async
+    /// resolve future and use a cheaper clone-only path. This is a compile-time constant, so the
+    /// compiler can dead-code-eliminate the async state machine for argument types that contain no
+    /// `Vc` values.
+    ///
+    /// The default is `false`. Only [`Vc<T>`][Vc] overrides this to `true`. Compound types (e.g.
+    /// `Vec<T>`, tuples, derived types) should OR their fields' `NEEDS_RESOLVE` values.
+    const NEEDS_RESOLVE: bool = false;
+
     /// This method should resolve any [`Vc`]s nested inside of this object, cloning the object in
     /// the process. If the input is unresolved ([`TaskInput::is_resolved`]) a "local" resolution
     /// task is created that runs this method.
@@ -150,6 +162,8 @@ impl<T> TaskInput for Vec<T>
 where
     T: TaskInput,
 {
+    const NEEDS_RESOLVE: bool = T::NEEDS_RESOLVE;
+
     fn is_resolved(&self) -> bool {
         self.iter().all(TaskInput::is_resolved)
     }
@@ -171,6 +185,8 @@ impl<T> TaskInput for Box<T>
 where
     T: TaskInput,
 {
+    const NEEDS_RESOLVE: bool = T::NEEDS_RESOLVE;
+
     fn is_resolved(&self) -> bool {
         self.as_ref().is_resolved()
     }
@@ -188,6 +204,8 @@ impl<T> TaskInput for Arc<T>
 where
     T: TaskInput,
 {
+    const NEEDS_RESOLVE: bool = T::NEEDS_RESOLVE;
+
     fn is_resolved(&self) -> bool {
         self.as_ref().is_resolved()
     }
@@ -205,6 +223,8 @@ impl<T> TaskInput for ReadRef<T>
 where
     T: TaskInput,
 {
+    const NEEDS_RESOLVE: bool = T::NEEDS_RESOLVE;
+
     fn is_resolved(&self) -> bool {
         Self::as_raw_ref(self).is_resolved()
     }
@@ -224,6 +244,8 @@ impl<T> TaskInput for Option<T>
 where
     T: TaskInput,
 {
+    const NEEDS_RESOLVE: bool = T::NEEDS_RESOLVE;
+
     fn is_resolved(&self) -> bool {
         match self {
             Some(value) => value.is_resolved(),
@@ -250,6 +272,8 @@ impl<T> TaskInput for Vc<T>
 where
     T: Send + Sync + ?Sized,
 {
+    const NEEDS_RESOLVE: bool = true;
+
     fn is_resolved(&self) -> bool {
         Vc::is_resolved(*self)
     }
@@ -329,6 +353,8 @@ where
     K: TaskInput + Ord,
     V: TaskInput,
 {
+    const NEEDS_RESOLVE: bool = K::NEEDS_RESOLVE || V::NEEDS_RESOLVE;
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_map = BTreeMap::new();
         for (k, v) in self {
@@ -355,6 +381,8 @@ impl<T> TaskInput for BTreeSet<T>
 where
     T: TaskInput + Ord,
 {
+    const NEEDS_RESOLVE: bool = T::NEEDS_RESOLVE;
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_set = BTreeSet::new();
         for value in self {
@@ -377,6 +405,8 @@ where
     K: TaskInput + Ord + 'static,
     V: TaskInput + 'static,
 {
+    const NEEDS_RESOLVE: bool = K::NEEDS_RESOLVE || V::NEEDS_RESOLVE;
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_entries = Vec::with_capacity(self.len());
         for (k, v) in self {
@@ -404,6 +434,8 @@ impl<T> TaskInput for FrozenSet<T>
 where
     T: TaskInput + Ord + 'static,
 {
+    const NEEDS_RESOLVE: bool = T::NEEDS_RESOLVE;
+
     async fn resolve_input(&self) -> Result<Self> {
         let mut new_set = Vec::with_capacity(self.len());
         for value in self {
@@ -465,6 +497,8 @@ where
     L: TaskInput,
     R: TaskInput,
 {
+    const NEEDS_RESOLVE: bool = L::NEEDS_RESOLVE || R::NEEDS_RESOLVE;
+
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         self.as_ref().map_either(
             |l| async move { anyhow::Ok(Self(Either::Left(l.resolve_input().await?))) },
@@ -488,6 +522,8 @@ macro_rules! tuple_impls {
         impl<$($name: TaskInput),+> TaskInput for ($($name,)+)
         where $($name: TaskInput),+
         {
+            const NEEDS_RESOLVE: bool = $($name::NEEDS_RESOLVE ||)+ false;
+
             #[allow(non_snake_case)]
             fn is_resolved(&self) -> bool {
                 let ($($name,)+) = self;
