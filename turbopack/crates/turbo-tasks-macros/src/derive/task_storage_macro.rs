@@ -537,6 +537,38 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         }
     };
 
+    // Validate that shrink_on_completion and drop_on_completion_if_immutable are only used on
+    // collection types (auto_set, auto_map, counter_map) for inline fields.
+    // Lazy non-collection fields can still use drop_on_completion_if_immutable (removes from the
+    // lazy vec), but shrink_on_completion is meaningless for non-collection types.
+    let is_collection = matches!(
+        storage_type,
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+    );
+    if !is_collection {
+        if shrink_on_completion {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`shrink_on_completion` on field `{field_name}` has no effect: only \
+                     collection types (auto_set, auto_map, counter_map) support shrinking"
+                ))
+                .emit();
+        }
+        if inline && drop_on_completion_if_immutable {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`drop_on_completion_if_immutable` on inline field `{field_name}` has no \
+                     effect: only inline collection types (auto_set, auto_map, counter_map) \
+                     support dropping"
+                ))
+                .emit();
+        }
+    }
+
     FieldInfo {
         is_pub,
         field_name,
