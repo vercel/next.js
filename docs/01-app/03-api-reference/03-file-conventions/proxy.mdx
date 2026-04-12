@@ -19,7 +19,6 @@ Proxy executes before routes are rendered. It's particularly useful for implemen
 > Proxy runs separately from your application code. Do not rely on shared state like globals or in-memory caches.
 >
 > Pass data explicitly using [headers](#setting-headers), [cookies](#using-cookies), [rewrites](/docs/app/api-reference/functions/next-response#rewrite), [redirects](/docs/app/api-reference/functions/next-response#redirect), or the URL.
->
 
 Create a `proxy.ts` (or `.js`) file in the project root, or inside `src` if applicable, so that it is located at the same level as `pages` or `app`.
 
