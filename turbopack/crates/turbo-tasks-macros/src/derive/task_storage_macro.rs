@@ -2442,25 +2442,38 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 /// 4. For fields with `shrink_on_completion`: shrink or remove if empty
 /// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
 fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
-    // Generate shrink calls for inline collection fields with shrink_on_completion
-    let mut inline_shrinks = Vec::new();
+    // Generate cleanup calls for inline collection fields
+    let mut inline_cleanups = Vec::new();
     for field in grouped_fields.all_inline() {
         if field.is_flag() {
             continue;
         }
-        if !field.shrink_on_completion {
+        let shrink = field.shrink_on_completion;
+        let drop_if_immutable = field.drop_on_completion_if_immutable;
+        if !shrink && !drop_if_immutable {
             continue;
         }
-        // Only collection types can be shrunk
+        // Only collection types can be shrunk/dropped
         let is_collection = matches!(
             field.storage_type,
             StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
         );
         if is_collection {
             let field_name = &field.field_name;
-            inline_shrinks.push(quote! {
-                typed.#field_name.shrink_to_fit();
-            });
+            let cleanup = match (shrink, drop_if_immutable) {
+                (_, true) => quote! {
+                    if is_immutable {
+                        typed.#field_name = Default::default();
+                    } else {
+                        typed.#field_name.shrink_to_fit();
+                    }
+                },
+                (true, false) => quote! {
+                    typed.#field_name.shrink_to_fit();
+                },
+                (false, false) => unreachable!(),
+            };
+            inline_cleanups.push(cleanup);
         }
     }
 
@@ -2551,8 +2564,8 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             let typed = self.typed_mut();
             let is_immutable = typed.flags.immutable();
 
-            // Shrink inline collection fields (always present, not in lazy vec)
-            #(#inline_shrinks)*
+            // Clean up inline collection fields (always present, not in lazy vec)
+            #(#inline_cleanups)*
 
             // swap_retain pattern: iterate with manual index, swap_remove to delete
             let mut i = 0;
