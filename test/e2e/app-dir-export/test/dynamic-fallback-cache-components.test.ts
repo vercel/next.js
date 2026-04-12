@@ -423,7 +423,6 @@ if (skipped) {
             expect(await browser.elementByCss('h1').text()).toBe('first')
           })
 
-          await act(async () => {})
           clearRequests()
 
           await act(async () => {
