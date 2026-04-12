@@ -333,102 +333,6 @@ describe('tsconfig.json verifier', () => {
     }
   })
 
-  it('allows you to set commonjs module mode', async () => {
-    expect(existsSync(tsConfig())).toBe(false)
-
-    await writeFile(
-      tsConfig(),
-      `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
-    )
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(exitCode).toBe(0)
-
-    if (strictRouteTypes) {
-      expect(await readFile(tsConfig(), 'utf8')).toMatchInlineSnapshot(`
-         "{
-           "compilerOptions": {
-             "esModuleInterop": true,
-             "module": "commonjs",
-             "target": "ES2017",
-             "lib": [
-               "dom",
-               "dom.iterable",
-               "esnext"
-             ],
-             "allowJs": true,
-             "skipLibCheck": true,
-             "strict": false,
-             "noEmit": true,
-             "incremental": true,
-             "moduleResolution": "node",
-             "resolveJsonModule": true,
-             "isolatedModules": true,
-             "jsx": "react-jsx",
-             "plugins": [
-               {
-                 "name": "next"
-               }
-             ],
-             "strictNullChecks": true
-           },
-           "include": [
-             "next-env.d.ts",
-             "**/*.mts",
-             "**/*.ts",
-             "**/*.tsx"
-           ],
-           "exclude": [
-             "node_modules"
-           ]
-         }
-         "
-        `)
-    } else {
-      expect(await readFile(tsConfig(), 'utf8')).toMatchInlineSnapshot(`
-         "{
-           "compilerOptions": {
-             "esModuleInterop": true,
-             "module": "commonjs",
-             "target": "ES2017",
-             "lib": [
-               "dom",
-               "dom.iterable",
-               "esnext"
-             ],
-             "allowJs": true,
-             "skipLibCheck": true,
-             "strict": false,
-             "noEmit": true,
-             "incremental": true,
-             "moduleResolution": "node",
-             "resolveJsonModule": true,
-             "isolatedModules": true,
-             "jsx": "react-jsx",
-             "plugins": [
-               {
-                 "name": "next"
-               }
-             ],
-             "strictNullChecks": true
-           },
-           "include": [
-             "next-env.d.ts",
-             ".next/types/**/*.ts",
-             ".next/dev/types/**/*.ts",
-             "**/*.mts",
-             "**/*.ts",
-             "**/*.tsx"
-           ],
-           "exclude": [
-             "node_modules"
-           ]
-         }
-         "
-        `)
-    }
-  })
-
   it('allows you to set es2020 module mode', async () => {
     expect(existsSync(tsConfig())).toBe(false)
 
@@ -1200,6 +1104,120 @@ describe('tsconfig.json verifier', () => {
       expect(await readFile(tsConfig(), 'utf8')).toMatchInlineSnapshot()
     } else {
       expect(await readFile(tsConfig(), 'utf8')).toMatchInlineSnapshot()
+    }
+  })
+})
+
+describe('tsconfig.json verifier 5.x', () => {
+  const { next } = nextTestSetup({
+    files: path.join(__dirname, '../'),
+    skipStart: true,
+    dependencies: {
+      typescript: '5.9.3',
+    },
+  })
+
+  const tsConfig = () => path.join(next.testDir, 'tsconfig.json')
+  const tsConfigBase = () => path.join(next.testDir, 'tsconfig.base.json')
+
+  beforeEach(async () => {
+    await remove(tsConfig())
+    await remove(tsConfigBase())
+  })
+
+  it('allows you to set commonjs module mode', async () => {
+    expect(existsSync(tsConfig())).toBe(false)
+
+    await writeFile(
+      tsConfig(),
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+
+    if (strictRouteTypes) {
+      expect(await readFile(tsConfig(), 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+    } else {
+      expect(await readFile(tsConfig(), 'utf8')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
     }
   })
 })
