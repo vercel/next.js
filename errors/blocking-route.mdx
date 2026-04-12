@@ -1,5 +1,6 @@
 ---
 title: Page can't load instantly
+description: How to fix pages that can't be prerendered because they access request-time data or uncached async data without a Suspense boundary.
 ---
 
 ## Why This Error Occurred
@@ -16,9 +17,16 @@ Common causes:
 
 The fix depends on which API you're using. See the examples below.
 
-> **Good to know**: In `next dev`, the error overlay shows which API caused the issue and suggests fixes. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for stack traces that name the exact component.
+> **Good to know**: In `next dev`, the error overlay shows the source code that triggered the issue and suggests fixes with inline examples. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for stack traces that name the exact component.
 
 ## Possible Ways to Fix It
+
+**Quick guide:** Which fix is right for you?
+
+- **Using `cookies()`, `headers()`, `connection()`, or `draftMode()`?** → [Wrap in Suspense](#wrap-in-suspense) or [move the access into a child](#move-the-access-into-a-child)
+- **Awaiting `params` or `searchParams`?** → [Params and searchParams](#params-and-searchparams)
+- **Fetching data (DB, API, etc.)?** → [Cache with "use cache"](#cache-data-with-use-cache) or [stream with Suspense](#stream-dynamic-data)
+- **Just want the fastest fix?** → [Add a loading.js file](#add-a-loadingjs-file)
 
 ### Add a loading.js File
 
