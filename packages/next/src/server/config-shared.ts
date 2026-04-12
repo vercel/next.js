@@ -210,6 +210,26 @@ export interface TurbopackOptions {
   resolveExtensions?: string[]
 
   /**
+   * (`next --turbopack` only) A mapping of file extensions to alternative
+   * extensions to try during module resolution. Similar to webpack's
+   * `resolve.extensionAlias`.
+   *
+   * @example
+   * ```js
+   * // next.config.js
+   * module.exports = {
+   *   turbopack: {
+   *     resolveExtensionAlias: {
+   *       '.js': ['.ts', '.tsx', '.js'],
+   *       '.mjs': ['.mts', '.mjs'],
+   *     },
+   *   },
+   * }
+   * ```
+   */
+  resolveExtensionAlias?: Record<string, string[]>
+
+  /**
    * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#configuring-webpack-loaders)

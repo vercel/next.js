@@ -26,7 +26,10 @@ use turbopack_core::{
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
-    resolve::ResolveAliasMap,
+    resolve::{
+        ResolveAliasMap,
+        options::{ImportMap, ImportMapping},
+    },
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
 use turbopack_ecmascript_plugins::transform::{
@@ -613,6 +616,8 @@ pub struct TurbopackConfig {
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    pub resolve_extension_alias: Option<FxIndexMap<RcStr, Vec<RcStr>>>,
     pub debug_ids: Option<bool>,
     /// Issue patterns to ignore (suppress) from Turbopack output.
     #[serde(default)]
@@ -1791,6 +1796,50 @@ impl NextConfig {
         };
         let alias_map: ResolveAliasMap = resolve_alias.try_into()?;
         Ok(alias_map.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub fn resolve_extension_alias_import_map(&self) -> Vc<ImportMap> {
+        let Some(ext_alias) = self
+            .turbopack
+            .as_ref()
+            .and_then(|t| t.resolve_extension_alias.as_ref())
+        else {
+            return ImportMap::empty().cell();
+        };
+
+        let mut import_map = ImportMap::empty();
+        for (ext, alternatives) in ext_alias {
+            // The import map lookup separates requests by prefix type:
+            // - "./" relative paths only match aliases with "./" prefix
+            // - "../" relative paths only match aliases with "../" prefix
+            // - bare specifiers match aliases without a relative prefix
+            //
+            // The wildcard capture strips the prefix, so each template must
+            // re-include the prefix to produce a valid request.
+            for prefix in &["./", "../", ""] {
+                let mappings: Vec<_> = alternatives
+                    .iter()
+                    .map(|alt_ext| {
+                        ImportMapping::PrimaryAlternative(
+                            format!("{prefix}*{alt_ext}").into(),
+                            None,
+                        )
+                        .resolved_cell()
+                    })
+                    .collect();
+
+                let mapping = if mappings.len() == 1 {
+                    mappings.into_iter().next().unwrap()
+                } else {
+                    ImportMapping::Alternatives(mappings).resolved_cell()
+                };
+
+                import_map.insert_wildcard_alias_with_suffix(*prefix, ext.as_str(), mapping);
+            }
+        }
+
+        import_map.cell()
     }
 
     #[turbo_tasks::function]

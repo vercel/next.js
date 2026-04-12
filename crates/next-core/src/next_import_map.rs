@@ -71,6 +71,8 @@ pub async fn get_next_client_import_map(
     )
     .await?;
 
+    insert_extension_alias_option(&mut import_map, next_config).await?;
+
     match &ty {
         ClientContextType::Pages { .. } => {
             // Resolve next/error to the ESM entry point so the bundler can
@@ -295,6 +297,8 @@ pub async fn get_next_server_import_map(
     )
     .await?;
 
+    insert_extension_alias_option(&mut import_map, next_config).await?;
+
     let external = ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Traced)
         .resolved_cell();
 
@@ -441,6 +445,8 @@ pub async fn get_next_edge_import_map(
         [],
     )
     .await?;
+
+    insert_extension_alias_option(&mut import_map, next_config).await?;
 
     match &ty {
         ServerContextType::Pages { .. }
@@ -1294,6 +1300,15 @@ pub async fn insert_alias_option<const N: usize>(
             import_map.insert_alias(alias, mapping);
         }
     }
+    Ok(())
+}
+
+pub async fn insert_extension_alias_option(
+    import_map: &mut ImportMap,
+    next_config: Vc<NextConfig>,
+) -> Result<()> {
+    let ext_alias_map = next_config.resolve_extension_alias_import_map().await?;
+    import_map.extend_ref(&ext_alias_map);
     Ok(())
 }
 
