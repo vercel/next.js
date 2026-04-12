@@ -14,6 +14,11 @@ export default function HydratedThreadPage() {
             Visit hydrated thread second
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/hydrated/third">
+            Visit hydrated thread third
+          </LinkAccordion>
+        </li>
       </ul>
     </>
   )

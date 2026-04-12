@@ -2,7 +2,13 @@ import {
   HEAD_REQUEST_KEY,
   type SegmentRequestKey,
 } from '../../../shared/lib/segment-cache/segment-value-encoding'
-import { getOutputExportSegmentRequestUrl } from './cache'
+import { FetchStrategy } from './types'
+import { Fallback } from './cache-map'
+import {
+  getOutputExportSegmentRequestUrl,
+  readOrCreateSegmentCacheEntry,
+} from './cache'
+import { finalizeMetadataVaryPath } from './vary-path'
 
 describe('getOutputExportSegmentRequestUrl', () => {
   it('uses the concrete rendered route when no fallback base path is known', () => {
@@ -39,5 +45,62 @@ describe('getOutputExportSegmentRequestUrl', () => {
     ).toBe(
       'https://example.com/docs/__fallback/__route_0/__next.docs.$d$section.$d$page.txt'
     )
+  })
+})
+
+describe('readOrCreateSegmentCacheEntry output export fallback', () => {
+  it('dedupes pending metadata entries across sibling fallback params', () => {
+    const now = Date.now()
+    const firstTree = {
+      requestKey: HEAD_REQUEST_KEY,
+      segment: HEAD_REQUEST_KEY,
+      refreshState: null,
+      varyPath: finalizeMetadataVaryPath(
+        '/hydrated/$d$thread/__PAGE__' as SegmentRequestKey,
+        '' as any,
+        {
+          id: 'thread',
+          value: 'first' as any,
+          parent: null,
+        } as any
+      ),
+      isPage: true as const,
+      slots: null,
+      prefetchHints: 0,
+    }
+    const secondTree = {
+      ...firstTree,
+      varyPath: finalizeMetadataVaryPath(
+        '/hydrated/$d$thread/__PAGE__' as SegmentRequestKey,
+        '' as any,
+        {
+          id: 'thread',
+          value: 'second' as any,
+          parent: null,
+        } as any
+      ),
+    }
+
+    const firstEntry = readOrCreateSegmentCacheEntry(
+      now,
+      FetchStrategy.PPR,
+      firstTree,
+      '/hydrated/__fallback'
+    )
+    const secondEntry = readOrCreateSegmentCacheEntry(
+      now,
+      FetchStrategy.PPR,
+      secondTree,
+      '/hydrated/__fallback'
+    )
+
+    expect(firstEntry).toBe(secondEntry)
+    expect(secondTree.varyPath.parent.parent.value).toBe('second')
+    expect(
+      (
+        secondTree.varyPath.parent
+          .parent as typeof secondTree.varyPath.parent.parent
+      ).value
+    ).not.toBe(Fallback)
   })
 })

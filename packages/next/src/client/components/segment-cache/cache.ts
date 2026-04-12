@@ -770,7 +770,8 @@ function deprecated_createOptimisticRouteTree(
 export function readOrCreateSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree,
+  outputExportFallbackBasePath: string | null = null
 ): SegmentCacheEntry {
   const existingEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
@@ -779,7 +780,11 @@ export function readOrCreateSegmentCacheEntry(
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
+  const varyPathForRequest = getSegmentVaryPathForRequest(
+    fetchStrategy,
+    tree,
+    outputExportFallbackBasePath
+  )
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = false
   setInCacheMap(
@@ -794,7 +799,8 @@ export function readOrCreateSegmentCacheEntry(
 export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree,
+  outputExportFallbackBasePath: string | null = null
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
   // segment is cached, but we want to perform another request anyway in case it
@@ -830,7 +836,11 @@ export function readOrCreateRevalidatingSegmentEntry(
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
+  const varyPathForRequest = getSegmentVaryPathForRequest(
+    fetchStrategy,
+    tree,
+    outputExportFallbackBasePath
+  )
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(
@@ -2316,8 +2326,16 @@ export async function fetchSegmentsOnCacheMiss(
       // generic path. Otherwise use the request vary path.
       const canonicalVaryPath =
         process.env.__NEXT_VARY_PARAMS && data.varyParams !== null
-          ? getFulfilledSegmentVaryPath(node.tree.varyPath, data.varyParams)
-          : getSegmentVaryPathForRequest(FetchStrategy.PPR, node.tree)
+          ? getFulfilledSegmentVaryPath(
+              node.tree.varyPath,
+              data.varyParams,
+              route.outputExportFallbackBasePath !== null
+            )
+          : getSegmentVaryPathForRequest(
+              FetchStrategy.PPR,
+              node.tree,
+              route.outputExportFallbackBasePath
+            )
 
       let fulfilled: FulfilledSegmentCacheEntry | null = null
       const nodeEntry = node.entry

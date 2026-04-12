@@ -423,6 +423,7 @@ if (skipped) {
             expect(await browser.elementByCss('h1').text()).toBe('first')
           })
 
+          await act(async () => {})
           clearRequests()
 
           await act(async () => {
@@ -454,6 +455,49 @@ if (skipped) {
               requestPath.startsWith('/hydrated/__fallback')
             )
           ).toBe(true)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('dedupes hydrated sibling metadata prefetches by fallback artifact path', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/hydrated/first/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          clearRequests()
+
+          await act(async () => {
+            await browser
+              .elementByCss('input[data-link-accordion="/hydrated/second"]')
+              .click()
+            await browser
+              .elementByCss('input[data-link-accordion="/hydrated/third"]')
+              .click()
+          })
+
+          const prefetchRequests = getRequests()
+
+          expect(
+            prefetchRequests.filter((requestPath) =>
+              requestPath.startsWith('/hydrated/__fallback/__next._head.txt')
+            )
+          ).toHaveLength(1)
+          expect(
+            prefetchRequests.filter((requestPath) =>
+              requestPath.includes(
+                '/hydrated/__fallback/__next.hydrated.$d$thread.__PAGE__.txt'
+              )
+            )
+          ).toHaveLength(1)
         } finally {
           await browser.close()
         }
