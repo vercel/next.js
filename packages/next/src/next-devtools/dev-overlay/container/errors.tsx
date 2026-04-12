@@ -24,11 +24,10 @@ import { BlockingRouteGuidance } from '../components/blocking-route-guidance/blo
 import {
   getBlockingRouteErrorDetails,
   getDynamicMetadataErrorDetails,
+  getSyncIOErrorDetails,
 } from '../components/blocking-route-guidance/blocking-route-error-details'
-import {
-  DynamicMetadataErrorDescription,
-  BlockingPageLoadErrorDescription,
-} from '../components/blocking-route-guidance/blocking-route-descriptions'
+import { MetadataViewportGuidance } from '../components/blocking-route-guidance/metadata-viewport-guidance'
+import { SyncIOGuidance } from '../components/blocking-route-guidance/sync-io-guidance'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -81,10 +80,16 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
+    if (errorDetails.refinement === 'generateViewport') {
+      return `Viewport Blocks Loading`
+    }
     return `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
-    return `Ambiguous Metadata`
+    return `Metadata Blocks Loading`
+  }
+  if (errorDetails.type === 'sync-io') {
+    return `Non-deterministic API`
   }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
@@ -100,6 +105,7 @@ type ErrorDetails =
   | HydrationErrorDetails
   | BlockingRouteErrorDetails
   | DynamicMetadataErrorDetails
+  | SyncIOErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -117,6 +123,9 @@ type BlockingRouteErrorDetails =
 
 type DynamicMetadataErrorDetails =
   import('../components/blocking-route-guidance/blocking-route-error-details').DynamicMetadataErrorDetails
+
+type SyncIOErrorDetails =
+  import('../components/blocking-route-guidance/blocking-route-error-details').SyncIOErrorDetails
 
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
@@ -147,6 +156,11 @@ export function useErrorDetails(
     const dynamicMetadataErrorDetails = getDynamicMetadataErrorDetails(error)
     if (dynamicMetadataErrorDetails) {
       return dynamicMetadataErrorDetails
+    }
+
+    const syncIOErrorDetails = getSyncIOErrorDetails(error)
+    if (syncIOErrorDetails) {
+      return syncIOErrorDetails
     }
 
     return noErrorDetails
@@ -352,11 +366,12 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       }
       break
     case 'blocking-route':
-      if (errorDetails.refinement !== '') {
-        errorMessage = (
-          <BlockingPageLoadErrorDescription
+      if (errorDetails.refinement === 'generateViewport') {
+        errorMessage = 'Viewport metadata can\u2019t be prerendered.'
+        maybeGuidance = (
+          <MetadataViewportGuidance
+            target="viewport"
             variant={errorDetails.variant}
-            refinement={errorDetails.refinement}
           />
         )
       } else {
@@ -365,8 +380,21 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       }
       break
     case 'dynamic-metadata':
-      errorMessage = (
-        <DynamicMetadataErrorDescription variant={errorDetails.variant} />
+      errorMessage = 'Metadata can\u2019t be prerendered.'
+      maybeGuidance = (
+        <MetadataViewportGuidance
+          target="metadata"
+          variant={errorDetails.variant}
+        />
+      )
+      break
+    case 'sync-io':
+      errorMessage = 'A non-deterministic API was used during prerendering.'
+      maybeGuidance = (
+        <SyncIOGuidance
+          apiType={errorDetails.apiType}
+          context={errorDetails.context}
+        />
       )
       break
     case 'empty':

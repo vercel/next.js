@@ -9,6 +9,12 @@ export type DynamicMetadataErrorDetails = {
   variant: 'navigation' | 'runtime'
 }
 
+export type SyncIOErrorDetails = {
+  type: 'sync-io'
+  apiType: 'time' | 'random' | 'crypto'
+  context: 'server' | 'client'
+}
+
 function isRuntimeVariant(message: string): boolean {
   if (message.includes('Runtime data')) return true
   if (
@@ -58,4 +64,36 @@ export function getDynamicMetadataErrorDetails(
     type: 'dynamic-metadata',
     variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
   }
+}
+
+export function getSyncIOErrorDetails(error: Error): SyncIOErrorDetails | null {
+  const msg = error.message
+
+  let apiType: SyncIOErrorDetails['apiType'] | null = null
+  if (
+    msg.includes('/next-prerender-current-time') ||
+    msg.includes('/next-prerender-runtime-current-time')
+  ) {
+    apiType = 'time'
+  } else if (
+    msg.includes('/next-prerender-random') ||
+    msg.includes('/next-prerender-runtime-random')
+  ) {
+    apiType = 'random'
+  } else if (
+    msg.includes('/next-prerender-crypto') ||
+    msg.includes('/next-prerender-runtime-crypto')
+  ) {
+    apiType = 'crypto'
+  }
+
+  if (apiType === null) {
+    return null
+  }
+
+  const context: SyncIOErrorDetails['context'] = msg.includes('-client')
+    ? 'client'
+    : 'server'
+
+  return { type: 'sync-io', apiType, context }
 }

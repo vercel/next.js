@@ -1,5 +1,6 @@
 ---
 title: Cannot access Runtime data or uncached data in `generateMetadata()` or file-based Metadata in an otherwise entirely static route
+description: How to fix pages where generateMetadata() accesses uncached or request-time data in an otherwise prerenderable route.
 ---
 
 ## Why This Error Occurred
@@ -153,3 +154,5 @@ Note: The reason to structure this `DynamicMarker` as a self-contained Suspense 
 - [`connection()`](/docs/app/api-reference/functions/connection)
 - [`cookies()`](/docs/app/api-reference/functions/cookies)
 - [`"use cache"`](/docs/app/api-reference/directives/use-cache)
+- [Streaming guide](/docs/app/building-your-application/routing/loading-ui-and-streaming)
+- [Caching guide](/docs/app/building-your-application/data-fetching/fetching)

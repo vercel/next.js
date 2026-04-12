@@ -1,5 +1,6 @@
 ---
 title: Cannot access `Date.now()`, `Date()`, or `new Date()` before other uncached data or Request data in a Server Component
+description: How to fix Server Components that access the current time before any uncached or request-time data.
 ---
 
 ## Why This Error Occurred
@@ -228,7 +229,9 @@ async function DynamicBanner() {
 - [`Date.now` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now)
 - [`Date constructor` API](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/Date)
 - [`connection` function](/docs/app/api-reference/functions/connection)
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)
 - [`performance` Web API](https://developer.mozilla.org/en-US/docs/Web/API/Performance)
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)
 - [`useLayoutEffect` React Hook](https://react.dev/reference/react/useLayoutEffect)
 - [`useEffect` React Hook](https://react.dev/reference/react/useEffect)
+- [Streaming guide](/docs/app/building-your-application/routing/loading-ui-and-streaming)

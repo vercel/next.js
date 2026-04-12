@@ -1,5 +1,6 @@
 ---
 title: Cannot access `Math.random()` before other uncached data or Request data in a Server Component
+description: How to fix Server Components that call Math.random() before any uncached or request-time data.
 ---
 
 ## Why This Error Occurred
@@ -89,4 +90,6 @@ async function DynamicProductsView({ products }) {
 ## Useful Links
 
 - [`connection` function](/docs/app/api-reference/functions/connection)
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)
+- [Streaming guide](/docs/app/building-your-application/routing/loading-ui-and-streaming)

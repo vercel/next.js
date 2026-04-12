@@ -1,5 +1,6 @@
 ---
 title: Cannot access Runtime data or uncached data in `generateViewport()`
+description: How to fix pages where generateViewport() accesses uncached or request-time data, blocking prerendering.
 ---
 
 ## Why This Error Occurred
@@ -109,5 +110,7 @@ export default function RootLayout({ children }) {
 ## Useful Links
 
 - [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport)
+- [`connection()`](/docs/app/api-reference/functions/connection)
 - [`cookies()`](/docs/app/api-reference/functions/cookies)
 - [`"use cache"`](/docs/app/api-reference/directives/use-cache)
+- [Streaming guide](/docs/app/building-your-application/routing/loading-ui-and-streaming)

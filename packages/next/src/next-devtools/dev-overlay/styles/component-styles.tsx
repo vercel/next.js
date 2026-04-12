@@ -21,6 +21,9 @@ import { CALL_STACK_STYLES } from '../components/call-stack/call-stack'
 import { SHORTCUT_RECORDER_STYLES } from '../components/errors/dev-tools-indicator/dev-tools-info/shortcut-recorder'
 import { COLLAPSIBLE_STYLES } from '../components/collapsible/collapsible'
 import { BLOCKING_ROUTE_GUIDANCE_STYLES } from '../components/blocking-route-guidance/blocking-route-guidance'
+import { SHARED_GUIDANCE_STYLES } from '../components/blocking-route-guidance/shared-guidance-components'
+import { METADATA_VIEWPORT_GUIDANCE_STYLES } from '../components/blocking-route-guidance/metadata-viewport-guidance'
+import { SYNC_IO_GUIDANCE_STYLES } from '../components/blocking-route-guidance/sync-io-guidance'
 
 export function ComponentStyles() {
   return (
@@ -47,7 +50,10 @@ export function ComponentStyles() {
         ${FADER_STYLES}
         ${SHORTCUT_RECORDER_STYLES}
         ${COLLAPSIBLE_STYLES}
+        ${SHARED_GUIDANCE_STYLES}
         ${BLOCKING_ROUTE_GUIDANCE_STYLES}
+        ${METADATA_VIEWPORT_GUIDANCE_STYLES}
+        ${SYNC_IO_GUIDANCE_STYLES}
       `}
     </style>
   )

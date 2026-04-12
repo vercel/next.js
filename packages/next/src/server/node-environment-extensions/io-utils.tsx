@@ -1,12 +1,63 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
-import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 type ApiType = 'time' | 'random' | 'crypto'
+
+const DOCS_URLS = {
+  time: 'https://nextjs.org/docs/messages/next-prerender-current-time',
+  random: 'https://nextjs.org/docs/messages/next-prerender-random',
+  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto',
+} as const
+
+const CLIENT_DOCS_URLS = {
+  time: 'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+  random: 'https://nextjs.org/docs/messages/next-prerender-random-client',
+  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+} as const
+
+const RUNTIME_DOCS_URLS = {
+  time: 'https://nextjs.org/docs/messages/next-prerender-runtime-current-time',
+  random: 'https://nextjs.org/docs/messages/next-prerender-runtime-random',
+  crypto: 'https://nextjs.org/docs/messages/next-prerender-runtime-crypto',
+} as const
+
+function buildServerMessage(
+  route: string,
+  expression: string,
+  docsUrl: string
+): string {
+  return (
+    `Route "${route}" can't be prerendered.\n\n` +
+    `Cause: \`${expression}\` was called before any uncached data ` +
+    `(e.g. \`fetch()\`) or request-time API (e.g. \`cookies()\`, ` +
+    `\`headers()\`, \`connection()\`, \`searchParams\`). ` +
+    `Next.js can't determine whether this value should be prerendered ` +
+    `or evaluated per-request.\n\n` +
+    `Fix: Move this expression into a Client Component, cache the ` +
+    `result with "use cache", or call \`await connection()\` first ` +
+    `to make the component explicitly dynamic.\n\n` +
+    `See more info here: ${docsUrl}`
+  )
+}
+
+function buildClientMessage(
+  route: string,
+  expression: string,
+  type: ApiType
+): string {
+  return (
+    `Route "${route}" can't be prerendered.\n\n` +
+    `Cause: \`${expression}\` was used in a Client Component without a ` +
+    `<Suspense> boundary above it.\n\n` +
+    `Fix: Add a <Suspense> boundary above the component so the rest ` +
+    `of the page can be prerendered.\n\n` +
+    `See more info here: ${CLIENT_DOCS_URLS[type]}`
+  )
+}
 
 export function io(expression: string, type: ApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -24,22 +75,11 @@ export function io(expression: string, type: ApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
-        let message: string
-        switch (type) {
-          case 'time':
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
-            break
-          case 'random':
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
-            break
-          case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
-            break
-          default:
-            throw new InvariantError(
-              'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-            )
-        }
+        const message = buildServerMessage(
+          workStore.route,
+          expression,
+          DOCS_URLS[type]
+        )
 
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
@@ -56,22 +96,7 @@ export function io(expression: string, type: ApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
-        let message: string
-        switch (type) {
-          case 'time':
-            message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client`
-            break
-          case 'random':
-            message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-random-client`
-            break
-          case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto-client`
-            break
-          default:
-            throw new InvariantError(
-              'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-            )
-        }
+        const message = buildClientMessage(workStore.route, expression, type)
 
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
@@ -90,53 +115,22 @@ export function io(expression: string, type: ApiType) {
           stageController.currentStage === RenderStage.Static ||
           stageController.currentStage === RenderStage.EarlyStatic
         ) {
-          switch (type) {
-            case 'time':
-              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
-              break
-            case 'random':
-              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
-              break
-            case 'crypto':
-              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
-              break
-            default:
-              throw new InvariantError(
-                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-              )
-          }
+          message = buildServerMessage(
+            workStore.route,
+            expression,
+            DOCS_URLS[type]
+          )
         } else {
           // We're in the Runtime stage.
           // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
           // This check is implemented in `stageController.canSyncInterrupt()` --
           // if runtime prefetching isn't enabled, then we won't get here.
 
-          let accessStatement: string
-          let additionalInfoLink: string
-
-          switch (type) {
-            case 'time':
-              accessStatement = 'the current time'
-              additionalInfoLink =
-                'https://nextjs.org/docs/messages/next-prerender-runtime-current-time'
-              break
-            case 'random':
-              accessStatement = 'random values synchronously'
-              additionalInfoLink =
-                'https://nextjs.org/docs/messages/next-prerender-runtime-random'
-              break
-            case 'crypto':
-              accessStatement = 'random cryptographic values synchronously'
-              additionalInfoLink =
-                'https://nextjs.org/docs/messages/next-prerender-runtime-crypto'
-              break
-            default:
-              throw new InvariantError(
-                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-              )
-          }
-
-          message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing ${accessStatement} in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: ${additionalInfoLink}`
+          message = buildServerMessage(
+            workStore.route,
+            expression,
+            RUNTIME_DOCS_URLS[type]
+          )
         }
 
         const syncIOError = applyOwnerStack(new Error(message))

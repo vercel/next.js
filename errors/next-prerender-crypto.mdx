@@ -1,5 +1,6 @@
 ---
 title: Cannot access `crypto.getRandomValue()`, `crypto.randomUUID()`, or another web or node crypto API that generates random values synchronously before other uncached data or Request data in a Server Component
+description: How to fix Server Components that use synchronous crypto APIs before any uncached or request-time data.
 ---
 
 ## Why This Error Occurred
@@ -102,6 +103,8 @@ export default async function Page() {
 ## Useful Links
 
 - [`connection` function](/docs/app/api-reference/functions/connection)
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)
 - [Web Crypto API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Crypto_API)
 - [Node Crypto API](https://nodejs.org/docs/latest/api/crypto.html)
 - [`Suspense` React API](https://react.dev/reference/react/Suspense)
+- [Streaming guide](/docs/app/building-your-application/routing/loading-ui-and-streaming)
