@@ -9,9 +9,9 @@ use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::Value as JsonValue;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TaskInput, TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap,
-    mark_session_dependent, mark_top_level_task, take_effects, trace::TraceRawVcs,
+    Completion, FxIndexMap, NonLocalValue, OperationVc, PrettyPrintError, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueToString, Vc, duration_span, fxindexmap, mark_session_dependent,
+    mark_top_level_task, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, to_sys_path};
@@ -176,11 +176,6 @@ async fn emit_evaluate_pool_assets_operation(
         entrypoint: entrypoint.clone(),
     }
     .cell())
-}
-
-#[turbo_tasks::value(serialization = "none")]
-struct EmittedEvaluatePoolAssetsWithEffects {
-    assets: ReadRef<EmittedEvaluatePoolAssets>,
 }
 
 #[turbo_tasks::function(operation)]

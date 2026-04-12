@@ -43,11 +43,6 @@ pub trait OutputAsset: Asset + OutputAssetsReference {
     fn path_string(self: Vc<Self>) -> Vc<RcStr> {
         self.path().to_string()
     }
-
-    #[turbo_tasks::function]
-    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
-        Vc::cell(None)
-    }
 }
 
 #[turbo_tasks::value(transparent)]

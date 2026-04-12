@@ -1225,11 +1225,11 @@ pub async fn emit_assets_into_dir(
 pub async fn emit_assets_into_dir_operation(
     assets: ResolvedVc<ExpandedOutputAssets>,
     output_dir: FileSystemPath,
-) -> Result<Vc<()>> {
+) -> Result<()> {
     emit_assets_into_dir(*assets, output_dir)
         .as_side_effect()
         .await?;
-    Ok(Vc::cell(()))
+    Ok(())
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

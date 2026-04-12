@@ -128,11 +128,6 @@ impl OutputAsset for EcmascriptBrowserChunk {
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
     }
-
-    #[turbo_tasks::function]
-    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
-        self.own_content().content().len()
-    }
 }
 
 #[turbo_tasks::value_impl]

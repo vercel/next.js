@@ -1707,7 +1707,7 @@ impl Project {
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
-    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
+    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<()> {
         let emit_event = |feature_name: &str, enabled: bool| {
             NextFeatureTelemetry::new(feature_name.into(), enabled)
                 .resolved_cell()
@@ -1778,7 +1778,7 @@ impl Project {
         emit_event("swcRemoveConsole", remove_console_enabled);
         emit_event("swcEmotion", emotion_enabled);
 
-        Ok(Default::default())
+        Ok(())
     }
 
     /// Scans the app/pages directories for entry points files (matching the

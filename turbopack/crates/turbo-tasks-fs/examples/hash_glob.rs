@@ -63,9 +63,9 @@ pub fn empty_string() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
-async fn print_hash(dir_hash: Vc<RcStr>) -> Result<Vc<()>> {
+async fn print_hash(dir_hash: Vc<RcStr>) -> Result<()> {
     println!("DIR HASH: {}", dir_hash.await?.as_str());
-    Ok(Default::default())
+    Ok(())
 }
 
 #[turbo_tasks::function]

@@ -196,7 +196,7 @@ async fn build_internal(
     minify_type: MinifyType,
     target: Target,
     scope_hoist: bool,
-) -> Result<Vc<()>> {
+) -> Result<()> {
     let output_fs = output_fs(project_dir.clone());
     const OUTPUT_DIR: &str = "dist";
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
@@ -518,7 +518,7 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    Ok(Default::default())
+    Ok(())
 }
 
 pub async fn build(args: &BuildArguments) -> Result<()> {

@@ -18,8 +18,8 @@ use bincode::{Decode, Encode};
 use futures::{TryStreamExt, stream::Stream as StreamTrait};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, ValueDefault, Vc,
-    trace::TraceRawVcs, util::SharedError,
+    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs,
+    util::SharedError,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -230,12 +230,6 @@ impl Body {
 impl<T: Into<Bytes>> From<T> for Body {
     fn from(value: T) -> Self {
         Body::new(vec![Ok(value.into())])
-    }
-}
-
-impl ValueDefault for Body {
-    fn value_default() -> Vc<Self> {
-        Body::default().cell()
     }
 }
 
