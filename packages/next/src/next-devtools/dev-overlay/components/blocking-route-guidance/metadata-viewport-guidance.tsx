@@ -89,9 +89,9 @@ function MetadataViewportExplanation({
         <>
           <p>
             <strong>What happened:</strong> <code>{fnName}</code> depends on
-            uncached data, but the rest of the page is fully static.{' '}
-            {target === 'metadata' ? 'Metadata' : 'Viewport configuration'}{' '}
-            can&rsquo;t be streamed, so the entire page blocks on every request.
+            uncached data, but the rest of the page is fully static. This makes{' '}
+            {target === 'metadata' ? 'metadata' : 'viewport configuration'} the
+            only dynamic part, so the entire page can&rsquo;t be prerendered.
           </p>
           <p>
             <strong>Expected:</strong> Cache the data with{' '}
@@ -103,9 +103,10 @@ function MetadataViewportExplanation({
         <>
           <p>
             <strong>What happened:</strong> <code>{fnName}</code> uses a
-            request-time API, but the rest of the page is fully static.{' '}
-            {target === 'metadata' ? 'Metadata' : 'Viewport configuration'}{' '}
-            can&rsquo;t be streamed, so the entire page blocks on every request.
+            request-time API, but the rest of the page is fully static. This
+            makes{' '}
+            {target === 'metadata' ? 'metadata' : 'viewport configuration'} the
+            only dynamic part, so the entire page can&rsquo;t be prerendered.
           </p>
           <p>
             <strong>Expected:</strong> Remove the request-time API and use
