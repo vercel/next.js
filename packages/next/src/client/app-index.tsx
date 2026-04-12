@@ -249,6 +249,7 @@ if (
 }
 
 let initialServerResponse: Promise<InitialRSCPayload>
+let initialOutputExportFallbackBasePath: string | null = null
 const decodeFallbackPrerenderPayload = async (
   responsePromise: Promise<Response>,
   renderedUrl?: URL
@@ -294,6 +295,7 @@ if (instantTestStaticFetch) {
     )
 
     if (fallbackResult !== null) {
+      initialOutputExportFallbackBasePath = fallbackResult.fallbackUrl.pathname
       return decodeFallbackPrerenderPayload(
         Promise.resolve(fallbackResult.response),
         renderedUrl
@@ -454,6 +456,7 @@ export async function hydrate(
       initialRSCPayload,
       initialFlightStreamForCache,
       location: window.location,
+      outputExportFallbackBasePath: initialOutputExportFallbackBasePath,
     }),
     instrumentationHooks
   )

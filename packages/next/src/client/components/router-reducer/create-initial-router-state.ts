@@ -27,6 +27,7 @@ export interface InitialRouterStateParameters {
   initialRSCPayload: InitialRSCPayload
   initialFlightStreamForCache?: ReadableStream<Uint8Array> | null
   location: Location | null
+  outputExportFallbackBasePath?: string | null
 }
 
 export function createInitialRouterState({
@@ -34,6 +35,7 @@ export function createInitialRouterState({
   initialRSCPayload,
   initialFlightStreamForCache,
   location,
+  outputExportFallbackBasePath = null,
 }: InitialRouterStateParameters): AppRouterState {
   const {
     c: initialCanonicalUrlParts,
@@ -103,7 +105,7 @@ export function createInitialRouterState({
   // route learning nor segment cache state persists from SSR to client.
   if (location !== null && metadataVaryPath !== null) {
     // Learn the route pattern so we can predict it for future navigations.
-    discoverKnownRoute(
+    const initialRouteEntry = discoverKnownRoute(
       Date.now(),
       location.pathname,
       null, // nextUrl — initial render is never an interception
@@ -115,6 +117,10 @@ export function createInitialRouterState({
       initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
     )
+    if (outputExportFallbackBasePath !== null) {
+      initialRouteEntry.outputExportFallbackBasePath =
+        outputExportFallbackBasePath
+    }
 
     // Write the initial seed data into the segment cache so subsequent
     // navigations to the initial page can serve cached segments instantly.

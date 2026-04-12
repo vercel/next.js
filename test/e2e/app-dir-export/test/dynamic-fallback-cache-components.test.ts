@@ -410,6 +410,55 @@ if (skipped) {
         }
       })
 
+      it('reuses the hydrated fallback artifact base for sibling segment prefetches', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/hydrated/first/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          clearRequests()
+
+          await act(async () => {
+            await browser
+              .elementByCss('input[data-link-accordion="/hydrated/second"]')
+              .click()
+          })
+
+          const prefetchRequests = getRequests()
+
+          expect(prefetchRequests.length).toBeGreaterThan(0)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/?_rsc=')
+            )
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/index.txt')
+            )
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/__next.')
+            )
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/__fallback')
+            )
+          ).toBe(true)
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('generates a hidden _fallback.html bootstrap document', async () => {
         const outDir = join(next.testDir, 'out')
         const fallbackHtml = await fs.readFile(
