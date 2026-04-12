@@ -34,7 +34,6 @@ use turbopack_core::{
     reference::{ModuleReference, ModuleReferences},
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
-    source::Source,
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
@@ -417,37 +416,112 @@ fn modifier(
 
 #[turbo_tasks::value]
 pub struct ImportMetaGlobAsset {
-    source: ResolvedVc<Box<dyn Source>>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    map: ResolvedVc<ImportMetaGlobMap>,
-    patterns: Vec<RcStr>,
-    eager: bool,
-    import: Option<RcStr>,
-    query: Option<RcStr>,
-    base: Option<RcStr>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub patterns: Vec<RcStr>,
+    pub eager: bool,
+    pub import: Option<RcStr>,
+    pub query: Option<RcStr>,
+    pub base: Option<RcStr>,
+    pub issue_source: Option<IssueSource>,
+    pub error_mode: ResolveErrorMode,
+}
+
+#[turbo_tasks::value_impl]
+impl ImportMetaGlobAsset {
+    /// Compute and cache the resolved file map for this glob.
+    ///
+    /// Builds the positive and negative `Glob` matchers from `self.patterns`,
+    /// scans the filesystem via `read_glob`, and resolves each matched file as
+    /// an ESM import.  Being a `#[turbo_tasks::function]`, the result is
+    /// memoised — repeated calls with the same inputs return the cached map.
+    #[turbo_tasks::function]
+    pub async fn map(&self) -> Result<Vc<ImportMetaGlobMap>> {
+        let origin = *self.origin;
+        let origin_dir = origin.origin_path().await?.parent();
+
+        // Compute the base directory for glob scanning.
+        // With `base`, patterns are resolved relative to origin + base.
+        let base_dir = if let Some(ref b) = self.base {
+            origin_dir.join(b)?
+        } else {
+            origin_dir
+        };
+
+        // Separate positive (matching) and negative (exclusion) patterns.
+        // Negative patterns start with `!`; the `!` prefix is stripped.
+        let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
+            self.patterns.iter().partition(|p| !p.starts_with('!'));
+
+        // Build the positive Glob. Turbopack's Glob operates on paths relative
+        // to the scan directory (no leading `./`), so strip that prefix. For
+        // multiple patterns, use `Glob::alternatives` to combine them.
+        let positive_globs: Vec<Vc<Glob>> = positive_raw
+            .iter()
+            .map(|p| Glob::new(strip_relative_prefix(p).into(), GlobOptions::default()))
+            .collect();
+
+        let positive_glob = if positive_globs.len() == 1 {
+            positive_globs.into_iter().next().unwrap()
+        } else {
+            Glob::alternatives(positive_globs)
+        };
+
+        // Build the negative Glob (if any). Negative patterns also need `./`
+        // stripped and are combined into a single alternation glob.
+        let negative_glob = if !negative_raw.is_empty() {
+            let neg_globs: Vec<Vc<Glob>> = negative_raw
+                .iter()
+                .map(|p| {
+                    let stripped = p.strip_prefix('!').unwrap_or(p);
+                    let stripped = strip_relative_prefix(stripped);
+                    Glob::new(stripped.into(), GlobOptions::default())
+                })
+                .collect();
+
+            let neg = if neg_globs.len() == 1 {
+                neg_globs.into_iter().next().unwrap()
+            } else {
+                Glob::alternatives(neg_globs)
+            };
+            Some(neg)
+        } else {
+            None
+        };
+
+        Ok(ImportMetaGlobMap::generate(
+            origin,
+            base_dir,
+            positive_glob,
+            negative_glob,
+            self.query.clone(),
+            self.issue_source,
+            self.error_mode,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source.ident().with_modifier(modifier(
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        let origin_path = (*self.origin).origin_path().owned().await?;
+        Ok(AssetIdent::from_path(origin_path).with_modifier(modifier(
             &self.patterns,
             self.eager,
             &self.import,
             &self.query,
             &self.base,
-        ))
+        )))
     }
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(Some(self.source))
+        Vc::cell(None)
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let map = &*self.map.await?;
+    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        let map = &*self.map().await?;
 
         Ok(Vc::cell(
             map.iter()
@@ -485,13 +559,14 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
 
     #[turbo_tasks::function]
     async fn chunk_item_content(
-        &self,
+        self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let map = &*self.map.await?;
+        let this = self.await?;
+        let map = &*self.map().await?;
         let minify = chunking_context.minify_type().await?;
 
         let mut glob_map = ObjectLit {
@@ -502,7 +577,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
         for (key, entry) in map {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
-                *self.origin,
+                *this.origin,
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
@@ -516,11 +591,11 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
             let key_expr = Expr::Lit(Lit::Str(entry.origin_relative.as_str().into()));
 
             // Generate the value expression based on eager/lazy and import options
-            let value_expr = if self.eager {
+            let value_expr = if this.eager {
                 // Eager: direct synchronous require
                 let module_expr = pm.create_require(Cow::Borrowed(&key_expr));
                 // If `import` option is set, access the named export
-                if let Some(named) = &self.import {
+                if let Some(named) = &this.import {
                     quote!(
                         "$module[$named]" as Expr,
                         module: Expr = module_expr,
@@ -532,7 +607,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
             } else {
                 // Lazy: thunk returning a Promise
                 let import_expr = pm.create_import(Cow::Borrowed(&key_expr), false);
-                if let Some(named) = &self.import {
+                if let Some(named) = &this.import {
                     // Wrap the promise with .then(m => m[named])
                     quote!(
                         "() => $promise.then((m) => m[$named])" as Expr,
@@ -609,8 +684,6 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
 pub struct ImportMetaGlobAssetReference {
     pub inner: ResolvedVc<ImportMetaGlobAsset>,
     pub patterns: Vec<RcStr>,
-    pub issue_source: Option<IssueSource>,
-    pub error_mode: ResolveErrorMode,
 }
 
 impl std::fmt::Display for ImportMetaGlobAssetReference {
@@ -620,8 +693,7 @@ impl std::fmt::Display for ImportMetaGlobAssetReference {
 }
 
 impl ImportMetaGlobAssetReference {
-    pub async fn new(
-        source: ResolvedVc<Box<dyn Source>>,
+    pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         patterns: Vec<RcStr>,
         eager: bool,
@@ -630,89 +702,20 @@ impl ImportMetaGlobAssetReference {
         base: Option<RcStr>,
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
-    ) -> Result<Self> {
-        // Compute the base directory for glob scanning.
-        // With `base`, patterns are resolved relative to origin + base.
-        let origin_dir = origin.origin_path().await?.parent();
-        let base_dir = if let Some(ref b) = base {
-            origin_dir.join(b)?
-        } else {
-            origin_dir
-        };
-
-        // Separate positive (matching) and negative (exclusion) patterns.
-        // Negative patterns start with `!`; the `!` prefix is stripped.
-        let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
-            patterns.iter().partition(|p| !p.starts_with('!'));
-
-        // Build the positive Glob. Turbopack's Glob operates on paths relative
-        // to the scan directory (no leading `./`), so strip that prefix. For
-        // multiple patterns, use `Glob::alternatives` to combine them.
-        let positive_globs: Vec<Vc<Glob>> = positive_raw
-            .iter()
-            .map(|p| Glob::new(strip_relative_prefix(p).into(), GlobOptions::default()))
-            .collect();
-
-        let positive_glob = if positive_globs.len() == 1 {
-            positive_globs.into_iter().next().unwrap()
-        } else {
-            Glob::alternatives(positive_globs)
-        };
-
-        // Build the negative Glob (if any). Negative patterns also need `./`
-        // stripped and are combined into a single alternation glob.
-        let negative_glob = if !negative_raw.is_empty() {
-            let neg_globs: Vec<Vc<Glob>> = negative_raw
-                .iter()
-                .map(|p| {
-                    let stripped = p.strip_prefix('!').unwrap_or(p);
-                    let stripped = strip_relative_prefix(stripped);
-                    Glob::new(stripped.into(), GlobOptions::default())
-                })
-                .collect();
-
-            let neg = if neg_globs.len() == 1 {
-                neg_globs.into_iter().next().unwrap()
-            } else {
-                Glob::alternatives(neg_globs)
-            };
-            Some(neg)
-        } else {
-            None
-        };
-
-        let asset_query = query.clone();
-
-        let map = ImportMetaGlobMap::generate(
-            *origin,
-            base_dir,
-            positive_glob,
-            negative_glob,
-            query,
-            issue_source,
-            error_mode,
-        )
-        .to_resolved()
-        .await?;
-
+    ) -> Self {
         let inner = ImportMetaGlobAsset {
-            source,
             origin,
-            map,
             patterns: patterns.clone(),
             eager,
             import,
-            query: asset_query,
+            query,
             base,
+            issue_source,
+            error_mode,
         }
         .resolved_cell();
 
-        Ok(ImportMetaGlobAssetReference {
-            inner,
-            patterns,
-            issue_source,
-            error_mode,
-        })
+        ImportMetaGlobAssetReference { inner, patterns }
     }
 }
 

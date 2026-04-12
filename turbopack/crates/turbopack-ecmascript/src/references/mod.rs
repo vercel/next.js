@@ -2471,7 +2471,6 @@ where
 
             analysis.add_reference_code_gen(
                 ImportMetaGlobAssetReference::new(
-                    source,
                     origin,
                     options.patterns,
                     options.eager,
@@ -2480,8 +2479,7 @@ where
                     options.base,
                     Some(issue_source(source, span)),
                     error_mode,
-                )
-                .await?,
+                ),
                 ast_path.to_vec().into(),
             );
         }
