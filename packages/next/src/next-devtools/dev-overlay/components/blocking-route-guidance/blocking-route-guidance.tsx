@@ -163,7 +163,9 @@ export function BlockingRouteGuidance({
               prerendered as a static shell.
             </p>
             <FixDiff lines={SUSPENSE_WRAP_DIFF} />
-            <DocsLink href={`${DOCS}#headers`}>See full example</DocsLink>
+            <DocsLink href={`${DOCS}#wrap-in-suspense`}>
+              Wrap in Suspense
+            </DocsLink>
           </Collapsible>
 
           <Collapsible title="Move the API call into a child component">
@@ -173,7 +175,9 @@ export function BlockingRouteGuidance({
               it. This keeps the parent prerenderable.
             </p>
             <FixDiff lines={MOVE_INTO_CHILD_DIFF} />
-            <DocsLink href={`${DOCS}#headers`}>See full example</DocsLink>
+            <DocsLink href={`${DOCS}#move-the-access-into-a-child`}>
+              Move the access into a child
+            </DocsLink>
           </Collapsible>
 
           <Collapsible title="Using params or searchParams?">
@@ -185,7 +189,7 @@ export function BlockingRouteGuidance({
             </p>
             <FixDiff lines={PARAMS_DIFF} />
             <DocsLink href={`${DOCS}#params-and-searchparams`}>
-              See full example
+              Params and searchParams
             </DocsLink>
           </Collapsible>
 
@@ -195,8 +199,8 @@ export function BlockingRouteGuidance({
               loads, but you lose granular control over what streams when.
             </p>
             <FixDiff lines={LOADING_JS_DIFF} />
-            <DocsLink href={`${DOCS}#possible-ways-to-fix-it`}>
-              See full example
+            <DocsLink href={`${DOCS}#add-a-loadingjs-file`}>
+              Add a loading.js file
             </DocsLink>
           </Collapsible>
         </div>
@@ -208,8 +212,8 @@ export function BlockingRouteGuidance({
               <code>cacheTag()</code> to revalidate when data changes.
             </p>
             <FixDiff lines={USE_CACHE_DIFF} />
-            <DocsLink href={`${DOCS}#accessing-data`}>
-              See full example
+            <DocsLink href={`${DOCS}#cache-data-with-use-cache`}>
+              Cache data with &ldquo;use cache&rdquo;
             </DocsLink>
           </Collapsible>
 
@@ -220,8 +224,8 @@ export function BlockingRouteGuidance({
               the dynamic part streams in.
             </p>
             <FixDiff lines={STREAM_WITH_SUSPENSE_DIFF} />
-            <DocsLink href={`${DOCS}#accessing-data`}>
-              See full example
+            <DocsLink href={`${DOCS}#stream-dynamic-data`}>
+              Stream dynamic data
             </DocsLink>
           </Collapsible>
 
@@ -233,7 +237,7 @@ export function BlockingRouteGuidance({
             </p>
             <FixDiff lines={SHORT_LIVED_CACHE_DIFF} />
             <DocsLink href={`${DOCS}#short-lived-caches`}>
-              See full example
+              Short-lived caches
             </DocsLink>
           </Collapsible>
         </div>
