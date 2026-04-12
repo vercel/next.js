@@ -9,7 +9,7 @@ runs:
   using: 'composite'
   steps:
     - name: 'Setup Rust toolchain'
-      uses: actions-rust-lang/setup-rust-toolchain@v1
+      uses: actions-rust-lang/setup-rust-toolchain@150fca883cd4034361b621bd4e6a9d34e5143606 # v1
       with:
         target: ${{ inputs.targets }}
         # needed to not make it override the defaults
