@@ -103,15 +103,16 @@ function MetadataViewportExplanation({
         <>
           <p>
             <strong>What happened:</strong> <code>{fnName}</code> uses a
-            request-time API, but the rest of the page is fully static. This
-            makes{' '}
+            request-time API (like <code>cookies()</code> or{' '}
+            <code>headers()</code>), but the rest of the page is fully static.
+            This makes{' '}
             {target === 'metadata' ? 'metadata' : 'viewport configuration'} the
             only dynamic part, so the entire page can&rsquo;t be prerendered.
           </p>
           <p>
-            <strong>Expected:</strong> Remove the request-time API and use
-            cached data, or mark another part of the page as dynamic to confirm
-            this is intentional.
+            <strong>Expected:</strong> If the metadata needs request data for
+            personalization, make the page explicitly dynamic. Otherwise,
+            replace the request-time API with cached data.
           </p>
         </>
       )}
@@ -190,35 +191,16 @@ export function MetadataViewportGuidance({
           </>
         ) : (
           <>
-            <Collapsible
-              title={`Remove the request-time API from ${fnName}`}
-              defaultOpen
-            >
-              <p>
-                Remove <code>cookies()</code>, <code>headers()</code>, or
-                similar from <code>{fnName}</code>. Use cached data or static
-                values instead.
-              </p>
-              <FixDiff
-                lines={
-                  target === 'metadata'
-                    ? REMOVE_RUNTIME_METADATA_DIFF
-                    : REMOVE_RUNTIME_VIEWPORT_DIFF
-                }
-              />
-              <DocsLink href={`${docsUrl}#caching-external-data`}>
-                Caching external data
-              </DocsLink>
-            </Collapsible>
-
-            <Collapsible title="Make the page explicitly dynamic">
+            <Collapsible title="Make the page explicitly dynamic" defaultOpen>
               <p>
                 {target === 'metadata' ? (
                   <>
-                    Add <code>connection()</code> inside a{' '}
+                    If the metadata needs request data (e.g.{' '}
+                    <code>cookies()</code> for personalization), add{' '}
+                    <code>connection()</code> inside a{' '}
                     <code>{'<Suspense>'}</code> boundary somewhere in the page.
                     This tells Next.js the page is intended to be partially
-                    dynamic.
+                    dynamic, so the static parts still prerender.
                   </>
                 ) : (
                   <>
@@ -239,6 +221,25 @@ export function MetadataViewportGuidance({
                 href={`${docsUrl}#if-you-must-access-request-data-or-your-external-data-is-uncacheable`}
               >
                 Making the page dynamic
+              </DocsLink>
+            </Collapsible>
+
+            <Collapsible title={`Remove the request-time API from ${fnName}`}>
+              <p>
+                If the metadata doesn&rsquo;t actually need request data, remove{' '}
+                <code>cookies()</code>, <code>headers()</code>, or similar from{' '}
+                <code>{fnName}</code> and use cached data or static values
+                instead.
+              </p>
+              <FixDiff
+                lines={
+                  target === 'metadata'
+                    ? REMOVE_RUNTIME_METADATA_DIFF
+                    : REMOVE_RUNTIME_VIEWPORT_DIFF
+                }
+              />
+              <DocsLink href={`${docsUrl}#caching-external-data`}>
+                Caching external data
               </DocsLink>
             </Collapsible>
           </>

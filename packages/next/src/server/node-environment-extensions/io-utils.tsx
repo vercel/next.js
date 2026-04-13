@@ -28,8 +28,14 @@ const RUNTIME_DOCS_URLS = {
 function buildServerMessage(
   route: string,
   expression: string,
+  type: ApiType,
   docsUrl: string
 ): string {
+  const performanceHint =
+    type === 'time'
+      ? ` If you're measuring elapsed time, use \`performance.now()\` instead.\n\n`
+      : '\n\n'
+
   return (
     `Route "${route}" can't be prerendered.\n\n` +
     `Cause: \`${expression}\` was called before any uncached data ` +
@@ -39,7 +45,8 @@ function buildServerMessage(
     `or evaluated per-request.\n\n` +
     `Fix: Move this expression into a Client Component, cache the ` +
     `result with "use cache", or call \`await connection()\` first ` +
-    `to make the component explicitly dynamic.\n\n` +
+    `to make the component explicitly dynamic.` +
+    performanceHint +
     `See more info here: ${docsUrl}`
   )
 }
@@ -78,6 +85,7 @@ export function io(expression: string, type: ApiType) {
         const message = buildServerMessage(
           workStore.route,
           expression,
+          type,
           DOCS_URLS[type]
         )
 
@@ -118,6 +126,7 @@ export function io(expression: string, type: ApiType) {
           message = buildServerMessage(
             workStore.route,
             expression,
+            type,
             DOCS_URLS[type]
           )
         } else {
@@ -129,6 +138,7 @@ export function io(expression: string, type: ApiType) {
           message = buildServerMessage(
             workStore.route,
             expression,
+            type,
             RUNTIME_DOCS_URLS[type]
           )
         }
