@@ -21,16 +21,17 @@ import type { RequestHeaders } from './fetch-server-response'
  * URL before: https://example.com/path?query=1
  * URL after: https://example.com/path?query=1&_rsc=abc123
  *
- * Note: This function mutates the input URL directly and does not return anything.
+ * Note: This function mutates the input URL directly and resolves once the
+ * cache-busting value has been computed and applied.
  *
  * TODO: Since we need to use a search param anyway, we could simplify by removing the custom
  * headers approach entirely and just use search params.
  */
-export const setCacheBustingSearchParam = (
+export const setCacheBustingSearchParam = async (
   url: URL,
   headers: RequestHeaders
-): void => {
-  const uniqueCacheKey = computeCacheBustingSearchParam(
+): Promise<void> => {
+  const uniqueCacheKey = await computeCacheBustingSearchParam(
     headers[NEXT_ROUTER_PREFETCH_HEADER],
     headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER],
     headers[NEXT_ROUTER_STATE_TREE_HEADER],
@@ -50,7 +51,7 @@ export const setCacheBustingSearchParam = (
  * hash: "abc123"
  * URL after: https://example.com/path?query=1&_rsc=abc123
  *
- * If the hash is null, we will set `_rsc` search param without a value.
+ * If the hash is empty, we will set `_rsc` search param without a value.
  * Like this: https://example.com/path?query=1&_rsc
  *
  * Note: This function mutates the input URL directly and does not return anything.
