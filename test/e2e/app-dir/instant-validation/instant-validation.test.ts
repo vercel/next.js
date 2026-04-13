@@ -181,7 +181,21 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Runtime data was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+         To fix this:
+
+         Provide a fallback UI using <Suspense> around this component.
+
+         or
+
+         Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+         In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (9:16) @ Page
@@ -229,7 +243,19 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this, you can either:
+
+         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+         or
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (6:19) @ Page
@@ -277,7 +303,19 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this, you can either:
+
+         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+         or
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (25:19) @ Dynamic
@@ -328,7 +366,21 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Runtime data was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+         To fix this:
+
+         Provide a fallback UI using <Suspense> around this component.
+
+         or
+
+         Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+         In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (10:16) @ Layout
@@ -376,7 +428,19 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this, you can either:
+
+         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+         or
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (10:19) @ Layout
@@ -427,7 +491,21 @@ describe('instant validation', () => {
            },
          ],
          "code": "E1078",
-         "description": "This page can’t load instantly.",
+         "description": "Runtime data was accessed outside of <Suspense>
+
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+       To fix this:
+
+       Provide a fallback UI using <Suspense> around this component.
+
+       or
+
+       Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+       In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+       Learn more: https://nextjs.org/docs/messages/blocking-route",
          "environmentLabel": "Server",
          "label": "Blocking Route",
          "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
@@ -475,7 +553,21 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Runtime data was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+         To fix this:
+
+         Provide a fallback UI using <Suspense> around this component.
+
+         or
+
+         Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+         In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (7:18) @ Page
@@ -558,7 +650,21 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Runtime data was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+         To fix this:
+
+         Provide a fallback UI using <Suspense> around this component.
+
+         or
+
+         Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+         In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (9:16) @ Page
@@ -609,7 +715,19 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this, you can either:
+
+         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+         or
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (26:19) @ Dynamic
@@ -1021,7 +1139,19 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this, you can either:
+
+         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+         or
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (37:19) @ Dynamic
@@ -1073,7 +1203,19 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+         To fix this, you can either:
+
+         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+         or
+
+         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (24:19) @ Dynamic
@@ -1138,7 +1280,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (9:16) @ Page
@@ -1214,7 +1370,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/invalid-blocking-inside-static/page.tsx (6:16) @ BlockingPage
@@ -1263,7 +1433,19 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+           To fix this, you can either:
+
+           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+           or
+
+           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/page.tsx (6:19) @ BlockingPage
@@ -1315,7 +1497,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/page.tsx (4:16) @ IndexSlot
@@ -1365,7 +1561,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/foo/page.tsx (4:16) @ FooSlot
@@ -1415,7 +1625,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/default.tsx (4:16) @ DefaultSlot
@@ -2261,7 +2485,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/route-group-config-only/(group)/page.tsx (4:16) @ Page
@@ -2310,7 +2548,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/page.tsx (4:16) @ Page
@@ -2360,7 +2612,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/route-group-segment-config-only/(group)/page.tsx (4:16) @ Page
@@ -2410,7 +2676,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/inner/page.tsx (4:16) @ Page
@@ -2460,7 +2740,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/page.tsx (4:16) @ Page
@@ -2517,7 +2811,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/layout.tsx (13:16) @ InnerLayout
@@ -2581,7 +2889,21 @@ describe('instant validation', () => {
                  },
                ],
                "code": "E1078",
-               "description": "This page can’t load instantly.",
+               "description": "Runtime data was accessed outside of <Suspense>
+
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+             To fix this:
+
+             Provide a fallback UI using <Suspense> around this component.
+
+             or
+
+             Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+             In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+             Learn more: https://nextjs.org/docs/messages/blocking-route",
                "environmentLabel": "Server",
                "label": "Blocking Route",
                "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16) @ G3Layout
@@ -2639,7 +2961,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/layout.tsx (5:16) @ B2Layout
@@ -2698,7 +3034,21 @@ describe('instant validation', () => {
              },
            ],
            "code": "E1078",
-           "description": "This page can’t load instantly.",
+           "description": "Runtime data was accessed outside of <Suspense>
+
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+         To fix this:
+
+         Provide a fallback UI using <Suspense> around this component.
+
+         or
+
+         Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+         In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/suspense-in-root/runtime/static-layout-above-runtime-config/layout.tsx (15:16) @ StaticLayout
@@ -2754,7 +3104,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/config-depth-preference/@slot/[...catchall]/page.tsx (8:16) @ CatchallSlotPage
@@ -2805,7 +3169,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/@slot/[...catchall]/page.tsx (7:16) @ CatchallSlotPage
@@ -2857,7 +3235,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/config-children-preferred/@slot/page.tsx (7:16) @ SlotPage
@@ -2910,7 +3302,21 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Runtime data was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
+
+           To fix this:
+
+           Provide a fallback UI using <Suspense> around this component.
+
+           or
+
+           Move the Runtime data access into a deeper component wrapped in <Suspense>.
+
+           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/static/cross-slot-blocking/@slot/[...catchall]/page.tsx (8:16) @ CatchallSlotPage
@@ -3025,7 +3431,19 @@ describe('instant validation', () => {
                },
              ],
              "code": "E1078",
-             "description": "This page can’t load instantly.",
+             "description": "Data that blocks navigation was accessed outside of <Suspense>
+
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
+
+           To fix this, you can either:
+
+           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
+
+           or
+
+           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route",
              "environmentLabel": "Server",
              "label": "Blocking Route",
              "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page

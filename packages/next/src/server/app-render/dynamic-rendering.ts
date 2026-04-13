@@ -48,12 +48,9 @@ import {
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
-  runtimeBodyMessage,
-  dynamicBodyMessage,
-  runtimeMetadataMessage,
-  dynamicMetadataMessage,
-  runtimeViewportMessage,
-  dynamicViewportMessage,
+  bodyMessage,
+  metadataMessage,
+  viewportMessage,
   disallowedDynamicViewportMessage,
   disallowedDynamicMetadataMessage,
 } from './blocking-route-messages'
@@ -826,7 +823,7 @@ export function trackAllowedDynamicAccess(
     )
     return
   } else {
-    const message = dynamicBodyMessage(workStore.route)
+    const message = bodyMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -876,7 +873,7 @@ export function trackDynamicHoleInNavigation(
   componentStack: string,
   dynamicValidation: InstantValidationState,
   clientDynamic: DynamicTrackingState,
-  kind: DynamicHoleKind,
+  _kind: DynamicHoleKind,
   boundaryState: ValidationBoundaryTracking
 ) {
   if (hasOutletRegex.test(componentStack)) {
@@ -892,10 +889,7 @@ export function trackDynamicHoleInNavigation(
   )
 
   if (hasMetadataRegex.test(componentStack)) {
-    const message =
-      kind === DynamicHoleKind.Runtime
-        ? runtimeMetadataMessage(workStore.route)
-        : dynamicMetadataMessage(workStore.route)
+    const message = metadataMessage(workStore.route)
     const error = addErrorContext(
       new Error(message),
       componentStack,
@@ -905,10 +899,7 @@ export function trackDynamicHoleInNavigation(
     return
   }
   if (hasViewportRegex.test(componentStack)) {
-    const message =
-      kind === DynamicHoleKind.Runtime
-        ? runtimeViewportMessage(workStore.route)
-        : dynamicViewportMessage(workStore.route)
+    const message = viewportMessage(workStore.route)
     const error = addErrorContext(
       new Error(message),
       componentStack,
@@ -989,10 +980,7 @@ export function trackDynamicHoleInNavigation(
     return
   }
 
-  const message =
-    kind === DynamicHoleKind.Runtime
-      ? runtimeBodyMessage(workStore.route)
-      : dynamicBodyMessage(workStore.route)
+  const message = bodyMessage(workStore.route)
   const error = addErrorContext(
     new Error(message),
     componentStack,
@@ -1064,7 +1052,7 @@ export function trackDynamicHoleInRuntimeShell(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    const message = dynamicMetadataMessage(workStore.route)
+    const message = metadataMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicMetadata = error
     return
@@ -1072,7 +1060,7 @@ export function trackDynamicHoleInRuntimeShell(
     // TODO(instant-validation): If the page only has holes caused by runtime data,
     // we won't find out if there's a suspense-above-body and error for dynamic viewport
     // even if there is in fact a suspense-above-body
-    const message = dynamicViewportMessage(workStore.route)
+    const message = viewportMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -1100,7 +1088,7 @@ export function trackDynamicHoleInRuntimeShell(
     return
   }
 
-  const message = dynamicBodyMessage(workStore.route)
+  const message = bodyMessage(workStore.route)
   const error = addErrorContext(new Error(message), componentStack, null)
   dynamicValidation.dynamicErrors.push(error)
   return
@@ -1116,12 +1104,12 @@ export function trackDynamicHoleInStaticShell(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    const message = runtimeMetadataMessage(workStore.route)
+    const message = metadataMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
-    const message = runtimeViewportMessage(workStore.route)
+    const message = viewportMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -1148,7 +1136,7 @@ export function trackDynamicHoleInStaticShell(
     )
     return
   } else {
-    const message = runtimeBodyMessage(workStore.route)
+    const message = bodyMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
