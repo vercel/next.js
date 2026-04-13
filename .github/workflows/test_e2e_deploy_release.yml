@@ -232,18 +232,25 @@ jobs:
     runs-on: ubuntu-latest
     name: Report test results to datadog
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github
+
       - name: Download test report artifacts
-        id: download-test-reports
         uses: actions/download-artifact@v4
         with:
           pattern: test-reports-*
           path: test
           merge-multiple: true
 
+      - name: Install datadog-ci
+        uses: ./.github/actions/setup-datadog-ci
+
       - name: Upload test report to datadog
         run: |
           if [ -d ./test/test-junit-report ]; then
-            DD_ENV=ci npx @datadog/datadog-ci@2.23.1 junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
+            DD_ENV=ci "$DATADOG_CI_PATH" junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
           fi
 
   upload-adapter-test-results:

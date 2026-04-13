@@ -46,7 +46,8 @@ set_env() {
   echo "$1=$2" >> "$GITHUB_ENV"
 }
 
-set_env RUSTC_WRAPPER sccache
+# Disable sccache while we sort out the cache server
+#set_env RUSTC_WRAPPER sccache
 set_env SCCACHE_BASEDIRS "${INPUT_BASE_DIR:-${GITHUB_WORKSPACE}}"
 set_env CARGO_INCREMENTAL 0
 set_env SCCACHE_IDLE_TIMEOUT 0

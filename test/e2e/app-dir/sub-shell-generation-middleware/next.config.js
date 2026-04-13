@@ -4,7 +4,6 @@
 const nextConfig = {
   experimental: {
     useCache: true,
-    partialFallbacks: true,
   },
   rewrites: async () => {
     return {
