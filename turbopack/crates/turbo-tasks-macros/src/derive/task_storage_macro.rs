@@ -537,6 +537,38 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         }
     };
 
+    // Validate that shrink_on_completion and drop_on_completion_if_immutable are only used on
+    // collection types (auto_set, auto_map, counter_map) for inline fields.
+    // Lazy non-collection fields can still use drop_on_completion_if_immutable (removes from the
+    // lazy vec), but shrink_on_completion is meaningless for non-collection types.
+    let is_collection = matches!(
+        storage_type,
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+    );
+    if !is_collection {
+        if shrink_on_completion {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`shrink_on_completion` on field `{field_name}` has no effect: only \
+                     collection types (auto_set, auto_map, counter_map) support shrinking"
+                ))
+                .emit();
+        }
+        if inline && drop_on_completion_if_immutable {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`drop_on_completion_if_immutable` on inline field `{field_name}` has no \
+                     effect: only inline collection types (auto_set, auto_map, counter_map) \
+                     support dropping"
+                ))
+                .emit();
+        }
+    }
+
     FieldInfo {
         is_pub,
         field_name,
@@ -2442,23 +2474,25 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 /// 4. For fields with `shrink_on_completion`: shrink or remove if empty
 /// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
 fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
-    // Generate shrink calls for inline collection fields with shrink_on_completion
-    let mut inline_shrinks = Vec::new();
+    // Generate cleanup calls for inline collection fields.
+    // Invalid attribute combinations (e.g. shrink/drop on non-collection fields) are rejected
+    // during parsing, so we can generate code unconditionally here.
+    let mut inline_cleanups = Vec::new();
     for field in grouped_fields.all_inline() {
         if field.is_flag() {
             continue;
         }
-        if !field.shrink_on_completion {
-            continue;
-        }
-        // Only collection types can be shrunk
-        let is_collection = matches!(
-            field.storage_type,
-            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
-        );
-        if is_collection {
-            let field_name = &field.field_name;
-            inline_shrinks.push(quote! {
+        let field_name = &field.field_name;
+        if field.drop_on_completion_if_immutable {
+            inline_cleanups.push(quote! {
+                if is_immutable {
+                    typed.#field_name = Default::default();
+                } else {
+                    typed.#field_name.shrink_to_fit();
+                }
+            });
+        } else if field.shrink_on_completion {
+            inline_cleanups.push(quote! {
                 typed.#field_name.shrink_to_fit();
             });
         }
@@ -2467,8 +2501,9 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
     // Generate match arms for lazy fields that have cleanup attributes
     let mut match_arms = Vec::new();
 
+    // Invalid attribute combinations (e.g. shrink on non-collection fields) are rejected
+    // during parsing, so we can simplify the match here.
     for field in grouped_fields.all_lazy() {
-        // Skip flags - they're in the bitfield, not the lazy vec
         if field.is_flag() {
             continue;
         }
@@ -2477,57 +2512,45 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         let shrink = field.shrink_on_completion;
         let drop_if_immutable = field.drop_on_completion_if_immutable;
 
-        // Skip fields with no cleanup attributes
         if !shrink && !drop_if_immutable {
             continue;
         }
 
-        // Determine whether this is a collection type that can be shrunk
         let is_collection = matches!(
             field.storage_type,
             StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
         );
 
         // Each arm returns bool: true = keep, false = remove
-        let arm_body = match (shrink, drop_if_immutable, is_collection) {
-            // shrink_on_completion + drop_on_completion_if_immutable + collection
-            (true, true, true) => quote! {
+        let arm_body = if drop_if_immutable && shrink && is_collection {
+            // Drop for immutable, shrink or remove-if-empty for mutable
+            quote! {
                 if is_immutable {
-                    false // drop for immutable tasks
+                    false
                 } else if c.is_empty() {
-                    false // remove empty
+                    false
                 } else {
                     c.shrink_to_fit();
-                    true // keep
+                    true
                 }
-            },
-            // shrink_on_completion only + collection
-            (true, false, true) => quote! {
+            }
+        } else if shrink && is_collection {
+            // Shrink or remove-if-empty
+            quote! {
                 if c.is_empty() {
-                    false // remove empty
+                    false
                 } else {
                     c.shrink_to_fit();
-                    true // keep
+                    true
                 }
-            },
-            // drop_on_completion_if_immutable only + collection
-            (false, true, true) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // shrink_on_completion + drop_on_completion_if_immutable + direct value
-            (true, true, false) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // shrink_on_completion only + direct value (unusual but handle it)
-            (true, false, false) => quote! {
-                true // keep (direct values don't need shrinking)
-            },
-            // drop_on_completion_if_immutable only + direct value
-            (false, true, false) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // No attributes (shouldn't reach here due to continue above)
-            (false, false, _) => unreachable!(),
+            }
+        } else if drop_if_immutable {
+            // Drop for immutable (works for both collection and direct values)
+            quote! {
+                !is_immutable
+            }
+        } else {
+            continue;
         };
 
         match_arms.push(quote! {
@@ -2551,8 +2574,8 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             let typed = self.typed_mut();
             let is_immutable = typed.flags.immutable();
 
-            // Shrink inline collection fields (always present, not in lazy vec)
-            #(#inline_shrinks)*
+            // Clean up inline collection fields (always present, not in lazy vec)
+            #(#inline_cleanups)*
 
             // swap_retain pattern: iterate with manual index, swap_remove to delete
             let mut i = 0;

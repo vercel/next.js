@@ -7,7 +7,7 @@ use async_trait::async_trait;
 use mdxjs::{MdxParseOptions, Options, compile};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -56,20 +56,6 @@ impl Default for MdxTransformOptions {
             provider_import_source: None,
             mdx_type: Some(MdxParseConstructs::Commonmark),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl MdxTransformOptions {
-    #[turbo_tasks::function]
-    fn default_private() -> Vc<Self> {
-        Self::cell(Default::default())
-    }
-}
-
-impl ValueDefault for MdxTransformOptions {
-    fn value_default() -> Vc<Self> {
-        Self::default_private()
     }
 }
 

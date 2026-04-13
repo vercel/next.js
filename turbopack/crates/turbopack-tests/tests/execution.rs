@@ -633,7 +633,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
     run_result_op: OperationVc<RunTestResult>,
-) -> Result<Vc<()>> {
+) -> Result<()> {
     let PreparedTest { path, .. } = &*prepared_test.await?;
     let _ = run_result_op.resolve().strongly_consistent().await;
 
@@ -646,5 +646,5 @@ async fn snapshot_issues(
         .await
         .context("Unable to handle issues")?;
 
-    Ok(Default::default())
+    Ok(())
 }
