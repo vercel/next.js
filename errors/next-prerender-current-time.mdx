@@ -14,7 +14,7 @@ If the current time is appropriate to be prerendered and prefetched consider mov
 
 If the current time is intended to be accessed dynamically on every user request first consider whether it is more appropriate to access it in a Client Component, which can often be the case when reading the time for display purposes. If a Client Component isn't the right choice then consider whether you can move the current time access later, behind other existing uncached data or Request data access. If there is no way to do this you can always precede the current time access with Request data access by using `await connection()`.
 
-> **Note**: Suspense fallbacks and skeleton components are part of the prerendered static shell. If a skeleton component uses `Date.now()` or `new Date()` (e.g., for a "last updated" placeholder), it will trigger this error. Use static placeholder text or CSS animations instead.
+> **Note**: Suspense fallbacks and skeleton components are part of the prerendered static shell. If a skeleton component uses `Date.now()`, `Date()`, or `new Date()` (e.g., for a "last updated" placeholder), it will trigger this error. Use static placeholder text or CSS animations instead.
 
 > **Note**: Sometimes the place that accesses the current time is inside 3rd party code. While you can't easily convert the time access to `performance.now()` the other strategies can be applied in your own project code regardless of how deeply the time is read.
 

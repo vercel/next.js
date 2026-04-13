@@ -27,7 +27,7 @@ async function getCachedData(token: string) {
 }
 
 export default async function Page() {
-  const token = crypto.getRandomUUID()
+  const token = crypto.randomUUID()
   const data = await getCachedData(token);
   return ...
 }
@@ -38,7 +38,7 @@ After:
 ```jsx filename="app/page.js"
 async function getCachedData() {
   "use cache"
-  const token = crypto.getRandomUUID()
+  const token = crypto.randomUUID()
   return db.query(token, ...)
 }
 
