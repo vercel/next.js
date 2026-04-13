@@ -9,9 +9,9 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 // interopDefault is used as a free variable in the INJECT:tree generated code
 // (see crates/next-core/src/app_page_loader_tree.rs), so it must remain in
 // this template's compiled output as a local binding named `interopDefault`.
-// The export below prevents TypeScript from eliding the import.
+// verbatimModuleSyntax ensures the import is preserved as-is.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
-export { interopDefault }
 
 import { createHandler } from '../../server/app-render/app-page' with { 'turbopack-transition': 'next-server-utility' }
 
