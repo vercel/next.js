@@ -44,8 +44,8 @@ function buildServerMessage(
     `Next.js can't determine whether this value should be prerendered ` +
     `or evaluated per-request.\n\n` +
     `Fix: Move this expression into a Client Component, cache the ` +
-    `result with "use cache", or call \`await connection()\` first ` +
-    `to make the component explicitly dynamic.` +
+    `result with "use cache", or move it into a child component ` +
+    `that calls \`await connection()\` and is wrapped in <Suspense>.` +
     performanceHint +
     `See more info here: ${docsUrl}`
   )

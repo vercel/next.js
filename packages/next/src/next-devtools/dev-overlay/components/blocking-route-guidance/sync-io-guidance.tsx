@@ -65,27 +65,36 @@ const CACHE_DIFF_CRYPTO = `  async function generateToken() {
 
 const CONNECTION_DIFF_TIME = `  import { connection } from 'next/server'
 
-  export default async function Page() {
++ async function DynamicTimestamp() {
 +   await connection()
-    const value = Date.now()
-    return <p>{value}</p>
-  }`
++   return <p>{Date.now()}</p>
++ }
+
++ <Suspense fallback={...}>
++   <DynamicTimestamp />
++ </Suspense>`
 
 const CONNECTION_DIFF_RANDOM = `  import { connection } from 'next/server'
 
-  export default async function Page() {
++ async function DynamicRandom() {
 +   await connection()
-    const value = Math.random()
-    return <p>{value}</p>
-  }`
++   return <p>{Math.random()}</p>
++ }
+
++ <Suspense fallback={...}>
++   <DynamicRandom />
++ </Suspense>`
 
 const CONNECTION_DIFF_CRYPTO = `  import { connection } from 'next/server'
 
-  export default async function Page() {
++ async function DynamicToken() {
 +   await connection()
-    const token = crypto.randomUUID()
-    return <p>{token}</p>
-  }`
++   return <p>{crypto.randomUUID()}</p>
++ }
+
++ <Suspense fallback={...}>
++   <DynamicToken />
++ </Suspense>`
 
 const PERFORMANCE_NOW_DIFF = `  // For measuring elapsed time, use performance.now()
 - const start = Date.now()
@@ -125,9 +134,10 @@ function SyncIOExplanation({
             per-request.
           </p>
           <p>
-            <strong>Expected:</strong> Access uncached data or{' '}
-            <code>connection()</code> first, cache the result with{' '}
-            <code>{'"use cache"'}</code>, or move it to a Client Component.
+            <strong>Expected:</strong> Move it to a Client Component, cache the
+            result with <code>{'"use cache"'}</code>, or move it into a child
+            component that calls <code>connection()</code> and is wrapped in{' '}
+            <code>{'<Suspense>'}</code>.
           </p>
         </>
       ) : (
@@ -212,11 +222,12 @@ function ServerFixes({ apiType }: { apiType: SyncIOErrorDetails['apiType'] }) {
         <DocsLink href={`${docsUrl}${cacheDocsAnchor}`}>Learn more</DocsLink>
       </Collapsible>
 
-      <Collapsible title="Guard with await connection()">
+      <Collapsible title="Guard with await connection() + Suspense">
         <p>
-          If the value must be evaluated per-request on the server, call{' '}
-          <code>await connection()</code> first to signal that this component is
-          intentionally dynamic.
+          If the value must be evaluated per-request on the server, move it into
+          a child component that calls <code>await connection()</code> and wrap
+          it in <code>{'<Suspense>'}</code> so the rest of the page can be
+          prerendered.
         </p>
         <FixDiff lines={connectionDiff} />
         <DocsLink href={`${docsUrl}${connectionAnchor}`}>Learn more</DocsLink>
