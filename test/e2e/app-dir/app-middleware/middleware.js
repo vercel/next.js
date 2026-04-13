@@ -50,6 +50,13 @@ export async function middleware(request) {
     return NextResponse.rewrite(request.nextUrl)
   }
 
+  if (request.nextUrl.pathname === '/cookie-dedup') {
+    const res = NextResponse.next()
+    res.cookies.set('shared-cookie', 'from-middleware')
+    res.cookies.set('mw-only-cookie', 'middleware-value')
+    return res
+  }
+
   if (request.nextUrl.pathname === '/rsc-cookies') {
     const res = NextResponse.next()
     res.cookies.set('rsc-cookie-value-1', `${Math.random()}`)

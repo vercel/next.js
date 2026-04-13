@@ -66,6 +66,26 @@ export async function sendResponse(
       }
     })
 
+    // Deduplicate Set-Cookie headers by cookie name.
+    // When middleware and server actions both set the same cookie,
+    // multiple paths can write Set-Cookie to the response.
+    // Keep the last value for each cookie name (server action wins over middleware).
+    const existingSetCookie = res.getHeader('set-cookie')
+    if (existingSetCookie) {
+      const cookieArray = Array.isArray(existingSetCookie)
+        ? (existingSetCookie as string[])
+        : [String(existingSetCookie)]
+      const seen = new Map<string, string>()
+      for (const cookie of cookieArray) {
+        const name = cookie.split('=')[0].trim()
+        seen.set(name, cookie)
+      }
+      const deduped = Array.from(seen.values())
+      if (deduped.length !== cookieArray.length) {
+        res.setHeader('set-cookie', deduped)
+      }
+    }
+
     /**
      * The response can't be directly piped to the underlying response. The
      * following is duplicated from the edge runtime handler.

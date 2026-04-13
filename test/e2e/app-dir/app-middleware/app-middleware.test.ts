@@ -264,6 +264,33 @@ describe('app-dir with middleware', () => {
     await browser.deleteCookies()
   })
 
+  it('should not produce duplicate Set-Cookie headers when middleware and server action set the same cookie', async () => {
+    const browser = await next.browser('/cookie-dedup')
+
+    // Verify middleware cookies are visible on initial load
+    const sharedCookie = await browser.elementById('shared-cookie').text()
+    expect(sharedCookie).toContain('from-middleware')
+
+    const mwOnlyCookie = await browser.elementById('mw-only-cookie').text()
+    expect(mwOnlyCookie).toContain('middleware-value')
+
+    await browser.deleteCookies()
+  })
+
+  it('should not include x-middleware-set-cookie in response for cookie-dedup route', async () => {
+    const res = await next.fetch('/cookie-dedup')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('x-middleware-set-cookie')).toBeNull()
+
+    // Verify set-cookie headers do not have duplicate cookie names
+    const setCookieHeaders = res.headers.raw?.()?.['set-cookie'] || []
+    const cookieNames = setCookieHeaders.map(
+      (h: string) => h.split('=')[0].trim()
+    )
+    const uniqueNames = new Set(cookieNames)
+    expect(cookieNames.length).toBe(uniqueNames.size)
+  })
+
   // TODO: This consistently 404s on Vercel deployments. It technically
   // doesn't repro the bug we're trying to fix but we need to figure out
   // why the handling is different.
