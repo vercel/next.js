@@ -527,8 +527,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useLightningcss: z.boolean().optional(),
           }),
         ]),
-        define: z.record(z.string(), z.string()).optional(),
-        defineServer: z.record(z.string(), z.string()).optional(),
+        define: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+          .optional(),
+        defineServer: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+          .optional(),
         runAfterProductionCompile: z
           .function()
           .returns(z.promise(z.void()))
