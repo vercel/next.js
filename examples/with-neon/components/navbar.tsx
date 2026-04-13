@@ -1,17 +1,17 @@
-"use client";
+'use client'
 
-import Image from "next/image";
-import Link from "next/link";
-import { ThemeSelector } from "@/components/themes/selector";
-import { Button } from "@/components/ui/button";
-import { useSession, signOut } from "@/lib/auth/client";
+import Image from 'next/image'
+import Link from 'next/link'
+import { ThemeSelector } from '@/components/themes/selector'
+import { Button } from '@/components/ui/button'
+import { useSession, signOut } from '@/lib/auth/client'
 
 export function NavBar() {
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending } = useSession()
 
   const handleSignOut = async () => {
-    await signOut();
-  };
+    await signOut()
+  }
 
   return (
     <nav className="flex items-center justify-between py-6 md:py-8">
@@ -52,5 +52,5 @@ export function NavBar() {
         )}
       </div>
     </nav>
-  );
+  )
 }

@@ -1,46 +1,46 @@
-"use client";
+'use client'
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { signUp } from "@/lib/auth/client";
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { signUp } from '@/lib/auth/client'
 
 export default function SignUpPage() {
-  const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const router = useRouter()
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
 
     try {
       const result = await signUp.email({
         email,
         password,
         name,
-      });
+      })
 
       if (result.error) {
-        setError(result.error.message || "Failed to sign up");
+        setError(result.error.message || 'Failed to sign up')
       } else {
-        router.push("/");
+        router.push('/')
       }
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "An unexpected error occurred",
-      );
+        err instanceof Error ? err.message : 'An unexpected error occurred'
+      )
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -107,12 +107,12 @@ export default function SignUpPage() {
                 className="w-full"
                 disabled={loading}
               >
-                {loading ? "Creating account..." : "Sign Up"}
+                {loading ? 'Creating account...' : 'Sign Up'}
               </Button>
             </form>
 
             <p className="mt-6 text-center text-sm text-[#61646B] dark:text-[#94979E]">
-              Already have an account?{" "}
+              Already have an account?{' '}
               <Link
                 href="/sign-in"
                 className="font-medium text-primary hover:underline"
@@ -124,5 +124,5 @@ export default function SignUpPage() {
         </main>
       </div>
     </div>
-  );
+  )
 }

@@ -1,17 +1,18 @@
-import type { Metadata } from "next";
-import { ThemeProvider } from "@/components/themes/provider";
-import "./globals.css";
-import { inter } from "./fonts";
+import type { Metadata } from 'next'
+import { ThemeProvider } from '@/components/themes/provider'
+import './globals.css'
+import { inter } from './fonts'
 
 export const metadata: Metadata = {
-  title: "Neon + Next.js",
-  description: "Next.js App Router with Neon Postgres, Drizzle ORM, and Better Auth",
-};
+  title: 'Neon + Next.js',
+  description:
+    'Next.js App Router with Neon Postgres, Drizzle ORM, and Better Auth',
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
@@ -26,5 +27,5 @@ export default function RootLayout({
         </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

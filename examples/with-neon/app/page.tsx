@@ -1,18 +1,18 @@
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic'
 
-import Image from "next/image";
-import Link from "next/link";
-import { NavBar } from "@/components/navbar";
-import { checkDbConnection } from "@/lib/db/client";
+import Image from 'next/image'
+import Link from 'next/link'
+import { NavBar } from '@/components/navbar'
+import { checkDbConnection } from '@/lib/db/client'
 
 const deployToVercelUrl =
-  "https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-neon&project-name=with-neon-app&repository-name=with-neon-app&env=DATABASE_URL&env=BETTER_AUTH_SECRET&env=BETTER_AUTH_URL&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%5D";
+  'https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fwith-neon&project-name=with-neon-app&repository-name=with-neon-app&env=DATABASE_URL&env=BETTER_AUTH_SECRET&env=BETTER_AUTH_URL&products=%5B%7B%22type%22%3A%22integration%22%2C%22integrationSlug%22%3A%22neon%22%2C%22productSlug%22%3A%22neon%22%2C%22protocol%22%3A%22storage%22%7D%5D'
 
 const exampleSourceUrl =
-  "https://github.com/vercel/next.js/tree/canary/examples/with-neon";
+  'https://github.com/vercel/next.js/tree/canary/examples/with-neon'
 
 export default async function Home() {
-  const result = await checkDbConnection();
+  const result = await checkDbConnection()
   return (
     <div className="flex min-h-screen flex-col">
       <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 md:max-w-lg md:px-0 lg:max-w-xl">
@@ -54,14 +54,14 @@ export default async function Home() {
           <ul className="flex items-center gap-4 sm:gap-6">
             {[
               {
-                text: "Docs",
-                href: "https://neon.tech/docs/",
-                icon: "/docs.svg",
+                text: 'Docs',
+                href: 'https://neon.tech/docs/',
+                icon: '/docs.svg',
               },
               {
-                text: "Discord",
-                href: "https://discord.com/invite/92vNTzKDGp",
-                icon: "/discord.svg",
+                text: 'Discord',
+                href: 'https://discord.com/invite/92vNTzKDGp',
+                icon: '/discord.svg',
               },
             ].map((link) => (
               <Link
@@ -84,9 +84,9 @@ export default async function Home() {
           </ul>
           <span
             className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${
-              result === "Database connected"
-                ? "border-[#00E599]/20 bg-[#00E599]/10 text-[#1a8c66] dark:bg-[#00E599]/10 dark:text-[#00E599]"
-                : "border-red-500/20 bg-red-500/10 text-red-500 dark:text-red-500"
+              result === 'Database connected'
+                ? 'border-[#00E599]/20 bg-[#00E599]/10 text-[#1a8c66] dark:bg-[#00E599]/10 dark:text-[#00E599]'
+                : 'border-red-500/20 bg-red-500/10 text-red-500 dark:text-red-500'
             }`}
           >
             {result}
@@ -94,5 +94,5 @@ export default async function Home() {
         </footer>
       </div>
     </div>
-  );
+  )
 }
