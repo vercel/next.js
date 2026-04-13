@@ -1,9 +1,19 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('turbopack resolve extension alias', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
+
+  if (!isTurbopack) {
+    it('should only run the test in turbopack', () => {})
+    return
+  }
 
   it('should resolve .js import to .tsx file via ../', async () => {
     const browser = await next.browser('/')
