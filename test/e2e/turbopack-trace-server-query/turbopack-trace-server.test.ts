@@ -278,6 +278,30 @@ describe('turbopack-trace-server', () => {
     expect(md).toMatch(/###/)
   })
 
+  it('should return JSON when outputType is json', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+    const text = await callMcpTool(mcpPort, 'query_spans', {
+      outputType: 'json',
+    })
+    const data = JSON.parse(text)
+    expect(data).toHaveProperty('spans')
+    expect(data).toHaveProperty('page')
+    expect(data).toHaveProperty('totalPages')
+    expect(data).toHaveProperty('totalCount')
+    expect(Array.isArray(data.spans)).toBe(true)
+    expect(data.spans.length).toBeGreaterThan(0)
+    // Each span should have the expected fields.
+    const span = data.spans[0]
+    expect(span).toHaveProperty('id')
+    expect(span).toHaveProperty('name')
+    expect(span).toHaveProperty('cpuDuration')
+    expect(span).toHaveProperty('correctedDuration')
+    expect(span).toHaveProperty('isAggregated')
+  })
+
   // ─── CLI tests ───────────────────────────────────────────────────────────
 
   it('CLI: should return root-level spans', async () => {
@@ -380,6 +404,26 @@ describe('turbopack-trace-server', () => {
     expect(exitCode).toBe(0)
     expect(stdout).toContain(`children of ID \`${spanId}\``)
     expect(stdout).toMatch(/Page \d+ of \d+/)
+  })
+
+  it('CLI: should support --json flag', async () => {
+    if (!isTurbopack) {
+      console.log('Skipping: turbopack-only test')
+      return
+    }
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--json',
+    ])
+    expect(exitCode).toBe(0)
+    const data = JSON.parse(stdout)
+    expect(data).toHaveProperty('spans')
+    expect(data).toHaveProperty('page')
+    expect(data).toHaveProperty('totalPages')
+    expect(data).toHaveProperty('totalCount')
+    expect(Array.isArray(data.spans)).toBe(true)
+    expect(data.spans.length).toBeGreaterThan(0)
   })
 
   it('CLI: should show an error when the trace server is not running', async () => {

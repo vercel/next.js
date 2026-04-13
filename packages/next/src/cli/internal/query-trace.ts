@@ -1,6 +1,7 @@
 /**
  * CLI client for querying a running turbopack trace server via its MCP endpoint.
- * Sends a JSON-RPC `tools/call` request and prints the markdown response to stdout.
+ * Sends a JSON-RPC `tools/call` request and prints the response to stdout.
+ * Use --json for machine-readable JSON output (default: markdown).
  *
  * Usage: next internal query-trace [options]
  */
@@ -14,6 +15,7 @@ interface QueryTraceOptions {
   sort: boolean | undefined
   search: string | undefined
   page: number | undefined
+  json: boolean | undefined
 }
 
 export async function queryTraceCli(options: QueryTraceOptions): Promise<void> {
@@ -26,6 +28,7 @@ export async function queryTraceCli(options: QueryTraceOptions): Promise<void> {
   if (options.sort !== undefined) args.sort = options.sort
   if (options.search !== undefined) args.search = options.search
   if (options.page !== undefined) args.page = options.page
+  if (options.json) args.outputType = 'json'
 
   const requestBody = JSON.stringify({
     jsonrpc: '2.0',

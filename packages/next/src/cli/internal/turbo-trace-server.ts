@@ -122,7 +122,7 @@ export async function startTurboTraceServerCli(
     'query_spans',
     {
       description:
-        'Query spans from a turbopack trace file. Returns a markdown-formatted list of spans with timing, CPU usage, and attribute details. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
+        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, and attribute details. Set `outputType` to "json" for machine-readable output or "markdown" (default) for human-readable output. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
       inputSchema: {
         parent: z
           .string()
@@ -149,6 +149,12 @@ export async function startTurboTraceServerCli(
             'Substring search query applied to span name and category.'
           ),
         page: z.number().optional().describe('1-based page number. Default 1.'),
+        outputType: z
+          .enum(['markdown', 'json'])
+          .optional()
+          .describe(
+            'Output format. "markdown" (default) returns human-readable markdown. "json" returns structured JSON with all span fields.'
+          ),
       },
     },
     (args) => {
@@ -161,6 +167,17 @@ export async function startTurboTraceServerCli(
       })
 
       const { spans, page, totalPages, totalCount } = result
+
+      if (args.outputType === 'json') {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ spans, page, totalPages, totalCount }),
+            },
+          ],
+        }
+      }
 
       const parentLabel = args.parent
         ? `children of ID \`${args.parent}\``

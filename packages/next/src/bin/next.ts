@@ -613,6 +613,7 @@ internal
   .addOption(
     new Option('--search <search>', 'Substring filter on span name/category.')
   )
+  .addOption(new Option('--json', 'Output as JSON instead of markdown.'))
   .addOption(
     new Option('--page <page>', 'Page number (1-based, default 1).').argParser(
       parseValidPositiveInteger
