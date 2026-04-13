@@ -27,10 +27,25 @@ Object.assign(self, {
     TURBOPACK_ASSET_SUFFIX: param(1)
 });
 
+// Buffer connect events for SharedWorkers: the async await below creates a suspension
+// point where the browser can dispatch connect before the user module has registered
+// its addEventListener('connect', ...) handler.
+var _connectBuffer_ = null;
+var _connectListener_ = null;
+if (typeof self['SharedWorkerGlobalScope'] !== 'undefined' && self instanceof self['SharedWorkerGlobalScope']) {
+    _connectBuffer_ = [];
+    _connectListener_ = function(e) { _connectBuffer_.push(e.ports[0]); };
+    self.addEventListener('connect', _connectListener_);
+}
+
 await Promise.all(chunkUrls.map(function(chunk) {
-    var chunkUrl = new URL(chunk, location.origin);
-    if (chunkUrl.origin !== location.origin) {
-        abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
-    }
-    return import(chunkUrl.toString());
+    return import(chunk);
 }));
+
+// Replay connect events that arrived during async initialization
+if (_connectBuffer_ !== null) {
+    self.removeEventListener('connect', _connectListener_);
+    for (var _i_ = 0; _i_ < _connectBuffer_.length; _i_++) {
+        self.dispatchEvent(new MessageEvent('connect', { ports: [_connectBuffer_[_i_]] }));
+    }
+}
