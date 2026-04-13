@@ -2252,6 +2252,21 @@ export default abstract class Server<
       res.statusCode = parseInt(pathname.slice(1), 10)
     }
 
+    // In development, `isSSG` is not inferred from the prerender manifest the
+    // same way as in production, so auto-exported pages (no data hooks) were
+    // incorrectly accepting non-GET/HEAD document requests. Treat those like
+    // static pages and respond with 405 to match `next start`.
+    const defaultAppGetInitialProps =
+      components.App.getInitialProps ===
+      (components.App as any).origGetInitialProps
+    const hasPageGetInitialProps = !!(components.Component as any)?.getInitialProps
+    const isAutoExport =
+      !isAppPath &&
+      !hasPageGetInitialProps &&
+      defaultAppGetInitialProps &&
+      !isSSG &&
+      !hasServerProps
+
     if (
       // Server actions can use non-GET/HEAD methods.
       !isPossibleServerAction &&
@@ -2262,7 +2277,7 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' || isSSG || isAutoExport)
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])

@@ -572,6 +572,17 @@ describe('Prerender', () => {
       }
     })
 
+    it('should respond with 405 for POST to auto-exported page', async () => {
+      const res = await fetchViaHTTP(next.url, '/normal', undefined, {
+        method: 'POST',
+      })
+      expect(res.status).toBe(405)
+
+      if (!isDeploy) {
+        expect(await res.text()).toContain('Method Not Allowed')
+      }
+    })
+
     it('should SSR normal page correctly', async () => {
       const html = await renderViaHTTP(next.url, '/')
       expect(html).toMatch(/hello.*?world/)
