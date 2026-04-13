@@ -161,7 +161,7 @@ pnpm bench:render-pipeline \
 
 **Run at least 3 times per side.** A single run can swing 10–15% on light routes due to JIT warmup variance and system noise. Three runs let you average out outliers and spot whether a delta is real.
 
-**Compare absolute req/s, not just deltas.** Percentage deltas from a single pair of runs can be misleading. Line up the raw numbers side by side across all runs to see the full picture.
+**Compare absolute req/s, not deltas.** Percentage deltas from a single pair of runs can be misleading. Line up the raw numbers side by side across all runs to see the full picture.
 
 **Watch for system state drift.** Running all baseline runs first, then all candidate runs, means the later runs may be affected by thermal throttling or background processes. If results look suspicious, interleave runs (baseline, candidate, baseline, candidate) to control for this.
 
