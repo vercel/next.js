@@ -2469,6 +2469,17 @@ where
                 }
             };
 
+            // Emit non-fatal warnings as issues (e.g. unknown options, non-constant values).
+            for warning in &options.warnings {
+                handler.span_warn_with_code(
+                    span,
+                    warning,
+                    DiagnosticId::Error(
+                        errors::failed_to_analyze::ecmascript::IMPORT_META_GLOB.to_string(),
+                    ),
+                );
+            }
+
             analysis.add_reference_code_gen(
                 ImportMetaGlobAssetReference::new(
                     origin,

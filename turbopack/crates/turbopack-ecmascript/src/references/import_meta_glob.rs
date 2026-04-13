@@ -15,8 +15,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemPath, ReadGlobResult,
@@ -33,7 +33,10 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     reference_type::EcmaScriptModulesReferenceSubType,
-    resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
+    resolve::{
+        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin,
+        parse::Request,
+    },
 };
 use turbopack_resolve::ecmascript::esm_resolve;
 
@@ -46,7 +49,6 @@ use crate::{
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
-        require_context::ResolvedModuleReference,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
@@ -69,6 +71,9 @@ pub struct ImportMetaGlobOptions {
     pub query: Option<RcStr>,
     /// Base path for resolving and keying modules.
     pub base: Option<RcStr>,
+    /// Non-fatal warnings encountered during parsing.
+    /// These should be emitted as issues by the caller.
+    pub warnings: Vec<RcStr>,
 }
 
 /// Parse the arguments of an `import.meta.glob(patterns, options?)` call.
@@ -122,6 +127,7 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
     let mut import = None;
     let mut query = None;
     let mut base = None;
+    let mut warnings: Vec<RcStr> = Vec::new();
 
     if let Some(opts) = args.get(1) {
         match opts {
@@ -134,9 +140,10 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                 if let Some(b) = val.as_bool() {
                                     eager = b;
                                 } else {
-                                    bail!(
+                                    warnings.push(
                                         "import.meta.glob() 'eager' option must be a constant \
-                                         boolean (true or false)"
+                                         boolean (true or false), defaulting to false"
+                                            .into(),
                                     );
                                 }
                             }
@@ -144,9 +151,10 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                 if let Some(s) = val.as_str() {
                                     import = Some(s.into());
                                 } else {
-                                    bail!(
+                                    warnings.push(
                                         "import.meta.glob() 'import' option must be a constant \
-                                         string"
+                                         string, ignoring"
+                                            .into(),
                                     );
                                 }
                             }
@@ -160,9 +168,10 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                     };
                                     query = Some(q);
                                 } else {
-                                    bail!(
+                                    warnings.push(
                                         "import.meta.glob() 'query' option must be a constant \
-                                         string"
+                                         string, ignoring"
+                                            .into(),
                                     );
                                 }
                             }
@@ -170,28 +179,36 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                 if let Some(s) = val.as_str() {
                                     base = Some(s.into());
                                 } else {
-                                    bail!(
+                                    warnings.push(
                                         "import.meta.glob() 'base' option must be a constant \
-                                         string"
+                                         string, ignoring"
+                                            .into(),
                                     );
                                 }
                             }
                             // The `as` option was deprecated in Vite 5 in favor of `query`.
                             // We don't support it; users should use `query` instead.
                             Some("as") => {
-                                bail!(
+                                warnings.push(
                                     "import.meta.glob() 'as' option is not supported. Use 'query' \
-                                     instead (e.g. {{ query: '?raw' }})"
+                                     instead (e.g. { query: '?raw' })"
+                                        .into(),
                                 );
                             }
                             Some(other) => {
-                                bail!(
-                                    "import.meta.glob() unsupported option '{other}'. Supported \
-                                     options are: eager, import, query, base"
+                                warnings.push(
+                                    format!(
+                                        "import.meta.glob() unsupported option '{other}'. \
+                                         Supported options are: eager, import, query, base"
+                                    )
+                                    .into(),
                                 );
                             }
                             None => {
-                                bail!("import.meta.glob() option keys must be constant strings");
+                                warnings.push(
+                                    "import.meta.glob() option keys must be constant strings"
+                                        .into(),
+                                );
                             }
                         }
                     }
@@ -209,6 +226,7 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
         import,
         query,
         base,
+        warnings,
     })
 }
 
@@ -326,63 +344,113 @@ impl ImportMetaGlobMap {
             None
         };
 
-        let mut map = FxIndexMap::default();
+        let reference_sub_type = if eager {
+            EcmaScriptModulesReferenceSubType::Import
+        } else {
+            EcmaScriptModulesReferenceSubType::DynamicImport
+        };
 
-        for (base_relative, path) in &files {
-            // Apply negative pattern filtering on the base-relative path.
-            if let Some(ref neg) = negative
-                && neg.matches(base_relative)
-            {
-                continue;
-            }
+        // Resolve all matched files in parallel.
+        let entries: Vec<_> = files
+            .iter()
+            .filter(|(base_relative, _)| {
+                // Apply negative pattern filtering on the base-relative path.
+                if let Some(ref neg) = negative {
+                    !neg.matches(base_relative)
+                } else {
+                    true
+                }
+            })
+            .map(|(_base_relative, path)| {
+                let origin_path = &origin_path;
+                let query = &query;
+                let reference_sub_type = &reference_sub_type;
+                async move {
+                    // Compute the origin-relative path for import resolution and as the
+                    // user-visible key in the result object.
+                    let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+                        bail!(
+                            "import.meta.glob: failed to compute relative path from origin to \
+                             matched file"
+                        );
+                    };
 
-            // Compute the origin-relative path for import resolution and as the
-            // user-visible key in the result object.
-            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
-                bail!(
-                    "import.meta.glob: failed to compute relative path from origin to matched file"
-                );
-            };
+                    // Append query string if specified (e.g., `?raw`).
+                    let request_str: RcStr = if let Some(q) = query {
+                        format!("{origin_relative}{q}").into()
+                    } else {
+                        origin_relative.clone()
+                    };
 
-            // Append query string if specified (e.g., `?raw`).
-            let request_str: RcStr = if let Some(q) = &query {
-                format!("{origin_relative}{q}").into()
-            } else {
-                origin_relative.clone()
-            };
+                    let request = Request::parse_string(request_str).to_resolved().await?;
 
-            let request = Request::parse_string(request_str).to_resolved().await?;
+                    let result = esm_resolve(
+                        origin,
+                        *request,
+                        reference_sub_type.clone(),
+                        error_mode,
+                        issue_source,
+                    )
+                    .await?
+                    .to_resolved()
+                    .await?;
 
-            let reference_sub_type = if eager {
-                EcmaScriptModulesReferenceSubType::Import
-            } else {
-                EcmaScriptModulesReferenceSubType::DynamicImport
-            };
-
-            let result = esm_resolve(
-                origin,
-                *request,
-                reference_sub_type,
-                error_mode,
-                issue_source,
-            )
-            .await?
-            .to_resolved()
+                    Ok((
+                        origin_relative.clone(),
+                        ImportMetaGlobMapEntry {
+                            origin_relative,
+                            request,
+                            result,
+                        },
+                    ))
+                }
+            })
+            .try_join()
             .await?;
 
-            map.insert(
-                origin_relative.clone(),
-                ImportMetaGlobMapEntry {
-                    origin_relative,
-                    request,
-                    result,
-                },
-            );
-        }
+        let mut map: FxIndexMap<RcStr, ImportMetaGlobMapEntry> = entries.into_iter().collect();
 
         map.sort_keys();
 
         Ok(Vc::cell(map))
+    }
+}
+
+// ---------------------------------------------------------------------------
+// ImportMetaGlobModuleReference — per-file reference from the virtual module
+// ---------------------------------------------------------------------------
+
+/// A reference from the `ImportMetaGlobAsset` virtual module to one of the
+/// glob-matched modules. Carries `ExportUsage` so that tree shaking can
+/// narrow the used exports when the `import` option is set (e.g. `{ import:
+/// 'default' }` means only the `default` export is needed).
+#[turbo_tasks::value]
+#[derive(ValueToString)]
+#[value_to_string("import.meta.glob resolved reference")]
+pub struct ImportMetaGlobModuleReference {
+    result: ResolvedVc<ModuleResolveResult>,
+    export: ExportUsage,
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for ImportMetaGlobModuleReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        *self.result
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
+            inherit_async: false,
+            hoisted: false,
+        })
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: Default::default(),
+            export: self.export.clone(),
+        }
     }
 }
 
@@ -529,12 +597,24 @@ impl Module for ImportMetaGlobAsset {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+        let this = self.await?;
         let map = &*self.map().await?;
+
+        let export = match &this.import {
+            Some(name) => ExportUsage::Named(name.clone()),
+            None => ExportUsage::All,
+        };
 
         Ok(Vc::cell(
             map.iter()
                 .map(|(_, entry)| {
-                    ResolvedVc::upcast(ResolvedVc::<ResolvedModuleReference>::cell(entry.result))
+                    ResolvedVc::upcast(
+                        ImportMetaGlobModuleReference {
+                            result: entry.result,
+                            export: export.clone(),
+                        }
+                        .resolved_cell(),
+                    )
                 })
                 .collect(),
         ))

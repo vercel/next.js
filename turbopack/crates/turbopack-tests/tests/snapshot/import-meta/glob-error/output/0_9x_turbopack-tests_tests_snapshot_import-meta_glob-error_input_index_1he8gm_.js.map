@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/glob-error/input/index.js"],"sourcesContent":["// Error: 'as' option is not supported\nconst withAs = import.meta.glob('./dir/*.js', { as: 'raw' })\n\n// Error: non-constant eager\nconst nonConstEager = import.meta.glob('./dir/*.js', { eager: someVar })\n\n// Error: unknown option\nconst unknown = import.meta.glob('./dir/*.js', { exhaust: true })\n\nconsole.log(withAs, nonConstEager, unknown)\n"],"names":["withAs","glob","as","nonConstEager","eager","someVar","unknown","exhaust","console","log"],"mappings":";;;;;AAAA,sCAAsC;AACtC,MAAMA,SAAS,8BAAYC,IAAI,CAAC,cAAc;IAAEC,IAAI;AAAM;AAE1D,4BAA4B;AAC5B,MAAMC,gBAAgB,8BAAYF,IAAI,CAAC,cAAc;IAAEG,OAAOC;AAAQ;AAEtE,wBAAwB;AACxB,MAAMC,UAAU,8BAAYL,IAAI,CAAC,cAAc;IAAEM,SAAS;AAAK;AAE/DC,QAAQC,GAAG,CAACT,QAAQG,eAAeG"}}]
-}

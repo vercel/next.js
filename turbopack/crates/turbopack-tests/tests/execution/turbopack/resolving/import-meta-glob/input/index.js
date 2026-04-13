@@ -33,10 +33,32 @@ it('should resolve to the named export when import option is set', async () => {
   expect(barDefault).toBe('bar')
 })
 
+// Eager + named import
+const eagerNamed = import.meta.glob('./dir/*.js', {
+  import: 'value',
+  eager: true,
+})
+
+it('should resolve to the named export eagerly', () => {
+  expect(eagerNamed['./dir/foo.js']).toBe(42)
+  expect(eagerNamed['./dir/bar.js']).toBe(99)
+})
+
 // Negative pattern: exclude bar.js
 const filteredModules = import.meta.glob(['./dir/*.js', '!**/bar.js'])
 
 it('should exclude files matching negative patterns', () => {
   const keys = Object.keys(filteredModules)
   expect(keys).toEqual(['./dir/foo.js'])
+})
+
+// Multiple patterns across directories
+const multiModules = import.meta.glob(['./dir/*.js', './other/*.js'], {
+  eager: true,
+})
+
+it('should support multiple patterns across directories', () => {
+  const keys = Object.keys(multiModules).sort()
+  expect(keys).toEqual(['./dir/bar.js', './dir/foo.js', './other/baz.js'])
+  expect(multiModules['./other/baz.js'].default).toBe('baz')
 })
