@@ -1122,7 +1122,10 @@ export default async function build(
         await nextBuildSpan
           .traceChild('clean')
           .traceAsyncFn(() =>
-            recursiveDeleteSyncWithAsyncRetries(distDir, /^(cache|dev|lock)/)
+            recursiveDeleteSyncWithAsyncRetries(
+              distDir,
+              /^(cache|dev|lock|trace)/
+            )
           )
       }
 

@@ -50,7 +50,13 @@ class RotatingWriteStream {
     this.createWriteStream()
   }
   private createWriteStream() {
-    this.writeStream = fs.createWriteStream(this.file, writeStreamOptions)
+    const phase = traceGlobals.get('phase')
+    this.writeStream = fs.createWriteStream(this.file, {
+      ...writeStreamOptions,
+      // In dev, append so traces accumulate across sessions. In production,
+      // truncate so each build starts with a fresh trace file.
+      flags: phase === PHASE_DEVELOPMENT_SERVER ? 'a' : 'w',
+    })
   }
   // Recreate the file
   private async rotate() {
