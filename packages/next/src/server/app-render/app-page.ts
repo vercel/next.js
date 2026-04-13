@@ -619,9 +619,6 @@ export function createHandler(
 
     const ComponentMod = {
       ...moduleEntryBase,
-      interopDefault,
-      buildDynamicSegmentPlaceholder,
-      buildCompletedShellCacheKey,
       tree,
       handler,
       routeModule,

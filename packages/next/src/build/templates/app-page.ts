@@ -10,14 +10,10 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 // (see crates/next-core/src/app_page_loader_tree.rs), so it must remain in
 // this template's compiled output as a local binding named `interopDefault`.
 // The export below prevents TypeScript from eliding the import.
-import { interopDefault } from '../../server/app-render/interop-default'
+import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
 export { interopDefault }
 
-import {
-  buildDynamicSegmentPlaceholder,
-  buildCompletedShellCacheKey,
-  createHandler,
-} from '../../server/app-render/app-page' with { 'turbopack-transition': 'next-ssr' }
+import { createHandler } from '../../server/app-render/app-page' with { 'turbopack-transition': 'next-server-utility' }
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -51,7 +47,5 @@ export const routeModule = new AppPageRouteModule({
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
-
-export { buildDynamicSegmentPlaceholder, buildCompletedShellCacheKey }
 
 export const handler = createHandler(routeModule, entryBase, tree, __next_app__)
