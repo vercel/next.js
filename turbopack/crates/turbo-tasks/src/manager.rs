@@ -71,6 +71,16 @@ pub trait TurboTasksCallApi: Sync + Send {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc;
+    /// Optimistic read-only cache lookup for a native function call.
+    /// Returns `Ok(RawVc)` on cache hit, or `Err(hash)` on miss with
+    /// the pre-computed hash for reuse by a subsequent `native_call`.
+    fn try_native_call(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+        persistence: TaskPersistence,
+    ) -> Result<RawVc, u64>;
     /// Calls a trait method with arguments. First input is the `self` object.
     /// Uses a wrapper task to resolve
     fn trait_call(
@@ -813,6 +823,26 @@ impl<B: Backend + 'static> TurboTasks<B> {
         })
     }
 
+    pub(crate) fn try_native_call(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+        persistence: TaskPersistence,
+    ) -> Result<RawVc, u64> {
+        let parent_task = current_task_if_available("turbo_function calls");
+        match persistence {
+            TaskPersistence::Transient => self
+                .backend
+                .try_get_or_create_transient_task(native_fn, this, arg, parent_task, self)
+                .map(|task_id| RawVc::TaskOutput(task_id)),
+            TaskPersistence::Persistent => self
+                .backend
+                .try_get_or_create_persistent_task(native_fn, this, arg, parent_task, self)
+                .map(|task_id| RawVc::TaskOutput(task_id)),
+        }
+    }
+
     pub fn dynamic_call(
         &self,
         native_fn: &'static NativeFunction,
@@ -1375,6 +1405,15 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
     ) -> RawVc {
         self.native_call(native_fn, this, arg, persistence)
     }
+    fn try_native_call(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+        persistence: TaskPersistence,
+    ) -> Result<RawVc, u64> {
+        self.try_native_call(native_fn, this, arg, persistence)
+    }
     fn trait_call(
         &self,
         trait_method: &'static TraitMethod,
@@ -1842,6 +1881,30 @@ pub fn dynamic_call(
     persistence: TaskPersistence,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.dynamic_call(func, this, arg, persistence))
+}
+
+/// Optimized native call that avoids boxing args on cache hit.
+///
+/// First tries a read-only cache lookup with borrowed `arg`. If the task exists in cache,
+/// the parent connection is made and the result is returned without any heap allocation
+/// for the arguments.
+///
+/// On cache miss, falls back to boxing the arg and going through the normal `native_call` path.
+pub fn native_call_if_consistent<T: MagicAny>(
+    func: &'static NativeFunction,
+    this: Option<RawVc>,
+    arg: T,
+    persistence: TaskPersistence,
+) -> RawVc {
+    with_turbo_tasks(
+        |tt| match tt.try_native_call(func, this, &arg, persistence) {
+            Ok(raw_vc) => raw_vc,
+            Err(_hash) => {
+                // Cache miss — box the arg and go through the full path
+                tt.native_call(func, this, Box::new(arg), persistence)
+            }
+        },
+    )
 }
 
 /// Calls [`TurboTasks::trait_call`] for the current turbo tasks instance.

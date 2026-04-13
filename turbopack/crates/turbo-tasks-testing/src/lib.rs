@@ -111,6 +111,16 @@ impl TurboTasksCallApi for VcStorage {
         unreachable!()
     }
 
+    fn try_native_call(
+        &self,
+        _func: &'static turbo_tasks::macro_helpers::NativeFunction,
+        _this: Option<RawVc>,
+        _arg: &dyn MagicAny,
+        _persistence: TaskPersistence,
+    ) -> Result<RawVc, u64> {
+        unreachable!()
+    }
+
     fn trait_call(
         &self,
         _trait_type: &'static turbo_tasks::TraitMethod,

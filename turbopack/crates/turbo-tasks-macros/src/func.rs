@@ -482,6 +482,7 @@ impl TurboFn<'_> {
         None
     }
 
+    #[allow(dead_code)]
     pub fn persistence(&self) -> impl ToTokens {
         quote! {
             turbo_tasks::macro_helpers::get_persistence_from_inputs(&*inputs)
@@ -596,20 +597,39 @@ impl TurboFn<'_> {
                 }
             }
         } else {
-            let persistence = self.persistence();
+            // No-self case: use the optimized path that avoids boxing on cache hit.
+            // First check if all inputs are resolved. If so, use native_call_if_consistent
+            // which does a read-only cache lookup with borrowed args.
+            // On cache miss or unresolved inputs, fall back to the boxed dynamic_call path.
             quote! {
                 {
                     #assertions
-                    let inputs = std::boxed::Box::new((#(#inputs,)*));
-                    let persistence = #persistence;
-                    <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                        turbo_tasks::dynamic_call(
-                            &#native_function_ident,
-                            None,
-                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
-                            persistence,
+                    let inputs = (#(#inputs,)*);
+                    let persistence =
+                        turbo_tasks::macro_helpers::get_persistence_from_inputs(&inputs);
+                    if turbo_tasks::macro_helpers::NativeFunction::arg_is_resolved(
+                        &#native_function_ident,
+                        &inputs as &dyn turbo_tasks::MagicAny,
+                    ) {
+                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                            turbo_tasks::native_call_if_consistent(
+                                &#native_function_ident,
+                                None,
+                                inputs,
+                                persistence,
+                            )
                         )
-                    )
+                    } else {
+                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                            turbo_tasks::dynamic_call(
+                                &#native_function_ident,
+                                None,
+                                std::boxed::Box::new(inputs)
+                                    as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                                persistence,
+                            )
+                        )
+                    }
                 }
             }
         };

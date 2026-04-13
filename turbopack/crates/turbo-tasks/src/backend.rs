@@ -3,7 +3,7 @@ use std::{
     error::Error,
     fmt::{self, Debug, Display},
     future::Future,
-    hash::{BuildHasherDefault, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     pin::Pin,
     sync::Arc,
 };
@@ -152,6 +152,34 @@ impl Hash for CachedTaskType {
 impl Display for CachedTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.get_name())
+    }
+}
+
+impl CachedTaskType {
+    /// Compute the hash of a task type from its individual components, matching the Hash impl.
+    /// This avoids constructing a full CachedTaskType just to compute the hash.
+    pub fn hash_from_components(
+        hasher: &impl BuildHasher,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+    ) -> u64 {
+        use std::hash::Hasher;
+        let mut state = hasher.build_hasher();
+        native_fn.hash(&mut state);
+        this.hash(&mut state);
+        arg.hash(&mut state);
+        state.finish()
+    }
+
+    /// Check equality of components against this CachedTaskType.
+    pub fn eq_components(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+    ) -> bool {
+        std::ptr::eq(self.native_fn, native_fn) && self.this == this && &*self.arg == arg
     }
 }
 
@@ -616,6 +644,30 @@ pub trait Backend: Sync + Send {
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
+
+    /// Read-only cache lookup for a persistent task using borrowed components.
+    /// Returns `Ok(task_id)` on hit (parent connection is made),
+    /// or `Err(hash)` on miss with the pre-computed hash for reuse.
+    fn try_get_or_create_persistent_task(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+        parent_task: Option<TaskId>,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Result<TaskId, u64>;
+
+    /// Read-only cache lookup for a transient task using borrowed components.
+    /// Returns `Ok(task_id)` on hit (parent connection is made),
+    /// or `Err(hash)` on miss with the pre-computed hash for reuse.
+    fn try_get_or_create_transient_task(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+        parent_task: Option<TaskId>,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) -> Result<TaskId, u64>;
 
     fn connect_task(
         &self,
