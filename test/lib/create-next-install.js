@@ -15,8 +15,6 @@ async function installDependencies(cwd, tmpDir) {
     'install',
     '--strict-peer-dependencies=false',
     '--no-frozen-lockfile',
-    // For the testing installation, use a separate cache directory
-    // to avoid local testing grows pnpm's default cache indefinitely with test packages.
     `--config.cacheDir=${tmpDir}`,
   ]
 
@@ -50,9 +48,8 @@ async function installDependencies(cwd, tmpDir) {
  * @param { ((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
  * @param {object} [param0.packageJson]
  * @param {string} [param0.subDir]
- * @param {boolean} [param0.keepRepoDir]
  * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} [param0.beforeInstall]
- * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>, tmpRepoDir: string | undefined}>}
+ * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>}>}
  */
 async function createNextInstall({
   parentSpan,
@@ -61,7 +58,6 @@ async function createNextInstall({
   installCommand = null,
   packageJson = {},
   subDir = '',
-  keepRepoDir = false,
   beforeInstall,
 }) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
@@ -75,7 +71,6 @@ async function createNextInstall({
         `next-install-${randomBytes(32).toString('hex')}`,
         subDir
       )
-      let tmpRepoDir
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
@@ -86,39 +81,12 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        tmpRepoDir = path.join(
-          tmpDir,
-          `next-repo-${randomBytes(32).toString('hex')}`,
-          subDir
+        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+          execa('pnpm', ['turbo', 'run', 'pack-for-isolated-tests'], {
+            cwd: origRepoDir,
+            stdio: ['ignore', 'inherit', 'inherit'],
+          })
         )
-        require('console').log('Creating temp repo dir', tmpRepoDir)
-
-        for (const item of [
-          'package.json',
-          'packages',
-          // Otherwise pnpm will not recognize workspaces
-          'pnpm-workspace.yaml',
-        ]) {
-          await rootSpan
-            .traceChild(`copy ${item} to temp dir`)
-            .traceAsyncFn(() =>
-              fs.copy(
-                path.join(origRepoDir, item),
-                path.join(tmpRepoDir, item),
-                {
-                  filter: (item) => {
-                    return (
-                      !item.includes('node_modules') &&
-                      !item.includes('pnpm-lock.yaml') &&
-                      !item.includes('.DS_Store') &&
-                      // Exclude Rust compilation files
-                      !/packages[\\/]next-swc/.test(item)
-                    )
-                  },
-                }
-              )
-            )
-        }
 
         if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
@@ -148,20 +116,16 @@ async function createNextInstall({
           }
         }
 
-        // log for clarity of which version we're using
         require('console').log({
           swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
           swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
 
-        pkgPaths = await rootSpan
-          .traceChild('linkPackages')
-          .traceAsyncFn((span) =>
-            linkPackages({
-              repoDir: tmpRepoDir,
-              parentSpan: span,
-            })
-          )
+        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
+          linkPackages({
+            repoDir: origRepoDir,
+          })
+        )
       }
 
       const combinedDependencies = {
@@ -175,6 +139,15 @@ async function createNextInstall({
 
       if (useRspack) {
         combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
+      }
+
+      // Build overrides to resolve transitive workspace deps from local
+      // tarballs. Write all three formats so npm, pnpm, and yarn all work.
+      const workspacePkgOverrides = {}
+      for (const [name, tarballPath] of pkgPaths.entries()) {
+        if (!combinedDependencies[name]) {
+          workspacePkgOverrides[name] = tarballPath
+        }
       }
 
       const scripts = {
@@ -192,8 +165,21 @@ async function createNextInstall({
             scripts,
             dependencies: combinedDependencies,
             private: true,
-            // Add resolutions if provided.
-            ...(resolutions ? { resolutions } : {}),
+            overrides: {
+              ...workspacePkgOverrides,
+              ...(packageJson.overrides || {}),
+            },
+            pnpm: {
+              ...(packageJson.pnpm || {}),
+              overrides: {
+                ...workspacePkgOverrides,
+                ...(packageJson.pnpm?.overrides || {}),
+              },
+            },
+            resolutions: {
+              ...workspacePkgOverrides,
+              ...(resolutions || {}),
+            },
           },
           null,
           2
@@ -231,8 +217,6 @@ async function createNextInstall({
       }
 
       if (useRspack) {
-        // This is what the next-rspack plugin does.
-        // TODO: Load the plugin properly during test
         process.env.NEXT_RSPACK = 'true'
         process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
       }
@@ -240,7 +224,6 @@ async function createNextInstall({
       return {
         installDir,
         pkgPaths,
-        tmpRepoDir,
       }
     })
 }

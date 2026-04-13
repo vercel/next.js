@@ -21,5 +21,8 @@
   },
   "dependencies": {
     "source-map": "^0.7.0"
+  },
+  "scripts": {
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   }
 }

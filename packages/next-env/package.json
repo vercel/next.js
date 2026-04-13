@@ -26,7 +26,8 @@
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
     "build:source": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
     "build": "pnpm build:source && pnpm types",
-    "prepublishOnly": "cd ../../ && turbo run build"
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0",

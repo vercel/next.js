@@ -181,12 +181,6 @@ const cleanUpAndExit = async (code) => {
       force: true,
     })
   }
-  if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fsp.rm(process.env.NEXT_TEST_TEMP_REPO, {
-      recursive: true,
-      force: true,
-    })
-  }
   if (process.env.CI) {
     await maybeLogSummary()
   }
@@ -479,13 +473,12 @@ ${ENDGROUP}`)
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
       process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
-    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
+    const { installDir, pkgPaths } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
-      keepRepoDir: true,
     })
 
     const serializedPkgPaths = []
@@ -494,7 +487,6 @@ ${ENDGROUP}`)
       serializedPkgPaths.push([key, pkgPaths.get(key)])
     }
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
-    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
     console.log(`${ENDGROUP}`)
   }

@@ -242,7 +242,7 @@ export const installTemplate = async ({
     ) {
       packageJson.dependencies["next-rspack"] = path.resolve(
         path.dirname(NEXT_PRIVATE_TEST_VERSION),
-        "../next-rspack/next-rspack-packed.tgz",
+        "../next-rspack/packed.tgz",
       );
     } else {
       packageJson.dependencies["next-rspack"] = version;

@@ -89,7 +89,8 @@
     "ncc-compiled": "taskr ncc",
     "storybook": "BROWSER=none storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test-storybook": "test-storybook"
+    "test-storybook": "test-storybook",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "taskr": {
     "requires": [
