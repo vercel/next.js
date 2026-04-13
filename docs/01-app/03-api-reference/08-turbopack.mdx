@@ -110,12 +110,13 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ### Module resolution
 
-| Feature               | Status              | Notes                                                                                                                                                           |
-| --------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Path Aliases**      | **Supported**       | Reads `tsconfig.json`'s `paths` and `baseUrl`, matching Next.js behavior.                                                                                       |
-| **Manual Aliases**    | **Supported**       | [Configure `resolveAlias` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases) (similar to `webpack.resolve.alias`). |
-| **Custom Extensions** | **Supported**       | [Configure `resolveExtensions` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions).                       |
-| **AMD**               | Partially Supported | Basic transforms work; advanced AMD usage is limited.                                                                                                           |
+| Feature                | Status              | Notes                                                                                                                                                           |
+| ---------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Path Aliases**       | **Supported**       | Reads `tsconfig.json`'s `paths` and `baseUrl`, matching Next.js behavior.                                                                                       |
+| **Manual Aliases**     | **Supported**       | [Configure `resolveAlias` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases) (similar to `webpack.resolve.alias`). |
+| **Custom Extensions**  | **Supported**       | [Configure `resolveExtensions` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions).                       |
+| **`import.meta.glob`** | **Supported**       | Vite-compatible glob imports. [See below.](#importmetaglob)                                                                                                     |
+| **AMD**                | Partially Supported | Basic transforms work; advanced AMD usage is limited.                                                                                                           |
 
 ### Performance and Fast Refresh
 
@@ -136,6 +137,89 @@ Turbopack supports webpack-compatible magic comments for controlling import beha
 | `webpackOptional: true`   | ✗       | ✗         | Not supported                  |
 
 See [Lazy Loading](/docs/app/guides/lazy-loading#magic-comments) for usage examples.
+
+## import.meta.glob
+
+Turbopack supports `import.meta.glob()`, a Vite-compatible API for importing multiple modules at once using glob patterns. The result is an object keyed by the file path relative to the calling file.
+
+```js
+const modules = import.meta.glob('./dir/*.js')
+// {
+//   './dir/foo.js': () => import('./dir/foo.js'),
+//   './dir/bar.js': () => import('./dir/bar.js'),
+// }
+```
+
+> **Good to know:** `import.meta.glob` requires Turbopack. It is not available when using webpack.
+
+### Lazy loading (default)
+
+By default, each value in the result object is a thunk — a function that returns a `Promise` for the module. This enables lazy loading:
+
+```js
+const modules = import.meta.glob('./dir/*.js')
+
+for (const path in modules) {
+  const module = await modules[path]()
+  console.log(path, module)
+}
+```
+
+### Eager loading
+
+Pass `{ eager: true }` to import all matching modules up front. Each value is the module object directly instead of a thunk:
+
+```js
+const modules = import.meta.glob('./dir/*.js', { eager: true })
+
+for (const path in modules) {
+  console.log(path, modules[path].default)
+}
+```
+
+### Named imports
+
+Use the `import` option to select a specific named export from each matched module. This works in both lazy and eager modes:
+
+```js
+// Lazy: each value is () => Promise<exportValue>
+const defaults = import.meta.glob('./dir/*.js', { import: 'default' })
+
+// Eager: each value is the export value directly
+const setups = import.meta.glob('./dir/*.js', { import: 'setup', eager: true })
+```
+
+### Query strings
+
+Use the `query` option to append a query string to every import request. This is useful for loading files as raw strings or URLs:
+
+```js
+const rawFiles = import.meta.glob('./dir/*.txt', { query: '?raw' })
+const urls = import.meta.glob('./dir/*.png', { query: '?url' })
+```
+
+### Multiple patterns and negation
+
+Pass an array of glob patterns as the first argument. Prefix a pattern with `!` to exclude matching files:
+
+```js
+// Combine multiple directories
+const modules = import.meta.glob(['./dir/*.js', './other/*.js'])
+
+// Exclude specific files
+const withoutTests = import.meta.glob(['./src/**/*.js', '!**/*.test.js'])
+```
+
+### Options reference
+
+| Option   | Type      | Default     | Description                                                            |
+| -------- | --------- | ----------- | ---------------------------------------------------------------------- |
+| `eager`  | `boolean` | `false`     | Import modules synchronously instead of returning thunks.              |
+| `import` | `string`  | `undefined` | Named export to select from each matched module (e.g. `'default'`).    |
+| `query`  | `string`  | `undefined` | Query string to append to each import (e.g. `'?raw'`, `'?url'`).       |
+| `base`   | `string`  | `undefined` | Override the base path used for resolving patterns and keying results. |
+
+> **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query: '?raw'` or `query: '?url'` instead. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 
 ## Known gaps with webpack
 
