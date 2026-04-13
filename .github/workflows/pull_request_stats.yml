@@ -85,7 +85,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pr-stats-${{ matrix.bundler }}
-          path: pr-stats-${{ matrix.bundler }}.json
+          path: stats-results/pr-stats-${{ matrix.bundler }}.json
           retention-days: 1
 
   stats-aggregate:
