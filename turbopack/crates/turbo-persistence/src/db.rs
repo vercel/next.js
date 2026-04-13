@@ -812,38 +812,49 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })
             .collect::<Vec<_>>();
 
-        // ── Phase A: compute what will change without structurally modifying
-        //    inner (no append, no retain, no seq bump). ──
+        // ── Phase A: compute what will change without adding/removing meta
+        //    files or bumping the sequence number. ──
         //
         // We need `meta_seq_numbers_to_delete` and `has_delete_file` to write
-        // the .del file BEFORE writing CURRENT. But we must not modify
-        // `inner.meta_files` or `inner.current_sequence_number` yet — if a disk
-        // error occurs before CURRENT is durable, the WriteOperationGuard
-        // rollback can only clean up orphan files, not undo in-memory mutations.
+        // the .del file BEFORE writing CURRENT. We must not append/retain
+        // `inner.meta_files` or update `inner.current_sequence_number` yet —
+        // if a disk error occurs before CURRENT is durable, the
+        // WriteOperationGuard rollback can only clean up orphan files, not undo
+        // in-memory mutations to the file list or sequence number.
+        //
+        // A1 (apply_filter) does mutate MetaFile internals in-memory, but that
+        // is safe: it is a read optimization (moving superseded entries to
+        // `obsolete_entries`) and on crash/rollback the MetaFile is re-opened
+        // from disk with its original layout.
         let has_delete_file;
         let mut meta_seq_numbers_to_delete = Vec::new();
 
         {
-            let mut inner = self.inner.write();
-
             // (A1) Run the SST filter on existing meta files. This calls
             // `retain_entries()` which moves superseded entries into
-            // `obsolete_entries` — a benign read optimization that doesn't
-            // change which meta files exist or the sequence number. Safe to
-            // apply pre-CURRENT: on crash/rollback the MetaFile is re-opened
-            // from disk with its original layout.
+            // `obsolete_entries`. Requires a write lock because it mutates the
+            // MetaFile in-memory layout. Released immediately after.
+            let mut inner = self.inner.write();
             for meta_file in inner.meta_files.iter_mut().rev() {
                 sst_filter.apply_filter(meta_file);
             }
+        }
 
+        {
             // (A2) Determine which meta files are fully obsolete by running
-            // `apply_and_get_remove` in newest-first order. Process new metas
-            // first (they are newer than existing ones) to advance the filter
-            // state, then existing ones. New metas are never candidates for
-            // removal (just created), so only their filter-state side-effects
-            // matter.
+            // `apply_and_get_remove` in newest-first order. Only reads
+            // `inner.meta_files`, so a read lock suffices.
+            //
+            // Process new metas first (they are newer than existing ones) to
+            // advance the filter state, then existing ones. New metas are never
+            // candidates for removal (just created), so only their filter-state
+            // side-effects matter.
+            let inner = self.inner.read();
             for meta_file in new_meta_files.iter().rev() {
-                sst_filter.apply_and_get_remove(meta_file);
+                debug_assert!(
+                    !sst_filter.apply_and_get_remove(meta_file),
+                    "newly created meta file should never be a candidate for removal"
+                );
             }
             for i in (0..inner.meta_files.len()).rev() {
                 if sst_filter.apply_and_get_remove(&inner.meta_files[i]) {
@@ -857,11 +868,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             has_delete_file = !sst_seq_numbers_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
                 || !meta_seq_numbers_to_delete.is_empty();
-            if has_delete_file {
-                seq += 1;
-            }
-
-            // inner.write() is dropped here — inner is NOT structurally changed.
+        }
+        if has_delete_file {
+            seq += 1;
         }
 
         self.parallel_scheduler.block_in_place(|| {
@@ -915,7 +924,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // would then run its rollback and delete the *newly committed*
             // files, corrupting the database.
 
-            let _: Result<(), _> = (|| {
+            if let Err(e) = (|| {
                 let mut log = self.open_log()?;
                 writeln!(log, "Time {time}")?;
                 let span = time.until(Timestamp::now())?;
@@ -977,7 +986,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     |&seq| seq,
                 )?;
                 anyhow::Ok(())
-            })();
+            })() {
+                eprintln!("turbo-persistence: failed to write LOG after commit {seq:08}: {e:#}");
+            }
 
             anyhow::Ok(())
         })?;
