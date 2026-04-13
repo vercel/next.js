@@ -11,6 +11,7 @@ var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
+var CROSS_ORIGIN = null;
 var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
@@ -1828,6 +1829,7 @@ var BACKEND;
                 } else {
                     var link = document.createElement('link');
                     link.rel = 'stylesheet';
+                    link.crossOrigin = CROSS_ORIGIN;
                     link.href = chunkUrl;
                     link.onerror = function() {
                         resolver.reject();
@@ -1869,6 +1871,7 @@ var BACKEND;
                     }
                 } else {
                     var script1 = document.createElement('script');
+                    script1.crossOrigin = CROSS_ORIGIN;
                     script1.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
