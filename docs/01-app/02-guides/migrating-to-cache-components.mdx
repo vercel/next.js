@@ -172,9 +172,7 @@ export default async function Page() {
 
 ## `generateStaticParams`
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) works with [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) when Cache Components is enabled, but validation is stricter and the `Route (app)` section from `next build` uses different symbols.
-
-With Cache Components, returning `[]` from `generateStaticParams` triggers a [build error](/docs/messages/empty-generate-static-params). The build needs at least one path to validate the prerendered shell. Return at least one param, or remove `generateStaticParams` and let params resolve at request time (see [dynamic routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components)).
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) works with [dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) when Cache Components is enabled. Returning `[]` from `generateStaticParams` now triggers a [build error](/docs/messages/empty-generate-static-params). Return at least one param, or remove `generateStaticParams` and let params resolve at request time.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before
@@ -232,9 +230,9 @@ export default async function Page({ params }) {
 }
 ```
 
-> **Good to know**: Params not returned by `generateStaticParams` are served with the prerendered shell while dynamic content streams in, and the result is cached for subsequent visits. This is the default behavior in Next.js 16.3+. In earlier versions, unlisted params wait for a full server render before the response is sent.
+> **Good to know**: If the route has a [`loading.js`](/docs/app/api-reference/file-conventions/loading) or `<Suspense>` boundary, unlisted params (values not returned by `generateStaticParams`) are served with the prerendered shell while content streams in, and the result is cached for subsequent visits. This is the default behavior in Next.js 16.3+, where [partial fallbacks](/docs/app/api-reference/config/next-config-js/partialFallbacks) is enabled by default. Without a loading fallback, unlisted params perform a blocking prerender.
 
-The `Route (app)` section from `next build` also changes. With Cache Components, **`●` (SSG)** is replaced by **`○` (Static)** or **`◐` (Partial Prerender)** depending on whether the route contains dynamic content:
+The `Route (app)` section from `next build` also changes. With Cache Components, **`●` (SSG)** is replaced by **`○` (Static)** or **`◐` (Partial Prerender)**:
 
 **Before Cache Components:**
 
@@ -250,22 +248,22 @@ Route (app)
 ●  (SSG)     prerendered as static HTML (uses generateStaticParams)
 ```
 
-**With Cache Components:**
+**With Cache Components (and a `loading.js`):**
 
 ```bash filename="Terminal"
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
 └   /products/[id]
-  ├ ◐ /products/[id]    # Shell for unlisted params
-  ├ ○ /products/1       # Fully prerendered
-  └ ○ /products/2       # Fully prerendered
+  ├ ◐ /products/[id]    # Shell served instantly, content streams in
+  ├ ○ /products/1       # Fully prerendered at build time
+  └ ○ /products/2       # Fully prerendered at build time
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-See [Building](/docs/app/guides/building) for more on `next build` output and symbols. See [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) for Suspense boundaries, placeholder params, and the full contract.
+See [Building](/docs/app/guides/building) for more on `next build` output, symbols, and when a loading fallback is needed. See [`generateStaticParams` with Cache Components](/docs/app/api-reference/functions/generate-static-params#with-cache-components) for Suspense boundaries, placeholder params, and the full contract.
 
 ## `runtime = 'edge'`
 
