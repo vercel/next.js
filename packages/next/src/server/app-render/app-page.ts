@@ -619,7 +619,6 @@ export function createHandler(
 
     const ComponentMod = {
       ...moduleEntryBase,
-      interopDefault,
       tree,
       handler,
       routeModule,
