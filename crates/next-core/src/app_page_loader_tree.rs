@@ -460,8 +460,7 @@ impl AppPageLoaderTreeBuilder {
         // above (see write_metadata_item / write_static_metadata_item). Import it
         // explicitly here so the template does not need to export it.
         let interop_import = rcstr!(
-            "import { interopDefault } from 'next/dist/esm/server/app-render/interop-default' \
-             with { 'turbopack-transition': 'next-server-utility' };"
+            "import { interopDefault } from 'next/dist/esm/server/app-render/interop-default';"
         );
         if self.loader_tree_code.contains("interopDefault") {
             self.base.imports.insert(0, interop_import);
