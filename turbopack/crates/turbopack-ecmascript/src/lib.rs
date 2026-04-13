@@ -2568,6 +2568,17 @@ impl SourceMapper for CodeGenResultSourceMap {
             }
         }
     }
+    fn map_raw_pos(&self, pos: BytePos) -> BytePos {
+        match self {
+            CodeGenResultSourceMap::None => BytePos::DUMMY,
+            CodeGenResultSourceMap::Single { .. } => pos,
+            CodeGenResultSourceMap::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                ..
+            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
+        }
+    }
 }
 impl SourceMapperExt for CodeGenResultSourceMap {
     fn get_code_map(&self) -> &dyn SourceMapper {
