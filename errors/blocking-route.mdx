@@ -17,7 +17,7 @@ Common causes:
 
 The fix depends on which API you're using. See the examples below.
 
-> **Good to know**: In `next dev`, the error overlay shows the source code that triggered the issue and suggests fixes with inline examples. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for stack traces that name the exact component.
+> **Note**: In `next dev`, the error overlay shows the source code that triggered the issue and suggests fixes with inline examples. If the error only appears during `next build` (for example in CI), run `next build --debug-prerender` for stack traces that name the exact component.
 
 ## Possible Ways to Fix It
 
@@ -73,7 +73,7 @@ export default async function Page() {
 
 After:
 
-```jsx filename="app/page.js" highlight={20-22}
+```jsx filename="app/page.js"
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
@@ -143,7 +143,7 @@ export async function Inbox() {
 }
 ```
 
-```jsx filename="app/page.js" highlight={6}
+```jsx filename="app/page.js"
 import { Suspense } from 'react'
 import { Inbox } from './inbox'
 
@@ -186,7 +186,7 @@ export default async function ProductPage({ params }) {
 
 After:
 
-```jsx filename="app/product/[id]/page.js" highlight={7-9}
+```jsx filename="app/product/[id]/page.js"
 import { Suspense } from 'react'
 
 export default function ProductPage({ params }) {
@@ -223,7 +223,7 @@ export default async function Page({ searchParams }) {
 
 After:
 
-```jsx filename="app/page.js" highlight={5-7}
+```jsx filename="app/page.js"
 import { Suspense } from 'react'
 
 export default function Page({ searchParams }) {
@@ -241,7 +241,7 @@ async function MapView({ searchParams }) {
 }
 ```
 
-##### `generateStaticParams`
+#### `generateStaticParams`
 
 A `<Suspense>` boundary or `loading.js` file is required when using `params`. In Next.js 16.3 and later, [partial fallbacks](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) are enabled by default, so the build prerenders a shell for unlisted param values. Without a fallback, the build fails because there is no shell to render.
 
@@ -293,7 +293,7 @@ export default async function Page() {
 
 After:
 
-```jsx filename="app/page.js" highlight={4-10}
+```jsx filename="app/page.js"
 import { cacheTag, cacheLife } from 'next/cache'
 
 async function getRecentArticles() {
@@ -336,7 +336,7 @@ export default async function Page() {
 
 After:
 
-```jsx filename="app/page.js" highlight={14-16}
+```jsx filename="app/page.js"
 import { Suspense } from 'react'
 
 async function TransactionList() {
