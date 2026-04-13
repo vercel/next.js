@@ -1,6 +1,4 @@
 #[cfg(debug_assertions)]
-use std::fmt::Debug;
-#[cfg(debug_assertions)]
 use std::{future::Future, pin::Pin};
 
 pub use turbo_tasks_macros::ValueDebugFormat;
@@ -54,392 +52,370 @@ pub trait ValueDebugFormat {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_>;
 }
 
-/// Output of `ValueDebugFormat::value_debug_format`.
 #[cfg(debug_assertions)]
-pub enum ValueDebugFormatString<'a> {
-    /// For the `T: Debug` fallback implementation, we can output a string
-    /// directly as the result of `format!("{:?}", t)`.
-    Sync(String),
-    /// For the `Vc` types and `Vc`-containing types implementations, we need to
-    /// resolve types asynchronously before we can format them, hence the need
-    /// for a future.
-    Async(
-        core::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<String>> + Send + 'a>>,
-    ),
-}
+pub use detail::ValueDebugFormatString;
 
+/// All supporting infrastructure for `ValueDebugFormat` is compiled only in debug builds.
 #[cfg(debug_assertions)]
-impl ValueDebugFormatString<'_> {
-    /// Convert the `ValueDebugFormatString` into a `String`.
-    ///
-    /// This can fail when resolving `Vc` types.
-    pub async fn try_to_string(self) -> anyhow::Result<String> {
-        Ok(match self {
-            ValueDebugFormatString::Sync(value) => value,
-            ValueDebugFormatString::Async(future) => future.await?,
-        })
+mod detail {
+    use std::fmt::Debug;
+
+    use auto_hash_map::{AutoMap, AutoSet};
+    use futures::future::BoxFuture;
+    use smallvec::SmallVec;
+    use turbo_rcstr::RcStr;
+
+    use super::ValueDebugFormat;
+    use crate::{FxIndexMap, FxIndexSet, debug::internal::PassthroughDebug};
+
+    /// Output of `ValueDebugFormat::value_debug_format`.
+    pub enum ValueDebugFormatString<'a> {
+        /// For the `T: Debug` fallback implementation, we can output a string
+        /// directly as the result of `format!("{:?}", t)`.
+        Sync(String),
+        /// For the `Vc` types and `Vc`-containing types implementations, we need to
+        /// resolve types asynchronously before we can format them, hence the need
+        /// for a future.
+        Async(BoxFuture<'a, anyhow::Result<String>>),
     }
-}
 
-#[cfg(debug_assertions)]
-use auto_hash_map::{AutoMap, AutoSet};
-#[cfg(debug_assertions)]
-use internal::PassthroughDebug;
-#[cfg(debug_assertions)]
-use smallvec::SmallVec;
-#[cfg(debug_assertions)]
-use turbo_rcstr::RcStr;
-#[cfg(debug_assertions)]
-use turbo_tasks::{FxIndexMap, FxIndexSet};
-
-#[cfg(debug_assertions)]
-impl ValueDebugFormat for String {
-    fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
-        ValueDebugFormatString::Sync(format!("{self:?}"))
-    }
-}
-
-#[cfg(debug_assertions)]
-impl ValueDebugFormat for RcStr {
-    fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
-        ValueDebugFormatString::Sync(format!("{self:?}"))
-    }
-}
-
-// Use autoref specialization [1] to implement `ValueDebugFormat` for `T:
-// Debug` as a fallback if `T` does not implement it directly, hence the `for
-// &T` clause.
-//
-// [1] https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
-#[cfg(debug_assertions)]
-impl<T> ValueDebugFormat for &T
-where
-    T: Debug,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+    impl ValueDebugFormatString<'_> {
+        /// Convert the `ValueDebugFormatString` into a `String`.
+        ///
+        /// This can fail when resolving `Vc` types.
+        pub async fn try_to_string(self) -> anyhow::Result<String> {
+            Ok(match self {
+                ValueDebugFormatString::Sync(value) => value,
+                ValueDebugFormatString::Async(future) => future.await?,
+            })
         }
-
-        ValueDebugFormatString::Sync(format!("{self:#?}"))
     }
-}
 
-#[cfg(debug_assertions)]
-impl<T> ValueDebugFormat for Option<T>
-where
-    T: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+    impl ValueDebugFormat for String {
+        fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
+            ValueDebugFormatString::Sync(format!("{self:?}"))
         }
+    }
 
-        match self {
-            None => ValueDebugFormatString::Sync(format!("{:#?}", Option::<()>::None)),
-            Some(value) => match value.value_debug_format(depth.saturating_sub(1)) {
-                ValueDebugFormatString::Sync(string) => ValueDebugFormatString::Sync(format!(
-                    "{:#?}",
-                    Some(PassthroughDebug::new_string(string))
-                )),
-                ValueDebugFormatString::Async(future) => {
+    impl ValueDebugFormat for RcStr {
+        fn value_debug_format(&self, _depth: usize) -> ValueDebugFormatString<'_> {
+            ValueDebugFormatString::Sync(format!("{self:?}"))
+        }
+    }
+
+    // Use autoref specialization [1] to implement `ValueDebugFormat` for `T:
+    // Debug` as a fallback if `T` does not implement it directly, hence the `for
+    // &T` clause.
+    //
+    // [1] https://github.com/dtolnay/case-studies/blob/master/autoref-specialization/README.md
+    impl<T> ValueDebugFormat for &T
+    where
+        T: Debug,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            ValueDebugFormatString::Sync(format!("{self:#?}"))
+        }
+    }
+
+    impl<T> ValueDebugFormat for Option<T>
+    where
+        T: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            match self {
+                None => ValueDebugFormatString::Sync(format!("{:#?}", Option::<()>::None)),
+                Some(value) => match value.value_debug_format(depth.saturating_sub(1)) {
+                    ValueDebugFormatString::Sync(string) => ValueDebugFormatString::Sync(format!(
+                        "{:#?}",
+                        Some(PassthroughDebug::new_string(string))
+                    )),
+                    ValueDebugFormatString::Async(future) => {
+                        ValueDebugFormatString::Async(Box::pin(async move {
+                            let string = future.await?;
+                            Ok(format!("{:#?}", Some(PassthroughDebug::new_string(string))))
+                        }))
+                    }
+                },
+            }
+        }
+    }
+
+    impl<T> ValueDebugFormat for Vec<T>
+    where
+        T: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            let values = self
+                .iter()
+                .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+                .collect::<Vec<_>>();
+
+            ValueDebugFormatString::Async(Box::pin(async move {
+                let mut values_string = vec![];
+                for value in values {
+                    match value {
+                        ValueDebugFormatString::Sync(string) => {
+                            values_string.push(PassthroughDebug::new_string(string));
+                        }
+                        ValueDebugFormatString::Async(future) => {
+                            values_string.push(PassthroughDebug::new_string(future.await?));
+                        }
+                    }
+                }
+                Ok(format!("{values_string:#?}"))
+            }))
+        }
+    }
+
+    impl<T, const N: usize> ValueDebugFormat for SmallVec<[T; N]>
+    where
+        T: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            let values = self
+                .iter()
+                .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+                .collect::<Vec<_>>();
+
+            ValueDebugFormatString::Async(Box::pin(async move {
+                let mut values_string = vec![];
+                for value in values {
+                    match value {
+                        ValueDebugFormatString::Sync(string) => {
+                            values_string.push(PassthroughDebug::new_string(string));
+                        }
+                        ValueDebugFormatString::Async(future) => {
+                            values_string.push(PassthroughDebug::new_string(future.await?));
+                        }
+                    }
+                }
+                Ok(format!("{values_string:#?}"))
+            }))
+        }
+    }
+
+    impl<K> ValueDebugFormat for AutoSet<K>
+    where
+        K: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            let values = self
+                .iter()
+                .map(|item| item.value_debug_format(depth.saturating_sub(1)))
+                .collect::<Vec<_>>();
+
+            ValueDebugFormatString::Async(Box::pin(async move {
+                let mut values_string = Vec::with_capacity(values.len());
+                for item in values {
+                    match item {
+                        ValueDebugFormatString::Sync(string) => {
+                            values_string.push(PassthroughDebug::new_string(string));
+                        }
+                        ValueDebugFormatString::Async(future) => {
+                            values_string.push(PassthroughDebug::new_string(future.await?));
+                        }
+                    }
+                }
+                Ok(format!("{values_string:#?}"))
+            }))
+        }
+    }
+
+    impl<K, V, S> ValueDebugFormat for std::collections::HashMap<K, V, S>
+    where
+        K: Debug,
+        V: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            let values = self
+                .iter()
+                .map(|(key, value)| {
+                    (
+                        format!("{key:#?}"),
+                        value.value_debug_format(depth.saturating_sub(1)),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            ValueDebugFormatString::Async(Box::pin(async move {
+                let mut values_string = std::collections::HashMap::new();
+                for (key, value) in values {
+                    match value {
+                        ValueDebugFormatString::Sync(string) => {
+                            values_string.insert(key, PassthroughDebug::new_string(string));
+                        }
+                        ValueDebugFormatString::Async(future) => {
+                            values_string.insert(key, PassthroughDebug::new_string(future.await?));
+                        }
+                    }
+                }
+                Ok(format!("{values_string:#?}"))
+            }))
+        }
+    }
+
+    impl<K, V> ValueDebugFormat for AutoMap<K, V>
+    where
+        K: Debug,
+        V: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            let values = self
+                .iter()
+                .map(|(key, value)| {
+                    (
+                        format!("{key:#?}"),
+                        value.value_debug_format(depth.saturating_sub(1)),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            ValueDebugFormatString::Async(Box::pin(async move {
+                let mut values_string = AutoMap::new();
+                for (key, value) in values {
+                    match value {
+                        ValueDebugFormatString::Sync(string) => {
+                            values_string.insert(key, PassthroughDebug::new_string(string));
+                        }
+                        ValueDebugFormatString::Async(future) => {
+                            values_string.insert(key, PassthroughDebug::new_string(future.await?));
+                        }
+                    }
+                }
+                Ok(format!("{values_string:#?}"))
+            }))
+        }
+    }
+
+    impl<T> ValueDebugFormat for FxIndexSet<T>
+    where
+        T: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            let values = self
+                .iter()
+                .map(|value| value.value_debug_format(depth.saturating_sub(1)))
+                .collect::<Vec<_>>();
+
+            ValueDebugFormatString::Async(Box::pin(async move {
+                let mut values_string = FxIndexSet::default();
+                for value in values {
+                    let value = match value {
+                        ValueDebugFormatString::Sync(string) => string,
+                        ValueDebugFormatString::Async(future) => future.await?,
+                    };
+                    values_string.insert(PassthroughDebug::new_string(value));
+                }
+                Ok(format!("{values_string:#?}"))
+            }))
+        }
+    }
+
+    impl<K, V> ValueDebugFormat for FxIndexMap<K, V>
+    where
+        K: ValueDebugFormat,
+        V: ValueDebugFormat,
+    {
+        fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+            if depth == 0 {
+                return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+            }
+
+            let values = self
+                .iter()
+                .map(|(key, value)| {
+                    (
+                        key.value_debug_format(depth.saturating_sub(1)),
+                        value.value_debug_format(depth.saturating_sub(1)),
+                    )
+                })
+                .collect::<Vec<_>>();
+
+            ValueDebugFormatString::Async(Box::pin(async move {
+                let mut values_string = FxIndexMap::default();
+                for (key, value) in values {
+                    let key = match key {
+                        ValueDebugFormatString::Sync(string) => string,
+                        ValueDebugFormatString::Async(future) => future.await?,
+                    };
+                    let value = match value {
+                        ValueDebugFormatString::Sync(string) => string,
+                        ValueDebugFormatString::Async(future) => future.await?,
+                    };
+                    values_string.insert(
+                        PassthroughDebug::new_string(key),
+                        PassthroughDebug::new_string(value),
+                    );
+                }
+                Ok(format!("{values_string:#?}"))
+            }))
+        }
+    }
+
+    macro_rules! tuple_impls {
+        ( $( $name:ident )+ ) => {
+            impl<$($name: ValueDebugFormat),+> ValueDebugFormat for ($($name,)+)
+            {
+                #[allow(non_snake_case)]
+                fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+                    if depth == 0 {
+                        return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
+                    }
+
+                    let ($($name,)+) = self;
+                    let ($($name,)+) = ($($name.value_debug_format(depth.saturating_sub(1)),)+);
+
                     ValueDebugFormatString::Async(Box::pin(async move {
-                        let string = future.await?;
-                        Ok(format!("{:#?}", Some(PassthroughDebug::new_string(string))))
+                        let values = ($(PassthroughDebug::new_string($name.try_to_string().await?),)+);
+                        Ok(format!("{:#?}", values))
                     }))
                 }
-            },
-        }
-    }
-}
-
-#[cfg(debug_assertions)]
-impl<T> ValueDebugFormat for Vec<T>
-where
-    T: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-        }
-
-        let values = self
-            .iter()
-            .map(|value| value.value_debug_format(depth.saturating_sub(1)))
-            .collect::<Vec<_>>();
-
-        ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = vec![];
-            for value in values {
-                match value {
-                    ValueDebugFormatString::Sync(string) => {
-                        values_string.push(PassthroughDebug::new_string(string));
-                    }
-                    ValueDebugFormatString::Async(future) => {
-                        values_string.push(PassthroughDebug::new_string(future.await?));
-                    }
-                }
             }
-            Ok(format!("{values_string:#?}"))
-        }))
+        };
     }
+
+    tuple_impls! { A }
+    tuple_impls! { A B }
+    tuple_impls! { A B C }
+    tuple_impls! { A B C D }
+    tuple_impls! { A B C D E }
+    tuple_impls! { A B C D E F }
+    tuple_impls! { A B C D E F G }
+    tuple_impls! { A B C D E F G H }
+    tuple_impls! { A B C D E F G H I }
+    tuple_impls! { A B C D E F G H I J }
+    tuple_impls! { A B C D E F G H I J K }
+    tuple_impls! { A B C D E F G H I J K L }
 }
-
-#[cfg(debug_assertions)]
-impl<T, const N: usize> ValueDebugFormat for SmallVec<[T; N]>
-where
-    T: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-        }
-
-        let values = self
-            .iter()
-            .map(|value| value.value_debug_format(depth.saturating_sub(1)))
-            .collect::<Vec<_>>();
-
-        ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = vec![];
-            for value in values {
-                match value {
-                    ValueDebugFormatString::Sync(string) => {
-                        values_string.push(PassthroughDebug::new_string(string));
-                    }
-                    ValueDebugFormatString::Async(future) => {
-                        values_string.push(PassthroughDebug::new_string(future.await?));
-                    }
-                }
-            }
-            Ok(format!("{values_string:#?}"))
-        }))
-    }
-}
-
-#[cfg(debug_assertions)]
-impl<K> ValueDebugFormat for AutoSet<K>
-where
-    K: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-        }
-
-        let values = self
-            .iter()
-            .map(|item| item.value_debug_format(depth.saturating_sub(1)))
-            .collect::<Vec<_>>();
-
-        ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = Vec::with_capacity(values.len());
-            for item in values {
-                match item {
-                    ValueDebugFormatString::Sync(string) => {
-                        values_string.push(PassthroughDebug::new_string(string));
-                    }
-                    ValueDebugFormatString::Async(future) => {
-                        values_string.push(PassthroughDebug::new_string(future.await?));
-                    }
-                }
-            }
-            Ok(format!("{values_string:#?}"))
-        }))
-    }
-}
-
-#[cfg(debug_assertions)]
-impl<K, V, S> ValueDebugFormat for std::collections::HashMap<K, V, S>
-where
-    K: Debug,
-    V: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-        }
-
-        let values = self
-            .iter()
-            .map(|(key, value)| {
-                (
-                    format!("{key:#?}"),
-                    value.value_debug_format(depth.saturating_sub(1)),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = std::collections::HashMap::new();
-            for (key, value) in values {
-                match value {
-                    ValueDebugFormatString::Sync(string) => {
-                        values_string.insert(key, PassthroughDebug::new_string(string));
-                    }
-                    ValueDebugFormatString::Async(future) => {
-                        values_string.insert(key, PassthroughDebug::new_string(future.await?));
-                    }
-                }
-            }
-            Ok(format!("{values_string:#?}"))
-        }))
-    }
-}
-
-#[cfg(debug_assertions)]
-impl<K, V> ValueDebugFormat for AutoMap<K, V>
-where
-    K: Debug,
-    V: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-        }
-
-        let values = self
-            .iter()
-            .map(|(key, value)| {
-                (
-                    format!("{key:#?}"),
-                    value.value_debug_format(depth.saturating_sub(1)),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = AutoMap::new();
-            for (key, value) in values {
-                match value {
-                    ValueDebugFormatString::Sync(string) => {
-                        values_string.insert(key, PassthroughDebug::new_string(string));
-                    }
-                    ValueDebugFormatString::Async(future) => {
-                        values_string.insert(key, PassthroughDebug::new_string(future.await?));
-                    }
-                }
-            }
-            Ok(format!("{values_string:#?}"))
-        }))
-    }
-}
-
-#[cfg(debug_assertions)]
-impl<T> ValueDebugFormat for FxIndexSet<T>
-where
-    T: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-        }
-
-        let values = self
-            .iter()
-            .map(|value| value.value_debug_format(depth.saturating_sub(1)))
-            .collect::<Vec<_>>();
-
-        ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = FxIndexSet::default();
-            for value in values {
-                let value = match value {
-                    ValueDebugFormatString::Sync(string) => string,
-                    ValueDebugFormatString::Async(future) => future.await?,
-                };
-                values_string.insert(PassthroughDebug::new_string(value));
-            }
-            Ok(format!("{values_string:#?}"))
-        }))
-    }
-}
-
-#[cfg(debug_assertions)]
-impl<K, V> ValueDebugFormat for FxIndexMap<K, V>
-where
-    K: ValueDebugFormat,
-    V: ValueDebugFormat,
-{
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-        if depth == 0 {
-            return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-        }
-
-        let values = self
-            .iter()
-            .map(|(key, value)| {
-                (
-                    key.value_debug_format(depth.saturating_sub(1)),
-                    value.value_debug_format(depth.saturating_sub(1)),
-                )
-            })
-            .collect::<Vec<_>>();
-
-        ValueDebugFormatString::Async(Box::pin(async move {
-            let mut values_string = FxIndexMap::default();
-            for (key, value) in values {
-                let key = match key {
-                    ValueDebugFormatString::Sync(string) => string,
-                    ValueDebugFormatString::Async(future) => future.await?,
-                };
-                let value = match value {
-                    ValueDebugFormatString::Sync(string) => string,
-                    ValueDebugFormatString::Async(future) => future.await?,
-                };
-                values_string.insert(
-                    PassthroughDebug::new_string(key),
-                    PassthroughDebug::new_string(value),
-                );
-            }
-            Ok(format!("{values_string:#?}"))
-        }))
-    }
-}
-
-#[cfg(debug_assertions)]
-macro_rules! tuple_impls {
-    ( $( $name:ident )+ ) => {
-        impl<$($name: ValueDebugFormat),+> ValueDebugFormat for ($($name,)+)
-        {
-            #[allow(non_snake_case)]
-            fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
-                if depth == 0 {
-                    return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
-                }
-
-                let ($($name,)+) = self;
-                let ($($name,)+) = ($($name.value_debug_format(depth.saturating_sub(1)),)+);
-
-                ValueDebugFormatString::Async(Box::pin(async move {
-                    let values = ($(PassthroughDebug::new_string($name.try_to_string().await?),)+);
-                    Ok(format!("{:#?}", values))
-                }))
-            }
-        }
-    };
-}
-
-#[cfg(debug_assertions)]
-tuple_impls! { A }
-#[cfg(debug_assertions)]
-tuple_impls! { A B }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E F }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E F G }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E F G H }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E F G H I }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E F G H I J }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E F G H I J K }
-#[cfg(debug_assertions)]
-tuple_impls! { A B C D E F G H I J K L }
