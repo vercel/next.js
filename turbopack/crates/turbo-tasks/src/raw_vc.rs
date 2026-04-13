@@ -25,7 +25,9 @@ use crate::{
     turbo_tasks,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode,
+)]
 pub struct CellId {
     pub type_id: ValueTypeId,
     pub index: u32,
@@ -47,7 +49,9 @@ impl Display for CellId {
 ///
 /// [`Vc`]: crate::Vc
 /// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode,
+)]
 pub enum RawVc {
     /// The synchronous return value of a task (after argument resolution). This is the
     /// representation used by [`OperationVc`][crate::OperationVc].

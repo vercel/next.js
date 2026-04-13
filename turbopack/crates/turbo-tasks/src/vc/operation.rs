@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     fmt::Debug,
     future::Future,
     hash::Hash,
@@ -220,6 +221,24 @@ where
 }
 
 impl<T> Eq for OperationVc<T> where T: ?Sized {}
+
+impl<T> PartialOrd<OperationVc<T>> for OperationVc<T>
+where
+    T: ?Sized,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for OperationVc<T>
+where
+    T: ?Sized,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.node.node.cmp(&other.node.node)
+    }
+}
 
 impl<T> Debug for OperationVc<T>
 where

@@ -281,7 +281,9 @@ pub struct UpdateInfo {
     placeholder_for_future_fields: (),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, Encode, Decode)]
+#[derive(
+    Clone, Copy, Debug, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize, Encode, Decode,
+)]
 pub enum TaskPersistence {
     /// Tasks that may be persisted across sessions using serialization.
     Persistent,

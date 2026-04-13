@@ -1,5 +1,6 @@
 use std::{
     any::Any,
+    cmp::Ordering,
     fmt::Debug,
     future::IntoFuture,
     hash::{Hash, Hasher},
@@ -131,6 +132,24 @@ where
 }
 
 impl<T> Eq for ResolvedVc<T> where T: ?Sized {}
+
+impl<T> PartialOrd<ResolvedVc<T>> for ResolvedVc<T>
+where
+    T: ?Sized,
+{
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T> Ord for ResolvedVc<T>
+where
+    T: ?Sized,
+{
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.node.node.cmp(&other.node.node)
+    }
+}
 
 impl<T> Hash for ResolvedVc<T>
 where
