@@ -6,20 +6,26 @@ related:
   links:
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/functions/generate-static-params
+    - app/api-reference/file-conventions/loading
     - app/getting-started/caching
 ---
 
-> **Good to know**: `partialFallbacks` requires [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents). You must enable both flags together.
+> **Good to know**: `partialFallbacks` has no effect unless [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is also enabled.
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), routes that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each value returned.
+Routes that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each value returned. For routes with many possible values (e.g. an e-commerce catalog with millions of products), you face a tradeoff:
 
-However for routes with many possible values (e.g. an e-commerce catalog with millions of products), prerendering every page means longer build times and increased cache write costs. Skipping `generateStaticParams` entirely means every visitor gets a generic static shell (a loading screen) with no param-specific content prerendered.
+- **Prerender every value** with `generateStaticParams`: longer build times and increased cache write costs.
+- **Skip `generateStaticParams`**: the server blocks until the full page is rendered before sending any content to the visitor.
 
-With `partialFallbacks` enable, Next.js still prerenders a subset of pages with `generateStaticParams`, and any page not included in that subset is served instantly as a **fallback shell**, with the dynamic content streaming in through `<Suspense>`.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with the `partialFallbacks` enabled change this. Instead of blocking until the page is rendered, the visitor gets a **fallback shell** instantly. A fallback shell is prerendered static content where one or more params are unknown at build time.
 
-After that, the page is automatically upgraded to a fully prerendered version in the background. Subsequent visitors get it instantly without any streaming delay.
+In the background, Next.js uses the param values from the incoming request to try to generate a more specific shell, or a fully static page if possible. Subsequent visitors to that URL then get this **upgraded** version instead of the fallback.
 
-```ts filename="next.config.ts"
+## Usage
+
+Enable `partialFallbacks` alongside [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents):
+
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -32,7 +38,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js"
+```js filename="next.config.js" switcher
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
@@ -44,35 +50,67 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+The default value is `false`.
+
 ## How it works
 
-Consider a route `/[slug]` where `generateStaticParams` returns a subset of values (e.g. `[{ slug: 'popular-post' }]`).
+Consider a route `/[category]/[slug]`.
 
-Without `partialFallbacks`, a request for `/new-post` (a slug not in `generateStaticParams`) serves a generic static shell with no param-specific content. The visitor sees a loading screen while the page renders on the server.
+The layout prerenders two categories, `electronics` and `books`:
 
-With `partialFallbacks`, `/new-post` is served instantly as a fallback shell. The static parts of the page (root layout, any cached components) are already prerendered, and the dynamic content streams in through `<Suspense>`. After this first visit, the deployment platform upgrades the fallback shell to a fully prerendered page in the background, so the next visitor gets `/new-post` instantly.
+```tsx filename="app/[category]/layout.tsx"
+export function generateStaticParams() {
+  return [{ category: 'electronics' }, { category: 'books' }]
+}
 
-To serve a fallback shell, the param must be accessed inside a `<Suspense>` boundary (for example, via a [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) file) so Next.js can prerender the static parts above it.
+// Layout implementation
+```
 
-### Multiple params
+The page prerenders one slug, `headphones`:
 
-With Cache Components, Next.js already generates intermediate shells for routes with multiple params (e.g. `/electronics/[slug]` when `category` has `generateStaticParams`). Without `partialFallbacks`, those shells are the final result. With `partialFallbacks`, those shells become upgradeable: the skeleton is served first, and the deployment platform can progressively upgrade through the chain in the background.
+```tsx filename="app/[category]/[slug]/page.tsx"
+export function generateStaticParams() {
+  return [{ slug: 'headphones' }]
+}
 
-Consider `/[category]/[slug]` where the layout provides `generateStaticParams` for `category` (returning `electronics` and `books`) but no `generateStaticParams` exists for `slug`:
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ category: string; slug: string }>
+}) {
+  const { category, slug } = await params
+}
+```
 
-| Shell                 | Type     | Resolved params           |
-| --------------------- | -------- | ------------------------- |
-| `/electronics/[slug]` | Fallback | `category: "electronics"` |
-| `/books/[slug]`       | Fallback | `category: "books"`       |
-| `/[category]/[slug]`  | Fallback | none                      |
+### Shell generation
 
-A request to `/electronics/headphones` serves the `/electronics/[slug]` fallback shell. The category layout is already prerendered, and only the `[slug]` page content streams in. The platform can then upgrade this to a complete shell for `/electronics/headphones` in the background. A request to `/clothing/shirts` (a category not in `generateStaticParams`) falls back to the generic `/[category]/[slug]` shell.
+At build time, Next.js renders the route treating `await params` as runtime API access. Everything above the nearest `<Suspense>` fallback becomes the shell. The fallback UI fills in for the part that depends on the param. A [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) file is the simplest way to provide one.
 
-> **Good to know:**
->
-> - Once a dynamic param is encountered in the route, all subsequent params are also treated as unresolved. The order of params in the route matters.
-> - Shell upgrades depend on deployment platform support. The `partialFallback` flag in the build adapter output signals to the platform which shells are eligible for upgrade.
-> - If you used [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) with `getStaticPaths` in the Pages Router: this is the App Router equivalent, built on `<Suspense>` instead of `router.isFallback`.
+```tsx filename="app/[category]/[slug]/loading.tsx"
+export default function Loading() {
+  return <p>Loading...</p>
+}
+```
+
+For the route above, this produces:
+
+- `/electronics/headphones`: fully static, all params known
+- `/electronics/[slug]`: category resolved, slug shows fallback UI
+- `/[category]/[slug]`: both params show fallback UI
+
+> **Good to know**: If there is no `Suspense` fallback above the param access, no shell can be generated and the page blocks at request time.
+
+### Upgrades
+
+When a visitor requests a param combination that wasn't prerendered (e.g. `/electronics/speakers`), Next.js serves the most specific fallback shell available (`/electronics/[slug]`) and uses the param values from the request to render the page in the background.
+
+The result becomes the new shell for that URL, upgrading the fallback. If the page also has uncached data or runtime APIs behind `<Suspense>` fallbacks, the upgraded shell will still be partial, but with more params resolved.
+
+Upgrades require [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). If `[slug]` had no `generateStaticParams`, the `/electronics/[slug]` shell would be served for every slug under `electronics` and never upgraded further. Params without `generateStaticParams` are always resolved at request time, and once one is encountered in the route, all params after it are too.
+
+`partialFallbacks` also applies to [catch-all segments](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments) (`[...slug]`) and [optional catch-all segments](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments) (`[[...slug]]`).
+
+> **Good to know:** If you used [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) with `getStaticPaths` in the Pages Router: this is the App Router equivalent, built on `<Suspense>` instead of `router.isFallback`.
 
 ## Examples
 
@@ -107,9 +145,15 @@ export function generateStaticParams() {
 }
 ```
 
-### Category and slug
+With this setup:
 
-A layout provides `generateStaticParams` for `[category]`. The page does not provide `generateStaticParams` for `[slug]`:
+1. A visitor navigates to `/products/popular-item` (a prerendered slug). The page is served instantly as a fully static page.
+2. A visitor navigates to `/products/new-item` (not prerendered). They get the fallback shell immediately, seeing "Loading product details..." while the product data streams in.
+3. The next visitor to `/products/new-item` gets a fully static page. The slug was upgraded in the background after the first visit.
+
+### Nested params
+
+A layout provides `generateStaticParams` for `[category]`:
 
 ```tsx filename="app/[category]/layout.tsx" highlight={20-22}
 import { Suspense, type ReactNode } from 'react'
@@ -136,7 +180,9 @@ export function generateStaticParams() {
 }
 ```
 
-```tsx filename="app/[category]/[slug]/page.tsx"
+The page provides `generateStaticParams` for `[slug]` with a subset of values:
+
+```tsx filename="app/[category]/[slug]/page.tsx" highlight={10-12}
 export default async function ProductPage({
   params,
 }: {
@@ -145,9 +191,18 @@ export default async function ProductPage({
   const { slug } = await params
   return <p>{slug}</p>
 }
+
+export function generateStaticParams() {
+  return [{ slug: 'headphones' }, { slug: 'fiction' }]
+}
 ```
 
-At build time, Next.js generates fallback shells for `/electronics/[slug]`, `/books/[slug]`, and `/[category]/[slug]`. A request to `/electronics/headphones` receives the `/electronics/[slug]` shell with the category layout already prerendered.
+With this setup:
+
+1. `/electronics/headphones` (both params prerendered): served as a fully static page.
+2. `/electronics/speakers` (known category, unknown slug): the `/electronics/[slug]` fallback shell is served with the category layout already prerendered. The slug content streams in through `<Suspense>`.
+3. `/clothing/shirts` (unknown category): falls back to the generic `/[category]/[slug]` shell. Both params stream in.
+4. On subsequent visits, any fallback shell that was served is upgraded to a fully static page.
 
 ### Version History
 
