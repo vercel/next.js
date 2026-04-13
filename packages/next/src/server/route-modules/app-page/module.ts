@@ -59,7 +59,13 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
  * The AppPageModule is the type of the module exported by the bundled app page
  * module.
  */
-export type AppPageModule = typeof import('../../../build/templates/app-page')
+export type AppPageModule = Omit<
+  typeof import('../../../build/templates/app-page'),
+  // interopDefault is exported from the template for use by the injected loader
+  // tree code (see crates/next-core/src/app_page_loader_tree.rs), not for use
+  // via ComponentMod in server code.
+  'interopDefault'
+>
 
 type AppPageUserlandModule = {
   /**
