@@ -826,15 +826,12 @@ function generateIndexMd(
       for (let i = 0; i < reviewThreads.length; i++) {
         const thread = reviewThreads[i]
         const line = thread.line || thread.startLine || 'N/A'
-        const participants = []
+        const participants = new Set()
         for (const comment of thread.comments.nodes) {
-          const login = comment.author?.login
-          if (login && !participants.includes(login)) {
-            participants.push(login)
-          }
+          if (comment.author?.login) participants.add(comment.author.login)
         }
         const participantsStr =
-          participants.length > 0 ? participants.join(', ') : 'Unknown'
+          participants.size > 0 ? [...participants].join(', ') : 'Unknown'
         const replyCount = Math.max(0, thread.comments.nodes.length - 1)
         const status = thread.isResolved ? 'Resolved' : 'Open'
         lines.push(
