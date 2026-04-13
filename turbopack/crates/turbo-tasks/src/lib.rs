@@ -5,7 +5,6 @@
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
@@ -69,16 +68,14 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{turbobail, turbofmt};
+pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
-    effect::{
-        ApplyEffectsContext, Effect, EffectError, Effects, apply_effects, emit_effect, get_effects,
-    },
+    effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
@@ -114,9 +111,9 @@ pub use crate::{
     vc::{
         Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
         ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
-        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
-        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
-        VcValueType, VcValueTypeCast,
+        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
+        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
+        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
 
@@ -191,6 +188,7 @@ pub use turbo_tasks_macros::function;
 /// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
 /// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
+/// - **`"keyed"`:** Like `"compare"`, but uses per-key invalidation for transparent map types.
 ///
 /// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
 /// depend on this cell's value.
@@ -214,7 +212,20 @@ pub use turbo_tasks_macros::function;
 /// - **`"auto"` *(default)*:** Derives the bincode traits and enables serialization.
 /// - **`"custom"`:** Prevents deriving the bincode traits, but still enables serialization
 ///   (you must manually implement [`bincode::Encode`] and [`bincode::Decode`]).
+/// - **`"hash"`:** Like `"none"` (no bincode serialization), but instead stores a hash of the cell
+///   value so that changes can be detected even when the transient cell data has been evicted
+///   from memory or was never stored in the cache—avoiding unnecessary downstream invalidation.
+///   Only valid with `cell = "compare"`.
+///   Requires the value to implement both [`Eq`] and [`DeterministicHash`][turbo_tasks_hash::DeterministicHash].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
+///
+/// ## `hash = "..."`
+///
+/// By default, when using `serialization = "hash"`, we `#[derive(DeterministicHash)]`. This argument allows
+/// overriding that default implementation behavior.
+///
+/// - **`"manual"`:** Prevents deriving [`DeterministicHash`][turbo_tasks_hash::DeterministicHash] so you can do it manually.
+///   Only valid with `serialization = "hash"`.
 ///
 /// ## `shared`
 ///

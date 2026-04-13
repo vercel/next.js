@@ -46,6 +46,7 @@ import { getIsPossibleServerAction } from '../../server/lib/server-action-reques
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
@@ -491,7 +492,17 @@ export async function handler(
   // need to transfer it to the request meta because it's only read
   // within this function; the static segment data should have already been
   // generated, so we will always either return a static response or a 404.
-  const segmentPrefetchHeader = getRequestMeta(req, 'segmentPrefetchRSCRequest')
+  const rawSegmentPrefetchHeader =
+    req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
+  const segmentPrefetchHeader =
+    getRequestMeta(req, 'segmentPrefetchRSCRequest') ??
+    (isPrefetchRSCRequest
+      ? typeof rawSegmentPrefetchHeader === 'string'
+        ? rawSegmentPrefetchHeader
+        : Array.isArray(rawSegmentPrefetchHeader)
+          ? rawSegmentPrefetchHeader[0]
+          : undefined
+      : undefined)
 
   // TODO: investigate existing bug with shouldServeStreamingMetadata always
   // being true for a revalidate due to modifying the base-server this.renderOpts
@@ -546,6 +557,15 @@ export async function handler(
   const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
   const remainingPrerenderableParams =
     prerenderInfo?.remainingPrerenderableParams ?? []
+  // Concrete optional routes like `/optional-catchall` can still match their
+  // generic shell entry (eg /optional-catchall/[[...slug]]) in the prerender manifest.
+  // If the omitted param already resolved to a real prerendered path, keep serving that concrete result.
+  const hasOmittedConcreteFallbackParam =
+    isPrerendered &&
+    remainingPrerenderableParams.some((param) => {
+      const value = params?.[param.paramName]
+      return value == null || (Array.isArray(value) && value.length === 0)
+    })
   const hasUnresolvedRootFallbackParams =
     prerenderInfo?.fallback === null &&
     (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
@@ -572,7 +592,7 @@ export async function handler(
     if (
       nextConfig.experimental.partialFallbacks === true &&
       fallbackPathname &&
-      prerenderInfo?.fallbackRouteParams &&
+      prerenderInfo?.fallbackRouteParams?.length &&
       !hasUnresolvedRootFallbackParams
     ) {
       if (remainingPrerenderableParams.length > 0) {
@@ -606,7 +626,7 @@ export async function handler(
     (routeModule.isDev ||
       (isSSG &&
         pageIsDynamic &&
-        prerenderInfo?.fallbackRouteParams &&
+        prerenderInfo?.fallbackRouteParams?.length &&
         // Server action requests must not get a staticPathKey, otherwise they
         // enter the fallback rendering block below and return the cached HTML
         // shell with the action result appended, instead of responding with
@@ -1005,6 +1025,7 @@ export async function handler(
         if (
           nextConfig.experimental.partialFallbacks === true &&
           prerenderInfo?.fallback === null &&
+          !hasOmittedConcreteFallbackParam &&
           !hasUnresolvedRootFallbackParams &&
           remainingPrerenderableParams.length > 0
         ) {

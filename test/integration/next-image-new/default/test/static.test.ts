@@ -88,8 +88,8 @@ const runTests = (isDev) => {
         }
       })
     expect(metaViewport.attribs.content).toContain('width=device-width')
-    expect(linkPreload.attribs.imagesrcset).toMatch(
-      /%2F_next%2Fstatic%2Fmedia%2Ftest-rect\.(.*)\.jpg/g
+    expect(normalizeURL(linkPreload.attribs.imagesrcset)).toEqual(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect.HASH.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect.HASH.jpg&w=828&q=75 2x'
     )
     expect(metaViewport.index).toBeLessThan(linkPreload.index)
   })
@@ -212,8 +212,8 @@ const runTests = (isDev) => {
 
   it('should load direct imported image', async () => {
     const src = await browser.elementById('basic-static').getAttribute('src')
-    expect(src).toMatch(
-      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect(.+)\.jpg&w=828&q=75/
+    expect(normalizeURL(src)).toEqual(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest-rect.HASH.jpg&w=828&q=75'
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
@@ -224,8 +224,8 @@ const runTests = (isDev) => {
     const src = await browser
       .elementById('basic-staticprop')
       .getAttribute('src')
-    expect(src).toMatch(
-      /_next\/image\?url=%2F_next%2Fstatic%2Fmedia%2Fexif-rotation(.+)\.jpg&w=256&q=75/
+    expect(normalizeURL(src)).toEqual(
+      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Fexif-rotation.HASH.jpg&w=256&q=75'
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
@@ -292,3 +292,12 @@ describe('Static Image Component Tests', () => {
     }
   )
 })
+
+function normalizeURL(text: string) {
+  return text
+    .replace(
+      /media%2F([\w-]+).[0-9a-z_-]{4,}\.(png|jpe?g)/g,
+      'media%2F$1.HASH.$2'
+    )
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+}

@@ -1,9 +1,9 @@
-use std::fmt::{Debug, Display};
+use std::{fmt::Debug, future::Future, pin::Pin};
 
 use auto_hash_map::{AutoMap, AutoSet};
 use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet};
 pub use turbo_tasks_macros::ValueDebugFormat;
 
 use crate::{self as turbo_tasks};
@@ -14,55 +14,26 @@ mod vdbg;
 
 use internal::PassthroughDebug;
 
-/// The return type of [`ValueDebug::dbg`].
-///
-/// We don't use [`Vc<RcStr>`][turbo_rcstr::RcStr] or [`String`] directly because we
-/// don't want the [`Debug`]/[`Display`] representations to be escaped.
-#[turbo_tasks::value]
-pub struct ValueDebugString(String);
-
-impl Debug for ValueDebugString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl Display for ValueDebugString {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl ValueDebugString {
-    /// Returns the underlying string.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ValueDebugString {
-    /// Create a new `ValueDebugString` from a string.
-    pub fn new(s: String) -> Vc<Self> {
-        ValueDebugString::cell(ValueDebugString(s))
-    }
-}
-
 /// [`Debug`]-like trait for [`Vc`] types, automatically derived when using
 /// [`macro@turbo_tasks::value`] and [`turbo_tasks::value_trait`].
 ///
 /// # Usage
 ///
 /// ```ignore
-/// dbg!(any_vc.dbg().await?);
+/// let trait_ref = any_vc.into_trait_ref().await?;
+/// println!("{}", trait_ref.dbg().await?);
 /// ```
 #[turbo_tasks::value_trait(no_debug)]
 pub trait ValueDebug {
-    #[turbo_tasks::function]
-    fn dbg(self: Vc<Self>) -> Vc<ValueDebugString>;
+    fn dbg(&self) -> Pin<Box<dyn Future<Output = anyhow::Result<String>> + Send + '_>> {
+        self.dbg_depth(usize::MAX)
+    }
 
     /// Like `dbg`, but with a depth limit.
-    #[turbo_tasks::function]
-    fn dbg_depth(self: Vc<Self>, depth: usize) -> Vc<ValueDebugString>;
+    fn dbg_depth(
+        &self,
+        depth: usize,
+    ) -> Pin<Box<dyn Future<Output = anyhow::Result<String>> + Send + '_>>;
 }
 
 /// Use [autoref specialization] to implement [`ValueDebug`] for `T: Debug`.
@@ -422,12 +393,5 @@ impl ValueDebugFormatString<'_> {
             ValueDebugFormatString::Sync(value) => value,
             ValueDebugFormatString::Async(future) => future.await?,
         })
-    }
-
-    /// Convert the `ValueDebugFormatString` into a `Vc<ValueDebugString>`.
-    ///
-    /// This can fail when resolving `Vc` types.
-    pub async fn try_to_value_debug_string(self) -> anyhow::Result<Vc<ValueDebugString>> {
-        Ok(ValueDebugString::new(self.try_to_string().await?))
     }
 }
