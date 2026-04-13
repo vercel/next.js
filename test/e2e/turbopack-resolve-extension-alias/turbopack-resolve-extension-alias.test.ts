@@ -1,17 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('turbopack resolve extension alias', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+// resolveExtensionAlias is a Turbopack-only feature; skip under webpack
+const testFn = process.env.IS_WEBPACK_TEST ? describe.skip : describe
+
+testFn('turbopack resolve extension alias', () => {
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
 
   if (skipped) {
-    return
-  }
-
-  if (!isTurbopack) {
-    it('should only run the test in turbopack', () => {})
     return
   }
 
