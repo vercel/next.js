@@ -122,11 +122,29 @@ describe('turbopack-trace-server', () => {
     }
 
     // Wait for the trace file to appear.
-    const traceFile = path.join(next.testDir, next.distDir, 'trace-turbopack')
+    // Since Next.js 16.2.1-canary.25, trace is written to .next-profiles/ instead of distDir.
+    // Fall back to distDir for compatibility with older locally-installed binaries.
+    const traceFileNewPath = path.join(
+      next.testDir,
+      '.next-profiles',
+      'trace-turbopack'
+    )
+    const traceFileOldPath = path.join(
+      next.testDir,
+      next.distDir,
+      'trace-turbopack'
+    )
+    let traceFile: string = traceFileNewPath
     await retry(
       async () => {
-        if (!existsSync(traceFile)) {
-          throw new Error(`Trace file not found yet: ${traceFile}`)
+        if (existsSync(traceFileNewPath)) {
+          traceFile = traceFileNewPath
+        } else if (existsSync(traceFileOldPath)) {
+          traceFile = traceFileOldPath
+        } else {
+          throw new Error(
+            `Trace file not found yet: tried ${traceFileNewPath} and ${traceFileOldPath}`
+          )
         }
       },
       15_000,
