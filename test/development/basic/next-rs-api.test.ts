@@ -239,7 +239,7 @@ async function main() {
   const entrypointsSubscription = project.entrypointsSubscribe();
   const entrypoints = (await entrypointsSubscription.next()).value;
 
-  const RUNS = 10000;
+  const RUNS = 1000;
   async function compileRoute(route) {
     const endpoint = route.endpoint ?? route.htmlEndpoint ?? route.pages[0].htmlEndpoint;
     if (!endpoint) {

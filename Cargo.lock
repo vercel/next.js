@@ -2623,6 +2623,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77ce24cb58228fbb8aa041425bb1050850ac19177686ea6e0f41a70416f56fdb"
 
 [[package]]
+name = "foldhash-portable"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "631c01cdb9b602a84f0ef5e813d3691936aade6d390dba117f28aa03eb4d0e09"
+
+[[package]]
 name = "foreign-types"
 version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4749,6 +4755,7 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "byteorder",
  "either",
@@ -6029,13 +6036,13 @@ dependencies = [
 
 [[package]]
 name = "qfilter"
-version = "0.3.0-alpha.3"
+version = "0.3.0-alpha.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fb8c6e59c09e93a6dbc7ff5feff747fc4efc3f5a90c00851e1472ce1bdf2eff"
+checksum = "edd9c903cd64233eb97cf95d96d58645c2b1c0154d30ff835f3bb4be417158b1"
 dependencies = [
+ "foldhash-portable",
  "serde",
  "serde_bytes",
- "xxhash-rust",
 ]
 
 [[package]]
@@ -6470,9 +6477,9 @@ checksum = "e3a8614ee435691de62bcffcf4a66d91b3594bf1428a5722e79103249a095690"
 
 [[package]]
 name = "reqwest"
-version = "0.13.1"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04e9018c9d814e5f30cc16a0f03271aeab3571e609612d9fe78c1aa8d11c2f62"
+checksum = "ab3f43e3283ab1488b624b44b0e988d0acea0b3214e694730a055cb6b2efa801"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -7696,9 +7703,9 @@ dependencies = [
 
 [[package]]
 name = "swc_common"
-version = "21.0.0"
+version = "21.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a771e6a245d82746eee4a06849e1ed481ddf0e6fa1d5794a833b516513bb414"
+checksum = "078f2144aa2c33ff8485773f1b81b9985fa2d00f4ad60879158ad6897db2de88"
 dependencies = [
  "anyhow",
  "ast_node",
@@ -7788,9 +7795,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "63.1.0"
+version = "63.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b3fa17532614f7fa996d7af33488321dd8c05a0671dbbb47e3034dcd6e30fd6"
+checksum = "5b68a9d41b64086e1fe8e91af1a1babbfb01ecdb7c6d26f2ec6963545b1cd7af"
 dependencies = [
  "binding_macros",
  "par-core",
@@ -7972,9 +7979,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_codegen"
-version = "26.0.0"
+version = "26.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6432e37b54db97709c72977f5149b4a46a4b9a198311fbbc146116d884fac3e"
+checksum = "fafbcdd29cc03b0c04860bb0143e781e13a4e2dac03eb8747df520f602e0aa94"
 dependencies = [
  "ascii",
  "compact_str",
@@ -8285,9 +8292,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_parser"
-version = "38.0.0"
+version = "38.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9346e0008023779aec17909bd806946e75c8f1fa84d13d6fbebeba60b94ec1b1"
+checksum = "f0bc3b45f1017b904f1ce9a2ab0001d27975755d1ee9f799d67c354fac43d32c"
 dependencies = [
  "bitflags 2.9.1",
  "either",
@@ -8644,9 +8651,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_transforms_typescript"
-version = "45.0.1"
+version = "45.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5a1ee71612134f74fb2e8842cd69f48eff91c0787f98a1701d5e5e285a6028c"
+checksum = "1d25026f22efe873b50c97b3aaca6bfd178f954031effd14394e7b3add1e95fb"
 dependencies = [
  "bytes-str",
  "rustc-hash 2.1.1",
@@ -10005,6 +10012,7 @@ name = "turbo-tasks-fetch"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "mockito",
  "quick_cache",
  "reqwest",
@@ -10171,6 +10179,7 @@ dependencies = [
  "turbopack-core",
  "turbopack-css",
  "turbopack-ecmascript",
+ "turbopack-ecmascript-runtime",
  "turbopack-env",
  "turbopack-mdx",
  "turbopack-node",
@@ -10229,6 +10238,7 @@ name = "turbopack-browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "either",
  "indoc",
@@ -10241,6 +10251,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "turbopack",
  "turbopack-core",
  "turbopack-ecmascript",
  "turbopack-ecmascript-runtime",
@@ -10376,6 +10387,7 @@ name = "turbopack-css"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "indoc",
  "lightningcss",
@@ -10401,6 +10413,7 @@ name = "turbopack-dev-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "auto-hash-map",
  "bincode 2.0.1",
  "flate2",
@@ -10529,7 +10542,6 @@ dependencies = [
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-fs",
- "turbopack",
  "turbopack-core",
  "turbopack-ecmascript",
 ]
@@ -10539,6 +10551,7 @@ name = "turbopack-env"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-env",
@@ -10552,6 +10565,7 @@ name = "turbopack-image"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "base64 0.21.4",
  "bincode 2.0.1",
  "image",
@@ -10572,6 +10586,7 @@ name = "turbopack-mdx"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "markdown",
  "mdxjs",
  "serde",
@@ -10644,6 +10659,7 @@ dependencies = [
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbo-tasks-testing",
  "turbopack-cli-utils",
  "turbopack-core",
@@ -10667,6 +10683,7 @@ dependencies = [
  "turbo-tasks",
  "turbo-tasks-fs",
  "turbo-tasks-hash",
+ "turbopack",
  "turbopack-core",
  "turbopack-ecmascript",
  "turbopack-ecmascript-runtime",
@@ -10678,6 +10695,7 @@ name = "turbopack-resolve"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "bincode 2.0.1",
  "next-taskless",
  "regex",

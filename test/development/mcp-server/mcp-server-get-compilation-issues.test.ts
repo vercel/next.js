@@ -74,6 +74,16 @@ import { nextTestSetup } from 'e2e-utils'
       expect(syntaxErrorIssue).toBeDefined()
     })
 
+    it('should detect CSS module composes errors', () => {
+      const errors = errorIssues()
+      const composesIssue = errors.find(
+        (issue) =>
+          issue.filePath.includes('css-composes-error') ||
+          issue.title.includes('composes')
+      )
+      expect(composesIssue).toBeDefined()
+    })
+
     it('should include issue metadata fields', () => {
       const errors = errorIssues()
       expect(errors.length).toBeGreaterThan(0)

@@ -3,21 +3,19 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
-    environment::Environment,
+    context::AssetContext,
 };
 
-use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
+use crate::{RuntimeType, embed_js::embed_static_code};
 
 /// Returns the code for the Node.js ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_nodejs_runtime_code(
-    environment: ResolvedVc<Environment>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     runtime_type: RuntimeType,
     generate_source_map: bool,
 ) -> Result<Vc<Code>> {
-    let asset_context = *get_runtime_asset_context(*environment)
-        .to_resolved()
-        .await?;
+    let asset_context = *asset_context;
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,

@@ -246,6 +246,7 @@ export async function handler(
     clientReferenceManifest,
     subresourceIntegrityManifest,
     prerenderManifest,
+    prefetchHintsManifest,
     isDraftMode,
     resolvedPathname,
     revalidateOnlyGenerated,
@@ -557,6 +558,15 @@ export async function handler(
   const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
   const remainingPrerenderableParams =
     prerenderInfo?.remainingPrerenderableParams ?? []
+  // Concrete optional routes like `/optional-catchall` can still match their
+  // generic shell entry (eg /optional-catchall/[[...slug]]) in the prerender manifest.
+  // If the omitted param already resolved to a real prerendered path, keep serving that concrete result.
+  const hasOmittedConcreteFallbackParam =
+    isPrerendered &&
+    remainingPrerenderableParams.some((param) => {
+      const value = params?.[param.paramName]
+      return value == null || (Array.isArray(value) && value.length === 0)
+    })
   const hasUnresolvedRootFallbackParams =
     prerenderInfo?.fallback === null &&
     (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
@@ -583,7 +593,7 @@ export async function handler(
     if (
       nextConfig.experimental.partialFallbacks === true &&
       fallbackPathname &&
-      prerenderInfo?.fallbackRouteParams &&
+      prerenderInfo?.fallbackRouteParams?.length &&
       !hasUnresolvedRootFallbackParams
     ) {
       if (remainingPrerenderableParams.length > 0) {
@@ -617,7 +627,7 @@ export async function handler(
     (routeModule.isDev ||
       (isSSG &&
         pageIsDynamic &&
-        prerenderInfo?.fallbackRouteParams &&
+        prerenderInfo?.fallbackRouteParams?.length &&
         // Server action requests must not get a staticPathKey, otherwise they
         // enter the fallback rendering block below and return the cached HTML
         // shell with the action result appended, instead of responding with
@@ -847,6 +857,7 @@ export async function handler(
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
+          prefetchHints: prefetchHintsManifest,
           incrementalCache,
           cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
@@ -1016,6 +1027,7 @@ export async function handler(
         if (
           nextConfig.experimental.partialFallbacks === true &&
           prerenderInfo?.fallback === null &&
+          !hasOmittedConcreteFallbackParam &&
           !hasUnresolvedRootFallbackParams &&
           remainingPrerenderableParams.length > 0
         ) {

@@ -13,7 +13,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
+    chunk::{ChunkingContext, CrossOrigin, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
@@ -23,7 +23,7 @@ use crate::{
     mode::NextMode,
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
-    next_config::{CrossOriginConfig, NextConfig},
+    next_config::NextConfig,
     next_manifests::{ModuleId, encode_uri_component::encode_uri_component},
     util::NextRuntime,
 };
@@ -67,7 +67,7 @@ pub struct CssResource {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
-    pub cross_origin: Option<CrossOriginConfig>,
+    pub cross_origin: CrossOrigin,
 }
 
 #[derive(Serialize, Default, Debug, Clone)]
@@ -179,7 +179,7 @@ async fn build_manifest(
             rcstr!("")
         };
 
-        entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
+        entry_manifest.module_loading.cross_origin = *next_config.cross_origin().await?;
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,

@@ -450,6 +450,7 @@ struct TaskExecutionCompletePrepareResult {
     pub no_output_set: bool,
     pub new_output: Option<OutputValue>,
     pub output_dependent_tasks: SmallVec<[TaskId; 4]>,
+    pub is_recomputation: bool,
 }
 
 // Operations
@@ -2056,6 +2057,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             no_output_set,
             new_output,
             output_dependent_tasks,
+            is_recomputation,
         }) = self.task_execution_completed_prepare(
             &mut ctx,
             #[cfg(feature = "trace_task_details")]
@@ -2122,8 +2124,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         }
 
-        let removed_data =
-            self.task_execution_completed_cleanup(&mut ctx, task_id, cell_counters, is_error);
+        let removed_data = self.task_execution_completed_cleanup(
+            &mut ctx,
+            task_id,
+            cell_counters,
+            is_error,
+            is_recomputation,
+        );
 
         // Drop data outside of critical sections
         drop(removed_data);
@@ -2143,6 +2150,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         has_invalidator: bool,
     ) -> Option<TaskExecutionCompletePrepareResult> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let is_recomputation = task.is_dirty().is_none();
         let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
@@ -2154,6 +2162,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 no_output_set: false,
                 new_output: None,
                 output_dependent_tasks: Default::default(),
+                is_recomputation,
             });
         }
         let &mut InProgressState::InProgress(box InProgressStateInner {
@@ -2224,7 +2233,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // that data is correct.
         // NOTE: This must stay in sync with task_execution_completed_cleanup, which similarly
         // skips cell data removal on error.
-        if result.is_ok() {
+        if result.is_ok() || is_recomputation {
             let old_counters: FxHashMap<_, _> = task
                 .iter_cell_type_max_index()
                 .map(|(&k, &v)| (k, v))
@@ -2386,6 +2395,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             no_output_set,
             new_output,
             output_dependent_tasks,
+            is_recomputation,
         })
     }
 
@@ -2694,6 +2704,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         is_error: bool,
+        is_recomputation: bool,
     ) -> Vec<SharedReference> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let mut removed_cell_data = Vec::new();
@@ -2702,7 +2713,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // clean to avoid re-executions.
         // NOTE: This must stay in sync with task_execution_completed_prepare, which similarly
         // skips cell_type_max_index updates on error.
-        if !is_error {
+        if !is_error || is_recomputation {
             // Remove no longer existing cells and
             // find all outdated data items (removed cells, outdated edges)
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
