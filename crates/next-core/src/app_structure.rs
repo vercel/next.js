@@ -52,6 +52,23 @@ pub struct AppDirModules {
 }
 
 impl AppDirModules {
+    /// Returns true if all module fields are `None` and metadata is empty.
+    fn is_empty(&self) -> bool {
+        self.page.is_none()
+            && self.layout.is_none()
+            && self.error.is_none()
+            && self.global_error.is_none()
+            && self.global_not_found.is_none()
+            && self.loading.is_none()
+            && self.template.is_none()
+            && self.forbidden.is_none()
+            && self.unauthorized.is_none()
+            && self.not_found.is_none()
+            && self.default.is_none()
+            && self.route.is_none()
+            && self.metadata.is_empty()
+    }
+
     fn without_leaves(&self) -> Self {
         Self {
             page: None,
@@ -199,6 +216,19 @@ struct PlainDirectoryTree {
     pub modules: AppDirModules,
     /// Flattened URL tree with route groups and parallel routes transparent.
     pub url_tree: UrlSegmentTree,
+}
+
+impl PlainDirectoryTree {
+    /// Returns true if this directory tree (recursively) contains any route files.
+    /// Used to skip empty @-prefixed directories that aren't real parallel route slots.
+    fn has_any_route_files(&self) -> bool {
+        if !self.modules.is_empty() {
+            return true;
+        }
+        self.subdirectories
+            .values()
+            .any(|sub| sub.has_any_route_files())
+    }
 }
 
 /// A tree representing the URL segment structure, with route groups and parallel
@@ -1455,7 +1485,12 @@ async fn directory_tree_to_loader_tree_internal(
     }
 
     if tree.parallel_routes.is_empty() {
-        if modules.default.is_some() || current_level_is_parallel_route {
+        // For parallel routes, also check that the directory tree has actual route files.
+        // Empty @-prefixed directories (e.g. leftover empty directories) should be skipped
+        // rather than treated as real parallel route slots.
+        if modules.default.is_some()
+            || (current_level_is_parallel_route && directory_tree.has_any_route_files())
+        {
             tree = default_route_tree(
                 app_dir.clone(),
                 global_metadata,

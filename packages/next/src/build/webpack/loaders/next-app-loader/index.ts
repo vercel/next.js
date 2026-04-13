@@ -140,6 +140,32 @@ const isDirectory = async (pathname: string) => {
   }
 }
 
+// Recursively checks if a directory contains at least one non-dotfile.
+// Used to skip empty @-prefixed directories that aren't real parallel route slots.
+// Dotfiles (e.g. .gitkeep) are ignored since they are never route files.
+const directoryHasFiles = async (pathname: string): Promise<boolean> => {
+  try {
+    const dir = await fs.opendir(pathname)
+    for await (const dirent of dir) {
+      if (dirent.name.charCodeAt(0) === 46 /* '.' */) {
+        continue
+      }
+      if (dirent.isFile()) {
+        return true
+      }
+      if (
+        dirent.isDirectory() &&
+        (await directoryHasFiles(path.join(pathname, dirent.name)))
+      ) {
+        return true
+      }
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
 async function createTreeCodeFromPath(
   pagePath: string,
   {
@@ -212,7 +238,12 @@ async function createTreeCodeFromPath(
     for await (const dirent of files) {
       // Make sure name starts with "@" and is a directory.
       if (dirent.isDirectory() && dirent.name.charCodeAt(0) === 64) {
-        parallelSegments.push(dirent.name)
+        // Skip empty @-prefixed directories that contain no files recursively.
+        // These are not real parallel route slots (e.g. leftover empty directories).
+        const slotPath = path.join(absoluteSegmentPath, dirent.name)
+        if (await directoryHasFiles(slotPath)) {
+          parallelSegments.push(dirent.name)
+        }
       }
     }
 

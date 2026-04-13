@@ -75,4 +75,19 @@ describe('parallel-routes-leaf-segments-no-build-error', () => {
       expect($('#children').text()).toBe('No Children Default')
     })
   })
+
+  describe('empty parallel route slot', () => {
+    it('should build and render successfully when a parallel route directory is empty', async () => {
+      const $ = await next.render$('/with-empty-slot')
+
+      // Verify the page renders despite the empty @empty-slot directory
+      expect($('h2').text()).toBe('Page With Empty Slot')
+    })
+
+    it('should render child routes despite the empty parallel route directory', async () => {
+      const $ = await next.render$('/with-empty-slot/child')
+
+      expect($('h2').text()).toBe('Child Page')
+    })
+  })
 })
