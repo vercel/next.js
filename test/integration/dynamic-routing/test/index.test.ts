@@ -1543,7 +1543,7 @@ function runTests({ dev }) {
            "/catchall-dash/[...hello-world]": "pages/catchall-dash/[...hello-world].html",
            "/d/[id]": "pages/d/[id].html",
            "/dash/[hello-world]": "pages/dash/[hello-world].html",
-           "/index/[...slug]": "pages/index/index/[...slug].html",
+           "/index/[...slug]": "pages/index/[...slug].html",
            "/on-mount/[post]": "pages/on-mount/[post].html",
            "/p1/p2/all-ssg/[...rest]": "pages/p1/p2/all-ssg/[...rest].js",
            "/p1/p2/all-ssr/[...rest]": "pages/p1/p2/all-ssr/[...rest].js",

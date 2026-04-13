@@ -1,6 +1,7 @@
-use std::{borrow::Cow, future::Future};
+use std::borrow::Cow;
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use serde_json::Value;
@@ -23,10 +24,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -235,14 +233,14 @@ impl NextSegmentConfigParsingIssue {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(
                 format!(
@@ -252,46 +250,37 @@ impl Issue for NextSegmentConfigParsingIssue {
                 .into(),
             ),
             StyledString::Text(self.error.clone()),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.ident.path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "The exported configuration object in a source file needs to have a very specific \
-                 format from which some properties can be statically parsed at compiled-time."
-            ))
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "The exported configuration object in a source file needs to have a very specific \
+             format from which some properties can be statically parsed at compiled-time."
+        ))))
     }
 
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.detail)
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        match self.detail {
+            Some(d) => Ok(Some((*d.await?).clone())),
+            None => Ok(None),
+        }
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!(
-            "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-        ))
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config")
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 

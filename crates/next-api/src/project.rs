@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use next_core::{
@@ -60,8 +61,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{
-        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage,
-        OptionStyledString, StyledString,
+        CollectibleIssuesExt, Issue, IssueExt, IssueFilter, IssueSeverity, IssueStage, StyledString,
     },
     module::Module,
     module_graph::{
@@ -594,6 +594,13 @@ impl ProjectContainer {
             "initialize project",
             project_name = %this.name,
             version = options.next_version.as_str(),
+            node_version = options.current_node_js_version.as_str(),
+            os = std::env::consts::OS,
+            arch = std::env::consts::ARCH,
+            cpu_cores = std::thread::available_parallelism()
+                .map(|n| n.get())
+                .unwrap_or(0),
+            dev = options.dev,
             env_diff = Empty
         );
         let span_clone = span.clone();
@@ -801,7 +808,7 @@ impl ProjectContainer {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
-        let root_path;
+        let root_path_str: RcStr;
         let project_path;
         let watch;
         let dev;
@@ -830,7 +837,7 @@ impl ProjectContainer {
             }
             .cell();
             next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            root_path = options.root_path.clone();
+            root_path_str = options.root_path.clone();
             project_path = options.project_path.clone();
             watch = options.watch;
             dev = options.dev;
@@ -848,6 +855,7 @@ impl ProjectContainer {
             hash_salt = options.hash_salt.clone();
         }
 
+        let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
@@ -915,7 +923,7 @@ pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
-    root_path: RcStr,
+    root_path: ResolvedVc<RcStr>,
 
     /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
     /// a Unix path.
@@ -1019,30 +1027,27 @@ struct ConflictIssue {
     severity: IssueSeverity,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ConflictIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::AppStructure.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
     }
 
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        *self.title
+    async fn title(&self) -> Result<StyledString> {
+        self.title.owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(self.description.owned().await?))
     }
 }
 
@@ -1080,7 +1085,7 @@ impl Project {
 
         Ok(DiskFileSystem::new_with_denied_paths(
             rcstr!(PROJECT_FILESYSTEM_NAME),
-            self.root_path.clone(),
+            *self.root_path,
             vec![denied_path],
         ))
     }
@@ -1093,15 +1098,16 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
+        DiskFileSystem::new(rcstr!("output"), *self.root_path)
     }
 
     #[turbo_tasks::function]
-    pub fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
+    pub async fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
+        let root_path = self.root_path.await?;
         Ok(Vc::cell(
             format!(
                 "{}{}{}",
-                self.root_path,
+                root_path,
                 std::path::MAIN_SEPARATOR,
                 unix_to_sys(
                     &join_path(&self.project_path, &self.dist_dir)
@@ -1505,6 +1511,22 @@ impl Project {
         })
     }
 
+    /// Computes the whole app module graph without dropping issues.
+    ///
+    /// Use this instead of [`whole_app_module_graphs`] when you need to collect issues from the
+    /// computation (e.g. for the `get_compilation_issues` MCP tool).
+    #[turbo_tasks::function]
+    pub async fn whole_app_module_graphs_without_dropping_issues(
+        self: ResolvedVc<Self>,
+    ) -> Result<Vc<BaseAndFullModuleGraph>> {
+        let module_graphs_op = whole_app_module_graph_operation(self);
+        let module_graphs_vc = module_graphs_op.connect();
+        scale_down_node_pool(self).await?;
+        Ok(module_graphs_vc)
+    }
+
+    /// Computes the whole app module graph, dropping issues in development mode so that
+    /// individual routes don't each report every issue from the shared graph.
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs(
         self: ResolvedVc<Self>,
@@ -1513,23 +1535,11 @@ impl Project {
         let module_graphs_vc = if self.next_mode().await?.is_production() {
             module_graphs_op.connect()
         } else {
-            // In development mode, we need to to take and drop the issues, otherwise every
-            // route will report all issues.
             let vc = module_graphs_op.resolve().strongly_consistent().await?;
             module_graphs_op.drop_issues();
             *vc
         };
-
-        // At this point all modules have been computed and we can get rid of the node.js
-        // process pools
-        let execution_context = self.execution_context().await?;
-        let node_backend = execution_context.node_backend.into_trait_ref().await?;
-        if *self.is_watch_enabled().await? {
-            node_backend.scale_down()?;
-        } else {
-            node_backend.scale_zero()?;
-        }
-
+        scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
 
@@ -1579,6 +1589,11 @@ impl Project {
             root_path: self.project_root_path().owned().await?,
             client_root: self.client_relative_path().owned().await?,
             client_root_to_root_path: rcstr!("/ROOT"),
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix(),
             environment: self.client_compile_time_info().environment(),
             module_id_strategy: self.module_ids(),
@@ -1622,6 +1637,11 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), false),
             debug_ids: self.next_config().turbopack_debug_ids(),
             client_root: self.client_relative_path().owned().await?,
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
@@ -1656,6 +1676,11 @@ impl Project {
                 .next_config()
                 .turbo_nested_async_chunking(self.next_mode(), false),
             client_root: self.client_relative_path().owned().await?,
+            client_static_folder_name: self
+                .next_config()
+                .client_static_folder_name()
+                .owned()
+                .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
@@ -1682,7 +1707,7 @@ impl Project {
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
-    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
+    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<()> {
         let emit_event = |feature_name: &str, enabled: bool| {
             NextFeatureTelemetry::new(feature_name.into(), enabled)
                 .resolved_cell()
@@ -1753,7 +1778,7 @@ impl Project {
         emit_event("swcRemoveConsole", remove_console_enabled);
         emit_event("swcEmotion", emotion_enabled);
 
-        Ok(Default::default())
+        Ok(())
     }
 
     /// Scans the app/pages directories for entry points files (matching the
@@ -2453,6 +2478,18 @@ impl Project {
         }
         .cell())
     }
+}
+
+/// Scales down or shuts down the Node.js process pool after module graph computation.
+async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
+    let execution_context = project.execution_context().await?;
+    let node_backend = execution_context.node_backend.into_trait_ref().await?;
+    if *project.is_watch_enabled().await? {
+        node_backend.scale_down()?;
+    } else {
+        node_backend.scale_zero()?;
+    }
+    Ok(())
 }
 
 // This is a performance optimization. This function is a root aggregation function that

@@ -9,7 +9,6 @@ import stripAnsi from 'strip-ansi'
     describe('with turbopack.ignoreIssue config', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname,
-        skipDeployment: true,
         nextConfig: {
           turbopack: {
             ignoreIssue: [
@@ -47,7 +46,6 @@ import stripAnsi from 'strip-ansi'
     describe('without turbopack.ignoreIssue config', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname,
-        skipDeployment: true,
       })
 
       if (skipped) return

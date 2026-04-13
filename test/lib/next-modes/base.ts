@@ -69,7 +69,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.4";
+const nextjsReactPeerVersion = "19.2.5";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -139,6 +139,12 @@ export class NextInstance {
         )
       }
 
+      const skippedRelativePaths = new Set([
+        'package.json',
+        '.next',
+        '.next-profiles',
+        '.DS_Store',
+      ])
       await fs.cp(files.fsPath, testDir, {
         recursive: true,
         // By default Node.js turns relative symlinks into absolute symlinks.
@@ -148,12 +154,10 @@ export class NextInstance {
         // See https://nodejs.org/api/fs.html#fscpsrc-dest-options-callback
         verbatimSymlinks: true,
         filter(source) {
-          // we don't copy a package.json as it's manually written
-          // via the createNextInstall process
-          if (path.relative(files.fsPath, source) === 'package.json') {
-            return false
-          }
-          return true
+          const topLevel = path
+            .relative(files.fsPath, source)
+            .split(path.sep)[0]
+          return !skippedRelativePaths.has(topLevel)
         },
       })
     } else {
@@ -285,7 +289,7 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nIMMUTABLE_ASSET" + "_TOKEN: " + process.env.VERCEL_IMMUTABLE_ASSET_TOKEN)'`,
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + (process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,
@@ -650,12 +654,12 @@ export class NextInstance {
     return this.deploymentId ? `${prefix}dpl=${this.deploymentId}` : ''
   }
 
-  public get immutableAssetToken(): string | undefined {
-    return undefined
+  public get supportsImmutableAssets(): boolean {
+    return false
   }
 
   public get assetToken(): string | undefined {
-    return this.immutableAssetToken || this.deploymentId
+    return this.supportsImmutableAssets ? undefined : this.deploymentId
   }
 
   public getAssetQuery(ampersand: boolean = false): string | undefined {

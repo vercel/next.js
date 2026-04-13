@@ -7,7 +7,6 @@ import { nextTestSetup } from 'e2e-utils'
   () => {
     const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'compilation-errors-app'),
-      skipDeployment: true,
     })
 
     if (skipped) {
@@ -73,6 +72,16 @@ import { nextTestSetup } from 'e2e-utils'
         issue.filePath.includes('syntax-error')
       )
       expect(syntaxErrorIssue).toBeDefined()
+    })
+
+    it('should detect CSS module composes errors', () => {
+      const errors = errorIssues()
+      const composesIssue = errors.find(
+        (issue) =>
+          issue.filePath.includes('css-composes-error') ||
+          issue.title.includes('composes')
+      )
+      expect(composesIssue).toBeDefined()
     })
 
     it('should include issue metadata fields', () => {

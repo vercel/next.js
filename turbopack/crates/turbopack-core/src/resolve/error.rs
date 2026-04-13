@@ -1,12 +1,13 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{PrettyPrintError, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString, resolve::ResolvingIssue,
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
+        resolve::ResolvingIssue,
     },
     reference_type::ReferenceType,
     resolve::{
@@ -111,9 +112,12 @@ async fn handle_item_issues(
     if items.peek().is_some() {
         let file_path = origin.origin_path().owned().await?;
         for item in items {
+            let trait_ref = item.into_trait_ref().await?;
             ResolvingIssueWithLocation {
                 inner: item,
-                severity: item.into_trait_ref().await?.severity(),
+                severity: trait_ref.severity(),
+                stage: trait_ref.stage(),
+                documentation_link: trait_ref.documentation_link(),
                 file_path: file_path.clone(),
                 source,
             }
@@ -199,48 +203,44 @@ pub async fn resolve_error_severity(resolve_options: Vc<ResolveOptions>) -> Resu
 pub struct ResolvingIssueWithLocation {
     pub inner: ResolvedVc<Box<dyn Issue>>,
     pub severity: IssueSeverity,
+    pub stage: IssueStage,
+    pub documentation_link: RcStr,
     pub file_path: FileSystemPath,
     pub source: Option<IssueSource>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ResolvingIssueWithLocation {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        self.inner.stage()
+    fn stage(&self) -> IssueStage {
+        self.stage.clone()
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        self.inner.title()
+    async fn title(&self) -> Result<StyledString> {
+        self.inner.into_trait_ref().await?.title().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        self.inner.description()
+    async fn description(&self) -> Result<Option<StyledString>> {
+        self.inner.into_trait_ref().await?.description().await
     }
 
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        self.inner.detail()
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        self.inner.into_trait_ref().await?.detail().await
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        self.inner.documentation_link()
+    fn documentation_link(&self) -> RcStr {
+        self.documentation_link.clone()
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+    fn source(&self) -> Option<IssueSource> {
+        self.source
     }
 }
