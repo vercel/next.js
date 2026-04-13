@@ -1918,6 +1918,10 @@ impl JsValue {
                       "module.hot.decline".to_string(),
                       "The module.hot.decline HMR API: https://webpack.js.org/api/hot-module-replacement/#decline"
                     ),
+                    WellKnownFunctionKind::ImportMetaGlob => (
+                      "import.meta.glob".to_string(),
+                      "The import.meta.glob() function from Vite: https://vite.dev/guide/features.html#glob-import"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -3520,6 +3524,8 @@ pub enum WellKnownFunctionKind {
     ModuleHotAccept,
     /// `module.hot.decline(deps)` — decline HMR updates for dependencies.
     ModuleHotDecline,
+    /// `import.meta.glob(patterns, options?)` — Vite-compatible glob import.
+    ImportMetaGlob,
 }
 
 impl WellKnownFunctionKind {
@@ -3616,6 +3622,11 @@ pub mod test_utils {
                 JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
                 _ => v.into_unknown(true, "require.resolve non constant"),
             },
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
+                _,
+            ) => v.into_unknown(false, "import.meta.glob()"),
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),

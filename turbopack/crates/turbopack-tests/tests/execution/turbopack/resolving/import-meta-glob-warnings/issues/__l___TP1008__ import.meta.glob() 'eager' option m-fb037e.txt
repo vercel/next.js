@@ -1,0 +1,22 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js:5:22  TP1008 import.meta.glob() 'eager' option must be a constant boolean (true or false), defaulting to false
+  
+       1 | // Warning: 'as' option is not supported — should still produce a glob with defaults
+       2 | const withAs = import.meta.glob('./dir/*.js', { as: 'raw' })
+       3 | 
+       4 | // Warning: non-constant eager — should default to lazy (eager: false)
+         |                       v--------------------------------
+       5 + const nonConstEager = import.meta.glob('./dir2/*.js', {
+       6 +   eager: Math.random() > -1,
+       7 + })
+         +--^
+       8 | 
+       9 | // Warning: unknown option — should be ignored, glob still works
+      10 | const unknown = import.meta.glob(['./dir/*.js', './dir2/*.js'], {
+      11 |   exhaust: true,
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js

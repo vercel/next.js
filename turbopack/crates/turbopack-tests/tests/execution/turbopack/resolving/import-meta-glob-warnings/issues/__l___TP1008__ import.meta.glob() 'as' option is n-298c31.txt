@@ -1,0 +1,17 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js:2:15  TP1008 import.meta.glob() 'as' option is not supported. Use 'query' instead (e.g. { query: '?raw' })
+  
+       1 | // Warning: 'as' option is not supported — should still produce a glob with defaults
+         +                v-------------------------------------------v
+       2 + const withAs = import.meta.glob('./dir/*.js', { as: 'raw' })
+         +                ^-------------------------------------------^
+       3 | 
+       4 | // Warning: non-constant eager — should default to lazy (eager: false)
+       5 | const nonConstEager = import.meta.glob('./dir2/*.js', {
+       6 |   eager: Math.random() > -1,
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js

@@ -9,6 +9,7 @@ pub mod exports_info;
 pub mod external_module;
 pub mod hot_module;
 pub mod ident;
+pub mod import_meta_glob;
 pub mod member;
 pub mod node;
 pub mod pattern_mapping;
@@ -140,6 +141,7 @@ use crate::{
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
+        import_meta_glob::{ImportMetaGlobAssetReference, parse_import_meta_glob},
         member::MemberReplacement,
         node::PackageJsonReference,
         raw::{DirAssetReference, FileSourceReference},
@@ -2447,6 +2449,34 @@ where
             )
         }
 
+        WellKnownFunctionKind::ImportMetaGlob => {
+            let args = linked_args().await?;
+            let Some(options) = parse_import_meta_glob(
+                args,
+                handler,
+                span,
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::IMPORT_META_GLOB.to_string(),
+                ),
+            ) else {
+                return Ok(());
+            };
+
+            analysis.add_reference_code_gen(
+                ImportMetaGlobAssetReference::new(
+                    origin,
+                    options.patterns,
+                    options.eager,
+                    options.import,
+                    options.query,
+                    options.base,
+                    Some(issue_source(source, span)),
+                    error_mode,
+                ),
+                ast_path.to_vec().into(),
+            );
+        }
+
         WellKnownFunctionKind::RequireContext => {
             let args = linked_args().await?;
             let options = match parse_require_context(args) {
@@ -3657,6 +3687,15 @@ async fn value_visitor_inner(
             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
             args,
         ) => require_resolve_visitor(origin, args).await?,
+        JsValue::Call(
+            _,
+            box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
+            _,
+        ) => {
+            // import.meta.glob() result is handled by the effect handler;
+            // in value_visitor_inner we just return unknown.
+            v.into_unknown(false, "import.meta.glob()")
+        }
         JsValue::Call(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
