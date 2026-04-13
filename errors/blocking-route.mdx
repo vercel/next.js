@@ -243,15 +243,7 @@ async function MapView({ searchParams }) {
 
 #### `generateStaticParams`
 
-A `<Suspense>` boundary or `loading.js` file is required when using `params`. In Next.js 16.3 and later, [partial fallbacks](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components) are enabled by default, so the build prerenders a shell for unlisted param values. Without a fallback, the build fails because there is no shell to render.
-
-Adding [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) prerenders pages for known param values at build time. Unlisted params receive the shell and stream the dynamic content in.
-
-```jsx filename="app/blog/[slug]/loading.js"
-export default function Loading() {
-  return <p>Loading...</p>
-}
-```
+If your page only depends on params and the data they fetch, export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to prerender those pages at build time. Because the params and data are all known ahead of time, Next.js can prerender each page in full without a `<Suspense>` boundary or `loading.js`.
 
 ```jsx filename="app/blog/[slug]/page.js"
 export async function generateStaticParams() {
@@ -264,7 +256,15 @@ export default async function Page({ params }) {
 }
 ```
 
-Note that validation is path-dependent. Runtime parameters may trigger conditional branches that access runtime APIs without Suspense, or dynamic content without Suspense or `"use cache"`, resulting in errors.
+If the route allows params beyond what `generateStaticParams` returns, add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file so Next.js has a shell to show while the content loads.
+
+```jsx filename="app/blog/[slug]/loading.js"
+export default function Loading() {
+  return <p>Loading...</p>
+}
+```
+
+> **Note:** If the page also uses request-time APIs like `cookies()` or `headers()`, `generateStaticParams` alone is not sufficient. You still need `<Suspense>` or `loading.js` for those.
 
 Learn more: [`generateStaticParams` function](/docs/app/api-reference/functions/generate-static-params), [Dynamic Routes with Cache Components](/docs/app/api-reference/file-conventions/dynamic-routes#with-cache-components)
 
