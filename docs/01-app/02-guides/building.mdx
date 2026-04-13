@@ -107,25 +107,22 @@ Route (app)
 ┌ ○ /
 ├ ○ /_not-found
 └   /products/[id]
+  ├ ◐ /products/[id]    # Unlisted params render on demand
   ├ ○ /products/1       # Params and data known at build time
   ├ ○ /products/2       # Params and data known at build time
   └ ○ /products/3       # Params and data known at build time
 
 ○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
 > **Good to know**: `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
-This works because the params and data are fully known at build time, so Next.js can prerender each page in full. But there are two things `generateStaticParams` alone does not cover:
-
-1. **Request-time APIs.** If the page also uses `cookies()`, `headers()`, or `searchParams`, the build fails again — those values are not available during prerendering.
-2. **Unlisted params.** Param values not returned by `generateStaticParams` have no prerendered shell, so they wait for a full server render.
-
-Adding a loading fallback solves both.
+This works because the params and data are fully known at build time, so Next.js can prerender each page in full. But if the page also uses request-time APIs like `cookies()`, `headers()`, or `searchParams`, the build fails again — those values are not available during prerendering.
 
 ### Add a loading fallback
 
-Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) so Next.js can prerender a static shell and stream the page content when it's ready:
+Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) to fix this. The loading fallback gives Next.js a meaningful shell to serve immediately while the page content streams in:
 
 ```tsx filename="app/products/[id]/loading.tsx" switcher
 export default function Loading() {
@@ -139,7 +136,7 @@ export default function Loading() {
 }
 ```
 
-`next build` now prerenders each listed param alongside a shell for unlisted params:
+With the loading fallback in place:
 
 ```bash filename="Terminal"
 Route (app)
