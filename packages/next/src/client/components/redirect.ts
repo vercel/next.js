@@ -40,6 +40,12 @@ export function redirect(
   url: string,
   type?: RedirectType
 ): never {
+  // GUARD: prevent invalid redirect loops
+  if (!url || url.trim() === '') {
+    throw new Error(
+      'Invariant: attempted to redirect to an empty URL. This causes infinite redirect loops.'
+    )
+  }
   type ??= actionAsyncStorage?.getStore()?.isAction ? 'push' : 'replace'
 
   throw getRedirectError(url, type, RedirectStatusCode.TemporaryRedirect)
