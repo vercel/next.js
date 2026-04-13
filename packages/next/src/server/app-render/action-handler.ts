@@ -624,7 +624,16 @@ export async function handleAction({
         // so we need to check if they're allowed cross-origin requests.
         originHeader === 'null'
         ? 'null'
-        : new URL(originHeader).host
+        : (() => {
+            try {
+              return new URL(originHeader).host
+            } catch {
+              // A malformed Origin header (e.g. 'http://') must NOT fall through
+              // to undefined/null — that would skip CSRF validation entirely.
+              // Return a sentinel that is guaranteed to fail host comparison.
+              return '__invalid_origin__'
+            }
+          })()
       : undefined
   const host = parseHostHeader(req.headers)
 
