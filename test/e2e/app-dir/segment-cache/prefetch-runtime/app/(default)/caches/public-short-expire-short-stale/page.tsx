@@ -2,10 +2,7 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { cacheLife } from 'next/cache'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
+export const unstable_instant = true
 export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {

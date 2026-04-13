@@ -3,7 +3,6 @@ import { headers } from 'next/headers'
 import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       headers: [['x-test-header', 'testValue']],

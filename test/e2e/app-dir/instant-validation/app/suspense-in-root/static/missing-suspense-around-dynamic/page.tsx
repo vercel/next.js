@@ -1,6 +1,6 @@
 import { connection } from 'next/server'
 
-export const unstable_instant = { prefetch: 'static' }
+export const unstable_instant = true
 
 export default async function Page() {
   await connection()

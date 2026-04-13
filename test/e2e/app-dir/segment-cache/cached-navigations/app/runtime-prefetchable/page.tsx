@@ -5,7 +5,6 @@ import { setTimeout } from 'timers/promises'
 import { Suspense } from 'react'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
   samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],

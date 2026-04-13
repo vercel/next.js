@@ -12,10 +12,8 @@ import { connection } from 'next/server'
  * providing instant loading feedback when navigating.
  */
 export const unstable_instant: {
-  prefetch: 'runtime'
   samples: Array<{ params: { category: string; itemId: string } }>
 } = {
-  prefetch: 'runtime',
   samples: [
     { params: { category: 'electronics', itemId: 'phone' } },
     { params: { category: 'clothing', itemId: 'shirt' } },

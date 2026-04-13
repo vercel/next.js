@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],

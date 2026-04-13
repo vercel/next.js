@@ -1,7 +1,6 @@
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
   samples: [{ cookies: [] }],
   unstable_disableValidation: true,
 }
