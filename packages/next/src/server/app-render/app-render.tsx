@@ -1901,6 +1901,7 @@ async function getRSCPayload(
     tree,
     hints,
     prefetchInliningEnabled,
+    ctx.renderOpts.cacheComponents,
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -2099,6 +2100,7 @@ async function getErrorRSCPayload(
     tree,
     errorHints,
     errorPrefetchInliningEnabled,
+    ctx.renderOpts.cacheComponents,
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -8442,21 +8444,26 @@ async function collectSegmentData(
     // during ISR/revalidation.
     const manifestHints = renderOpts.prefetchHints?.[pagePath]
     if (manifestHints === undefined) {
-      // TODO(#91407): No hints found for this route. This currently
-      // happens for routes with `instant = false` at the root segment,
-      // which causes the prerender to run per-request and the hints
-      // manifest to be unavailable at runtime.
-      //
-      // Fall back to a hint tree that marks everything as unprefetchable.
-      // The root gets PrefetchDisabled, and children inherit null hints
-      // which triggers PrefetchDisabled in createFlightRouterStateFromLoaderTree.
-      //
-      // Once the instant:false bug is fixed, this should become an error —
-      // the manifest should always have an entry for every route that
-      // reaches collectSegmentData.
-      hints = {
-        hints: PrefetchHint.PrefetchDisabled,
-        slots: null,
+      if (!renderOpts.cacheComponents) {
+        // Without cacheComponents, dynamic pages have no static shell
+        // and therefore no prerender pass to compute hints. This is
+        // expected — just skip the hint system for this route and let
+        // prefetching proceed normally without inlining decisions.
+        hints = null
+      } else {
+        // TODO(#91407): No hints found for this route. This currently
+        // happens for routes with `instant = false` at the root segment,
+        // which causes the prerender to run per-request and the hints
+        // manifest to be unavailable at runtime.
+        //
+        // Fall back to a hint tree that marks everything as
+        // unprefetchable. Once the instant:false bug is fixed, this
+        // should become an error — the manifest should always have an
+        // entry for every route that reaches collectSegmentData.
+        hints = {
+          hints: PrefetchHint.PrefetchDisabled,
+          slots: null,
+        }
       }
     } else {
       hints = manifestHints

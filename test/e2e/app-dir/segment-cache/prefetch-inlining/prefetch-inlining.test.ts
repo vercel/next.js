@@ -1,5 +1,6 @@
 import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
@@ -230,6 +231,52 @@ describe('prefetch inlining', () => {
 
     expect(await browser.elementByCss('#page-outlined').text()).toBe(
       'Outlined test page'
+    )
+  })
+
+  it('preserves prefetch hints after on-demand revalidation', async () => {
+    const beforeTree = await fetchRouteTreePrefetch(
+      next,
+      '/test-on-demand-revalidate'
+    )
+    expect(renderInliningTree(beforeTree.tree)).toMatchInlineSnapshot(`
+     "
+              ⇣  root
+              ⇣  └── "test-on-demand-revalidate"
+     outlined ■      └── "__PAGE__" (+metadata)
+     "
+    `)
+
+    const before$ = await next.render$('/test-on-demand-revalidate')
+    const beforeValue = before$('#page-on-demand-revalidate-value').text()
+    expect(beforeValue).toMatch(/^0\.\d+$/)
+
+    const revalidateRes = await next.fetch(
+      '/api/revalidate-path?path=/test-on-demand-revalidate'
+    )
+    expect(revalidateRes.status).toBe(200)
+    expect(await revalidateRes.json()).toEqual({
+      revalidated: true,
+      path: '/test-on-demand-revalidate',
+    })
+
+    await retry(
+      async () => {
+        const $ = await next.render$('/test-on-demand-revalidate')
+        const afterValue = $('#page-on-demand-revalidate-value').text()
+        expect(afterValue).toMatch(/^0\.\d+$/)
+        expect(afterValue).not.toBe(beforeValue)
+      },
+      15000,
+      1000
+    )
+
+    const afterTree = await fetchRouteTreePrefetch(
+      next,
+      '/test-on-demand-revalidate'
+    )
+    expect(renderInliningTree(afterTree.tree)).toBe(
+      renderInliningTree(beforeTree.tree)
     )
   })
 

@@ -19,6 +19,7 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
   NEXT_FONT_MANIFEST,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
@@ -216,6 +217,7 @@ export abstract class RouteModule<
     clientReferenceManifest: any
     serverActionsManifest: any
     dynamicCssManifest: any
+    prefetchHintsManifest: Record<string, any> | undefined
     interceptionRoutePatterns: RegExp[]
   } {
     let result
@@ -264,6 +266,9 @@ export abstract class RouteModule<
           self.__SUBRESOURCE_INTEGRITY_MANIFEST
         ),
         dynamicCssManifest: maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST),
+        // Edge pages are always dynamic so prefetch inlining hints
+        // don't apply. The runtime handles missing hints gracefully.
+        prefetchHintsManifest: undefined,
         interceptionRoutePatterns: (
           maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
         ).map((rewrite: any) => new RegExp(rewrite.regex)),
@@ -295,6 +300,7 @@ export abstract class RouteModule<
         serverFilesManifest,
         buildId,
         dynamicCssManifest,
+        prefetchHintsManifest,
       ] = [
         loadManifestFromRelativePath<DevRoutesManifest>({
           projectDir,
@@ -388,6 +394,15 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
           handleMissing: true,
         }),
+        router === 'app'
+          ? loadManifestFromRelativePath<Record<string, any>>({
+              projectDir,
+              distDir: this.distDir,
+              manifest: `server/${PREFETCH_HINTS}`,
+              shouldCache: !this.isDev,
+              handleMissing: true,
+            })
+          : undefined,
       ]
 
       result = {
@@ -404,6 +419,7 @@ export abstract class RouteModule<
         serverActionsManifest,
         subresourceIntegrityManifest,
         dynamicCssManifest,
+        prefetchHintsManifest,
         interceptionRoutePatterns: routesManifest.rewrites.beforeFiles
           .filter(isInterceptionRouteRewrite)
           .map((rewrite) => new RegExp(rewrite.regex)),
@@ -617,6 +633,7 @@ export abstract class RouteModule<
         clientReferenceManifest?: any
         serverActionsManifest?: any
         dynamicCssManifest?: any
+        prefetchHintsManifest?: Record<string, any>
         subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
         isOnDemandRevalidate: boolean
         revalidateOnlyGenerated: boolean
