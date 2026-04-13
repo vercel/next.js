@@ -210,6 +210,14 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         } else {
           const script = document.createElement('script')
           script.src = chunkUrl
+          // React DOM reuses hoistable scripts by:
+          // 1. keying them by `src`, and
+          // 2. looking them up in the DOM via `script[async][src="..."]`.
+          // Set `async` explicitly so Turbopack-inserted chunk scripts participate in
+          // that dedupe path and do not trigger a second request for the same URL.
+          // Dynamically inserted scripts already load asynchronously, so this only
+          // makes the DOM representation explicit without changing load behavior.
+          script.async = true
           // We'll only mark the chunk as loaded once the script has been executed,
           // which happens in `registerChunk`. Hence the absence of `resolve()` in
           // this branch.
