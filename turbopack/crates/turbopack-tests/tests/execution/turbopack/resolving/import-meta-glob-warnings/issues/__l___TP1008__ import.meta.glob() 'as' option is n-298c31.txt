@@ -6,8 +6,8 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
          +                ^-------------------------------------------^
        3 | 
        4 | // Warning: non-constant eager — should default to lazy (eager: false)
-       5 | const nonConstEager = import.meta.glob('./dir2/*.js', { eager: Math.random() > -1 })
-       6 | 
+       5 | const nonConstEager = import.meta.glob('./dir2/*.js', {
+       6 |   eager: Math.random() > -1,
   
   
   

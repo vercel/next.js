@@ -2451,7 +2451,14 @@ where
 
         WellKnownFunctionKind::ImportMetaGlob => {
             let args = linked_args().await?;
-            let options = match parse_import_meta_glob(args) {
+            let options = match parse_import_meta_glob(
+                args,
+                handler,
+                span,
+                DiagnosticId::Error(
+                    errors::failed_to_analyze::ecmascript::IMPORT_META_GLOB.to_string(),
+                ),
+            ) {
                 Ok(options) => options,
                 Err(err) => {
                     let (args, hints) = explain_args(args);
@@ -2468,17 +2475,6 @@ where
                     return Ok(());
                 }
             };
-
-            // Emit non-fatal warnings as issues (e.g. unknown options, non-constant values).
-            for warning in &options.warnings {
-                handler.span_warn_with_code(
-                    span,
-                    warning,
-                    DiagnosticId::Error(
-                        errors::failed_to_analyze::ecmascript::IMPORT_META_GLOB.to_string(),
-                    ),
-                );
-            }
 
             analysis.add_reference_code_gen(
                 ImportMetaGlobAssetReference::new(

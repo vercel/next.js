@@ -3,7 +3,10 @@ use std::{borrow::Cow, sync::Arc};
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::DUMMY_SP,
+    common::{
+        DUMMY_SP, Span,
+        errors::{DiagnosticId, Handler},
+    },
     ecma::{
         ast::{
             Expr, ExprStmt, KeyValueProp, Lit, ModuleItem, ObjectLit, Prop, PropName, PropOrSpread,
@@ -71,9 +74,6 @@ pub struct ImportMetaGlobOptions {
     pub query: Option<RcStr>,
     /// Base path for resolving and keying modules.
     pub base: Option<RcStr>,
-    /// Non-fatal warnings encountered during parsing.
-    /// These should be emitted as issues by the caller.
-    pub warnings: Vec<RcStr>,
 }
 
 /// Parse the arguments of an `import.meta.glob(patterns, options?)` call.
@@ -87,7 +87,12 @@ pub struct ImportMetaGlobOptions {
 ///   `import.meta.glob('...', { eager: true })`.
 /// - **`as` option** (deprecated in Vite 5 in favor of `query`) is not supported. Use `query:
 ///   '?raw'` or `query: '?url'` instead.
-pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions> {
+pub fn parse_import_meta_glob(
+    args: &[JsValue],
+    handler: &Handler,
+    span: Span,
+    diagnostic_id: DiagnosticId,
+) -> Result<ImportMetaGlobOptions> {
     if args.is_empty() || args.len() > 2 {
         bail!("import.meta.glob() requires 1 or 2 arguments");
     }
@@ -127,7 +132,6 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
     let mut import = None;
     let mut query = None;
     let mut base = None;
-    let mut warnings: Vec<RcStr> = Vec::new();
 
     if let Some(opts) = args.get(1) {
         match opts {
@@ -140,10 +144,11 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                 if let Some(b) = val.as_bool() {
                                     eager = b;
                                 } else {
-                                    warnings.push(
+                                    handler.span_warn_with_code(
+                                        span,
                                         "import.meta.glob() 'eager' option must be a constant \
-                                         boolean (true or false), defaulting to false"
-                                            .into(),
+                                         boolean (true or false), defaulting to false",
+                                        diagnostic_id.clone(),
                                     );
                                 }
                             }
@@ -151,10 +156,11 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                 if let Some(s) = val.as_str() {
                                     import = Some(s.into());
                                 } else {
-                                    warnings.push(
+                                    handler.span_warn_with_code(
+                                        span,
                                         "import.meta.glob() 'import' option must be a constant \
-                                         string, ignoring"
-                                            .into(),
+                                         string, ignoring",
+                                        diagnostic_id.clone(),
                                     );
                                 }
                             }
@@ -168,10 +174,11 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                     };
                                     query = Some(q);
                                 } else {
-                                    warnings.push(
+                                    handler.span_warn_with_code(
+                                        span,
                                         "import.meta.glob() 'query' option must be a constant \
-                                         string, ignoring"
-                                            .into(),
+                                         string, ignoring",
+                                        diagnostic_id.clone(),
                                     );
                                 }
                             }
@@ -179,35 +186,39 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
                                 if let Some(s) = val.as_str() {
                                     base = Some(s.into());
                                 } else {
-                                    warnings.push(
+                                    handler.span_warn_with_code(
+                                        span,
                                         "import.meta.glob() 'base' option must be a constant \
-                                         string, ignoring"
-                                            .into(),
+                                         string, ignoring",
+                                        diagnostic_id.clone(),
                                     );
                                 }
                             }
                             // The `as` option was deprecated in Vite 5 in favor of `query`.
                             // We don't support it; users should use `query` instead.
                             Some("as") => {
-                                warnings.push(
+                                handler.span_warn_with_code(
+                                    span,
                                     "import.meta.glob() 'as' option is not supported. Use 'query' \
-                                     instead (e.g. { query: '?raw' })"
-                                        .into(),
+                                     instead (e.g. { query: '?raw' })",
+                                    diagnostic_id.clone(),
                                 );
                             }
                             Some(other) => {
-                                warnings.push(
-                                    format!(
+                                handler.span_warn_with_code(
+                                    span,
+                                    &format!(
                                         "import.meta.glob() unsupported option '{other}'. \
                                          Supported options are: eager, import, query, base"
-                                    )
-                                    .into(),
+                                    ),
+                                    diagnostic_id.clone(),
                                 );
                             }
                             None => {
-                                warnings.push(
-                                    "import.meta.glob() option keys must be constant strings"
-                                        .into(),
+                                handler.span_warn_with_code(
+                                    span,
+                                    "import.meta.glob() option keys must be constant strings",
+                                    diagnostic_id.clone(),
                                 );
                             }
                         }
@@ -226,7 +237,6 @@ pub fn parse_import_meta_glob(args: &[JsValue]) -> Result<ImportMetaGlobOptions>
         import,
         query,
         base,
-        warnings,
     })
 }
 
