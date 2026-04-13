@@ -67,6 +67,12 @@ export function permanentRedirect(
   url: string,
   type: RedirectType = 'replace'
 ): never {
+  // GUARD: prevent invalid redirect loops
+  if (!url || url.trim() === '') {
+    throw new Error(
+      'Invariant: attempted to redirect to an empty URL. This causes infinite redirect loops.'
+    )
+  }
   throw getRedirectError(url, type, RedirectStatusCode.PermanentRedirect)
 }
 
