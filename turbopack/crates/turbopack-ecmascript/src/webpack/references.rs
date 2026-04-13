@@ -18,7 +18,7 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use super::{WebpackChunkAssetReference, parse::WebpackRuntime};
 use crate::{
     EcmascriptInputTransforms, EcmascriptModuleAssetType,
-    parse::{ParseResult, node_env_from_compile_time_info, parse},
+    parse::{ParseResult, parse},
 };
 
 #[turbo_tasks::function]
@@ -28,7 +28,13 @@ pub async fn module_references(
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleReferences>> {
-    let node_env = node_env_from_compile_time_info(*compile_time_info).await?;
+    let node_env = compile_time_info
+        .await?
+        .defines
+        .read_process_env(rcstr!("NODE_ENV"))
+        .owned()
+        .await?
+        .unwrap_or_else(|| rcstr!("development"));
     let parsed = parse(
         *source,
         EcmascriptModuleAssetType::Ecmascript,

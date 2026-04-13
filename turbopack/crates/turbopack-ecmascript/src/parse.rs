@@ -4,7 +4,6 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use bytes_str::BytesStr;
 use rustc_hash::{FxHashMap, FxHashSet};
-use smallvec::smallvec;
 use swc_core::{
     atoms::Atom,
     base::SwcComments,
@@ -39,9 +38,6 @@ use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
     asset::{Asset, AssetContent},
-    compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegmentRef, DefinableNameSegmentRefs,
-    },
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
     source_map::utils::add_default_ignore_list,
@@ -265,24 +261,6 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
     fn name_for_bytepos(&self, pos: BytePos) -> Option<&str> {
         self.names.get(&pos).map(|v| &**v)
     }
-}
-
-/// Extracts the value of `process.env.NODE_ENV` from the compile-time defines,
-/// defaulting to `"development"` when not set.
-pub(crate) async fn node_env_from_compile_time_info(
-    compile_time_info: Vc<CompileTimeInfo>,
-) -> Result<RcStr> {
-    let key = DefinableNameSegmentRefs(smallvec![
-        DefinableNameSegmentRef::Name("process"),
-        DefinableNameSegmentRef::Name("env"),
-        DefinableNameSegmentRef::Name("NODE_ENV"),
-    ]);
-    let defines = compile_time_info.await?.defines.await?;
-    Ok(match defines.get(&key) {
-        Some(CompileTimeDefineValue::String(s)) => s.clone(),
-        Some(CompileTimeDefineValue::Evaluate(s)) => s.clone(),
-        _ => rcstr!("development"),
-    })
 }
 
 #[turbo_tasks::function]

@@ -111,9 +111,7 @@ use crate::{
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
-    parse::{
-        IdentCollector, ParseResult, generate_js_source_map, node_env_from_compile_time_info, parse,
-    },
+    parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
     references::{
         analyze_ecmascript_module,
@@ -703,7 +701,14 @@ impl EcmascriptModuleAsset {
 impl EcmascriptModuleAsset {
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
-        let node_env = node_env_from_compile_time_info(*self.compile_time_info).await?;
+        let node_env = self
+            .compile_time_info
+            .await?
+            .defines
+            .read_process_env(rcstr!("NODE_ENV"))
+            .owned()
+            .await?
+            .unwrap_or_else(|| rcstr!("development"));
         Ok(parse(
             *self.source,
             self.ty,
