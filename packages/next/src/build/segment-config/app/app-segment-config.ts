@@ -49,7 +49,11 @@ const InstantConfigSchema = z.union([
   z.literal(false),
 ])
 
+const PrefetchSchema = z.enum(['static', 'runtime'])
+
 export type Instant = InstantConfigStatic | InstantConfigRuntime | false
+
+export type Prefetch = 'static' | 'runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericPrefetch type is used to avoid type widening issues with
@@ -146,6 +150,13 @@ const AppSegmentConfigSchema = z.object({
   unstable_instant: InstantConfigSchema.optional(),
 
   /**
+   * Controls runtime prefetching for this segment.
+   * 'static' is a noop (default behavior).
+   * 'runtime' enables runtime prefetching.
+   */
+  unstable_prefetch: PrefetchSchema.optional(),
+
+  /**
    * The stale time for dynamic responses in seconds.
    * Controls how long the client-side router cache retains dynamic page data.
    * Pages only — not allowed in layouts.
@@ -193,6 +204,11 @@ export function parseAppSegmentConfig(
             return {
               // @TODO replace this link with a link to the docs when they are written
               message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+            }
+          }
+          case 'unstable_prefetch': {
+            return {
+              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "static" or "runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -253,6 +269,13 @@ export type AppSegmentConfig = {
    * How this segment should be prefetched.
    */
   unstable_instant?: Instant
+
+  /**
+   * Controls runtime prefetching for this segment.
+   * 'static' is a noop (default behavior).
+   * 'runtime' enables runtime prefetching.
+   */
+  unstable_prefetch?: Prefetch
 
   /**
    * The stale time for dynamic responses in seconds.

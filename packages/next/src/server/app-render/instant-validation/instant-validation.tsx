@@ -1146,10 +1146,13 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
+    let prefetchConfig: AppSegmentConfig['unstable_prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
       instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
+      prefetchConfig =
+        (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
       if (instantConfig && typeof instantConfig === 'object') {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
@@ -1158,14 +1161,12 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
+    const segmentHasRuntimePrefetch = prefetchConfig === 'runtime'
+
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage
     if (!isInsideRuntimePrefetch) {
-      if (
-        instantConfig &&
-        typeof instantConfig === 'object' &&
-        instantConfig.prefetch === 'runtime'
-      ) {
+      if (segmentHasRuntimePrefetch) {
         stage = RenderStage.Runtime
         childIsInsideRuntimePrefetch = true
         hasRuntimeSegments = true
