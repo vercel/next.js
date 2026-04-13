@@ -106,6 +106,8 @@ export default function RootLayout({ children }) {
 }
 ```
 
+> **Note:** The built-in `/_not-found` route must be statically prerendered. If your root layout has a `generateViewport` that depends on request data, the `<Suspense>` fix above will not resolve the error for `/_not-found`. For that route, use static values or cached data in `generateViewport()` instead.
+
 ## Useful Links
 
 - [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport)
