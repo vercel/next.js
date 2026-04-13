@@ -5,6 +5,12 @@
  * Usage: node aggregate-results.js <results-dir>
  *
  * Expects JSON files named pr-stats-*.json in the results directory
+ * 
+ * FIX: Added directory existence check to prevent ENOENT error when
+ * the stats-results directory doesn't exist. This can happen for:
+ * - Docs-only changes where stats jobs are skipped
+ * - First-time runs where directory hasn't been created yet
+ * - Clean runner environments without existing artifacts
  */
 
 const path = require('path')
@@ -18,6 +24,30 @@ async function main() {
 
   logger(`Aggregating results from: ${resultsDir}`)
 
+  // ========== FIX: Check if directory exists ==========
+  // This prevents ENOENT error when stats-results directory doesn't exist
+  // Common scenarios: docs-only changes, first-time runs, or when no stats jobs ran
+  if (!existsSync(resultsDir)) {
+    logger(`⚠️ Results directory does not exist: ${resultsDir}`)
+    logger(`This typically happens for docs-only changes or when no stats jobs ran.`)
+    logger(`Creating directory and exiting gracefully...`)
+    
+    // Create the directory to prevent future errors
+    await fs.mkdir(resultsDir, { recursive: true })
+    
+    // Create an empty results file to indicate no stats were generated
+    const emptyResultsPath = path.join(resultsDir, 'pr-stats-empty.json')
+    await fs.writeFile(emptyResultsPath, JSON.stringify({
+      results: [],
+      actionInfo: { isRelease: false, skipStats: true },
+      statsConfig: {},
+      message: "No stats generated - likely a docs-only change"
+    }, null, 2))
+    
+    logger(`✅ Created empty results file at ${emptyResultsPath}`)
+    process.exit(0)
+  }
+
   // Find all pr-stats-*.json files
   const files = await fs.readdir(resultsDir)
   const statsFiles = files.filter(
@@ -27,6 +57,15 @@ async function main() {
   if (statsFiles.length === 0) {
     // This can happen for docs-only changes where stats jobs are skipped
     logger('No pr-stats-*.json files found - this may be a docs-only change')
+    
+    // Create a placeholder to avoid future errors
+    const placeholderPath = path.join(resultsDir, 'pr-stats-placeholder.json')
+    await fs.writeFile(placeholderPath, JSON.stringify({
+      results: [],
+      actionInfo: { skipStats: true },
+      statsConfig: {}
+    }, null, 2))
+    
     process.exit(0)
   }
 

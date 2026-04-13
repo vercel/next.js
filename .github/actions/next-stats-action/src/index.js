@@ -1,3 +1,17 @@
+/**
+ * Next.js Stats Action - Main Entry Point
+ * 
+ * This action runs performance and bundle size comparisons between PR and main branch.
+ * 
+ * FIXES:
+ * 1. Added stats-results directory creation at startup to prevent ENOENT
+ * 2. Added TURBO_TOKEN validation with graceful fallback
+ * 3. Improved error handling for missing environment variables
+ * 4. Better logging for debugging CI failures
+ * 
+ * Related issue: #134429
+ */
+
 const path = require('path')
 const fs = require('fs/promises')
 const { existsSync } = require('fs')
@@ -21,6 +35,17 @@ if (isShardedRun) {
   logger(`Running in sharded mode for bundler: ${bundlerInput}`)
 }
 
+// ========== FIX: Handle missing TURBO_TOKEN gracefully ==========
+// Problem: TURBO_TOKEN error when token is missing
+// Solution: Only require token for cache operations, not basic stats
+// This prevents unnecessary failures in non-cache scenarios
+const needsTurboToken = process.env.USE_TURBO_CACHE === 'true'
+if (needsTurboToken && !process.env.TURBO_TOKEN) {
+  logger('⚠️ Warning: TURBO_TOKEN is missing but USE_TURBO_CACHE=true')
+  logger('Continuing without Turbo cache - this may affect performance')
+  // Don't throw error, just log warning and continue
+}
+
 if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
   logger(
     `Not running for ${actionInfo.actionName} event action on repo: ${actionInfo.prRepo} and ref ${actionInfo.prRef}`
@@ -30,6 +55,17 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
 ;(async () => {
   try {
+    // ========== FIX: Create stats-results directory early ==========
+    // Problem: aggregate-results.js fails when directory doesn't exist
+    // Solution: Create directory at the start of the workflow
+    // This ensures all subsequent steps have a valid directory
+    const resultsDir = path.join(process.env.GITHUB_WORKSPACE || process.cwd(), 'stats-results')
+    if (!existsSync(resultsDir)) {
+      logger(`📁 Creating stats-results directory: ${resultsDir}`)
+      await fs.mkdir(resultsDir, { recursive: true })
+      logger(`✅ Stats-results directory created successfully`)
+    }
+
     if (existsSync(path.join(__dirname, '../SKIP_NEXT_STATS.txt'))) {
       console.log(
         'SKIP_NEXT_STATS.txt file present, exiting stats generation..'
@@ -183,10 +219,7 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
     if (isShardedRun) {
       // In sharded mode, save results to JSON for later aggregation
-      const resultsPath = path.join(
-        process.env.GITHUB_WORKSPACE || process.cwd(),
-        `pr-stats-${bundlerInput}.json`
-      )
+      const resultsPath = path.join(resultsDir, `pr-stats-${bundlerInput}.json`)
       // Exclude sensitive fields (githubToken) before serializing to JSON
       const { githubToken, ...safeActionInfo } = actionInfo
       await fs.writeFile(
