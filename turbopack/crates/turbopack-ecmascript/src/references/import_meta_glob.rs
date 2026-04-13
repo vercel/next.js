@@ -309,6 +309,7 @@ impl ImportMetaGlobMap {
         positive_glob: Vc<Glob>,
         negative_glob: Option<Vc<Glob>>,
         query: Option<RcStr>,
+        eager: bool,
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
@@ -352,10 +353,16 @@ impl ImportMetaGlobMap {
 
             let request = Request::parse_string(request_str).to_resolved().await?;
 
+            let reference_sub_type = if eager {
+                EcmaScriptModulesReferenceSubType::Import
+            } else {
+                EcmaScriptModulesReferenceSubType::DynamicImport
+            };
+
             let result = esm_resolve(
                 origin,
                 *request,
-                EcmaScriptModulesReferenceSubType::DynamicImport,
+                reference_sub_type,
                 error_mode,
                 issue_source,
             )
@@ -494,6 +501,7 @@ impl ImportMetaGlobAsset {
             positive_glob,
             negative_glob,
             self.query.clone(),
+            self.eager,
             self.issue_source,
             self.error_mode,
         ))
@@ -504,7 +512,7 @@ impl ImportMetaGlobAsset {
 impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let origin_path = (*self.origin).origin_path().owned().await?;
+        let origin_path = self.origin.origin_path().owned().await?;
         Ok(AssetIdent::from_path(origin_path).with_modifier(modifier(
             &self.patterns,
             self.eager,
@@ -533,8 +541,17 @@ impl Module for ImportMetaGlobAsset {
     }
 
     #[turbo_tasks::function]
-    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
-        ModuleSideEffects::SideEffectFree.cell()
+    fn side_effects(&self) -> Vc<ModuleSideEffects> {
+        if self.eager {
+            // In eager mode the module's imports are evaluated synchronously, so
+            // the module evaluation itself is side-effect-free but its imports
+            // are not necessarily.
+            ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
+        } else {
+            // In lazy mode the virtual module only exports thunks; no imports
+            // are evaluated, so it is fully side-effect-free.
+            ModuleSideEffects::SideEffectFree.cell()
+        }
     }
 }
 
