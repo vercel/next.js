@@ -7,9 +7,10 @@ import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition
 import * as entryBase from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
 // interopDefault is used as a free variable in the INJECT:tree generated code
-// (see crates/next-core/src/app_page_loader_tree.rs), so it must remain in
-// this template's compiled output as a local binding named `interopDefault`.
-// verbatimModuleSyntax ensures the import is preserved as-is.
+// (see crates/next-core/src/app_page_loader_tree.rs).
+// - Turbopack: import is added explicitly by app_page_loader_tree.rs so that
+//   it isn't tree-shaken from this module.
+// - Webpack: import below provides it as a local binding for treeCode injection.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-server-utility' }
 
