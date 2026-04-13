@@ -812,32 +812,31 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             })
             .collect::<Vec<_>>();
 
-        // ── Phase A: compute what will change without adding/removing meta
-        //    files or bumping the sequence number. ──
+        // ── Phase A: compute what will change without modifying inner. ──
         //
         // We need `meta_seq_numbers_to_delete` and `has_delete_file` to write
-        // the .del file BEFORE writing CURRENT. We must not append/retain
-        // `inner.meta_files` or update `inner.current_sequence_number` yet —
-        // if a disk error occurs before CURRENT is durable, the
+        // the .del file BEFORE writing CURRENT. We must not modify `inner` at
+        // all — if a disk error occurs before CURRENT is durable, the
         // WriteOperationGuard rollback can only clean up orphan files, not undo
-        // in-memory mutations to the file list or sequence number.
-        //
-        // A1 (apply_filter) does mutate MetaFile internals in-memory, but that
-        // is safe: it is a read optimization (moving superseded entries to
-        // `obsolete_entries`) and on crash/rollback the MetaFile is re-opened
-        // from disk with its original layout.
+        // in-memory mutations. The MetaFile in-memory optimization
+        // (retain_entries) is deferred to Phase C.
         let has_delete_file;
         let mut meta_seq_numbers_to_delete = Vec::new();
+        let entries_to_remove;
 
         {
-            // (A1) Run the SST filter on existing meta files. This calls
-            // `retain_entries()` which moves superseded entries into
-            // `obsolete_entries`. Requires a write lock because it mutates the
-            // MetaFile in-memory layout. Released immediately after.
-            let mut inner = self.inner.write();
-            for meta_file in inner.meta_files.iter_mut().rev() {
-                sst_filter.apply_filter(meta_file);
-            }
+            // (A1) Run the SST filter on existing meta files. This only
+            // updates the SstFilter state — the MetaFile in-memory layout is
+            // not modified yet (that happens in Phase C via retain_entries).
+            // Collects the set of SST entry sequence numbers to remove from
+            // each meta file, keyed by position in `inner.meta_files`.
+            let inner = self.inner.read();
+            entries_to_remove = inner
+                .meta_files
+                .iter()
+                .rev()
+                .map(|meta_file| sst_filter.apply_filter_collect(meta_file))
+                .collect::<Vec<_>>();
         }
 
         {
@@ -995,11 +994,25 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         // ── Phase C: structurally update inner (CURRENT is already durable). ──
         //
-        // Between Phase A's write-lock drop and this point no other writer can
+        // Between Phase A's read-lock drop and this point no other writer can
         // run (WriteOperationGuard ensures exclusivity) and readers never mutate
         // inner, so the snapshot from Phase A is still valid.
         {
             let mut inner = self.inner.write();
+
+            // Apply the deferred MetaFile mutations from Phase A1. apply_filter
+            // was called read-only earlier; now we actually move superseded
+            // entries from active to obsolete inside each MetaFile.
+            // entries_to_remove was collected in reverse order, so iterate it
+            // in reverse to match the forward order of inner.meta_files.
+            for (meta_file, to_remove) in
+                inner.meta_files.iter_mut().zip(entries_to_remove.into_iter().rev())
+            {
+                if !to_remove.is_empty() {
+                    meta_file.retain_entries(|seq| !to_remove.contains(&seq));
+                }
+            }
+
             inner.meta_files.append(&mut new_meta_files);
             if !meta_seq_numbers_to_delete.is_empty() {
                 let to_delete: HashSet<u32> = meta_seq_numbers_to_delete.iter().copied().collect();
