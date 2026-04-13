@@ -1230,21 +1230,22 @@ module.exports = {
 }
 ```
 
-```js filename="next.config.js"
-// After
-module.exports = {
-  cacheComponents: true,
-}
-```
-
-```ts filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
+// After
 const nextConfig: NextConfig = {
   cacheComponents: true,
 }
 
 export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+// After
+module.exports = {
+  cacheComponents: true,
+}
 ```
 
 For more on Cache Components, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
