@@ -18,7 +18,7 @@
  */
 
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 import type { Playwright } from 'next-webdriver'
 
 /**
@@ -36,6 +36,7 @@ async function getRenderedRouteHistory(
 describe('optimistic-routing', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
 
   if (isNextDev) {
@@ -326,7 +327,13 @@ describe('optimistic-routing', () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/', {
       beforePageLoad(page) {
-        act = createRouterAct(page)
+        act = createRouterAct(page, {
+          // The client issues an RSC request to the rewritten URL
+          // (/rewritten/[slug]) before the navigation completes. That
+          // request currently returns 404 even though the final navigation
+          // succeeds via the middleware rewrite to /actual/[slug].
+          allowErrorStatusCodes: [404],
+        })
       },
     })
 

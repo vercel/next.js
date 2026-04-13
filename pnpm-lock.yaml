@@ -132,6 +132,9 @@ importers:
       '@next/polyfill-nomodule':
         specifier: workspace:*
         version: link:packages/next-polyfill-nomodule
+      '@next/router-act':
+        specifier: workspace:*
+        version: link:packages/next-router-act
       '@next/swc':
         specifier: workspace:*
         version: link:packages/next-swc
@@ -1908,6 +1911,18 @@ importers:
       whatwg-fetch:
         specifier: 3.0.0
         version: 3.0.0
+
+  packages/next-router-act:
+    dependencies:
+      '@jest/expect-utils':
+        specifier: '*'
+        version: 29.7.0
+      jest-diff:
+        specifier: '*'
+        version: 29.7.0
+      react:
+        specifier: npm:react@19.3.0-canary-8b2e903a-20260320
+        version: 19.3.0-canary-8b2e903a-20260320
 
   packages/next-routing:
     devDependencies:
@@ -36002,7 +36017,7 @@ snapshots:
 
   pretty-format@29.5.0:
     dependencies:
-      '@jest/schemas': 29.4.3
+      '@jest/schemas': 29.6.3
       ansi-styles: 5.2.0
       react-is: 19.3.0-canary-404b38c7-20260408
 

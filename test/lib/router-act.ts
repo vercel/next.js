@@ -1,3 +1,20 @@
+/**
+ * @deprecated Use `@next/router-act` instead.
+ *
+ * TODO: This file is the old Playwright-based implementation of router-act.
+ * It has been replaced by the browser-based implementation in
+ * packages/next-router-act/, which is more reliable (no issues with
+ * streaming responses, redirects, or execution context destruction).
+ *
+ * This file is kept temporarily because a handful of tests trigger hard
+ * navigations (e.g., browser.back() across route group boundaries) that
+ * destroy the browser JS context mid-act, which the browser-based
+ * implementation can't handle. Those tests need to be reworked before
+ * this file can be deleted.
+ *
+ * Do not write new tests against this implementation. Use
+ * `import { createRouterAct } from '@next/router-act'` instead.
+ */
 import type * as Playwright from 'playwright'
 import { diff } from 'jest-diff'
 import { equals } from '@jest/expect-utils'

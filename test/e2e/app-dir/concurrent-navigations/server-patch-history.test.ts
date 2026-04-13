@@ -4,6 +4,7 @@ import { retry } from 'next-test-utils'
 describe('server patch - history entry', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
 
   if (isNextDev) {

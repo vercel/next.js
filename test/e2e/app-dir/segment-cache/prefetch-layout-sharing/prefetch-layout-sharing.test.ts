@@ -1,12 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import { Playwright as NextBrowser } from '../../../../lib/next-webdriver'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 
 // TODO: Skipped due to flakiness
 describe.skip('layout sharing in non-static prefetches', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
   if (isNextDev) {
     it('disabled in development', () => {})

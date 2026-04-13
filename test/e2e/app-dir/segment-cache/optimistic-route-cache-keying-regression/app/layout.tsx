@@ -1,3 +1,5 @@
+import { RouterAct } from '@next/router-act/component'
+
 export default function RootLayout({
   children,
 }: {
@@ -6,6 +8,7 @@ export default function RootLayout({
   return (
     <html>
       <body>
+        <RouterAct />
         <div style={{ maxWidth: 600, margin: '0 auto', padding: 20 }}>
           <h1>Route Cache Keying Regression Test</h1>
           <p style={{ color: '#666', fontSize: 14 }}>

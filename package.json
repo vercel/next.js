@@ -284,6 +284,7 @@
     "release": "6.3.1",
     "request-promise-core": "1.1.2",
     "resolve-from": "5.0.0",
+    "@next/router-act": "workspace:*",
     "sass": "1.54.0",
     "satori": "0.25.0",
     "scheduler-builtin": "npm:scheduler@0.28.0-canary-404b38c7-20260408",

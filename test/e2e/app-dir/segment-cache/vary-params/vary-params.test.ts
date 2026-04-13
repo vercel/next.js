@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 
 /**
  * Tests for the "vary params" optimization.
@@ -21,6 +21,7 @@ import { createRouterAct } from 'router-act'
 describe('segment cache - vary params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
 
   if (isNextDev) {

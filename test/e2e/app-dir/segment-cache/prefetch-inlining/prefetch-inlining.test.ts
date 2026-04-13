@@ -1,6 +1,6 @@
 import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 
 // Bit values from PrefetchHint enum (const enum, so we duplicate values here)
 const HasRuntimePrefetch = 0b00001 // 1
@@ -143,6 +143,7 @@ async function fetchRouteTreePrefetch(
 describe('prefetch inlining', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
 
   if (isNextDev) {

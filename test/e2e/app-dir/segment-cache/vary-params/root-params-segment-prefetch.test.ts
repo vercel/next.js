@@ -1,10 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
-import { createRouterAct } from 'router-act'
+import { createRouterAct } from '@next/router-act'
 
 describe('segment cache - root params segment prefetch', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    dependencies: { '@next/router-act': 'latest' },
   })
 
   if (isNextDev) {
@@ -52,9 +53,17 @@ describe('segment cache - root params segment prefetch', () => {
     )
 
     expect(settledSegmentPrefetchBodies.length).toBeGreaterThan(0)
+
+    // Check that %5BrootParam%5D does not appear in the response bodies
+    // outside of .js chunk paths. Webpack encodes brackets in directory
+    // names when generating chunk filenames (e.g.
+    // static/chunks/app/%5BrootParam%5D/layout-xxx.js), which is
+    // expected. What we're checking for is encoded placeholders in the
+    // actual RSC data — those should use unencoded [rootParam].
+    const encodedPlaceholderOutsideChunkPaths = /%5BrootParam%5D(?!.*\.js["\]])/
     expect(
       settledSegmentPrefetchBodies.some((body) =>
-        body.includes('%5BrootParam%5D')
+        encodedPlaceholderOutsideChunkPaths.test(body)
       )
     ).toBe(false)
   })

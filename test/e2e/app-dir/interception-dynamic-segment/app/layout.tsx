@@ -1,3 +1,5 @@
+import { RouterAct } from '@next/router-act/component'
+
 export default function Layout(props: {
   children: React.ReactNode
   modal: React.ReactNode
@@ -5,6 +7,7 @@ export default function Layout(props: {
   return (
     <html>
       <body>
+        <RouterAct />
         <div id="children">
           <div>CHILDREN SLOT:</div>
           {props.children}

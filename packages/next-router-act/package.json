@@ -1,0 +1,44 @@
+{
+  "name": "@next/router-act",
+  "version": "0.0.0",
+  "private": true,
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./component": {
+      "types": "./dist/component.d.ts",
+      "default": "./dist/component.js"
+    },
+    "./setup": {
+      "types": "./dist/setup.d.ts",
+      "default": "./dist/setup.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "component": [
+        "dist/component.d.ts"
+      ],
+      "setup": [
+        "dist/setup.d.ts"
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json"
+  },
+  "dependencies": {
+    "jest-diff": "*",
+    "@jest/expect-utils": "*"
+  },
+  "peerDependencies": {
+    "react": "*"
+  }
+}
