@@ -248,23 +248,24 @@ jobs:
       - name: Clear native build
         run: rm -rf packages/next-swc/native
 
-      # Build or restore the Docker image via turbo-cache.js.
-      - name: Build/restore Docker image
+      # Try to restore the native binary BEFORE loading the Docker image.
+      # If the binary cache hits, we skip the expensive Docker image restore entirely.
+      - name: Rust fingerprint
         if: ${{ matrix.docker }}
+        run: pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
+
+      - name: Restore native binary cache
+        if: ${{ matrix.docker }}
+        id: native-cache
+        run: node scripts/native-cache.js --restore --target ${{ matrix.target }} && echo "HIT=yes" >> $GITHUB_OUTPUT || echo "HIT=no" >> $GITHUB_OUTPUT
+
+      # Only load the Docker image if we need to compile (native cache miss)
+      - name: Build/restore Docker image
+        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
         run: node scripts/docker-image-cache.js
 
-      # Try to restore previously-built native binary from turbo cache
-      - name: pull build cache
-        if: ${{ matrix.docker }}
-        run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.target }}
-
-      - name: check build exists
-        if: ${{ matrix.docker }}
-        run: if [ -f packages/next-swc/native/next-swc.*.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
-        id: build-exists
-
       - name: Build in docker
-        if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
         run: |
           docker run --rm \
             -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
@@ -282,15 +283,12 @@ jobs:
             ${{ matrix.docker }} \
             -xeo pipefail scripts/docker-native-build.sh
 
-      - name: cache build
-        if: ${{ matrix.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
-        run: pnpm dlx turbo@${TURBO_VERSION} run cache-build-native --force -- ${{ matrix.target }}
+      - name: Save native binary cache
+        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
+        run: node scripts/native-cache.js --save --target ${{ matrix.target }}
 
       - name: 'Build'
         if: ${{ !matrix.docker }}
-        env:
-          # We don't want incremental builds on CI
-          CARGO_INCREMENTAL: 0
         run: |
           echo "Host arch: $(uname -m)"
           echo "Node arch: $(node -e 'console.log(process.arch)')"
@@ -581,6 +579,11 @@ jobs:
     env:
       DATADOG_API_KEY: ${{ secrets.DATA_DOG_API_KEY }}
     steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            .github
+
       - name: Collect bytesize metrics
         uses: actions/download-artifact@v8
         with:
@@ -588,14 +591,17 @@ jobs:
           merge-multiple: true
           path: turbopack-bin-size
 
+      - name: Install datadog-ci
+        uses: ./.github/actions/setup-datadog-ci
+
       - name: Upload to Datadog
         run: |
           ls -al turbopack-bin-size
 
           for filename in turbopack-bin-size/*; do
-            export BYTESIZE+=" --metrics $(cat $filename)"
+            export BYTESIZE+=" --measures $(cat $filename)"
           done
 
           echo "Reporting $BYTESIZE"
 
-          npx @datadog/datadog-ci@2.23.1 metric --no-fail --level pipeline $BYTESIZE
+          "$DATADOG_CI_PATH" measure --no-fail --level pipeline $BYTESIZE

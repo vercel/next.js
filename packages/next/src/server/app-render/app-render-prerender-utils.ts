@@ -13,12 +13,23 @@ function isWebStream(stream: AnyStream): stream is ReadableStream<Uint8Array> {
 // in one that doesn't close even when the underlying is complete.
 export class ReactServerResult {
   private _stream: null | AnyStream
+  private _replayable: ReplayableNodeStream | null
 
   constructor(stream: AnyStream) {
-    this._stream = stream
+    if (process.env.__NEXT_USE_NODE_STREAMS && !isWebStream(stream)) {
+      this._stream = null
+      this._replayable = new ReplayableNodeStream(stream as Readable)
+    } else {
+      this._stream = stream
+      this._replayable = null
+    }
   }
 
   tee(): AnyStream {
+    if (this._replayable) {
+      return this._replayable.createReplayStream()
+    }
+
     if (this._stream === null) {
       throw new Error(
         'Cannot tee a ReactServerResult that has already been consumed'
@@ -56,6 +67,13 @@ export class ReactServerResult {
   }
 
   consume(): AnyStream {
+    if (this._replayable) {
+      const stream = this._replayable.createReplayStream()
+      this._replayable.dispose()
+      this._replayable = null
+      return stream
+    }
+
     if (this._stream === null) {
       throw new Error(
         'Cannot consume a ReactServerResult that has already been consumed'
@@ -64,6 +82,147 @@ export class ReactServerResult {
     const stream = this._stream
     this._stream = null
     return stream
+  }
+}
+
+type ReplayableStreamSubscriber = {
+  onChunk: (chunk: Uint8Array) => void
+  onEnd: () => void
+  onError: (err: Error) => void
+}
+
+/**
+ * Buffers all chunks from a Node.js Readable stream and allows creating new
+ * Readable streams that replay the buffered chunks plus any subsequent chunks
+ * from the source. Multiple replay streams can be created independently.
+ */
+export class ReplayableNodeStream {
+  private _chunks: Array<Uint8Array> | null
+  private _done: boolean
+  private _error: Error | null
+  private _subscribers: Set<ReplayableStreamSubscriber>
+
+  constructor(stream: Readable) {
+    this._chunks = []
+    this._done = false
+    this._error = null
+    this._subscribers = new Set()
+
+    stream.on('data', (chunk: Buffer | Uint8Array) => {
+      const buf = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk)
+      if (this._chunks !== null) {
+        this._chunks.push(buf)
+      }
+      for (const sub of this._subscribers) {
+        sub.onChunk(buf)
+      }
+    })
+
+    stream.on('end', () => {
+      this._done = true
+      for (const sub of this._subscribers) {
+        sub.onEnd()
+      }
+      this._subscribers.clear()
+    })
+
+    stream.on('error', (err: Error) => {
+      this._error = err
+      for (const sub of this._subscribers) {
+        sub.onError(err)
+      }
+      this._subscribers.clear()
+    })
+  }
+
+  /**
+   * Creates a new Node.js Readable stream that first emits all buffered chunks,
+   * then forwards any new chunks from the source as they arrive.
+   *
+   * Buffered chunks are delivered via _read() (pull-based) rather than pushed
+   * eagerly. This is critical because createReplayStream() is called outside
+   * of AsyncLocalStorage context, and eagerly pushing chunks triggers internal
+   * Node.js stream scheduling (process.nextTick for maybeReadMore) that
+   * captures the empty ALS context. By deferring to _read(), chunks are only
+   * delivered when the consumer reads, which happens inside the correct ALS
+   * scope (e.g. during Fizz's performWork).
+   */
+  createReplayStream(): Readable {
+    if (this._chunks === null) {
+      throw new InvariantError(
+        'Cannot create a replay stream after the ReplayableNodeStream has been disposed.'
+      )
+    }
+
+    let ReadableCtor: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      ReadableCtor = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      ReadableCtor = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      ReadableCtor = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    const bufferedChunks = this._chunks.slice()
+    let bufferIndex = 0
+    let bufferDrained = false
+    const isDone = this._done
+    const sourceError = this._error
+
+    const stream = new ReadableCtor({
+      read() {
+        if (!bufferDrained) {
+          bufferDrained = true
+          for (let i = bufferIndex; i < bufferedChunks.length; i++) {
+            this.push(bufferedChunks[i])
+          }
+          bufferIndex = bufferedChunks.length
+          if (isDone) {
+            this.push(null)
+          }
+        }
+      },
+    })
+
+    if (sourceError) {
+      stream.destroy(sourceError)
+      return stream
+    }
+
+    if (isDone) {
+      return stream
+    }
+
+    const subscriber: ReplayableStreamSubscriber = {
+      onChunk: (chunk) => {
+        stream.push(chunk)
+      },
+      onEnd: () => {
+        stream.push(null)
+      },
+      onError: (err) => {
+        stream.destroy(err)
+      },
+    }
+    this._subscribers.add(subscriber)
+
+    stream.on('close', () => {
+      this._subscribers.delete(subscriber)
+    })
+
+    return stream
+  }
+
+  /**
+   * Clears the buffered chunks and all subscriber references. After calling
+   * this, no new replay streams can be created.
+   */
+  dispose(): void {
+    this._chunks = null
   }
 }
 

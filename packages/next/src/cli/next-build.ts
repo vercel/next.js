@@ -33,6 +33,7 @@ export type NextBuildOptions = {
   experimentalNextConfigStripTypes?: boolean
   debugBuildPaths?: string
   experimentalCpuProf?: boolean
+  internalTrace?: string | boolean
 }
 
 const nextBuild = async (options: NextBuildOptions, directory?: string) => {

@@ -430,6 +430,7 @@ export interface ExperimentalConfig {
   partialFallbacks?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
+  unstableIO?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
   prefetchInlining?:
@@ -751,6 +752,15 @@ export interface ExperimentalConfig {
    * configuration is enabled by default.
    */
   turbopackUseBuiltinSass?: boolean
+
+  /**
+   * Enable per-directory PostCSS config resolution for Turbopack. When enabled,
+   * Turbopack searches for `postcss.config.js` starting from the CSS file's
+   * parent directory first, then falls back to the project root. When disabled
+   * (default), the project root is checked first, with the CSS file's directory
+   * as a fallback.
+   */
+  turbopackLocalPostcssConfig?: boolean
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -1138,10 +1148,11 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * A different token to use for static assets (as opposed to config.deploymentId) which
-   * doesn't have to be unique per deployment.
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
    */
-  immutableAssetToken?: string
+  supportsImmutableAssets?: boolean
 
   /**
    * An array of paths in app or pages directories that should wait to be processed
@@ -1830,9 +1841,10 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
-    partialFallbacks: false,
+    partialFallbacks: true,
     dynamicOnHover: false,
     useOffline: false,
+    unstableIO: false,
     varyParams: false,
     prefetchInlining: false,
     preloadEntriesOnStart: true,
@@ -1979,6 +1991,7 @@ export interface NextConfigRuntime {
     | 'staleTimes'
     | 'dynamicOnHover'
     | 'useOffline'
+    | 'unstableIO'
     | 'optimisticRouting'
     | 'inlineCss'
     | 'prefetchInlining'
@@ -2013,7 +2026,7 @@ export interface NextConfigRuntime {
     | 'cachedNavigations'
     | 'partialFallbacks'
     | 'exposeTestingApiInProductionBuild'
-    | 'immutableAssetToken'
+    | 'supportsImmutableAssets'
     | 'useNodeStreams'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
@@ -2046,6 +2059,7 @@ export function getNextConfigRuntime(
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
         useOffline: ex.useOffline,
+        unstableIO: ex.unstableIO,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         prefetchInlining: ex.prefetchInlining,
@@ -2081,7 +2095,7 @@ export function getNextConfigRuntime(
         cachedNavigations: ex.cachedNavigations,
         partialFallbacks: ex.partialFallbacks,
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-        immutableAssetToken: ex.immutableAssetToken,
+        supportsImmutableAssets: ex.supportsImmutableAssets,
         useNodeStreams: ex.useNodeStreams,
 
         trustHostHeader: ex.trustHostHeader,
