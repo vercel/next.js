@@ -12,7 +12,7 @@ If the random crypto value is appropriate to be prerendered and prefetched consi
 
 If the random crypto value is intended to be generated on every user request consider whether an async API exists that achieves the same result. If not consider whether you can move the random crypto value generation later, behind other existing uncached data or Request data access. If there is no way to do this you can always precede the random crypto value generation with Request data access by using `await connection()`.
 
-> **Note**: Suspense fallbacks and skeleton components are part of the prerendered static shell. If a skeleton component uses `crypto.randomUUID()` or similar (e.g., for generating placeholder keys), it will trigger this error. Use deterministic values for loading placeholders instead.
+> **Note**: Any content that is not wrapped in a `<Suspense>` boundary must be cacheable or static. This includes Suspense fallbacks themselves — a fallback that calls `crypto.randomUUID()` will trigger this error unless there is another `<Suspense>` boundary above it. Use cached values or wrap the component in `<Suspense>` to fix it.
 
 ### Cache the token value
 

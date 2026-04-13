@@ -14,7 +14,7 @@ If the random value is intended to be generated on every user request consider w
 
 If the random value is being used as a unique identifier for diagnostic purposes such as logging or tracking consider using an alternate method of id generation that does not rely on random number generation such as incrementing an integer.
 
-> **Note**: Suspense fallbacks and skeleton components are part of the prerendered static shell. If a skeleton component uses `Math.random()` (e.g., for randomized placeholder widths), it will trigger this error. Use fixed values or CSS animations for loading placeholders instead.
+> **Note**: Any content that is not wrapped in a `<Suspense>` boundary must be cacheable or static. This includes Suspense fallbacks themselves — a fallback that calls `Math.random()` will trigger this error unless there is another `<Suspense>` boundary above it. Use cached values or wrap the component in `<Suspense>` to fix it.
 
 > **Note**: Sometimes the place that generates a random value synchronously is inside 3rd party code. While you can't easily replace the `Math.random()` call directly, the other strategies can be applied in your own project code regardless of how deep random generation is.
 
