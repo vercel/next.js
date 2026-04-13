@@ -77,6 +77,33 @@ import {
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
 /**
+ * Safely parses Origin header to extract host.
+ * Returns a sentinel value for malformed origins to prevent CSRF bypass.
+ *
+ * This fixes a DoS vulnerability where malformed Origin headers
+ * (e.g., "http://", "ftp://", "not-a-url") cause unhandled TypeError.
+ *
+ * @see https://github.com/vercel/next.js/issues/92703
+ */
+function parseOriginHostSafely(originHeader: string): string | undefined {
+  // Browsers send "null" from sandboxed iframes, data: URLs, file: origins
+  if (originHeader === 'null') {
+    return 'null';
+  }
+
+  try {
+    // Valid URL - extract host
+    return new URL(originHeader).host;
+  } catch {
+    // Malformed URL - return sentinel value that will never match a valid host
+    // IMPORTANT: Must NOT return undefined/null - that would skip CSRF validation
+    // and introduce a CSRF bypass (CVE-2026-27977/CVE-2026-27978)
+    // This sentinel value is guaranteed to fail the host comparison later
+    return '\x00INVALID_ORIGIN';
+  }
+}
+
+/**
  * Checks if the app has any server actions defined in any runtime.
  */
 function hasServerActions() {
@@ -619,13 +646,9 @@ export async function handleAction({
   const originHeader = req.headers['origin']
   const originHost =
     typeof originHeader === 'string'
-      ? // 'null' is a valid origin e.g. from privacy-sensitive contexts like sandboxed iframes.
-        // However, these contexts can still send along credentials like cookies,
-        // so we need to check if they're allowed cross-origin requests.
-        originHeader === 'null'
-        ? 'null'
-        : new URL(originHeader).host
+      ? parseOriginHostSafely(originHeader)
       : undefined
+
   const host = parseHostHeader(req.headers)
 
   let warning: string | undefined = undefined
