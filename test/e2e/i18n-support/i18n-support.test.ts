@@ -77,6 +77,15 @@ describe('i18n Support', () => {
         expect(content).toMatch(/Internal Server Error/i)
       }
     })
+
+    it('should have locale-prefixed pages-manifest entries for default 500', async () => {
+      const manifest = await fs.readJSON(
+        join(next.testDir, '.next/server/pages-manifest.json')
+      )
+      for (const locale of locales) {
+        expect(manifest[`/${locale}/500`]).toBe(`pages/${locale}/500.html`)
+      }
+    })
   }
 
   describe('with localeDetection disabled', () => {
