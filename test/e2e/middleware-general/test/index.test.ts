@@ -108,6 +108,19 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    it('should not treat as _next/data request with just header', async () => {
+      const res = await next.fetch('/redirect-to-somewhere', {
+        redirect: 'manual',
+        headers: {
+          'x-nextjs-data': '1',
+        },
+      })
+
+      expect(res.status).toBe(307)
+      expect(res.headers.get('Location')).toContain('/somewhere')
+      expect(res.headers.get('x-nextjs-redirect')).toBe(null)
+    })
+
     if (isNodeMiddleware) {
       it('should be able to use node builtins with node runtime', async () => {
         const res = await next.fetch('/test-node-fs')

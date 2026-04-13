@@ -182,6 +182,11 @@ export function getResolveRoutes(
       return pathname
     }
 
+    const setIsNextDataRequest = () => {
+      addRequestMeta(req, 'isNextDataReq', true)
+      req.headers['x-nextjs-data'] = '1'
+    }
+
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
     let initialLocaleResult:
@@ -310,7 +315,7 @@ export function getResolveRoutes(
           }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
-            addRequestMeta(req, 'isNextDataReq', true)
+            setIsNextDataRequest()
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
@@ -406,11 +411,18 @@ export function getResolveRoutes(
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
+            const isNextDataPath =
+              pathHasPrefix(normalized, '/_next/data') &&
+              normalized.endsWith('.json')
+            const hasCurrentBuildIdDataPath = normalizers.data.match(normalized)
+
             let updated = false
-            if (normalizers.data.match(normalized)) {
+            if (hasCurrentBuildIdDataPath) {
               updated = true
-              addRequestMeta(req, 'isNextDataReq', true)
               normalized = normalizers.data.normalize(normalized, true)
+            }
+            if (isNextDataPath) {
+              setIsNextDataRequest()
             }
 
             if (config.i18n) {
