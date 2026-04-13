@@ -234,3 +234,37 @@ module.exports = {
   },
 }
 ```
+
+This also works with S3-compatible storage providers. For example, with [Tigris](https://www.tigrisdata.com/):
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const config: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 't3.storage.dev',
+        pathname: '/my-bucket/**',
+      },
+    ],
+  },
+}
+
+export default config
+```
+
+```js filename="next.config.js" switcher
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 't3.storage.dev',
+        pathname: '/my-bucket/**',
+      },
+    ],
+  },
+}
+```

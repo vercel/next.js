@@ -482,7 +482,7 @@ In the cache handler API, soft tags are passed to the [`get()`](#get) method as 
 The `CacheEntry.value` is a [`ReadableStream<Uint8Array>`](https://developer.mozilla.org/docs/Web/API/ReadableStream). When implementing a cache handler that stores entries externally, keep in mind:
 
 - **Use `.tee()`** if you need to both store and return the stream. One branch goes to storage, the other is returned to the caller.
-- **Memory implications**: large pages produce large cache entries. For S3-like storage backends, consider streaming directly to storage without buffering the entire entry in memory.
+- **Memory implications**: large pages produce large cache entries. For S3-compatible storage backends (AWS S3, [Tigris](https://www.tigrisdata.com/), etc.), consider streaming directly to storage without buffering the entire entry in memory.
 - **Partial writes**: the stream may error partway through rendering. Your handler should decide whether to keep partial entries or discard them. Discarding is safer, as partial entries can produce incomplete pages.
 
 ## Error Handling
