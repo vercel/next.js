@@ -10,7 +10,7 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 // (see crates/next-core/src/app_page_loader_tree.rs), so it must remain in
 // this template's compiled output as a local binding named `interopDefault`.
 // The export below prevents TypeScript from eliding the import.
-import { interopDefault } from '../../server/app-render/interop-default' with { 'turbopack-transition': 'next-ssr' }
+import { interopDefault } from '../../server/app-render/interop-default'
 export { interopDefault }
 
 import {
