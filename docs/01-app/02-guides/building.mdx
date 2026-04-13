@@ -63,48 +63,16 @@ export default async function Page({ params }) {
 }
 ```
 
-`next build` fails with:
+`next build` fails with a [blocking-route error](/docs/messages/blocking-route) because `params` and the uncached data fetch are outside a `<Suspense>` boundary:
 
 ```txt filename="Terminal"
 Uncached data, `params`, `searchParams`, or `connection()` was accessed outside of `<Suspense>`.
 This delays the entire page from rendering, resulting in a slow user experience.
 ```
 
-Next.js cannot prerender a shell for this page because `await params` blocks the response. Add a loading fallback so the build can produce a shell, then optionally use `generateStaticParams` to prerender specific params at build time. See the [blocking-route error reference](/docs/messages/blocking-route) for a full list of triggers and fixes.
-
-### Add a loading fallback
-
-The build needs to prerender a shell for unlisted params. Since `await params` is outside a Suspense boundary, it blocks the shell. Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) to provide the fallback:
-
-```tsx filename="app/products/[id]/loading.tsx" switcher
-export default function Loading() {
-  return <div>Loading...</div>
-}
-```
-
-```jsx filename="app/products/[id]/loading.js" switcher
-export default function Loading() {
-  return <div>Loading...</div>
-}
-```
-
-`next build` succeeds:
-
-```bash filename="Terminal"
-Route (app)
-┌ ○ /
-├ ○ /_not-found
-└ ◐ /products/[id]    # Shell from loading.js, page streams in at request time
-
-○  (Static)             prerendered as static content
-◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
-```
-
-> **Good to know**: The build prerenders a shell for unlisted params because [partial fallbacks](/docs/app/api-reference/config/next-config-js/partialFallbacks) is enabled by default from Next.js 16.3. If you opt out with `experimental: { partialFallbacks: false }`, the build does not need a loading fallback and `generateStaticParams` alone is enough to prerender the listed params.
-
 ### Prerender known params with `generateStaticParams`
 
-Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) so Next.js also prerenders specific param values at build time:
+Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) so Next.js knows the param values at build time and can prerender each page:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
@@ -132,25 +100,66 @@ export default async function Page({ params }) {
 }
 ```
 
-With the `loading.js` still in place, `next build` now prerenders each listed param alongside the shell:
+`next build` prerenders each listed param:
 
 ```bash filename="Terminal"
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
 └   /products/[id]
-  ├ ◐ /products/[id]    # Shell for unlisted params
-  ├ ○ /products/1       # Fully prerendered
-  ├ ○ /products/2       # Fully prerendered
-  └ ○ /products/3       # Fully prerendered
+  ├ ○ /products/1       # Params and data known at build time
+  ├ ○ /products/2       # Params and data known at build time
+  └ ○ /products/3       # Params and data known at build time
+
+○  (Static)             prerendered as static content
+```
+
+> **Good to know**: `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
+
+This works because the params and data are fully known at build time, so Next.js can prerender each page in full. But there are two things `generateStaticParams` alone does not cover:
+
+1. **Request-time APIs.** If the page also uses `cookies()`, `headers()`, or `searchParams`, the build fails again — those values are not available during prerendering.
+2. **Unlisted params.** Param values not returned by `generateStaticParams` have no prerendered shell, so they wait for a full server render.
+
+Adding a loading fallback solves both.
+
+### Add a loading fallback
+
+Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) so Next.js can prerender a static shell and stream the page content when it's ready:
+
+```tsx filename="app/products/[id]/loading.tsx" switcher
+export default function Loading() {
+  return <div>Loading...</div>
+}
+```
+
+```jsx filename="app/products/[id]/loading.js" switcher
+export default function Loading() {
+  return <div>Loading...</div>
+}
+```
+
+`next build` now prerenders each listed param alongside a shell for unlisted params:
+
+```bash filename="Terminal"
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+└   /products/[id]
+  ├ ◐ /products/[id]    # Shell served instantly, content streams in
+  ├ ○ /products/1       # Fully prerendered at build time
+  ├ ○ /products/2       # Fully prerendered at build time
+  └ ○ /products/3       # Fully prerendered at build time
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
+When a user visits an unlisted param, Next.js serves the loading fallback immediately while the page content streams in. The result is cached for subsequent visits.
+
 When there are more paths than fit in the preview, Next.js prints a short list and ends with `[+N more paths]`.
 
-> **Good to know**: `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
+> **Good to know**: The shell for unlisted params is available from Next.js 16.3, where [partial fallbacks](/docs/app/api-reference/config/next-config-js/partialFallbacks) is enabled by default. Set `experimental: { partialFallbacks: false }` to opt out and fall back to the previous behavior where unlisted params wait for a full server render before the response is sent.
 
 Routes that use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) also show `Revalidate` and `Expire` columns:
 
