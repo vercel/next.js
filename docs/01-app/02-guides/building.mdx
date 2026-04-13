@@ -102,7 +102,7 @@ Route (app)
 
 > **Good to know**: The build prerenders a shell for unlisted params because [partial fallbacks](/docs/app/api-reference/config/next-config-js/partialFallbacks) is enabled by default from Next.js 16.3. If you opt out with `experimental: { partialFallbacks: false }`, the build does not need a loading fallback and `generateStaticParams` alone is enough to prerender the listed params.
 
-### Pre-render known params with `generateStaticParams`
+### Prerender known params with `generateStaticParams`
 
 Export [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) so Next.js also prerenders specific param values at build time:
 
