@@ -2,9 +2,8 @@ use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 /// A wrapper around an SWC's ecma transform wasm plugin module bytes, allowing
@@ -52,39 +51,32 @@ struct UnsupportedSwcEcmaTransformPluginsIssue {
     pub file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!(
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
             "Unsupported SWC EcmaScript transform plugins on this platform."
-        ))
-        .cell()
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
-                 platform."
-            ))
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "Turbopack does not yet support running SWC EcmaScript transform plugins on this \
+             platform."
+        ))))
     }
 }
 
@@ -94,44 +86,37 @@ struct SwcEcmaTransformFailureIssue {
     pub description: StyledString,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for SwcEcmaTransformFailureIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Failed to execute SWC plugin")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Failed to execute SWC plugin")))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Text(rcstr!(
-                    "An unexpected error occurred when executing an SWC EcmaScript transform \
-                     plugin."
-                )),
-                StyledString::Text(rcstr!(
-                    "This might be due to a version mismatch between the plugin and Next.js. \
-                    https://plugins.swc.rs/ can help you find the correct plugin version to use."
-                )),
-                StyledString::Text(Default::default()),
-                self.description.clone(),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(rcstr!(
+                "An unexpected error occurred when executing an SWC EcmaScript transform plugin."
+            )),
+            StyledString::Text(rcstr!(
+                "This might be due to a version mismatch between the plugin and Next.js. \
+                https://plugins.swc.rs/ can help you find the correct plugin version to use."
+            )),
+            StyledString::Text(Default::default()),
+            self.description.clone(),
+        ])))
     }
 }
 

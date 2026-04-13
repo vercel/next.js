@@ -3,7 +3,7 @@ use std::{path::PathBuf, time::Duration};
 use anyhow::Result;
 use criterion::{BatchSize, Bencher, BenchmarkId, Criterion, criterion_group, criterion_main};
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TurboTasks};
+use turbo_tasks::{ResolvedVc, TurboTasks, Vc};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbopack_core::{
@@ -65,7 +65,7 @@ async fn setup(
     file: &str,
     analyze_mode: AnalyzeMode,
 ) -> Result<ResolvedVc<EcmascriptModuleAsset>> {
-    let fs = DiskFileSystem::new(rcstr!("project"), root_dir.into());
+    let fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(root_dir.into()));
 
     let environment = Environment::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),

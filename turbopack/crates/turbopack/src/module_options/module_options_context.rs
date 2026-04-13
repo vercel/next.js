@@ -174,14 +174,6 @@ pub struct DecoratorsOptions {
     pub use_define_for_class_fields: bool,
 }
 
-#[turbo_tasks::value_impl]
-impl ValueDefault for DecoratorsOptions {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
-}
-
 /// Subset of Typescript options configured via tsconfig.json or jsconfig.json,
 /// which affects the runtime transform output.
 #[turbo_tasks::value(shared)]
@@ -189,14 +181,6 @@ impl ValueDefault for DecoratorsOptions {
 pub struct TypescriptTransformOptions {
     pub use_define_for_class_fields: bool,
     pub verbatim_module_syntax: bool,
-}
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for TypescriptTransformOptions {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Self::default().cell()
-    }
 }
 
 #[turbo_tasks::value(shared)]

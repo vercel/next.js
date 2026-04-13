@@ -14,6 +14,9 @@ export function isAbortError(e: any): e is Error & { name: 'AbortError' } {
   return e?.name === 'AbortError' || e?.name === ResponseAbortedName
 }
 
+const HAS_CLIENT_COMPONENT_METRICS_ENABLED =
+  'performance' in globalThis && process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+
 function createWriterFromResponse(
   res: ServerResponse,
   waitUntilForEnd?: Promise<unknown>
@@ -51,10 +54,7 @@ function createWriterFromResponse(
       if (!started) {
         started = true
 
-        if (
-          'performance' in globalThis &&
-          process.env.NEXT_OTEL_PERFORMANCE_PREFIX
-        ) {
+        if (HAS_CLIENT_COMPONENT_METRICS_ENABLED) {
           const metrics = getClientComponentLoaderMetrics()
           if (metrics) {
             performance.measure(

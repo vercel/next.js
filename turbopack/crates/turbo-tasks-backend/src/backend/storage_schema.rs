@@ -74,7 +74,13 @@ struct TaskStorageSchema {
 
     /// Tasks that depend on this task's output.
 
-    #[field(storage = "auto_set", category = "data", inline, filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        inline,
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
     output_dependent: AutoSet<TaskId>,
 
     /// The task's output value.

@@ -308,6 +308,9 @@ next build --debug-build-paths="app/page.tsx"
 # Build more than one route
 next build --debug-build-paths="app/page.tsx,pages/index.tsx"
 
+# Include route group folders in the path
+next build --debug-build-paths="app/(marketing)/about/page.tsx"
+
 # Use glob patterns
 next build --debug-build-paths="app/**/page.tsx"
 next build --debug-build-paths="pages/*.tsx"
