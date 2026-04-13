@@ -4396,7 +4396,7 @@ async function renderToStream(
               {
                 nonce,
                 bootstrapScriptContent,
-                bootstrapScripts: [errorBootstrapScript],
+                ...errorBootstrapProps,
                 formState,
               }
             )
@@ -4492,7 +4492,7 @@ async function renderToStream(
               {
                 nonce,
                 bootstrapScriptContent,
-                bootstrapScripts: [errorBootstrapScript],
+                ...errorBootstrapProps,
                 formState,
               }
             )
