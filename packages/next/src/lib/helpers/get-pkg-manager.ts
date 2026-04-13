@@ -21,6 +21,8 @@ export function getPkgManager(baseDir: string): PackageManager {
         return 'yarn'
       } else if (userAgent.startsWith('pnpm')) {
         return 'pnpm'
+      } else {
+        return 'npm'
       }
     }
     try {
