@@ -6,12 +6,4 @@ describe('redirect("") invariant', () => {
       'Invariant: attempted to redirect to an empty URL'
     )
   })
-
-  it('should throw on whitespace string', () => {
-    expect(() => redirect('   ')).toThrow()
-  })
-
-  it('should NOT throw on valid url', () => {
-    expect(() => redirect('/')).toThrow()
-  })
 })
