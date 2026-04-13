@@ -1,6 +1,5 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "esModuleInterop": true,
     "module": "esnext",
     "jsx": "react-jsx",
@@ -13,6 +12,9 @@
     "noEmit": true,
     "incremental": true,
     "moduleResolution": "bundler",
+    "paths": {
+      "#/components/*": ["./components/*.tsx"]
+    },
     "resolveJsonModule": true,
     "isolatedModules": true
   },

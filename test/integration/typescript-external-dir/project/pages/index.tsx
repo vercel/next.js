@@ -1,6 +1,6 @@
 import React, { type JSX } from 'react'
 
-import { World } from 'components/world'
+import { World } from '#/components/world'
 
 // External
 import { Counter } from '../../shared/components/counter'

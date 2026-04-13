@@ -13,13 +13,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "react-jsx",
-    "baseUrl": "../../..",
-    "paths": {
-      "development-sandbox": ["test/lib/development-sandbox"],
-      "next-test-utils": ["test/lib/next-test-utils"],
-      "next-webdriver": ["test/lib/next-webdriver"],
-      "e2e-utils": ["test/lib/e2e-utils"]
-    },
     "target": "ES2017"
   },
   "include": [
