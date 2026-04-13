@@ -106,7 +106,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-> **Note:** The built-in `/_not-found` route must be statically prerendered. If your root layout has a `generateViewport` that depends on request data, the `<Suspense>` fix above will not resolve the error for `/_not-found`. For that route, use static values or cached data in `generateViewport()` instead.
+> **Note:** The built-in `/_not-found` route must be statically prerendered. If your root layout has a `generateViewport` that depends on request data, the `<Suspense>` fix above will not resolve the error for `/_not-found`. For that route, use static values or cached data in `generateViewport()` instead. Alternatively, you can use [`global-not-found.js`](/docs/app/api-reference/file-conventions/not-found#global-not-foundjs-experimental) (experimental), which bypasses the root layout entirely and avoids inheriting its `generateViewport`.
 
 ## Useful Links
 
