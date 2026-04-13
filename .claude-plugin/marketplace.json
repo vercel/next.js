@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "cache-components",
-      "source": "./plugins/cache-components",
+      "source": "./.claude-plugin/plugins/cache-components",
       "description": "Expert guidance for Next.js Cache Components and Partial Prerendering (PPR). Proactively activates in projects with cacheComponents enabled.",
       "version": "1.0.0",
       "author": {
