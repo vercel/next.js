@@ -92,9 +92,14 @@ pub fn parse_import_meta_glob(
     handler: &Handler,
     span: Span,
     diagnostic_id: DiagnosticId,
-) -> Result<ImportMetaGlobOptions> {
+) -> Option<ImportMetaGlobOptions> {
     if args.is_empty() || args.len() > 2 {
-        bail!("import.meta.glob() requires 1 or 2 arguments");
+        handler.span_warn_with_code(
+            span,
+            "import.meta.glob() requires 1 or 2 arguments",
+            diagnostic_id,
+        );
+        return None;
     }
 
     // --- Parse patterns (first argument) ---
@@ -106,21 +111,34 @@ pub fn parse_import_meta_glob(
                     if let Some(s) = item.as_str() {
                         pats.push(s.into());
                     } else {
-                        bail!("import.meta.glob() pattern array elements must be constant strings");
+                        handler.span_warn_with_code(
+                            span,
+                            "import.meta.glob() pattern array elements must be constant strings",
+                            diagnostic_id,
+                        );
+                        return None;
                     }
                 }
                 if pats.is_empty() {
-                    bail!("import.meta.glob() requires at least one pattern");
+                    handler.span_warn_with_code(
+                        span,
+                        "import.meta.glob() requires at least one pattern",
+                        diagnostic_id,
+                    );
+                    return None;
                 }
             }
             _ => {
                 if let Some(s) = args[0].as_str() {
                     pats.push(s.into());
                 } else {
-                    bail!(
+                    handler.span_warn_with_code(
+                        span,
                         "import.meta.glob() first argument must be a string literal or array of \
-                         string literals"
+                         string literals",
+                        diagnostic_id,
                     );
+                    return None;
                 }
             }
         }
@@ -226,12 +244,16 @@ pub fn parse_import_meta_glob(
                 }
             }
             _ => {
-                bail!("import.meta.glob() second argument must be an object literal");
+                handler.span_warn_with_code(
+                    span,
+                    "import.meta.glob() second argument must be an object literal",
+                    diagnostic_id.clone(),
+                );
             }
         }
     }
 
-    Ok(ImportMetaGlobOptions {
+    Some(ImportMetaGlobOptions {
         patterns,
         eager,
         import,

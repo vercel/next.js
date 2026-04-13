@@ -2451,29 +2451,15 @@ where
 
         WellKnownFunctionKind::ImportMetaGlob => {
             let args = linked_args().await?;
-            let options = match parse_import_meta_glob(
+            let Some(options) = parse_import_meta_glob(
                 args,
                 handler,
                 span,
                 DiagnosticId::Error(
                     errors::failed_to_analyze::ecmascript::IMPORT_META_GLOB.to_string(),
                 ),
-            ) {
-                Ok(options) => options,
-                Err(err) => {
-                    let (args, hints) = explain_args(args);
-                    handler.span_err_with_code(
-                        span,
-                        &format!(
-                            "import.meta.glob({args}) is not statically analyze-able: {}{hints}",
-                            PrettyPrintError(&err)
-                        ),
-                        DiagnosticId::Error(
-                            errors::failed_to_analyze::ecmascript::IMPORT_META_GLOB.to_string(),
-                        ),
-                    );
-                    return Ok(());
-                }
+            ) else {
+                return Ok(());
             };
 
             analysis.add_reference_code_gen(
