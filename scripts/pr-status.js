@@ -819,18 +819,26 @@ function generateIndexMd(
         '',
         `## Inline Review Comments (${reviewThreads.length} threads)`,
         '',
-        '| File | Line | Author | Replies | Status | Details |',
-        '|------|------|--------|---------|--------|---------|'
+        '| File | Line | Participants | Replies | Status | Details |',
+        '|------|------|--------------|---------|--------|---------|'
       )
 
       for (let i = 0; i < reviewThreads.length; i++) {
         const thread = reviewThreads[i]
         const line = thread.line || thread.startLine || 'N/A'
-        const author = thread.comments.nodes[0]?.author?.login || 'Unknown'
+        const participants = []
+        for (const comment of thread.comments.nodes) {
+          const login = comment.author?.login
+          if (login && !participants.includes(login)) {
+            participants.push(login)
+          }
+        }
+        const participantsStr =
+          participants.length > 0 ? participants.join(', ') : 'Unknown'
         const replyCount = Math.max(0, thread.comments.nodes.length - 1)
         const status = thread.isResolved ? 'Resolved' : 'Open'
         lines.push(
-          `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${author} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
+          `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${participantsStr} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
         )
       }
     }
