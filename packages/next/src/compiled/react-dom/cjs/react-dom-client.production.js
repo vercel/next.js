@@ -13512,20 +13512,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1688 = 0;
-  i$jscomp$inline_1688 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1688++
+  var i$jscomp$inline_1689 = 0;
+  i$jscomp$inline_1689 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1689++
 ) {
-  var eventName$jscomp$inline_1689 =
-      simpleEventPluginEvents[i$jscomp$inline_1688],
-    domEventName$jscomp$inline_1690 =
-      eventName$jscomp$inline_1689.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1691 =
-      eventName$jscomp$inline_1689[0].toUpperCase() +
-      eventName$jscomp$inline_1689.slice(1);
+  var eventName$jscomp$inline_1690 =
+      simpleEventPluginEvents[i$jscomp$inline_1689],
+    domEventName$jscomp$inline_1691 =
+      eventName$jscomp$inline_1690.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1692 =
+      eventName$jscomp$inline_1690[0].toUpperCase() +
+      eventName$jscomp$inline_1690.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1690,
-    "on" + capitalizedEvent$jscomp$inline_1691
+    domEventName$jscomp$inline_1691,
+    "on" + capitalizedEvent$jscomp$inline_1692
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -18131,16 +18131,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_2043 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_2044 = React.version;
 if (
-  "19.3.0-canary-404b38c7-20260408" !==
-  isomorphicReactPackageVersion$jscomp$inline_2043
+  "19.3.0-canary-fef12a01-20260413" !==
+  isomorphicReactPackageVersion$jscomp$inline_2044
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_2043,
-      "19.3.0-canary-404b38c7-20260408"
+      isomorphicReactPackageVersion$jscomp$inline_2044,
+      "19.3.0-canary-fef12a01-20260413"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -18160,24 +18160,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2615 = {
+var internals$jscomp$inline_2616 = {
   bundleType: 0,
-  version: "19.3.0-canary-404b38c7-20260408",
+  version: "19.3.0-canary-fef12a01-20260413",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-404b38c7-20260408"
+  reconcilerVersion: "19.3.0-canary-fef12a01-20260413"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2616 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2617 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2616.isDisabled &&
-    hook$jscomp$inline_2616.supportsFiber
+    !hook$jscomp$inline_2617.isDisabled &&
+    hook$jscomp$inline_2617.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2616.inject(
-        internals$jscomp$inline_2615
+      (rendererID = hook$jscomp$inline_2617.inject(
+        internals$jscomp$inline_2616
       )),
-        (injectedHook = hook$jscomp$inline_2616);
+        (injectedHook = hook$jscomp$inline_2617);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -18263,4 +18263,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.3.0-canary-404b38c7-20260408";
+exports.version = "19.3.0-canary-fef12a01-20260413";
