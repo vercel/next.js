@@ -12,9 +12,9 @@ related:
 
 > **Good to know**: `partialFallbacks` has no effect unless [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is also enabled.
 
-Routes that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each value returned. For routes with many possible values (e.g. an e-commerce catalog with millions of products), you face a tradeoff:
+[Dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each combination returned. Without `partialFallbacks`, you face a tradeoff:
 
-- **Prerender every value** with `generateStaticParams`: longer build times and increased cache write costs.
+- **Prerender every combination** with `generateStaticParams`: this can lead to longer build times and increased cache write costs.
 - **Skip `generateStaticParams`**: the server blocks until the full page is rendered before sending any content to the visitor.
 
 [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with the `partialFallbacks` enabled change this. Instead of blocking until the page is rendered, the visitor gets a **fallback shell** instantly. A fallback shell is prerendered static content where one or more params are unknown at build time.
@@ -106,7 +106,7 @@ When a visitor requests a param combination that wasn't prerendered (e.g. `/elec
 
 The result becomes the new shell for that URL, upgrading the fallback. If the page also has uncached data or runtime APIs behind `<Suspense>` fallbacks, the upgraded shell will still be partial, but with more params resolved.
 
-Upgrades require [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). If `[slug]` had no `generateStaticParams`, the `/electronics/[slug]` shell would be served for every slug under `electronics` and never upgraded further. Params without `generateStaticParams` are always resolved at request time, and once one is encountered in the route, all params after it are too.
+Upgrades require [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). If `[slug]` had no `generateStaticParams`, the `/electronics/[slug]` shell would be served for every slug under `electronics` and never upgraded further. Params are resolved in route order. A param without `generateStaticParams` is always resolved at request time, and any params that come after it in the route are too, even if they have `generateStaticParams`.
 
 `partialFallbacks` also applies to [catch-all segments](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments) (`[...slug]`) and [optional catch-all segments](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments) (`[[...slug]]`).
 
