@@ -804,17 +804,17 @@ impl Visit for Analyzer<'_> {
                     ExportSpecifier::Default(d) => {
                         self.data.exports.insert(
                             RcStr::from(d.exported.sym.as_str()),
-                            Export::ImportedBinding(i, rcstr!("default"), is_fake_esm),
+                            // Re-exports (src != None) are never fake ESM: liveness is
+                            // determined by the referenced module's own export description.
+                            Export::ImportedBinding(i, rcstr!("default"), false),
                         );
                     }
                     ExportSpecifier::Named(n) => {
                         self.data.exports.insert(
                             RcStr::from(n.exported.as_ref().unwrap_or(&n.orig).atom().as_str()),
-                            Export::ImportedBinding(
-                                i,
-                                RcStr::from(n.orig.atom().as_str()),
-                                is_fake_esm,
-                            ),
+                            // Re-exports (src != None) are never fake ESM: liveness is
+                            // determined by the referenced module's own export description.
+                            Export::ImportedBinding(i, RcStr::from(n.orig.atom().as_str()), false),
                         );
                     }
                 }
