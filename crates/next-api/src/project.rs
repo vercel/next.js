@@ -1345,7 +1345,7 @@ impl Project {
             match route {
                 Route::Page {
                     html_endpoint,
-                    data_endpoint,
+                    data_endpoint: _,
                 } => {
                     if !app_dir_only {
                         endpoint_groups.push((
