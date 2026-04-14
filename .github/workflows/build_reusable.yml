@@ -239,7 +239,7 @@ jobs:
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -287,14 +287,14 @@ jobs:
         timeout-minutes: ${{ inputs.timeout_minutes }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
           path: .turbo/runs
           if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
           name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
@@ -325,7 +325,7 @@ jobs:
           fi
 
       - name: Upload Playwright Snapshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.afterBuild && always() }}
         with:
           name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}
