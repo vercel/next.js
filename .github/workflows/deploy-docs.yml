@@ -1,0 +1,27 @@
+name: Deploy Docs to Vercel
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/canary'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Deploy to Vercel (build on Vercel)
+        uses: amondnet/vercel-action@v20
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-args: '--prod'
+          working-directory: apps/docs
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
