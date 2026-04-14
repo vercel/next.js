@@ -23,6 +23,7 @@ const { values: flags } = parseArgs({
     restore: { type: 'boolean', default: false },
     save: { type: 'boolean', default: false },
     target: { type: 'string', default: '' },
+    profile: { type: 'string', default: 'release' },
   },
   strict: false,
 })
@@ -42,9 +43,10 @@ function computeCacheKey() {
   // Combine turbo's input hash with the target triple for a unique key.
   // Must be hex-only (turbo cache API requirement).
   const hash = createHash('sha256')
-  hash.update(`native-cache-v1\0`)
+  hash.update(`native-cache-v2\0`)
   hash.update(`turbo=${turboHash}\0`)
   hash.update(`target=${flags.target}\0`)
+  hash.update(`profile=${flags.profile}\0`)
   return hash.digest('hex')
 }
 
