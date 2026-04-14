@@ -190,7 +190,8 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target x86_64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host: 'macos-15'
@@ -199,7 +200,8 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
           - host: 'windows-latest-8-core-oss'
@@ -208,7 +210,8 @@ jobs:
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
 
           - host: 'windows-latest-8-core-oss'
@@ -218,7 +221,8 @@ jobs:
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target aarch64-pc-windows-msvc
 
           - host: 'ubuntu-latest-16-core-oss'
             target: 'x86_64-unknown-linux-gnu'
@@ -315,6 +319,9 @@ jobs:
     name: stable - ${{ matrix.settings.target }} - node@20
     runs-on: ${{ matrix.settings.host }}
     timeout-minutes: ${{ contains(matrix.settings.target, 'apple-darwin') && 90 || 45 }}
+    env:
+      # Disable all build caches for production/staging/force-preview deploys
+      NEXT_SKIP_BUILD_CACHE: ${{ contains(fromJSON('["production","staging","force-preview"]'), needs.deploy-target.outputs.value) && '1' || '' }}
     steps:
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -360,6 +367,7 @@ jobs:
 
       - name: Cache on ${{ github.ref_name }}
         uses: ijjk/rust-cache@turbo-cache-v1.0.9
+        if: ${{ !env.NEXT_SKIP_BUILD_CACHE }}
         with:
           save-if: 'true'
           cache-provider: 'turbo'
@@ -372,24 +380,24 @@ jobs:
       # as they are on an older Node.js version and have
       # issues with turbo caching
       - name: pull build cache
-        if: ${{ matrix.settings.docker }}
+        if: ${{ matrix.settings.docker && !env.NEXT_SKIP_BUILD_CACHE }}
         run: TURBO_VERSION=${TURBO_VERSION} node ./scripts/pull-turbo-cache.js ${{ matrix.settings.target }}
 
       - name: check build exists
-        if: ${{ matrix.settings.docker }}
+        if: ${{ matrix.settings.docker && !env.NEXT_SKIP_BUILD_CACHE }}
         run: if [ -f packages/next-swc/native/next-swc.*.node ]; then echo "BUILD_EXISTS=yes" >> $GITHUB_OUTPUT; else echo "BUILD_EXISTS=no" >> $GITHUB_OUTPUT; fi
         id: build-exists
 
       - name: Build in docker
-        if: ${{ matrix.settings.docker && steps.build-exists.outputs.BUILD_EXISTS == 'no' }}
+        if: ${{ matrix.settings.docker && (env.NEXT_SKIP_BUILD_CACHE || steps.build-exists.outputs.BUILD_EXISTS == 'no') }}
         env:
           # put the command in an environment variable to avoid escaping issues
           DOCKER_CMD: ${{ matrix.settings.build }}
         run: |
           docker run --rm -v "/var/run/docker.sock":"/var/run/docker.sock" \
             -e CI -e RUST_BACKTRACE -e NAPI_CLI_VERSION -e CARGO_TERM_COLOR -e CARGO_INCREMENTAL \
-            -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
-            -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="local:rw,remote:rw" \
+            -e CARGO_PROFILE_RELEASE_LTO -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL \
+            ${{ env.NEXT_SKIP_BUILD_CACHE && ' ' || '-e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE=remote:rw' }} \
             -v ${{ env.HOME }}/.cargo/git:/root/.cargo/git \
             -v ${{ env.HOME }}/.cargo/registry:/root/.cargo/registry \
             -v ${{ github.workspace }}:/build \
