@@ -6,6 +6,7 @@ var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var RUNTIME_URL = import.meta.url;
 var ASSET_SUFFIX = "";
+var CROSS_ORIGIN = null;
 var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
@@ -2160,6 +2161,7 @@ let DEV_BACKEND;
                 }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
+                link.crossOrigin = CROSS_ORIGIN;
                 if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
                     // Firefox won't reload CSS files that were previously loaded on the
                     // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506

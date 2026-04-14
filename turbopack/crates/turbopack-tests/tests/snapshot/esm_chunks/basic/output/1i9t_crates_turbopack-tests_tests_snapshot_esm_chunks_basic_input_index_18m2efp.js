@@ -6,6 +6,7 @@ var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var RUNTIME_URL = import.meta.url;
 var ASSET_SUFFIX = "";
+var CROSS_ORIGIN = null;
 var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
