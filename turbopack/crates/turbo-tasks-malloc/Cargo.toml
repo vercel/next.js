@@ -10,6 +10,8 @@ autobenches = false
 bench = false
 
 [dependencies]
+
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
 libmimalloc-sys = { version = "0.1.44", features = [
   "extended",
 ], optional = true }
