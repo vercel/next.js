@@ -706,16 +706,17 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding =
-                        if let Some((local, ctxt)) = eval_context.imports.exports.get(exported) {
-                            Some((Cow::Borrowed(local.as_str()), *ctxt))
-                        } else {
-                            bail!(
-                                "Expected export to be in eval context {:?} {:?}",
-                                exported,
-                                eval_context.imports,
-                            )
-                        };
+                    let binding = if let Some((local, ctxt)) =
+                        eval_context.imports.exports_ids.get(exported)
+                    {
+                        Some((Cow::Borrowed(local.as_str()), *ctxt))
+                    } else {
+                        bail!(
+                            "Expected export to be in eval context {:?} {:?}",
+                            exported,
+                            eval_context.imports,
+                        )
+                    };
                     let (local, ctxt) = binding.unwrap_or_else(|| {
                         // Fallback, shouldn't happen in practice
                         (

@@ -33,7 +33,9 @@ use crate::{
     analyzer::{WellKnownObjectKind, is_unresolved},
     code_gen::CodeGen,
     references::{
-        constant_value::parse_single_expr_lit, esm::EsmModuleItem, for_each_ident_in_pat,
+        constant_value::parse_single_expr_lit,
+        esm::{EsmModuleItem, Liveness},
+        for_each_ident_in_pat,
     },
     utils::{AstPathRange, unparen},
 };
@@ -385,6 +387,29 @@ impl VarGraph {
         }
         for effect in self.effects.iter_mut() {
             effect.normalize();
+        }
+    }
+
+    /// Returns the liveness of a given export identifier.  An export is live if it might
+    /// change values after module evaluation.
+    pub fn get_export_ident_liveness(&self, id: Id) -> Liveness {
+        if let Some(VarMeta {
+            value: _,
+            assignment_scopes: assignment_kinds,
+        }) = self.values.get(&id)
+        {
+            // If all assignments are in module scope, the export is not live.
+            if *assignment_kinds != AssignmentScopes::AllInModuleEvalScope {
+                Liveness::Live
+            } else {
+                Liveness::Constant
+            }
+        } else {
+            // If we haven't computed a value for it, that means it might be
+            // - A free variable or
+            // - an imported variable
+            // In those cases, we just assume that the value is live since we don't know anything
+            Liveness::Live
         }
     }
 }
