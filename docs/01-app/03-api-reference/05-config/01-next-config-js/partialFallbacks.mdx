@@ -108,7 +108,7 @@ The result becomes the new shell for that URL, upgrading the fallback. If the pa
 
 Upgrades require [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). If `[slug]` had no `generateStaticParams`, the `/electronics/[slug]` shell would be served for every slug under `electronics` and never upgraded further. Params are resolved in route order. A param without `generateStaticParams` is always resolved at request time, and any params that come after it in the route are too, even if they have `generateStaticParams`.
 
-`partialFallbacks` also applies to [catch-all segments](/docs/app/building-your-application/routing/dynamic-routes#catch-all-segments) (`[...slug]`) and [optional catch-all segments](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments) (`[[...slug]]`).
+`partialFallbacks` also applies to [catch-all segments](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments) (`[...slug]`) and [optional catch-all segments](/docs/app/api-reference/file-conventions/dynamic-routes#optional-catch-all-segments) (`[[...slug]]`).
 
 > **Good to know:** If you used [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) with `getStaticPaths` in the Pages Router: this is the App Router equivalent, built on `<Suspense>` instead of `router.isFallback`.
 
