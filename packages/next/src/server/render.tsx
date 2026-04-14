@@ -254,7 +254,6 @@ export type RenderOptsPartial = {
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
-  assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
   setIsrStatus?: (key: string, value: boolean | undefined) => void
@@ -445,6 +444,18 @@ function serializeError(
   }
 }
 
+function getSafariCacheBusterQueryString(
+  req: IncomingMessage
+): string | undefined {
+  if (process.env.__NEXT_DEV_SERVER) {
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
+    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+      return `?ts=${Date.now()}`
+    }
+  }
+  return undefined
+}
+
 export async function renderToHTMLImpl(
   req: IncomingMessage,
   res: ServerResponse,
@@ -458,7 +469,7 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
-  // cacheBuster is a workaround for a Safari bug
+  // cssCacheBuster is a workaround for a Safari bug
   // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS
   // resources are cached and not re-fetched on HMR. It must only be applied
   // to CSS and font assets — not to script tags — because the Turbopack
@@ -466,15 +477,7 @@ export async function renderToHTMLImpl(
   // leaks it onto all static asset URLs (including images), causing
   // next/image validation errors.
   // See https://github.com/vercel/next.js/issues/92118.
-  let cacheBuster =
-    (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
-
-  if (process.env.__NEXT_DEV_SERVER && !cacheBuster) {
-    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
-    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-      cacheBuster = `?ts=${Date.now()}`
-    }
-  }
+  const cssCacheBuster = getSafariCacheBusterQueryString(req)
 
   const mutableAssetQueryString = sharedContext.deploymentId
     ? `?dpl=${sharedContext.deploymentId}`
@@ -485,9 +488,9 @@ export async function renderToHTMLImpl(
   // cssAssetQueryString is assetQueryString with the cacheBuster prepended.
   // Use this for CSS and font URLs; use assetQueryString for script URLs.
   const cssAssetQueryString =
-    cacheBuster +
+    cssCacheBuster +
     (sharedContext.clientAssetToken
-      ? `${cacheBuster ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
+      ? `${cssCacheBuster ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
       : '')
   const metadata: PagesRenderResultMetadata = {}
 
