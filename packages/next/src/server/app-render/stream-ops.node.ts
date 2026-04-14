@@ -812,7 +812,52 @@ export async function continueStaticFallbackPrerender(
   return webToReadable(webResult)
 }
 
-export async function continueDynamicHTMLResume(
+export async function continueDynamicHTMLResumeNode(
+  renderStream: AnyStream,
+  {
+    delayDataUntilFirstHtmlChunk,
+    inlinedDataStream,
+    getServerInsertedHTML,
+    getServerInsertedMetadata,
+    deploymentId,
+  }: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
+): Promise<AnyStream> {
+  await waitAtLeastOneReactRenderTask()
+
+  const buffered = createBufferedTransformStream()
+  webToReadable(renderStream).pipe(buffered)
+
+  let source: Readable = buffered
+
+  if (deploymentId) {
+    const dplId = createHtmlDataDplIdTransform(deploymentId)
+    source.pipe(dplId)
+    source = dplId
+  }
+
+  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
+  source.pipe(headInsertion)
+  source = headInsertion
+
+  const metadata = createMetadataTransform(getServerInsertedMetadata)
+  source.pipe(metadata)
+  source = metadata
+
+  const flightInjection = createFlightDataInjectionTransform(
+    webToReadable(inlinedDataStream),
+    delayDataUntilFirstHtmlChunk
+  )
+  source.pipe(flightInjection)
+  source = flightInjection
+
+  const moveSuffix = createMoveSuffixTransform()
+  source.pipe(moveSuffix)
+  source = moveSuffix
+
+  return source
+}
+
+export async function continueDynamicHTMLResumeWeb(
   renderStream: AnyStream,
   opts: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
 ): Promise<AnyStream> {
