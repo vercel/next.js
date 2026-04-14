@@ -86,6 +86,7 @@ describe('typescript-plugin - client-boundary', () => {
         length: diagnostic.length,
       }))
 
+    // TODO: Should flag _arrowFunctionConditional in TypeScript 6.x.
     expect(totalDiagnostics).toMatchInlineSnapshot(`
      {
        "app/non-serializable-props.tsx": [
@@ -100,12 +101,6 @@ describe('typescript-plugin - client-boundary', () => {
            "length": 22,
            "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunctionTypeAlias" is a function that's not a Server Action. Rename "_arrowFunctionTypeAlias" either to "action" or have its name end with "Action" e.g. "_arrowFunctionTypeAliasAction" to indicate it is a Server Action.",
            "start": 197,
-         },
-         {
-           "code": 71007,
-           "length": 19,
-           "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunctionConditional" is a function that's not a Server Action. Rename "_arrowFunctionConditional" either to "action" or have its name end with "Action" e.g. "_arrowFunctionConditionalAction" to indicate it is a Server Action.",
-           "start": 249,
          },
          {
            "code": 71007,

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import type React from 'react'
+// @ts-expect-error - Fixed once Next.js 16.2.0 is used.
 import './globals.css'
 
 export const metadata: Metadata = {

@@ -2,11 +2,14 @@
   "compilerOptions": {
     "target": "es2022",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "strict": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": false,
-    "lib": ["es2022", "dom"]
+    "lib": ["es2022", "dom"],
+    "rootDir": "src",
+    "types": ["jest"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

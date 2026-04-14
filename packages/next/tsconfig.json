@@ -9,6 +9,8 @@
     "module": "ESNext",
     "target": "ES2018",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
+    "types": ["trusted-types", "jest", "node"],
     "paths": {
       // Required absolute paths.
       // We rewrite these here so that they aren't also input files which would fail tsc with

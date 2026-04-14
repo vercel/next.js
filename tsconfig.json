@@ -9,6 +9,7 @@
     "module": "ESNext",
     "target": "ESNext",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "types": ["react", "jest", "node", "trusted-types", "jest-extended"],
     "paths": {
       "development-sandbox": ["./test/lib/development-sandbox"],
