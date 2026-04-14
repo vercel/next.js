@@ -742,21 +742,51 @@ async fn fetch_from_google_fonts(
     url: RcStr,
     virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
-    let result = fetch_client
-        .fetch(url, Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)))
-        .await?;
+    const MAX_ATTEMPTS: usize = 3;
 
-    Ok(match *result {
-        Ok(r) => Some(*r.await?.body),
-        Err(err) => {
-            err.to_issue(IssueSeverity::Warning, virtual_path)
-                .to_resolved()
-                .await?
-                .emit();
+    for attempt in 1..=MAX_ATTEMPTS {
+        let result = fetch_client
+            .fetch(url.clone(), Some(rcstr!(USER_AGENT_FOR_GOOGLE_FONTS)))
+            .await?;
 
-            None
+        match &*result {
+            Ok(r) => {
+                if attempt > 1 {
+                    tracing::info!(
+                        "Successfully fetched Google Font {} on attempt {}/{}",
+                        url,
+                        attempt,
+                        MAX_ATTEMPTS
+                    );
+                }
+                return Ok(Some(*r.await?.body));
+            }
+            Err(err) => {
+                if attempt < MAX_ATTEMPTS {
+                    tracing::warn!(
+                        "Failed to fetch Google Font {} (attempt {}/{}), retrying...",
+                        url,
+                        attempt,
+                        MAX_ATTEMPTS
+                    );
+                } else {
+                    tracing::warn!(
+                        "Failed to fetch Google Font {} after {} attempts",
+                        url,
+                        MAX_ATTEMPTS
+                    );
+                    err.to_issue(IssueSeverity::Warning, virtual_path)
+                        .to_resolved()
+                        .await?
+                        .emit();
+
+                    return Ok(None);
+                }
+            }
         }
-    })
+    }
+
+    Ok(None)
 }
 
 async fn get_mock_stylesheet(
