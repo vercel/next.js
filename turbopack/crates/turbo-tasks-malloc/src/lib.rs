@@ -97,7 +97,7 @@ impl TurboMalloc {
         flush();
         #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
         unsafe {
-            libmimalloc_sys::mi_collect(true);
+            libmimalloc_sys::mi_collect(false);
         }
     }
 
