@@ -119,4 +119,10 @@ pub trait KeyValueDatabase {
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }
+
+    /// Returns true if the database is in an unrecoverable error state where a previous write or
+    /// compaction failed and the rollback also failed, permanently disabling further writes.
+    fn has_unrecoverable_write_error(&self) -> bool {
+        false
+    }
 }

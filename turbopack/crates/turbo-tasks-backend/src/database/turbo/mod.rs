@@ -137,6 +137,10 @@ impl KeyValueDatabase for TurboKeyValueDatabase {
         )
     }
 
+    fn has_unrecoverable_write_error(&self) -> bool {
+        self.db.has_unrecoverable_write_error()
+    }
+
     fn shutdown(&self) -> Result<()> {
         // Compact the database on shutdown
         // (Avoid compacting a fresh database since we don't have any usage info yet)
@@ -195,8 +199,12 @@ fn do_compact(
 }
 
 pub struct TurboWriteBatch<'a> {
-    batch:
-        turbo_persistence::WriteBatch<WriteBuffer<'static>, TurboTasksParallelScheduler, FAMILIES>,
+    batch: turbo_persistence::WriteBatch<
+        'a,
+        WriteBuffer<'static>,
+        TurboTasksParallelScheduler,
+        FAMILIES,
+    >,
     db: &'a Arc<TurboPersistence<TurboTasksParallelScheduler, FAMILIES>>,
 }
 
