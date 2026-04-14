@@ -714,6 +714,7 @@ jobs:
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
       runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
 
     secrets: inherit
 
@@ -885,6 +886,7 @@ jobs:
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-integration-windows:
@@ -907,6 +909,7 @@ jobs:
           test/integration/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod-windows:
@@ -929,6 +932,7 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
       runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod:
