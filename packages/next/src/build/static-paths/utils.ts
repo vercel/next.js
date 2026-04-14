@@ -36,6 +36,27 @@ export function encodeParam(
 }
 
 /**
+ * Ensures catch-all / optional-catch-all param arrays only contain strings.
+ * Non-string values otherwise fail deep in path encoding with a confusing error
+ * (e.g. `segment.replace is not a function`).
+ */
+export function assertRepeatParamSegmentsAreStrings(
+  paramKey: string,
+  segments: ReadonlyArray<unknown>,
+  page: string,
+  source: 'getStaticPaths' | 'generateStaticParams'
+): void {
+  for (let i = 0; i < segments.length; i++) {
+    const segment = segments[i]
+    if (typeof segment !== 'string') {
+      throw new Error(
+        `A required parameter (${paramKey}) was provided as an array, but each segment must be a string. Received ${typeof segment} at index ${i} in ${source} for ${page}`
+      )
+    }
+  }
+}
+
+/**
  * Normalizes a pathname to a consistent format.
  *
  * @param pathname - The pathname to normalize.
