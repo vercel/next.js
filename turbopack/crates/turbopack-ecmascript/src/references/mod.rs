@@ -79,30 +79,26 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
-    reference_type::{CommonJsReferenceSubType, ReferenceType},
+    reference_type::CommonJsReferenceSubType,
     resolve::{
         ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
         find_context_file,
         origin::{PlainResolveOrigin, ResolveOrigin},
         parse::Request,
         pattern::Pattern,
-        resolve,
     },
     source::Source,
     source_map::GenerateSourceMap,
 };
-use turbopack_resolve::{
-    ecmascript::{apply_cjs_specific_options, cjs_resolve_source},
-    typescript::tsconfig,
-};
+use turbopack_resolve::{ecmascript::cjs_resolve_source, typescript::tsconfig};
 use turbopack_swc_utils::emitter::IssueEmitter;
 use unreachable::Unreachable;
 use worker::WorkerAssetReference;
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
-    AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
-    EcmascriptParsable, ModuleTypeResult, SpecifiedModuleType, TreeShakingMode, TypeofWindow,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
+    ModuleTypeResult, SpecifiedModuleType, TreeShakingMode, TypeofWindow,
     analyzer::{
         ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue, JsValueUrlKind,
         ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
@@ -158,10 +154,6 @@ use crate::{
     source_map::parse_source_map_comment,
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split_module},
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
-    webpack::{
-        WebpackChunkAssetReference, WebpackEntryAssetReference, WebpackRuntimeAssetReference,
-        parse::{WebpackRuntime, webpack_runtime},
-    },
 };
 
 #[turbo_tasks::value(shared)]
@@ -558,7 +550,6 @@ async fn analyze_ecmascript_module_internal(
 
     let source = raw_module.source;
     let ty = raw_module.ty;
-    let transforms = raw_module.transforms;
     let options = raw_module.options;
     let options = options.await?;
     let import_externals = options.import_externals;
@@ -869,34 +860,28 @@ async fn analyze_ecmascript_module_internal(
     .await?;
 
     let span = tracing::trace_span!("exports");
-    let (webpack_runtime, webpack_entry, webpack_chunks) = async {
+    async {
         let supports_block_scoping = *compile_time_info
             .environment()
             .runtime_versions()
             .supports_block_scoping()
             .await?;
 
-        let (webpack_runtime, webpack_entry, webpack_chunks, mut esm_exports) =
-            set_handler_and_globals(&handler, globals, || {
-                // TODO migrate to effects
-                let mut visitor = ModuleReferencesVisitor::new(
-                    eval_context,
-                    &import_references,
-                    &mut analysis,
-                    analyze_mode,
-                    &var_graph,
-                    supports_block_scoping,
-                );
-                // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
-                // for any references in esm_exports
-                program.visit_with_ast_path(&mut visitor, &mut Default::default());
-                (
-                    visitor.webpack_runtime,
-                    visitor.webpack_entry,
-                    visitor.webpack_chunks,
-                    visitor.esm_exports,
-                )
-            });
+        let mut esm_exports = set_handler_and_globals(&handler, globals, || {
+            // TODO migrate to effects
+            let mut visitor = ModuleReferencesVisitor::new(
+                eval_context,
+                &import_references,
+                &mut analysis,
+                analyze_mode,
+                &var_graph,
+                supports_block_scoping,
+            );
+            // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
+            // for any references in esm_exports
+            program.visit_with_ast_path(&mut visitor, &mut Default::default());
+            visitor.esm_exports
+        });
 
         let mut esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = vec![];
         for (i, reexport) in eval_context.imports.reexports() {
@@ -994,60 +979,11 @@ async fn analyze_ecmascript_module_internal(
             }
         };
         analysis.set_exports(exports);
-        anyhow::Ok((webpack_runtime, webpack_entry, webpack_chunks))
+        anyhow::Ok(())
     }
     .instrument(span)
     .await?;
 
-    let mut ignore_effect_span = None;
-    // Check if it was a webpack entry
-    if let Some((request, webpack_runtime_span)) = webpack_runtime {
-        let span = tracing::trace_span!("webpack runtime reference");
-        async {
-            let request = Request::parse(request.into()).to_resolved().await?;
-            let runtime = resolve_as_webpack_runtime(*origin, *request, *transforms)
-                .to_resolved()
-                .await?;
-
-            if let WebpackRuntime::Webpack5 { .. } = &*runtime.await? {
-                ignore_effect_span = Some(webpack_runtime_span);
-                analysis.add_reference(
-                    WebpackRuntimeAssetReference {
-                        origin,
-                        request,
-                        runtime,
-                        transforms,
-                    }
-                    .resolved_cell(),
-                );
-
-                if webpack_entry {
-                    analysis.add_reference(
-                        WebpackEntryAssetReference {
-                            source,
-                            runtime,
-                            transforms,
-                        }
-                        .resolved_cell(),
-                    );
-                }
-
-                for chunk in webpack_chunks {
-                    analysis.add_reference(
-                        WebpackChunkAssetReference {
-                            chunk_id: chunk,
-                            runtime,
-                            transforms,
-                        }
-                        .resolved_cell(),
-                    );
-                }
-            }
-            anyhow::Ok(())
-        }
-        .instrument(span)
-        .await?;
-    }
     // TODO: we can do this when constructing the var graph
     let span = tracing::trace_span!("async module handling");
     async {
@@ -1321,12 +1257,6 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     new,
                 } => {
-                    if let Some(ignored) = &ignore_effect_span
-                        && *ignored == span
-                    {
-                        continue;
-                    }
-
                     let func = analysis_state
                         .link_value(*func, eval_context.imports.get_attributes(span))
                         .await?;
@@ -1352,12 +1282,6 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     export_usage,
                 } => {
-                    if let Some(ignored) = &ignore_effect_span
-                        && *ignored == span
-                    {
-                        continue;
-                    }
-
                     handle_dynamic_import(
                         &ast_path,
                         span,
@@ -1380,12 +1304,6 @@ async fn analyze_ecmascript_module_internal(
                     in_try,
                     new,
                 } => {
-                    if let Some(ignored) = &ignore_effect_span
-                        && *ignored == span
-                    {
-                        continue;
-                    }
-
                     let func = analysis_state
                         .link_value(
                             JsValue::member(obj.clone(), prop),
@@ -3933,80 +3851,15 @@ async fn require_context_visitor(
     ))
 }
 
-#[derive(Debug)]
-enum StaticExpr {
-    String(String),
-    FreeVar(Vec<String>),
-    ImportedVar(String, Vec<String>),
-    Unknown,
-}
-
-// TODO get rid of that
-#[derive(Default)]
-struct StaticAnalyser {
-    imports: FxHashMap<String, (String, Vec<String>)>,
-}
-
-impl StaticAnalyser {
-    fn prop_to_name(&self, prop: &MemberProp) -> Option<String> {
-        match prop {
-            MemberProp::Ident(ident) => Some(ident.sym.to_string()),
-            MemberProp::PrivateName(_) => None,
-            MemberProp::Computed(ComputedPropName { expr, .. }) => match self.evaluate_expr(expr) {
-                StaticExpr::String(str) => Some(str),
-                _ => None,
-            },
-        }
-    }
-
-    fn evaluate_expr(&self, expr: &Expr) -> StaticExpr {
-        match expr {
-            Expr::Lit(Lit::Str(str)) => {
-                StaticExpr::String(str.value.to_string_lossy().into_owned())
-            }
-            Expr::Ident(ident) => {
-                let str = ident.sym.to_string();
-                match self.imports.get(&str) {
-                    Some((module, import)) => {
-                        StaticExpr::ImportedVar(module.clone(), import.clone())
-                    }
-                    None => StaticExpr::FreeVar(vec![str]),
-                }
-            }
-            Expr::Member(member) => match self.evaluate_expr(&member.obj) {
-                StaticExpr::FreeVar(mut vec) => match self.prop_to_name(&member.prop) {
-                    Some(name) => {
-                        vec.push(name);
-                        StaticExpr::FreeVar(vec)
-                    }
-                    None => StaticExpr::Unknown,
-                },
-                StaticExpr::ImportedVar(module, mut vec) => match self.prop_to_name(&member.prop) {
-                    Some(name) => {
-                        vec.push(name);
-                        StaticExpr::ImportedVar(module, vec)
-                    }
-                    None => StaticExpr::Unknown,
-                },
-                _ => StaticExpr::Unknown,
-            },
-            _ => StaticExpr::Unknown,
-        }
-    }
-}
-
 /// A visitor that walks the AST and collects information about the various
 /// references a module makes to other parts of the code.
 struct ModuleReferencesVisitor<'a> {
     analyze_mode: AnalyzeMode,
     eval_context: &'a EvalContext,
-    old_analyzer: StaticAnalyser,
+    imports: FxHashMap<String, (String, Vec<String>)>,
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     esm_exports: Vec<(RcStr, EsmExport)>,
-    webpack_runtime: Option<(RcStr, Span)>,
-    webpack_entry: bool,
-    webpack_chunks: Vec<Lit>,
     var_graph: &'a VarGraph,
     supports_block_scoping: bool,
 }
@@ -4023,13 +3876,10 @@ impl<'a> ModuleReferencesVisitor<'a> {
         Self {
             analyze_mode,
             eval_context,
-            old_analyzer: StaticAnalyser::default(),
+            imports: FxHashMap::default(),
             import_references,
             analysis,
             esm_exports: Vec::new(),
-            webpack_runtime: None,
-            webpack_entry: false,
-            webpack_chunks: Vec::new(),
             var_graph,
             supports_block_scoping,
         }
@@ -4317,7 +4167,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             match specifier {
                 ImportSpecifier::Named(named) => {
                     if !named.is_type_only {
-                        self.old_analyzer.imports.insert(
+                        self.imports.insert(
                             named.local.sym.to_string(),
                             (
                                 src.clone(),
@@ -4333,14 +4183,13 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                     }
                 }
                 ImportSpecifier::Default(default_import) => {
-                    self.old_analyzer.imports.insert(
+                    self.imports.insert(
                         default_import.local.sym.to_string(),
                         (src.clone(), vec!["default".to_string()]),
                     );
                 }
                 ImportSpecifier::Namespace(namespace) => {
-                    self.old_analyzer
-                        .imports
+                    self.imports
                         .insert(namespace.local.sym.to_string(), (src.clone(), Vec::new()));
                 }
             }
@@ -4356,20 +4205,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         decl: &'ast VarDeclarator,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if let Some(ident) = decl.name.as_ident()
-            && &*ident.id.sym == "__webpack_require__"
-            && let Some(init) = &decl.init
-            && let Some(call) = init.as_call()
-            && let Some(expr) = call.callee.as_expr()
-            && let Some(ident) = expr.as_ident()
-            && &*ident.sym == "require"
-            && let [ExprOrSpread { spread: None, expr }] = &call.args[..]
-            && let Some(Lit::Str(str)) = expr.as_lit()
-        {
-            self.webpack_runtime =
-                Some((str.value.to_string_lossy().into_owned().into(), call.span));
-            return;
-        }
         decl.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -4378,65 +4213,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         call: &'ast CallExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if let Callee::Expr(expr) = &call.callee
-            && let StaticExpr::FreeVar(var) = self.old_analyzer.evaluate_expr(expr)
-        {
-            match &var[..] {
-                [webpack_require, property]
-                    if webpack_require == "__webpack_require__" && property == "C" =>
-                {
-                    self.webpack_entry = true;
-                }
-                [webpack_require, property]
-                    if webpack_require == "__webpack_require__" && property == "X" =>
-                {
-                    if let [
-                        _,
-                        ExprOrSpread {
-                            spread: None,
-                            expr: chunk_ids,
-                        },
-                        _,
-                    ] = &call.args[..]
-                        && let Some(array) = chunk_ids.as_array()
-                    {
-                        for elem in array.elems.iter().flatten() {
-                            if let ExprOrSpread { spread: None, expr } = elem
-                                && let Some(lit) = expr.as_lit()
-                            {
-                                self.webpack_chunks.push(lit.clone());
-                            }
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
         call.visit_children_with_ast_path(self, ast_path);
-    }
-}
-
-#[turbo_tasks::function]
-async fn resolve_as_webpack_runtime(
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    transforms: Vc<EcmascriptInputTransforms>,
-) -> Result<Vc<WebpackRuntime>> {
-    let options = origin.resolve_options();
-
-    let options = apply_cjs_specific_options(options);
-
-    let resolved = resolve(
-        origin.origin_path().await?.parent(),
-        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-        request,
-        options,
-    );
-
-    if let Some(source) = *resolved.first_source().await? {
-        Ok(webpack_runtime(*source, transforms))
-    } else {
-        Ok(WebpackRuntime::None.cell())
     }
 }
 
