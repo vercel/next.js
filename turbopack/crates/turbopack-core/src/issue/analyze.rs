@@ -1,13 +1,11 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{
-    AdditionalIssueSources, Issue, IssueSeverity, IssueSource, IssueStage, OptionStyledString,
-    StyledString,
-};
-use crate::{ident::AssetIdent, issue::OptionIssueSource};
+use super::{AdditionalIssueSource, Issue, IssueSeverity, IssueSource, IssueStage, StyledString};
+use crate::ident::AssetIdent;
 
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
@@ -42,14 +40,14 @@ impl AnalyzeIssue {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for AnalyzeIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         let title = &*self.title.await?;
         Ok(if let Some(code) = self.code.as_ref() {
             StyledString::Line(vec![
@@ -59,37 +57,31 @@ impl Issue for AnalyzeIssue {
             ])
         } else {
             StyledString::Text(title.clone())
-        }
-        .cell())
+        })
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Analysis.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Analysis
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source_ident.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source_ident.path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.message.await?).clone()))
     }
 
-    #[turbo_tasks::function]
-    async fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+    fn source(&self) -> Option<IssueSource> {
+        self.source
     }
 
-    #[turbo_tasks::function]
-    async fn additional_sources(&self) -> Result<Vc<AdditionalIssueSources>> {
-        if let Some(issue_source) = &self.source
-            && let Some(source) = issue_source.to_generated_code_source().await?
+    async fn additional_sources(&self) -> Result<Vec<AdditionalIssueSource>> {
+        if let Some(issue_source) = self.source
+            && let Some(additional) = issue_source.to_generated_code_source().await?
         {
-            return Ok(Vc::cell(vec![source]));
+            return Ok(vec![additional]);
         }
-        Ok(AdditionalIssueSources::empty())
+        Ok(vec![])
     }
 }

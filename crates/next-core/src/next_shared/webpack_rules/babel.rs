@@ -1,15 +1,16 @@
 use std::{collections::BTreeSet, sync::LazyLock};
 
 use anyhow::{Context, Result};
+use async_trait::async_trait;
 use regex::Regex;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::{self, FileSystemEntryType, FileSystemPath, to_sys_path};
+use turbo_tasks_fs::{self, FileContent, FileSystemEntryType, FileSystemPath, to_sys_path};
 use turbopack::module_options::{ConditionItem, LoaderRuleItem};
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
     resolve::{node::node_cjs_resolve_options, parse::Request, pattern::Pattern, resolve},
     source::Source,
@@ -17,7 +18,9 @@ use turbopack_core::{
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions},
+    next_config::{
+        NextConfig, ReactCompilerCompilationMode, ReactCompilerOptions, ReactCompilerTarget,
+    },
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -152,6 +155,12 @@ pub async fn get_babel_loader_rules(
     {
         let react_compiler_options = react_compiler_options.await?;
 
+        let mut react_compiler_options_with_target: ReactCompilerOptions =
+            (*react_compiler_options).clone();
+        if let Some(target) = detect_react_compiler_target(project_path).await? {
+            react_compiler_options_with_target.target = Some(target);
+        }
+
         // we don't want to accept user-supplied `environment` options, but we do want to pass
         // `enableNameAnonymousFunctions` down to the babel plugin based on dev/prod.
         #[derive(Serialize)]
@@ -168,7 +177,7 @@ pub async fn get_babel_loader_rules(
         }
 
         let resolved_options = ResolvedOptions {
-            base: &react_compiler_options,
+            base: &react_compiler_options_with_target,
             environment: EnvironmentOptions {
                 enable_name_anonymous_functions: builtin_conditions
                     .contains(&WebpackLoaderBuiltinCondition::Development),
@@ -233,6 +242,55 @@ pub async fn get_babel_loader_rules(
             module_type: None,
         },
     )])
+}
+
+async fn detect_react_compiler_target(
+    project_path: &FileSystemPath,
+) -> Result<Option<ReactCompilerTarget>> {
+    #[derive(Deserialize)]
+    struct ReactPackageVersion {
+        version: Option<String>,
+    }
+
+    let react_pkg_result = resolve(
+        project_path.clone(),
+        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+        Request::parse(Pattern::Constant(rcstr!("react/package.json"))),
+        node_cjs_resolve_options(project_path.root().owned().await?),
+    );
+
+    let Some(source) = &*react_pkg_result.first_source().await? else {
+        return Ok(None);
+    };
+
+    let path = source.ident().path().await?;
+    let FileContent::Content(file) = &*path.read().await? else {
+        return Ok(None);
+    };
+
+    let pkg: ReactPackageVersion = match serde_json::from_reader(file.read()) {
+        Ok(pkg) => pkg,
+        Err(e) => {
+            ReactPackageJsonParseIssue {
+                file_path: (*path).clone(),
+                error: e.to_string().into(),
+            }
+            .resolved_cell()
+            .emit();
+            return Ok(None);
+        }
+    };
+
+    let major = pkg
+        .version
+        .as_deref()
+        .and_then(|v| v.split('.').next())
+        .and_then(|s| s.parse::<u32>().ok());
+
+    match major {
+        Some(18) => Ok(Some(ReactCompilerTarget::React18)),
+        _ => Ok(None),
+    }
 }
 
 /// A system path that can be passed to the webpack loader
@@ -305,49 +363,80 @@ struct BabelPluginReactCompilerResolutionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for BabelPluginReactCompilerResolutionIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Transform.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.config_file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Failed to resolve package ")),
             StyledString::Code(self.failed_resolution.clone()),
             StyledString::Text(rcstr!(" while attempting to resolve React Compiler")),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Line(vec![
-                StyledString::Text(rcstr!("React compiler is enabled in ")),
-                StyledString::Code(self.config_file_path.path.clone()),
-                StyledString::Text(rcstr!(
-                    ". We attempted to resolve React Compiler relative to the "
-                )),
-                StyledString::Code(rcstr!("next")),
-                StyledString::Text(rcstr!(" package. Is ")),
-                StyledString::Code(rcstr!(BABEL_PLUGIN_REACT_COMPILER)),
-                StyledString::Text(rcstr!(" installed in your ")),
-                StyledString::Code(rcstr!("node_modules")),
-                StyledString::Text(rcstr!(" directory?")),
-            ])
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("React compiler is enabled in ")),
+            StyledString::Code(self.config_file_path.path.clone()),
+            StyledString::Text(rcstr!(
+                ". We attempted to resolve React Compiler relative to the "
+            )),
+            StyledString::Code(rcstr!("next")),
+            StyledString::Text(rcstr!(" package. Is ")),
+            StyledString::Code(rcstr!(BABEL_PLUGIN_REACT_COMPILER)),
+            StyledString::Text(rcstr!(" installed in your ")),
+            StyledString::Code(rcstr!("node_modules")),
+            StyledString::Text(rcstr!(" directory?")),
+        ])))
+    }
+}
+
+#[turbo_tasks::value]
+struct ReactPackageJsonParseIssue {
+    file_path: FileSystemPath,
+    error: RcStr,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for ReactPackageJsonParseIssue {
+    fn stage(&self) -> IssueStage {
+        IssueStage::Transform
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Warning
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
+            StyledString::Text(rcstr!("Failed to parse ")),
+            StyledString::Code(rcstr!("react/package.json")),
+        ]))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!(
+                "Could not determine the React version for React Compiler target detection: "
+            )),
+            StyledString::Text(self.error.clone()),
+        ])))
     }
 }

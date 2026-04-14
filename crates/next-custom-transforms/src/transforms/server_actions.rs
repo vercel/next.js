@@ -1819,7 +1819,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export))
-                        if named_export.src.is_none() =>
+                        if named_export.src.is_none() && !named_export.type_only =>
                     {
                         for spec in &named_export.specifiers {
                             match spec {

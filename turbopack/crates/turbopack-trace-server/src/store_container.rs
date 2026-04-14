@@ -18,6 +18,12 @@ struct StoreWithGeneration {
     generation: usize,
 }
 
+impl Default for StoreContainer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StoreContainer {
     pub fn new() -> Self {
         Self {

@@ -113,7 +113,7 @@ impl Environment {
             // browserslist correctly because CSS Modules in client components is double-processed,
             // once for server once for browser.
             {
-                Vc::cell(rcstr!(""))
+                Vc::default()
             }
             ExecutionEnvironment::Browser(browser_env) => {
                 Vc::cell(browser_env.await?.browserslist_query.clone())

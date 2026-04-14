@@ -11,6 +11,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ searchParams: { q: '1' } }],
 }
+export const unstable_prefetch = 'runtime'
 
 export default async function RuntimePrefetchSearchParamsTargetPage() {
   // Intentionally NOT accessing searchParams

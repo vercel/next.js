@@ -4,6 +4,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
+export const unstable_prefetch = 'runtime'
 
 // This page HAS runtime prefetch enabled. The sync IO (Date.now()) after
 // cookies() is invalid here because during a runtime prefetch, cookies()

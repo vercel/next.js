@@ -10,6 +10,7 @@ export const unstable_instant = {
   unstable_disableValidation: true,
   samples: [{ cookies: [] }],
 }
+export const unstable_prefetch = 'runtime'
 
 export default async function Page({
   searchParams,
