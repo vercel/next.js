@@ -214,7 +214,7 @@ Very rarely, for compliance requirements or when you can't refactor your code to
 
 When [Draft Mode](/docs/app/guides/draft-mode) is enabled, all cached functions and components re-execute on every request, and results are not saved to the cache. This ensures draft content is always fresh without requiring any changes to your caching code.
 
-[`draftMode().isEnabled`](/docs/app/api-reference/functions/draft-mode) is readable inside a caching directive scope. Other runtime APIs like `cookies()` and `headers()` are not allowed, even when Draft Mode is active. See [Passing runtime values to cached functions](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions) for the recommended pattern.
+You can read `isEnabled` from [`draftMode()`](/docs/app/api-reference/functions/draft-mode) inside a `use cache` scope, however, other runtime APIs like `cookies()` and `headers()` are not allowed, even when Draft Mode is active. See [Passing runtime values to cached functions](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions) for the recommended pattern.
 
 ```tsx filename="app/components/content.tsx"
 import { draftMode } from 'next/headers'
