@@ -138,7 +138,62 @@ for (const b of base) {
 NODE baseline-run candidate-run
 ```
 
-## 8. Noise control rules
+## 8. A/B branch comparison
+
+When comparing two branches (e.g. canary vs a PR), follow this workflow to get reliable numbers.
+
+**Start with a focused route, not the full suite.** The full suite takes ~3 minutes per run. Pick the route where your change has the largest proportional impact — typically the lightest route (`/`) for per-request overhead changes, or a specific streaming route for render pipeline changes.
+
+**Increase request counts for fast routes.** The default `--serial-requests=120` is too noisy for sub-2ms routes. Use at least 500 serial and 5000 load requests:
+
+```bash
+pnpm bench:render-pipeline \
+  --scenario=e2e \
+  --stream-mode=node \
+  --build=false \
+  --routes=/ \
+  --serial-requests=500 \
+  --load-requests=5000 \
+  --load-concurrency=80 \
+  --json-out=bench/render-pipeline/artifacts/<run>/results.json \
+  --artifact-dir=bench/render-pipeline/artifacts/<run>
+```
+
+**Run at least 3 times per side.** A single run can swing 10–15% on light routes due to JIT warmup variance and system noise. Three runs let you average out outliers and spot whether a delta is real.
+
+**Compare absolute req/s, not deltas.** Percentage deltas from a single pair of runs can be misleading. Line up the raw numbers side by side across all runs to see the full picture.
+
+**Watch for system state drift.** Running all baseline runs first, then all candidate runs, means the later runs may be affected by thermal throttling or background processes. If results look suspicious, interleave runs (baseline, candidate, baseline, candidate) to control for this.
+
+Example workflow:
+
+```bash
+# 1. Checkout baseline, build, run 3 times
+git checkout canary
+pnpm --filter=next build
+for i in 1 2 3; do
+  pnpm bench:render-pipeline --scenario=e2e --stream-mode=node --build=false \
+    --routes=/ --serial-requests=500 --load-requests=5000 --load-concurrency=80 \
+    --json-out=bench/render-pipeline/artifacts/baseline-$i/results.json \
+    --artifact-dir=bench/render-pipeline/artifacts/baseline-$i
+done
+
+# 2. Checkout candidate, build, run 3 times
+git checkout <branch>
+pnpm --filter=next build
+for i in 1 2 3; do
+  pnpm bench:render-pipeline --scenario=e2e --stream-mode=node --build=false \
+    --routes=/ --serial-requests=500 --load-requests=5000 --load-concurrency=80 \
+    --json-out=bench/render-pipeline/artifacts/candidate-$i/results.json \
+    --artifact-dir=bench/render-pipeline/artifacts/candidate-$i
+done
+
+# 3. Compare averages across runs
+```
+
+**Only run the full route suite once you've confirmed a signal on focused routes.** Use the full suite as a final check that the change doesn't regress other routes, not as the primary measurement.
+
+## 9. Noise control rules
 
 Use these rules to keep measurements trustworthy:
 
@@ -149,7 +204,7 @@ Use these rules to keep measurements trustworthy:
 - Prefer relative deltas across multiple runs over one-off absolute numbers.
 - When comparing e2e vs minimal-server scenarios, remember that e2e includes the full router-server overhead.
 
-## 9. Suggested iteration loop
+## 10. Suggested iteration loop
 
 1. Change one thing.
 2. Build (`pnpm --filter=next build`).
