@@ -1,0 +1,76 @@
+name: 'Docker Buildx with cache registry'
+description: 'Set up Docker Buildx with BuildKit cache backed by the turbo remote cache registry.'
+inputs:
+  target:
+    description: 'Dockerfile target stage to build (e.g. linux, windows). Omit to build the default stage.'
+    required: false
+    default: ''
+  image-tag:
+    description: 'Local image tag (e.g. next-swc-builder-win:latest)'
+    required: true
+  cache-ref:
+    description: 'Registry cache ref name (e.g. next-swc-builder-win)'
+    required: true
+  dockerfile:
+    description: 'Path to Dockerfile'
+    required: false
+    default: 'scripts/native-builder.Dockerfile'
+  context:
+    description: 'Docker build context path'
+    required: false
+    default: '.'
+outputs:
+  registry-host:
+    description: 'The resolved registry host:port'
+    value: ${{ steps.resolve.outputs.host }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve cache registry
+      id: resolve
+      shell: bash -leo pipefail {0}
+      run: |
+        REGISTRY_HOST=$(echo "${TURBO_API}" | sed 's|^https\?://||')
+        REGISTRY_IP=$(echo "${REGISTRY_HOST}" | sed 's|:.*||')
+        echo "::add-mask::${REGISTRY_HOST}"
+        echo "::add-mask::${REGISTRY_IP}"
+        echo "host=${REGISTRY_HOST}" >> "$GITHUB_OUTPUT"
+        echo "TURBO_TOKEN=${TURBO_TOKEN}" >> "$GITHUB_ENV"
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        # Reuse the builder across runs on self-hosted runners so BuildKit's
+        # internal content store acts as a local layer cache.
+        name: next-swc-builder
+        cleanup: false
+        driver-opts: network=host
+        buildkitd-config-inline: |
+          [registry."${{ steps.resolve.outputs.host }}"]
+            http = true
+            insecure = true
+
+    - name: Write registry credentials
+      shell: bash
+      run: |
+        REGISTRY="${{ steps.resolve.outputs.host }}"
+        AUTH=$(echo -n "cache:${TURBO_TOKEN}" | base64)
+        mkdir -p ~/.docker
+        CONFIG=$(cat ~/.docker/config.json 2>/dev/null || echo '{}')
+        echo "$CONFIG" | node -e "
+          const c = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+          c.auths = c.auths || {};
+          c.auths['${REGISTRY}'] = { auth: '${AUTH}' };
+          process.stdout.write(JSON.stringify(c, null, 2));
+        " > ~/.docker/config.json
+
+    - name: Build Docker image
+      uses: docker/build-push-action@v6
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.dockerfile }}
+        target: ${{ inputs.target || '' }}
+        load: true
+        tags: ${{ inputs.image-tag }}
+        cache-from: type=registry,ref=${{ steps.resolve.outputs.host }}/${{ inputs.cache-ref }}:cache
+        cache-to: type=registry,ref=${{ steps.resolve.outputs.host }}/${{ inputs.cache-ref }}:cache,mode=max

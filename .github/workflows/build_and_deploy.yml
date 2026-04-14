@@ -264,7 +264,10 @@ jobs:
       # Only load the Docker image if we need to compile (native cache miss)
       - name: Build/restore Docker image
         if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
-        run: node scripts/docker-image-cache.js
+        uses: ./.github/actions/docker-buildx
+        with:
+          image-tag: ${{ matrix.docker }}
+          cache-ref: next-swc-builder
 
       - name: Build in docker
         if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
