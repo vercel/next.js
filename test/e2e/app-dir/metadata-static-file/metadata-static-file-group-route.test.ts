@@ -16,7 +16,7 @@ describe('metadata-files-static-output-group-route', () => {
     return
   }
 
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -28,128 +28,66 @@ describe('metadata-files-static-output-group-route', () => {
   it('should have correct link tags for group page', async () => {
     const browser = await next.browser('/group')
 
-    if (isTurbopack) {
-      expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
-       {
-         "links": [
-           {
-             "href": "/favicon.ico",
-             "rel": "icon",
-             "type": "image/x-icon",
-           },
-           {
-             "href": "/group/apple-icon-5fsf7h.png",
-             "rel": "apple-touch-icon",
-             "type": "image/png",
-           },
-           {
-             "href": "/group/icon-5fsf7h.png",
-             "rel": "icon",
-             "type": "image/png",
-           },
-           {
-             "href": "/manifest.json",
-             "rel": "manifest",
-           },
-         ],
-         "metas": [
-           {
-             "name": "twitter:card",
-           },
-           {
-             "name": "twitter:image",
-           },
-           {
-             "name": "twitter:image:height",
-           },
-           {
-             "name": "twitter:image:type",
-           },
-           {
-             "name": "twitter:image:width",
-           },
-           {
-             "name": "viewport",
-           },
-           {
-             "property": "og:image",
-           },
-           {
-             "property": "og:image:height",
-           },
-           {
-             "property": "og:image:type",
-           },
-           {
-             "property": "og:image:width",
-           },
-         ],
-       }
-      `)
-    } else {
-      expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
-       {
-         "links": [
-           {
-             "href": "/favicon.ico",
-             "rel": "icon",
-             "type": "image/x-icon",
-           },
-           {
-             "href": "/group/apple-icon-131tc6.png",
-             "rel": "apple-touch-icon",
-             "type": "image/png",
-           },
-           {
-             "href": "/group/icon-131tc6.png",
-             "rel": "icon",
-             "type": "image/png",
-           },
-           {
-             "href": "/manifest.json",
-             "rel": "manifest",
-           },
-         ],
-         "metas": [
-           {
-             "name": "twitter:card",
-           },
-           {
-             "name": "twitter:image",
-           },
-           {
-             "name": "twitter:image:height",
-           },
-           {
-             "name": "twitter:image:type",
-           },
-           {
-             "name": "twitter:image:width",
-           },
-           {
-             "name": "viewport",
-           },
-           {
-             "property": "og:image",
-           },
-           {
-             "property": "og:image:height",
-           },
-           {
-             "property": "og:image:type",
-           },
-           {
-             "property": "og:image:width",
-           },
-         ],
-       }
-      `)
-    }
+    expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
+     {
+       "links": [
+         {
+           "href": "/favicon.ico",
+           "rel": "icon",
+           "type": "image/x-icon",
+         },
+         {
+           "href": "/group/apple-icon-131tc6.png",
+           "rel": "apple-touch-icon",
+           "type": "image/png",
+         },
+         {
+           "href": "/group/icon-131tc6.png",
+           "rel": "icon",
+           "type": "image/png",
+         },
+         {
+           "href": "/manifest.json",
+           "rel": "manifest",
+         },
+       ],
+       "metas": [
+         {
+           "name": "twitter:card",
+         },
+         {
+           "name": "twitter:image",
+         },
+         {
+           "name": "twitter:image:height",
+         },
+         {
+           "name": "twitter:image:type",
+         },
+         {
+           "name": "twitter:image:width",
+         },
+         {
+           "name": "viewport",
+         },
+         {
+           "property": "og:image",
+         },
+         {
+           "property": "og:image:height",
+         },
+         {
+           "property": "og:image:type",
+         },
+         {
+           "property": "og:image:width",
+         },
+       ],
+     }
+    `)
   })
 
   it('should serve static files when requested to its route for group page', async () => {
-    const hash = isTurbopack ? '5fsf7h' : '131tc6'
-
     const [
       appleIconRes,
       iconRes,
@@ -157,10 +95,10 @@ describe('metadata-files-static-output-group-route', () => {
       twitterImageRes,
       sitemapRes,
     ] = await Promise.all([
-      next.fetch(`/group/apple-icon-${hash}.png`),
-      next.fetch(`/group/icon-${hash}.png`),
-      next.fetch(`/group/opengraph-image-${hash}.png`),
-      next.fetch(`/group/twitter-image-${hash}.png`),
+      next.fetch('/group/apple-icon-131tc6.png'),
+      next.fetch('/group/icon-131tc6.png'),
+      next.fetch('/group/opengraph-image-131tc6.png'),
+      next.fetch('/group/twitter-image-131tc6.png'),
       next.fetch('/group/sitemap.xml'),
     ])
 

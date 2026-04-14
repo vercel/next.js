@@ -498,5 +498,13 @@ mod test {
             fill_static_metadata_segment("/client/(meme)/more-route", "twitter-image.png"),
             "/client/more-route/twitter-image-769mad.png"
         );
+        assert_eq!(
+            fill_static_metadata_segment("/(group)/group", "icon.png"),
+            "/group/icon-131tc6.png"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/parallel/@parallel", "icon.png"),
+            "/parallel/icon-kzjltp.png"
+        );
     }
 }

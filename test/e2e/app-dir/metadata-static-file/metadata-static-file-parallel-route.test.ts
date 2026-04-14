@@ -16,7 +16,7 @@ describe('metadata-files-static-output-parallel-route', () => {
     return
   }
 
-  const { next, skipped, isTurbopack } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -28,128 +28,66 @@ describe('metadata-files-static-output-parallel-route', () => {
   it('should have correct link tags for parallel slot page', async () => {
     const browser = await next.browser('/parallel')
 
-    if (isTurbopack) {
-      expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
-       {
-         "links": [
-           {
-             "href": "/favicon.ico",
-             "rel": "icon",
-             "type": "image/x-icon",
-           },
-           {
-             "href": "/manifest.json",
-             "rel": "manifest",
-           },
-           {
-             "href": "/parallel/apple-icon-fu0lv0.png",
-             "rel": "apple-touch-icon",
-             "type": "image/png",
-           },
-           {
-             "href": "/parallel/icon-fu0lv0.png",
-             "rel": "icon",
-             "type": "image/png",
-           },
-         ],
-         "metas": [
-           {
-             "name": "twitter:card",
-           },
-           {
-             "name": "twitter:image",
-           },
-           {
-             "name": "twitter:image:height",
-           },
-           {
-             "name": "twitter:image:type",
-           },
-           {
-             "name": "twitter:image:width",
-           },
-           {
-             "name": "viewport",
-           },
-           {
-             "property": "og:image",
-           },
-           {
-             "property": "og:image:height",
-           },
-           {
-             "property": "og:image:type",
-           },
-           {
-             "property": "og:image:width",
-           },
-         ],
-       }
-      `)
-    } else {
-      expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
-       {
-         "links": [
-           {
-             "href": "/favicon.ico",
-             "rel": "icon",
-             "type": "image/x-icon",
-           },
-           {
-             "href": "/manifest.json",
-             "rel": "manifest",
-           },
-           {
-             "href": "/parallel/apple-icon-kzjltp.png",
-             "rel": "apple-touch-icon",
-             "type": "image/png",
-           },
-           {
-             "href": "/parallel/icon-kzjltp.png",
-             "rel": "icon",
-             "type": "image/png",
-           },
-         ],
-         "metas": [
-           {
-             "name": "twitter:card",
-           },
-           {
-             "name": "twitter:image",
-           },
-           {
-             "name": "twitter:image:height",
-           },
-           {
-             "name": "twitter:image:type",
-           },
-           {
-             "name": "twitter:image:width",
-           },
-           {
-             "name": "viewport",
-           },
-           {
-             "property": "og:image",
-           },
-           {
-             "property": "og:image:height",
-           },
-           {
-             "property": "og:image:type",
-           },
-           {
-             "property": "og:image:width",
-           },
-         ],
-       }
-      `)
-    }
+    expect(await getCommonMetadataHeadTags(browser)).toMatchInlineSnapshot(`
+     {
+       "links": [
+         {
+           "href": "/favicon.ico",
+           "rel": "icon",
+           "type": "image/x-icon",
+         },
+         {
+           "href": "/manifest.json",
+           "rel": "manifest",
+         },
+         {
+           "href": "/parallel/apple-icon-kzjltp.png",
+           "rel": "apple-touch-icon",
+           "type": "image/png",
+         },
+         {
+           "href": "/parallel/icon-kzjltp.png",
+           "rel": "icon",
+           "type": "image/png",
+         },
+       ],
+       "metas": [
+         {
+           "name": "twitter:card",
+         },
+         {
+           "name": "twitter:image",
+         },
+         {
+           "name": "twitter:image:height",
+         },
+         {
+           "name": "twitter:image:type",
+         },
+         {
+           "name": "twitter:image:width",
+         },
+         {
+           "name": "viewport",
+         },
+         {
+           "property": "og:image",
+         },
+         {
+           "property": "og:image:height",
+         },
+         {
+           "property": "og:image:type",
+         },
+         {
+           "property": "og:image:width",
+         },
+       ],
+     }
+    `)
   })
 
   it('should serve static files when requested to its route for parallel slot page', async () => {
-    const hash = isTurbopack ? 'fu0lv0' : 'kzjltp'
-
     const [
       appleIconRes,
       iconRes,
@@ -157,10 +95,10 @@ describe('metadata-files-static-output-parallel-route', () => {
       twitterImageRes,
       sitemapRes,
     ] = await Promise.all([
-      next.fetch(`/parallel/apple-icon-${hash}.png`),
-      next.fetch(`/parallel/icon-${hash}.png`),
-      next.fetch(`/parallel/opengraph-image-${hash}.png`),
-      next.fetch(`/parallel/twitter-image-${hash}.png`),
+      next.fetch('/parallel/apple-icon-kzjltp.png'),
+      next.fetch('/parallel/icon-kzjltp.png'),
+      next.fetch('/parallel/opengraph-image-kzjltp.png'),
+      next.fetch('/parallel/twitter-image-kzjltp.png'),
       next.fetch(`/parallel/sitemap.xml`),
     ])
 

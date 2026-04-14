@@ -304,10 +304,11 @@ impl AppPageLoaderTreeBuilder {
             )?;
         }
         writeln!(self.loader_tree_code, "{s}  return [{{")?;
-        let pathname_prefix = if let Some(base_path) = &self.base_path {
-            format!("{base_path}/{app_page}")
-        } else {
-            app_page.to_string()
+        let pathname_prefix = match &self.base_path {
+            Some(base_path) if !base_path.is_empty() => {
+                format!("{base_path}{app_page}")
+            }
+            _ => app_page.to_string(),
         };
         let metadata_route = fill_static_metadata_segment(
             &pathname_prefix,
