@@ -32,6 +32,7 @@ pub async fn module_references(
         *transforms,
         false,
         false,
+        None,
     )
     .await?;
     match &*parsed {

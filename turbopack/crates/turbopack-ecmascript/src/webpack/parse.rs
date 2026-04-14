@@ -196,6 +196,7 @@ pub async fn webpack_runtime(
         transforms,
         false,
         false,
+        None,
     )
     .await?;
     match &*parsed {
