@@ -1,0 +1,94 @@
+name: Sync Canary After Backport Release
+
+on:
+  workflow_run:
+    workflows:
+      - build-and-deploy
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      workflowRunId:
+        description: Completed build-and-deploy workflow run ID to evaluate
+        required: true
+        type: string
+      headSha:
+        description: Release commit SHA from that workflow run
+        required: true
+        type: string
+      dispatch:
+        description: Dispatch trigger_release after evaluation
+        default: false
+        required: false
+        type: boolean
+
+concurrency:
+  group: sync-backport-canary-release
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    if: ${{ github.repository_owner == 'vercel' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      should_dispatch: ${{ steps.evaluate.outputs.should_dispatch }}
+      reason: ${{ steps.evaluate.outputs.reason }}
+      current_canary_version: ${{ steps.evaluate.outputs.current_canary_version }}
+      released_version: ${{ steps.evaluate.outputs.released_version }}
+      latest_version: ${{ steps.evaluate.outputs.latest_version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: canary
+          fetch-depth: 1
+
+      - name: Evaluate backport release
+        id: evaluate
+        env:
+          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          WORKFLOW_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.workflowRunId || github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.headSha || github.event.workflow_run.head_sha }}
+        run: node ./scripts/check-backport-canary-release.js --workflow-run-id "$WORKFLOW_RUN_ID" --head-sha "$HEAD_SHA"
+
+      - name: Print evaluation
+        run: |
+          echo "should_dispatch=${{ steps.evaluate.outputs.should_dispatch }}"
+          echo "reason=${{ steps.evaluate.outputs.reason }}"
+          echo "released_version=${{ steps.evaluate.outputs.released_version }}"
+          echo "latest_version=${{ steps.evaluate.outputs.latest_version }}"
+          echo "current_canary_version=${{ steps.evaluate.outputs.current_canary_version }}"
+          echo "dispatch_input=${{ github.event_name == 'workflow_dispatch' && inputs.dispatch || false }}"
+          echo "auto_dispatch_enabled=${{ vars.ENABLE_BACKPORT_CANARY_SYNC || 'false' }}"
+
+  dispatch:
+    needs: evaluate
+    if: ${{ needs.evaluate.outputs.should_dispatch == 'true' && ((github.event_name == 'workflow_dispatch' && inputs.dispatch) || (github.event_name == 'workflow_run' && vars.ENABLE_BACKPORT_CANARY_SYNC == 'true')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          script: |
+            await github.request(
+              "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                workflow_id: "trigger_release.yml",
+                ref: "canary",
+                inputs: {
+                  releaseType: "canary",
+                  semverType: "minor",
+                  force: "true",
+                },
+              }
+            )
+
+            console.info(
+              `Triggered canary release after backport ${process.env.RELEASED_VERSION}; current canary was ${process.env.CURRENT_CANARY_VERSION}`
+            )
+        env:
+          RELEASED_VERSION: ${{ needs.evaluate.outputs.released_version }}
+          CURRENT_CANARY_VERSION: ${{ needs.evaluate.outputs.current_canary_version }}
