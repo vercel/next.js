@@ -444,16 +444,14 @@ function serializeError(
   }
 }
 
-function getSafariCacheBusterQueryString(
-  req: IncomingMessage
-): string | undefined {
+function getSafariCacheBusterQueryString(req: IncomingMessage): string {
   if (process.env.__NEXT_DEV_SERVER) {
     const userAgent = (req.headers['user-agent'] || '').toLowerCase()
     if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
       return `?ts=${Date.now()}`
     }
   }
-  return undefined
+  return ''
 }
 
 export async function renderToHTMLImpl(
