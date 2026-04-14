@@ -1,10 +1,8 @@
 use anyhow::Result;
-#[allow(unused_imports)]
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::ModuleRule;
-#[allow(unused_imports)]
 use turbopack_core::{context::AssetContext, resolve::origin::ResolveOrigin};
 
 use crate::next_config::NextConfig;
@@ -15,30 +13,19 @@ pub async fn get_swc_ecma_transform_plugin_rule(
 ) -> Result<Option<ModuleRule>> {
     let plugin_configs = next_config.experimental_swc_plugins().await?;
     if !plugin_configs.is_empty() {
-        #[cfg(feature = "plugin")]
-        {
-            let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-            get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
-        }
-
-        #[cfg(not(feature = "plugin"))]
-        {
-            let _ = project_path; // To satisfy lint
-            Ok(None)
-        }
+        let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+        get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
     } else {
         Ok(None)
     }
 }
 
 /// A resolve origin without any asset_context, intended for handle_resolve_error
-#[cfg(feature = "plugin")]
 #[turbo_tasks::value]
 pub struct DummyResolveOrigin {
     origin_path: FileSystemPath,
 }
 
-#[cfg(feature = "plugin")]
 #[turbo_tasks::value_impl]
 impl DummyResolveOrigin {
     #[turbo_tasks::function]
@@ -47,7 +34,6 @@ impl DummyResolveOrigin {
     }
 }
 
-#[cfg(feature = "plugin")]
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for DummyResolveOrigin {
     #[turbo_tasks::function]
@@ -61,7 +47,6 @@ impl ResolveOrigin for DummyResolveOrigin {
     }
 }
 
-#[cfg(feature = "plugin")]
 pub async fn get_swc_ecma_transform_rule_impl(
     project_path: FileSystemPath,
     plugin_configs: &[(RcStr, serde_json::Value)],
