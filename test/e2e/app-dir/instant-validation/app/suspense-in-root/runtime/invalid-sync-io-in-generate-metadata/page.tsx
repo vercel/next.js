@@ -5,6 +5,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
+export const unstable_prefetch = 'runtime'
 
 export async function generateMetadata() {
   await cookies()

@@ -16,14 +16,10 @@ export async function anySegmentHasRuntimePrefetchEnabled(
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
   // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
-  const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+  const prefetchConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
     : undefined
-  const hasRuntimePrefetch =
-    instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
-  if (hasRuntimePrefetch) {
+  if (prefetchConfig === 'runtime') {
     return true
   }
 

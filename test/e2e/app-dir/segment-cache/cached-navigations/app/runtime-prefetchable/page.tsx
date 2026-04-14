@@ -14,6 +14,7 @@ export const unstable_instant = {
     },
   ],
 }
+export const unstable_prefetch = 'runtime'
 
 export default async function Page({
   searchParams,

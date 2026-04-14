@@ -18,6 +18,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ searchParams: { foo: '1' } }],
 }
+export const unstable_prefetch = 'runtime'
 
 type SearchParams = { foo?: string }
 

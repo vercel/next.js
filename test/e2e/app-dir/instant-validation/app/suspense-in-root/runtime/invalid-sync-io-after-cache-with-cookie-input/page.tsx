@@ -4,6 +4,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
+export const unstable_prefetch = 'runtime'
 
 // This page HAS runtime prefetch enabled. cookies() is passed as a promise
 // input to a public "use cache" function. The cache doesn't read the cookies

@@ -7,6 +7,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ cookies: [] }],
 }
+export const unstable_prefetch = 'runtime'
 
 // Note that we're inside a root layout with suspense, so we skip the static shell
 export async function generateViewport(): Promise<Viewport> {

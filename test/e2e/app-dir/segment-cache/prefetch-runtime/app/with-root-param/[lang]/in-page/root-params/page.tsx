@@ -8,6 +8,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ params: { lang: 'en' } }],
 }
+export const unstable_prefetch = 'runtime'
 
 export default async function Page() {
   return (

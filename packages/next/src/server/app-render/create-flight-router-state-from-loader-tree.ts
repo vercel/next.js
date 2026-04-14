@@ -28,10 +28,13 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     {},
   ]
 
-  // Load the layout or page module to check for unstable_instant config
+  // Load the layout or page module to check for unstable_instant/unstable_prefetch config
   const mod = layout ? await layout[0]() : page ? await page[0]() : undefined
   const instantConfig = mod
     ? (mod as AppSegmentConfig).unstable_instant
+    : undefined
+  const prefetchConfig = mod
+    ? (mod as AppSegmentConfig).unstable_prefetch
     : undefined
   let prefetchHints = 0
 
@@ -89,9 +92,10 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     prefetchHints |= PrefetchHint.PrefetchDisabled
   } else if (instantConfig && typeof instantConfig === 'object') {
     prefetchHints |= PrefetchHint.SubtreeHasInstant
-    if (instantConfig.prefetch === 'runtime') {
-      prefetchHints |= PrefetchHint.HasRuntimePrefetch
-    }
+  }
+
+  if (prefetchConfig === 'runtime') {
+    prefetchHints |= PrefetchHint.HasRuntimePrefetch
   }
 
   // Check if this segment has a loading boundary

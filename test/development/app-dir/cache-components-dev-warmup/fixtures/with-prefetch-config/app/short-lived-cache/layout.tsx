@@ -3,6 +3,7 @@ import { UncachedFetch, CachedData } from '../data-fetching'
 import { ShortLivedCache } from './data-fetching'
 
 export const unstable_instant = { prefetch: 'runtime', samples: [{}] }
+export const unstable_prefetch = 'runtime'
 
 const CACHE_KEY = __dirname + '/__LAYOUT__'
 
