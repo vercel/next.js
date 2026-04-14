@@ -8,9 +8,9 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
+use turbo_frozenmap::FrozenSet;
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
@@ -295,11 +295,11 @@ where
         self.node.node.drop_collectibles::<Vt>();
     }
 
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
+    fn take_collectibles<Vt: VcValueTrait>(self) -> FrozenSet<ResolvedVc<Vt>> {
         self.node.node.take_collectibles()
     }
 
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<ResolvedVc<Vt>> {
+    fn peek_collectibles<Vt: VcValueTrait>(self) -> FrozenSet<ResolvedVc<Vt>> {
         self.node.node.peek_collectibles()
     }
 }

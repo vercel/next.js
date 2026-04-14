@@ -18,7 +18,6 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-auto-hash-map = { workspace = true }
 bincode = { workspace = true }
 flate2 = { workspace = true }
 futures = { workspace = true }
@@ -38,6 +37,7 @@ tokio-stream = "0.1.9"
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
+turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-bytes = { workspace = true }

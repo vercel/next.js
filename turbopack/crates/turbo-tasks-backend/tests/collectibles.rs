@@ -5,9 +5,9 @@
 use std::time::Duration;
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use rustc_hash::FxHashSet;
 use tokio::time::sleep;
+use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, ResolvedVc, ValueToString, Vc, emit,
@@ -163,7 +163,7 @@ async fn taking_collectibles_with_resolve() {
 }
 
 #[turbo_tasks::value(transparent)]
-struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
+struct Collectibles(FrozenSet<ResolvedVc<Box<dyn ValueToString>>>);
 
 #[turbo_tasks::function(operation)]
 async fn my_collecting_function() -> Result<Vc<Thing>> {

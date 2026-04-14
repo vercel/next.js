@@ -1,7 +1,6 @@
 use std::{io::Read, iter};
 
 use anyhow::{Result, anyhow};
-use auto_hash_map::AutoSet;
 use flate2::{Compression, bufread::GzEncoder};
 use futures::{StreamExt, TryStreamExt, stream};
 use hyper::{
@@ -10,6 +9,7 @@ use hyper::{
     http::HeaderValue,
 };
 use mime::Mime;
+use turbo_frozenmap::FrozenSet;
 use turbo_tasks::{
     CollectiblesSource, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
     take_effects, util::SharedError,
@@ -75,7 +75,7 @@ async fn get_from_source_operation(
 struct GetFromSourceResultWithCollectibles {
     result: ReadRef<GetFromSourceResult>,
     effects: Effects,
-    content_source_side_effects: AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
+    content_source_side_effects: FrozenSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
 }
 
 #[turbo_tasks::function(operation)]
@@ -100,7 +100,7 @@ pub async fn process_request_with_content_source(
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 ) -> Result<(
     Response<hyper::Body>,
-    AutoSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
+    FrozenSet<ResolvedVc<Box<dyn ContentSourceSideEffect>>>,
 )> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;

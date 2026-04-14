@@ -10,10 +10,10 @@ use std::{
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
-use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_esregex::EsRegex;
+use turbo_frozenmap::FrozenSet;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CollectiblesSource, NonLocalValue, OperationVc, RawVc, ReadRef, ResolvedVc, TaskInput,
@@ -195,7 +195,7 @@ pub trait ImportTracer {
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct DelegatingImportTracer {
-    delegates: AutoSet<ResolvedVc<Box<dyn ImportTracer>>>,
+    delegates: FrozenSet<ResolvedVc<Box<dyn ImportTracer>>>,
 }
 
 impl DelegatingImportTracer {
@@ -404,7 +404,7 @@ impl IssueFilter {
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
-    issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
+    issues: FrozenSet<ResolvedVc<Box<dyn Issue>>>,
     tracer: ResolvedVc<DelegatingImportTracer>,
 }
 
