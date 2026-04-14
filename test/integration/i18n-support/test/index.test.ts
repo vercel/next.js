@@ -97,6 +97,21 @@ describe('i18n Support', () => {
           expect(manifest[`/${locale}/500`]).toBe(`pages/${locale}/500.html`)
         }
       })
+
+      it('should not have non-locale-prefixed HTML files for auto-static pages', async () => {
+        const pagesDir = join(appDir, '.next/server/pages')
+        // auto-export is a non-SSG auto-static page; only locale-prefixed
+        // variants should exist in server/pages/ (e.g. en-US/auto-export.html).
+        // A bare auto-export.html would be an orphan that can interfere with routing.
+        expect(await fs.pathExists(join(pagesDir, 'auto-export.html'))).toBe(
+          false
+        )
+        for (const locale of locales) {
+          expect(
+            await fs.pathExists(join(pagesDir, locale, 'auto-export.html'))
+          ).toBe(true)
+        }
+      })
     }
   )
 
