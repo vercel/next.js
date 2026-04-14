@@ -1002,8 +1002,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // entries from active to obsolete inside each MetaFile.
             // entries_to_remove was collected in reverse order, so iterate it
             // in reverse to match the forward order of inner.meta_files.
-            for (meta_file, to_remove) in
-                inner.meta_files.iter_mut().zip(entries_to_remove.into_iter().rev())
+            for (meta_file, to_remove) in inner
+                .meta_files
+                .iter_mut()
+                .zip(entries_to_remove.into_iter().rev())
             {
                 if !to_remove.is_empty() {
                     meta_file.retain_entries(|seq| !to_remove.contains(&seq));
