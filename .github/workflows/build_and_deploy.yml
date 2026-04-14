@@ -334,20 +334,20 @@ jobs:
 
       - name: Upload turbopack bytesize artifact
         if: ${{ steps.check-did-build.outputs.DID_BUILD == 'true' }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbopack-bytesize-${{ matrix.target }}
           path: turbopack-bin-size/*
 
       - name: Upload swc artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: next-swc-binaries-${{ matrix.target }}
           path: packages/next-swc/native/next-swc.*.node
 
       - name: Upload turbo summary artifact
         if: ${{ !matrix.docker }}
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-run-summary-${{ matrix.target }}
           path: .turbo/runs
@@ -394,13 +394,13 @@ jobs:
         run: '[[ -d "crates/wasm/pkg" ]] && mv crates/wasm/pkg crates/wasm/pkg-${{ matrix.target }} || ls crates/wasm'
 
       - name: Upload turbo summary artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-run-summary-wasm-${{matrix.target}}
           path: .turbo/runs
 
       - name: Upload swc artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wasm-binaries-${{matrix.target}}
           path: crates/wasm/pkg-*
@@ -441,13 +441,13 @@ jobs:
             ${{ github.sha }}-${{ github.run_number }}
             ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
@@ -459,7 +459,7 @@ jobs:
         run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs"
 
       - name: Upload tarballs
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           # Update all mentions of this name in vercel-packages when changing.
           name: preview-tarballs
@@ -506,13 +506,13 @@ jobs:
             ${{ github.sha }}-${{ github.run_number }}
             ${{ github.sha }}-${{ github.run_number }}-${{ github.run_attempt}}
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: next-swc-binaries-*
           merge-multiple: true
           path: packages/next-swc/native
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: wasm-binaries-*
           merge-multiple: true
@@ -585,7 +585,7 @@ jobs:
             .github
 
       - name: Collect bytesize metrics
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: turbopack-bytesize-*
           merge-multiple: true
