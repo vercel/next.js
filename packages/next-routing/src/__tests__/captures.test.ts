@@ -454,6 +454,52 @@ describe('Has Condition Captures in Destination', () => {
     expect(result.resolvedPathname).toBe('/localized/en-US/page')
   })
 
+  it('should use named has regex captures in rewrite destinations', async () => {
+    const headers = new Headers({
+      'next-url': '/en',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/en/show'),
+      headers,
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/(?:[^/]+?)/show$',
+            destination: '/$nxtPlocale/(.)show',
+            has: [
+              {
+                type: 'header',
+                key: 'next-url',
+                value: '/(?<nxtPlocale>[^/]+?)(?:/.*)?',
+              },
+            ],
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^[/]?/(?<nxtPlocale>[^/]+)/\\(\\.\\)show(?:/)?$',
+            destination: '/[locale]/(.)show?nxtPlocale=$nxtPlocale',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/[locale]/(.)show'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/[locale]/(.)show')
+    expect(result.routeMatches).toEqual({
+      '1': 'en',
+      nxtPlocale: 'en',
+    })
+    expect(result.invocationTarget?.pathname).toBe('/en/(.)show')
+  })
+
   it('should use has captures in query string', async () => {
     const headers = new Headers({
       'x-user-id': '999',

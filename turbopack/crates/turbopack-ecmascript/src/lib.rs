@@ -3,7 +3,6 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
-#![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
@@ -32,7 +31,7 @@ pub(crate) mod static_code;
 mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
-pub(crate) mod transform;
+pub mod transform;
 pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
@@ -364,35 +363,6 @@ impl EcmascriptModuleAssetBuilder {
     }
 }
 
-/// A transient cache that stores a value across task re-executions within a session but is lost
-/// when restored from persistent cache.
-struct TransientCache<T>(parking_lot::Mutex<Option<T>>);
-
-impl<T> Default for TransientCache<T> {
-    fn default() -> Self {
-        Self(parking_lot::Mutex::new(None))
-    }
-}
-
-// All caches are alwaqys eq, this doesn't really make sense on its own but fits the purpose of
-// embedding in EcmascriptModuleAsset
-impl<T> PartialEq for TransientCache<T> {
-    fn eq(&self, _other: &Self) -> bool {
-        true
-    }
-}
-impl<T> Eq for TransientCache<T> {}
-
-impl<T> TransientCache<T> {
-    fn get(&self) -> parking_lot::MutexGuard<'_, Option<T>> {
-        self.0.lock()
-    }
-
-    fn set(&self, value: T) {
-        *self.0.lock() = Some(value);
-    }
-}
-
 #[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
@@ -403,13 +373,8 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
-    /// A transient cache of successful parse results
-    /// Used when EcmascriptOptions::keep_last_successful_parse is enabled (only in dev)
-    /// This ensures that parse errors don't invalidate large portions of the task graph, so we
-    /// still report the issue but serve the previous AST
-    #[turbo_tasks(debug_ignore, trace_ignore)]
-    #[bincode(skip, default = "Default::default")]
-    last_successful_parse: TransientCache<ReadRef<ParseResult>>,
+    #[turbo_tasks(debug_ignore)]
+    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
 impl core::fmt::Debug for EcmascriptModuleAsset {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -541,11 +506,12 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                self.last_successful_parse.set(real_result_value.clone());
+                self.last_successful_parse
+                    .set_unconditionally(real_result_value.clone());
                 real_result_value
             } else {
-                let guard = self.last_successful_parse.get();
-                guard.as_ref().unwrap_or(&real_result_value).clone()
+                let state_ref = self.last_successful_parse.get();
+                state_ref.as_ref().unwrap_or(&real_result_value).clone()
             };
             Ok(ReadRef::cell(result_value))
         } else {
@@ -1034,9 +1000,9 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok(
                 part_code_gens
                     .into_iter()
-                    .chain(esm_code_gens.into_iter())
+                    .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
-                    .chain(code_gens.into_iter())
+                    .chain(code_gens)
                     .collect(),
             )
         }
@@ -2600,6 +2566,17 @@ impl SourceMapper for CodeGenResultSourceMap {
                     .1,
                 })
             }
+        }
+    }
+    fn map_raw_pos(&self, pos: BytePos) -> BytePos {
+        match self {
+            CodeGenResultSourceMap::None => BytePos::DUMMY,
+            CodeGenResultSourceMap::Single { .. } => pos,
+            CodeGenResultSourceMap::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                ..
+            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
         }
     }
 }

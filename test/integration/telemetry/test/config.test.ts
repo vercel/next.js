@@ -74,7 +74,7 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"imageFutureEnabled": true/)
           expect(event1).toMatch(/"imageDomainsCount": 2/)
           expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
-          expect(event1).toMatch(/"imageLocalPatternsCount": 2/)
+          expect(event1).toMatch(/"imageLocalPatternsCount": 3/)
           expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
           expect(event1).toMatch(/"imageQualities": "25,50,75"/)
           expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
@@ -126,7 +126,7 @@ describe('config telemetry', () => {
           expect(event2).toMatch(/"localeDetectionEnabled": true/)
           expect(event2).toMatch(/"imageDomainsCount": 2/)
           expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
-          expect(event2).toMatch(/"imageLocalPatternsCount": 2/)
+          expect(event2).toMatch(/"imageLocalPatternsCount": 3/)
           expect(event2).toMatch(/"imageQualities": "25,50,75"/)
           expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
           expect(event2).toMatch(/"nextConfigOutput": null/)
@@ -340,6 +340,34 @@ describe('config telemetry', () => {
           featureName: 'experimental/nextScriptWorkers',
           invocationCount: 1,
         })
+      })
+
+      it('emits telemetry for usage of `adapterPath`', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.adapter-path'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
+
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.adapter-path')
+        )
+
+        try {
+          const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+            .exec(stderr)
+            .pop()
+
+          expect(event1).toMatch(/"adapterPath": true/)
+        } catch (err) {
+          require('console').error('failing stderr', stderr, err)
+          throw err
+        }
       })
 
       it('emits telemetry for usage of middleware', async () => {

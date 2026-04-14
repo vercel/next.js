@@ -6,7 +6,8 @@ publish = false
 
 [features]
 plugin = [
-  "swc_core/plugin_transform_host_native",
+  "swc_core/__plugin_transform_host",
+  "swc_core/__plugin_transform_host_schema_v1",
   "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
 ]
 
@@ -74,6 +75,7 @@ preset_env_base = { workspace = true }
 
 [dev-dependencies]
 testing = { workspace = true }
-# effectively enable the "plugin" feature for tests, plus swc_core/plugin_backend_wasmer
-swc_core = { workspace = true, features = ["testing_transform", "plugin_transform_host_native", "plugin_backend_wasmer"] }
+# effectively enable the "plugin" feature for tests
+swc_core = { workspace = true, features = ["testing_transform", "__plugin_transform_host", "__plugin_transform_host_schema_v1"] }
+swc_plugin_backend_wasmtime = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = ["swc_ecma_transform_plugin"] }

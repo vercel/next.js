@@ -58,7 +58,7 @@ describe('bundle-size', () => {
             page.on('response', (res) => {
               const url = new URL(res.url())
               if (
-                url.pathname.includes('static/chunks') &&
+                url.pathname.includes('/chunks/') &&
                 url.pathname.endsWith('.js')
               ) {
                 jsResources.push(res.text())
@@ -101,7 +101,7 @@ describe('bundle-size', () => {
             page.on('response', (res) => {
               const url = new URL(res.url())
               if (
-                url.pathname.includes('static/chunks') &&
+                url.pathname.includes('/chunks/') &&
                 url.pathname.endsWith('.js')
               ) {
                 jsResources.push(res.text())

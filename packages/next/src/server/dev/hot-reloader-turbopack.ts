@@ -1049,6 +1049,7 @@ export async function createHotReloaderTurbopack(
             getActiveConnectionCount: () =>
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
+            getTurbopackProject: () => project,
           }),
         ]
       : []),
@@ -1854,6 +1855,11 @@ export async function createHotReloaderTurbopack(
         if (typeof __next__clear_chunk_cache__ === 'function') {
           __next__clear_chunk_cache__()
         }
+
+        // Reset the server HMR handler registry. All server runtime chunks are
+        // cleared from require.cache above; when they're next required they'll
+        // re-register into this Map and reinstall the routing dispatcher.
+        ;(globalThis as any).__turbopack_server_hmr_handlers__ = new Map()
 
         // Clear all edge contexts
         await clearAllModuleContexts()

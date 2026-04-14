@@ -1,9 +1,7 @@
 #![feature(min_specialization)]
-#![feature(type_alias_impl_trait)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![feature(impl_trait_in_assoc_type)]
-#![feature(iter_intersperse)]
 #![feature(map_try_insert)]
 #![feature(hash_set_entry)]
 

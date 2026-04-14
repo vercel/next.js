@@ -19,6 +19,10 @@
     "test-storybook": {
       "dependsOn": ["^test-storybook"]
     },
+    "pack-for-isolated-tests": {
+      "dependsOn": ["build"],
+      "outputs": ["packed.tgz"]
+    },
     "typescript": {},
     "//#typescript": {},
     "//#get-test-timings": {

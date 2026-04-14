@@ -13,7 +13,7 @@ static REGISTRATION: Registration = register!();
 async fn test_random_change() {
     run_once(&REGISTRATION, || async {
         let state_op = make_state_operation();
-        let state_vc = state_op.resolve_strongly_consistent().await?;
+        let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
 
         let mut rng = StdRng::from_seed(Default::default());
