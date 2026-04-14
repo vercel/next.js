@@ -132,6 +132,7 @@ async function finish(outputs) {
 async function main() {
   const workflowRunId = getArgValue('--workflow-run-id')
   const headSha = getArgValue('--head-sha')
+  const headCommitMessage = process.env.HEAD_COMMIT_MESSAGE?.trim()
 
   if (!workflowRunId) {
     throw new Error('Missing --workflow-run-id')
@@ -157,6 +158,19 @@ async function main() {
     await fs.readFile(path.join(process.cwd(), 'lerna.json'), 'utf8')
   ).version
 
+  const releaseCommitMessage =
+    headCommitMessage || (await getCommitMessage(owner, repo, headSha, token))
+  const releasedVersion = parseReleaseVersion(releaseCommitMessage)
+
+  if (!releasedVersion) {
+    await finish({
+      should_dispatch: 'false',
+      reason: 'Head commit is not a release commit',
+      current_canary_version: currentCanaryVersion,
+    })
+    return
+  }
+
   const jobs = await getWorkflowRunJobs(owner, repo, workflowRunId, token)
   const publishJob = jobs.find((job) => job.name === PUBLISH_RELEASE_JOB_NAME)
 
@@ -168,23 +182,7 @@ async function main() {
       reason: `${PUBLISH_RELEASE_JOB_NAME} did not complete successfully`,
       current_canary_version: currentCanaryVersion,
       publish_job_conclusion: publishJob?.conclusion ?? 'missing',
-    })
-    return
-  }
-
-  const releaseCommitMessage = await getCommitMessage(
-    owner,
-    repo,
-    headSha,
-    token
-  )
-  const releasedVersion = parseReleaseVersion(releaseCommitMessage)
-
-  if (!releasedVersion) {
-    await finish({
-      should_dispatch: 'false',
-      reason: 'Head commit is not a release commit',
-      current_canary_version: currentCanaryVersion,
+      released_version: releasedVersion,
     })
     return
   }
@@ -255,11 +253,6 @@ async function main() {
     released_version: releasedVersion,
     latest_version: latestStableVersion,
   })
-}
-
-module.exports = {
-  compareSemver,
-  parseReleaseVersion,
 }
 
 if (require.main === module) {

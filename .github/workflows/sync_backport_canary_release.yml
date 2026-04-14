@@ -28,7 +28,7 @@ concurrency:
 
 jobs:
   evaluate:
-    if: ${{ github.repository_owner == 'vercel' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary')) }}
+    if: ${{ github.repository_owner == 'vercel' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.event == 'push' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch != 'canary')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,23 +39,49 @@ jobs:
       released_version: ${{ steps.evaluate.outputs.released_version }}
       latest_version: ${{ steps.evaluate.outputs.latest_version }}
     steps:
+      - name: Check whether head commit is a stable release
+        id: precheck
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === 'workflow_dispatch') {
+              core.setOutput('should_evaluate', 'true')
+              return
+            }
+
+            const headCommitMessage =
+              context.payload.workflow_run.head_commit?.message?.trim() || ''
+            const stableReleaseCommitRegex = /^v\d+\.\d+\.\d+$/
+
+            if (stableReleaseCommitRegex.test(headCommitMessage)) {
+              core.setOutput('should_evaluate', 'true')
+              return
+            }
+
+            core.setOutput('should_evaluate', 'false')
+            core.setOutput('should_dispatch', 'false')
+            core.setOutput('reason', 'Head commit is not a stable release commit')
+
       - uses: actions/checkout@v6
+        if: steps.precheck.outputs.should_evaluate == 'true'
         with:
           ref: canary
           fetch-depth: 1
 
       - name: Evaluate backport release
         id: evaluate
+        if: steps.precheck.outputs.should_evaluate == 'true'
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
           WORKFLOW_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.workflowRunId || github.event.workflow_run.id }}
           HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.headSha || github.event.workflow_run.head_sha }}
+          HEAD_COMMIT_MESSAGE: ${{ github.event_name == 'workflow_dispatch' && '' || github.event.workflow_run.head_commit.message }}
         run: node ./scripts/check-backport-canary-release.js --workflow-run-id "$WORKFLOW_RUN_ID" --head-sha "$HEAD_SHA"
 
       - name: Print evaluation
         run: |
-          echo "should_dispatch=${{ steps.evaluate.outputs.should_dispatch }}"
-          echo "reason=${{ steps.evaluate.outputs.reason }}"
+          echo "should_dispatch=${{ steps.evaluate.outputs.should_dispatch || steps.precheck.outputs.should_dispatch }}"
+          echo "reason=${{ steps.evaluate.outputs.reason || steps.precheck.outputs.reason }}"
           echo "released_version=${{ steps.evaluate.outputs.released_version }}"
           echo "latest_version=${{ steps.evaluate.outputs.latest_version }}"
           echo "current_canary_version=${{ steps.evaluate.outputs.current_canary_version }}"
