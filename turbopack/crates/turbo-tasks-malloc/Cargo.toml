@@ -10,14 +10,13 @@ autobenches = false
 bench = false
 
 [dependencies]
-
+libmimalloc-sys = { version = "0.1.44", features = [
+  "extended",
+], optional = true }
 
 [target.'cfg(not(any(target_os = "linux", target_family = "wasm")))'.dependencies]
 mimalloc = { version = "0.1.48", features = [
   "v3",
-  "extended",
-], optional = true }
-libmimalloc-sys = { version = "0.1.44", features = [
   "extended",
 ], optional = true }
 
@@ -26,9 +25,6 @@ mimalloc = { version = "0.1.48", features = [
   "v3",
   "extended",
   "local_dynamic_tls",
-], optional = true }
-libmimalloc-sys = { version = "0.1.44", features = [
-  "extended",
 ], optional = true }
 
 [features]
