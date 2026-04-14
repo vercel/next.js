@@ -190,7 +190,7 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
-              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--force}"
               pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target x86_64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
@@ -200,7 +200,7 @@ jobs:
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" && corepack enable
-              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--force}"
               pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target aarch64-apple-darwin
               strip -x packages/next-swc/native/next-swc.*.node
 
@@ -210,7 +210,7 @@ jobs:
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--force}"
               pnpm dlx turbo@${TURBO_VERSION} run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
 
@@ -221,7 +221,7 @@ jobs:
             build: |
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+              TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--force}"
               pnpm dlx turbo@${TURBO_VERSION} run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize ${TURBO_CACHE_FLAG} -- --target aarch64-pc-windows-msvc
 
           - host: 'ubuntu-latest-16-core-oss'
