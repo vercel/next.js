@@ -31,6 +31,8 @@ import {
 import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
+  getPlaceholderFallbackRouteParams,
+  buildDynamicSegmentPlaceholder,
   createOpaqueFallbackRouteParams,
   type OpaqueFallbackRouteParams,
 } from '../../server/request/fallback-params' with { 'turbopack-transition': 'next-server-utility' }
@@ -44,6 +46,7 @@ import { getIsPossibleServerAction } from '../../server/lib/server-action-reques
 import {
   RSC_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_INSTANT_PREFETCH_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
   NEXT_IS_PRERENDER_HEADER,
@@ -116,10 +119,7 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
-import {
-  getParamProperties,
-  getSegmentParam,
-} from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 
 export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
@@ -140,22 +140,6 @@ export const routeModule = new AppPageRouteModule({
   distDir: process.env.__NEXT_RELATIVE_DIST_DIR || '',
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
 })
-
-function buildDynamicSegmentPlaceholder(
-  param: Pick<FallbackRouteParam, 'paramName' | 'paramType'>
-): string {
-  const { repeat, optional } = getParamProperties(param.paramType)
-
-  if (optional) {
-    return `[[...${param.paramName}]]`
-  }
-
-  if (repeat) {
-    return `[...${param.paramName}]`
-  }
-
-  return `[${param.paramName}]`
-}
 
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
@@ -262,6 +246,7 @@ export async function handler(
     clientReferenceManifest,
     subresourceIntegrityManifest,
     prerenderManifest,
+    prefetchHintsManifest,
     isDraftMode,
     resolvedPathname,
     revalidateOnlyGenerated,
@@ -508,7 +493,17 @@ export async function handler(
   // need to transfer it to the request meta because it's only read
   // within this function; the static segment data should have already been
   // generated, so we will always either return a static response or a 404.
-  const segmentPrefetchHeader = getRequestMeta(req, 'segmentPrefetchRSCRequest')
+  const rawSegmentPrefetchHeader =
+    req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
+  const segmentPrefetchHeader =
+    getRequestMeta(req, 'segmentPrefetchRSCRequest') ??
+    (isPrefetchRSCRequest
+      ? typeof rawSegmentPrefetchHeader === 'string'
+        ? rawSegmentPrefetchHeader
+        : Array.isArray(rawSegmentPrefetchHeader)
+          ? rawSegmentPrefetchHeader[0]
+          : undefined
+      : undefined)
 
   // TODO: investigate existing bug with shouldServeStreamingMetadata always
   // being true for a revalidate due to modifying the base-server this.renderOpts
@@ -563,6 +558,15 @@ export async function handler(
   const shouldWaitOnAllReady = Boolean(botType) && isRoutePPREnabled
   const remainingPrerenderableParams =
     prerenderInfo?.remainingPrerenderableParams ?? []
+  // Concrete optional routes like `/optional-catchall` can still match their
+  // generic shell entry (eg /optional-catchall/[[...slug]]) in the prerender manifest.
+  // If the omitted param already resolved to a real prerendered path, keep serving that concrete result.
+  const hasOmittedConcreteFallbackParam =
+    isPrerendered &&
+    remainingPrerenderableParams.some((param) => {
+      const value = params?.[param.paramName]
+      return value == null || (Array.isArray(value) && value.length === 0)
+    })
   const hasUnresolvedRootFallbackParams =
     prerenderInfo?.fallback === null &&
     (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
@@ -589,7 +593,7 @@ export async function handler(
     if (
       nextConfig.experimental.partialFallbacks === true &&
       fallbackPathname &&
-      prerenderInfo?.fallbackRouteParams &&
+      prerenderInfo?.fallbackRouteParams?.length &&
       !hasUnresolvedRootFallbackParams
     ) {
       if (remainingPrerenderableParams.length > 0) {
@@ -623,7 +627,7 @@ export async function handler(
     (routeModule.isDev ||
       (isSSG &&
         pageIsDynamic &&
-        prerenderInfo?.fallbackRouteParams &&
+        prerenderInfo?.fallbackRouteParams?.length &&
         // Server action requests must not get a staticPathKey, otherwise they
         // enter the fallback rendering block below and return the cached HTML
         // shell with the action result appended, instead of responding with
@@ -853,6 +857,7 @@ export async function handler(
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
+          prefetchHints: prefetchHintsManifest,
           incrementalCache,
           cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
@@ -1022,6 +1027,7 @@ export async function handler(
         if (
           nextConfig.experimental.partialFallbacks === true &&
           prerenderInfo?.fallback === null &&
+          !hasOmittedConcreteFallbackParam &&
           !hasUnresolvedRootFallbackParams &&
           remainingPrerenderableParams.length > 0
         ) {
@@ -1339,6 +1345,31 @@ export async function handler(
           }
         }
 
+        const placeholderFallbackRouteParams =
+          // When a request carries dynamic placeholder values (e.g. "[slug]"),
+          // defer only the unresolved subset instead of forcing all fallback
+          // params to suspend.
+          !routeModule.isDev &&
+          pageIsDynamic &&
+          prerenderInfo?.fallbackRouteParams
+            ? getPlaceholderFallbackRouteParams(
+                params as
+                  | Record<string, undefined | string | string[]>
+                  | undefined,
+                prerenderInfo.fallbackRouteParams
+              )
+            : null
+
+        const fallbackRouteParamsForRender =
+          placeholderFallbackRouteParams &&
+          placeholderFallbackRouteParams.length > 0
+            ? placeholderFallbackRouteParams
+            : prerenderInfo?.fallbackRouteParams
+
+        const hasPlaceholderFallbackRouteParams =
+          placeholderFallbackRouteParams != null &&
+          placeholderFallbackRouteParams.length > 0
+
         // When route-module.ts resolved partial nxtP* params during
         // background revalidation, filter fallbackRouteParams to only the
         // params that are still unresolved. This lets doRender produce an
@@ -1359,9 +1390,10 @@ export async function handler(
           // non-prerendered URL, use the prerender manifest's fallback route
           // params which correctly identifies which params are unknown.
           ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+            hasPlaceholderFallbackRouteParams ||
             (isDebugStaticShell && !isPrerendered)) &&
-          prerenderInfo?.fallbackRouteParams
-            ? createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
+          fallbackRouteParamsForRender
+            ? createOpaqueFallbackRouteParams(fallbackRouteParamsForRender)
             : // For intermediate shells where some params are resolved and
               // others still have placeholders, use the filtered subset so the
               // prerender suspends only for the unresolved params.
@@ -1386,7 +1418,7 @@ export async function handler(
           prerenderInfo?.fallbackRouteParams
         ) {
           const fallbackParams = createOpaqueFallbackRouteParams(
-            prerenderInfo.fallbackRouteParams
+            fallbackRouteParamsForRender ?? prerenderInfo.fallbackRouteParams
           )
 
           if (fallbackParams) {
@@ -1576,7 +1608,7 @@ export async function handler(
       ) {
         // This is a prefetch request issued by the client Segment Cache. These
         // should never reach the application layer (lambda). We should either
-        // respond from the cache (HIT) or respond with 204 No Content (MISS).
+        // respond from the cache (HIT) or respond with 404 (MISS).
 
         // Set a header to indicate that PPR is enabled for this route. This
         // lets the client distinguish between a regular cache miss and a cache
@@ -1612,10 +1644,8 @@ export async function handler(
         // Cache miss. Either a cache entry for this route has not been generated
         // (which technically should not be possible when PPR is enabled, because
         // at a minimum there should always be a fallback entry) or there's no
-        // match for the requested segment. Respond with a 204 No Content. We
-        // don't bother to respond with 404, because these requests are only
-        // issued as part of a prefetch.
-        res.statusCode = 204
+        // match for the requested segment. Respond with a 404.
+        res.statusCode = 404
         return sendRenderResult({
           req,
           res,

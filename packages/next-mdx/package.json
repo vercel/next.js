@@ -1,6 +1,6 @@
 {
   "name": "@next/mdx",
-  "version": "16.2.1-canary.20",
+  "version": "16.2.1-canary.38",
   "main": "index.js",
   "license": "MIT",
   "repository": {
@@ -21,5 +21,8 @@
   },
   "dependencies": {
     "source-map": "^0.7.0"
+  },
+  "scripts": {
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   }
 }

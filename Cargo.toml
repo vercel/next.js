@@ -87,7 +87,7 @@ inherits = "release"
 debug = true
 
 # Size-optimized crates: determined via `cargo bloat --release --crates -p next-napi-bindings`.
-# Wasmer/cranelift crates are used by the plugin feature (wasm builds).
+# Wasmtime/cranelift crates are used by the plugin feature (wasm builds).
 [profile.release.package.browserslist-rs]
 opt-level = "s"
 
@@ -142,16 +142,16 @@ opt-level = "s"
 [profile.release.package.swc_ecma_transforms_proposal]
 opt-level = "s"
 
-[profile.release.package.swc_plugin_backend_wasmer]
+[profile.release.package.swc_plugin_backend_wasmtime]
 opt-level = "s"
 
 [profile.release.package.swc_plugin_runner]
 opt-level = "s"
 
-[profile.release.package.wasmer]
+[profile.release.package.wasmtime]
 opt-level = "s"
 
-[profile.release.package.wasmer-compiler]
+[profile.release.package.wasmtime-internal-cranelift]
 opt-level = "s"
 
 [workspace.dependencies]
@@ -210,24 +210,25 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "57.0.0", features = [
+swc_core = { version = "63.1.1", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",
 ] }
-swc_plugin_backend_wasmer = { version = "7.0.0" }
-testing = "19.0.0"
+
+swc_plugin_backend_wasmtime = "9.0.0"
+testing = "22.0.0"
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = "0.19.0"
 mdxjs = "1.0.3"
-modularize_imports = "0.110.0"
-styled_components = "0.139.0"
-styled_jsx = "0.114.0"
-swc_emotion = "0.115.0"
-swc_relay = "0.85.0"
-react_remove_properties = "0.65.0"
-remove_console = "0.66.0"
+modularize_imports = "3.0.0"
+styled_components = "3.0.0"
+styled_jsx = "3.0.0"
+swc_emotion = "3.0.0"
+swc_relay = "3.0.0"
+react_remove_properties = "3.0.0"
+remove_console = "3.0.0"
 preset_env_base = "7.0.0"
 
 
@@ -257,6 +258,7 @@ console-subscriber = "0.4.1"
 const_format = "0.2.30"
 crc32fast = "1.4.2"
 criterion = { package = "codspeed-criterion-compat", version = "4.3.0" }
+ctor = "0.8"
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
 data-encoding = "2.3.3"
@@ -318,7 +320,7 @@ rand = "0.10.0"
 rayon = "1.10.0"
 regex = "1.10.6"
 regress = "0.10.4"
-reqwest = { version = "0.13.1", default-features = false }
+reqwest = { version = "0.13.2", default-features = false }
 ringmap = "0.2.3"
 roaring = "0.10.10"
 rstest = "0.16.0"
@@ -339,7 +341,7 @@ smallvec = { version = "1.15.1", features = [
 ] }
 shrink-to-fit = "0.2.10"
 strsim = "0.11.1"
-swc_sourcemap = "9.3.4"
+swc_sourcemap = "10.0.2"
 syn = "2.0.100"
 tempfile = "3.20.0"
 terminal_size = "0.3.0"

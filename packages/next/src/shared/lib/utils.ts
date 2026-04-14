@@ -321,7 +321,19 @@ export function execOnce<T extends (...args: any[]) => ReturnType<T>>(
 // Scheme: https://tools.ietf.org/html/rfc3986#section-3.1
 // Absolute URL: https://tools.ietf.org/html/rfc3986#section-4.3
 const ABSOLUTE_URL_REGEX = /^[a-zA-Z][a-zA-Z\d+\-.]*?:/
-export const isAbsoluteUrl = (url: string) => ABSOLUTE_URL_REGEX.test(url)
+export const isAbsoluteUrl = (url: string) => {
+  // Fast path: an absolute URL must start with a letter (the scheme).
+  // Check for a-z and A-Z without the cost of the regex.
+  const c = url.charCodeAt(0)
+  const isLetter =
+    (c >= 65 /* A */ && c <= 90) /* Z */ ||
+    (c >= 97 /* a */ && c <= 122) /* z */
+  if (!isLetter) {
+    return false
+  }
+
+  return ABSOLUTE_URL_REGEX.test(url)
+}
 
 export function getLocationOrigin() {
   const { protocol, hostname, port } = window.location

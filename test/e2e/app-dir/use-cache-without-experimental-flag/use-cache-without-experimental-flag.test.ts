@@ -34,7 +34,7 @@ describe('use-cache-without-experimental-flag', () => {
           'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
         )
         expect(buildOutput).toContain(
-          'Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage'
+          'Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage'
         )
         expect(buildOutput).toContain('Ecmascript file had an error')
         expect(buildOutput).toContain('./app/page.tsx:1:1')
@@ -46,7 +46,7 @@ describe('use-cache-without-experimental-flag', () => {
          ./app/page.tsx
            ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
                  │   |
-                 │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                 │   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
                  │
                  │    ,-[1:1]
                  │  1 | 'use cache'
@@ -70,7 +70,7 @@ describe('use-cache-without-experimental-flag', () => {
          ./app/page.tsx
          Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
            |
-           | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+           | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
 
             ,-[1:1]
           1 | 'use cache'
@@ -118,7 +118,7 @@ describe('use-cache-without-experimental-flag', () => {
           'To use "use cache", please enable the feature flag `cacheComponents` in your Next.js config.'
         )
         expect(errorSource).toContain(
-          'Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage'
+          'Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage'
         )
         expect(errorSource).toContain("> 1 | 'use cache'")
         expect(errorSource).toContain('Ecmascript file had an error')
@@ -127,7 +127,7 @@ describe('use-cache-without-experimental-flag', () => {
          "./app/page.tsx
            ╰─▶   × Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
                  │   |
-                 │   | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                 │   | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
                  │
                  │    ,-[1:1]
                  │  1 | 'use cache'
@@ -143,7 +143,7 @@ describe('use-cache-without-experimental-flag', () => {
          "./app/page.tsx
          Error:   x To use "use cache", please enable the feature flag \`cacheComponents\` in your Next.js config.
            |
-           | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+           | Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
 
             ,-[1:1]
           1 | 'use cache'
