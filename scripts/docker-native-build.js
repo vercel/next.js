@@ -4,7 +4,6 @@
 // Usage: node scripts/docker-native-build.js [flags] [filter]
 //   --quick        Use release-with-assertions profile (no LTO, faster)
 //   --host-target  Share host target/ dir with container for caching
-//   --rebuild      Force Docker image rebuild
 //   --test         Smoke-test built binaries (native arch only)
 //   filter         Substring match on target name (e.g. "musl", "x86_64")
 
@@ -54,7 +53,6 @@ const { values: flags, positionals } = parseArgs({
   options: {
     quick: { type: 'boolean', default: false },
     'host-target': { type: 'boolean', default: false },
-    rebuild: { type: 'boolean', default: false },
     test: { type: 'boolean', default: false },
     help: { type: 'boolean', short: 'h', default: false },
   },
@@ -63,14 +61,13 @@ const { values: flags, positionals } = parseArgs({
 
 if (flags.help) {
   console.log(
-    'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--rebuild] [--test] [filter]'
+    'Usage: node scripts/docker-native-build.js [--quick] [--host-target] [--test] [filter]'
   )
   process.exit(0)
 }
 
 const quick = flags.quick
 const hostTarget = flags['host-target']
-const rebuild = flags.rebuild
 const test = flags.test
 const filter = positionals[0] || ''
 
@@ -85,12 +82,19 @@ if (targets.length === 0) {
   process.exit(1)
 }
 
-// --- Build/restore Docker image ---
+// --- Build Docker image locally (CI uses .github/actions/docker-buildx instead) ---
 function ensureDockerImage() {
-  const args = rebuild ? ['--force'] : []
+  console.log(`Building Docker image: ${DOCKER_IMAGE}`)
   execFileSync(
-    'node',
-    [path.join(__dirname, 'docker-image-cache.js'), ...args],
+    'docker',
+    [
+      'build',
+      '-t',
+      DOCKER_IMAGE,
+      '-f',
+      path.join(REPO_ROOT, 'scripts/native-builder.Dockerfile'),
+      REPO_ROOT,
+    ],
     { stdio: 'inherit' }
   )
 }
