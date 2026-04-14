@@ -1236,7 +1236,12 @@ impl Project {
 
     #[turbo_tasks::function]
     pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(*self.mode.await? == NextMode::Development))
+        Ok(Vc::cell(
+            !*self
+                .next_config
+                .turbo_use_whole_app_module_graph(*self.mode)
+                .await?,
+        ))
     }
 
     #[turbo_tasks::function]
@@ -1522,13 +1527,17 @@ impl Project {
         self: ResolvedVc<Self>,
     ) -> Result<Vc<BaseAndFullModuleGraph>> {
         let module_graphs_op = whole_app_module_graph_operation(self);
-        let module_graphs_vc = if self.next_mode().await?.is_production() {
-            module_graphs_op.connect()
-        } else {
-            let vc = module_graphs_op.resolve().strongly_consistent().await?;
-            module_graphs_op.drop_issues();
-            *vc
-        };
+        // In development watch mode, keep issues so individual routes can report them.
+        // In non-watch dev mode (e.g. next build --debug-prerender) or production, drop issues
+        // so every route doesn't redundantly re-report all shared graph issues.
+        let module_graphs_vc =
+            if !self.next_mode().await?.is_production() && *self.is_watch_enabled().await? {
+                module_graphs_op.connect()
+            } else {
+                let vc = module_graphs_op.resolve().strongly_consistent().await?;
+                module_graphs_op.drop_issues();
+                *vc
+            };
         scale_down_node_pool(self).await?;
         Ok(module_graphs_vc)
     }
