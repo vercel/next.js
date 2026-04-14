@@ -1406,6 +1406,11 @@ impl Project {
                 }
             }
         }
+        // For app-only projects in dev mode, ensure pages shared endpoints
+        // (like /_error) are available as fallbacks for error handling
+        if !app_dir_only && !add_pages_entries && self.next_mode().await?.is_development() {
+            add_pages_entries = true;
+        }
         if add_pages_entries {
             endpoint_groups.push((
                 EndpointGroupKey::PagesError,
