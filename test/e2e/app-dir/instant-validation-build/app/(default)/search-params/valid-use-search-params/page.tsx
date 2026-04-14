@@ -14,6 +14,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
+export const unstable_prefetch = 'runtime'
 
 export default function Page() {
   return (
