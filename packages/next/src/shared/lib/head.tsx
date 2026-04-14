@@ -48,6 +48,20 @@ function onlyReactElement(
 
 const METATYPES = ['name', 'httpEquiv', 'charSet', 'itemProp']
 
+// Metadata elements allowed inside HTML <head> (WHATWG). Intrinsic elements outside
+// this set are usually moved to <body> by the browser, which breaks head updates.
+// Custom elements contain a hyphen and are skipped — they may be intentional.
+export const HEAD_METADATA_CONTENT_TYPES = new Set([
+  'base',
+  'link',
+  'meta',
+  'noscript',
+  'script',
+  'style',
+  'template',
+  'title',
+])
+
 /*
  returns a function for filtering head child elements
  which shouldn't be duplicated, like <title/>
@@ -128,6 +142,16 @@ function reduceComponents(
     .map((c: React.ReactElement<any>, i: number) => {
       const key = c.key || i
       if (process.env.NODE_ENV === 'development') {
+        const intrinsicTag = c.type
+        if (
+          typeof intrinsicTag === 'string' &&
+          !HEAD_METADATA_CONTENT_TYPES.has(intrinsicTag) &&
+          !intrinsicTag.includes('-')
+        ) {
+          warnOnce(
+            `Do not put <${intrinsicTag}> in next/head. Only metadata elements (e.g. <title>, <meta>, <link>) belong in <head>; other tags are often relocated to <body> by the browser, which breaks Next.js head handling and may surface confusing errors (for example about next-head-count). For document-level attributes such as lang on <html>, use a custom pages/_document. See https://nextjs.org/docs/messages/next-head-count-missing`
+          )
+        }
         // omit JSON-LD structured data snippets from the warning
         if (c.type === 'script' && c.props['type'] !== 'application/ld+json') {
           const srcMessage = c.props['src']

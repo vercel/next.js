@@ -4,10 +4,28 @@ title: '`next-head-count` is missing'
 
 ## Why This Error Occurred
 
+This message usually means Next.js could not reconcile updates to the document `<head>` during hydration or client navigation.
+
+### Missing components in `pages/_document`
+
 You have a custom `pages/_document.js` that doesn't have the components required for Next.js to render correctly.
+
+### Invalid elements in `next/head`
+
+Another common cause is **invalid HTML inside [`next/head`](/docs/pages/api-reference/components/head)**.
+
+Only [metadata elements](https://html.spec.whatwg.org/multipage/semantics.html#the-head-element) such as `<title>`, `<meta>`, `<link>`, `<script>`, and `<noscript>` belong in `<head>`. Tags like `<html>`, `<body>`, or `<div>` are not valid there: browsers often move them into `<body>`, which prevents Next.js from managing head updates correctly and can produce this error.
+
+Use a [custom Document](/docs/pages/building-your-application/routing/custom-document) (`pages/_document`) for document-level tags (for example `<Html lang="en">`).
 
 ## Possible Ways to Fix It
 
+### `pages/_document` setup
+
 Ensure that your `_document.js` is importing and rendering all of the [required components](/docs/pages/building-your-application/routing/custom-document).
 
-In this case you are most likely not rendering the `<Head>` component imported from `next/document`.
+In many cases the issue is not rendering the `<Head>` component imported from `next/document`.
+
+### `next/head` content
+
+Remove non-metadata tags from `next/head` and use a custom Document when you need to change `<Html>`, `<Head>`, or `<Main>` from `next/document`.
