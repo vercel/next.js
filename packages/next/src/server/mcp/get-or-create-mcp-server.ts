@@ -49,7 +49,7 @@ export const getOrCreateMcpServer = (options: McpServerOptions) => {
     options.sendHmrMessage,
     options.getActiveConnectionCount
   )
-  registerGetLogsTool(mcpServer, options.distDir)
+  registerGetLogsTool(mcpServer)
   registerGetActionByIdTool(mcpServer, options.distDir)
   registerGetRoutesTool(mcpServer, {
     projectPath: options.projectPath,

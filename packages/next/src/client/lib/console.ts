@@ -29,7 +29,7 @@ function formatObject(arg: unknown, depth: number) {
         if (depth < 1) {
           for (let i = 0; i < keys.length; i++) {
             const key = keys[i]
-            const desc = Object.getOwnPropertyDescriptor(arg, 'key')
+            const desc = Object.getOwnPropertyDescriptor(arg, key)
             if (desc && !desc.get && !desc.set) {
               const jsonKey = JSON.stringify(key)
               if (jsonKey !== '"' + key + '"') {
@@ -69,9 +69,21 @@ export function formatConsoleArgs(args: unknown[]): string {
     message = ''
     idx = 0
   }
+  // Detect React's replayed-log format: %c%s%c prefix
+  // The %s is an environment label (e.g. " Prerender ") that should be stripped
+  // React's Flight Server formats as: "%c%s%c " + originalFormat
+  let startPos = 0
+  if (message.startsWith('%c%s%c') && args.length > 3) {
+    startPos = 6 // Skip past %c%s%c
+    // React adds a space separator after the environment label reset
+    if (message[startPos] === ' ') {
+      startPos++
+    }
+    idx += 3 // Skip CSS, environment label, CSS reset args
+  }
+
   let result = ''
-  let startQuote = false
-  for (let i = 0; i < message.length; ++i) {
+  for (let i = startPos; i < message.length; ++i) {
     const char = message[i]
     if (char !== '%' || i === message.length - 1 || idx >= args.length) {
       result += char
@@ -81,10 +93,7 @@ export function formatConsoleArgs(args: unknown[]): string {
     const code = message[++i]
     switch (code) {
       case 'c': {
-        // TODO: We should colorize with HTML instead of turning into a string.
-        // Ignore for now.
-        result = startQuote ? `${result}]` : `[${result}`
-        startQuote = !startQuote
+        // Skip the CSS style argument - just ignore %c formatting
         idx++
         break
       }

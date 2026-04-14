@@ -1,51 +1,88 @@
 /**
- * MCP tool for getting the path to the Next.js development log file.
- *
- * This tool returns the path to the {nextConfig.distDir}/logs/next-development.log file
- * that contains browser console logs and other development information.
+ * MCP tool for querying structured Next.js development logs.
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
-import { stat } from 'fs/promises'
-import { join } from 'path'
+import { z } from 'next/dist/compiled/zod'
 import { mcpTelemetryTracker } from '../mcp-telemetry-tracker'
+import { getLogStream } from '../../dev/log-stream'
 
-export function registerGetLogsTool(server: McpServer, distDir: string) {
+export function registerGetLogsTool(server: McpServer) {
   server.registerTool(
     'get_logs',
     {
       description:
-        'Get the path to the Next.js development log file. Returns the file path so the agent can read the logs directly.',
+        'Query structured Next.js development logs. Supports filtering by level, source, scope, and time range.',
+      inputSchema: {
+        limit: z
+          .number()
+          .optional()
+          .describe('Maximum number of logs to return (default 100)'),
+        since: z
+          .number()
+          .optional()
+          .describe('Unix timestamp (ms) to filter logs from'),
+        level: z
+          .enum(['debug', 'info', 'warn', 'error'])
+          .optional()
+          .describe('Filter by log level'),
+        source: z
+          .enum(['system', 'userland', 'browser'])
+          .optional()
+          .describe('Filter by log source'),
+        scope: z
+          .string()
+          .optional()
+          .describe('Filter by scope (e.g., "request", "console", "compile")'),
+      },
     },
-    async () => {
-      // Track telemetry
+    async (args: {
+      limit?: number
+      since?: number
+      level?: string
+      source?: string
+      scope?: string
+    }) => {
       mcpTelemetryTracker.recordToolCall('mcp/get_logs')
 
       try {
-        const logFilePath = join(distDir, 'logs', 'next-development.log')
+        const logStream = getLogStream()
+        const limit = args.limit || 100
 
-        // Check if the log file exists
-        try {
-          await stat(logFilePath)
-        } catch (error) {
-          return {
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({
-                  error: `Log file not found at ${logFilePath}.`,
-                }),
-              },
-            ],
-          }
+        // Fetch all available logs, then filter, then take the last N.
+        // This ensures we return up to `limit` matching logs rather than
+        // filtering a pre-sliced window.
+        let logs = args.since ? logStream.since(args.since) : logStream.all()
+
+        if (args.level || args.source || args.scope) {
+          logs = logs.filter(
+            (log) =>
+              (!args.level || log.level === args.level) &&
+              (!args.source || log.source === args.source) &&
+              (!args.scope || log.scope === args.scope)
+          )
         }
+
+        logs = logs.slice(-limit)
+
+        const formattedLogs = logs.map((log) => {
+          const timestamp = new Date(log.ts).toISOString()
+          const parts = [
+            `[${timestamp}]`,
+            `[${log.level.toUpperCase()}]`,
+            log.scope ? `[${log.scope}]` : '',
+            log.message,
+          ]
+          return parts.filter(Boolean).join(' ')
+        })
+
+        const stats = logStream.stats()
+        const summary = `Showing ${formattedLogs.length} logs (buffer: ${stats.count}/${stats.capacity})\n\n`
 
         return {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
-                logFilePath,
-              }),
+              text: summary + formattedLogs.join('\n'),
             },
           ],
         }
@@ -54,9 +91,7 @@ export function registerGetLogsTool(server: McpServer, distDir: string) {
           content: [
             {
               type: 'text',
-              text: JSON.stringify({
-                error: `Error getting log file path: ${error instanceof Error ? error.message : String(error)}`,
-              }),
+              text: `Error querying logs: ${error instanceof Error ? error.message : String(error)}`,
             },
           ],
         }
