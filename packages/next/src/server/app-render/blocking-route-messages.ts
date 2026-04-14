@@ -1,4 +1,22 @@
-export function bodyMessage(route: string): string {
+export function runtimeBodyMessage(route: string): string {
+  return (
+    `Route "${route}" can't load instantly.\n\n` +
+    `Cause: A request-time API was used without a surrounding ` +
+    `<Suspense> boundary. This prevents Next.js from prerendering ` +
+    `any part of the page.\n\n` +
+    `Common triggers:\n` +
+    `  - cookies(), headers()\n` +
+    `  - await params, await searchParams\n\n` +
+    `The right fix depends on which API triggered this and what ` +
+    `behavior you want. Possible fixes:\n` +
+    `  - <Suspense>: wrap the dynamic component so the rest loads instantly\n` +
+    `  - Move the API call into a child component wrapped in <Suspense>\n` +
+    `  - loading.js: add a route-level fallback\n\n` +
+    `Learn more: https://nextjs.org/docs/messages/blocking-route`
+  )
+}
+
+export function dynamicBodyMessage(route: string): string {
   return (
     `Route "${route}" can't load instantly.\n\n` +
     `Cause: Uncached data or a request-time API was used without a ` +
@@ -7,8 +25,7 @@ export function bodyMessage(route: string): string {
     `Common triggers:\n` +
     `  - cookies(), headers(), connection()\n` +
     `  - await params, await searchParams\n` +
-    `  - fetch() or database calls without "use cache"\n` +
-    `  - draftMode()\n\n` +
+    `  - fetch() or database calls without "use cache"\n\n` +
     `The right fix depends on which API triggered this and what ` +
     `behavior you want. Possible fixes:\n` +
     `  - <Suspense>: wrap the dynamic component so the rest loads instantly\n` +
@@ -18,7 +35,19 @@ export function bodyMessage(route: string): string {
   )
 }
 
-export function metadataMessage(route: string): string {
+export function runtimeMetadataMessage(route: string): string {
+  return (
+    `Route "${route}" has metadata that blocks loading.\n\n` +
+    `Cause: A request-time API was used inside generateMetadata() ` +
+    `(or you have file-based metadata like icons that depend on ` +
+    `dynamic params). The rest of the page could have been fully ` +
+    `prerendered.\n\n` +
+    `Learn more: ` +
+    `https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+  )
+}
+
+export function dynamicMetadataMessage(route: string): string {
   return (
     `Route "${route}" has metadata that blocks loading.\n\n` +
     `Cause: generateMetadata() depends on data that can't be resolved ` +
@@ -29,7 +58,18 @@ export function metadataMessage(route: string): string {
   )
 }
 
-export function viewportMessage(route: string): string {
+export function runtimeViewportMessage(route: string): string {
+  return (
+    `Route "${route}" has viewport config that blocks loading.\n\n` +
+    `Cause: A request-time API was used inside generateViewport(). ` +
+    `Viewport metadata must be available on page load, so this ` +
+    `prevents prerendering.\n\n` +
+    `Learn more: ` +
+    `https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+  )
+}
+
+export function dynamicViewportMessage(route: string): string {
   return (
     `Route "${route}" has viewport config that blocks loading.\n\n` +
     `Cause: generateViewport() depends on data that can't be resolved ` +

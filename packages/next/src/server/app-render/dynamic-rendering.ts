@@ -48,9 +48,12 @@ import {
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
-  bodyMessage,
-  metadataMessage,
-  viewportMessage,
+  runtimeBodyMessage,
+  dynamicBodyMessage,
+  runtimeMetadataMessage,
+  dynamicMetadataMessage,
+  runtimeViewportMessage,
+  dynamicViewportMessage,
   disallowedDynamicViewportMessage,
   disallowedDynamicMetadataMessage,
 } from './blocking-route-messages'
@@ -817,13 +820,12 @@ export function trackAllowedDynamicAccess(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    const syncError = clientDynamic.syncDynamicErrorWithStack
+    syncError.message = runtimeBodyMessage(workStore.route)
+    dynamicValidation.dynamicErrors.push(syncError)
     return
   } else {
-    const message = bodyMessage(workStore.route)
+    const message = dynamicBodyMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -873,7 +875,7 @@ export function trackDynamicHoleInNavigation(
   componentStack: string,
   dynamicValidation: InstantValidationState,
   clientDynamic: DynamicTrackingState,
-  _kind: DynamicHoleKind,
+  kind: DynamicHoleKind,
   boundaryState: ValidationBoundaryTracking
 ) {
   if (hasOutletRegex.test(componentStack)) {
@@ -889,7 +891,10 @@ export function trackDynamicHoleInNavigation(
   )
 
   if (hasMetadataRegex.test(componentStack)) {
-    const message = metadataMessage(workStore.route)
+    const message =
+      kind === DynamicHoleKind.Runtime
+        ? runtimeMetadataMessage(workStore.route)
+        : dynamicMetadataMessage(workStore.route)
     const error = addErrorContext(
       new Error(message),
       componentStack,
@@ -899,7 +904,10 @@ export function trackDynamicHoleInNavigation(
     return
   }
   if (hasViewportRegex.test(componentStack)) {
-    const message = viewportMessage(workStore.route)
+    const message =
+      kind === DynamicHoleKind.Runtime
+        ? runtimeViewportMessage(workStore.route)
+        : dynamicViewportMessage(workStore.route)
     const error = addErrorContext(
       new Error(message),
       componentStack,
@@ -971,8 +979,8 @@ export function trackDynamicHoleInNavigation(
   }
 
   if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
     const syncError = clientDynamic.syncDynamicErrorWithStack
+    syncError.message = runtimeBodyMessage(workStore.route)
     if (effectiveCreateInstantStack !== null && syncError.cause === undefined) {
       syncError.cause = effectiveCreateInstantStack()
     }
@@ -980,7 +988,10 @@ export function trackDynamicHoleInNavigation(
     return
   }
 
-  const message = bodyMessage(workStore.route)
+  const message =
+    kind === DynamicHoleKind.Runtime
+      ? runtimeBodyMessage(workStore.route)
+      : dynamicBodyMessage(workStore.route)
   const error = addErrorContext(
     new Error(message),
     componentStack,
@@ -1052,7 +1063,7 @@ export function trackDynamicHoleInRuntimeShell(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    const message = metadataMessage(workStore.route)
+    const message = dynamicMetadataMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicMetadata = error
     return
@@ -1060,7 +1071,7 @@ export function trackDynamicHoleInRuntimeShell(
     // TODO(instant-validation): If the page only has holes caused by runtime data,
     // we won't find out if there's a suspense-above-body and error for dynamic viewport
     // even if there is in fact a suspense-above-body
-    const message = viewportMessage(workStore.route)
+    const message = dynamicViewportMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -1081,14 +1092,13 @@ export function trackDynamicHoleInRuntimeShell(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    const syncError = clientDynamic.syncDynamicErrorWithStack
+    syncError.message = runtimeBodyMessage(workStore.route)
+    dynamicValidation.dynamicErrors.push(syncError)
     return
   }
 
-  const message = bodyMessage(workStore.route)
+  const message = runtimeBodyMessage(workStore.route)
   const error = addErrorContext(new Error(message), componentStack, null)
   dynamicValidation.dynamicErrors.push(error)
   return
@@ -1104,12 +1114,12 @@ export function trackDynamicHoleInStaticShell(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    const message = metadataMessage(workStore.route)
+    const message = runtimeMetadataMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
-    const message = viewportMessage(workStore.route)
+    const message = runtimeViewportMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -1130,13 +1140,12 @@ export function trackDynamicHoleInStaticShell(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    const syncError = clientDynamic.syncDynamicErrorWithStack
+    syncError.message = runtimeBodyMessage(workStore.route)
+    dynamicValidation.dynamicErrors.push(syncError)
     return
   } else {
-    const message = bodyMessage(workStore.route)
+    const message = dynamicBodyMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return
