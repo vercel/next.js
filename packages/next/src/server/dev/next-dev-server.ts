@@ -16,6 +16,7 @@ import {
   type NextUrlWithParsedQuery,
 } from '../request-meta'
 import type { DevBundlerService } from '../lib/dev-bundler-service'
+import { wrapInstrumentationLoadError } from '../lib/instrumentation-error'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import type { UnwrapPromise } from '../../lib/coalesced-function'
 import type { NodeNextResponse, NodeNextRequest } from '../base-http/node'
@@ -720,9 +721,8 @@ export default class DevServer extends Server {
           this.dir,
           this.nextConfig.distDir
         )
-      } catch (err: any) {
-        err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-        throw err
+      } catch (err) {
+        throw wrapInstrumentationLoadError(err)
       }
     }
     return instrumentationModule

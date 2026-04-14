@@ -1,5 +1,6 @@
 import path from 'node:path'
 import isError from '../../../lib/is-error'
+import { wrapInstrumentationLoadError } from '../instrumentation-error'
 import { INSTRUMENTATION_HOOK_FILENAME } from '../../../lib/constants'
 import type {
   InstrumentationModule,
@@ -57,9 +58,8 @@ async function registerInstrumentation(projectDir: string, distDir: string) {
     try {
       await instrumentation.register()
       extendInstrumentationAfterRegistration()
-    } catch (err: any) {
-      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-      throw err
+    } catch (err) {
+      throw wrapInstrumentationLoadError(err)
     }
   }
 }

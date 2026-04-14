@@ -2,6 +2,7 @@ import type {
   InstrumentationModule,
   InstrumentationOnRequestError,
 } from '../instrumentation/types'
+import { wrapInstrumentationLoadError } from '../lib/instrumentation-error'
 
 declare const _ENTRIES: any
 
@@ -27,9 +28,8 @@ async function registerInstrumentation() {
   if (instrumentation?.register) {
     try {
       await instrumentation.register()
-    } catch (err: any) {
-      err.message = `An error occurred while loading instrumentation hook: ${err.message}`
-      throw err
+    } catch (err) {
+      throw wrapInstrumentationLoadError(err)
     }
   }
 }
