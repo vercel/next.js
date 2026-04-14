@@ -199,6 +199,9 @@ jobs:
     name: stable - ${{ matrix.target }} - node@20
     runs-on: ${{ fromJSON(matrix.host) }}
     timeout-minutes: 45
+    env:
+      # Disable all build caches for production/staging/force-preview deploys
+      NEXT_SKIP_BUILD_CACHE: ${{ contains(fromJSON('["production","staging","force-preview"]'), needs.deploy-target.outputs.value) && '1' || '' }}
     steps:
       # Enable long paths on Windows to avoid MAX_PATH (260 char) errors
       # with deeply nested node_modules/.pnpm paths
@@ -238,7 +241,7 @@ jobs:
         run: node scripts/normalize-version-bump.js
 
       - name: Cache on ${{ github.ref_name }}
-        if: ${{ !matrix.docker }}
+        if: ${{ !matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
         uses: ijjk/rust-cache@a34594c450817c9860143c79797a8770c4e587f5 # turbo-cache-v1.0.9
         with:
           save-if: 'true'
@@ -251,11 +254,11 @@ jobs:
       # Try to restore the native binary BEFORE loading the Docker image.
       # If the binary cache hits, we skip the expensive Docker image restore entirely.
       - name: Rust fingerprint
-        if: ${{ matrix.docker }}
+        if: ${{ matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
         run: pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
 
       - name: Restore native binary cache
-        if: ${{ matrix.docker }}
+        if: ${{ matrix.docker && !env.NEXT_SKIP_BUILD_CACHE }}
         id: native-cache
         run: node scripts/native-cache.js --restore --target ${{ matrix.target }} && echo "HIT=yes" >> $GITHUB_OUTPUT || echo "HIT=no" >> $GITHUB_OUTPUT
 
@@ -269,8 +272,8 @@ jobs:
         run: |
           docker run --rm \
             -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
-            -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL -e TURBO_API \
-            -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE="remote:rw" \
+            -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL \
+            ${{ env.NEXT_SKIP_BUILD_CACHE && ' ' || '-e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE=remote:rw' }} \
             -e TARGET="${{ matrix.target }}" \
             -e ABI="${{ matrix.abi }}" \
             -e ARCH="${{ matrix.arch }}" \
@@ -284,7 +287,7 @@ jobs:
             -xeo pipefail scripts/docker-native-build.sh
 
       - name: Save native binary cache
-        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
+        if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' && !env.NEXT_SKIP_BUILD_CACHE }}
         run: node scripts/native-cache.js --save --target ${{ matrix.target }}
 
       - name: 'Build'
@@ -297,7 +300,8 @@ jobs:
           rustc --version --verbose || true
           node -v
           npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-          pnpm dlx turbo@${TURBO_VERSION} run ${{ matrix.build_task }} ${TURBO_ARGS} -- --target ${{ matrix.target }}
+          TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--cache=local}"
+          pnpm dlx turbo@${TURBO_VERSION} run ${{ matrix.build_task }} ${TURBO_ARGS} ${TURBO_CACHE_FLAG} -- --target ${{ matrix.target }}
           if [ "${{ matrix.os }}" != "windows" ]; then
             strip -x packages/next-swc/native/next-swc.*.node
           fi
