@@ -86,6 +86,7 @@ fn main() {
                     tracing::debug!("threads stopped");
                 })
                 .on_thread_park(|| {
+                    TurboMalloc::thread_park();
                     LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
                         if cell.is_none_or(|t| t.elapsed() > Duration::from_secs(2)) {
                             swc_core::ecma::atoms::hstr::global_atom_store_gc();

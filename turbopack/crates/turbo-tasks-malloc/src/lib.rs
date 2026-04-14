@@ -93,6 +93,14 @@ impl TurboMalloc {
         flush();
     }
 
+    pub fn thread_park() {
+        flush();
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        unsafe {
+            libmimalloc_sys::mi_collect(true);
+        }
+    }
+
     pub fn allocation_counters() -> AllocationCounters {
         self::counter::allocation_counters()
     }

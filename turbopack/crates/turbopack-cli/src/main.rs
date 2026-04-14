@@ -29,6 +29,7 @@ fn main() {
             TurboMalloc::thread_stop();
         })
         .on_thread_park(|| {
+            TurboMalloc::thread_park();
             LAST_SWC_ATOM_GC_TIME.with_borrow_mut(|cell| {
                 use std::time::Duration;
 
