@@ -825,33 +825,30 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let entries_to_remove;
 
         {
+            let inner = self.inner.read();
+
             // (A1) Run the SST filter on existing meta files. This only
             // updates the SstFilter state — the MetaFile in-memory layout is
             // not modified yet (that happens in Phase C via retain_entries).
             // Collects the set of SST entry sequence numbers to remove from
             // each meta file, keyed by position in `inner.meta_files`.
-            let inner = self.inner.read();
             entries_to_remove = inner
                 .meta_files
                 .iter()
                 .rev()
                 .map(|meta_file| sst_filter.apply_filter_collect(meta_file))
                 .collect::<Vec<_>>();
-        }
 
-        {
             // (A2) Determine which meta files are fully obsolete by running
-            // `apply_and_get_remove` in newest-first order. Only reads
-            // `inner.meta_files`, so a read lock suffices.
-            //
-            // Process new metas first (they are newer than existing ones) to
-            // advance the filter state, then existing ones. New metas are never
-            // candidates for removal (just created), so only their filter-state
-            // side-effects matter.
-            let inner = self.inner.read();
+            // `apply_and_get_remove` in newest-first order. Process new metas
+            // first (they are newer than existing ones) to advance the filter
+            // state, then existing ones. New metas are never candidates for
+            // removal (just created), so only their filter-state side-effects
+            // matter.
             for meta_file in new_meta_files.iter().rev() {
+                let should_remove = sst_filter.apply_and_get_remove(meta_file);
                 debug_assert!(
-                    !sst_filter.apply_and_get_remove(meta_file),
+                    !should_remove,
                     "newly created meta file should never be a candidate for removal"
                 );
             }
