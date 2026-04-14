@@ -1156,5 +1156,8 @@
   "1155": "Not implemented",
   "1156": "Cannot create a replay stream after the ReplayableNodeStream has been disposed.",
   "1157": "`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.",
-  "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable."
+  "1158": "The prerender-ppr work unit type has been removed. This code path should be unreachable.",
+  "1159": "A required parameter (%s) was not provided as an array received %s in getStaticPaths for %s",
+  "1160": "A required parameter (%s) was provided as an array, but each segment must be a string. Received %s at index %s in %s for %s",
+  "1161": "A required parameter (%s) was not provided as a string received %s in getStaticPaths for %s"
 }

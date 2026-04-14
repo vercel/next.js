@@ -7,7 +7,11 @@ import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-deli
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import { encodeParam, normalizePathname } from './utils'
+import {
+  assertRepeatParamSegmentsAreStrings,
+  encodeParam,
+  normalizePathname,
+} from './utils'
 
 export async function buildPagesStaticPaths({
   page,
@@ -162,15 +166,21 @@ export async function buildPagesStaticPaths({
           paramValue = []
         }
 
-        if (
-          (repeat && !Array.isArray(paramValue)) ||
-          (!repeat && typeof paramValue !== 'string') ||
-          typeof paramValue === 'undefined'
-        ) {
+        if (repeat) {
+          if (!Array.isArray(paramValue)) {
+            throw new Error(
+              `A required parameter (${validParamKey}) was not provided as an array received ${typeof paramValue} in getStaticPaths for ${page}`
+            )
+          }
+          assertRepeatParamSegmentsAreStrings(
+            validParamKey,
+            paramValue,
+            page,
+            'getStaticPaths'
+          )
+        } else if (typeof paramValue !== 'string') {
           throw new Error(
-            `A required parameter (${validParamKey}) was not provided as ${
-              repeat ? 'an array' : 'a string'
-            } received ${typeof paramValue} in getStaticPaths for ${page}`
+            `A required parameter (${validParamKey}) was not provided as a string received ${typeof paramValue} in getStaticPaths for ${page}`
           )
         }
 

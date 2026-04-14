@@ -13,6 +13,7 @@ import { createWorkStore } from '../../server/async-storage/work-store'
 import { FallbackMode } from '../../lib/fallback'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
 import {
+  assertRepeatParamSegmentsAreStrings,
   normalizePathname,
   encodeParam,
   extractPathnameRouteParamSegments,
@@ -383,6 +384,12 @@ function validateParams(
             `A required parameter (${key}) was not provided as an array received ${typeof paramValue} in generateStaticParams for ${page}`
           )
         }
+        assertRepeatParamSegmentsAreStrings(
+          key,
+          paramValue,
+          page,
+          'generateStaticParams'
+        )
       } else {
         if (typeof paramValue !== 'string') {
           throw new Error(
