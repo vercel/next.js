@@ -1,0 +1,20 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js:15:22  TP1008 import.meta.glob() second argument must be an object literal
+  
+      11 |   exhaust: true,
+      12 | })
+      13 | 
+      14 | // Warning: second argument must be an object literal
+         +                       v--------------------------------------v
+      15 + const nonObjOptions = import.meta.glob('./dir3/*.js', 'eager')
+         +                       ^--------------------------------------^
+      16 | 
+      17 | // Warning: query object with spread (non-constant key-value)
+      18 | // The spread makes the object non-analyzable for that property.
+      19 | // Note: the analyzer may or may not resolve the spread — we test that a
+  
+  
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js
+      ./turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-warnings/input/index.js

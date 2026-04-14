@@ -10,9 +10,9 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
       12 + })
          +--^
       13 | 
-      14 | it('should still produce a lazy glob when "as" option is used', () => {
-      15 |   const keys = Object.keys(withAs).sort()
-      16 |   expect(keys).toEqual(['./dir/bar.js', './dir/foo.js'])
+      14 | // Warning: second argument must be an object literal
+      15 | const nonObjOptions = import.meta.glob('./dir3/*.js', 'eager')
+      16 | 
   
   
   
