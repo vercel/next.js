@@ -79,6 +79,12 @@ jobs:
     runs-on: ['self-hosted', 'linux', 'x64', 'metal']
     needs: ['changes']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    env:
+      TURBO_VERSION: 2.9.4
+      TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
+      TURBO_TEAM: 'vtest314-next-e2e-tests'
+      TURBO_CACHE: 'remote:rw'
+      TURBO_TOKEN: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
@@ -93,14 +99,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 25
+      - name: Rust fingerprint
+        run: pnpm dlx turbo@${TURBO_VERSION} run rust-fingerprint ${TURBO_ARGS}
+      - name: Restore native binary cache
+        id: native-cache
+        run: node scripts/native-cache.js --restore --target ${{ matrix.target }} --profile release-with-assertions && echo "HIT=yes" >> $GITHUB_OUTPUT || echo "HIT=no" >> $GITHUB_OUTPUT
       - name: Build Docker image
+        if: ${{ steps.native-cache.outputs.HIT != 'yes' }}
         uses: ./.github/actions/docker-buildx
         with:
           target: windows
           image-tag: next-swc-builder-win:latest
           cache-ref: next-swc-builder-win
       - name: Cross-compile Windows native binary
+        if: ${{ steps.native-cache.outputs.HIT != 'yes' }}
         run: node scripts/docker-native-build.js --quick --skip-image ${{ matrix.target }}
+      - name: Save native binary cache
+        if: ${{ steps.native-cache.outputs.HIT != 'yes' }}
+        run: node scripts/native-cache.js --save --target ${{ matrix.target }} --profile release-with-assertions
       - name: Upload Windows native artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
