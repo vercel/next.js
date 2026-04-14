@@ -21,6 +21,7 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
 declare var ASSET_SUFFIX: string
+declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var WORKER_FORWARDED_GLOBALS: string[]
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {

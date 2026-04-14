@@ -369,6 +369,7 @@ export const experimentalSchema = {
   turbopackImportTypeText: z.boolean().optional(),
   turbopackUseBuiltinBabel: z.boolean().optional(),
   turbopackUseBuiltinSass: z.boolean().optional(),
+  turbopackLocalPostcssConfig: z.boolean().optional(),
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
@@ -526,8 +527,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useLightningcss: z.boolean().optional(),
           }),
         ]),
-        define: z.record(z.string(), z.string()).optional(),
-        defineServer: z.record(z.string(), z.string()).optional(),
+        define: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+          .optional(),
+        defineServer: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+          .optional(),
         runAfterProductionCompile: z
           .function()
           .returns(z.promise(z.void()))

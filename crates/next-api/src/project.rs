@@ -808,7 +808,7 @@ impl ProjectContainer {
         let env_map: Vc<EnvMap>;
         let next_config;
         let define_env;
-        let root_path;
+        let root_path_str: RcStr;
         let project_path;
         let watch;
         let dev;
@@ -837,7 +837,7 @@ impl ProjectContainer {
             }
             .cell();
             next_config = NextConfig::from_string(Vc::cell(options.next_config.clone()));
-            root_path = options.root_path.clone();
+            root_path_str = options.root_path.clone();
             project_path = options.project_path.clone();
             watch = options.watch;
             dev = options.dev;
@@ -855,6 +855,7 @@ impl ProjectContainer {
             hash_salt = options.hash_salt.clone();
         }
 
+        let root_path = ResolvedVc::cell(root_path_str);
         let dist_dir = next_config.dist_dir().owned().await?;
         let dist_dir_root = next_config.dist_dir_root().owned().await?;
         Ok(Project {
@@ -922,7 +923,7 @@ pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
     /// E.g. `/home/user/projects/my-repo`.
-    root_path: RcStr,
+    root_path: ResolvedVc<RcStr>,
 
     /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
     /// a Unix path.
@@ -1084,7 +1085,7 @@ impl Project {
 
         Ok(DiskFileSystem::new_with_denied_paths(
             rcstr!(PROJECT_FILESYSTEM_NAME),
-            self.root_path.clone(),
+            *self.root_path,
             vec![denied_path],
         ))
     }
@@ -1097,15 +1098,16 @@ impl Project {
 
     #[turbo_tasks::function]
     pub fn output_fs(&self) -> Vc<DiskFileSystem> {
-        DiskFileSystem::new(rcstr!("output"), self.root_path.clone())
+        DiskFileSystem::new(rcstr!("output"), *self.root_path)
     }
 
     #[turbo_tasks::function]
-    pub fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
+    pub async fn dist_dir_absolute(&self) -> Result<Vc<RcStr>> {
+        let root_path = self.root_path.await?;
         Ok(Vc::cell(
             format!(
                 "{}{}{}",
-                self.root_path,
+                root_path,
                 std::path::MAIN_SEPARATOR,
                 unix_to_sys(
                     &join_path(&self.project_path, &self.dist_dir)
@@ -1608,6 +1610,7 @@ impl Project {
             should_use_absolute_url_references: self.next_config().inline_css(),
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
+            cross_origin: self.next_config().cross_origin(),
         }))
     }
 
@@ -1682,6 +1685,7 @@ impl Project {
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
             hash_salt: self.hash_salt().to_resolved().await?,
+            cross_origin: self.next_config().cross_origin(),
         };
         Ok(if client_assets {
             get_edge_chunking_context_with_client_assets(options)
@@ -1705,7 +1709,7 @@ impl Project {
     /// Emit a telemetry event corresponding to [webpack configuration telemetry](https://github.com/vercel/next.js/blob/9da305fe320b89ee2f8c3cfb7ecbf48856368913/packages/next/src/build/webpack-config.ts#L2516)
     /// to detect which feature is enabled.
     #[turbo_tasks::function]
-    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
+    async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<()> {
         let emit_event = |feature_name: &str, enabled: bool| {
             NextFeatureTelemetry::new(feature_name.into(), enabled)
                 .resolved_cell()
@@ -1776,7 +1780,7 @@ impl Project {
         emit_event("swcRemoveConsole", remove_console_enabled);
         emit_event("swcEmotion", emotion_enabled);
 
-        Ok(Default::default())
+        Ok(())
     }
 
     /// Scans the app/pages directories for entry points files (matching the

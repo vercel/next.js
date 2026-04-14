@@ -246,6 +246,7 @@ export async function handler(
     clientReferenceManifest,
     subresourceIntegrityManifest,
     prerenderManifest,
+    prefetchHintsManifest,
     isDraftMode,
     resolvedPathname,
     revalidateOnlyGenerated,
@@ -856,6 +857,7 @@ export async function handler(
           reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
           multiZoneDraftMode,
+          prefetchHints: prefetchHintsManifest,
           incrementalCache,
           cacheLifeProfiles: nextConfig.cacheLife,
           basePath: nextConfig.basePath,
@@ -1606,7 +1608,7 @@ export async function handler(
       ) {
         // This is a prefetch request issued by the client Segment Cache. These
         // should never reach the application layer (lambda). We should either
-        // respond from the cache (HIT) or respond with 204 No Content (MISS).
+        // respond from the cache (HIT) or respond with 404 (MISS).
 
         // Set a header to indicate that PPR is enabled for this route. This
         // lets the client distinguish between a regular cache miss and a cache
@@ -1642,10 +1644,8 @@ export async function handler(
         // Cache miss. Either a cache entry for this route has not been generated
         // (which technically should not be possible when PPR is enabled, because
         // at a minimum there should always be a fallback entry) or there's no
-        // match for the requested segment. Respond with a 204 No Content. We
-        // don't bother to respond with 404, because these requests are only
-        // issued as part of a prefetch.
-        res.statusCode = 204
+        // match for the requested segment. Respond with a 404.
+        res.statusCode = 404
         return sendRenderResult({
           req,
           res,

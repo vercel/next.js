@@ -729,12 +729,14 @@ async fn get_mock_stylesheet(
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
         rcstr!("mock"),
-        response_path
-            .parent()
-            .context("Must be valid path")?
-            .to_str()
-            .context("Must exist")?
-            .into(),
+        Vc::cell(
+            response_path
+                .parent()
+                .context("Must be valid path")?
+                .to_str()
+                .context("Must exist")?
+                .into(),
+        ),
     ));
 
     let ExecutionContext {

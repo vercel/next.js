@@ -754,6 +754,15 @@ export interface ExperimentalConfig {
   turbopackUseBuiltinSass?: boolean
 
   /**
+   * Enable per-directory PostCSS config resolution for Turbopack. When enabled,
+   * Turbopack searches for `postcss.config.js` starting from the CSS file's
+   * parent directory first, then falls back to the project root. When disabled
+   * (default), the project root is checked first, with the CSS file's directory
+   * as a fallback.
+   */
+  turbopackLocalPostcssConfig?: boolean
+
+  /**
    * The module ID strategy to use for Turbopack.
    * If not set, the default is `'named'` for development and `'deterministic'`
    * for production.
@@ -1548,13 +1557,13 @@ export interface NextConfig {
      * Replaces variables in your code during compile time. Each key will be
      * replaced with the respective values.
      */
-    define?: Record<string, string>
+    define?: Record<string, string | number | boolean>
 
     /**
      * Replaces server-only (Node.js and Edge) variables in your code during compile time.
      * Each key will be replaced with the respective values.
      */
-    defineServer?: Record<string, string>
+    defineServer?: Record<string, string | number | boolean>
 
     /**
      * A hook function that executes after production build compilation finishes,

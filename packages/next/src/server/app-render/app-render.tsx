@@ -1901,6 +1901,7 @@ async function getRSCPayload(
     tree,
     hints,
     prefetchInliningEnabled,
+    ctx.renderOpts.cacheComponents,
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -2099,6 +2100,7 @@ async function getErrorRSCPayload(
     tree,
     errorHints,
     errorPrefetchInliningEnabled,
+    ctx.renderOpts.cacheComponents,
     workStore.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,
@@ -2300,9 +2302,10 @@ export type BinaryStreamOf<T> = AnyStream
  */
 function installGlobalModuleLoadingHandlers(
   ComponentMod: AppPageModule,
-  cacheComponents: boolean
+  cacheComponents: boolean,
+  isTracingEnabled: boolean
 ) {
-  const instrumented = wrapClientComponentLoader(ComponentMod)
+  const instrumented = wrapClientComponentLoader(ComponentMod, isTracingEnabled)
 
   // When we are prerendering if there is a cacheSignal for tracking
   // cache reads we track calls to `loadChunk` and `require`. This allows us
@@ -2404,7 +2407,13 @@ async function renderToHTMLOrFlightImpl(
   // We need to expose the bundled `require` API globally for
   // react-server-dom-webpack. This is a hack until we find a better way.
   if (ComponentMod.__next_app__) {
-    installGlobalModuleLoadingHandlers(ComponentMod, cacheComponents)
+    const isTracingEnabled =
+      getTracer().getActiveScopeSpan()?.isRecording() ?? false
+    installGlobalModuleLoadingHandlers(
+      ComponentMod,
+      cacheComponents,
+      isTracingEnabled
+    )
   }
 
   if (process.env.__NEXT_DEV_SERVER && setIsrStatus && !cacheComponents) {
@@ -4075,6 +4084,7 @@ async function renderToStream(
         throw err
       }
 
+      // MARK: errorRecovery classification
       let errorType: MetadataErrorType | 'redirect' | undefined
 
       if (isHTTPAccessFallbackError(err)) {
@@ -4114,102 +4124,198 @@ async function renderToStream(
         '/_not-found/page'
       )
 
-      let errorRSCPayload: InitialRSCPayload
-      let errorServerStream: import('./stream-ops').AnyStream
+      if (process.env.__NEXT_USE_NODE_STREAMS) {
+        // MARK: nodeStreams errorRecovery RSC + HTML
+        let errorRSCPayload: InitialRSCPayload
+        let errorServerStream: import('./stream-ops').AnyStream
 
-      try {
-        errorRSCPayload = await workUnitAsyncStorage.run(
-          requestStore,
-          getErrorRSCPayload,
-          tree,
-          ctx,
-          reactServerErrorsByDigest.has((err as any).digest) ? null : err,
-          errorType
-        )
-
-        errorServerStream = workUnitAsyncStorage.run(
-          requestStore,
-          renderToWebFlightStream,
-          ctx.componentMod,
-          errorRSCPayload,
-          clientModules,
-          {
-            filterStackFrame,
-            onError: serverComponentsErrorHandler,
-          }
-        )
-
-        if (reactServerResult === null) {
-          // We errored when we did not have an RSC stream to read from. This is not just a render
-          // error, we need to throw early
-          endSpanWithError(err)
-          throw err
-        }
-      } catch (setupErr) {
-        endSpanWithError(setupErr)
-        throw setupErr
-      }
-
-      try {
-        const generateStaticHTML =
-          supportsDynamicResponse !== true || !!shouldWaitOnAllReady
-
-        const { stream: errorHtmlStream, allReady: errorAllReady } =
-          await workUnitAsyncStorage.run(
+        try {
+          errorRSCPayload = await workUnitAsyncStorage.run(
             requestStore,
-            renderToWebFizzStream,
-            <ErrorApp
-              reactServerStream={errorServerStream}
-              ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
-              preinitScripts={errorPreinitScripts}
-              nonce={nonce}
-              images={ctx.renderOpts.images}
-            />,
+            getErrorRSCPayload,
+            tree,
+            ctx,
+            reactServerErrorsByDigest.has((err as any).digest) ? null : err,
+            errorType
+          )
+
+          errorServerStream = workUnitAsyncStorage.run(
+            requestStore,
+            renderToNodeFlightStream,
+            ctx.componentMod,
+            errorRSCPayload,
+            clientModules,
             {
-              nonce,
-              bootstrapScriptContent,
-              bootstrapScripts: [errorBootstrapScript],
-              formState,
+              filterStackFrame,
+              onError: serverComponentsErrorHandler,
             }
           )
 
-        // End the render span only after React completed rendering (including anything inside Suspense boundaries)
-        errorAllReady.finally(() => {
-          if (renderSpan.isRecording()) renderSpan.end()
-        })
-
-        return await continueFizzStream(errorHtmlStream, {
-          inlinedDataStream: createWebInlinedDataStream(
-            // This is intentionally using the readable datastream from the
-            // main render rather than the flight data from the error page
-            // render
-            reactServerResult.consume(),
-            nonce,
-            formState
-          ),
-          isStaticGeneration: generateStaticHTML,
-          deploymentId: ctx.sharedContext.deploymentId,
-          getServerInsertedHTML: makeGetServerInsertedHTML({
-            polyfills,
-            renderServerInsertedHTML,
-            serverCapturedErrors: [],
-            basePath,
-            tracingMetadata: tracingMetadata,
-          }),
-          getServerInsertedMetadata,
-          validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
-        })
-      } catch (finalErr: any) {
-        if (
-          process.env.__NEXT_DEV_SERVER &&
-          isHTTPAccessFallbackError(finalErr)
-        ) {
-          const { bailOnRootNotFound } =
-            require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
-          bailOnRootNotFound()
+          if (reactServerResult === null) {
+            endSpanWithError(err)
+            throw err
+          }
+        } catch (setupErr) {
+          endSpanWithError(setupErr)
+          throw setupErr
         }
-        endSpanWithError(finalErr)
-        throw finalErr
+
+        try {
+          const generateStaticHTML =
+            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+
+          const { stream: errorHtmlStream, allReady: errorAllReady } =
+            await workUnitAsyncStorage.run(
+              requestStore,
+              renderToNodeFizzStream,
+              <ErrorApp
+                reactServerStream={errorServerStream}
+                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                preinitScripts={errorPreinitScripts}
+                nonce={nonce}
+                images={ctx.renderOpts.images}
+              />,
+              {
+                nonce,
+                bootstrapScriptContent,
+                bootstrapScripts: [errorBootstrapScript],
+                formState,
+              }
+            )
+
+          errorAllReady.finally(() => {
+            if (renderSpan.isRecording()) renderSpan.end()
+          })
+
+          return await continueFizzStream(errorHtmlStream, {
+            inlinedDataStream: createNodeInlinedDataStream(
+              // This is intentionally using the readable datastream from the
+              // main render rather than the flight data from the error page
+              // render
+              reactServerResult.consume(),
+              nonce,
+              formState
+            ),
+            isStaticGeneration: generateStaticHTML,
+            deploymentId: ctx.sharedContext.deploymentId,
+            getServerInsertedHTML: makeGetServerInsertedHTML({
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: [],
+              basePath,
+              tracingMetadata: tracingMetadata,
+            }),
+            getServerInsertedMetadata,
+            validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+          })
+        } catch (finalErr: any) {
+          if (
+            process.env.__NEXT_DEV_SERVER &&
+            isHTTPAccessFallbackError(finalErr)
+          ) {
+            const { bailOnRootNotFound } =
+              require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+            bailOnRootNotFound()
+          }
+          endSpanWithError(finalErr)
+          throw finalErr
+        }
+      } else {
+        // MARK: webStreams errorRecovery RSC + HTML
+        let errorRSCPayload: InitialRSCPayload
+        let errorServerStream: import('./stream-ops').AnyStream
+
+        try {
+          errorRSCPayload = await workUnitAsyncStorage.run(
+            requestStore,
+            getErrorRSCPayload,
+            tree,
+            ctx,
+            reactServerErrorsByDigest.has((err as any).digest) ? null : err,
+            errorType
+          )
+
+          errorServerStream = workUnitAsyncStorage.run(
+            requestStore,
+            renderToWebFlightStream,
+            ctx.componentMod,
+            errorRSCPayload,
+            clientModules,
+            {
+              filterStackFrame,
+              onError: serverComponentsErrorHandler,
+            }
+          )
+
+          if (reactServerResult === null) {
+            endSpanWithError(err)
+            throw err
+          }
+        } catch (setupErr) {
+          endSpanWithError(setupErr)
+          throw setupErr
+        }
+
+        try {
+          const generateStaticHTML =
+            supportsDynamicResponse !== true || !!shouldWaitOnAllReady
+
+          const { stream: errorHtmlStream, allReady: errorAllReady } =
+            await workUnitAsyncStorage.run(
+              requestStore,
+              renderToWebFizzStream,
+              <ErrorApp
+                reactServerStream={errorServerStream}
+                ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                preinitScripts={errorPreinitScripts}
+                nonce={nonce}
+                images={ctx.renderOpts.images}
+              />,
+              {
+                nonce,
+                bootstrapScriptContent,
+                bootstrapScripts: [errorBootstrapScript],
+                formState,
+              }
+            )
+
+          errorAllReady.finally(() => {
+            if (renderSpan.isRecording()) renderSpan.end()
+          })
+
+          return await continueFizzStream(errorHtmlStream, {
+            inlinedDataStream: createWebInlinedDataStream(
+              // This is intentionally using the readable datastream from the
+              // main render rather than the flight data from the error page
+              // render
+              reactServerResult.consume(),
+              nonce,
+              formState
+            ),
+            isStaticGeneration: generateStaticHTML,
+            deploymentId: ctx.sharedContext.deploymentId,
+            getServerInsertedHTML: makeGetServerInsertedHTML({
+              polyfills,
+              renderServerInsertedHTML,
+              serverCapturedErrors: [],
+              basePath,
+              tracingMetadata: tracingMetadata,
+            }),
+            getServerInsertedMetadata,
+            validateRootLayout: !!process.env.__NEXT_DEV_SERVER,
+          })
+        } catch (finalErr: any) {
+          if (
+            process.env.__NEXT_DEV_SERVER &&
+            isHTTPAccessFallbackError(finalErr)
+          ) {
+            const { bailOnRootNotFound } =
+              require('../../client/components/dev-root-http-access-fallback-boundary') as typeof import('../../client/components/dev-root-http-access-fallback-boundary')
+            bailOnRootNotFound()
+          }
+          endSpanWithError(finalErr)
+          throw finalErr
+        }
       }
     }
   })
@@ -8338,21 +8444,26 @@ async function collectSegmentData(
     // during ISR/revalidation.
     const manifestHints = renderOpts.prefetchHints?.[pagePath]
     if (manifestHints === undefined) {
-      // TODO(#91407): No hints found for this route. This currently
-      // happens for routes with `instant = false` at the root segment,
-      // which causes the prerender to run per-request and the hints
-      // manifest to be unavailable at runtime.
-      //
-      // Fall back to a hint tree that marks everything as unprefetchable.
-      // The root gets PrefetchDisabled, and children inherit null hints
-      // which triggers PrefetchDisabled in createFlightRouterStateFromLoaderTree.
-      //
-      // Once the instant:false bug is fixed, this should become an error —
-      // the manifest should always have an entry for every route that
-      // reaches collectSegmentData.
-      hints = {
-        hints: PrefetchHint.PrefetchDisabled,
-        slots: null,
+      if (!renderOpts.cacheComponents) {
+        // Without cacheComponents, dynamic pages have no static shell
+        // and therefore no prerender pass to compute hints. This is
+        // expected — just skip the hint system for this route and let
+        // prefetching proceed normally without inlining decisions.
+        hints = null
+      } else {
+        // TODO(#91407): No hints found for this route. This currently
+        // happens for routes with `instant = false` at the root segment,
+        // which causes the prerender to run per-request and the hints
+        // manifest to be unavailable at runtime.
+        //
+        // Fall back to a hint tree that marks everything as
+        // unprefetchable. Once the instant:false bug is fixed, this
+        // should become an error — the manifest should always have an
+        // entry for every route that reaches collectSegmentData.
+        hints = {
+          hints: PrefetchHint.PrefetchDisabled,
+          slots: null,
+        }
       }
     } else {
       hints = manifestHints
