@@ -15,8 +15,8 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, Chunk, ChunkItem, ChunkItemBatchGroup, ChunkItemExt,
         ChunkItemOrBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo, ChunkType,
-        ChunkableModule, ChunkingContext, ChunkingContextExt, MinifyType, OutputChunk,
-        OutputChunkRuntimeInfo, SourceMapSourceType, round_chunk_item_size,
+        ChunkableModule, ChunkingContext, ChunkingContextExt, OutputChunk, OutputChunkRuntimeInfo,
+        SourceMapSourceType, find_emit_option, round_chunk_item_size,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -36,7 +36,7 @@ use turbopack_core::{
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::ImportAssetReference;
+use crate::{ImportAssetReference, emit_options::CssEmitOptions};
 
 #[turbo_tasks::value]
 pub struct CssChunk {
@@ -86,12 +86,21 @@ impl CssChunk {
                 }
             }
 
-            if matches!(
-                &*this.chunking_context.minify_type().await?,
-                MinifyType::NoMinify
-            ) {
-                let id = css_item.asset_ident().to_string().await?;
-                writeln!(body, "/* {id} */")?;
+            {
+                let css_emit =
+                    find_emit_option::<CssEmitOptions>(this.chunking_context.emit_options())
+                        .await?;
+                let css_emit_ref = if let Some(vc) = css_emit {
+                    Some(vc.await?)
+                } else {
+                    None
+                };
+                let css_emit_default = CssEmitOptions::default();
+                let css_emit = css_emit_ref.as_deref().unwrap_or(&css_emit_default);
+                if css_emit.chunk_item_comments {
+                    let id = css_item.asset_ident().to_string().await?;
+                    writeln!(body, "/* {id} */")?;
+                }
             }
 
             let close = write_import_context(&mut body, content.import_context).await?;

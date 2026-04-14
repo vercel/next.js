@@ -47,8 +47,10 @@ use turbopack_core::{
         options::{ImportMap, ImportMapping},
     },
 };
-use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_ecmascript::{
+    TreeShakingMode, chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions,
+};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
     child_process_backend,
@@ -559,6 +561,18 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         None
     });
+
+    if options.minify {
+        let ecma_opts = EcmascriptEmitOptions::builder()
+            .mangle_optimal_size()
+            .build();
+        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
+        let css_opts = CssEmitOptions::builder()
+            .minify(true)
+            .chunk_item_comments(false)
+            .build();
+        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    }
 
     if options.remove_unused_imports {
         builder = builder.unused_references(

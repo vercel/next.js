@@ -25,10 +25,10 @@ use turbopack_core::{
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     target::CompileTarget,
 };
-use turbopack_css::chunk::CssChunkType;
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
-    references::esm::UrlRewriteBehavior,
+    emit_options::EcmascriptEmitOptions, references::esm::UrlRewriteBehavior,
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -1107,6 +1107,22 @@ pub async fn get_server_chunking_context_with_client_assets(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
+    if *minify.await? {
+        let ecma_opts = if *no_mangling.await? {
+            EcmascriptEmitOptions::builder().no_mangle().build()
+        } else {
+            EcmascriptEmitOptions::builder()
+                .mangle_deterministic()
+                .build()
+        };
+        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
+        let css_opts = CssEmitOptions::builder()
+            .minify(true)
+            .chunk_item_comments(false)
+            .build();
+        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    }
+
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
     } else {
@@ -1212,6 +1228,22 @@ pub async fn get_server_chunking_context(
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
+
+    if *minify.await? {
+        let ecma_opts = if *no_mangling.await? {
+            EcmascriptEmitOptions::builder().no_mangle().build()
+        } else {
+            EcmascriptEmitOptions::builder()
+                .mangle_optimal_size()
+                .build()
+        };
+        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
+        let css_opts = CssEmitOptions::builder()
+            .minify(true)
+            .chunk_item_comments(false)
+            .build();
+        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    }
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);

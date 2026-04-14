@@ -26,10 +26,10 @@ use turbopack_core::{
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_css::chunk::CssChunkType;
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
-    transform::PresetEnvConfig,
+    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions,
+    references::esm::UrlRewriteBehavior, transform::PresetEnvConfig,
 };
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -536,22 +536,40 @@ pub async fn get_client_chunking_context(
     } else {
         MinifyType::NoMinify
     })
-    .source_maps(*source_maps.await?)
-    .asset_base_path(Some(asset_prefix))
-    .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
-    .cross_origin(cross_origin_loading)
-    .export_usage(*export_usage.await?)
-    .unused_references(unused_references.to_resolved().await?)
-    .module_id_strategy(module_id_strategy.to_resolved().await?)
-    .debug_ids(*debug_ids.await?)
-    .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
-    .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals())
-    .hash_salt(hash_salt)
-    .default_url_behavior(UrlBehavior {
-        suffix: AssetSuffix::Inferred,
-        static_suffix: css_url_suffix.to_resolved().await?,
-    });
+    .source_maps(*source_maps.await?);
+
+    if *minify.await? {
+        let ecma_opts = if *no_mangling.await? {
+            EcmascriptEmitOptions::builder().no_mangle().build()
+        } else {
+            EcmascriptEmitOptions::builder()
+                .mangle_optimal_size()
+                .build()
+        };
+        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
+        let css_opts = CssEmitOptions::builder()
+            .minify(true)
+            .chunk_item_comments(false)
+            .build();
+        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    }
+
+    builder = builder
+        .asset_base_path(Some(asset_prefix))
+        .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
+        .cross_origin(cross_origin_loading)
+        .export_usage(*export_usage.await?)
+        .unused_references(unused_references.to_resolved().await?)
+        .module_id_strategy(module_id_strategy.to_resolved().await?)
+        .debug_ids(*debug_ids.await?)
+        .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
+        .nested_async_availability(*nested_async_chunking.await?)
+        .worker_forwarded_globals(worker_forwarded_globals())
+        .hash_salt(hash_salt)
+        .default_url_behavior(UrlBehavior {
+            suffix: AssetSuffix::Inferred,
+            static_suffix: css_url_suffix.to_resolved().await?,
+        });
 
     if next_mode.is_development() {
         builder = builder

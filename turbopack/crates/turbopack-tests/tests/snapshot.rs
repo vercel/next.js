@@ -30,7 +30,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
+        MangleType, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{
@@ -52,9 +52,10 @@ use turbopack_core::{
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
+use turbopack_css::emit_options::CssEmitOptions;
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
-    chunk::EcmascriptChunkType,
+    chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -509,6 +510,28 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
 
+            if matches!(options.minify_type, MinifyType::Minify { .. }) {
+                let MinifyType::Minify { mangle } = options.minify_type else {
+                    unreachable!()
+                };
+                let ecma_opts = match mangle {
+                    Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
+                        .mangle_optimal_size()
+                        .build(),
+                    Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
+                        .mangle_deterministic()
+                        .build(),
+                    None => EcmascriptEmitOptions::builder().no_mangle().build(),
+                };
+                let css_opts = CssEmitOptions::builder()
+                    .minify(true)
+                    .chunk_item_comments(false)
+                    .build();
+                builder = builder
+                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
+                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+            }
+
             if options.remove_unused_imports {
                 builder = builder.unused_references(
                     binding_usage
@@ -555,6 +578,28 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             })
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
+
+            if matches!(options.minify_type, MinifyType::Minify { .. }) {
+                let MinifyType::Minify { mangle } = options.minify_type else {
+                    unreachable!()
+                };
+                let ecma_opts = match mangle {
+                    Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
+                        .mangle_optimal_size()
+                        .build(),
+                    Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
+                        .mangle_deterministic()
+                        .build(),
+                    None => EcmascriptEmitOptions::builder().no_mangle().build(),
+                };
+                let css_opts = CssEmitOptions::builder()
+                    .minify(true)
+                    .chunk_item_comments(false)
+                    .build();
+                builder = builder
+                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
+                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+            }
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

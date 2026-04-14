@@ -8,8 +8,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin, EmitOption,
+        EmitOptions, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
@@ -120,6 +120,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
+        self
+    }
+
+    pub fn emit_option(mut self, opt: ResolvedVc<Box<dyn EmitOption>>) -> Self {
+        self.chunking_context.emit_options.push(opt);
         self
     }
 
@@ -300,6 +305,8 @@ pub struct BrowserChunkingContext {
     runtime_type: RuntimeType,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// Emit options
+    emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
     /// Whether content hashing is enabled for chunk filenames.
     chunk_content_hashing: Option<ContentHashing>,
     /// Content hashing for asset filenames.
@@ -369,6 +376,7 @@ impl BrowserChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                emit_options: vec![],
                 chunk_content_hashing: None,
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
                 source_maps_type: SourceMapsType::Full,
@@ -728,6 +736,11 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    fn emit_options(&self) -> Vc<EmitOptions> {
+        Vc::cell(self.emit_options.clone())
     }
 
     #[turbo_tasks::function]

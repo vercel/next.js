@@ -13,6 +13,7 @@ pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
 pub mod code_gen;
+pub mod emit_options;
 mod errors;
 pub mod json_source_transform;
 pub mod magic_identifier;
@@ -85,7 +86,7 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
-        MinifyType, ModuleChunkItemIdExt, ModuleId,
+        ModuleChunkItemIdExt, ModuleId, find_emit_option,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -110,6 +111,7 @@ use crate::{
         placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
+    emit_options::EcmascriptEmitOptions,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
     path_visitor::ApplyVisitors,
@@ -1036,7 +1038,14 @@ impl EcmascriptModuleContent {
             ..
         } = &*input;
 
-        let minify = chunking_context.minify_type().await?;
+        let ecma_emit =
+            find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
+        let ecma_emit = if let Some(vc) = ecma_emit {
+            Some(vc.await?)
+        } else {
+            None
+        };
+        let ecma_emit = ecma_emit.as_deref().cloned().unwrap_or_default();
 
         let content = process_parse_result(
             *parsed,
@@ -1044,7 +1053,7 @@ impl EcmascriptModuleContent {
             *specified_module_type,
             *generate_source_map,
             *original_source_map,
-            *minify,
+            ecma_emit.clone(),
             Some(&*input),
             None,
         )
@@ -1066,7 +1075,7 @@ impl EcmascriptModuleContent {
             specified_module_type,
             generate_source_map,
             None,
-            MinifyType::NoMinify,
+            EcmascriptEmitOptions::default(),
             None,
             None,
         )
@@ -1130,7 +1139,18 @@ impl EcmascriptModuleContent {
                         *specified_module_type,
                         *generate_source_map,
                         *original_source_map,
-                        *chunking_context.minify_type().await?,
+                        {
+                            let ecma_emit = find_emit_option::<EcmascriptEmitOptions>(
+                                chunking_context.emit_options(),
+                            )
+                            .await?;
+                            let ecma_emit = if let Some(vc) = ecma_emit {
+                                Some(vc.await?)
+                            } else {
+                                None
+                            };
+                            ecma_emit.as_deref().cloned().unwrap_or_default()
+                        },
                         Some(&*options),
                         Some(ScopeHoistingOptions {
                             module: *module,
@@ -1169,7 +1189,18 @@ impl EcmascriptModuleContent {
                 original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
                     original_source_maps,
                 ),
-                minify: *options.chunking_context.minify_type().await?,
+                minify: {
+                    let ecma_emit = find_emit_option::<EcmascriptEmitOptions>(
+                        options.chunking_context.emit_options(),
+                    )
+                    .await?;
+                    let ecma_emit = if let Some(vc) = ecma_emit {
+                        Some(vc.await?)
+                    } else {
+                        None
+                    };
+                    ecma_emit.as_deref().cloned().unwrap_or_default()
+                },
                 scope_hoisting_syntax_contexts: None,
             };
 
@@ -1675,7 +1706,7 @@ struct CodeGenResult {
     is_esm: bool,
     strict: bool,
     original_source_map: CodeGenResultOriginalSourceMap,
-    minify: MinifyType,
+    minify: EcmascriptEmitOptions,
     #[allow(clippy::type_complexity)]
     /// (Map<Module, corresponding context for imports>, `eval_context.imports.exports`)
     scope_hoisting_syntax_contexts: Option<(
@@ -1695,7 +1726,7 @@ async fn process_parse_result(
     specified_module_type: SpecifiedModuleType,
     generate_source_map: bool,
     original_source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
-    minify: MinifyType,
+    minify: EcmascriptEmitOptions,
     options: Option<&EcmascriptModuleContentOptions>,
     scope_hoisting_options: Option<ScopeHoistingOptions<'_>>,
 ) -> Result<CodeGenResult> {
@@ -1769,7 +1800,7 @@ async fn process_parse_result(
                             _ => Default::default(),
                         };
 
-                    let prepend_ident_comment = if matches!(minify, MinifyType::NoMinify) {
+                    let prepend_ident_comment = if minify.merged_module_comments {
                         Some(Comment {
                             kind: CommentKind::Line,
                             span: DUMMY_SP,
@@ -1917,7 +1948,7 @@ async fn process_parse_result(
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
-                        minify: MinifyType::NoMinify,
+                        minify: EcmascriptEmitOptions::default(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -1944,7 +1975,7 @@ async fn process_parse_result(
                         is_esm: false,
                         strict: false,
                         original_source_map: CodeGenResultOriginalSourceMap::Single(None),
-                        minify: MinifyType::NoMinify,
+                        minify: EcmascriptEmitOptions::default(),
                         scope_hoisting_syntax_contexts: None,
                     }
                 }
@@ -2089,7 +2120,7 @@ async fn emit_content(
             &mut bytes,
             generate_source_map.then_some(&mut mappings),
         );
-        if matches!(minify, MinifyType::Minify { .. }) {
+        if !minify.indent {
             wr.set_indent_str("");
         }
 

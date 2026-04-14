@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkingContext, MinifyType},
+    chunk::{Chunk, ChunkItem, ChunkingContext, find_emit_option},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
@@ -15,7 +15,10 @@ use turbopack_core::{
 };
 
 use super::source_map::SingleItemCssChunkSourceMapAsset;
-use crate::chunk::{CssChunkItem, write_import_context};
+use crate::{
+    chunk::{CssChunkItem, write_import_context},
+    emit_options::CssEmitOptions,
+};
 
 /// A CSS chunk that only contains a single item. This is used for selectively
 /// loading CSS modules that are part of a larger chunk in development mode, and
@@ -56,12 +59,20 @@ impl SingleItemCssChunk {
         // CSS chunks never have debug IDs
         let mut code = CodeBuilder::new(source_maps, false);
 
-        if matches!(
-            &*this.chunking_context.minify_type().await?,
-            MinifyType::NoMinify
-        ) {
-            let id = this.item.asset_ident().to_string().await?;
-            writeln!(code, "/* {id} */")?;
+        {
+            let css_emit =
+                find_emit_option::<CssEmitOptions>(this.chunking_context.emit_options()).await?;
+            let css_emit_ref = if let Some(vc) = css_emit {
+                Some(vc.await?)
+            } else {
+                None
+            };
+            let css_emit_default = CssEmitOptions::default();
+            let css_emit = css_emit_ref.as_deref().unwrap_or(&css_emit_default);
+            if css_emit.chunk_item_comments {
+                let id = this.item.asset_ident().to_string().await?;
+                writeln!(code, "/* {id} */")?;
+            }
         }
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;

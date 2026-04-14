@@ -10,8 +10,8 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, MinifyType,
-        ModuleChunkItemIdExt, ModuleId,
+        ChunkData, ChunkingContext, ChunksData, EvaluatableAssets, ModuleChunkItemIdExt, ModuleId,
+        find_emit_option,
     },
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
@@ -22,6 +22,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{EcmascriptChunkData, EcmascriptChunkPlaceable},
+    emit_options::EcmascriptEmitOptions,
     minify::minify,
     utils::StringifyJs,
 };
@@ -198,8 +199,13 @@ impl EcmascriptBrowserEvaluateChunk {
 
         let mut code = code.build();
 
-        if let MinifyType::Minify { mangle } = *this.chunking_context.minify_type().await? {
-            code = minify(code, source_maps, mangle)?;
+        if let Some(ecma_opts) =
+            find_emit_option::<EcmascriptEmitOptions>(this.chunking_context.emit_options()).await?
+        {
+            let ecma_opts = ecma_opts.await?;
+            if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+                code = minify(code, source_maps, swc_opts)?;
+            }
         }
 
         Ok(code.cell())

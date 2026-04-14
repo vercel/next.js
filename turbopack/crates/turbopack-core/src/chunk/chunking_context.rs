@@ -29,6 +29,34 @@ use crate::{
     reference::ModuleReference,
 };
 
+/// A marker trait for emit options that can be stored in a chunking context.
+///
+/// Different crates can define their own emit option types (e.g., `EcmascriptEmitOptions`,
+/// `CssEmitOptions`) without requiring the core crate to depend on their specific dependencies
+/// (e.g., SWC).
+#[turbo_tasks::value_trait]
+pub trait EmitOption {}
+
+/// A heterogeneous list of emit options stored in a chunking context.
+#[turbo_tasks::value(transparent)]
+pub struct EmitOptions(Vec<ResolvedVc<Box<dyn EmitOption>>>);
+
+/// Find a specific emit option type from the list, returning the last matching one.
+///
+/// Returns `None` if no matching option is found, in which case callers should use defaults.
+pub async fn find_emit_option<T>(list: Vc<EmitOptions>) -> Result<Option<Vc<T>>>
+where
+    T: turbo_tasks::VcValueType + turbo_tasks::UpcastStrict<Box<dyn EmitOption>>,
+{
+    let list = list.await?;
+    for item in list.iter().rev() {
+        if let Some(downcasted) = ResolvedVc::try_downcast_type::<T>(*item) {
+            return Ok(Some(*downcasted));
+        }
+    }
+    Ok(None)
+}
+
 #[derive(
     Debug,
     TaskInput,
@@ -412,6 +440,15 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
         MinifyType::NoMinify.cell()
+    }
+
+    /// Returns the list of emit options for this chunking context.
+    ///
+    /// Emit options allow crate-specific configuration (e.g., SWC minify options,
+    /// CSS minification settings) without requiring turbopack-core to depend on those crates.
+    #[turbo_tasks::function]
+    fn emit_options(self: Vc<Self>) -> Vc<EmitOptions> {
+        Vc::cell(vec![])
     }
 
     #[turbo_tasks::function]

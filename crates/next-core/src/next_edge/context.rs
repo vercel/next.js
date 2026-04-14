@@ -15,8 +15,8 @@ use turbopack_core::{
     issue::IssueSeverity,
     module_graph::binding_usage_info::OptionBindingUsageInfo,
 };
-use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_ecmascript::{chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions};
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
@@ -270,6 +270,22 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
+    if *turbo_minify.await? {
+        let ecma_opts = if *no_mangling.await? {
+            EcmascriptEmitOptions::builder().no_mangle().build()
+        } else {
+            EcmascriptEmitOptions::builder()
+                .mangle_deterministic()
+                .build()
+        };
+        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
+        let css_opts = CssEmitOptions::builder()
+            .minify(true)
+            .chunk_item_comments(false)
+            .build();
+        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    }
+
     if !next_mode.is_development() {
         builder = builder
             .chunking_config(
@@ -371,6 +387,22 @@ pub async fn get_edge_chunking_context(
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
+
+    if *turbo_minify.await? {
+        let ecma_opts = if *no_mangling.await? {
+            EcmascriptEmitOptions::builder().no_mangle().build()
+        } else {
+            EcmascriptEmitOptions::builder()
+                .mangle_optimal_size()
+                .build()
+        };
+        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
+        let css_opts = CssEmitOptions::builder()
+            .minify(true)
+            .chunk_item_comments(false)
+            .build();
+        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    }
 
     if !next_mode.is_development() {
         builder = builder

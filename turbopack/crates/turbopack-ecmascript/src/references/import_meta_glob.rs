@@ -27,8 +27,8 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
-        ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ModuleChunkItemIdExt,
+        find_emit_option,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -49,6 +49,7 @@ use crate::{
     chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
+    emit_options::EcmascriptEmitOptions,
     references::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
@@ -696,7 +697,15 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let map = &*self.map().await?;
-        let minify = chunking_context.minify_type().await?;
+        let ecma_emit =
+            find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
+        let ecma_emit_ref = if let Some(vc) = ecma_emit {
+            Some(vc.await?)
+        } else {
+            None
+        };
+        let ecma_emit_default = EcmascriptEmitOptions::default();
+        let ecma_emit = ecma_emit_ref.as_deref().unwrap_or(&ecma_emit_default);
 
         let mut glob_map = ObjectLit {
             span: DUMMY_SP,
@@ -783,7 +792,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
         let mut bytes: Vec<u8> = vec![];
         let mut wr: JsWriter<'_, &mut Vec<u8>> =
             JsWriter::new(source_map.clone(), "\n", &mut bytes, None);
-        if matches!(*minify, MinifyType::Minify { .. }) {
+        if !ecma_emit.indent {
             wr.set_indent_str("");
         }
 

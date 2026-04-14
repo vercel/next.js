@@ -3,7 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, MinifyType},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, find_emit_option},
     context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
@@ -21,6 +21,7 @@ use crate::{
     CssModuleType, LightningCssFeatureFlags,
     chunk::{CssChunkItem, CssChunkItemContent, CssChunkPlaceable, CssChunkType, CssImport},
     code_gen::CodeGenerateable,
+    emit_options::CssEmitOptions,
     process::{
         CssWithPlaceholderResult, FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
         finalize_css, parse_css, process_css_with_placeholder,
@@ -109,7 +110,7 @@ impl ProcessCss for CssModule {
     async fn finalize_css(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-        minify_type: MinifyType,
+        minify: bool,
     ) -> Result<Vc<FinalCssResult>> {
         let process_result = self.get_css_with_placeholder();
 
@@ -122,7 +123,7 @@ impl ProcessCss for CssModule {
         Ok(finalize_css(
             process_result,
             chunking_context,
-            minify_type,
+            minify,
             origin_source_map,
             this.environment.as_deref().copied(),
             this.lightningcss_features,
@@ -334,9 +335,17 @@ impl CssChunkItem for CssModuleChunkItem {
             }
         }
 
+        let css_emit = find_emit_option::<CssEmitOptions>(chunking_context.emit_options()).await?;
+        let css_emit_ref = if let Some(vc) = css_emit {
+            Some(vc.await?)
+        } else {
+            None
+        };
+        let css_emit_default = CssEmitOptions::default();
+        let css_emit = css_emit_ref.as_deref().unwrap_or(&css_emit_default);
         let result = self
             .module
-            .finalize_css(*chunking_context, *chunking_context.minify_type().await?)
+            .finalize_css(*chunking_context, css_emit.minify)
             .await?;
 
         if let FinalCssResult::Ok {

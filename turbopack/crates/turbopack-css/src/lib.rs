@@ -6,6 +6,7 @@ mod asset;
 pub mod chunk;
 mod code_gen;
 pub mod embed;
+pub mod emit_options;
 mod lifetime_util;
 mod module_asset;
 pub(crate) mod process;

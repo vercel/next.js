@@ -45,8 +45,8 @@ use turbopack_core::{
         parse::Request,
     },
 };
-use turbopack_css::chunk::CssChunkType;
-use turbopack_ecmascript::chunk::EcmascriptChunkType;
+use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_ecmascript::{chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
 use turbopack_node::{child_process_backend, execution_context::ExecutionContext};
@@ -359,6 +359,28 @@ async fn build_internal(
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
             .minify_type(minify_type);
 
+            if matches!(minify_type, MinifyType::Minify { .. }) {
+                let MinifyType::Minify { mangle } = minify_type else {
+                    unreachable!()
+                };
+                let ecma_opts = match mangle {
+                    Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
+                        .mangle_optimal_size()
+                        .build(),
+                    Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
+                        .mangle_deterministic()
+                        .build(),
+                    None => EcmascriptEmitOptions::builder().no_mangle().build(),
+                };
+                let css_opts = CssEmitOptions::builder()
+                    .minify(true)
+                    .chunk_item_comments(false)
+                    .build();
+                builder = builder
+                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
+                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+            }
+
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
@@ -408,6 +430,28 @@ async fn build_internal(
             .export_usage(Some(binding_usage.connect().to_resolved().await?))
             .unused_references(unused_references)
             .minify_type(minify_type);
+
+            if matches!(minify_type, MinifyType::Minify { .. }) {
+                let MinifyType::Minify { mangle } = minify_type else {
+                    unreachable!()
+                };
+                let ecma_opts = match mangle {
+                    Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
+                        .mangle_optimal_size()
+                        .build(),
+                    Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
+                        .mangle_deterministic()
+                        .build(),
+                    None => EcmascriptEmitOptions::builder().no_mangle().build(),
+                };
+                let css_opts = CssEmitOptions::builder()
+                    .minify(true)
+                    .chunk_item_comments(false)
+                    .build();
+                builder = builder
+                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
+                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+            }
 
             match *node_env.await? {
                 NodeEnv::Development => {}
