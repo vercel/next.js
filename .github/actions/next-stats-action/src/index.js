@@ -69,7 +69,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
 
     /* eslint-disable-next-line */
     actionInfo.commitId = await getCommitId(diffRepoDir)
-    let mainNextSwcVersion
 
     if (!actionInfo.skipClone) {
       let mainRef = statsConfig.mainBranch
@@ -78,7 +77,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         logger(`Release detected, using last stable tag: "${actionInfo.prRef}"`)
         const lastStableTag = await getLastStable(diffRepoDir, actionInfo.prRef)
         mainRef = lastStableTag
-        mainNextSwcVersion = lastStableTag
         if (!lastStableTag) throw new Error('failed to get last stable tag')
         logger(`using latestStable: "${lastStableTag}"`)
 
@@ -111,18 +109,15 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
       if (!actionInfo.skipClone) {
         const usePnpm = existsSync(path.join(dir, 'pnpm-lock.yaml'))
         if (usePnpm) {
-          // TODO: we can remove this explicit `corepack use` once Next.js
+          // TODO: we can remove this `packageManager` modification once Next.js
           // 16.3 is released, but we must override it for now because 16.2 uses
           // pnpm 9.6.0, which supports different arguments. `diffRepoDir`
           // points to the most recent stable tag.
-          //
-          // First, remove `engines.pnpm`. `corepack use` will update
-          // `packageManager`, but not `engines`. `pnpm install` can then fail
-          // because it checks `engines.pnpm`.
           const packageJson = path.join(dir, 'package.json')
           const packageJsonContents = JSON.parse(
             await fs.readFile(packageJson, { encoding: 'utf8' })
           )
+          packageJsonContents.packageManager = 'pnpm@10.33.0'
           if (packageJsonContents.engines != null) {
             delete packageJsonContents.engines.pnpm
           }
@@ -130,9 +125,6 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
             packageJson,
             JSON.stringify(packageJsonContents, null, '  ')
           )
-          await exec.spawnPromise('corepack use pnpm@10.33.0', {
-            cwd: dir,
-          })
         }
 
         if (!statsConfig.skipInitialInstall) {
@@ -159,22 +151,60 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         }
       }
 
+      const nativeDir = path.join(dir, 'packages/next-swc/native')
       await fs
-        .cp(
-          path.join(__dirname, '../native'),
-          path.join(dir, 'packages/next-swc/native'),
-          { recursive: true, force: true }
-        )
+        .cp(path.join(__dirname, '../native'), nativeDir, {
+          recursive: true,
+          force: true,
+        })
         .catch(console.error)
 
+      process.env.NEXT_TEST_NATIVE_DIR = nativeDir
+
+      logger(`Packing packages in ${dir}`)
+      const turboJsonPath = path.join(dir, 'turbo.json')
+      let hasTurboPackTask = false
+      try {
+        const turboJson = JSON.parse(
+          await fs.readFile(turboJsonPath, { encoding: 'utf8' })
+        )
+        hasTurboPackTask =
+          turboJson.tasks?.['pack-for-isolated-tests'] !== undefined
+      } catch {}
+
+      if (hasTurboPackTask) {
+        await exec.spawnPromise('pnpm turbo run pack-for-isolated-tests', {
+          cwd: dir,
+        })
+      } else {
+        // Temporary fallback because stats action run on the canary branch which does not have the pack-for-isolated-tests task yet.
+        logger(
+          'turbo task pack-for-isolated-tests not found, falling back to pnpm pack per package'
+        )
+        const packagesDir = path.join(dir, 'packages')
+        const packageFolders = await fs.readdir(packagesDir)
+        await Promise.all(
+          packageFolders.map(async (folder) => {
+            const pkgDir = path.join(packagesDir, folder)
+            const pkgJsonPath = path.join(pkgDir, 'package.json')
+            if (!existsSync(pkgJsonPath)) return
+            try {
+              await exec.spawnPromise('pnpm pack --out packed.tgz', {
+                cwd: pkgDir,
+              })
+            } catch (err) {
+              logger(`Failed to pack ${folder}: ${err.message}`)
+            }
+          })
+        )
+      }
+
       logger(`Linking packages in ${dir}`)
-      const isMainRepo = dir === mainRepoDir
       const pkgPaths = await linkPackages({
         repoDir: dir,
-        nextSwcVersion: isMainRepo ? mainNextSwcVersion : null,
       })
 
-      if (isMainRepo) mainRepoPkgPaths = pkgPaths
+      if (dir === mainRepoDir) mainRepoPkgPaths = pkgPaths
       else diffRepoPkgPaths = pkgPaths
     }
 

@@ -241,11 +241,13 @@ impl Module for EcmascriptClientReferenceModule {
 
         Ok(Vc::cell(references))
     }
+
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
-        // These just re-export some specially tagged functions, however we do assume that client
-        // references are executed client side so we need to preserve these in the graph.
-        ModuleSideEffects::SideEffectful.cell()
+        // These just re-export some specially tagged functions. The module itself doesn't have any
+        // side effects, and the functions it re-exports will be marked as having side effects on
+        // the client if needed.
+        ModuleSideEffects::SideEffectFree.cell()
     }
 }
 

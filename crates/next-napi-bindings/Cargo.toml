@@ -14,10 +14,11 @@ crate-type = ["cdylib"]
 # time (i.e wasmer/default vs wasmer/js-default) while cargo merges all the
 # features at once.
 plugin = [
-    "swc_core/plugin_transform_host_native",
+    # Use granular plugin features to avoid pulling in wasmer via __plugin_transform_env_native.
+    "swc_core/__plugin_transform_host",
+    "swc_core/__plugin_transform_host_schema_v1",
     "swc_core/plugin_transform_host_native_filesystem_cache",
-    "swc_core/plugin_transform_host_native_shared_runtime",
-    "swc_core/plugin_backend_wasmer",
+    "dep:swc_plugin_backend_wasmtime",
     "next-custom-transforms/plugin",
     "next-core/plugin",
     "turbopack-ecmascript-plugins",
@@ -52,6 +53,8 @@ ignored = [
     # the plugins feature needs to set a feature on this transitively depended-on package, we never
     # directly import it
     "turbopack-ecmascript-plugins",
+    # used conditionally behind the `plugin` feature flag
+    "swc_plugin_backend_wasmtime",
 ]
 
 [dependencies]
@@ -107,6 +110,7 @@ swc_core = { workspace = true, features = [
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
+swc_plugin_backend_wasmtime = { workspace = true, optional = true }
 lightningcss = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true, features = ["napi"] }

@@ -75,6 +75,7 @@ import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-st
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
+import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -83,6 +84,7 @@ interface PrivateCacheContext {
     | PrivateUseCacheStore
     | PrerenderStoreModernRuntime
   readonly skipPropagation: boolean
+  readonly outerOwnerStack: string | undefined
 }
 
 interface PublicCacheContext {
@@ -93,6 +95,7 @@ interface PublicCacheContext {
     PrerenderStoreModernClient | ValidationStoreClient
   >
   readonly skipPropagation: boolean
+  readonly outerOwnerStack: string | undefined
 }
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
@@ -360,6 +363,7 @@ function createUseCacheStore(
       rootParams: outerWorkUnitStore.rootParams,
       headers: outerWorkUnitStore.headers,
       cookies: outerWorkUnitStore.cookies,
+      outerOwnerStack: cacheContext.outerOwnerStack,
     }
   } else {
     let useCacheOrRequestStore: RequestStore | UseCacheStore | undefined
@@ -404,8 +408,46 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      outerOwnerStack: cacheContext.outerOwnerStack,
     }
   }
+}
+
+/**
+ * Captures the owner stack from the outer component tree before entering a
+ * cache boundary. When nested inside another cache scope, the parent's
+ * outerOwnerStack is concatenated so that the full component tree is preserved
+ * across multiple cache boundaries.
+ */
+function captureOuterOwnerStack(
+  workUnitStore: WorkUnitStore
+): string | undefined {
+  const capturedOwnerStack =
+    (getClientReact()?.captureOwnerStack?.() ??
+      getServerReact()?.captureOwnerStack?.()) ||
+    ''
+
+  let parentOuterOwnerStack: string | undefined
+  switch (workUnitStore.type) {
+    case 'cache':
+    case 'private-cache':
+      parentOuterOwnerStack = workUnitStore.outerOwnerStack
+      break
+    case 'unstable-cache':
+    case 'request':
+    case 'prerender':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'prerender-runtime':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'generate-static-params':
+      break
+    default:
+      workUnitStore satisfies never
+  }
+
+  return capturedOwnerStack + (parentOuterOwnerStack || '') || undefined
 }
 
 function assertDefaultCacheLife(
@@ -1125,6 +1167,11 @@ export async function cache(
     )
   }
 
+  const outerOwnerStack =
+    process.env.NODE_ENV !== 'production'
+      ? captureOuterOwnerStack(workUnitStore)
+      : undefined
+
   const name = originalFn.name
   let fn = originalFn
   let cacheContext: CacheContext
@@ -1182,6 +1229,7 @@ export async function cache(
           kind: 'private',
           outerWorkUnitStore: workUnitStore,
           skipPropagation: false,
+          outerOwnerStack,
         }
         break
       case 'generate-static-params':
@@ -1221,6 +1269,7 @@ export async function cache(
           kind: 'public',
           outerWorkUnitStore: workUnitStore,
           skipPropagation: false,
+          outerOwnerStack,
         }
         break
       default:
@@ -2048,6 +2097,7 @@ export async function cache(
             kind: cacheContext.kind,
             outerWorkUnitStore: cacheContext.outerWorkUnitStore,
             skipPropagation: true,
+            outerOwnerStack: cacheContext.outerOwnerStack,
           },
           clientReferenceManifest,
           encodedCacheKeyParts,

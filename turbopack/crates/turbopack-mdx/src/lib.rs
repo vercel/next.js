@@ -3,19 +3,17 @@
 #![feature(arbitrary_self_types_pointers)]
 
 use anyhow::Result;
+use async_trait::async_trait;
 use mdxjs::{MdxParseOptions, Options, compile};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSource, IssueStage, StyledString},
     source::Source,
     source_pos::SourcePos,
     source_transform::SourceTransform,
@@ -58,20 +56,6 @@ impl Default for MdxTransformOptions {
             provider_import_source: None,
             mdx_type: Some(MdxParseConstructs::Commonmark),
         }
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl MdxTransformOptions {
-    #[turbo_tasks::function]
-    fn default_private() -> Vc<Self> {
-        Self::cell(Default::default())
-    }
-}
-
-impl ValueDefault for MdxTransformOptions {
-    fn value_default() -> Vc<Self> {
-        Self::default_private()
     }
 }
 
@@ -258,32 +242,26 @@ struct MdxIssue {
     mdx_source: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for MdxIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn title(self: Vc<Self>) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("MDX Parse Error")).cell()
+    async fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("MDX Parse Error")))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(self.reason.clone()).resolved_cell(),
-        ))
+    async fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.reason.clone())))
     }
 }

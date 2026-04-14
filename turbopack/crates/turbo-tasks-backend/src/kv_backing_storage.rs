@@ -381,6 +381,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
     fn shutdown(&self) -> Result<()> {
         self.inner.database.shutdown()
     }
+
+    fn has_unrecoverable_write_error(&self) -> bool {
+        self.inner.database.has_unrecoverable_write_error()
+    }
 }
 
 fn get_next_free_task_id<'a>(batch: &impl ConcurrentWriteBatch<'a>) -> Result<u32, anyhow::Error> {

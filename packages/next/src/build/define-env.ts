@@ -46,6 +46,7 @@ const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
 interface DefineEnv {
   [key: string]:
     | string
+    | number
     | string[]
     | boolean
     | { [DEFINE_ENV_EXPRESSION]: string }
