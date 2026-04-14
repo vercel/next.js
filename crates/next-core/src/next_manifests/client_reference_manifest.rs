@@ -429,10 +429,10 @@ async fn build_manifest(
                 .with_extension("")
                 .to_string_ref()
                 .await?;
-            let entry_js_files = entry_manifest
-                .entry_js_files
-                .entry(server_component_name.clone())
-                .or_default();
+            // let entry_js_files = entry_manifest
+            //     .entry_js_files
+            //     .entry(server_component_name.clone())
+            //     .or_default();
             let entry_css_files = entry_manifest
                 .entry_css_files
                 .entry(server_component_name)
@@ -476,8 +476,8 @@ async fn build_manifest(
                             inlined: inlined_css,
                             content,
                         });
-                    } else {
-                        entry_js_files.insert(path);
+                    // } else {
+                        // entry_js_files.insert(path);
                     }
                 }
             }
