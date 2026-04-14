@@ -718,20 +718,20 @@ async fn fetch_real_stylesheet(
     disk_cache: &Option<FontDiskCache>,
 ) -> Result<Option<Vc<RcStr>>> {
     // Check disk cache first
-    if let Some(cache) = disk_cache {
-        if let Some(css) = cache.get_css(&stylesheet_url) {
-            return Ok(Some(Vc::cell(css.into())));
-        }
+    if let Some(cache) = disk_cache
+        && let Some(css) = cache.get_css(&stylesheet_url)
+    {
+        return Ok(Some(Vc::cell(css.into())));
     }
 
     let body =
         fetch_from_google_fonts(fetch_client, stylesheet_url.clone(), css_virtual_path).await?;
 
-    if let Some(body) = &body {
-        if let Some(cache) = disk_cache {
-            let css_str = body.to_string().await?;
-            cache.set_css(&stylesheet_url, &css_str);
-        }
+    if let Some(body) = &body
+        && let Some(cache) = disk_cache
+    {
+        let css_str = body.to_string().await?;
+        cache.set_css(&stylesheet_url, &css_str);
     }
 
     Ok(body.map(|body| body.to_string()))
