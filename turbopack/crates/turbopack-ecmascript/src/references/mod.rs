@@ -22,7 +22,6 @@ pub mod util;
 pub mod worker;
 
 use std::{
-    collections::BTreeMap,
     future::Future,
     mem::take,
     ops::Deref,
@@ -62,6 +61,7 @@ use swc_core::{
 };
 use tokio::sync::OnceCell;
 use tracing::Instrument;
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
@@ -907,21 +907,21 @@ async fn analyze_ecmascript_module_internal(
                     analysis.add_esm_reexport_reference(i);
                 }
                 Reexport::Namespace { exported: n } => {
-                    esm_exports.insert(
+                    esm_exports.push((
                         n.as_str().into(),
                         EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
-                    );
+                    ));
                     analysis.add_esm_reexport_reference(i);
                 }
                 Reexport::Named { imported, exported } => {
-                    esm_exports.insert(
+                    esm_exports.push((
                         exported.as_str().into(),
                         EsmExport::ImportedBinding(
                             ResolvedVc::upcast(reference),
                             imported.to_string().into(),
                             false,
                         ),
-                    );
+                    ));
                     analysis.add_esm_reexport_reference(i);
                 }
             }
@@ -939,7 +939,7 @@ async fn analyze_ecmascript_module_internal(
             }
 
             let esm_exports = EsmExports {
-                exports: esm_exports,
+                exports: FrozenMap::from(esm_exports),
                 star_exports: esm_star_exports,
             }
             .cell();
@@ -4003,7 +4003,7 @@ struct ModuleReferencesVisitor<'a> {
     old_analyzer: StaticAnalyser,
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-    esm_exports: BTreeMap<RcStr, EsmExport>,
+    esm_exports: Vec<(RcStr, EsmExport)>,
     webpack_runtime: Option<(RcStr, Span)>,
     webpack_entry: bool,
     webpack_chunks: Vec<Lit>,
@@ -4026,7 +4026,7 @@ impl<'a> ModuleReferencesVisitor<'a> {
             old_analyzer: StaticAnalyser::default(),
             import_references,
             analysis,
-            esm_exports: BTreeMap::new(),
+            esm_exports: Vec::new(),
             webpack_runtime: None,
             webpack_entry: false,
             webpack_chunks: Vec::new(),
@@ -4186,7 +4186,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                                 )
                             }
                         };
-                        self.esm_exports.insert(key, export);
+                        self.esm_exports.push((key, export));
                     }
                 }
             }
@@ -4212,7 +4212,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 let liveness = self.get_export_ident_liveness((id.clone(), ctx));
                 let name: RcStr = id.as_str().into();
                 self.esm_exports
-                    .insert(name.clone(), EsmExport::LocalBinding(name, liveness));
+                    .push((name.clone(), EsmExport::LocalBinding(name, liveness)));
             };
             match decl {
                 Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
@@ -4252,14 +4252,14 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast ExportDefaultExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        self.esm_exports.insert(
+        self.esm_exports.push((
             rcstr!("default"),
             EsmExport::LocalBinding(
                 magic_identifier::mangle("default export").into(),
                 // The expression passed to `export default` cannot be mutated
                 Liveness::Constant,
             ),
-        );
+        ));
         if self.analyze_mode.is_code_gen() {
             self.analysis.add_code_gen(EsmModuleItem::new(
                 as_parent_path(ast_path).into(),
@@ -4287,7 +4287,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                         Liveness::Constant,
                     ),
                 };
-                self.esm_exports.insert(rcstr!("default"), export);
+                self.esm_exports.push((rcstr!("default"), export));
             }
             DefaultDecl::TsInterfaceDecl(..) => {
                 // ignore
