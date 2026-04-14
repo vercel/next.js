@@ -2262,7 +2262,13 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' ||
+        isSSG ||
+        // In development mode, pages are not pre-rendered to strings, so we
+        // need to also check for pages that don't have server-side rendering
+        // capabilities. These pages should reject non-GET/HEAD methods with
+        // 405, matching production (`next start`) behavior. See #38863.
+        (!hasServerProps && !isAppPath))
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
