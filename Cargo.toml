@@ -320,7 +320,7 @@ rand = "0.10.0"
 rayon = "1.10.0"
 regex = "1.10.6"
 regress = "0.10.4"
-reqwest = { version = "0.13.1", default-features = false }
+reqwest = { version = "0.13.2", default-features = false }
 ringmap = "0.2.3"
 roaring = "0.10.10"
 rstest = "0.16.0"

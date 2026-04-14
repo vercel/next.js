@@ -8,9 +8,9 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
-        EvaluatableAsset, EvaluatableAssets, MinifyType, SourceMapSourceType, SourceMapsType,
-        UnusedReferences, UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin,
+        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -224,6 +224,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn cross_origin(mut self, cross_origin: CrossOrigin) -> Self {
+        self.chunking_context.cross_origin = cross_origin;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -322,6 +327,8 @@ pub struct BrowserChunkingContext {
     chunk_loading_global: Option<RcStr>,
     /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
     hash_salt: ResolvedVc<RcStr>,
+    /// The crossorigin mode for dynamically loaded chunks.
+    cross_origin: CrossOrigin,
 }
 
 impl BrowserChunkingContext {
@@ -375,6 +382,7 @@ impl BrowserChunkingContext {
                 worker_forwarded_globals: vec![],
                 chunk_loading_global: Default::default(),
                 hash_salt: ResolvedVc::cell(RcStr::default()),
+                cross_origin: Default::default(),
             },
         }
     }
@@ -503,6 +511,11 @@ impl BrowserChunkingContext {
                 .clone()
                 .unwrap_or_else(|| rcstr!("TURBOPACK")),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub fn cross_origin(&self) -> Vc<CrossOrigin> {
+        self.cross_origin.cell()
     }
 }
 

@@ -4,8 +4,8 @@ use std::{
     future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
-    mem::transmute,
     ops::Deref,
+    slice,
 };
 
 use anyhow::Result;
@@ -246,15 +246,16 @@ where
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
     pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+        unsafe { Vec::from_raw_parts(ptr as *mut Vc<T>, len, capacity) }
     }
 
     /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
-    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+    pub fn deref_slice(s: &[ResolvedVc<T>]) -> &[Vc<T>] {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
+        unsafe { slice::from_raw_parts(s.as_ptr() as *const Vc<T>, s.len()) }
     }
 }
 
