@@ -14,6 +14,7 @@ import {
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
@@ -57,6 +58,7 @@ export function connection(): Promise<void> {
             `Route ${workStore.route} used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, connection)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
@@ -68,6 +70,7 @@ export function connection(): Promise<void> {
             `Route ${workStore.route} used \`connection()\` inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, connection)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
