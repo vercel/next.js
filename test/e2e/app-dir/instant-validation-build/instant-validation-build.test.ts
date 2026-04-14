@@ -551,26 +551,78 @@ describe('instant-validation-build', () => {
       expectNoBuildValidationErrors(result)
     })
 
-    it('error - reading a param not present in samples', async () => {
+    it('error - reading a param not present in samples when a different param is provided', async () => {
       const result = await prerender(
         '/(default)/params/invalid-param-not-provided/[one]/[two]'
       )
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
-           at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:24)
+           at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:60:24)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:3)
-         45 |
-         46 |   // We're not allowed to access params not in the samples.
-       > 47 |   ensureThrows(() => p.two)
+           at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:60:3)
+         58 |
+         59 |   // We're not allowed to access the values of params that aren't in the samples.
+       > 60 |   ensureThrows(() => p.two)
             |                        ^
-         48 |
-         49 |   // TODO: test \`in\` and iteration
-         50 |   // assert.deepStrictEqual( {
+         61 |
+         62 |   return null
+         63 | } {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided/[one]/[two]".
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('error - reading a param not present in samples when no other params are provided', async () => {
+      const result = await prerender(
+        '/(default)/params/invalid-params-not-provided/[one]/[two]'
+      )
+      expect(extractBuildValidationError(result.cliOutput))
+        .toMatchInlineSnapshot(`
+       "Error: Route "/params/invalid-params-not-provided/[one]/[two]" accessed param "one" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+           at <unknown> (app/(default)/params/invalid-params-not-provided/[one]/[two]/page.tsx:63:24)
+           at <unknown> (ensure-error.ts:11:5)
+           at a (app/(default)/params/invalid-params-not-provided/[one]/[two]/page.tsx:63:3)
+         61 |
+         62 |   // We're not allowed to access the values of params that aren't in the samples.
+       > 63 |   ensureThrows(() => p.one)
+            |                        ^
+         64 |
+         65 |   return null
+         66 | } {
+         digest: 'INSTANT_VALIDATION_ERROR'
+       }
+       Build-time instant validation failed for route "/params/invalid-params-not-provided/[one]/[two]".
+       Stopping prerender due to instant validation errors."
+      `)
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expect(result.exitCode).toBe(1)
+    })
+
+    it('error - reading a param not present in samples via iteration', async () => {
+      const result = await prerender(
+        '/(default)/params/invalid-param-not-provided-iter/[one]/[two]'
+      )
+      expect(extractBuildValidationError(result.cliOutput))
+        .toMatchInlineSnapshot(`
+       "Error: Route "/params/invalid-param-not-provided-iter/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
+           at <unknown> (app/(default)/params/invalid-param-not-provided-iter/[one]/[two]/page.tsx:41:23)
+           at <unknown> (ensure-error.ts:11:5)
+           at a (app/(default)/params/invalid-param-not-provided-iter/[one]/[two]/page.tsx:41:3)
+         39 |
+         40 |   // We're not allowed to access the values of params that aren't in the samples.
+       > 41 |   ensureThrows(() => ({ ...p }))
+            |                       ^
+         42 |
+         43 |   return null
+         44 | } {
+         digest: 'INSTANT_VALIDATION_ERROR'
+       }
+       Build-time instant validation failed for route "/params/invalid-param-not-provided-iter/[one]/[two]".
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -601,6 +653,27 @@ describe('instant-validation-build', () => {
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
       expect(result.exitCode).toBe(1)
+    })
+
+    it('valid - awaiting params in a segment with no params is allowed', async () => {
+      const result = await prerender('/(default)/params/valid-no-params')
+      expect(result.cliOutput).not.toContain('AssertionError')
+      expectNoBuildValidationErrors(result)
+    })
+
+    it('invalid - awaiting params without suspense with no samples fails validation', async () => {
+      const result = await prerender(
+        '/(default)/params/invalid-params-without-samples-hangs/[slug]'
+      )
+      expect(extractBuildValidationError(result.cliOutput))
+        .toMatchInlineSnapshot(`
+       "Error: Route "/params/invalid-params-without-samples-hangs/[slug]": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           at main (<anonymous>)
+           at body (<anonymous>)
+           at html (<anonymous>)
+       Build-time instant validation failed for route "/params/invalid-params-without-samples-hangs/[slug]".
+       Stopping prerender due to instant validation errors."
+      `)
     })
 
     it('useParams() receives params from samples', async () => {

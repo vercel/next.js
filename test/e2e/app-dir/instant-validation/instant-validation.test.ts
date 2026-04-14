@@ -794,15 +794,6 @@ describe('instant validation', () => {
            11 |   return (
            12 |     <main>
            13 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:10:20)
-            8 | export default async function Page() {
-            9 |   await cookies()
-         > 10 |   const now = Date.now()
-              |                    ^
-           11 |   return (
-           12 |     <main>
-           13 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io".
          Stopping prerender due to instant validation errors."
         `)
@@ -842,24 +833,6 @@ describe('instant validation', () => {
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
-           12 | export default async function Page() {
-           13 |   await cookies()
-         > 14 |   const now = Date.now()
-              |                    ^
-           15 |   return (
-           16 |     <main>
-           17 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
-           12 | export default async function Page() {
-           13 |   await cookies()
-         > 14 |   const now = Date.now()
-              |                    ^
-           15 |   return (
-           16 |     <main>
-           17 |       <p>Runtime page with sync IO after cookies: {now}</p>
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
            12 | export default async function Page() {
            13 |   await cookies()
          > 14 |   const now = Date.now()
@@ -984,15 +957,6 @@ describe('instant validation', () => {
            12 |   return {
            13 |     title: \`Sync IO in metadata: \${now}\`,
            14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
-              |                    ^
-           12 |   return {
-           13 |     title: \`Sync IO in metadata: \${now}\`,
-           14 |   }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata".
          Stopping prerender due to instant validation errors."
         `)
@@ -1049,24 +1013,6 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
-              |                    ^
-           12 |   return {
-           13 |     title: \`Layout metadata with sync IO: \${now}\`,
-           14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
-              |                    ^
-           12 |   return {
-           13 |     title: \`Layout metadata with sync IO: \${now}\`,
-           14 |   }
-         Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
              at Module.d [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata/layout.tsx:11:20)
             9 | export async function generateMetadata() {
            10 |   await cookies()
