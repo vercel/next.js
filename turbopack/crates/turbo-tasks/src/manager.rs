@@ -835,11 +835,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
             TaskPersistence::Transient => self
                 .backend
                 .try_get_or_create_transient_task(native_fn, this, arg, parent_task, self)
-                .map(|task_id| RawVc::TaskOutput(task_id)),
+                .map(RawVc::TaskOutput),
             TaskPersistence::Persistent => self
                 .backend
                 .try_get_or_create_persistent_task(native_fn, this, arg, parent_task, self)
-                .map(|task_id| RawVc::TaskOutput(task_id)),
+                .map(RawVc::TaskOutput),
         }
     }
 
@@ -1889,7 +1889,7 @@ pub fn dynamic_call(
 /// the parent connection is made and the result is returned without any heap allocation
 /// for the arguments.
 ///
-/// On cache miss, falls back to boxing the arg and going through the normal `native_call` path.
+/// On cache miss, falls back to boxing the arg and going through the normal `dynamic_call` path.
 pub fn native_call_if_consistent<T: MagicAny>(
     func: &'static NativeFunction,
     this: Option<RawVc>,
@@ -1901,7 +1901,7 @@ pub fn native_call_if_consistent<T: MagicAny>(
             Ok(raw_vc) => raw_vc,
             Err(_hash) => {
                 // Cache miss — box the arg and go through the full path
-                tt.native_call(func, this, Box::new(arg), persistence)
+                tt.dynamic_call(func, this, Box::new(arg), persistence)
             }
         },
     )

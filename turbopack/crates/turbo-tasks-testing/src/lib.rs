@@ -118,7 +118,8 @@ impl TurboTasksCallApi for VcStorage {
         _arg: &dyn MagicAny,
         _persistence: TaskPersistence,
     ) -> Result<RawVc, u64> {
-        unreachable!()
+        // Testing backend has no task cache, always report a miss
+        Err(0)
     }
 
     fn trait_call(
