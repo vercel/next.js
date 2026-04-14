@@ -591,6 +591,16 @@ impl ImportMap {
                             };
                             analyzer.data.imports.insert(local, (i, orig_sym));
                         }
+                        if import.specifiers.is_empty()
+                            && let Some(internal_symbol) = internal_symbol
+                        {
+                            analyzer.ensure_reference(
+                                import.span,
+                                import.src.value.clone(),
+                                internal_symbol,
+                                annotations,
+                            );
+                        }
                     }
                     // We need to call ensure_reference in this loop to ensure that the reference
                     // order of all hosted imports (be it import or reexport) is correct.
