@@ -625,7 +625,7 @@ impl EsmExports {
         }
 
         Ok(ExpandedExports {
-            exports: FrozenMap::from_unique_sorted_box_unchecked(exports.into_iter().collect()),
+            exports: FrozenMap::from(exports),
             dynamic_exports,
         }
         .cell())
