@@ -1098,7 +1098,7 @@ export function trackDynamicHoleInRuntimeShell(
     return
   }
 
-  const message = runtimeBodyMessage(workStore.route)
+  const message = dynamicBodyMessage(workStore.route)
   const error = addErrorContext(new Error(message), componentStack, null)
   dynamicValidation.dynamicErrors.push(error)
   return
@@ -1145,7 +1145,7 @@ export function trackDynamicHoleInStaticShell(
     dynamicValidation.dynamicErrors.push(syncError)
     return
   } else {
-    const message = dynamicBodyMessage(workStore.route)
+    const message = runtimeBodyMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return

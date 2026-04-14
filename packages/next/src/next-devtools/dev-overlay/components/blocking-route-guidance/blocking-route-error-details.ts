@@ -10,11 +10,14 @@ export type DynamicMetadataErrorDetails = {
 }
 
 function isRuntimeVariant(message: string): boolean {
-  return (
-    message.includes('request-time API') ||
-    message.includes('cookies()') ||
-    message.includes('Runtime data')
-  )
+  if (message.includes('Runtime data')) return true
+  if (
+    message.includes('A request-time API') &&
+    !message.includes('Uncached data or a request-time API')
+  ) {
+    return true
+  }
+  return false
 }
 
 export function getBlockingRouteErrorDetails(
