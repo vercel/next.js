@@ -6,8 +6,6 @@
     "esModuleInterop": true,
     "target": "es2015",
     "lib": ["dom", "es2020"],
-    "downlevelIteration": true,
-    "ignoreDeprecations": "6.0",
     "preserveWatchOutput": true,
     "skipLibCheck": true,
     "outDir": "dist",
