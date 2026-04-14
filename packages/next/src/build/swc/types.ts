@@ -9,7 +9,12 @@ import type {
   NapiPartialProjectOptions,
   NapiCodeFrameOptions,
   NapiCodeFrameLocation,
+  TraceServerHandle,
+  TraceQueryOptions,
+  TraceQueryResult,
 } from './generated-native'
+
+export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
 
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
@@ -27,10 +32,14 @@ export interface Binding {
       turboEngineOptions?: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
     ): Promise<Project>
-    startTurbopackTraceServer(
+    startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
-    ): void
+    ): TraceServerHandle
+    queryTraceSpans(
+      handle: TraceServerHandle,
+      options: TraceQueryOptions
+    ): TraceQueryResult
     databaseCompact(path: string): Promise<void>
 
     nextBuild?: any
