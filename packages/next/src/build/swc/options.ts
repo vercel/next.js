@@ -113,9 +113,6 @@ function getBaseSWCOptions({
   const useDefineForClassFields = Boolean(
     jsConfig?.compilerOptions?.useDefineForClassFields
   )
-  const plugins = (swcPlugins ?? [])
-    .filter(Array.isArray)
-    .map(([name, options]: any) => [require.resolve(name), options])
 
   return {
     jsc: {
@@ -130,7 +127,7 @@ function getBaseSWCOptions({
       experimental: {
         keepImportAttributes: true,
         emitAssertForImportAttributes: true,
-        plugins,
+        plugins: swcPlugins,
         cacheRoot: swcCacheDir,
       },
       transform: {
