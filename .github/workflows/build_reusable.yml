@@ -267,7 +267,7 @@ jobs:
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -292,7 +292,7 @@ jobs:
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.testTimingsArtifact }}
 
@@ -320,7 +320,7 @@ jobs:
 
       - name: Upload test result artifacts
         if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.testReportsArtifactPrefix }}-${{ steps.var.outputs.input_step_key }}
           path: test/**/*.results.json
@@ -335,14 +335,14 @@ jobs:
 
       - name: Upload Turborepo summary
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
           path: .turbo/runs
           if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
           name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
@@ -375,7 +375,7 @@ jobs:
           fi
 
       - name: Upload Playwright Snapshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.afterBuild && always() }}
         with:
           name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}

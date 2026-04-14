@@ -2,6 +2,7 @@
   "compilerOptions": {
     "target": "es2015",
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "strict": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,

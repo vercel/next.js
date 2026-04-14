@@ -142,11 +142,11 @@
     "@next/eslint-plugin-next": "workspace:*",
     "@next/font": "workspace:*",
     "@next/mdx": "workspace:*",
+    "@next/playwright": "workspace:*",
     "@next/plugin-storybook": "workspace:*",
     "@next/polyfill-module": "workspace:*",
     "@next/polyfill-nomodule": "workspace:*",
     "@next/swc": "workspace:*",
-    "@next/playwright": "workspace:*",
     "@next/third-parties": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
@@ -302,7 +302,7 @@
     "tsec": "0.2.1",
     "tsx": "4.19.2",
     "turbo": "2.9.4",
-    "typescript": "5.9.2",
+    "typescript": "6.0.2",
     "typescript-eslint": "8.46.0",
     "unfetch": "4.2.0",
     "wait-port": "0.2.2",
@@ -349,7 +349,9 @@
       "@types/node@20.17.6": "patches/@types__node@20.17.6.patch",
       "taskr@1.1.0": "patches/taskr@1.1.0.patch",
       "minizlib@3.1.0": "patches/minizlib@3.1.0.patch",
-      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch"
+      "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch",
+      "web-vitals@4.2.1": "patches/web-vitals@4.2.1.patch",
+      "@rspack/core@1.6.7": "patches/@rspack__core@1.6.7.patch"
     }
   }
 }
