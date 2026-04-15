@@ -19,6 +19,7 @@ describe('swcEnvOptions', () => {
     serverReferenceHashSalt: 'test-salt',
     bundleLayer: undefined,
     cacheHandlers: undefined,
+    configDir: '/',
   }
 
   it('should not include extra env options when swcEnvOptions is not set', () => {
