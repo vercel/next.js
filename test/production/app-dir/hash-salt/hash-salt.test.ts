@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { listClientChunks } from 'next-test-utils'
 import { join } from 'path'
 
-describe.each(['NEXT_HASH_SALT', 'ADAPTER_HASH_SALT'])('%s', (saltEnvVar) => {
+describe('NEXT_HASH_SALT', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -11,7 +11,7 @@ describe.each(['NEXT_HASH_SALT', 'ADAPTER_HASH_SALT'])('%s', (saltEnvVar) => {
   /** Build with the given salt and return { chunks, images, css } filename lists. */
   async function buildWithSalt(salt: string) {
     await next.clean()
-    await next.build({ env: { [saltEnvVar]: salt } })
+    await next.build({ env: { NEXT_HASH_SALT: salt } })
     const files = await listClientChunks(join(next.testDir, next.distDir))
     const chunks = files.filter(
       (f) => f.includes('/chunks/') && f.endsWith('.js')
@@ -83,45 +83,68 @@ describe('experimental.outputHashSalt', () => {
   async function buildWithSalts(opts: {
     configSalt?: string
     envSalt?: string
+    adapterSalt?: string
   }) {
     const env: Record<string, string> = {}
     if (opts.configSalt) env.OUTPUT_HASH_SALT_CONFIG = opts.configSalt
     if (opts.envSalt) env.NEXT_HASH_SALT = opts.envSalt
+    if (opts.adapterSalt) env.ADAPTER_HASH_SALT = opts.adapterSalt
     await next.clean()
     await next.build({ env })
     const chunks = (
       await listClientChunks(join(next.testDir, next.distDir))
     ).filter((f) => f.includes('/chunks/') && f.endsWith('.js'))
-    return chunks
+    return chunks.sort()
   }
 
   let noSaltChunks: string[]
   let configOnlyChunks: string[]
   let envOnlyChunks: string[]
-  let bothChunks: string[]
+  let adapterEnvOnlyChunks: string[]
+  let configAndEnvChunks: string[]
+  let configAndAdapterEnvChunks: string[]
+  let envAndAdapterEnvChunks: string[]
 
   beforeAll(
     async () => {
       noSaltChunks = await buildWithSalts({})
       configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
       envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
-      bothChunks = await buildWithSalts({
+      adapterEnvOnlyChunks = await buildWithSalts({
+        adapterSalt: 'adapter-salt',
+      })
+      configAndEnvChunks = await buildWithSalts({
         configSalt: 'config-salt',
         envSalt: 'env-salt',
+      })
+      configAndAdapterEnvChunks = await buildWithSalts({
+        configSalt: 'config-salt',
+        adapterSalt: 'adapter-salt',
+      })
+      envAndAdapterEnvChunks = await buildWithSalts({
+        envSalt: 'env-salt',
+        adapterSalt: 'adapter-salt',
       })
     },
     5 * 60 * 1000
   )
 
   it('config salt changes filenames compared to no salt', () => {
-    expect(configOnlyChunks.sort()).not.toEqual(noSaltChunks.sort())
+    expect(configOnlyChunks).not.toEqual(noSaltChunks)
   })
 
-  it('combined salt differs from env-var-only salt', () => {
-    expect(bothChunks.sort()).not.toEqual(envOnlyChunks.sort())
+  it('config-and-env salt differs', () => {
+    expect(configAndEnvChunks).not.toEqual(envOnlyChunks)
+    expect(configAndEnvChunks).not.toEqual(configOnlyChunks)
   })
 
-  it('combined salt differs from config-only salt', () => {
-    expect(bothChunks.sort()).not.toEqual(configOnlyChunks.sort())
+  it('config-and-adapter-env salt differs', () => {
+    expect(configAndAdapterEnvChunks).not.toEqual(configOnlyChunks)
+    expect(configAndAdapterEnvChunks).not.toEqual(adapterEnvOnlyChunks)
+  })
+
+  it('env-and-adapter-env salt differs', () => {
+    expect(envAndAdapterEnvChunks).not.toEqual(envOnlyChunks)
+    expect(envAndAdapterEnvChunks).not.toEqual(adapterEnvOnlyChunks)
   })
 })
