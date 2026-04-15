@@ -108,4 +108,4 @@ See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full li
 | Blocked (Phase 1-3, score 1-9)    | 11      |
 | Blocked (score 10, ranker)        | 49      |
 | **Total blocked**                 | **60**  |
-| **Grand total**                   | **276** |
+| **Grand total**                   | **273** |
