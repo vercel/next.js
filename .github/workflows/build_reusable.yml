@@ -213,6 +213,11 @@ jobs:
       - run: corepack enable
       - run: pwd
 
+      - name: Kill stale sccache processes
+        if: ${{ runner.os == 'Windows' }}
+        shell: powershell
+        run: Get-Process sccache -ErrorAction SilentlyContinue | Stop-Process -Force
+
       - run: rm -rf .git
 
       - uses: actions/checkout@v4
@@ -264,7 +269,7 @@ jobs:
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ runner.os != 'Windows' && ((inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
         with:
           turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
