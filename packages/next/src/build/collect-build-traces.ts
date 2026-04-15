@@ -575,12 +575,13 @@ export async function collectBuildTraces({
       ].map(async ([entryName]) => {
         const isApp = entryName.startsWith('app/')
         const isPages = entryName.startsWith('pages/')
-        // The instrumentation hook is registered as a top-level entry whose
-        // name is the bare string 'instrumentation' (no app/pages prefix).
-        // Normalize it to a route-like key so users can target it via
-        // `outputFileTracingIncludes` with the same `/`-prefixed convention
-        // they use for app and pages routes.
-        const isInstrumentation = entryName === 'instrumentation'
+        // `instrumentation` and (Node-runtime) `middleware` are registered
+        // as top-level entries whose webpack entry name is the bare string
+        // (no `app/` or `pages/` prefix). Normalize them to `/`-prefixed
+        // route keys so users can target them via `outputFileTracingIncludes`
+        // with the same convention they use for app and pages routes.
+        const isTopLevelEntry =
+          entryName === 'instrumentation' || entryName === 'middleware'
         let route = entryName
         if (isApp) {
           route = normalizeAppPath(entryName)
@@ -588,8 +589,8 @@ export async function collectBuildTraces({
         if (isPages) {
           route = normalizePagePath(entryName)
         }
-        if (isInstrumentation) {
-          route = '/instrumentation'
+        if (isTopLevelEntry) {
+          route = `/${entryName}`
         }
 
         if (staticPages.includes(route)) {

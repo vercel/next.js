@@ -2,5 +2,6 @@
 module.exports = {
   outputFileTracingIncludes: {
     '/instrumentation': ['./include-me/**/*'],
+    '/middleware': ['./include-me/**/*'],
   },
 }
