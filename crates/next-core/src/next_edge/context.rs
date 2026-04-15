@@ -272,17 +272,16 @@ pub async fn get_edge_chunking_context_with_client_assets(
 
     if *turbo_minify.await? {
         let ecma_opts = if *no_mangling.await? {
-            EcmascriptEmitOptions::builder().no_mangle().build()
+            EcmascriptEmitOptions::builder()
+                .preset_minify_no_mangle()
+                .build()
         } else {
             EcmascriptEmitOptions::builder()
-                .mangle_deterministic()
+                .preset_minify_deterministic()
                 .build()
         };
         builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder()
-            .minify(true)
-            .chunk_item_comments(false)
-            .build();
+        let css_opts = CssEmitOptions::builder().preset_minify().build();
         builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
     }
 
@@ -390,17 +389,16 @@ pub async fn get_edge_chunking_context(
 
     if *turbo_minify.await? {
         let ecma_opts = if *no_mangling.await? {
-            EcmascriptEmitOptions::builder().no_mangle().build()
+            EcmascriptEmitOptions::builder()
+                .preset_minify_no_mangle()
+                .build()
         } else {
             EcmascriptEmitOptions::builder()
-                .mangle_optimal_size()
+                .preset_minify_optimal_size()
                 .build()
         };
         builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder()
-            .minify(true)
-            .chunk_item_comments(false)
-            .build();
+        let css_opts = CssEmitOptions::builder().preset_minify().build();
         builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
     }
 

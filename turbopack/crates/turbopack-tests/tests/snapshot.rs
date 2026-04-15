@@ -516,17 +516,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 };
                 let ecma_opts = match mangle {
                     Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
-                        .mangle_optimal_size()
+                        .preset_minify_optimal_size()
                         .build(),
                     Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
-                        .mangle_deterministic()
+                        .preset_minify_deterministic()
                         .build(),
-                    None => EcmascriptEmitOptions::builder().no_mangle().build(),
+                    None => EcmascriptEmitOptions::builder()
+                        .preset_minify_no_mangle()
+                        .build(),
                 };
-                let css_opts = CssEmitOptions::builder()
-                    .minify(true)
-                    .chunk_item_comments(false)
-                    .build();
+                let css_opts = CssEmitOptions::builder().preset_minify().build();
                 builder = builder
                     .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
                     .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
@@ -585,17 +584,16 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 };
                 let ecma_opts = match mangle {
                     Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
-                        .mangle_optimal_size()
+                        .preset_minify_optimal_size()
                         .build(),
                     Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
-                        .mangle_deterministic()
+                        .preset_minify_deterministic()
                         .build(),
-                    None => EcmascriptEmitOptions::builder().no_mangle().build(),
+                    None => EcmascriptEmitOptions::builder()
+                        .preset_minify_no_mangle()
+                        .build(),
                 };
-                let css_opts = CssEmitOptions::builder()
-                    .minify(true)
-                    .chunk_item_comments(false)
-                    .build();
+                let css_opts = CssEmitOptions::builder().preset_minify().build();
                 builder = builder
                     .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
                     .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));

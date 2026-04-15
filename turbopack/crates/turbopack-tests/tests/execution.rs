@@ -564,13 +564,10 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 
     if options.minify {
         let ecma_opts = EcmascriptEmitOptions::builder()
-            .mangle_optimal_size()
+            .preset_minify_optimal_size()
             .build();
         builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder()
-            .minify(true)
-            .chunk_item_comments(false)
-            .build();
+        let css_opts = CssEmitOptions::builder().preset_minify().build();
         builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
     }
 

@@ -74,9 +74,9 @@ impl EcmascriptEmitOptionsBuilder {
         self
     }
 
-    /// Convenience: minify with optimal-size mangling (char-freq enabled).
-    /// Sets indent=false, merged_module_comments=false.
-    pub fn mangle_optimal_size(mut self) -> Self {
+    /// Preset: minify with optimal-size mangling (char-freq enabled).
+    /// Disables indent and merged module comments.
+    pub fn preset_minify_optimal_size(mut self) -> Self {
         self.options.swc_minify_options = Some(Arc::new(SwcMinifyOptions {
             compress: Some(CompressOptions {
                 passes: 2,
@@ -93,9 +93,10 @@ impl EcmascriptEmitOptionsBuilder {
         self
     }
 
-    /// Convenience: minify with deterministic mangling (disable_char_freq=true).
+    /// Preset: minify with deterministic mangling (disable_char_freq=true).
     /// For React SSR contexts that need stable function names across renders.
-    pub fn mangle_deterministic(mut self) -> Self {
+    /// Disables indent and merged module comments.
+    pub fn preset_minify_deterministic(mut self) -> Self {
         self.options.swc_minify_options = Some(Arc::new(SwcMinifyOptions {
             compress: Some(CompressOptions {
                 passes: 2,
@@ -113,9 +114,10 @@ impl EcmascriptEmitOptionsBuilder {
         self
     }
 
-    /// Convenience: compress only, no mangling.
+    /// Preset: compress only, no mangling.
     /// Keeps class names and function names.
-    pub fn no_mangle(mut self) -> Self {
+    /// Disables indent and merged module comments.
+    pub fn preset_minify_no_mangle(mut self) -> Self {
         self.options.swc_minify_options = Some(Arc::new(SwcMinifyOptions {
             compress: Some(CompressOptions {
                 passes: 2,

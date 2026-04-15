@@ -38,6 +38,14 @@ impl CssEmitOptions {
 }
 
 impl CssEmitOptionsBuilder {
+    /// Preset: enable CSS minification.
+    /// Disables chunk item comments.
+    pub fn preset_minify(mut self) -> Self {
+        self.options.minify = true;
+        self.options.chunk_item_comments = false;
+        self
+    }
+
     pub fn minify(mut self, minify: bool) -> Self {
         self.options.minify = minify;
         self
