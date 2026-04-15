@@ -57,44 +57,6 @@ where
     Ok(None)
 }
 
-#[derive(
-    Debug,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Deserialize,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum MangleType {
-    OptimalSize,
-    Deterministic,
-}
-
-#[turbo_tasks::value(shared)]
-#[derive(Debug, TaskInput, Clone, Copy, Hash, DeterministicHash, Deserialize)]
-pub enum MinifyType {
-    // TODO instead of adding a new property here,
-    // refactor that to Minify(MinifyOptions) to allow defaults on MinifyOptions
-    Minify { mangle: Option<MangleType> },
-    NoMinify,
-}
-
-impl Default for MinifyType {
-    fn default() -> Self {
-        Self::Minify {
-            mangle: Some(MangleType::OptimalSize),
-        }
-    }
-}
-
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, TaskInput, Clone, Copy, Hash, DeterministicHash)]
 pub enum SourceMapsType {
@@ -435,11 +397,6 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn is_dynamic_chunk_content_loading_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
-    }
-
-    #[turbo_tasks::function]
-    fn minify_type(self: Vc<Self>) -> Vc<MinifyType> {
-        MinifyType::NoMinify.cell()
     }
 
     /// Returns the list of emit options for this chunking context.

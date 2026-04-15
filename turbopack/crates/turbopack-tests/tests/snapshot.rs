@@ -30,7 +30,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        MangleType, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
+        SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{
@@ -76,8 +76,8 @@ struct SnapshotOptions {
     browserslist: String,
     #[serde(default = "default_entry")]
     entry: String,
-    #[serde(default = "default_minify_type")]
-    minify_type: MinifyType,
+    #[serde(default)]
+    minify_mode: MinifyMode,
     #[serde(default)]
     runtime: Runtime,
     #[serde(default = "default_runtime_type")]
@@ -109,6 +109,22 @@ enum Runtime {
     NodeJs,
 }
 
+/// Minification mode for snapshot tests.
+/// Replaces the former `MinifyType` from turbopack-core.
+#[derive(Debug, Deserialize, Default)]
+enum MinifyMode {
+    /// No minification (default).
+    #[default]
+    #[serde(rename = "NoMinify")]
+    None,
+    /// Minify with optimal-size mangling (char-freq enabled).
+    OptimalSize,
+    /// Minify with deterministic mangling.
+    Deterministic,
+    /// Minify without mangling (compress only).
+    NoMangle,
+}
+
 #[derive(Debug, Deserialize, Default)]
 enum SnapshotEnvironment {
     #[default]
@@ -121,7 +137,7 @@ impl Default for SnapshotOptions {
         SnapshotOptions {
             browserslist: default_browserslist(),
             entry: default_entry(),
-            minify_type: default_minify_type(),
+            minify_mode: MinifyMode::default(),
             runtime: Default::default(),
             runtime_type: default_runtime_type(),
             environment: Default::default(),
@@ -153,10 +169,6 @@ fn default_runtime_type() -> RuntimeType {
     // the runtime. Instead, we only include the runtime in snapshots that
     // specifically request it via "runtime": "Default".
     RuntimeType::Dummy
-}
-
-fn default_minify_type() -> MinifyType {
-    MinifyType::NoMinify
 }
 
 fn default_chunk_loading_global() -> String {
@@ -499,7 +511,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -510,20 +521,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
 
-            if matches!(options.minify_type, MinifyType::Minify { .. }) {
-                let MinifyType::Minify { mangle } = options.minify_type else {
-                    unreachable!()
-                };
-                let ecma_opts = match mangle {
-                    Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
+            if !matches!(options.minify_mode, MinifyMode::None) {
+                let ecma_opts = match options.minify_mode {
+                    MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
                         .preset_minify_optimal_size()
                         .build(),
-                    Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
+                    MinifyMode::Deterministic => EcmascriptEmitOptions::builder()
                         .preset_minify_deterministic()
                         .build(),
-                    None => EcmascriptEmitOptions::builder()
+                    MinifyMode::NoMangle => EcmascriptEmitOptions::builder()
                         .preset_minify_no_mangle()
                         .build(),
+                    MinifyMode::None => unreachable!(),
                 };
                 let css_opts = CssEmitOptions::builder().preset_minify().build();
                 builder = builder
@@ -568,7 +577,6 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 env,
                 options.runtime_type,
             )
-            .minify_type(options.minify_type)
             .module_merging(options.scope_hoisting)
             .export_usage(if options.remove_unused_exports {
                 Some(binding_usage.unwrap().connect().to_resolved().await?)
@@ -578,20 +586,18 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 
-            if matches!(options.minify_type, MinifyType::Minify { .. }) {
-                let MinifyType::Minify { mangle } = options.minify_type else {
-                    unreachable!()
-                };
-                let ecma_opts = match mangle {
-                    Some(MangleType::OptimalSize) => EcmascriptEmitOptions::builder()
+            if !matches!(options.minify_mode, MinifyMode::None) {
+                let ecma_opts = match options.minify_mode {
+                    MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
                         .preset_minify_optimal_size()
                         .build(),
-                    Some(MangleType::Deterministic) => EcmascriptEmitOptions::builder()
+                    MinifyMode::Deterministic => EcmascriptEmitOptions::builder()
                         .preset_minify_deterministic()
                         .build(),
-                    None => EcmascriptEmitOptions::builder()
+                    MinifyMode::NoMangle => EcmascriptEmitOptions::builder()
                         .preset_minify_no_mangle()
                         .build(),
+                    MinifyMode::None => unreachable!(),
                 };
                 let css_opts = CssEmitOptions::builder().preset_minify().build();
                 builder = builder

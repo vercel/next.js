@@ -1168,7 +1168,7 @@ impl EcmascriptModuleContent {
                 merge_modules(contents, &entry_points, &globals_merged).await?;
 
             // Use the options from an arbitrary module, since they should all be the same with
-            // regards to minify_type and chunking_context.
+            // regards to emit_options and chunking_context.
             let options = module_options.last().unwrap().await?;
 
             let modules_header_width = modules.len().next_power_of_two().trailing_zeros();

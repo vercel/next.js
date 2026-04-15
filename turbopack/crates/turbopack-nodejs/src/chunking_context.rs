@@ -11,7 +11,7 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EmitOption, EmitOptions,
-        EntryChunkGroupResult, EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType,
+        EntryChunkGroupResult, EvaluatableAsset, SourceMapSourceType, SourceMapsType,
         UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
@@ -71,11 +71,6 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn default_url_behavior(mut self, behavior: UrlBehavior) -> Self {
         self.chunking_context.default_url_behavior = Some(behavior);
-        self
-    }
-
-    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
-        self.chunking_context.minify_type = minify_type;
         self
     }
 
@@ -225,8 +220,6 @@ pub struct NodeJsChunkingContext {
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
     enable_dynamic_chunk_content_loading: bool,
-    /// Whether to minify resulting chunks
-    minify_type: MinifyType,
     /// Emit options for this chunking context
     emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
     /// Whether to generate source maps
@@ -285,7 +278,6 @@ impl NodeJsChunkingContext {
                 enable_dynamic_chunk_content_loading: false,
                 environment,
                 runtime_type,
-                minify_type: MinifyType::NoMinify,
                 emit_options: vec![],
                 source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
@@ -312,12 +304,6 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn runtime_type(&self) -> Vc<RuntimeType> {
         self.runtime_type.cell()
-    }
-
-    /// Returns the minify type.
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     #[turbo_tasks::function]
@@ -400,11 +386,6 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_dynamic_chunk_content_loading)
-    }
-
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     #[turbo_tasks::function]

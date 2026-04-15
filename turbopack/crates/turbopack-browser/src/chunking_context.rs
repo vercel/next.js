@@ -9,7 +9,7 @@ use turbopack_core::{
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
         ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, CrossOrigin, EmitOption,
-        EmitOptions, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets, MinifyType,
+        EmitOptions, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
@@ -115,11 +115,6 @@ impl BrowserChunkingContextBuilder {
 
     pub fn manifest_chunks(mut self, manifest_chunks: bool) -> Self {
         self.chunking_context.manifest_chunks = manifest_chunks;
-        self
-    }
-
-    pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
-        self.chunking_context.minify_type = minify_type;
         self
     }
 
@@ -303,8 +298,6 @@ pub struct BrowserChunkingContext {
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
     runtime_type: RuntimeType,
-    /// Whether to minify resulting chunks
-    minify_type: MinifyType,
     /// Emit options
     emit_options: Vec<ResolvedVc<Box<dyn EmitOption>>>,
     /// Whether content hashing is enabled for chunk filenames.
@@ -375,7 +368,6 @@ impl BrowserChunkingContext {
                 debug_ids: false,
                 environment,
                 runtime_type,
-                minify_type: MinifyType::NoMinify,
                 emit_options: vec![],
                 chunk_content_hashing: None,
                 asset_content_hashing: ContentHashing::Direct { length: 13 },
@@ -491,12 +483,6 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn source_maps_type(&self) -> Vc<SourceMapsType> {
         self.source_maps_type.cell()
-    }
-
-    /// Returns the minify type.
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     /// Returns the chunk path information.
@@ -731,11 +717,6 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_dynamic_chunk_content_loading_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_dynamic_chunk_content_loading)
-    }
-
-    #[turbo_tasks::function]
-    pub fn minify_type(&self) -> Vc<MinifyType> {
-        self.minify_type.cell()
     }
 
     #[turbo_tasks::function]
