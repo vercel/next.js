@@ -276,6 +276,12 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border-color: rgba(130, 80, 220, 0.25);
   }
 
+  @media (prefers-color-scheme: dark) {
+    [data-card-color='purple'] [data-nextjs-fix-snippet] {
+      border-color: rgba(130, 80, 220, 0.5);
+    }
+  }
+
   [data-card-color='amber'] [data-nextjs-fix-snippet] {
     border-color: var(--color-amber-400);
   }
