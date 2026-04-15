@@ -134,12 +134,7 @@ export default function nextJest(options: { dir?: string } = {}) {
 
       const jestTransformerConfig: JestTransformerConfig = {
         modularizeImports: nextConfig?.modularizeImports,
-        swcPlugins: (nextConfig?.experimental?.swcPlugins ?? [])
-          .filter(Array.isArray)
-          .map(([name, opts]: any) => [
-            require.resolve(name, { paths: [options.dir!] }),
-            opts,
-          ]),
+        swcPlugins: nextConfig?.experimental?.swcPlugins,
         compilerOptions: nextConfig?.compiler,
         jsConfig,
         resolvedBaseUrl,
@@ -147,6 +142,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject,
         pagesDir,
         imageConfig,
+        configDir: options.dir,
       }
 
       return {

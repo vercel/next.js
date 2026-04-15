@@ -152,14 +152,10 @@ async function loaderTransform(
       !!nextConfig.experimental?.allowDevelopmentBuild,
     isCacheComponents: nextConfig.cacheComponents,
     hasReactRefresh,
+    configDir: rootDir,
     modularizeImports: nextConfig?.modularizeImports,
     optimizePackageImports: nextConfig?.experimental?.optimizePackageImports,
-    swcPlugins: (nextConfig?.experimental?.swcPlugins ?? [])
-      .filter(Array.isArray)
-      .map(([name, opts]: any) => [
-        require.resolve(name, { paths: [rootDir] }),
-        opts,
-      ]),
+    swcPlugins: nextConfig?.experimental?.swcPlugins,
     swcEnvOptions: nextConfig?.experimental?.swcEnvOptions,
     compilerOptions: nextConfig?.compiler,
     optimizeServerReact: nextConfig?.experimental?.optimizeServerReact,
