@@ -45,14 +45,13 @@ use swc_core::{
         GLOBALS, Globals, Span, Spanned, SyntaxContext,
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, HANDLER, Handler, Level},
-        pass::AstNodePath,
         source_map::SmallPos,
     },
     ecma::{
         ast::*,
         utils::IsDirective,
         visit::{
-            AstParentKind, AstParentNodeRef, VisitAstPath, VisitWithAstPath,
+            AstParentKind,
             fields::{
                 AssignExprField, AssignTargetField, BindingIdentField, SimpleAssignTargetField,
             },
@@ -61,7 +60,6 @@ use swc_core::{
 };
 use tokio::sync::OnceCell;
 use tracing::Instrument;
-use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
@@ -103,10 +101,8 @@ use crate::{
         ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue, JsValueUrlKind,
         ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
-        graph::{
-            ConditionalKind, DeclUsage, Effect, EffectArg, EvalContext, VarGraph, create_graph,
-        },
-        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol, Reexport},
+        graph::{ConditionalKind, DeclUsage, Effect, EffectArg, VarGraph, create_graph},
+        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol},
         linker::link,
         parse_require_context, side_effects,
         top_level_await::has_top_level_await,
@@ -115,8 +111,6 @@ use crate::{
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
-    export::Liveness,
-    magic_identifier,
     parse::ParseResult,
     references::{
         amd::{
@@ -132,7 +126,7 @@ use crate::{
         esm::{
             EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmExports, ImportMetaBinding,
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
-            export::EsmExport, module_id::EsmModuleIdAssetReference,
+            module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
@@ -152,7 +146,7 @@ use crate::{
         TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
-    tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split_module},
+    tree_shake::{part_of_module, split_module},
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
 };
 
@@ -867,47 +861,17 @@ async fn analyze_ecmascript_module_internal(
 
     let span = tracing::trace_span!("exports");
     async {
-        let mut esm_exports = set_handler_and_globals(&handler, globals, || {
-            // TODO migrate to effects
-            let mut visitor = ModuleReferencesVisitor::new(
-                eval_context,
-                &import_references,
-                &mut analysis,
-                &var_graph,
-            );
-            // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
-            // for any references in esm_exports
-            program.visit_with_ast_path(&mut visitor, &mut Default::default());
-            visitor.esm_exports
-        });
+        let esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = eval_context
+            .imports
+            .reexport_namespaces()
+            .map(|i| ResolvedVc::upcast(import_references[i]))
+            .collect();
+        let esm_exports = eval_context
+            .imports
+            .as_esm_exports(&import_references, &var_graph)?;
 
-        let mut esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = vec![];
-        for (i, reexport) in eval_context.imports.reexports() {
-            let reference = import_references[i];
-            match reexport {
-                Reexport::Star => {
-                    esm_star_exports.push(ResolvedVc::upcast(reference));
-                    analysis.add_esm_reexport_reference(i);
-                }
-                Reexport::Namespace { exported: n } => {
-                    esm_exports.push((
-                        n.as_str().into(),
-                        EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
-                    ));
-                    analysis.add_esm_reexport_reference(i);
-                }
-                Reexport::Named { imported, exported } => {
-                    esm_exports.push((
-                        exported.as_str().into(),
-                        EsmExport::ImportedBinding(
-                            ResolvedVc::upcast(reference),
-                            imported.to_string().into(),
-                            false,
-                        ),
-                    ));
-                    analysis.add_esm_reexport_reference(i);
-                }
-            }
+        for idx in eval_context.imports.reexports_reference_idxs() {
+            analysis.add_esm_reexport_reference(idx);
         }
 
         let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
@@ -922,7 +886,7 @@ async fn analyze_ecmascript_module_internal(
             }
 
             let esm_exports = EsmExports {
-                exports: FrozenMap::from(esm_exports),
+                exports: esm_exports,
                 star_exports: esm_star_exports,
             }
             .cell();
@@ -3850,58 +3814,6 @@ async fn require_context_visitor(
     ))
 }
 
-/// A visitor that walks the AST and collects information about the various
-/// references a module makes to other parts of the code.
-struct ModuleReferencesVisitor<'a> {
-    eval_context: &'a EvalContext,
-    imports: FxHashMap<String, (String, Vec<String>)>,
-    import_references: &'a [ResolvedVc<EsmAssetReference>],
-    analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-    esm_exports: Vec<(RcStr, EsmExport)>,
-    var_graph: &'a VarGraph,
-}
-
-impl<'a> ModuleReferencesVisitor<'a> {
-    fn new(
-        eval_context: &'a EvalContext,
-        import_references: &'a [ResolvedVc<EsmAssetReference>],
-        analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-        var_graph: &'a VarGraph,
-    ) -> Self {
-        Self {
-            eval_context,
-            imports: FxHashMap::default(),
-            import_references,
-            analysis,
-            esm_exports: Vec::new(),
-            var_graph,
-        }
-    }
-
-    /// Returns the liveness of a given export identifier.  An export is live if it might
-    /// change values after module evaluation.
-    fn get_export_ident_liveness(&self, id: Id) -> Liveness {
-        if let Some(crate::analyzer::graph::VarMeta {
-            value: _,
-            assignment_scopes: assignment_kinds,
-        }) = self.var_graph.values.get(&id)
-        {
-            // If all assignments are in module scope, the export is not live.
-            if *assignment_kinds != crate::analyzer::graph::AssignmentScopes::AllInModuleEvalScope {
-                Liveness::Live
-            } else {
-                Liveness::Constant
-            }
-        } else {
-            // If we haven't computed a value for it, that means it might be
-            // A free variable
-            // an imported variable
-            // In those cases, we just assume that the value is live since we don't know anything
-            Liveness::Live
-        }
-    }
-}
-
 pub(crate) fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Atom, SyntaxContext)) {
     match pat {
         Pat::Ident(BindingIdent { id, .. }) => {
@@ -3933,216 +3845,6 @@ pub(crate) fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Atom, SyntaxC
         }
         Pat::Invalid(_) | Pat::Expr(_) => {
             panic!("Unexpected pattern while enumerating idents");
-        }
-    }
-}
-
-impl VisitAstPath for ModuleReferencesVisitor<'_> {
-    fn visit_named_export<'ast: 'r, 'r>(
-        &mut self,
-        export: &'ast NamedExport,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        if export.type_only {
-            return;
-        }
-        // We create mutable exports for fake ESMs generated by module splitting
-        let is_fake_esm = export
-            .with
-            .as_deref()
-            .map(find_turbopack_part_id_in_asserts)
-            .is_some();
-
-        // This is for a statement like `export {a, b as c}` with no `from` clause.
-        if export.src.is_none() {
-            for spec in export.specifiers.iter() {
-                fn to_rcstr(name: &ModuleExportName) -> RcStr {
-                    name.atom().as_str().into()
-                }
-                match spec {
-                    ExportSpecifier::Namespace(_) => {
-                        panic!(
-                            "ExportNamespaceSpecifier will not happen in combination with src == \
-                             None"
-                        );
-                    }
-                    ExportSpecifier::Default(_) => {
-                        panic!(
-                            "ExportDefaultSpecifier will not happen in combination with src == \
-                             None"
-                        );
-                    }
-                    ExportSpecifier::Named(ExportNamedSpecifier { orig, exported, .. }) => {
-                        let key = to_rcstr(exported.as_ref().unwrap_or(orig));
-                        let binding_name = to_rcstr(orig);
-                        let export = {
-                            let imported_binding = if let ModuleExportName::Ident(ident) = orig {
-                                self.eval_context.imports.get_binding(&ident.to_id())
-                            } else {
-                                None
-                            };
-                            if let Some((index, export)) = imported_binding {
-                                let esm_ref = self.import_references[index];
-                                self.analysis.add_esm_reexport_reference(index);
-                                if let Some(export) = export {
-                                    EsmExport::ImportedBinding(
-                                        ResolvedVc::upcast(esm_ref),
-                                        export,
-                                        is_fake_esm,
-                                    )
-                                } else {
-                                    EsmExport::ImportedNamespace(ResolvedVc::upcast(esm_ref))
-                                }
-                            } else {
-                                let liveness = match orig {
-                                    ModuleExportName::Ident(ident) => {
-                                        self.get_export_ident_liveness(ident.to_id())
-                                    }
-                                    ModuleExportName::Str(_) => Liveness::Constant,
-                                };
-
-                                EsmExport::LocalBinding(
-                                    binding_name,
-                                    if is_fake_esm {
-                                        // it is likely that these are not always actually mutable.
-                                        Liveness::Mutable
-                                    } else {
-                                        liveness
-                                    },
-                                )
-                            }
-                        };
-                        self.esm_exports.push((key, export));
-                    }
-                }
-            }
-        }
-        export.visit_children_with_ast_path(self, ast_path);
-    }
-
-    fn visit_export_decl<'ast: 'r, 'r>(
-        &mut self,
-        export: &'ast ExportDecl,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        {
-            let decl: &Decl = &export.decl;
-            let insert_export_binding = &mut |id: &Atom, ctx: SyntaxContext| {
-                let liveness = self.get_export_ident_liveness((id.clone(), ctx));
-                let name: RcStr = id.as_str().into();
-                self.esm_exports
-                    .push((name.clone(), EsmExport::LocalBinding(name, liveness)));
-            };
-            match decl {
-                Decl::Class(ClassDecl { ident, .. }) | Decl::Fn(FnDecl { ident, .. }) => {
-                    insert_export_binding(&ident.sym, ident.ctxt);
-                }
-                Decl::Var(var_decl) => {
-                    var_decl
-                        .decls
-                        .iter()
-                        .for_each(|VarDeclarator { name, .. }| {
-                            for_each_ident_in_pat(name, insert_export_binding);
-                        });
-                }
-                Decl::Using(_) => {
-                    // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#:~:text=You%20cannot%20use%20export%20on%20a%20using%20or%20await%20using%20declaration
-                    unreachable!("using declarations can not be exported");
-                }
-                Decl::TsInterface(_)
-                | Decl::TsTypeAlias(_)
-                | Decl::TsEnum(_)
-                | Decl::TsModule(_) => {
-                    // ignore typescript for code generation
-                }
-            }
-        };
-        export.visit_children_with_ast_path(self, ast_path);
-    }
-
-    fn visit_export_default_expr<'ast: 'r, 'r>(
-        &mut self,
-        export: &'ast ExportDefaultExpr,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        self.esm_exports.push((
-            rcstr!("default"),
-            EsmExport::LocalBinding(
-                magic_identifier::mangle("default export").into(),
-                // The expression passed to `export default` cannot be mutated
-                Liveness::Constant,
-            ),
-        ));
-        export.visit_children_with_ast_path(self, ast_path);
-    }
-
-    fn visit_export_default_decl<'ast: 'r, 'r>(
-        &mut self,
-        export: &'ast ExportDefaultDecl,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        match &export.decl {
-            DefaultDecl::Class(ClassExpr { ident, .. }) | DefaultDecl::Fn(FnExpr { ident, .. }) => {
-                let export = match ident {
-                    Some(ident) => EsmExport::LocalBinding(
-                        ident.sym.as_str().into(),
-                        self.get_export_ident_liveness(ident.to_id()),
-                    ),
-                    // If there is no name, like `export default function(){}` then it is not live.
-                    None => EsmExport::LocalBinding(
-                        magic_identifier::mangle("default export").into(),
-                        Liveness::Constant,
-                    ),
-                };
-                self.esm_exports.push((rcstr!("default"), export));
-            }
-            DefaultDecl::TsInterfaceDecl(..) => {
-                // ignore
-            }
-        }
-        export.visit_children_with_ast_path(self, ast_path);
-    }
-
-    fn visit_import_decl<'ast: 'r, 'r>(
-        &mut self,
-        import: &'ast ImportDecl,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        let src = import.src.value.to_string_lossy().into_owned();
-        import.visit_children_with_ast_path(self, ast_path);
-        if import.type_only {
-            return;
-        }
-        for specifier in &import.specifiers {
-            match specifier {
-                ImportSpecifier::Named(named) => {
-                    if !named.is_type_only {
-                        self.imports.insert(
-                            named.local.sym.to_string(),
-                            (
-                                src.clone(),
-                                vec![match &named.imported {
-                                    Some(ModuleExportName::Ident(ident)) => ident.sym.to_string(),
-                                    Some(ModuleExportName::Str(str)) => {
-                                        str.value.to_string_lossy().into_owned()
-                                    }
-                                    None => named.local.sym.to_string(),
-                                }],
-                            ),
-                        );
-                    }
-                }
-                ImportSpecifier::Default(default_import) => {
-                    self.imports.insert(
-                        default_import.local.sym.to_string(),
-                        (src.clone(), vec!["default".to_string()]),
-                    );
-                }
-                ImportSpecifier::Namespace(namespace) => {
-                    self.imports
-                        .insert(namespace.local.sym.to_string(), (src.clone(), Vec::new()));
-                }
-            }
         }
     }
 }

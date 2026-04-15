@@ -1747,8 +1747,8 @@ async fn process_parse_result(
 
                     let export_contexts = eval_context
                         .map_either(
-                            |e| Cow::Owned(e.imports.exports),
-                            |e| Cow::Borrowed(&e.imports.exports),
+                            |e| Cow::Owned(e.imports.exports_ids),
+                            |e| Cow::Borrowed(&e.imports.exports_ids),
                         )
                         .into_inner();
                     let preserved_exports =

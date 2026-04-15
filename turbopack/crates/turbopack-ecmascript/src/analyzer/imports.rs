@@ -1,5 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
 
+use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
@@ -13,6 +14,7 @@ use swc_core::{
         visit::{Visit, VisitWith},
     },
 };
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
 use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
@@ -20,9 +22,12 @@ use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Sour
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
-    analyzer::{ConstantValue, ObjectPart},
+    analyzer::{ConstantValue, ObjectPart, graph::VarGraph},
     magic_identifier,
-    references::util::{SpecifiedChunkingType, parse_chunking_type_annotation},
+    references::{
+        esm::{EsmAssetReference, EsmExport, Liveness},
+        util::{SpecifiedChunkingType, parse_chunking_type_annotation},
+    },
     tree_shake::{PartId, find_turbopack_part_id_in_asserts},
 };
 
@@ -241,11 +246,22 @@ impl Display for ImportAnnotations {
     }
 }
 
+/// A version of [crate::references::esm::export::EsmExport] with usize instead of the module
+/// reference Vc, and missing the liveness fields.
 #[derive(Debug)]
-pub(crate) enum Reexport {
-    Star,
-    Namespace { exported: Atom },
-    Named { imported: Atom, exported: Atom },
+pub enum Export {
+    /// A local binding that is exported (export { a } or export const a = 1)
+    ///
+    /// Fields: (local_name, is_fake_esm)
+    LocalBinding(RcStr, bool),
+    /// An imported binding that is exported (export { a as b } from "...")
+    ///
+    /// Fields: (module_reference, name, is_fake_esm)
+    ImportedBinding(usize, RcStr, bool),
+    /// An imported namespace that is exported (export * from "...")
+    ImportedNamespace(usize),
+    /// An error occurred while resolving the export
+    Error,
 }
 
 /// The storage for all kinds of imports.
@@ -260,16 +276,21 @@ pub(crate) struct ImportMap {
     /// Map from identifier to index in references
     namespace_imports: FxIndexMap<Id, usize>,
 
-    /// List of (index in references, imported symbol, exported symbol)
-    reexports: Vec<(usize, Reexport)>,
+    /// Map from exported name to the export
+    exports: BTreeMap<RcStr, Export>,
+
+    /// List of namespace re-exports
+    reexport_namespaces: Vec<usize>,
 
     /// Ordered list of imported symbols
     references: FxIndexSet<ImportMapReference>,
 
-    /// True, when the module has imports
+    /// True, when the module has an import declaration. imports.is_empty() is not sufficient
+    /// because of side-effect only imports without imported bindings.
     has_imports: bool,
 
-    /// True, when the module has exports
+    /// True, when the module has an export declaration. exports.is_empty() is not sufficient
+    /// because of `export {}`
     has_exports: bool,
 
     /// True if the module is an ESM module due to top-level await.
@@ -290,7 +311,8 @@ pub(crate) struct ImportMap {
     /// as a whole.
     full_star_imports: FxHashSet<Wtf8Atom>,
 
-    pub(crate) exports: FxHashMap<RcStr, Id>,
+    /// Map from exported name to local binding id (includes the syntax context).
+    pub(crate) exports_ids: FxHashMap<RcStr, Id>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -446,8 +468,59 @@ impl ImportMap {
         self.references.iter()
     }
 
-    pub fn reexports(&self) -> impl ExactSizeIterator<Item = (usize, &Reexport)> {
-        self.reexports.iter().map(|(i, r)| (*i, r))
+    pub fn reexports_reference_idxs(&self) -> impl Iterator<Item = usize> {
+        self.exports
+            .values()
+            .filter_map(|value| match value {
+                Export::ImportedBinding(i, ..) | Export::ImportedNamespace(i) => Some(*i),
+                Export::LocalBinding(..) | Export::Error => None,
+            })
+            .chain(self.reexport_namespaces.iter().copied())
+    }
+
+    pub fn as_esm_exports(
+        &self,
+        import_references: &[ResolvedVc<EsmAssetReference>],
+        var_graph: &VarGraph,
+    ) -> Result<FrozenMap<RcStr, EsmExport>> {
+        Ok(FrozenMap::from(
+            self.exports
+                .iter()
+                .map(|(name, value)| {
+                    let value = match value {
+                        Export::LocalBinding(local, is_fake_esm) => EsmExport::LocalBinding(
+                            local.clone(),
+                            if *is_fake_esm {
+                                // it is likely that these are not always actually mutable.
+                                Liveness::Mutable
+                            } else {
+                                var_graph.get_export_ident_liveness(
+                                    self.exports_ids.get(name).cloned().with_context(|| {
+                                        format!("Exported binding {name} not found in exports_ids")
+                                    })?,
+                                )
+                            },
+                        ),
+                        Export::ImportedBinding(i, name, is_fake_esm) => {
+                            EsmExport::ImportedBinding(
+                                ResolvedVc::upcast(import_references[*i]),
+                                name.clone(),
+                                *is_fake_esm,
+                            )
+                        }
+                        Export::ImportedNamespace(i) => {
+                            EsmExport::ImportedNamespace(ResolvedVc::upcast(import_references[*i]))
+                        }
+                        Export::Error => EsmExport::Error,
+                    };
+                    Ok((name.clone(), value))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        ))
+    }
+
+    pub fn reexport_namespaces(&self) -> impl ExactSizeIterator<Item = usize> {
+        self.reexport_namespaces.iter().copied()
     }
 
     /// Analyze ES import
@@ -457,39 +530,120 @@ impl ImportMap {
         comments: Option<&dyn Comments>,
     ) -> Self {
         let mut data = ImportMap::default();
-
-        // We have to analyze imports first to determine if a star import is dynamic.
-        // We can't do this in the visitor because import may (and likely) comes before usages, and
-        // a method invoked after visitor will not work because we need to preserve the import
-        // order.
-
-        if let Program::Module(m) = m {
-            let mut candidates = FxIndexMap::default();
-
-            // Imports are hoisted to the top of the module.
-            // So we have to collect all imports first.
-            m.body.iter().for_each(|stmt| {
-                if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = stmt {
-                    for s in &import.specifiers {
-                        if let ImportSpecifier::Namespace(s) = s {
-                            candidates.insert(s.local.to_id(), import.src.value.clone());
-                        }
-                    }
-                }
-            });
-
-            let mut analyzer = StarImportAnalyzer {
-                candidates,
-                full_star_imports: &mut data.full_star_imports,
-            };
-            m.visit_with(&mut analyzer);
-        }
-
         let mut analyzer = Analyzer {
             data: &mut data,
             source,
             comments,
         };
+
+        // Do a prepass to:
+        // - analyze imports first to determine if a star import can be rewritten to named import
+        // - detect imports to be able to rewrite import+export pairs to true reexports
+        if let Program::Module(m) = m {
+            let mut namespace_imports = FxIndexMap::default();
+
+            for stmt in &m.body {
+                match stmt {
+                    ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
+                        if import.type_only {
+                            continue;
+                        }
+                        analyzer.data.has_imports = true;
+                        let annotations = ImportAnnotations::parse(import.with.as_deref());
+                        let internal_symbol = parse_with(import.with.as_deref());
+                        if internal_symbol.is_none() {
+                            analyzer.ensure_reference(
+                                import.span,
+                                import.src.value.clone(),
+                                ImportedSymbol::ModuleEvaluation,
+                                annotations.clone(),
+                            );
+                        }
+
+                        for s in &import.specifiers {
+                            if s.is_type_only() {
+                                continue;
+                            }
+                            let symbol = internal_symbol
+                                .clone()
+                                .unwrap_or_else(|| get_import_symbol_from_import(s));
+                            let i = analyzer.ensure_reference(
+                                import.span,
+                                import.src.value.clone(),
+                                symbol,
+                                annotations.clone(),
+                            );
+
+                            let (local, orig_sym) = match s {
+                                ImportSpecifier::Namespace(s) => {
+                                    namespace_imports
+                                        .insert(s.local.to_id(), import.src.value.clone());
+                                    analyzer.data.namespace_imports.insert(s.local.to_id(), i);
+                                    continue;
+                                }
+                                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
+                                ImportSpecifier::Named(s) => match &s.imported {
+                                    Some(imported) => {
+                                        (s.local.to_id(), imported.atom().into_owned())
+                                    }
+                                    _ => (s.local.to_id(), s.local.sym.clone()),
+                                },
+                            };
+                            analyzer.data.imports.insert(local, (i, orig_sym));
+                        }
+                        if import.specifiers.is_empty()
+                            && let Some(internal_symbol) = internal_symbol
+                        {
+                            analyzer.ensure_reference(
+                                import.span,
+                                import.src.value.clone(),
+                                internal_symbol,
+                                annotations,
+                            );
+                        }
+                    }
+                    // We need to call ensure_reference in this loop to ensure that the reference
+                    // order of all hoisted imports (be it import or reexport) is correct.
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) => {
+                        if export.type_only {
+                            continue;
+                        }
+                        let annotations = ImportAnnotations::parse(export.with.as_deref());
+                        analyzer.ensure_reference(
+                            export.span,
+                            export.src.value.clone(),
+                            ImportedSymbol::ModuleEvaluation,
+                            annotations.clone(),
+                        );
+                    }
+                    ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
+                        if export.type_only {
+                            continue;
+                        }
+                        if let Some(ref src) = export.src {
+                            let annotations = ImportAnnotations::parse(export.with.as_deref());
+                            let internal_symbol = parse_with(export.with.as_deref());
+                            if internal_symbol.is_none() || export.specifiers.is_empty() {
+                                analyzer.ensure_reference(
+                                    export.span,
+                                    src.value.clone(),
+                                    ImportedSymbol::ModuleEvaluation,
+                                    annotations.clone(),
+                                );
+                            }
+                        }
+                    }
+                    _ => (),
+                }
+            }
+
+            let mut analyzer = StarImportAnalyzer {
+                namespace_imports,
+                full_star_imports: &mut analyzer.data.full_star_imports,
+            };
+            m.visit_with(&mut analyzer);
+        }
+
         m.visit_with(&mut analyzer);
 
         data
@@ -502,16 +656,18 @@ impl ImportMap {
     }
 }
 
+/// This is a "fast" pre-analyze step to figure out all namespace imports that can't be optimized
+/// away into named imports.
 struct StarImportAnalyzer<'a> {
     /// The local identifiers of the star imports
-    candidates: FxIndexMap<Id, Wtf8Atom>,
+    namespace_imports: FxIndexMap<Id, Wtf8Atom>,
     full_star_imports: &'a mut FxHashSet<Wtf8Atom>,
 }
 
 impl Visit for StarImportAnalyzer<'_> {
     fn visit_expr(&mut self, node: &Expr) {
         if let Expr::Ident(i) = node
-            && let Some(module_path) = self.candidates.get(&i.to_id())
+            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
         {
             self.full_star_imports.insert(module_path.clone());
             return;
@@ -540,7 +696,7 @@ impl Visit for StarImportAnalyzer<'_> {
 
     fn visit_pat(&mut self, pat: &Pat) {
         if let Pat::Ident(i) = pat
-            && let Some(module_path) = self.candidates.get(&i.to_id())
+            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
         {
             self.full_star_imports.insert(module_path.clone());
             return;
@@ -551,7 +707,7 @@ impl Visit for StarImportAnalyzer<'_> {
 
     fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
         if let SimpleAssignTarget::Ident(i) = node
-            && let Some(module_path) = self.candidates.get(&i.to_id())
+            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
         {
             self.full_star_imports.insert(module_path.clone());
             return;
@@ -574,7 +730,7 @@ impl Analyzer<'_> {
         module_path: Wtf8Atom,
         imported_symbol: ImportedSymbol,
         annotations: Option<ImportAnnotations>,
-    ) -> Option<usize> {
+    ) -> usize {
         let issue_source = self
             .source
             .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
@@ -586,207 +742,192 @@ impl Analyzer<'_> {
             annotations: annotations.map(Arc::new),
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
-            Some(i)
+            i
         } else {
             let i = self.data.references.len();
             self.data.references.insert(r);
-            Some(i)
+            i
         }
     }
 }
 
 impl Visit for Analyzer<'_> {
-    fn visit_import_decl(&mut self, import: &ImportDecl) {
-        self.data.has_imports = true;
-
-        let annotations = ImportAnnotations::parse(import.with.as_deref());
-
-        let internal_symbol = parse_with(import.with.as_deref());
-
-        if internal_symbol.is_none() {
-            self.ensure_reference(
-                import.span,
-                import.src.value.clone(),
-                ImportedSymbol::ModuleEvaluation,
-                annotations.clone(),
-            );
-        }
-
-        for s in &import.specifiers {
-            let symbol = internal_symbol
-                .clone()
-                .unwrap_or_else(|| get_import_symbol_from_import(s));
-            let i = self.ensure_reference(
-                import.span,
-                import.src.value.clone(),
-                symbol,
-                annotations.clone(),
-            );
-            let i = match i {
-                Some(v) => v,
-                None => continue,
-            };
-
-            let (local, orig_sym) = match s {
-                ImportSpecifier::Named(ImportNamedSpecifier {
-                    local, imported, ..
-                }) => match imported {
-                    Some(imported) => (local.to_id(), imported.atom().into_owned()),
-                    _ => (local.to_id(), local.sym.clone()),
-                },
-                ImportSpecifier::Default(s) => (s.local.to_id(), atom!("default")),
-                ImportSpecifier::Namespace(s) => {
-                    self.data.namespace_imports.insert(s.local.to_id(), i);
-                    continue;
-                }
-            };
-
-            self.data.imports.insert(local, (i, orig_sym));
-        }
-        if import.specifiers.is_empty()
-            && let Some(internal_symbol) = internal_symbol
-        {
-            self.ensure_reference(
-                import.span,
-                import.src.value.clone(),
-                internal_symbol,
-                annotations,
-            );
-        }
-    }
-
     fn visit_export_all(&mut self, export: &ExportAll) {
-        self.data.has_exports = true;
+        if export.type_only {
+            return;
+        }
 
         let annotations = ImportAnnotations::parse(export.with.as_deref());
 
-        self.ensure_reference(
-            export.span,
-            export.src.value.clone(),
-            ImportedSymbol::ModuleEvaluation,
-            annotations.clone(),
-        );
         let symbol = parse_with(export.with.as_deref());
-
         let i = self.ensure_reference(
             export.span,
             export.src.value.clone(),
             symbol.unwrap_or(ImportedSymbol::Exports),
             annotations,
         );
-        if let Some(i) = i {
-            self.data.reexports.push((i, Reexport::Star));
-        }
+        self.data.reexport_namespaces.push(i);
+        self.data.has_exports = true;
     }
 
     fn visit_named_export(&mut self, export: &NamedExport) {
-        self.data.has_exports = true;
-
-        let Some(ref src) = export.src else {
-            export.visit_children_with(self);
+        if export.type_only {
             return;
-        };
-
-        let annotations = ImportAnnotations::parse(export.with.as_deref());
-
-        let internal_symbol = parse_with(export.with.as_deref());
-
-        if internal_symbol.is_none() || export.specifiers.is_empty() {
-            self.ensure_reference(
-                export.span,
-                src.value.clone(),
-                ImportedSymbol::ModuleEvaluation,
-                annotations.clone(),
-            );
         }
 
-        for spec in export.specifiers.iter() {
-            let symbol = internal_symbol
-                .clone()
-                .unwrap_or_else(|| get_import_symbol_from_export(spec));
+        self.data.has_exports = true;
 
-            let i =
-                self.ensure_reference(export.span, src.value.clone(), symbol, annotations.clone());
-            let i = match i {
-                Some(v) => v,
-                None => continue,
-            };
+        if let Some(ref src) = export.src {
+            let annotations = ImportAnnotations::parse(export.with.as_deref());
+            let internal_symbol = parse_with(export.with.as_deref());
 
-            match spec {
-                ExportSpecifier::Namespace(n) => {
-                    self.data.reexports.push((
-                        i,
-                        Reexport::Namespace {
-                            exported: n.name.atom().into_owned(),
-                        },
-                    ));
-                }
-                ExportSpecifier::Default(d) => {
-                    self.data.reexports.push((
-                        i,
-                        Reexport::Named {
-                            imported: atom!("default"),
-                            exported: d.exported.sym.clone(),
-                        },
-                    ));
-                }
-                ExportSpecifier::Named(n) => {
-                    self.data.reexports.push((
-                        i,
-                        Reexport::Named {
-                            imported: n.orig.atom().into_owned(),
-                            exported: n.exported.as_ref().unwrap_or(&n.orig).atom().into_owned(),
-                        },
-                    ));
+            for spec in export.specifiers.iter() {
+                let symbol = internal_symbol
+                    .clone()
+                    .unwrap_or_else(|| get_import_symbol_from_export(spec));
+
+                let i = self.ensure_reference(
+                    export.span,
+                    src.value.clone(),
+                    symbol,
+                    annotations.clone(),
+                );
+
+                match spec {
+                    ExportSpecifier::Namespace(n) => {
+                        self.data.exports.insert(
+                            RcStr::from(n.name.atom().as_str()),
+                            Export::ImportedNamespace(i),
+                        );
+                    }
+                    ExportSpecifier::Default(d) => {
+                        self.data.exports.insert(
+                            RcStr::from(d.exported.sym.as_str()),
+                            Export::ImportedBinding(i, rcstr!("default"), false),
+                        );
+                    }
+                    ExportSpecifier::Named(n) => {
+                        self.data.exports.insert(
+                            RcStr::from(n.exported.as_ref().unwrap_or(&n.orig).atom().as_str()),
+                            Export::ImportedBinding(i, RcStr::from(n.orig.atom().as_str()), false),
+                        );
+                    }
                 }
             }
+        } else {
+            for spec in export.specifiers.iter() {
+                match spec {
+                    ExportSpecifier::Namespace(_) => {
+                        unreachable!(
+                            "ExportNamespaceSpecifier will not happen in combination with src == \
+                             None"
+                        );
+                    }
+                    ExportSpecifier::Default(_) => {
+                        unreachable!(
+                            "ExportDefaultSpecifier will not happen in combination with src == \
+                             None"
+                        );
+                    }
+                    ExportSpecifier::Named(ExportNamedSpecifier {
+                        orig,
+                        exported,
+                        is_type_only,
+                        ..
+                    }) => {
+                        if *is_type_only {
+                            continue;
+                        }
+
+                        // We create mutable exports for fake ESMs generated by module splitting
+                        let is_fake_esm = export
+                            .with
+                            .as_deref()
+                            .map(find_turbopack_part_id_in_asserts)
+                            .is_some();
+                        let export = {
+                            let imported_binding = if let ModuleExportName::Ident(ident) = orig {
+                                self.data.get_binding(&ident.to_id())
+                            } else {
+                                None
+                            };
+                            if let Some((index, export)) = imported_binding {
+                                // This is a export of an imported binding. Rewrite to a true
+                                // reexport.
+                                if let Some(export) = export {
+                                    Export::ImportedBinding(index, export, is_fake_esm)
+                                } else {
+                                    Export::ImportedNamespace(index)
+                                }
+                            } else {
+                                Export::LocalBinding(RcStr::from(orig.atom().as_str()), is_fake_esm)
+                            }
+                        };
+                        self.data.exports.insert(
+                            RcStr::from(exported.as_ref().unwrap_or(orig).atom().as_str()),
+                            export,
+                        );
+                    }
+                }
+            }
+            export.visit_children_with(self);
         }
     }
 
     fn visit_export_decl(&mut self, n: &ExportDecl) {
-        self.data.has_exports = true;
-
         if self.comments.is_some() {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+        self.data.has_exports = true;
 
         match &n.decl {
             Decl::Class(n) => {
+                let name = RcStr::from(n.ident.sym.as_str());
                 self.data
                     .exports
-                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
+                    .insert(name.clone(), Export::LocalBinding(name.clone(), false));
+                self.data.exports_ids.insert(name, n.ident.to_id());
             }
             Decl::Fn(n) => {
+                let name = RcStr::from(n.ident.sym.as_str());
                 self.data
                     .exports
-                    .insert(n.ident.sym.as_str().into(), n.ident.to_id());
+                    .insert(name.clone(), Export::LocalBinding(name.clone(), false));
+                self.data.exports_ids.insert(name, n.ident.to_id());
             }
-            Decl::Var(..) | Decl::Using(..) => {
+            Decl::Var(..) => {
                 let ids: Vec<Id> = find_pat_ids(&n.decl);
                 for id in ids {
-                    self.data.exports.insert(id.0.as_str().into(), id);
+                    let name = RcStr::from(id.0.as_str());
+                    self.data
+                        .exports
+                        .insert(name.clone(), Export::LocalBinding(name.clone(), false));
+                    self.data.exports_ids.insert(name, id);
                 }
             }
-            _ => {}
+            Decl::Using(_) => {
+                // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#:~:text=You%20cannot%20use%20export%20on%20a%20using%20or%20await%20using%20declaration
+                unreachable!("using declarations can not be exported");
+            }
+            Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {
+                // ignore typescript for code generation
+            }
         }
     }
 
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
-        self.data.has_exports = true;
-
         if self.comments.is_some() {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+        self.data.has_exports = true;
 
-        self.data.exports.insert(
-            rcstr!("default"),
-            // Mirror what `EsmModuleItem::code_generation` does, these are live bindings if the
-            // class/function has an identifier.
-            match &n.decl {
-                DefaultDecl::Class(ClassExpr { ident, .. })
-                | DefaultDecl::Fn(FnExpr { ident, .. }) => ident.as_ref().map_or_else(
+        let id = match &n.decl {
+            DefaultDecl::Class(ClassExpr { ident, .. }) | DefaultDecl::Fn(FnExpr { ident, .. }) => {
+                // Mirror what `EsmModuleItem::code_generation` does, these are live bindings if the
+                // class/function has an identifier.
+                ident.as_ref().map_or_else(
                     || {
                         (
                             magic_identifier::mangle("default export").into(),
@@ -794,27 +935,36 @@ impl Visit for Analyzer<'_> {
                         )
                     },
                     |ident| ident.to_id(),
-                ),
-                DefaultDecl::TsInterfaceDecl(_) => {
-                    // not matching, might happen due to eventual consistency
-                    (
-                        magic_identifier::mangle("default export").into(),
-                        SyntaxContext::empty(),
-                    )
-                }
-            },
+                )
+            }
+            DefaultDecl::TsInterfaceDecl(_) => {
+                // not matching, might happen due to eventual consistency
+                (
+                    magic_identifier::mangle("default export").into(),
+                    SyntaxContext::empty(),
+                )
+            }
+        };
+
+        self.data.exports.insert(
+            rcstr!("default"),
+            Export::LocalBinding(RcStr::from(id.0.as_str()), false),
         );
+        self.data.exports_ids.insert(rcstr!("default"), id);
     }
 
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
-        self.data.has_exports = true;
-
         if self.comments.is_some() {
             // only visit children if we potentially need to mark import / requires
             n.visit_children_with(self);
         }
+        self.data.has_exports = true;
 
         self.data.exports.insert(
+            rcstr!("default"),
+            Export::LocalBinding(magic_identifier::mangle("default export").into(), false),
+        );
+        self.data.exports_ids.insert(
             rcstr!("default"),
             (
                 // `EsmModuleItem::code_generation` inserts this variable.
@@ -825,20 +975,17 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
-        let ModuleExportName::Ident(local) = &n.orig else {
-            // This is only possible for re-exports, but they are already handled earlier in
-            // visit_named_export.
-            unreachable!("string reexports should have been already handled in visit_named_export");
-        };
-        let exported = n.exported.as_ref().unwrap_or(&n.orig);
-        self.data
-            .exports
-            .insert(exported.atom().as_str().into(), local.to_id());
+        if let ModuleExportName::Ident(local) = &n.orig {
+            let exported = n.exported.as_ref().unwrap_or(&n.orig);
+            self.data
+                .exports_ids
+                .insert(exported.atom().as_str().into(), local.to_id());
+        }
     }
 
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
         self.data
-            .exports
+            .exports_ids
             .insert(rcstr!("default"), n.exported.to_id());
     }
 
