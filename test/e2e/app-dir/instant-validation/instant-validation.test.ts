@@ -2200,7 +2200,11 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static" has viewport config that blocks loading.
+
+           Cause: A request-time API was used inside generateViewport(). Viewport metadata must be available on page load, so this prevents prerendering.
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
            Stopping prerender due to instant validation errors."
@@ -2260,7 +2264,11 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime" has viewport config that blocks loading.
+
+           Cause: generateViewport() depends on data that can't be resolved at build time (e.g. cookies(), headers(), or an uncached fetch). Viewport metadata must be available on page load, so this prevents prerendering.
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
            Stopping prerender due to instant validation errors."
@@ -2358,7 +2366,11 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
+           "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static" has viewport config that blocks loading.
+
+           Cause: generateViewport() depends on data that can't be resolved at build time (e.g. cookies(), headers(), or an uncached fetch). Viewport metadata must be available on page load, so this prevents prerendering.
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
            Stopping prerender due to instant validation errors."

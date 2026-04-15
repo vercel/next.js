@@ -45,7 +45,7 @@ describe('instant validation', () => {
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1084",
+           "code": "E394",
            "description": "Dynamic data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
