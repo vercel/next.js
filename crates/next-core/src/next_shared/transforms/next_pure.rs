@@ -13,6 +13,7 @@ use super::module_rule_match_js_no_url;
 pub async fn get_next_pure_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
     let transformer =
         EcmascriptInputTransform::Plugin(next_pure_transform_plugin().to_resolved().await?);
+    // TODO: use get_ecma_transform_rule instead
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

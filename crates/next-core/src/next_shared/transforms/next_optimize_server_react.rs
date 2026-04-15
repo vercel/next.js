@@ -20,6 +20,7 @@ pub async fn get_next_optimize_server_react_rule(
             .to_resolved()
             .await?,
     );
+    // TODO: use get_ecma_transform_rule instead
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {

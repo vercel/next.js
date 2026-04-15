@@ -69,6 +69,7 @@ pub async fn get_next_modularize_imports_rule(
             .to_resolved()
             .await?,
     );
+    // TODO: use get_ecma_transform_rule instead
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -135,6 +136,7 @@ impl CustomTransformer for ModularizeImportsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(modularize_imports(&self.config));
+
         Ok(())
     }
 }

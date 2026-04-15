@@ -40,6 +40,7 @@ pub async fn get_emotion_transform_rule(next_config: Vc<NextConfig>) -> Result<O
 
 #[turbo_tasks::function]
 async fn emotion_transform_plugin(next_config: Vc<NextConfig>) -> Result<Vc<TransformPlugin>> {
+    use anyhow::Context as _;
     let compiler = next_config.compiler().await?;
     let transformer = compiler
         .emotion
@@ -51,7 +52,7 @@ async fn emotion_transform_plugin(next_config: Vc<NextConfig>) -> Result<Vc<Tran
             EmotionTransformOptionsOrBoolean::Options(value) => EmotionTransformer::new(value),
             _ => None,
         })
-        .expect("emotion config must exist");
+        .context("emotion config must exist")?;
     Ok(Vc::cell(
         Box::new(transformer) as Box<dyn CustomTransformer + Send + Sync>
     ))

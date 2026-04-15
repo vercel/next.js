@@ -44,6 +44,7 @@ pub async fn get_styled_components_transform_rule(
 async fn styled_components_transform_plugin(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<TransformPlugin>> {
+    use anyhow::Context as _;
     let compiler = next_config.compiler().await?;
     let transformer = compiler
         .styled_components
@@ -57,7 +58,7 @@ async fn styled_components_transform_plugin(
             }
             _ => None,
         })
-        .expect("styled_components config must exist");
+        .context("styled_components config must exist")?;
     Ok(Vc::cell(
         Box::new(transformer) as Box<dyn CustomTransformer + Send + Sync>
     ))

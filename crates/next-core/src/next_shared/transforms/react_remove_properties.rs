@@ -42,6 +42,7 @@ pub async fn get_react_remove_properties_transform_rule(
 async fn react_remove_properties_transform_plugin(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<TransformPlugin>> {
+    use anyhow::Context as _;
     let config = next_config
         .compiler()
         .await?
@@ -58,7 +59,7 @@ async fn react_remove_properties_transform_plugin(
                 }),
             ),
         })
-        .expect("react_remove_properties config must exist");
+        .context("react_remove_properties config must exist")?;
     Ok(Vc::cell(
         Box::new(ReactRemovePropertiesTransformer { config })
             as Box<dyn CustomTransformer + Send + Sync>,

@@ -42,6 +42,7 @@ pub async fn get_remove_console_transform_rule(
 async fn remove_console_transform_plugin(
     next_config: Vc<NextConfig>,
 ) -> Result<Vc<TransformPlugin>> {
+    use anyhow::Context as _;
     let config = next_config
         .compiler()
         .await?
@@ -61,7 +62,7 @@ async fn remove_console_transform_plugin(
                 },
             )),
         })
-        .expect("remove_console config must exist");
+        .context("remove_console config must exist")?;
     Ok(Vc::cell(
         Box::new(RemoveConsoleTransformer { config }) as Box<dyn CustomTransformer + Send + Sync>
     ))
