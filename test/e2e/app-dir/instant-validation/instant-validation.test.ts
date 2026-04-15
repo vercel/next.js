@@ -180,7 +180,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Runtime data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -198,7 +198,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-runtime": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-runtime": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -228,7 +236,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Dynamic data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -246,7 +254,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -276,7 +292,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Dynamic data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -295,7 +311,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
              at body (<anonymous>)
@@ -327,7 +351,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Runtime data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -345,7 +369,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic-layout": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic-layout": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -375,7 +407,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Dynamic data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -393,7 +425,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -426,7 +466,7 @@ describe('instant validation', () => {
              ],
            },
          ],
-         "code": "E1078",
+         "code": "E394",
          "description": "Runtime data was accessed during the static prerender.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -474,7 +514,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Runtime data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -492,7 +532,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-search-params": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -557,7 +605,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Runtime data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -575,7 +623,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/suspense-too-high": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/suspense-too-high": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at a (<anonymous>)
              at div (<anonymous>)
              at div (<anonymous>)
@@ -608,7 +664,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Dynamic data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -627,7 +683,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
              at a (<anonymous>)
@@ -1020,7 +1084,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Dynamic data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1039,7 +1103,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
              at a (<anonymous>)
@@ -1072,7 +1144,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Dynamic data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1091,7 +1163,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
@@ -1137,7 +1217,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1155,7 +1235,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
@@ -1213,7 +1301,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1231,7 +1319,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/invalid-blocking-inside-static": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1262,7 +1358,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Dynamic data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1280,7 +1376,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1314,7 +1418,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1332,7 +1436,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1364,7 +1476,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1382,7 +1494,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -1414,7 +1534,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1432,7 +1552,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -2260,7 +2388,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2278,7 +2406,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-config-only": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/route-group-config-only": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -2309,7 +2445,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2327,7 +2463,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-config-and-segment-config": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/route-group-config-and-segment-config": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2359,7 +2503,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2377,7 +2521,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-segment-config-only": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/route-group-segment-config-only": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2409,7 +2561,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2427,7 +2579,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2459,7 +2619,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2477,7 +2637,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-deeper-segment-config/inner": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/route-group-deeper-segment-config/inner": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2516,7 +2684,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2534,7 +2702,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/route-group-shared-boundary": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/route-group-shared-boundary": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at a (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2580,7 +2756,7 @@ describe('instant validation', () => {
                    ],
                  },
                ],
-               "code": "E1078",
+               "code": "E394",
                "description": "Runtime data was accessed during the static prerender.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2598,7 +2774,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2638,7 +2822,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2656,7 +2840,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -2697,7 +2889,7 @@ describe('instant validation', () => {
                ],
              },
            ],
-           "code": "E1078",
+           "code": "E394",
            "description": "Runtime data was accessed during the static prerender.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -2715,7 +2907,15 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -2753,7 +2953,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2804,7 +3004,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2822,7 +3022,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2856,7 +3064,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2874,7 +3082,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/static/config-children-preferred": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/static/config-children-preferred": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at div (<anonymous>)
                at body (<anonymous>)
@@ -2909,7 +3125,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -2994,7 +3210,15 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+           This prevents Next.js from prerendering this page.
+
+           Possible fixes:
+             - Add a <Suspense> boundary around the component that accesses the data
+             - Move the access into a child component inside an existing <Suspense>
+
+           Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
@@ -3024,7 +3248,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1078",
+             "code": "E394",
              "description": "Dynamic data was accessed during the static prerender.",
              "environmentLabel": "Server",
              "label": "Instant",

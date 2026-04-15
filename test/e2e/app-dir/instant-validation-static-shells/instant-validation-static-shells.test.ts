@@ -70,7 +70,7 @@ describe('instant validation', () => {
       it('errors during build', () => {
         expect(didBuildError).toBe(true)
         expect(next.cliOutput).toContain(
-          'Uncached data was accessed outside of <Suspense>'
+          'was accessed during the static prerender'
         )
       })
     }
