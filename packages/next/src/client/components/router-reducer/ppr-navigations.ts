@@ -740,9 +740,19 @@ function createSegmentFromRouteTree(newRouteTree: RouteTree): Segment {
     }
     // This is based on equivalent logic in addSearchParamsIfPageSegment, used
     // on the server.
-    const stringifiedQuery = JSON.stringify(
-      Object.fromEntries(new URLSearchParams(renderedSearch))
-    )
+    //
+    // Use getAll() to preserve duplicate search params as arrays, matching the
+    // server-side Record<string, string | string[]> representation. A plain
+    // Object.fromEntries(new URLSearchParams(...)) drops all but the last value
+    // for repeated keys (e.g. ?color=red&color=blue → {color:"blue"}), which
+    // causes distinct URLs to share the same ChildSegmentMap cache entry.
+    const params = new URLSearchParams(renderedSearch)
+    const paramsRecord: Record<string, string | string[]> = {}
+    for (const key of new Set(params.keys())) {
+      const values = params.getAll(key)
+      paramsRecord[key] = values.length === 1 ? values[0] : values
+    }
+    const stringifiedQuery = JSON.stringify(paramsRecord)
     return stringifiedQuery !== '{}'
       ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
       : PAGE_SEGMENT_KEY

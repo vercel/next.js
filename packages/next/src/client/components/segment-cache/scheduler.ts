@@ -1804,7 +1804,15 @@ function doesCurrentSegmentMatchCachedSegment(
       currentSegment ===
       addSearchParamsIfPageSegment(
         PAGE_SEGMENT_KEY,
-        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+        (() => {
+          const p = new URLSearchParams(route.renderedSearch)
+          const r: Record<string, string | string[]> = {}
+          for (const k of new Set(p.keys())) {
+            const vs = p.getAll(k)
+            r[k] = vs.length === 1 ? vs[0] : vs
+          }
+          return r
+        })()
       )
     )
   }
