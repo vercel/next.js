@@ -534,14 +534,11 @@ impl ImportMap {
             data: &mut data,
             source,
             comments,
+            namespace_imports_to_specifier: FxIndexMap::default(),
         };
 
-        // Do a prepass to:
-        // - analyze imports first to determine if a star import can be rewritten to named import
-        // - detect imports to be able to rewrite import+export pairs to true reexports
+        // A prepass to detect imports to be able to rewrite import+export pairs to true reexports
         if let Program::Module(m) = m {
-            let mut namespace_imports = FxIndexMap::default();
-
             for stmt in &m.body {
                 match stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
@@ -576,7 +573,8 @@ impl ImportMap {
 
                             let (local, orig_sym) = match s {
                                 ImportSpecifier::Namespace(s) => {
-                                    namespace_imports
+                                    analyzer
+                                        .namespace_imports_to_specifier
                                         .insert(s.local.to_id(), import.src.value.clone());
                                     analyzer.data.namespace_imports.insert(s.local.to_id(), i);
                                     continue;
@@ -636,12 +634,6 @@ impl ImportMap {
                     _ => (),
                 }
             }
-
-            let mut analyzer = StarImportAnalyzer {
-                namespace_imports,
-                full_star_imports: &mut analyzer.data.full_star_imports,
-            };
-            m.visit_with(&mut analyzer);
         }
 
         m.visit_with(&mut analyzer);
@@ -656,71 +648,13 @@ impl ImportMap {
     }
 }
 
-/// This is a "fast" pre-analyze step to figure out all namespace imports that can't be optimized
-/// away into named imports.
-struct StarImportAnalyzer<'a> {
-    /// The local identifiers of the star imports
-    namespace_imports: FxIndexMap<Id, Wtf8Atom>,
-    full_star_imports: &'a mut FxHashSet<Wtf8Atom>,
-}
-
-impl Visit for StarImportAnalyzer<'_> {
-    fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node
-            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
-        {
-            self.full_star_imports.insert(module_path.clone());
-            return;
-        }
-
-        node.visit_children_with(self);
-    }
-
-    fn visit_import_decl(&mut self, _: &ImportDecl) {}
-
-    fn visit_member_expr(&mut self, node: &MemberExpr) {
-        match &node.prop {
-            MemberProp::Ident(..) | MemberProp::PrivateName(..) => {
-                if node.obj.is_ident() {
-                    return;
-                }
-                // We can skip `visit_expr(obj)` because it's not a dynamic access
-                node.obj.visit_children_with(self);
-            }
-            MemberProp::Computed(..) => {
-                node.obj.visit_with(self);
-                node.prop.visit_with(self);
-            }
-        }
-    }
-
-    fn visit_pat(&mut self, pat: &Pat) {
-        if let Pat::Ident(i) = pat
-            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
-        {
-            self.full_star_imports.insert(module_path.clone());
-            return;
-        }
-
-        pat.visit_children_with(self);
-    }
-
-    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
-        if let SimpleAssignTarget::Ident(i) = node
-            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
-        {
-            self.full_star_imports.insert(module_path.clone());
-            return;
-        }
-
-        node.visit_children_with(self);
-    }
-}
-
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
     source: Option<ResolvedVc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
+    /// Map from local identifier of namespace imports to module path, used temporarily during
+    /// analysis to detect dynamic accesses to namespace imports.
+    namespace_imports_to_specifier: FxIndexMap<Id, Wtf8Atom>,
 }
 
 impl Analyzer<'_> {
@@ -875,10 +809,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_decl(&mut self, n: &ExportDecl) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         match &n.decl {
@@ -917,10 +848,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         let id = match &n.decl {
@@ -954,10 +882,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         self.data.exports.insert(
@@ -1007,13 +932,6 @@ impl Visit for Analyzer<'_> {
         m.visit_children_with(self);
     }
 
-    fn visit_stmt(&mut self, n: &Stmt) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
-    }
-
     /// check if import or require contains magic comments
     ///
     /// We are checking for the following cases:
@@ -1028,7 +946,6 @@ impl Visit for Analyzer<'_> {
     // potentially support more webpack magic comments in the future:
     // https://webpack.js.org/api/module-methods/#magic-comments
     fn visit_call_expr(&mut self, n: &CallExpr) {
-        // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
                 Callee::Import(Import { span, .. }) => Some(*span),
@@ -1047,10 +964,9 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_new_expr(&mut self, n: &NewExpr) {
-        // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
-            let callee_span = match &n.callee {
-                box Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
+            let callee_span = match &*n.callee {
+                Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
                 _ => None,
             };
 
@@ -1062,6 +978,47 @@ impl Visit for Analyzer<'_> {
         }
 
         n.visit_children_with(self);
+    }
+
+    fn visit_member_expr(&mut self, node: &MemberExpr) {
+        if let MemberProp::Ident(..) | MemberProp::PrivateName(..) = &node.prop
+            && node.obj.is_ident()
+        {
+            // Skip if obj is a Expr::Ident, so that it doesn't get added to full_star_imports below
+            // in visit_expr.
+            return;
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_pat(&mut self, pat: &Pat) {
+        if let Pat::Ident(i) = pat
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
+        }
+
+        pat.visit_children_with(self);
+    }
+
+    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
+        if let SimpleAssignTarget::Ident(i) = node
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_expr(&mut self, node: &Expr) {
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
+        }
+
+        node.visit_children_with(self);
     }
 }
 
