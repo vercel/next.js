@@ -562,13 +562,6 @@ function isRuntimeVariant(message: string): boolean {
   ) {
     return true
   }
-  if (message.includes('Runtime data was accessed inside')) return true
-  if (
-    message.includes('A request-time API') &&
-    !message.includes('Uncached data or a request-time API')
-  ) {
-    return true
-  }
   return false
 }
 
