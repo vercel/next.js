@@ -12,6 +12,7 @@ import type {
   RegExpLiteral,
   StringLiteral,
   TemplateLiteral,
+  TsAsExpression,
   TsSatisfiesExpression,
   VariableDeclaration,
 } from '@swc/core'
@@ -62,6 +63,10 @@ function isRegExpLiteral(node: Node): node is RegExpLiteral {
 
 function isTemplateLiteral(node: Node): node is TemplateLiteral {
   return node.type === 'TemplateLiteral'
+}
+
+function isTsAsExpression(node: Node): node is TsAsExpression {
+  return node.type === 'TsAsExpression'
 }
 
 function isTsSatisfiesExpression(node: Node): node is TsSatisfiesExpression {
@@ -197,6 +202,8 @@ function extractValue(node: Node, path?: string[]): ExtractValueResult {
 
     return { value: cooked ?? raw }
   } else if (isTsSatisfiesExpression(node)) {
+    return extractValue(node.expression)
+  } else if (isTsAsExpression(node)) {
     return extractValue(node.expression)
   } else {
     return {
