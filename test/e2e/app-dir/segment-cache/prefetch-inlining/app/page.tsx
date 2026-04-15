@@ -66,9 +66,7 @@ export default function Page() {
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/test-not-found/exists">
-            Not found
-          </LinkAccordion>
+          <LinkAccordion href="/test-not-found/exists">Not found</LinkAccordion>
         </li>
       </ul>
     </div>
