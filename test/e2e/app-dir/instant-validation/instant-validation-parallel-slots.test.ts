@@ -125,23 +125,9 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-config-only/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -187,23 +173,9 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-layout-config/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -249,23 +221,9 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-runtime-config/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -313,23 +271,9 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/children-config-with-slot/@slot/page.tsx (4:16) @ SlotPage
            > 4 |   await cookies()
                |                ^",
@@ -377,23 +321,9 @@ describe('instant validation - parallel slot configs', () => {
                  },
                ],
                "code": "E1078",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "description": "Runtime data was accessed during the static prerender.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/@slot/page.tsx (4:16) @ SlotPage
            > 4 |   await cookies()
                |                ^",
@@ -415,23 +345,9 @@ describe('instant validation - parallel slot configs', () => {
                  },
                ],
                "code": "E1078",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "description": "Runtime data was accessed during the static prerender.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/page.tsx (4:16) @ ChildrenPage
            > 4 |   await cookies()
                |                ^",
@@ -551,23 +467,9 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E1078",
-             "description": "Runtime data was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Provide a fallback UI using <Suspense> around this component.
-
-           or
-
-           Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-           In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "description": "Runtime data was accessed during the static prerender.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/@breadcrumbs/blocked/page.tsx (3:16) @ BreadcrumbsPage
            > 3 |   await cookies()
                |                ^",

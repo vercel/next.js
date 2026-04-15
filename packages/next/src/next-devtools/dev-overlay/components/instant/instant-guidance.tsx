@@ -15,19 +15,19 @@ type Snippet = {
 
 const runtimeCards: FixCard[] = [
   {
-    title: 'Wrap in Suspense',
-    snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <Component />' },
-      { text: '</Suspense>', highlight: true },
-    ],
-  },
-  {
     title: 'Move into Suspense',
     snippets: [
       { text: '<Suspense>' },
       { text: '  <DataChild />', highlight: true },
       { text: '</Suspense>' },
+    ],
+  },
+  {
+    title: 'Wrap in Suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <Component />' },
+      { text: '</Suspense>', highlight: true },
     ],
   },
   {
@@ -40,7 +40,7 @@ const runtimeCards: FixCard[] = [
   },
 ]
 
-const navigationCards: FixCard[] = [
+const dynamicCards: FixCard[] = [
   {
     title: 'Cache dynamic data',
     snippets: [
@@ -51,19 +51,19 @@ const navigationCards: FixCard[] = [
     ],
   },
   {
-    title: 'Wrap in Suspense',
-    snippets: [
-      { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <Component />' },
-      { text: '</Suspense>', highlight: true },
-    ],
-  },
-  {
     title: 'Move into Suspense',
     snippets: [
       { text: '<Suspense>' },
       { text: '  <DataChild />', highlight: true },
       { text: '</Suspense>' },
+    ],
+  },
+  {
+    title: 'Wrap in Suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <Component />' },
+      { text: '</Suspense>', highlight: true },
     ],
   },
   {
@@ -181,7 +181,7 @@ export function InstantGuidance({
 }: {
   variant: 'runtime' | 'navigation'
 }) {
-  const cards = variant === 'navigation' ? navigationCards : runtimeCards
+  const cards = variant === 'navigation' ? dynamicCards : runtimeCards
 
   return (
     <div data-nextjs-instant-guidance>
