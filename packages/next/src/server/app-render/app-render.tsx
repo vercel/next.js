@@ -238,6 +238,8 @@ import { createServerInsertedMetadata } from './metadata-insertion/create-server
 import { getPreviouslyRevalidatedTags } from '../server-utils'
 import { executeRevalidates } from '../revalidation-utils'
 import {
+  diffModuleLoadingMetrics,
+  getModuleLoadingMetricsSnapshot,
   trackPendingChunkLoad,
   trackPendingImport,
   trackPendingModules,
@@ -572,6 +574,7 @@ function waitForPrerenderWarmup(
   cacheSignal: CacheSignal,
   context: 'response' | 'validation'
 ) {
+  const startMetrics = getModuleLoadingMetricsSnapshot()
   return getTracer().trace(
     spanType,
     {
@@ -579,7 +582,29 @@ function waitForPrerenderWarmup(
         'next.prerenderWarmupContext': context,
       },
     },
-    () => cacheSignal.cacheReady()
+    async (span) => {
+      await cacheSignal.cacheReady()
+
+      if (span?.isRecording()) {
+        const metrics = diffModuleLoadingMetrics(
+          startMetrics,
+          getModuleLoadingMetricsSnapshot()
+        )
+
+        span.setAttribute(
+          'next.clientComponentAsyncRequireCount',
+          metrics.clientComponentAsyncRequireCount
+        )
+        span.setAttribute(
+          'next.clientComponentChunkLoadCount',
+          metrics.clientComponentChunkLoadCount
+        )
+        span.setAttribute(
+          'next.clientComponentDynamicImportCount',
+          metrics.clientComponentDynamicImportCount
+        )
+      }
+    }
   )
 }
 

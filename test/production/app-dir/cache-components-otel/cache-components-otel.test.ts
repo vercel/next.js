@@ -69,6 +69,13 @@ describe('cache-components otel', () => {
           'next.prerenderWarmupContext'
         ]
       ).toBe('response')
+
+      expectWarmupModuleLoadingMetrics(
+        findSpan(trace!, 'NextNodeServer.serverPrerenderWarmup')
+      )
+      expectWarmupModuleLoadingMetrics(
+        findSpan(trace!, 'NextNodeServer.clientPrerenderWarmup')
+      )
     })
   })
 
@@ -104,4 +111,17 @@ function findTraceContainingSpans(
 
 function findSpan(trace: SavedSpan[], name: string) {
   return trace.find((span) => span.name === name)
+}
+
+function expectWarmupModuleLoadingMetrics(span: SavedSpan | undefined) {
+  expect(span).toBeDefined()
+  expect(span?.attributes?.['next.clientComponentAsyncRequireCount']).toEqual(
+    expect.any(Number)
+  )
+  expect(span?.attributes?.['next.clientComponentChunkLoadCount']).toEqual(
+    expect.any(Number)
+  )
+  expect(span?.attributes?.['next.clientComponentDynamicImportCount']).toEqual(
+    expect.any(Number)
+  )
 }

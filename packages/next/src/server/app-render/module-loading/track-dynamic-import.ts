@@ -48,7 +48,7 @@ export function trackDynamicImport<TExports extends Record<string, any>>(
   // Subsequent prerenders would re-use the existing `promise`,
   // and `trackDynamicImport` wouldn't be called again in their scope,
   // so their respective CacheSignals wouldn't wait for the promise.
-  trackPendingImport(modulePromise)
+  trackPendingImport(modulePromise, 'dynamic-import')
 
   return modulePromise
 }

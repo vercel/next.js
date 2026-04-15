@@ -173,6 +173,9 @@ type NextAttributeNames =
   | 'next.span_name'
   | 'next.span_type'
   | 'next.clientComponentLoadCount'
+  | 'next.clientComponentAsyncRequireCount'
+  | 'next.clientComponentChunkLoadCount'
+  | 'next.clientComponentDynamicImportCount'
   | 'next.prerenderWarmupContext'
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames

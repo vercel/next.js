@@ -1,11 +1,28 @@
 import { CacheSignal } from '../cache-signal'
 import { isThenable } from '../../../shared/lib/is-thenable'
 
+type PendingImportKind = 'require' | 'dynamic-import'
+
+export type ModuleLoadingMetrics = {
+  clientComponentAsyncRequireCount: number
+  clientComponentChunkLoadCount: number
+  clientComponentDynamicImportCount: number
+}
+
+function createEmptyModuleLoadingMetrics(): ModuleLoadingMetrics {
+  return {
+    clientComponentAsyncRequireCount: 0,
+    clientComponentChunkLoadCount: 0,
+    clientComponentDynamicImportCount: 0,
+  }
+}
+
 /**
  * Tracks all in-flight async imports and chunk loads.
  * Initialized lazily, because we don't want this to error in case it gets pulled into an edge runtime module.
  */
 let _moduleLoadingSignal: CacheSignal | null
+let _moduleLoadingMetrics: ModuleLoadingMetrics | null
 function getModuleLoadingSignal() {
   if (!_moduleLoadingSignal) {
     _moduleLoadingSignal = new CacheSignal()
@@ -13,12 +30,23 @@ function getModuleLoadingSignal() {
   return _moduleLoadingSignal
 }
 
+function getModuleLoadingMetricsStore() {
+  if (!_moduleLoadingMetrics) {
+    _moduleLoadingMetrics = createEmptyModuleLoadingMetrics()
+  }
+  return _moduleLoadingMetrics
+}
+
 export function trackPendingChunkLoad(promise: Promise<unknown>) {
   const moduleLoadingSignal = getModuleLoadingSignal()
+  getModuleLoadingMetricsStore().clientComponentChunkLoadCount += 1
   moduleLoadingSignal.trackRead(promise)
 }
 
-export function trackPendingImport(exportsOrPromise: unknown) {
+export function trackPendingImport(
+  exportsOrPromise: unknown,
+  kind: PendingImportKind = 'require'
+) {
   const moduleLoadingSignal = getModuleLoadingSignal()
 
   // requiring an async module returns a promise.
@@ -27,7 +55,34 @@ export function trackPendingImport(exportsOrPromise: unknown) {
     // A client reference proxy might look like a promise, but we can only call `.then()` on it, not e.g. `.finally()`.
     // Turn it into a real promise to avoid issues elsewhere.
     const promise = Promise.resolve(exportsOrPromise)
+    const metrics = getModuleLoadingMetricsStore()
+    if (kind === 'dynamic-import') {
+      metrics.clientComponentDynamicImportCount += 1
+    } else {
+      metrics.clientComponentAsyncRequireCount += 1
+    }
     moduleLoadingSignal.trackRead(promise)
+  }
+}
+
+export function getModuleLoadingMetricsSnapshot(): ModuleLoadingMetrics {
+  const metrics = _moduleLoadingMetrics
+  return metrics ? { ...metrics } : createEmptyModuleLoadingMetrics()
+}
+
+export function diffModuleLoadingMetrics(
+  start: ModuleLoadingMetrics,
+  end: ModuleLoadingMetrics
+): ModuleLoadingMetrics {
+  return {
+    clientComponentAsyncRequireCount:
+      end.clientComponentAsyncRequireCount -
+      start.clientComponentAsyncRequireCount,
+    clientComponentChunkLoadCount:
+      end.clientComponentChunkLoadCount - start.clientComponentChunkLoadCount,
+    clientComponentDynamicImportCount:
+      end.clientComponentDynamicImportCount -
+      start.clientComponentDynamicImportCount,
   }
 }
 
