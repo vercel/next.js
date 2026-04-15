@@ -208,6 +208,12 @@ jobs:
         if: ${{ matrix.os == 'windows' }}
         run: git config --system core.longpaths true
 
+      # Full clean for production/staging/force-preview to ensure no stale
+      # artifacts from previous runs on the same self-hosted runner.
+      - name: Full git clean
+        if: ${{ needs.deploy-target.outputs.value != 'automated-preview' }}
+        run: git clean -xdf || true
+
       # we use checkout here instead of the build cache since
       # it can fail to restore in different OS'
       - uses: actions/checkout@v6
