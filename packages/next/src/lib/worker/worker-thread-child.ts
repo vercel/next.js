@@ -57,6 +57,12 @@ const transport: ChildTransport = {
   },
   disconnect(): void {
     port.removeListener('message', listener)
+    // Unlike child_process (which has process.disconnect() to close the IPC
+    // channel and allow natural exit), worker_threads stay alive as long as
+    // the parentPort ref is active. Call process.exit() so the thread
+    // terminates and the parent's waitForExit() resolves without needing
+    // the force-kill timeout.
+    process.exit(0)
   },
 }
 

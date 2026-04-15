@@ -410,6 +410,8 @@ export class WorkerPool {
     }
     this._allWorkers.clear()
     this._availableWorkers.clear()
+    this._stdout.end()
+    this._stderr.end()
   }
 
   // ---------------------------------------------------------------------------
@@ -687,6 +689,14 @@ export class WorkerPool {
    */
   private _handleSpawnError(worker: PoolWorker, error: Error): void {
     this._rejectActiveRequests(worker, error)
+
+    // Remove the failed worker from the pool and fix the booting count so
+    // _canSpawnWorker() doesn't permanently see a phantom worker.
+    if (worker.state === WorkerState.BOOTING) {
+      this._bootingCount--
+    }
+    this._allWorkers.delete(worker)
+    this._availableWorkers.delete(worker)
 
     // Also reject all queued tasks — spawn errors typically indicate a
     // system-level problem that would affect new workers too.

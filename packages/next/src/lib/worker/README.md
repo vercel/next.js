@@ -68,7 +68,7 @@ const worker = new Worker(require.resolve('./my-worker'), {
 })
 
 const result = await (worker as any).doWork(args)
-await worker.end()
+await worker.shutdown()
 ```
 
 ### Low-level (WorkerPool class)

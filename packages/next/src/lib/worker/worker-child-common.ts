@@ -117,7 +117,14 @@ export function createMessageHandler(
    * Called once during INITIALIZE.
    */
   function initialize(workerPath: string, setupArgs: unknown[]): void {
-    main = require(workerPath)
+    try {
+      main = require(workerPath)
+    } catch (err) {
+      // Module not found, syntax error, etc. Report back to the parent so it
+      // doesn't wait for PARENT_MESSAGE_READY that will never arrive.
+      reportInitializeError(err)
+      return
+    }
 
     if (!main.setup) {
       transport.send([PARENT_MESSAGE_READY])

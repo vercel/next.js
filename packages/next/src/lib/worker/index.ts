@@ -264,8 +264,14 @@ export class Worker {
       args: unknown[]
     ): Promise<unknown> => {
       for (let attempt = 0; ; attempt++) {
+        const currentPool = this._pool
+        if (!currentPool) {
+          throw new Error(
+            'Worker is shut down, no more calls can be done to it'
+          )
+        }
         try {
-          return await this._pool!.dispatch(method, args)
+          return await currentPool.dispatch(method, args)
         } catch (error) {
           if (error instanceof WorkerExitError) {
             if (attempt < maxRetries) {

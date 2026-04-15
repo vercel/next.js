@@ -1190,5 +1190,6 @@
   "1189": "Worker module exports a non-function \"setup\": %s",
   "1190": "Worker default export is not a function: %s",
   "1191": "Worker has no own export named \"%s\"",
-  "1192": "Worker export \"%s\" is not a function: %s"
+  "1192": "Worker export \"%s\" is not a function: %s",
+  "1193": "Worker is shut down, no more calls can be done to it"
 }
