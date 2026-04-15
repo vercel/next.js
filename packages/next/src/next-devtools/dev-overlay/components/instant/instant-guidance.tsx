@@ -93,23 +93,6 @@ function CardGallery({ cards }: { cards: FixCard[] }) {
     setActivePage(Math.round(progress * (pageCount - 1)))
   }
 
-  const scrollToPage = (page: number) => {
-    const el = scrollRef.current
-    if (!el) return
-    const children = Array.from(el.children) as HTMLElement[]
-    if (children.length === 0) return
-
-    const cardWidth = children[0].offsetWidth
-    const gap =
-      children.length > 1
-        ? children[1].offsetLeft - children[0].offsetLeft - cardWidth
-        : 0
-    el.scrollTo({
-      left: page * (cardWidth + gap),
-      behavior: 'smooth',
-    })
-  }
-
   return (
     <div data-nextjs-card-gallery>
       <div data-nextjs-card-gallery-row ref={scrollRef} onScroll={handleScroll}>
@@ -135,12 +118,10 @@ function CardGallery({ cards }: { cards: FixCard[] }) {
       {pageCount > 1 && (
         <div data-nextjs-card-gallery-dots>
           {Array.from({ length: pageCount }, (_, i) => (
-            <button
+            <span
               key={i}
               data-nextjs-gallery-dot
               data-active={i === activePage || undefined}
-              onClick={() => scrollToPage(i)}
-              aria-label={`Page ${i + 1}`}
             />
           ))}
         </div>
@@ -281,7 +262,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border: none;
     padding: 0;
     background: var(--color-gray-alpha-400);
-    cursor: pointer;
     transition:
       width 200ms ease,
       background 200ms ease;
