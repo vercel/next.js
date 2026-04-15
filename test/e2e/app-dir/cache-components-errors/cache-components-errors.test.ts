@@ -3448,22 +3448,12 @@ describe('Cache Components Errors', () => {
               }
             } else {
               if (isDebugPrerender) {
-                expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at cache (webpack:///<next-src>)
-                   1559 |         case 'prerender':
-                   1560 |         case 'prerender-runtime':
-                 > 1561 |           return makeHangingPromise(
-                        |                  ^
-                   1562 |             workUnitStore.renderSignal,
-                   1563 |             workStore.route,
-                   1564 |             'dynamic "use cache"'
-                 To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
-                 Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
-
-                 > Export encountered errors on 1 path:
-                 	/use-cache-params/[slug]/page: /use-cache-params/[slug]"
-                `)
+                // Webpack does not ignore the stack frame that points into
+                // Next.js internals, and is also flaky on resolving the exact
+                // location, so we don't assert on the stack frames here.
+                expect(output).toInclude(
+                  'Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                )
               } else {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
