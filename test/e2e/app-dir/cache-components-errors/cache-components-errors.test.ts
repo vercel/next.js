@@ -185,13 +185,13 @@ describe('Cache Components Errors', () => {
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
@@ -211,13 +211,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -233,13 +233,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (webpack:///app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
@@ -259,13 +259,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -602,13 +602,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
                    at Page (app/dynamic-root/page.tsx:23:9)
@@ -622,13 +622,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
                    at Page (app/dynamic-root/page.tsx:28:7)
@@ -649,13 +649,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
@@ -672,13 +672,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -694,13 +694,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
                    at Page (webpack:///app/dynamic-root/page.tsx:23:9)
@@ -714,13 +714,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
                    at Page (webpack:///app/dynamic-root/page.tsx:28:7)
@@ -741,13 +741,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -778,13 +778,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at w (<next-dist-dir>)
                    at x (<next-dist-dir>)
                    at y (<next-dist-dir>)
@@ -2019,13 +2019,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
@@ -2045,13 +2045,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
                      at main (<anonymous>)
@@ -2069,13 +2069,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
@@ -2095,13 +2095,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
                      at b (<next-dist-dir>)
@@ -2737,13 +2737,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -2762,13 +2762,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -2799,13 +2799,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -2890,13 +2890,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -2915,13 +2915,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -2952,13 +2952,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -3148,13 +3148,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3173,13 +3173,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -3210,13 +3210,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -3301,13 +3301,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3326,13 +3326,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                   expect(output).toMatchInlineSnapshot(`
                     "Error: Route "/use-cache-revalidate-0/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                    This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                    Possible fixes:
+                      - Add a <Suspense> boundary around the component that accesses the data
+                      - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                    Learn more: https://nextjs.org/docs/messages/blocking-route
                         at main (<anonymous>)
                         at body (<anonymous>)
                         at html (<anonymous>)
@@ -3363,13 +3363,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                   This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                   Possible fixes:
+                     - Add a <Suspense> boundary around the component that accesses the data
+                     - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -3558,13 +3558,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Page (app/use-cache-params/[slug]/page.tsx:1:16)
                  > 1 | export default async function Page({
                      |                ^
@@ -3581,13 +3581,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
@@ -3610,13 +3610,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -4506,13 +4506,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-private-without-suspense": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
                      at Page (app/use-cache-private-without-suspense/page.tsx:10:7)
                    13 | }
@@ -4532,13 +4532,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-private-without-suspense": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
@@ -4569,13 +4569,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-private-without-suspense": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+                 This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+                 Possible fixes:
+                   - Add a <Suspense> boundary around the component that accesses the data
+                   - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -6468,13 +6468,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (app/client-awaited-io/client.tsx:6:19)
                    at Page (app/client-awaited-io/page.tsx:5:10)
                  4 |
@@ -6494,13 +6494,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -6523,13 +6523,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
                    at Page (webpack:///app/client-awaited-io/page.tsx:5:10)
                  4 |
@@ -6549,13 +6549,13 @@ Learn more: https://nextjs.org/docs/messages/blocking-route
               expect(output).toMatchInlineSnapshot(`
                "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
 
-This prevents Next.js from prerendering this page.
+               This prevents Next.js from prerendering this page.
 
-Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+               Possible fixes:
+                 - Add a <Suspense> boundary around the component that accesses the data
+                 - Move the access into a child component inside an existing <Suspense>
 
-Learn more: https://nextjs.org/docs/messages/blocking-route
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
