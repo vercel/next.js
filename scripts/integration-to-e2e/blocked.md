@@ -22,13 +22,13 @@ No remaining suites in this category.
 
 ### CLI Testing (Not Server Tests)
 
-| Suite                  | Reason                                                       |
-| ---------------------- | ------------------------------------------------------------ |
-| `test/integration/cli` | Large CLI matrix: signals, help, dev/start/build/export/info |
+No remaining suites in this category.
 
-### No Test Files
+> **Converted from this category:** `cli` → `test/e2e/cli/` (via `nextTestSetup({ skipStart: true })` for isolated directory; CLI utilities `runNextCommand`, `runNextCommandDev`, `findPort`, `killApp`, `launchApp`, `nextBuild` kept for direct binary testing)
 
-These directories contain only shared fixtures, no test files:
+### Fixture-Only Directories (Not Test Suites)
+
+These directories contain only shared fixtures referenced by other tests, no test files of their own:
 
 - `test/integration/bundle-size-profiling`
 - `test/integration/css-fixtures`
@@ -93,26 +93,26 @@ These 27 suites were originally scored 10 by the ranker (assumed to need a runni
 - `css-modules` → `test/development/css-modules/` + `test/production/css-modules/` (dev HMR + prod CSS snapshots)
 - `css` → `test/development/css-features/` + `test/e2e/css-features/` + `test/production/css-features/` (7 original test files split across dev/e2e/prod)
 - `create-next-app` → `test/production/create-next-app/` (moved from integration; `tryNextDev` refactored to use `createNext` from `e2e-utils`)
+- `cli` → `test/e2e/cli/` (66 test cases; `nextTestSetup({ skipStart: true })` for isolated fixture dir; CLI testing utilities kept)
 
 ## Summary
 
-| Category                          | Count   |
-| --------------------------------- | ------- |
-| Converted (Phase 1, score 1-3)    | 102     |
-| Converted (Phase 2, score 4-6)    | 75      |
-| Converted (Phase 3, score 7-9)    | 5       |
-| Converted (large multi-fixture)   | 4       |
-| Converted (external HTTP proxy)   | 6       |
-| Converted (output:export / mixed) | 21      |
-| Converted (i18n-support)          | 2       |
-| Converted (build-only score-10)   | 27      |
-| Converted (custom server / API)   | 5       |
-| Converted (image-optimizer)       | 1       |
-| Converted (per-test lifecycle)    | 7       |
-| Converted (score-10 server/CLI)   | 11      |
-| Converted (final batch)           | 7       |
-| **Total converted**               | **273** |
-| Blocked (CLI testing)             | 1       |
-| No test files                     | 3       |
-| **Total remaining**               | **4**   |
-| **Grand total**                   | **277** |
+| Category                          | Count    |
+| --------------------------------- | -------- |
+| Converted (Phase 1, score 1-3)    | 102      |
+| Converted (Phase 2, score 4-6)    | 75       |
+| Converted (Phase 3, score 7-9)    | 5        |
+| Converted (large multi-fixture)   | 4        |
+| Converted (external HTTP proxy)   | 6        |
+| Converted (output:export / mixed) | 21       |
+| Converted (i18n-support)          | 2        |
+| Converted (build-only score-10)   | 27       |
+| Converted (custom server / API)   | 5        |
+| Converted (image-optimizer)       | 1        |
+| Converted (per-test lifecycle)    | 7        |
+| Converted (score-10 server/CLI)   | 11       |
+| Converted (final batch)           | 8        |
+| **Total converted**               | **274**  |
+| Fixture-only (not test suites)    | 3        |
+| **Total test suites**             | **274**  |
+| **Conversion rate**               | **100%** |

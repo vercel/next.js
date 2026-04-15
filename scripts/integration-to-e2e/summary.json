@@ -1,6 +1,6 @@
 {
-  "totalSuites": 277,
-  "noTestFiles": [
+  "totalSuites": 274,
+  "fixtureOnlyDirectories": [
     "test/integration/bundle-size-profiling",
     "test/integration/css-fixtures",
     "test/integration/scss"
@@ -18,15 +18,13 @@
     "imageOptimizer": 1,
     "perTestLifecycle": 7,
     "score10ServerCli": 11,
-    "finalBatch": 7,
-    "total": 273
+    "finalBatch": 8,
+    "total": 274
   },
   "blocked": {
-    "cliTesting": 1,
-    "noTestFiles": 3,
-    "total": 4
+    "total": 0
   },
-  "conversionRate": "98.6%",
+  "conversionRate": "100%",
   "scoreDistribution": {
     "1": 23,
     "2": 45,
