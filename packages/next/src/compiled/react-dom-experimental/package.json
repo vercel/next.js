@@ -72,10 +72,10 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "scheduler": "0.0.0-experimental-fef12a01-20260413"
+    "scheduler": "0.0.0-experimental-00f063c3-20260415"
   },
   "peerDependencies": {
-    "react": "0.0.0-experimental-fef12a01-20260413"
+    "react": "0.0.0-experimental-00f063c3-20260415"
   },
   "browser": {
     "./server.js": "./server.browser.js",
