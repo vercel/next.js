@@ -17,7 +17,7 @@ related:
 - **Prerender every combination** with `generateStaticParams`: this can lead to longer build times and increased cache write costs.
 - **Skip `generateStaticParams`**: the server blocks until the full page is rendered before sending any content to the visitor.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with the `partialFallbacks` enabled change this. Instead of blocking until the page is rendered, the visitor gets a **fallback shell** instantly. A fallback shell is prerendered static content where one or more params are unknown at build time.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with `partialFallbacks` enabled changes this. Instead of blocking until the page is rendered, the visitor gets a **fallback shell** instantly. A fallback shell is prerendered static content where one or more params are unknown at build time.
 
 In the background, Next.js uses the param values from the incoming request to try to generate a more specific shell, or a fully static page if possible. Subsequent visitors to that URL then get this **upgraded** version instead of the fallback.
 
