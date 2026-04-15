@@ -6,6 +6,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ headers: [] }],
 }
+export const unstable_prefetch = 'runtime'
 
 export default async function Page() {
   return (

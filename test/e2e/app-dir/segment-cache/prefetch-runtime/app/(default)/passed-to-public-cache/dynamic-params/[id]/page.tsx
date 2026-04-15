@@ -7,6 +7,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ params: { id: 'test' } }],
 }
+export const unstable_prefetch = 'runtime'
 
 type Params = { id: string }
 

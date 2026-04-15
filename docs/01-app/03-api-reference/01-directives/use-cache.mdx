@@ -210,6 +210,30 @@ If the default in-memory cache isn't enough, consider **[`use cache: remote`](/d
 
 Very rarely, for compliance requirements or when you can't refactor your code to pass runtime data as arguments to a `use cache` scope, you might need [`use cache: private`](/docs/app/api-reference/directives/use-cache-private).
 
+### Draft Mode
+
+When [Draft Mode](/docs/app/guides/draft-mode) is enabled, all cached functions and components re-execute on every request, and results are not saved to the cache. This ensures draft content is always fresh without requiring any changes to your caching code.
+
+You can read `isEnabled` from [`draftMode()`](/docs/app/api-reference/functions/draft-mode) inside a `use cache` scope, however, other runtime APIs like `cookies()` and `headers()` are not allowed, even when Draft Mode is active. See [Passing runtime values to cached functions](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions) for the recommended pattern.
+
+```tsx filename="app/components/content.tsx"
+import { draftMode } from 'next/headers'
+
+async function Content() {
+  'use cache'
+
+  const { isEnabled } = await draftMode()
+  const url = isEnabled
+    ? 'https://draft.example.com/content'
+    : 'https://production.example.com/content'
+
+  const data = await fetch(url)
+  return <article>{/* ... */}</article>
+}
+```
+
+Calling `enable()` or `disable()` inside a caching directive scope will also throw an error. Draft Mode can only be toggled in [Route Handlers](/docs/app/api-reference/file-conventions/route) or [Server Actions](/docs/app/getting-started/mutating-data).
+
 ### React.cache isolation
 
 [`React.cache`](https://react.dev/reference/react/cache) operates in an isolated scope inside `use cache` boundaries. Values stored via `React.cache` outside a `use cache` function are not visible inside it.

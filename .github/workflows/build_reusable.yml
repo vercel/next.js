@@ -85,6 +85,12 @@ on:
         type: string
         default: ''
 
+      uploadNativeArtifact:
+        description: 'Artifact name to upload native .node files to after building. When set, this job is the native binary producer.'
+        required: false
+        type: string
+        default: ''
+
       browser:
         description: 'Browser to use for tests'
         required: false
@@ -207,6 +213,11 @@ jobs:
       - run: corepack enable
       - run: pwd
 
+      - name: Kill stale sccache processes
+        if: ${{ runner.os == 'Windows' }}
+        shell: powershell
+        run: Get-Process sccache -ErrorAction SilentlyContinue | Stop-Process -Force
+
       - run: rm -rf .git
 
       - uses: actions/checkout@v4
@@ -232,14 +243,14 @@ jobs:
       # local action -> needs to run after checkout
       - name: Install Rust
         uses: ./.github/actions/setup-rust
-        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
         uses: taiki-e/install-action@3a0adc33ab45d7b9b9da91822dd2b3c0151704be # nextest
 
       - run: rustc --version
-        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
 
@@ -258,16 +269,33 @@ jobs:
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ runner.os != 'Windows' && ((inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
         with:
           turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
+      - name: Download pre-built native binary
+        if: ${{ inputs.skipNativeBuild != 'yes' && inputs.uploadNativeArtifact == '' }}
+        id: native-download
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') && 'next-swc-windows' || 'next-swc-linux' }}
+          path: packages/next-swc/native/
+
       - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} ${TURBO_ARGS} --summarize -- --target ${{ inputs.buildNativeTarget }}
-        if: ${{ inputs.skipNativeBuild != 'yes' }}
+        if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact != '' || steps.native-download.outcome != 'success') }}
+
+      - name: Upload native artifact
+        if: ${{ inputs.uploadNativeArtifact != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.uploadNativeArtifact }}
+          path: packages/next-swc/native/next-swc.*.node
+          retention-days: 1
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -292,7 +320,7 @@ jobs:
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.testTimingsArtifact }}
 
@@ -320,7 +348,7 @@ jobs:
 
       - name: Upload test result artifacts
         if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.testReportsArtifactPrefix }}-${{ steps.var.outputs.input_step_key }}
           path: test/**/*.results.json
@@ -335,14 +363,14 @@ jobs:
 
       - name: Upload Turborepo summary
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
           path: .turbo/runs
           if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
           name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
@@ -375,7 +403,7 @@ jobs:
           fi
 
       - name: Upload Playwright Snapshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.afterBuild && always() }}
         with:
           name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}
