@@ -27,15 +27,8 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-<<<<<<< HEAD
     AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
-    emit_options::EcmascriptEmitOptions, references::esm::UrlRewriteBehavior,
-||||||| parent of 020235e3 (Clean up EmitOption usage: extract helpers, reduce duplication)
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions,
     references::esm::UrlRewriteBehavior,
-=======
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
->>>>>>> 020235e3 (Clean up EmitOption usage: extract helpers, reduce duplication)
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,

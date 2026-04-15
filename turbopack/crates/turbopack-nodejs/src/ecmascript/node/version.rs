@@ -1,18 +1,31 @@
-use std::{
-    collections::hash_map::DefaultHasher,
-    hash::{Hash, Hasher},
-};
+use std::hash::{Hash, Hasher};
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
+use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{chunk::ModuleId, version::Version};
 use turbopack_ecmascript::{
     chunk::{CodeAndIds, EcmascriptChunkContent},
     emit_options::EcmascriptEmitOptions,
 };
+
+/// Adapts [`Xxh3Hash64Hasher`] to the [`std::hash::Hasher`] trait so that types
+/// implementing [`std::hash::Hash`] (such as [`SwcMinifyOptions`]) can be hashed
+/// deterministically across platforms and runs (unlike [`DefaultHasher`], which
+/// uses a random seed).
+struct Xxh3StdHasher(Xxh3Hash64Hasher);
+
+impl Hasher for Xxh3StdHasher {
+    fn write(&mut self, bytes: &[u8]) {
+        self.0.write_bytes(bytes);
+    }
+
+    fn finish(&self) -> u64 {
+        self.0.finish()
+    }
+}
 
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
@@ -69,8 +82,8 @@ impl Version for EcmascriptBuildNodeChunkVersion {
     fn id(&self) -> Vc<RcStr> {
         let mut hasher = Xxh3Hash64Hasher::new();
         hasher.write_ref(&self.chunk_path);
-        // Hash EcmascriptEmitOptions via std::hash (SwcMinifyOptions implements Hash)
-        let mut opts_hasher = DefaultHasher::new();
+        // Hash EcmascriptEmitOptions via Xxh3StdHasher for deterministic results
+        let mut opts_hasher = Xxh3StdHasher(Xxh3Hash64Hasher::new());
         self.ecma_opts.hash(&mut opts_hasher);
         hasher.write_value(opts_hasher.finish());
         let sorted_hashes = {
