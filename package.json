@@ -353,7 +353,8 @@
       "web-vitals@4.2.1": "patches/web-vitals@4.2.1.patch",
       "@rspack/core@1.6.7": "patches/@rspack__core@1.6.7.patch",
       "@modelcontextprotocol/sdk": "patches/@modelcontextprotocol__sdk.patch",
-      "@vercel/blob": "patches/@vercel__blob.patch"
+      "@vercel/blob": "patches/@vercel__blob.patch",
+      "postcss-scss": "patches/postcss-scss.patch"
     }
   }
 }

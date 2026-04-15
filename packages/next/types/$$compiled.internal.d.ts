@@ -758,9 +758,6 @@ declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
 }
-declare module 'next/dist/compiled/@vercel/blob' {
-  export * from '@vercel/blob'
-}
 declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
   export = m

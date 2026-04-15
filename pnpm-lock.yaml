@@ -26,7 +26,7 @@ packageExtensionsChecksum: sha256-ylDR55omOZlT4Sfpfh6n7mO2r/cLCmlirAikJ/E/LAw=
 
 patchedDependencies:
   '@modelcontextprotocol/sdk':
-    hash: f5075d7d8e8be8dffd7af112ef27a83613e5a60e6e47f066a684b37e0f0f246c
+    hash: 680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12
     path: patches/@modelcontextprotocol__sdk.patch
   '@rspack/core@1.6.7':
     hash: 4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d
@@ -43,6 +43,9 @@ patchedDependencies:
   minizlib@3.1.0:
     hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
     path: patches/minizlib@3.1.0.patch
+  postcss-scss:
+    hash: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
+    path: patches/postcss-scss.patch
   stacktrace-parser@0.1.10:
     hash: 5e07adcb70fa52f969ea76c939668fd09762774a60ec849622e44e5362354dd5
     path: patches/stacktrace-parser@0.1.10.patch
@@ -1219,7 +1222,7 @@ importers:
         version: 29.5.0
       '@modelcontextprotocol/sdk':
         specifier: 1.18.1
-        version: 1.18.1(patch_hash=f5075d7d8e8be8dffd7af112ef27a83613e5a60e6e47f066a684b37e0f0f246c)
+        version: 1.18.1(patch_hash=680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12)
       '@mswjs/interceptors':
         specifier: 0.23.0
         version: 0.23.0
@@ -1645,7 +1648,7 @@ importers:
         version: 6.0.0(postcss@8.4.31)
       postcss-scss:
         specifier: 4.0.3
-        version: 4.0.3(postcss@8.4.31)
+        version: 4.0.3(patch_hash=88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093)(postcss@8.4.31)
       postcss-value-parser:
         specifier: 4.2.0
         version: 4.2.0
@@ -21644,7 +21647,7 @@ snapshots:
       '@types/react': 19.2.10
       react: 19.3.0-canary-fef12a01-20260413
 
-  '@modelcontextprotocol/sdk@1.18.1(patch_hash=f5075d7d8e8be8dffd7af112ef27a83613e5a60e6e47f066a684b37e0f0f246c)':
+  '@modelcontextprotocol/sdk@1.18.1(patch_hash=680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12)':
     dependencies:
       ajv: 6.12.6
       content-type: 1.0.5
@@ -35501,7 +35504,7 @@ snapshots:
     dependencies:
       postcss: 8.4.31
 
-  postcss-scss@4.0.3(postcss@8.4.31):
+  postcss-scss@4.0.3(patch_hash=88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093)(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
 
