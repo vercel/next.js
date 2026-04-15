@@ -1,5 +1,5 @@
 {
-  "totalSuites": 275,
+  "totalSuites": 277,
   "noTestFiles": [
     "test/integration/bundle-size-profiling",
     "test/integration/css-fixtures",
@@ -9,24 +9,22 @@
     "phase1": 102,
     "phase2": 75,
     "phase3": 5,
-    "total": 182
+    "largeMultiFixture": 4,
+    "externalHttpProxy": 6,
+    "outputExportMixed": 21,
+    "i18nSupport": 2,
+    "total": 215
   },
   "blocked": {
-    "phase1": 1,
-    "phase2": 6,
-    "phase3": 10,
-    "score10": 70,
-    "total": 87
+    "externalHttpServer": 2,
+    "perTestLifecycle": 7,
+    "customServerApi": 2,
+    "cliTesting": 1,
+    "score10": 49,
+    "noTestFiles": 1,
+    "total": 62
   },
-  "conversionRate": "66.2%",
-  "phase1JudgeResults": {
-    "total": 103,
-    "pass": 92,
-    "warn": 10,
-    "fail": 1,
-    "failFixed": true
-  },
-  "legacyImportViolations": 0,
+  "conversionRate": "77.6%",
   "scoreDistribution": {
     "1": 23,
     "2": 45,
