@@ -1021,6 +1021,18 @@ impl Visit for Analyzer<'_> {
         n.visit_children_with(self);
     }
 
+    fn visit_getter_prop(&mut self, node: &GetterProp) {
+        let old_is_in_fn = self.is_in_fn;
+        self.is_in_fn = true;
+        node.visit_children_with(self);
+        self.is_in_fn = old_is_in_fn;
+    }
+    fn visit_setter_prop(&mut self, node: &SetterProp) {
+        let old_is_in_fn = self.is_in_fn;
+        self.is_in_fn = true;
+        node.visit_children_with(self);
+        self.is_in_fn = old_is_in_fn;
+    }
     fn visit_function(&mut self, node: &Function) {
         let old_is_in_fn = self.is_in_fn;
         self.is_in_fn = true;
