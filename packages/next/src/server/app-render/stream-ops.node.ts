@@ -597,11 +597,13 @@ export { renderToWebFizzStream } from './stream-ops.web'
 
 export async function renderToNodeFizzStream(
   element: React.ReactElement,
-  streamOptions: any
+  streamOptions: any,
+  options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
   const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
+  const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
     renderToPipeableStream(element, {
@@ -609,7 +611,9 @@ export async function renderToNodeFizzStream(
       onHeaders: streamOptions?.onHeaders,
       onShellReady() {
         streamOptions?.onShellReady?.()
-        pipeable.pipe(pt)
+        if (!deferPipe) {
+          pipeable.pipe(pt)
+        }
         shellReady.resolve()
       },
       onShellError(error: unknown) {
@@ -618,6 +622,9 @@ export async function renderToNodeFizzStream(
       },
       onAllReady() {
         streamOptions?.onAllReady?.()
+        if (deferPipe) {
+          pipeable.pipe(pt)
+        }
         allReady.resolve()
       },
       onError: streamOptions?.onError,
@@ -812,7 +819,52 @@ export async function continueStaticFallbackPrerender(
   return webToReadable(webResult)
 }
 
-export async function continueDynamicHTMLResume(
+export async function continueDynamicHTMLResumeNode(
+  renderStream: AnyStream,
+  {
+    delayDataUntilFirstHtmlChunk,
+    inlinedDataStream,
+    getServerInsertedHTML,
+    getServerInsertedMetadata,
+    deploymentId,
+  }: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
+): Promise<AnyStream> {
+  await waitAtLeastOneReactRenderTask()
+
+  const buffered = createBufferedTransformStream()
+  webToReadable(renderStream).pipe(buffered)
+
+  let source: Readable = buffered
+
+  if (deploymentId) {
+    const dplId = createHtmlDataDplIdTransform(deploymentId)
+    source.pipe(dplId)
+    source = dplId
+  }
+
+  const headInsertion = createHeadInsertionTransform(getServerInsertedHTML)
+  source.pipe(headInsertion)
+  source = headInsertion
+
+  const metadata = createMetadataTransform(getServerInsertedMetadata)
+  source.pipe(metadata)
+  source = metadata
+
+  const flightInjection = createFlightDataInjectionTransform(
+    webToReadable(inlinedDataStream),
+    delayDataUntilFirstHtmlChunk
+  )
+  source.pipe(flightInjection)
+  source = flightInjection
+
+  const moveSuffix = createMoveSuffixTransform()
+  source.pipe(moveSuffix)
+  source = moveSuffix
+
+  return source
+}
+
+export async function continueDynamicHTMLResumeWeb(
   renderStream: AnyStream,
   opts: import('./stream-ops.web').ContinueDynamicHTMLResumeOptions
 ): Promise<AnyStream> {

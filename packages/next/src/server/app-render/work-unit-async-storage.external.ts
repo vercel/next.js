@@ -346,6 +346,7 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
+  readonly outerOwnerStack: string | undefined
 }
 
 export interface PublicUseCacheStore extends CommonUseCacheStore {

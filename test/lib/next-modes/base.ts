@@ -85,7 +85,6 @@ export class NextInstance {
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   public distDir: string
-  tmpRepoDir: string
   protected isStopping: Error | null = null
   protected isDestroyed: Error | null = null
   protected childProcess?: ChildProcess
@@ -139,6 +138,12 @@ export class NextInstance {
         )
       }
 
+      const skippedRelativePaths = new Set([
+        'package.json',
+        '.next',
+        '.next-profiles',
+        '.DS_Store',
+      ])
       await fs.cp(files.fsPath, testDir, {
         recursive: true,
         // By default Node.js turns relative symlinks into absolute symlinks.
@@ -148,12 +153,10 @@ export class NextInstance {
         // See https://nodejs.org/api/fs.html#fscpsrc-dest-options-callback
         verbatimSymlinks: true,
         filter(source) {
-          // we don't copy a package.json as it's manually written
-          // via the createNextInstall process
-          if (path.relative(files.fsPath, source) === 'package.json') {
-            return false
-          }
-          return true
+          const topLevel = path
+            .relative(files.fsPath, source)
+            .split(path.sep)[0]
+          return !skippedRelativePaths.has(topLevel)
         },
       })
     } else {
@@ -320,14 +323,13 @@ export class NextInstance {
             )
             await this.beforeInstall(parentSpan)
           } else {
-            const { tmpRepoDir } = await createNextInstall({
+            await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               subDir: this.subDir,
-              keepRepoDir: true,
               beforeInstall: async (span, installDir) => {
                 this.testDir = installDir
                 require('console').log(
@@ -336,7 +338,6 @@ export class NextInstance {
                 await this.beforeInstall(span)
               },
             })
-            this.tmpRepoDir = tmpRepoDir!
           }
         }
 
@@ -619,9 +620,6 @@ export class NextInstance {
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
         // Faster than `await fs.rm`. Benchmark before change.
         rmSync(this.testDir, { recursive: true, force: true })
-        if (this.tmpRepoDir) {
-          rmSync(this.tmpRepoDir, { recursive: true, force: true })
-        }
       }
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {

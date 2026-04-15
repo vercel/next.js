@@ -701,10 +701,19 @@ impl EcmascriptModuleAsset {
 impl EcmascriptModuleAsset {
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
+        let node_env = self
+            .compile_time_info
+            .await?
+            .defines
+            .read_process_env(rcstr!("NODE_ENV"))
+            .owned()
+            .await?
+            .unwrap_or_else(|| rcstr!("development"));
         Ok(parse(
             *self.source,
             self.ty,
             *self.transforms,
+            node_env,
             options.analyze_mode == AnalyzeMode::Tracing,
             options.inline_helpers,
         ))
@@ -1738,8 +1747,8 @@ async fn process_parse_result(
 
                     let export_contexts = eval_context
                         .map_either(
-                            |e| Cow::Owned(e.imports.exports),
-                            |e| Cow::Borrowed(&e.imports.exports),
+                            |e| Cow::Owned(e.imports.exports_ids),
+                            |e| Cow::Borrowed(&e.imports.exports_ids),
                         )
                         .into_inner();
                     let preserved_exports =
@@ -2566,6 +2575,17 @@ impl SourceMapper for CodeGenResultSourceMap {
                     .1,
                 })
             }
+        }
+    }
+    fn map_raw_pos(&self, pos: BytePos) -> BytePos {
+        match self {
+            CodeGenResultSourceMap::None => BytePos::DUMMY,
+            CodeGenResultSourceMap::Single { .. } => pos,
+            CodeGenResultSourceMap::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                ..
+            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
         }
     }
 }

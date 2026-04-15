@@ -15,8 +15,8 @@ use turbopack_browser::{
 };
 use turbopack_core::{
     chunk::{
-        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, MangleType, MinifyType,
-        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        AssetSuffix, ChunkingConfig, ChunkingContext, ContentHashing, CrossOrigin, MangleType,
+        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
         chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
@@ -312,13 +312,21 @@ pub async fn get_client_module_options_context(
 
     next_client_rules.extend(additional_rules);
 
+    let local_postcss_config = *next_config
+        .experimental_turbopack_local_postcss_config()
+        .await?;
+    let postcss_config_location = if local_postcss_config == Some(true) {
+        PostCssConfigLocation::LocalPathOrProjectPath
+    } else {
+        PostCssConfigLocation::ProjectPathOrLocalPath
+    };
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
             get_postcss_package_mapping(project_path.clone())
                 .to_resolved()
                 .await?,
         ),
-        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
+        config_location: postcss_config_location,
         ..Default::default()
     };
     let postcss_foreign_transform_options = PostCssTransformOptions {
@@ -472,6 +480,7 @@ pub struct ClientChunkingContextOptions {
     pub should_use_absolute_url_references: Vc<bool>,
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
+    pub cross_origin: Vc<CrossOrigin>,
 }
 
 #[turbo_tasks::function]
@@ -498,10 +507,12 @@ pub async fn get_client_chunking_context(
         should_use_absolute_url_references,
         css_url_suffix,
         hash_salt,
+        cross_origin,
     } = options;
 
     let next_mode = mode.await?;
     let asset_prefix = asset_prefix.owned().await?;
+    let cross_origin_loading = *cross_origin.await?;
     let mut builder = BrowserChunkingContext::builder(
         root_path,
         client_root.clone(),
@@ -528,6 +539,7 @@ pub async fn get_client_chunking_context(
     .source_maps(*source_maps.await?)
     .asset_base_path(Some(asset_prefix))
     .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
+    .cross_origin(cross_origin_loading)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
     .module_id_strategy(module_id_strategy.to_resolved().await?)

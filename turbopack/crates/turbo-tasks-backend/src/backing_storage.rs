@@ -22,12 +22,6 @@ pub struct SnapshotItem {
     pub task_type_hash: Option<TaskTypeHash>,
 }
 
-impl SnapshotItem {
-    pub fn is_empty(&self) -> bool {
-        self.meta.is_none() && self.data.is_none() && self.task_type_hash.is_none()
-    }
-}
-
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
 ///
 /// This encodes the task type directly to a hasher, avoiding intermediate buffer allocation.
@@ -114,6 +108,12 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }
+
+    /// Returns true if the database is in an unrecoverable error state where a previous write or
+    /// compaction failed and the rollback also failed, permanently disabling further writes.
+    fn has_unrecoverable_write_error(&self) -> bool {
+        false
+    }
 }
 
 impl<L, R> BackingStorage for Either<L, R>
@@ -176,5 +176,9 @@ where
 
     fn shutdown(&self) -> Result<()> {
         either::for_both!(self, this => this.shutdown())
+    }
+
+    fn has_unrecoverable_write_error(&self) -> bool {
+        either::for_both!(self, this => this.has_unrecoverable_write_error())
     }
 }

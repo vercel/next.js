@@ -134,6 +134,9 @@ pub struct TransformContext<'a> {
     pub query_str: RcStr,
     pub file_path: FileSystemPath,
     pub source: ResolvedVc<Box<dyn Source>>,
+    /// The value of `process.env.NODE_ENV` for this compilation
+    /// (e.g. `"development"` or `"production"`).
+    pub node_env: RcStr,
 }
 
 impl EcmascriptInputTransform {

@@ -63,6 +63,7 @@ export async function walkTreeWithFlightRouterState({
     workStore,
   } = ctx
   const prefetchInliningEnabled = Boolean(experimental.prefetchInlining)
+  const cacheComponents = ctx.renderOpts.cacheComponents
   const isStaticGeneration = workStore.isStaticGeneration
   const isBuildTimePrerendering =
     ctx.renderOpts.isBuildTimePrerendering ?? false
@@ -161,6 +162,7 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment
@@ -169,6 +171,7 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment,
@@ -199,6 +202,7 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment
@@ -207,6 +211,7 @@ export async function walkTreeWithFlightRouterState({
           loaderTreeToFilter,
           hintTree,
           prefetchInliningEnabled,
+          cacheComponents,
           isStaticGeneration,
           isBuildTimePrerendering,
           getDynamicParamFromSegment,
@@ -238,6 +243,7 @@ export async function walkTreeWithFlightRouterState({
       loaderTreeToFilter,
       hintTree,
       prefetchInliningEnabled,
+      cacheComponents,
       isStaticGeneration,
       isBuildTimePrerendering,
       getDynamicParamFromSegment,
@@ -369,6 +375,7 @@ export async function createFullTreeFlightDataForNavigation({
     loaderTree,
     hintTreeForInitialRender,
     Boolean(experimental.prefetchInlining),
+    ctx.renderOpts.cacheComponents,
     workStoreForInitialRender.isStaticGeneration,
     ctx.renderOpts.isBuildTimePrerendering ?? false,
     getDynamicParamFromSegment,

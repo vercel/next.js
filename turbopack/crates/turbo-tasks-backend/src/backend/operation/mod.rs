@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+#[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
@@ -295,7 +296,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             StorageWriteGuard<'e>,
         ),
     ) {
+        #[cfg(feature = "trace_prepare_tasks")]
         let _span = trace_span!("prepare_tasks_with_callback", reason).entered();
+        #[cfg(not(feature = "trace_prepare_tasks"))]
+        let _ = reason;
 
         // Fast path: no backing storage to restore from — all tasks should already
         // have restored flags set at allocation time, so just invoke callbacks directly.
