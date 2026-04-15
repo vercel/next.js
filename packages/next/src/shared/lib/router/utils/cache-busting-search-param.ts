@@ -1,3 +1,5 @@
+import { hexHash } from '../../hash'
+
 const CACHE_BUSTING_SEARCH_PARAM_DIGEST_BYTES = 12
 const textEncoder = new TextEncoder()
 
@@ -19,7 +21,7 @@ function normalizeCacheBustingInput(
   return Array.isArray(value) ? value.join(',') : value
 }
 
-export function createCacheBustingSearchParamInput(
+function createCacheBustingSearchParamInput(
   prefetchHeader: '1' | '2' | '0' | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
   stateTreeHeader: string | string[] | undefined,
@@ -42,6 +44,19 @@ export function createCacheBustingSearchParamInput(
   ].join(',')
 }
 
+async function computeCacheBustingSearchParamFromInput(
+  input: string
+): Promise<string> {
+  // Truncate SHA-256 to 96 bits to keep `_rsc` compact
+  const digest = await globalThis.crypto.subtle.digest(
+    'SHA-256',
+    textEncoder.encode(input)
+  )
+  return encodeCacheBustingSearchParam(
+    new Uint8Array(digest).subarray(0, CACHE_BUSTING_SEARCH_PARAM_DIGEST_BYTES)
+  )
+}
+
 export async function computeCacheBustingSearchParam(
   prefetchHeader: '1' | '2' | '0' | undefined,
   segmentPrefetchHeader: string | string[] | undefined,
@@ -58,14 +73,24 @@ export async function computeCacheBustingSearchParam(
     return ''
   }
 
-  // Truncate SHA-256 to 96 bits to keep `_rsc` compact
-  const digest = await globalThis.crypto.subtle.digest(
-    'SHA-256',
-    textEncoder.encode(input)
-  )
-  return encodeCacheBustingSearchParam(
-    new Uint8Array(digest).subarray(0, CACHE_BUSTING_SEARCH_PARAM_DIGEST_BYTES)
-  )
+  return computeCacheBustingSearchParamFromInput(input)
 }
 
-export { encodeCacheBustingSearchParam }
+export function computeLegacyCacheBustingSearchParam(
+  prefetchHeader: '1' | '2' | '0' | undefined,
+  segmentPrefetchHeader: string | string[] | undefined,
+  stateTreeHeader: string | string[] | undefined,
+  nextUrlHeader: string | string[] | undefined
+): string {
+  const input = createCacheBustingSearchParamInput(
+    prefetchHeader,
+    segmentPrefetchHeader,
+    stateTreeHeader,
+    nextUrlHeader
+  )
+  if (input === null) {
+    return ''
+  }
+
+  return hexHash(input)
+}

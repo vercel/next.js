@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
-import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
+import {
+  computeCacheBustingSearchParam,
+  computeLegacyCacheBustingSearchParam,
+} from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 describe('app dir - validation', () => {
   const { next, skipped } = nextTestSetup({
@@ -75,5 +78,31 @@ describe('app dir - validation', () => {
     expect(fullRequestHash).toHaveLength(16)
     expect(prefetchRequestHash).toHaveLength(16)
     expect(fullRequestHash).not.toBe(prefetchRequestHash)
+  })
+
+  it('should accept legacy cache-busting params on plain HTTP requests', async () => {
+    const stateTree = '%5B%22%22%2C%7B%7D%5D'
+    const url = new URL('/', 'http://localhost')
+    const headers = {
+      rsc: '1',
+      'next-router-state-tree': stateTree,
+    }
+
+    url.searchParams.set(
+      '_rsc',
+      computeLegacyCacheBustingSearchParam(
+        undefined,
+        undefined,
+        stateTree,
+        undefined
+      )
+    )
+
+    const res = await next.fetch(url.toString(), {
+      headers,
+      redirect: 'manual',
+    })
+
+    expect(res.status).toBe(200)
   })
 })

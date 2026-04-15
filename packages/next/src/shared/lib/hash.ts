@@ -13,3 +13,7 @@ export function djb2Hash(str: string) {
   }
   return hash >>> 0
 }
+
+export function hexHash(str: string) {
+  return djb2Hash(str).toString(36).slice(0, 5)
+}
