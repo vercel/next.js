@@ -264,7 +264,7 @@ jobs:
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ runner.os != 'Windows' && ((inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
         with:
           turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
