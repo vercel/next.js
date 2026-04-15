@@ -79,6 +79,14 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn emit_options(
+        mut self,
+        opts: impl IntoIterator<Item = ResolvedVc<Box<dyn EmitOption>>>,
+    ) -> Self {
+        self.chunking_context.emit_options.extend(opts);
+        self
+    }
+
     pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
         self.chunking_context.source_maps_type = source_maps;
         self

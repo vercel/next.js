@@ -10,6 +10,7 @@ use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
+use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
@@ -127,9 +128,9 @@ enum MinifyMode {
 impl MinifyMode {
     /// Returns JS and CSS minification emit options for this mode.
     /// Returns an empty vec for `MinifyMode::None`.
-    fn emit_options(&self) -> Vec<ResolvedVc<Box<dyn EmitOption>>> {
+    fn emit_options(&self) -> SmallVec<[ResolvedVc<Box<dyn EmitOption>>; 2]> {
         match self {
-            MinifyMode::None => vec![],
+            MinifyMode::None => SmallVec::new(),
             mode => {
                 let ecma_opts = match mode {
                     MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
@@ -144,7 +145,7 @@ impl MinifyMode {
                     MinifyMode::None => unreachable!(),
                 };
                 let css_opts = CssEmitOptions::builder().preset_minify().build();
-                vec![
+                smallvec![
                     ResolvedVc::upcast(ecma_opts.resolved_cell()),
                     ResolvedVc::upcast(css_opts.resolved_cell()),
                 ]
@@ -549,9 +550,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
 
-            for opt in options.minify_mode.emit_options() {
-                builder = builder.emit_option(opt);
-            }
+            builder = builder.emit_options(options.minify_mode.emit_options());
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(
@@ -599,9 +598,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 
-            for opt in options.minify_mode.emit_options() {
-                builder = builder.emit_option(opt);
-            }
+            builder = builder.emit_options(options.minify_mode.emit_options());
 
             if options.remove_unused_imports {
                 builder = builder.unused_references(

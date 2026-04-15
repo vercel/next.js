@@ -1106,9 +1106,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
-    for opt in minify_emit_options(minify, no_mangling, true).await? {
-        builder = builder.emit_option(opt);
-    }
+    builder = builder.emit_options(minify_emit_options(minify, no_mangling, true).await?);
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
         SourceMapSourceType::AbsoluteFileUri
@@ -1209,9 +1207,7 @@ pub async fn get_server_chunking_context(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
-    for opt in minify_emit_options(minify, no_mangling, false).await? {
-        builder = builder.emit_option(opt);
-    }
+    builder = builder.emit_options(minify_emit_options(minify, no_mangling, false).await?);
 
     if next_mode.is_development() {
         builder = builder.source_map_source_type(SourceMapSourceType::AbsoluteFileUri);

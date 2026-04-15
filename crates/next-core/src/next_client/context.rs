@@ -531,9 +531,7 @@ pub async fn get_client_chunking_context(
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .source_maps(*source_maps.await?);
 
-    for opt in minify_emit_options(minify, no_mangling, false).await? {
-        builder = builder.emit_option(opt);
-    }
+    builder = builder.emit_options(minify_emit_options(minify, no_mangling, false).await?);
 
     builder = builder
         .asset_base_path(Some(asset_prefix))

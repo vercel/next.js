@@ -4,6 +4,7 @@ use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
+use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexset, trace::TraceRawVcs, turbobail,
@@ -572,9 +573,9 @@ pub async fn minify_emit_options(
     minify: Vc<bool>,
     no_mangling: Vc<bool>,
     deterministic_mangle: bool,
-) -> Result<Vec<ResolvedVc<Box<dyn EmitOption>>>> {
+) -> Result<SmallVec<[ResolvedVc<Box<dyn EmitOption>>; 2]>> {
     if !*minify.await? {
-        return Ok(vec![]);
+        return Ok(SmallVec::new());
     }
 
     let ecma_opts = if *no_mangling.await? {
@@ -592,7 +593,7 @@ pub async fn minify_emit_options(
     };
     let css_opts = CssEmitOptions::builder().preset_minify().build();
 
-    Ok(vec![
+    Ok(smallvec![
         ResolvedVc::upcast(ecma_opts.resolved_cell()),
         ResolvedVc::upcast(css_opts.resolved_cell()),
     ])
