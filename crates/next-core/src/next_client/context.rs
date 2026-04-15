@@ -529,26 +529,23 @@ pub async fn get_client_chunking_context(
     )
     .chunk_base_path(Some(asset_prefix.clone()))
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
-    .source_maps(*source_maps.await?);
-
-    builder = builder.emit_options(minify_emit_options(minify, no_mangling, false).await?);
-
-    builder = builder
-        .asset_base_path(Some(asset_prefix))
-        .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
-        .cross_origin(cross_origin_loading)
-        .export_usage(*export_usage.await?)
-        .unused_references(unused_references.to_resolved().await?)
-        .module_id_strategy(module_id_strategy.to_resolved().await?)
-        .debug_ids(*debug_ids.await?)
-        .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
-        .nested_async_availability(*nested_async_chunking.await?)
-        .worker_forwarded_globals(worker_forwarded_globals())
-        .hash_salt(hash_salt)
-        .default_url_behavior(UrlBehavior {
-            suffix: AssetSuffix::Inferred,
-            static_suffix: css_url_suffix.to_resolved().await?,
-        });
+    .source_maps(*source_maps.await?)
+    .emit_options(minify_emit_options(minify, no_mangling, false).await?)
+    .asset_base_path(Some(asset_prefix))
+    .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript)
+    .cross_origin(cross_origin_loading)
+    .export_usage(*export_usage.await?)
+    .unused_references(unused_references.to_resolved().await?)
+    .module_id_strategy(module_id_strategy.to_resolved().await?)
+    .debug_ids(*debug_ids.await?)
+    .should_use_absolute_url_references(*should_use_absolute_url_references.await?)
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .hash_salt(hash_salt)
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: css_url_suffix.to_resolved().await?,
+    });
 
     if next_mode.is_development() {
         builder = builder

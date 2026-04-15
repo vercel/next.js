@@ -261,9 +261,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
-
-    builder = builder.emit_options(minify_emit_options(turbo_minify, no_mangling, true).await?);
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .emit_options(minify_emit_options(turbo_minify, no_mangling, true).await?);
 
     if !next_mode.is_development() {
         builder = builder
@@ -358,9 +357,8 @@ pub async fn get_edge_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
-    .worker_forwarded_globals(worker_forwarded_globals());
-
-    builder = builder.emit_options(minify_emit_options(turbo_minify, no_mangling, false).await?);
+    .worker_forwarded_globals(worker_forwarded_globals())
+    .emit_options(minify_emit_options(turbo_minify, no_mangling, false).await?);
 
     if !next_mode.is_development() {
         builder = builder
