@@ -91,7 +91,6 @@ import fsp from 'fs/promises'
     fs.rmSync(tmpdir, { recursive: true, force: true })
     console.log('Installed the following binary packages:', pkgs)
   } catch (e) {
-    console.error(e)
-    console.error('Failed to load @next/swc binary packages')
+    throw new Error('Failed to install @next/swc binary packages', { cause: e })
   }
 })()
