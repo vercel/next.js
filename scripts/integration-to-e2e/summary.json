@@ -1,0 +1,42 @@
+{
+  "totalSuites": 275,
+  "noTestFiles": [
+    "test/integration/bundle-size-profiling",
+    "test/integration/css-fixtures",
+    "test/integration/scss"
+  ],
+  "converted": {
+    "phase1": 102,
+    "phase2": 75,
+    "phase3": 5,
+    "total": 182
+  },
+  "blocked": {
+    "phase1": 1,
+    "phase2": 6,
+    "phase3": 10,
+    "score10": 70,
+    "total": 87
+  },
+  "conversionRate": "66.2%",
+  "phase1JudgeResults": {
+    "total": 103,
+    "pass": 92,
+    "warn": 10,
+    "fail": 1,
+    "failFixed": true
+  },
+  "legacyImportViolations": 0,
+  "scoreDistribution": {
+    "1": 23,
+    "2": 45,
+    "3": 41,
+    "4": 43,
+    "5": 20,
+    "6": 18,
+    "7": 7,
+    "8": 6,
+    "9": 2,
+    "10": 70
+  }
+}

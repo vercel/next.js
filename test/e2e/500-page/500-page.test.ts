@@ -1,0 +1,310 @@
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { retry } from 'next-test-utils'
+
+describe('500 Page Support', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+  })
+
+  it('should use pages/500', async () => {
+    const html = await next.render('/500')
+    expect(html).toContain('custom 500 page')
+  })
+
+  it('should set correct status code with pages/500', async () => {
+    const res = await next.fetch('/500')
+    expect(res.status).toBe(500)
+  })
+
+  it('should not error when visited directly', async () => {
+    const res = await next.fetch('/500')
+    expect(res.status).toBe(500)
+    expect(await res.text()).toContain('custom 500 page')
+  })
+
+  if (isNextStart) {
+    it('should output 500.html during build', async () => {
+      const manifest = await next.readJSON('.next/server/pages-manifest.json')
+      const page = manifest['/500']
+      expect(page.endsWith('.html')).toBe(true)
+    })
+
+    it('should add /500 to pages-manifest correctly', async () => {
+      const manifest = await next.readJSON('.next/server/pages-manifest.json')
+      expect('/500' in manifest).toBe(true)
+    })
+  }
+
+  if (isNextDev) {
+    it('shows error with getInitialProps in pages/500 dev', async () => {
+      const original500 = await next.readFile('pages/500.js')
+      try {
+        await next.patchFile(
+          'pages/500.js',
+          `
+          const page = () => 'custom 500 page'
+          page.getInitialProps = () => ({ a: 'b' })
+          export default page
+        `
+        )
+        await next.render('/500')
+        await retry(async () => {
+          expect(next.cliOutput).toMatch(
+            /`pages\/500` can not have getInitialProps\/getServerSideProps/
+          )
+        })
+      } finally {
+        await next.patchFile('pages/500.js', original500)
+      }
+    })
+
+    it('does not show error with getStaticProps in pages/500 dev', async () => {
+      const original500 = await next.readFile('pages/500.js')
+      try {
+        await next.patchFile(
+          'pages/500.js',
+          `
+          const page = () => 'custom 500 page'
+          export const getStaticProps = () => ({ props: { a: 'b' } })
+          export default page
+        `
+        )
+        await next.render('/abc')
+        await retry(async () => {
+          expect(next.cliOutput).not.toMatch(
+            /`pages\/500` can not have getInitialProps\/getServerSideProps/
+          )
+        })
+      } finally {
+        await next.patchFile('pages/500.js', original500)
+      }
+    })
+
+    it('shows error with getServerSideProps in pages/500 dev', async () => {
+      const original500 = await next.readFile('pages/500.js')
+      try {
+        await next.patchFile(
+          'pages/500.js',
+          `
+          const page = () => 'custom 500 page'
+          export const getServerSideProps = () => ({ props: { a: 'b' } })
+          export default page
+        `
+        )
+        await next.render('/500')
+        await retry(async () => {
+          expect(next.cliOutput).toMatch(
+            /`pages\/500` can not have getInitialProps\/getServerSideProps/
+          )
+        })
+      } finally {
+        await next.patchFile('pages/500.js', original500)
+      }
+    })
+  }
+})
+
+describe('500 Page build validation', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
+
+  const gip500Err =
+    /`pages\/500` can not have getInitialProps\/getServerSideProps/
+
+  it('shows error with getInitialProps in pages/500 build', async () => {
+    await next.patchFile(
+      'pages/500.js',
+      `
+      const page = () => 'custom 500 page'
+      page.getInitialProps = () => ({ a: 'b' })
+      export default page
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(1)
+    expect(next.cliOutput).toMatch(gip500Err)
+  })
+
+  it('does not show error with getStaticProps in pages/500 build', async () => {
+    await next.patchFile(
+      'pages/500.js',
+      `
+      const page = () => 'custom 500 page'
+      export const getStaticProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(next.cliOutput).not.toMatch(gip500Err)
+  })
+
+  it('shows error with getServerSideProps in pages/500 build', async () => {
+    await next.patchFile(
+      'pages/500.js',
+      `
+      const page = () => 'custom 500 page'
+      export const getServerSideProps = () => ({ props: { a: 'b' } })
+      export default page
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(1)
+    expect(next.cliOutput).toMatch(gip500Err)
+  })
+
+  it('should have correct cache control for 500 page with getStaticProps', async () => {
+    await next.patchFile(
+      'pages/500.js',
+      `
+      export default function Page() {
+        return <p>custom 500</p>
+      }
+      export function getStaticProps() {
+        return { props: { now: Date.now() } }
+      }
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+    await next.start()
+
+    const res = await next.fetch('/err')
+    expect(res.status).toBe(500)
+    expect(res.headers.get('cache-control')).toBe(
+      'private, no-cache, no-store, max-age=0, must-revalidate'
+    )
+  })
+
+  it('does not build 500 statically with getInitialProps in _app', async () => {
+    await next.patchFile(
+      'pages/_app.js',
+      `
+      import App from 'next/app'
+      const page = ({ Component, pageProps }) => <Component {...pageProps} />
+      page.getInitialProps = (ctx) => App.getInitialProps(ctx)
+      export default page
+    `
+    )
+    const { exitCode, cliOutput } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(cliOutput).not.toMatch(gip500Err)
+    expect(cliOutput).not.toContain('rendered 500')
+    expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
+    await next.deleteFile('pages/_app.js')
+  })
+
+  it('does build 500 statically with getInitialProps in _app and getStaticProps in pages/500', async () => {
+    await next.patchFile(
+      'pages/_app.js',
+      `
+      import App from 'next/app'
+      const page = ({ Component, pageProps }) => <Component {...pageProps} />
+      page.getInitialProps = (ctx) => App.getInitialProps(ctx)
+      export default page
+    `
+    )
+    await next.patchFile(
+      'pages/500.js',
+      `
+      const page = () => {
+        console.log('rendered 500')
+        return 'custom 500 page'
+      }
+      export default page
+      export const getStaticProps = () => {
+        return { props: {} }
+      }
+    `
+    )
+    const { exitCode, cliOutput } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(cliOutput).not.toMatch(gip500Err)
+    expect(cliOutput).toContain('rendered 500')
+    expect(await next.hasFile('.next/server/pages/500.html')).toBe(true)
+    await next.deleteFile('pages/_app.js')
+  })
+
+  it('builds 500 statically by default with no pages/500', async () => {
+    await next.deleteFile('pages/500.js')
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(await next.hasFile('.next/server/pages/500.html')).toBe(true)
+  })
+
+  it('builds 500 statically by default with no pages/500 and custom _error without getInitialProps', async () => {
+    await next.deleteFile('pages/500.js')
+    await next.patchFile(
+      'pages/_error.js',
+      `
+      function Error({ statusCode }) {
+        return <p>Error status: {statusCode}</p>
+      }
+      export default Error
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(next.cliOutput).not.toMatch(gip500Err)
+    expect(await next.hasFile('.next/server/pages/500.html')).toBe(true)
+    await next.deleteFile('pages/_error.js')
+  })
+
+  it('does not build 500 statically with no pages/500 and custom getInitialProps in _error', async () => {
+    await next.deleteFile('pages/500.js')
+    await next.patchFile(
+      'pages/_error.js',
+      `
+      function Error({ statusCode }) {
+        return <p>Error status: {statusCode}</p>
+      }
+      Error.getInitialProps = ({ req, res, err }) => {
+        console.error('called _error.getInitialProps')
+        if (req.url === '/500') {
+          throw new Error('should not export /500')
+        }
+        return {
+          statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+        }
+      }
+      export default Error
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(next.cliOutput).not.toMatch(gip500Err)
+    expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
+    await next.deleteFile('pages/_error.js')
+  })
+
+  it('does not build 500 statically with no pages/500 and getServerSideProps in _error', async () => {
+    await next.deleteFile('pages/500.js')
+    await next.patchFile(
+      'pages/_error.js',
+      `
+      function Error({ statusCode }) {
+        return <p>Error status: {statusCode}</p>
+      }
+      export const getServerSideProps = ({ req, res, err }) => {
+        console.error('called _error getServerSideProps')
+        if (req.url === '/500') {
+          throw new Error('should not export /500')
+        }
+        return {
+          props: {
+            statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+          }
+        }
+      }
+      export default Error
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(next.cliOutput).not.toMatch(gip500Err)
+    expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
+    await next.deleteFile('pages/_error.js')
+  })
+})

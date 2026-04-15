@@ -1,0 +1,103 @@
+{"suite":"test/integration/app-aspath","converted":"test/development/app-aspath/app-aspath.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/app-config-asset-prefix","converted":"test/development/app-config-asset-prefix/app-config-asset-prefix.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/app-functional","converted":"test/development/app-functional/app-functional.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/babel-next-image","converted":"test/development/babel-next-image/babel-next-image.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/broken-webpack-plugin","converted":"test/development/broken-webpack-plugin/broken-webpack-plugin.test.ts","verdict":"fail","issues":["Original uses launchApp with nextStart:true (production mode), but converted is placed in test/development/ which runs in dev mode. Should be in test/production/."],"warnings":[]}
+{"suite":"test/integration/client-navigation-a11y","converted":"test/development/client-navigation-a11y/client-navigation-a11y.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/compression","converted":"test/development/compression/compression.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/config-mjs","converted":"test/development/config-mjs/config-mjs.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/development-hmr-refresh","converted":"test/development/development-hmr-refresh/development-hmr-refresh.test.ts","verdict":"warn","issues":[],"warnings":["Uses raw setTimeout instead of waitFor; correct since this is wait-and-verify-nothing-changed pattern"]}
+{"suite":"test/integration/document-head-warnings","converted":"test/development/document-head-warnings/document-head-warnings.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/dynamic-require","converted":"test/development/dynamic-require/index.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/dynamic-route-rename","converted":"test/development/dynamic-route-rename/dynamic-route-rename.test.ts","verdict":"warn","issues":[],"warnings":["retry() wrapping negative assertion passes immediately; also has unused variable"]}
+{"suite":"test/integration/empty-project","converted":"test/development/empty-project/empty-project.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/gssp-redirect-with-rewrites","converted":"test/development/gssp-redirect-with-rewrites/gssp-redirect-with-rewrites.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/invalid-revalidate-values","converted":"test/development/invalid-revalidate-values/invalid-revalidate-values.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/jsconfig-paths-wildcard","converted":"test/development/jsconfig-paths-wildcard/jsconfig-paths-wildcard.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/middleware-overrides-node.js-api","converted":"test/development/middleware-overrides-node.js-api/middleware-overrides-node.js-api.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/no-override-next-props","converted":"test/development/no-override-next-props/no-override-next-props.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/plugin-mdx-rs","converted":"test/development/plugin-mdx-rs/plugin-mdx-rs.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/trailing-slash-dist","converted":"test/development/trailing-slash-dist/trailing-slash-dist.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/typescript-app-type-declarations","converted":"test/development/typescript-app-type-declarations/typescript-app-type-declarations.test.ts","verdict":"warn","issues":[],"warnings":["Missing test: 'should not touch an existing correct next-env.d.ts'","Missing strictRouteTypes env-conditional handling"]}
+{"suite":"test/integration/typescript-external-dir","converted":"test/development/typescript-external-dir/typescript-external-dir.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/404-page-custom-error","converted":"test/e2e/404-page-custom-error/404-page-custom-error.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/404-page-ssg","converted":"test/e2e/404-page-ssg/404-page-ssg.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/api-catch-all","converted":"test/e2e/api-catch-all/api-catch-all.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/app-tree","converted":"test/e2e/app-tree/app-tree.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/basepath-root-catch-all","converted":"test/e2e/basepath-root-catch-all/basepath-root-catch-all.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/bigint","converted":"test/e2e/bigint/bigint.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/catches-missing-getStaticProps","converted":"test/e2e/catches-missing-getStaticProps/catches-missing-getStaticProps.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/custom-error-page-exception","converted":"test/e2e/custom-error-page-exception/custom-error-page-exception.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/custom-page-extension","converted":"test/e2e/custom-page-extension/custom-page-extension.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/custom-routes-catchall","converted":"test/e2e/custom-routes-catchall/custom-routes-catchall.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/custom-routes-i18n-index-redirect","converted":"test/e2e/custom-routes-i18n-index-redirect/custom-routes-i18n-index-redirect.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/disable-js","converted":"test/e2e/disable-js/disable-js.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/dist-dir","converted":"test/e2e/dist-dir/dist-dir.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/dynamic-optional-routing-root-static-paths","converted":"test/e2e/dynamic-optional-routing-root-static-paths/dynamic-optional-routing-root-static-paths.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/edge-runtime-dynamic-code","converted":"test/e2e/edge-runtime-dynamic-code/edge-runtime-dynamic-code.test.ts","verdict":"warn","issues":[],"warnings":["Stack trace detail assertions significantly simplified"]}
+{"suite":"test/integration/edge-runtime-with-node.js-apis","converted":"test/e2e/edge-runtime-with-node.js-apis/edge-runtime-with-node.js-apis.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/fallback-false-rewrite","converted":"test/e2e/fallback-false-rewrite/fallback-false-rewrite.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/fallback-route-params","converted":"test/e2e/fallback-route-params/fallback-route-params.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/getinitialprops","converted":"test/e2e/getinitialprops/getinitialprops.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/gip-identifier","converted":"test/e2e/gip-identifier/gip-identifier.test.ts","verdict":"warn","issues":[],"warnings":["File mutation tests gated behind isNextDev only; reasonable trade-off since patchFile+retry works via HMR in dev but cannot trigger rebuild in prod"]}
+{"suite":"test/integration/gssp-pageProps-merge","converted":"test/e2e/gssp-pageProps-merge/gssp-pageProps-merge.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/hashbang","converted":"test/e2e/hashbang/hashbang.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/i18n-support-custom-error","converted":"test/e2e/i18n-support-custom-error/i18n-support-custom-error.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/import-assertion","converted":"test/e2e/import-assertion/import-assertion.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/import-attributes","converted":"test/e2e/import-attributes/import-attributes.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/initial-ref","converted":"test/e2e/initial-ref/initial-ref.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/invalid-server-options","converted":"test/e2e/invalid-server-options/invalid-server-options.test.ts","verdict":"warn","issues":[],"warnings":["Unit-style test that imports 'next' directly; should be in test/unit/"]}
+{"suite":"test/integration/link-ref-app","converted":"test/e2e/link-ref-app/link-ref-app.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/middleware-basic","converted":"test/e2e/middleware-basic/middleware-basic.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/next-dynamic-css","converted":"test/e2e/next-dynamic-css/next-dynamic-css.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/no-page-props","converted":"test/e2e/no-page-props/no-page-props.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/node-fetch-keep-alive","converted":"test/e2e/node-fetch-keep-alive/node-fetch-keep-alive.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/optional-chaining-nullish-coalescing","converted":"test/e2e/optional-chaining-nullish-coalescing/optional-chaining-nullish-coalescing.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/relay-graphql-swc-multi-project","converted":"test/e2e/relay-graphql-swc-multi-project/relay-graphql-swc-multi-project.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/relay-graphql-swc-single-project","converted":"test/e2e/relay-graphql-swc-single-project/relay-graphql-swc-single-project.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/rewrite-with-browser-history","converted":"test/e2e/rewrite-with-browser-history/rewrite-with-browser-history.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/rewrites-client-resolving","converted":"test/e2e/rewrites-client-resolving/rewrites-client-resolving.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/link-without-router","converted":"test/unit/link-without-router/link-without-router.test.tsx","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/rewrites-destination-query-array","converted":"test/e2e/rewrites-destination-query-array/rewrites-destination-query-array.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/rewrites-has-condition","converted":"test/e2e/rewrites-has-condition/rewrites-has-condition.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/route-index","converted":"test/e2e/route-index/route-index.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/route-indexes","converted":"test/e2e/route-indexes/route-indexes.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/router-hash-navigation","converted":"test/e2e/router-hash-navigation/router-hash-navigation.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/router-prefetch","converted":"test/e2e/router-prefetch/router-prefetch.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/router-rerender","converted":"test/e2e/router-rerender/router-rerender.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/scroll-back-restoration","converted":"test/e2e/scroll-back-restoration/scroll-back-restoration.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/server-asset-modules","converted":"test/e2e/server-asset-modules/server-asset-modules.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/src-dir-support-double-dir","converted":"test/e2e/src-dir-support-double-dir/src-dir-support-double-dir.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/ssg-dynamic-routes-404-page","converted":"test/e2e/ssg-dynamic-routes-404-page/ssg-dynamic-routes-404-page.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/absolute-assetprefix","converted":"test/production/absolute-assetprefix/absolute-assetprefix.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/critical-css","converted":"test/production/critical-css/critical-css.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/dedupes-scripts","converted":"test/production/dedupes-scripts/dedupes-scripts.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/document-file-dependencies","converted":"test/production/document-file-dependencies/document-file-dependencies.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/error-in-error","converted":"test/production/error-in-error/error-in-error.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/externals-esm-loose","converted":"test/production/externals-esm-loose/externals-esm-loose.test.ts","verdict":"warn","issues":[],"warnings":["Unnecessary TURBOPACK_DEV describe.skip wrapper inside test/production/"]}
+{"suite":"test/integration/firebase-grpc","converted":"test/production/firebase-grpc/firebase-grpc.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/future","converted":"test/production/future/future.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/gsp-build-errors","converted":"test/production/gsp-build-errors/gsp-build-errors.test.ts","verdict":"warn","issues":[],"warnings":["Missing explicit build failure exit code assertion (original asserted code===1)","No afterEach cleanup between tests; persisted [slug].js from last test"]}
+{"suite":"test/integration/gsp-extension","converted":"test/production/gsp-extension/gsp-extension.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/handles-export-errors","converted":"test/production/handles-export-errors/handles-export-errors.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/hydrate-then-render","converted":"test/production/hydrate-then-render/hydrate-then-render.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/image-generation","converted":"test/production/image-generation/image-generation.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/invalid-config-values","converted":"test/production/invalid-config-values/invalid-config-values.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/invalid-page-automatic-static-optimization","converted":"test/production/invalid-page-automatic-static-optimization/invalid-page-automatic-static-optimization.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/jsconfig-empty","converted":"test/production/jsconfig-empty/jsconfig-empty.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/numeric-sep","converted":"test/production/numeric-sep/numeric-sep.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/page-config","converted":"test/production/page-config/page-config.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/polyfilling-minimal","converted":"test/production/polyfilling-minimal/polyfilling-minimal.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/polyfills","converted":"test/production/polyfills/polyfills.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/prerender-invalid-catchall-params","converted":"test/production/prerender-invalid-catchall-params/index.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/prerender-invalid-paths","converted":"test/production/prerender-invalid-paths/prerender-invalid-paths.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/prerender-no-revalidate","converted":"test/production/prerender-no-revalidate/prerender-no-revalidate.test.ts","verdict":"warn","issues":[],"warnings":["Dropped stderr check for 'GSP was re-run'","Dropped file-level HTML/JSON comparison"]}
+{"suite":"test/integration/prerender-revalidate","converted":"test/production/prerender-revalidate/prerender-revalidate.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/production-nav","converted":"test/production/production-nav/production-nav.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/re-export-all-exports-from-page-disallowed","converted":"test/production/re-export-all-exports-from-page-disallowed/re-export-all-exports-from-page-disallowed.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/revalidate-as-path","converted":"test/production/revalidate-as-path/revalidate-as-path.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/root-catchall-cache","converted":"test/production/root-catchall-cache/root-catchall-cache.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/root-optional-revalidate","converted":"test/production/root-optional-revalidate/root-optional-revalidate.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/static-404","converted":"test/production/static-404/static-404.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/styled-jsx-plugin","converted":"test/production/styled-jsx-plugin/styled-jsx-plugin.test.ts","verdict":"pass","issues":[],"warnings":[]}
+{"suite":"test/integration/with-electron","converted":"test/production/with-electron/with-electron.test.ts","verdict":"warn","issues":[],"warnings":["Missing reverse navigation test","Original used Electron/Spectron; conversion tests via HTTP instead"]}
