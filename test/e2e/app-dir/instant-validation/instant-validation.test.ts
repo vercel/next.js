@@ -2168,7 +2168,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1086",
+             "code": "E394",
              "description": "Runtime data was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
@@ -2234,7 +2234,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1086",
+             "code": "E394",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -2336,7 +2336,7 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1086",
+             "code": "E394",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
