@@ -15,7 +15,7 @@ type Snippet = {
 
 const runtimeCards: FixCard[] = [
   {
-    title: 'Add a new Suspense boundary',
+    title: 'Wrap in Suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Component />' },
@@ -23,7 +23,7 @@ const runtimeCards: FixCard[] = [
     ],
   },
   {
-    title: 'Lower access into a Suspense boundary',
+    title: 'Move into Suspense',
     snippets: [
       { text: '<Suspense>' },
       { text: '  <DataChild />', highlight: true },
@@ -31,8 +31,12 @@ const runtimeCards: FixCard[] = [
     ],
   },
   {
-    title: 'Let it block',
-    snippets: [{ text: 'export const instant = false', highlight: true }],
+    title: 'Allow blocking route',
+    snippets: [
+      { text: 'export const instant = false', highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
+    ],
   },
 ]
 
@@ -47,7 +51,7 @@ const navigationCards: FixCard[] = [
     ],
   },
   {
-    title: 'Add a new Suspense boundary',
+    title: 'Wrap in Suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Component />' },
@@ -55,7 +59,7 @@ const navigationCards: FixCard[] = [
     ],
   },
   {
-    title: 'Lower access into a Suspense boundary',
+    title: 'Move into Suspense',
     snippets: [
       { text: '<Suspense>' },
       { text: '  <DataChild />', highlight: true },
@@ -63,8 +67,12 @@ const navigationCards: FixCard[] = [
     ],
   },
   {
-    title: 'Let it block',
-    snippets: [{ text: 'export const instant = false', highlight: true }],
+    title: 'Allow blocking route',
+    snippets: [
+      { text: 'export const instant = false', highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
+    ],
   },
 ]
 
@@ -134,21 +142,19 @@ function CardGallery({ cards }: { cards: FixCard[] }) {
       <div data-nextjs-card-gallery-row ref={scrollRef}>
         {cards.map((card) => (
           <div data-nextjs-fix-card key={card.title}>
-            <div data-nextjs-fix-card-body>
-              <span data-nextjs-fix-card-title>{card.title}</span>
-              <pre data-nextjs-fix-snippet>
-                {card.snippets.map((s, i) => (
-                  <span
-                    key={i}
-                    data-snippet-line
-                    data-snippet-highlight={s.highlight || undefined}
-                  >
-                    {s.text}
-                    {'\n'}
-                  </span>
-                ))}
-              </pre>
-            </div>
+            <pre data-nextjs-fix-snippet>
+              {card.snippets.map((s, i) => (
+                <span
+                  key={i}
+                  data-snippet-line
+                  data-snippet-highlight={s.highlight || undefined}
+                >
+                  {s.text}
+                  {'\n'}
+                </span>
+              ))}
+            </pre>
+            <span data-nextjs-fix-card-title>{card.title}</span>
           </div>
         ))}
       </div>
@@ -200,6 +206,7 @@ export function InstantGuidance({
 export const INSTANT_GUIDANCE_STYLES = css`
   [data-nextjs-instant-guidance] {
     margin-top: 16px;
+    padding: 0 16px;
   }
 
   [data-nextjs-instant-explanation] {
@@ -222,7 +229,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
     font-size: var(--size-14);
     font-weight: 400;
     color: var(--color-gray-900);
-    margin: 0 0 12px;
+    margin: 0 0 20px;
     padding-top: 16px;
     border-top: 1px solid var(--color-gray-alpha-400);
   }
@@ -236,6 +243,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
     scroll-snap-type: x mandatory;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    padding: 0 2px;
   }
 
   [data-nextjs-card-gallery-row]::-webkit-scrollbar {
@@ -244,27 +252,16 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   /* ── Card ─────────────────────────────────────── */
   [data-nextjs-fix-card] {
-    flex: 1 0 200px;
+    flex: 1 0 30%;
     scroll-snap-align: start;
-  }
-
-  [data-nextjs-fix-card-body] {
-    height: 100%;
-    border: 1px solid var(--color-gray-alpha-400);
-    border-radius: var(--rounded-lg);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
   }
 
   [data-nextjs-fix-card-title] {
     display: block;
-    padding: 10px 14px;
+    margin-top: 10px;
     font-size: var(--size-13);
-    font-weight: 500;
-    color: var(--color-gray-1000);
-    border-bottom: 1px solid var(--color-gray-alpha-400);
-    background: var(--color-background-100);
+    color: var(--color-gray-900);
+    text-align: center;
   }
 
   /* ── Snippet ──────────────────────────────────── */
@@ -273,11 +270,17 @@ export const INSTANT_GUIDANCE_STYLES = css`
     font-size: 11.5px;
     line-height: 1.6;
     margin: 0;
-    padding: 10px 14px;
+    padding: 14px;
     white-space: pre;
     overflow: hidden;
     background: var(--color-background-200);
-    flex: 1;
+    border: 1px solid var(--color-gray-alpha-400);
+    border-radius: var(--rounded-lg);
+    height: 100px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: left;
   }
 
   [data-snippet-line] {
@@ -318,7 +321,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   /* ── Guide link ───────────────────────────────── */
   [data-nextjs-instant-guide-link] {
-    margin-top: 16px;
+    margin-top: 24px;
     font-size: var(--size-13);
     line-height: var(--size-20);
     color: var(--color-gray-700);
