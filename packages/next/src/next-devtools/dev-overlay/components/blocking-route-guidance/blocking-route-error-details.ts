@@ -10,7 +10,13 @@ export type DynamicMetadataErrorDetails = {
 }
 
 function isRuntimeVariant(message: string): boolean {
-  if (message.includes('Runtime data')) return true
+  if (
+    message.includes('Runtime data such as') &&
+    !message.includes('Dynamic or runtime data')
+  ) {
+    return true
+  }
+  if (message.includes('Runtime data was accessed inside')) return true
   if (
     message.includes('A request-time API') &&
     !message.includes('Uncached data or a request-time API')

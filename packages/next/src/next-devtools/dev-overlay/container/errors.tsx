@@ -20,7 +20,7 @@ import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
-import { BlockingRouteGuidance } from '../components/blocking-route-guidance/blocking-route-guidance'
+import { InstantGuidance } from '../components/instant-guidance/instant-guidance'
 import {
   getBlockingRouteErrorDetails,
   getDynamicMetadataErrorDetails,
@@ -81,6 +81,9 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
+    if (errorDetails.refinement === '') {
+      return `Instant`
+    }
     return `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
@@ -309,7 +312,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
   let errorMessage: React.ReactNode
   let maybeNotes: React.ReactNode = null
   let maybeDiff: React.ReactNode = null
-  let maybeGuidance: React.ReactNode = null
   switch (errorDetails.type) {
     case 'hydration':
       errorMessage = errorDetails.warning ? (
@@ -352,17 +354,43 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       }
       break
     case 'blocking-route':
-      if (errorDetails.refinement !== '') {
-        errorMessage = (
-          <BlockingPageLoadErrorDescription
-            variant={errorDetails.variant}
-            refinement={errorDetails.refinement}
-          />
+      if (errorDetails.refinement === '') {
+        return (
+          <ErrorOverlayLayout
+            errorCode={errorCode}
+            errorType={errorType}
+            errorMessage={
+              errorDetails.variant === 'runtime'
+                ? 'Runtime data was accessed during the static prerender.'
+                : 'Dynamic data was accessed during the static prerender.'
+            }
+            onClose={isServerError ? undefined : onClose}
+            debugInfo={debugInfo}
+            error={error}
+            runtimeErrors={runtimeErrors}
+            activeIdx={activeIdx}
+            setActiveIndex={setActiveIndex}
+            dialogResizerRef={dialogResizerRef}
+            generateErrorInfo={generateErrorInfo}
+            {...props}
+          >
+            <Suspense fallback={<div data-nextjs-error-suspended />}>
+              <RuntimeError
+                key={activeError.id.toString()}
+                error={activeError}
+                dialogResizerRef={dialogResizerRef}
+              />
+            </Suspense>
+            <InstantGuidance variant={errorDetails.variant} />
+          </ErrorOverlayLayout>
         )
-      } else {
-        errorMessage = 'This page can\u2019t load instantly.'
-        maybeGuidance = <BlockingRouteGuidance variant={errorDetails.variant} />
       }
+      errorMessage = (
+        <BlockingPageLoadErrorDescription
+          variant={errorDetails.variant}
+          refinement={errorDetails.refinement}
+        />
+      )
       break
     case 'dynamic-metadata':
       errorMessage = (
@@ -400,7 +428,6 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           dialogResizerRef={dialogResizerRef}
         />
       </Suspense>
-      {maybeGuidance}
     </ErrorOverlayLayout>
   )
 }

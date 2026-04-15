@@ -1,36 +1,24 @@
 export function runtimeBodyMessage(route: string): string {
   return (
-    `Route "${route}" can't load instantly.\n\n` +
-    `Cause: A request-time API was used without a surrounding ` +
-    `<Suspense> boundary. This prevents Next.js from prerendering ` +
-    `any part of the page.\n\n` +
-    `Common triggers:\n` +
-    `  - cookies(), headers()\n` +
-    `  - await params, await searchParams\n\n` +
-    `The right fix depends on which API triggered this and what ` +
-    `behavior you want. Possible fixes:\n` +
-    `  - <Suspense>: wrap the dynamic component so the rest loads instantly\n` +
-    `  - Move the API call into a child component wrapped in <Suspense>\n` +
-    `  - loading.js: add a route-level fallback\n\n` +
+    `Route "${route}": Runtime data such as \`cookies()\`, \`headers()\`, ` +
+    `\`params\`, or \`searchParams\` was accessed during the static prerender.\n\n` +
+    `This prevents Next.js from prerendering this page.\n\n` +
+    `Possible fixes:\n` +
+    `  - Add a <Suspense> boundary around the component that accesses the data\n` +
+    `  - Move the access into a child component inside an existing <Suspense>\n\n` +
     `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
 
 export function dynamicBodyMessage(route: string): string {
   return (
-    `Route "${route}" can't load instantly.\n\n` +
-    `Cause: Uncached data or a request-time API was used without a ` +
-    `surrounding <Suspense> boundary. This prevents Next.js from ` +
-    `prerendering any part of the page.\n\n` +
-    `Common triggers:\n` +
-    `  - cookies(), headers(), connection()\n` +
-    `  - await params, await searchParams\n` +
-    `  - fetch() or database calls without "use cache"\n\n` +
-    `The right fix depends on which API triggered this and what ` +
-    `behavior you want. Possible fixes:\n` +
-    `  - <Suspense>: wrap the dynamic component so the rest loads instantly\n` +
-    `  - loading.js: add a route-level fallback\n` +
-    `  - "use cache": cache the data so it can be prerendered\n\n` +
+    `Route "${route}": Dynamic or runtime data such as \`fetch()\`, ` +
+    `\`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, ` +
+    `or \`connection()\` was accessed during the static prerender.\n\n` +
+    `This prevents Next.js from prerendering this page.\n\n` +
+    `Possible fixes:\n` +
+    `  - Add a <Suspense> boundary around the component that accesses the data\n` +
+    `  - Move the access into a child component inside an existing <Suspense>\n\n` +
     `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
