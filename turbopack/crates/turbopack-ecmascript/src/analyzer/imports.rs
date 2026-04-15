@@ -809,10 +809,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_decl(&mut self, n: &ExportDecl) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         match &n.decl {
@@ -851,10 +848,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         let id = match &n.decl {
@@ -888,10 +882,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         self.data.exports.insert(
