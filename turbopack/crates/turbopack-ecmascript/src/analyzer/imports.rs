@@ -23,7 +23,7 @@ use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
     analyzer::{ConstantValue, ObjectPart, graph::VarGraph},
-    magic_identifier,
+    magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     references::{
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
@@ -920,7 +920,7 @@ impl Visit for Analyzer<'_> {
                 ident.as_ref().map_or_else(
                     || {
                         (
-                            magic_identifier::mangle("default export").into(),
+                            MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                             SyntaxContext::empty(),
                         )
                     },
@@ -930,7 +930,7 @@ impl Visit for Analyzer<'_> {
             DefaultDecl::TsInterfaceDecl(_) => {
                 // not matching, might happen due to eventual consistency
                 (
-                    magic_identifier::mangle("default export").into(),
+                    MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                     SyntaxContext::empty(),
                 )
             }
@@ -952,13 +952,13 @@ impl Visit for Analyzer<'_> {
 
         self.data.exports.insert(
             rcstr!("default"),
-            Export::LocalBinding(magic_identifier::mangle("default export").into(), false),
+            Export::LocalBinding(MAGIC_IDENTIFIER_DEFAULT_EXPORT.clone(), false),
         );
         self.data.exports_ids.insert(
             rcstr!("default"),
             (
                 // `EsmModuleItem::code_generation` inserts this variable.
-                magic_identifier::mangle("default export").into(),
+                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                 SyntaxContext::empty(),
             ),
         );
