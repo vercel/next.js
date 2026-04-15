@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::LazyLock};
+use std::ops::Deref;
 
 use anyhow::Result;
 use either::Either;
@@ -60,13 +60,16 @@ impl EcmascriptEmitOptions {
     pub async fn get_or_default(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<impl Deref<Target = EcmascriptEmitOptions>> {
-        static DEFAULT: LazyLock<EcmascriptEmitOptions> =
-            LazyLock::new(EcmascriptEmitOptions::default);
+        static DEFAULT: EcmascriptEmitOptions = EcmascriptEmitOptions {
+            swc_minify_options: None,
+            indent: true,
+            merged_module_comments: true,
+        };
         let opts =
             find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
         Ok(match opts {
             Some(vc) => Either::Left(vc.await?),
-            None => Either::Right(&*DEFAULT),
+            None => Either::Right(&DEFAULT),
         })
     }
 }
