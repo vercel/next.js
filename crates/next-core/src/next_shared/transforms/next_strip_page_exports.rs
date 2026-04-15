@@ -4,26 +4,30 @@ use next_custom_transforms::transforms::strip_page_exports::{
     ExportFilter, next_transform_strip_page_exports,
 };
 use swc_core::ecma::ast::Program;
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbopack_ecmascript::{
+    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
+};
 
 use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js page export stripping transform.
-pub fn get_next_pages_transforms_rule(
+pub async fn get_next_pages_transforms_rule(
     pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
     extra_conditions: Vec<RuleCondition>,
     page_extensions: &[String],
 ) -> Result<ModuleRule> {
+    let strip_default_export = matches!(export_filter, ExportFilter::StripDefaultExport);
     // Apply the Next SSG transform to all pages.
-    let strip_transform =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
-            export_filter,
-        }) as _));
+    let strip_transform = EcmascriptInputTransform::Plugin(
+        next_strip_page_exports_transform_plugin(strip_default_export)
+            .to_resolved()
+            .await?,
+    );
     let document_exclusions: Vec<RuleCondition> = page_extensions
         .iter()
         .map(|ext| {
@@ -51,6 +55,17 @@ pub fn get_next_pages_transforms_rule(
             postprocess: ResolvedVc::cell(vec![strip_transform]),
         }],
     ))
+}
+
+#[turbo_tasks::function]
+fn next_strip_page_exports_transform_plugin(strip_default_export: bool) -> Vc<TransformPlugin> {
+    let export_filter = if strip_default_export {
+        ExportFilter::StripDefaultExport
+    } else {
+        ExportFilter::StripDataExports
+    };
+    Vc::cell(Box::new(NextJsStripPageExports { export_filter })
+        as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Debug)]

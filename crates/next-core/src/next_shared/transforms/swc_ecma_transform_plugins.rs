@@ -142,7 +142,12 @@ pub async fn get_swc_ecma_transform_rule_impl(
         .await?;
 
     Ok(Some(get_ecma_transform_rule(
-        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)),
+        Vc::<turbopack_ecmascript::TransformPlugin>::cell(Box::new(
+            SwcEcmaTransformPluginsTransformer::new(plugins),
+        )
+            as Box<dyn turbopack_ecmascript::CustomTransformer + Send + Sync>)
+        .to_resolved()
+        .await?,
         enable_mdx_rs,
         EcmascriptTransformStage::Main,
     )))

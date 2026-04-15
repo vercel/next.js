@@ -7,7 +7,9 @@ use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbopack_ecmascript::{
+    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
+};
 
 use super::module_rule_match_js_no_url;
 use crate::{mode::NextMode, next_config::CacheKinds};
@@ -29,14 +31,18 @@ pub async fn get_server_actions_transform_rule(
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<ModuleRule> {
-    let transformer =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextServerActions {
-            mode: *mode.await?,
-            transform,
-            encryption_key,
+    let is_server = matches!(transform, ActionsTransform::Server);
+    let transformer = EcmascriptInputTransform::Plugin(
+        next_server_actions_transform_plugin(
+            mode,
+            is_server,
+            *encryption_key,
             use_cache_enabled,
-            cache_kinds,
-        }) as _));
+            *cache_kinds,
+        )
+        .to_resolved()
+        .await?,
+    );
     Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -47,9 +53,26 @@ pub async fn get_server_actions_transform_rule(
     ))
 }
 
+#[turbo_tasks::function]
+async fn next_server_actions_transform_plugin(
+    mode: Vc<NextMode>,
+    is_server: bool,
+    encryption_key: Vc<RcStr>,
+    use_cache_enabled: bool,
+    cache_kinds: Vc<CacheKinds>,
+) -> Result<Vc<TransformPlugin>> {
+    Ok(Vc::cell(Box::new(NextServerActions {
+        mode: *mode.await?,
+        is_server,
+        encryption_key: encryption_key.to_resolved().await?,
+        use_cache_enabled,
+        cache_kinds: cache_kinds.to_resolved().await?,
+    }) as Box<dyn CustomTransformer + Send + Sync>))
+}
+
 #[derive(Debug)]
 struct NextServerActions {
-    transform: ActionsTransform,
+    is_server: bool,
     encryption_key: ResolvedVc<RcStr>,
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
@@ -64,7 +87,7 @@ impl CustomTransformer for NextServerActions {
             &FileName::Real(ctx.file_path_str.into()),
             Some(ctx.query_str.clone()),
             Config {
-                is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
+                is_react_server_layer: self.is_server,
                 is_development: self.mode.is_development(),
                 use_cache_enabled: self.use_cache_enabled,
                 hash_salt: self.encryption_key.await?.to_string(),
