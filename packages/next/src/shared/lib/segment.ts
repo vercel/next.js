@@ -13,6 +13,25 @@ export function isParallelRouteSegment(segment: string) {
   return segment.startsWith('@') && segment !== '@children'
 }
 
+/**
+ * Build the object passed to `addSearchParamsIfPageSegment` from a rendered
+ * search string. We cannot use `Object.fromEntries(new URLSearchParams(...))`
+ * because it silently drops duplicate keys, which would produce colliding
+ * page-segment cache keys for URLs like `?color=red&color=blue` vs
+ * `?color=blue`. Instead, collapse duplicate keys into an array.
+ */
+export function renderedSearchToSearchParamsObject(
+  renderedSearch: string
+): Record<string, string | string[]> {
+  const params = new URLSearchParams(renderedSearch)
+  const out: Record<string, string | string[]> = {}
+  for (const key of new Set(params.keys())) {
+    const all = params.getAll(key)
+    out[key] = all.length === 1 ? all[0] : all
+  }
+  return out
+}
+
 export function addSearchParamsIfPageSegment(
   segment: Segment,
   searchParams: Record<string, string | string[] | undefined>

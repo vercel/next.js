@@ -3,6 +3,7 @@ import {
   addSearchParamsIfPageSegment,
   DEFAULT_SEGMENT_KEY,
   PAGE_SEGMENT_KEY,
+  renderedSearchToSearchParamsObject,
 } from '../shared/lib/segment'
 import { ROOT_SEGMENT_REQUEST_KEY } from '../shared/lib/segment-cache/segment-value-encoding'
 import {
@@ -168,7 +169,7 @@ export function getCacheKeyForDynamicParam(
     // search string instead of turning it into JSON.
     const pageSegmentWithSearchParams = addSearchParamsIfPageSegment(
       paramValue,
-      Object.fromEntries(new URLSearchParams(renderedSearch))
+      renderedSearchToSearchParamsObject(renderedSearch)
     ) as string
     return pageSegmentWithSearchParams
   } else if (paramValue === null) {

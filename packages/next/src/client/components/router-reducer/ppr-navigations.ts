@@ -10,6 +10,7 @@ import {
   PAGE_SEGMENT_KEY,
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
+  renderedSearchToSearchParamsObject,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
 import { createHrefFromUrl } from './create-href-from-url'
@@ -739,17 +740,11 @@ function createSegmentFromRouteTree(newRouteTree: RouteTree): Segment {
       return PAGE_SEGMENT_KEY
     }
     // This is based on equivalent logic in addSearchParamsIfPageSegment, used
-    // on the server. We must preserve duplicate keys (e.g. `?color=red&color=blue`)
-    // because they form distinct cache keys — `Object.fromEntries` would only
-    // keep the last value per key and cause a cache hit when navigating away
-    // from `?color=red&color=blue` to `?color=blue`. See vercel/next.js#92787.
-    const params = new URLSearchParams(renderedSearch)
-    const queryEntries: Record<string, string | string[]> = {}
-    for (const key of new Set(params.keys())) {
-      const all = params.getAll(key)
-      queryEntries[key] = all.length === 1 ? all[0] : all
-    }
-    const stringifiedQuery = JSON.stringify(queryEntries)
+    // on the server. See #92787 for why we cannot use
+    // `Object.fromEntries(new URLSearchParams(...))` here.
+    const stringifiedQuery = JSON.stringify(
+      renderedSearchToSearchParamsObject(renderedSearch)
+    )
     return stringifiedQuery !== '{}'
       ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
       : PAGE_SEGMENT_KEY

@@ -43,6 +43,7 @@ import {
 import {
   addSearchParamsIfPageSegment,
   PAGE_SEGMENT_KEY,
+  renderedSearchToSearchParamsObject,
 } from '../../../shared/lib/segment'
 import type { SegmentRequestKey } from '../../../shared/lib/segment-cache/segment-value-encoding'
 import { cleanup } from './lru'
@@ -1804,7 +1805,7 @@ function doesCurrentSegmentMatchCachedSegment(
       currentSegment ===
       addSearchParamsIfPageSegment(
         PAGE_SEGMENT_KEY,
-        Object.fromEntries(new URLSearchParams(route.renderedSearch))
+        renderedSearchToSearchParamsObject(route.renderedSearch)
       )
     )
   }
