@@ -8,16 +8,12 @@ These suites cannot be automatically converted to the `nextTestSetup()` e2e form
 
 These tests spin up auxiliary HTTP servers (proxies, CDN simulators, external APIs) alongside the Next.js server.
 
-| Suite                                            | Reason                                                         |
-| ------------------------------------------------ | -------------------------------------------------------------- |
-| `test/integration/css-client-nav`                | HTTP proxy to stall CSS requests for timeout testing           |
-| `test/integration/custom-routes-i18n`            | External HTTP server as rewrite destination                    |
-| `test/integration/filesystempublicroutes`        | Custom server via `initNextServerScript(server.js)`            |
-| `test/integration/i18n-support`                  | External HTTP server + massive shared test runner (3772 lines) |
-| `test/integration/i18n-support-base-path`        | External HTTP server + shared test runner from i18n-support    |
-| `test/integration/image-optimizer`               | External HTTP server + shared test runner + custom server API  |
-| `test/integration/next-dynamic-css-asset-prefix` | External HTTP proxy (CDN simulator)                            |
-| `test/integration/preload-viewport`              | External HTTP proxy (`http-proxy`) to intercept/stall requests |
+| Suite                                     | Reason                                                         |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| `test/integration/filesystempublicroutes` | Custom server via `initNextServerScript(server.js)`            |
+| `test/integration/i18n-support`           | External HTTP server + massive shared test runner (3772 lines) |
+| `test/integration/i18n-support-base-path` | External HTTP server + shared test runner from i18n-support    |
+| `test/integration/image-optimizer`        | External HTTP server + shared test runner + custom server API  |
 
 ### Per-Test App Lifecycle Management
 
@@ -50,23 +46,20 @@ These test CLI tools directly, not server behavior.
 | ---------------------------------- | ------------------------------------------------------- |
 | `test/integration/create-next-app` | Spawns `create-next-app` binary, checks generated files |
 
-### Large Multi-Fixture Suites (Remaining Blocked)
-
-The `react-virtualized` sub-tests from both image suites remain blocked due to external HTTP proxy usage.
-
-| Suite                                                  | Reason                                            |
-| ------------------------------------------------------ | ------------------------------------------------- |
-| `test/integration/next-image-new/react-virtualized`    | HTTP proxy (`http-proxy`) to stall image requests |
-| `test/integration/next-image-legacy/react-virtualized` | HTTP proxy (`http-proxy`) to stall image requests |
-
 #### Converted (formerly blocked)
 
 | Suite                                                      | Converted to                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/integration/css`                                     | `test/production/css-features/{valid-invalid-css,basic-global-support,css-compilation,css-rendering}.test.ts`, `test/e2e/css-features/css-and-styled-jsx.test.ts`, `test/development/css-features/dev-css-handling.test.ts`                                                                                                                                                                                                                                               |
 | `test/integration/css-modules`                             | `test/production/css-features/{css-modules-support,css-modules-ordering}.test.ts`, `test/e2e/css-features/css-modules-ordering.test.ts`, `test/development/css-features/css-modules-support.test.ts`                                                                                                                                                                                                                                                                      |
-| `test/integration/next-image-new` (37 of 39 test files)    | `test/e2e/next-image-new/{default,app-dir,base-path,trailing-slash,unicode,asset-prefix,both-basepath-trailingslash,loader-config,loader-config-default-loader-with-file,loader-config-edge-runtime,unoptimized,typescript,image-from-node-modules,app-dir-image-from-node-modules,app-dir-localpatterns,app-dir-qualities}/`, `test/development/next-image-new/{middleware,export-config,invalid-image-import}/`, `test/production/next-image-new/invalid-image-import/` |
-| `test/integration/next-image-legacy` (14 of 15 test files) | `test/e2e/next-image-legacy/{default,base-path,trailing-slash,unicode,asset-prefix,unoptimized,typescript,image-from-node-modules}/`, `test/production/next-image-legacy/{basic,custom-resolver,noscript,no-intersection-observer-fallback}/`                                                                                                                                                                                                                             |
+| `test/integration/next-image-new` (38 of 39 test files)    | `test/e2e/next-image-new/{default,app-dir,base-path,trailing-slash,unicode,asset-prefix,both-basepath-trailingslash,loader-config,loader-config-default-loader-with-file,loader-config-edge-runtime,unoptimized,typescript,image-from-node-modules,app-dir-image-from-node-modules,app-dir-localpatterns,app-dir-qualities}/`, `test/development/next-image-new/{middleware,export-config,invalid-image-import}/`, `test/production/next-image-new/invalid-image-import/` |
+| `test/integration/next-image-legacy` (15 of 15 test files) | `test/e2e/next-image-legacy/{default,base-path,trailing-slash,unicode,asset-prefix,unoptimized,typescript,image-from-node-modules}/`, `test/production/next-image-legacy/{basic,custom-resolver,noscript,no-intersection-observer-fallback}/`                                                                                                                                                                                                                             |
+| `test/integration/css-client-nav`                          | `test/e2e/css-client-nav/css-client-nav.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `test/integration/custom-routes-i18n`                      | `test/e2e/custom-routes-i18n/custom-routes-i18n.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `test/integration/next-dynamic-css-asset-prefix`           | `test/e2e/next-dynamic-css-asset-prefix/next-dynamic-css-asset-prefix.test.ts`                                                                                                                                                                                                                                                                                                                                                                                            |
+| `test/integration/preload-viewport`                        | `test/production/preload-viewport/preload-viewport.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                               |
+| `test/integration/next-image-new/react-virtualized`        | `test/production/next-image-new/react-virtualized/react-virtualized.test.ts`                                                                                                                                                                                                                                                                                                                                                                                              |
+| `test/integration/next-image-legacy/react-virtualized`     | `test/production/next-image-legacy/react-virtualized/react-virtualized.test.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ### Score-10 (Originally Blocked by Ranker)
 
@@ -96,10 +89,10 @@ These directories contain only fixtures, no test files:
 | Converted (Phase 2, score 4-6)  | 75      |
 | Converted (Phase 3, score 7-9)  | 5       |
 | Converted (large multi-fixture) | 4       |
-| **Total converted**             | **186** |
-| Blocked (Phase 1-3, score 1-9)  | 15      |
+| Converted (external HTTP proxy) | 6       |
+| **Total converted**             | **192** |
+| Blocked (Phase 1-3, score 1-9)  | 11      |
 | Blocked (score 10, ranker)      | 70      |
-| Blocked (react-virtualized)     | 2       |
 | No test files                   | 3       |
-| **Total blocked**               | **90**  |
+| **Total blocked**               | **84**  |
 | **Grand total**                 | **276** |
