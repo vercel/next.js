@@ -3,8 +3,11 @@ import { css } from '../../utils/css'
 
 const DOCS = 'https://nextjs.org/docs/messages/blocking-route'
 
+type CardColor = 'blue' | 'purple' | 'amber' | 'red' | 'gray'
+
 type FixCard = {
   title: string
+  color: CardColor
   snippets: Snippet[]
 }
 
@@ -16,6 +19,7 @@ type Snippet = {
 const runtimeCards: FixCard[] = [
   {
     title: 'Move into Suspense',
+    color: 'purple',
     snippets: [
       { text: '<Suspense>' },
       { text: '  <DataChild />', highlight: true },
@@ -24,6 +28,7 @@ const runtimeCards: FixCard[] = [
   },
   {
     title: 'Wrap in Suspense',
+    color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Component />' },
@@ -31,7 +36,18 @@ const runtimeCards: FixCard[] = [
     ],
   },
   {
+    title: 'Make route params static',
+    color: 'blue',
+    snippets: [
+      { text: 'export async function' },
+      { text: '  generateStaticParams() {', highlight: true },
+      { text: '  return [{ slug: "…" }]' },
+      { text: '}' },
+    ],
+  },
+  {
     title: 'Allow blocking route',
+    color: 'red',
     snippets: [
       { text: 'export const instant = false', highlight: true },
       { text: '' },
@@ -43,6 +59,7 @@ const runtimeCards: FixCard[] = [
 const dynamicCards: FixCard[] = [
   {
     title: 'Cache dynamic data',
+    color: 'blue',
     snippets: [
       { text: 'async function getData() {' },
       { text: '  "use cache"', highlight: true },
@@ -52,6 +69,7 @@ const dynamicCards: FixCard[] = [
   },
   {
     title: 'Move into Suspense',
+    color: 'purple',
     snippets: [
       { text: '<Suspense>' },
       { text: '  <DataChild />', highlight: true },
@@ -60,6 +78,7 @@ const dynamicCards: FixCard[] = [
   },
   {
     title: 'Wrap in Suspense',
+    color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <Component />' },
@@ -67,7 +86,18 @@ const dynamicCards: FixCard[] = [
     ],
   },
   {
+    title: 'Make route params static',
+    color: 'blue',
+    snippets: [
+      { text: 'export async function' },
+      { text: '  generateStaticParams() {', highlight: true },
+      { text: '  return [{ slug: "…" }]' },
+      { text: '}' },
+    ],
+  },
+  {
     title: 'Allow blocking route',
+    color: 'red',
     snippets: [
       { text: 'export const instant = false', highlight: true },
       { text: '' },
@@ -97,7 +127,11 @@ function CardGallery({ cards }: { cards: FixCard[] }) {
     <div data-nextjs-card-gallery>
       <div data-nextjs-card-gallery-row ref={scrollRef} onScroll={handleScroll}>
         {cards.map((card) => (
-          <div data-nextjs-fix-card key={card.title}>
+          <div
+            data-nextjs-fix-card
+            data-card-color={card.color}
+            key={card.title}
+          >
             <pre data-nextjs-fix-snippet>
               {card.snippets.map((s, i) => (
                 <span
@@ -149,10 +183,6 @@ export function InstantGuidance({
       <p data-nextjs-instant-fix-heading>To fix this:</p>
 
       <CardGallery cards={cards} />
-
-      <p data-nextjs-instant-guide-link>
-        A guide on Instant Navigations is coming soon.
-      </p>
     </div>
   )
 }
@@ -237,14 +267,47 @@ export const INSTANT_GUIDANCE_STYLES = css`
     text-align: left;
   }
 
+  /* ── Card colors (border + highlight text only) ── */
+  [data-card-color='blue'] [data-nextjs-fix-snippet] {
+    border-color: var(--color-blue-400);
+  }
+
+  [data-card-color='purple'] [data-nextjs-fix-snippet] {
+    border-color: rgba(130, 80, 220, 0.4);
+  }
+
+  [data-card-color='amber'] [data-nextjs-fix-snippet] {
+    border-color: var(--color-amber-400);
+  }
+
+  [data-card-color='red'] [data-nextjs-fix-snippet] {
+    border-color: var(--color-red-400);
+  }
+
   [data-snippet-line] {
     display: block;
     color: var(--color-gray-800);
   }
 
   [data-snippet-line][data-snippet-highlight] {
-    color: var(--color-green-900);
+    color: var(--color-gray-1000);
     font-weight: 500;
+  }
+
+  [data-card-color='blue'] [data-snippet-line][data-snippet-highlight] {
+    color: var(--color-blue-800);
+  }
+
+  [data-card-color='purple'] [data-snippet-line][data-snippet-highlight] {
+    color: rgb(130, 80, 220);
+  }
+
+  [data-card-color='amber'] [data-snippet-line][data-snippet-highlight] {
+    color: var(--color-amber-900);
+  }
+
+  [data-card-color='red'] [data-snippet-line][data-snippet-highlight] {
+    color: var(--color-red-800);
   }
 
   /* ── Dots ─────────────────────────────────────── */
@@ -270,13 +333,5 @@ export const INSTANT_GUIDANCE_STYLES = css`
   [data-nextjs-gallery-dot][data-active] {
     width: 18px;
     background: var(--color-blue-900);
-  }
-
-  /* ── Guide link ───────────────────────────────── */
-  [data-nextjs-instant-guide-link] {
-    margin-top: 24px;
-    font-size: var(--size-13);
-    line-height: var(--size-20);
-    color: var(--color-gray-700);
   }
 `
