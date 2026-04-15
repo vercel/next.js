@@ -572,21 +572,41 @@ impl TurboFn<'_> {
         let mut block = if self.is_self_used
             && let Some(converted_this) = self.converted_this()
         {
-            let persistence = self.persistence_with_this();
+            // Self case: try optimized path when both this and args are resolved.
             quote! {
                 {
                     #assertions
-                    let inputs = std::boxed::Box::new((#(#inputs,)*));
+                    let inputs = (#(#inputs,)*);
                     let this = #converted_this;
-                    let persistence = #persistence;
-                    <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                        turbo_tasks::dynamic_call(
+                    let persistence =
+                        turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(
+                            this, &inputs,
+                        );
+                    if this.is_resolved()
+                        && turbo_tasks::macro_helpers::NativeFunction::arg_is_resolved(
                             &#native_function_ident,
-                            Some(this),
-                            inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
-                            persistence,
+                            &inputs as &dyn turbo_tasks::MagicAny,
                         )
-                    )
+                    {
+                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                            turbo_tasks::native_call_if_consistent(
+                                &#native_function_ident,
+                                Some(this),
+                                inputs,
+                                persistence,
+                            )
+                        )
+                    } else {
+                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                            turbo_tasks::dynamic_call(
+                                &#native_function_ident,
+                                Some(this),
+                                std::boxed::Box::new(inputs)
+                                    as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                                persistence,
+                            )
+                        )
+                    }
                 }
             }
         } else {
