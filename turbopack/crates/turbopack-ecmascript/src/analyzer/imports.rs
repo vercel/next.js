@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
 
-use anyhow::Context;
+use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
@@ -271,16 +271,16 @@ pub enum Export {
 #[derive(Default, Debug)]
 pub(crate) struct ImportMap {
     /// Map from identifier to (index in references, exported symbol)
-    pub imports: FxIndexMap<Id, (usize, Atom)>,
+    imports: FxIndexMap<Id, (usize, Atom)>,
 
     /// Map from identifier to index in references
-    pub namespace_imports: FxIndexMap<Id, usize>,
+    namespace_imports: FxIndexMap<Id, usize>,
 
-    // Map from exported name to the export
-    pub exports: BTreeMap<RcStr, Export>,
+    /// Map from exported name to the export
+    exports: BTreeMap<RcStr, Export>,
 
-    // List of namespace re-exports
-    pub reexport_namespaces: Vec<usize>,
+    /// List of namespace re-exports
+    reexport_namespaces: Vec<usize>,
 
     /// Ordered list of imported symbols
     references: FxIndexSet<ImportMapReference>,
@@ -311,7 +311,7 @@ pub(crate) struct ImportMap {
     /// as a whole.
     full_star_imports: FxHashSet<Wtf8Atom>,
 
-    // Map from exported name to local binding id (includes the syntax context).
+    /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, Id>,
 }
 
@@ -482,41 +482,41 @@ impl ImportMap {
         &self,
         import_references: &[ResolvedVc<EsmAssetReference>],
         var_graph: &VarGraph,
-    ) -> FrozenMap<RcStr, EsmExport> {
-        self.exports
-            .iter()
-            .map(|(name, value)| {
-                let value = match value {
-                    Export::LocalBinding(local, is_fake_esm) => EsmExport::LocalBinding(
-                        local.clone(),
-                        if *is_fake_esm {
-                            // it is likely that these are not always actually mutable.
-                            Liveness::Mutable
-                        } else {
-                            var_graph.get_export_ident_liveness(
-                                self.exports_ids
-                                    .get(name)
-                                    .cloned()
-                                    .with_context(|| {
+    ) -> Result<FrozenMap<RcStr, EsmExport>> {
+        Ok(FrozenMap::from(
+            self.exports
+                .iter()
+                .map(|(name, value)| {
+                    let value = match value {
+                        Export::LocalBinding(local, is_fake_esm) => EsmExport::LocalBinding(
+                            local.clone(),
+                            if *is_fake_esm {
+                                // it is likely that these are not always actually mutable.
+                                Liveness::Mutable
+                            } else {
+                                var_graph.get_export_ident_liveness(
+                                    self.exports_ids.get(name).cloned().with_context(|| {
                                         format!("Exported binding {name} not found in exports_ids")
-                                    })
-                                    .unwrap(),
+                                    })?,
+                                )
+                            },
+                        ),
+                        Export::ImportedBinding(i, name, is_fake_esm) => {
+                            EsmExport::ImportedBinding(
+                                ResolvedVc::upcast(import_references[*i]),
+                                name.clone(),
+                                *is_fake_esm,
                             )
-                        },
-                    ),
-                    Export::ImportedBinding(i, name, is_fake_esm) => EsmExport::ImportedBinding(
-                        ResolvedVc::upcast(import_references[*i]),
-                        name.clone(),
-                        *is_fake_esm,
-                    ),
-                    Export::ImportedNamespace(i) => {
-                        EsmExport::ImportedNamespace(ResolvedVc::upcast(import_references[*i]))
-                    }
-                    Export::Error => EsmExport::Error,
-                };
-                (name.clone(), value)
-            })
-            .collect()
+                        }
+                        Export::ImportedNamespace(i) => {
+                            EsmExport::ImportedNamespace(ResolvedVc::upcast(import_references[*i]))
+                        }
+                        Export::Error => EsmExport::Error,
+                    };
+                    Ok((name.clone(), value))
+                })
+                .collect::<Result<Vec<_>>>()?,
+        ))
     }
 
     pub fn reexport_namespaces(&self) -> impl ExactSizeIterator<Item = usize> {
@@ -605,6 +605,9 @@ impl ImportMap {
                     // We need to call ensure_reference in this loop to ensure that the reference
                     // order of all hoisted imports (be it import or reexport) is correct.
                     ModuleItem::ModuleDecl(ModuleDecl::ExportAll(export)) => {
+                        if export.type_only {
+                            continue;
+                        }
                         let annotations = ImportAnnotations::parse(export.with.as_deref());
                         analyzer.ensure_reference(
                             export.span,
@@ -614,6 +617,9 @@ impl ImportMap {
                         );
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(export)) => {
+                        if export.type_only {
+                            continue;
+                        }
                         if let Some(ref src) = export.src {
                             let annotations = ImportAnnotations::parse(export.with.as_deref());
                             let internal_symbol = parse_with(export.with.as_deref());
@@ -864,8 +870,8 @@ impl Visit for Analyzer<'_> {
                     }
                 }
             }
+            export.visit_children_with(self);
         }
-        export.visit_children_with(self);
     }
 
     fn visit_export_decl(&mut self, n: &ExportDecl) {

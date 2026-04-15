@@ -60,7 +60,6 @@ use swc_core::{
 };
 use tokio::sync::OnceCell;
 use tracing::Instrument;
-use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
@@ -127,7 +126,7 @@ use crate::{
         esm::{
             EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmExports, ImportMetaBinding,
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
-            export::EsmExport, module_id::EsmModuleIdAssetReference,
+            module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
@@ -867,9 +866,9 @@ async fn analyze_ecmascript_module_internal(
             .reexport_namespaces()
             .map(|i| ResolvedVc::upcast(import_references[i]))
             .collect();
-        let esm_exports: FrozenMap<RcStr, EsmExport> = eval_context
+        let esm_exports = eval_context
             .imports
-            .as_esm_exports(&import_references, &var_graph);
+            .as_esm_exports(&import_references, &var_graph)?;
 
         for idx in eval_context.imports.reexports_reference_idxs() {
             analysis.add_esm_reexport_reference(idx);
