@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Result, bail};
+use turbo_frozenmap::FrozenMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
@@ -189,18 +188,16 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
 impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let mut exports = BTreeMap::new();
-        let mut star_exports = Vec::new();
-
         let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? else {
             bail!("EcmascriptModuleFacadeModule must only be used on modules with EsmExports");
         };
         let esm_exports = esm_exports.await?;
+        let mut exports = Vec::with_capacity(esm_exports.exports.len());
         for (name, export) in &esm_exports.exports {
             let name = name.clone();
             match export {
                 EsmExport::LocalBinding(_, liveness) => {
-                    exports.insert(
+                    exports.push((
                         name.clone(),
                         EsmExport::ImportedBinding(
                             ResolvedVc::upcast(
@@ -215,27 +212,26 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                             name,
                             *liveness == Liveness::Mutable,
                         ),
-                    );
+                    ));
                 }
                 EsmExport::ImportedNamespace(reference) => {
-                    exports.insert(name, EsmExport::ImportedNamespace(*reference));
+                    exports.push((name, EsmExport::ImportedNamespace(*reference)));
                 }
                 EsmExport::ImportedBinding(reference, imported_name, mutable) => {
-                    exports.insert(
+                    exports.push((
                         name,
                         EsmExport::ImportedBinding(*reference, imported_name.clone(), *mutable),
-                    );
+                    ));
                 }
                 EsmExport::Error => {
-                    exports.insert(name, EsmExport::Error);
+                    exports.push((name, EsmExport::Error));
                 }
             }
         }
-        star_exports.extend(esm_exports.star_exports.iter().copied());
 
         let exports = EsmExports {
-            exports,
-            star_exports,
+            exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
+            star_exports: esm_exports.star_exports.clone(),
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

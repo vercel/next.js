@@ -10481,6 +10481,7 @@ dependencies = [
  "tracing",
  "turbo-bincode",
  "turbo-esregex",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",
