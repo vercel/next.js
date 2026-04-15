@@ -46,12 +46,14 @@ async function turbopackBuildWithWorker(): ReturnType<
     return {
       // destroy worker when Turbopack has shutdown so it's not sticking around using memory
       // We need to wait for shutdown to make sure filesystem cache is flushed
-      shutdownPromise: worker.waitForShutdown().then(({ debugTraceEvents }) => {
-        if (debugTraceEvents) {
-          recordTraceEvents(debugTraceEvents)
-        }
-        worker.shutdown()
-      }),
+      shutdownPromise: worker
+        .waitForShutdown()
+        .then(async ({ debugTraceEvents }) => {
+          if (debugTraceEvents) {
+            recordTraceEvents(debugTraceEvents)
+          }
+          await worker.shutdown()
+        }),
       buildTraceContext,
       duration,
     }

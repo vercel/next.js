@@ -2719,7 +2719,8 @@ describe('Cache Components Errors', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-connection/page: /use-cache-connection, exiting the build."
+
+                 > Export encountered an error on /use-cache-connection/page: /use-cache-connection, exiting the build."
                 `)
               }
             } else {
@@ -2750,7 +2751,8 @@ describe('Cache Components Errors', () => {
                    - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                  Error occurred prerendering page "/use-cache-connection". Read more: https://nextjs.org/docs/messages/prerender-error
-                 Export encountered an error on /use-cache-connection/page: /use-cache-connection, exiting the build."
+
+                 > Export encountered an error on /use-cache-connection/page: /use-cache-connection, exiting the build."
                 `)
               }
             }
@@ -3978,7 +3980,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-cookies-third-party/page: /use-cache-cookies-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-cookies-third-party/page: /use-cache-cookies-third-party, exiting the build."
                   `)
                 }
               } else {
@@ -4008,7 +4011,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-cookies-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-cookies-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-cookies-third-party/page: /use-cache-cookies-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-cookies-third-party/page: /use-cache-cookies-third-party, exiting the build."
                   `)
                 }
               }
@@ -4096,7 +4100,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party, exiting the build."
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
@@ -4106,7 +4111,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-draft-mode-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-draft-mode-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-draft-mode-third-party/page: /use-cache-draft-mode-third-party, exiting the build."
                   `)
                 }
               }
@@ -4175,7 +4181,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-headers-third-party/page: /use-cache-headers-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-headers-third-party/page: /use-cache-headers-third-party, exiting the build."
                   `)
                 }
               } else {
@@ -4205,7 +4212,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-headers-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-headers-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-headers-third-party/page: /use-cache-headers-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-headers-third-party/page: /use-cache-headers-third-party, exiting the build."
                   `)
                 }
               }
@@ -4274,7 +4282,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-connection-third-party/page: /use-cache-connection-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-connection-third-party/page: /use-cache-connection-third-party, exiting the build."
                   `)
                 }
               } else {
@@ -4304,7 +4313,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                      - Start the app in development mode by running \`next dev\`, then open "/use-cache-connection-third-party" in your browser to investigate the error.
                      - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
                    Error occurred prerendering page "/use-cache-connection-third-party". Read more: https://nextjs.org/docs/messages/prerender-error
-                   Export encountered an error on /use-cache-connection-third-party/page: /use-cache-connection-third-party, exiting the build."
+
+                   > Export encountered an error on /use-cache-connection-third-party/page: /use-cache-connection-third-party, exiting the build."
                   `)
                 }
               }
