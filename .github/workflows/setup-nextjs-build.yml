@@ -67,7 +67,7 @@ jobs:
           path: integration-test-data
 
       - name: Download binary
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
 
@@ -88,7 +88,7 @@ jobs:
 
       - name: Build next-swc
         run: |
-          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --features plugin --release'
+          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --release'
           echo "Successfully built next-swc with published turbopack"
 
       - name: Build next.js

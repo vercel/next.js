@@ -5,7 +5,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Cleaning distDir', () => {
   const { next, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
 

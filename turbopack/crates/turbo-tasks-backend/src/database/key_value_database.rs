@@ -27,13 +27,24 @@ impl KeySpace {
         }
     }
 
+    const fn name(&self) -> &'static str {
+        match self {
+            KeySpace::Infra => "Infra",
+            KeySpace::TaskMeta => "TaskMeta",
+            KeySpace::TaskData => "TaskData",
+            KeySpace::TaskCache => "TaskCache",
+        }
+    }
+
     /// Returns the persistence configuration for this keyspace.
     pub const fn family_config(&self) -> FamilyConfig {
         match self {
             KeySpace::Infra | KeySpace::TaskMeta | KeySpace::TaskData => FamilyConfig {
+                name: self.name(),
                 kind: FamilyKind::SingleValue,
             },
             KeySpace::TaskCache => FamilyConfig {
+                name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
             },
@@ -107,5 +118,11 @@ pub trait KeyValueDatabase {
 
     fn shutdown(&self) -> Result<()> {
         Ok(())
+    }
+
+    /// Returns true if the database is in an unrecoverable error state where a previous write or
+    /// compaction failed and the rollback also failed, permanently disabling further writes.
+    fn has_unrecoverable_write_error(&self) -> bool {
+        false
     }
 }

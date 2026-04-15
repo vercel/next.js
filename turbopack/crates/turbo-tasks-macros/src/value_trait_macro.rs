@@ -214,7 +214,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 is_self_used,
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                 is_root: false,
-                is_session_dependent: false,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
@@ -284,10 +283,13 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let value_debug_impl = if debug {
         quote! {
+            #[cfg(debug_assertions)]
             #[automatically_derived]
             unsafe impl turbo_tasks::Dynamic<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            #[cfg(debug_assertions)]
             #[automatically_derived]
             unsafe impl turbo_tasks::Upcast<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
+            #[cfg(debug_assertions)]
             #[automatically_derived]
             unsafe impl turbo_tasks::UpcastStrict<Box<dyn turbo_tasks::debug::ValueDebug>> for Box<dyn #trait_ident> {}
         }

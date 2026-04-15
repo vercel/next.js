@@ -17,7 +17,7 @@ const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.4";
+const nextjsReactPeerVersion = "19.2.5";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -177,12 +177,6 @@ const cleanUpAndExit = async (code) => {
 
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
-      recursive: true,
-      force: true,
-    })
-  }
-  if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fsp.rm(process.env.NEXT_TEST_TEMP_REPO, {
       recursive: true,
       force: true,
     })
@@ -479,13 +473,12 @@ ${ENDGROUP}`)
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
       process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
-    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
+    const { installDir, pkgPaths } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
-      keepRepoDir: true,
     })
 
     const serializedPkgPaths = []
@@ -494,7 +487,6 @@ ${ENDGROUP}`)
       serializedPkgPaths.push([key, pkgPaths.get(key)])
     }
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
-    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
     console.log(`${ENDGROUP}`)
   }
