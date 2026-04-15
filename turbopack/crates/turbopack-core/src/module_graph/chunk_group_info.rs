@@ -108,16 +108,20 @@ impl ChunkGroupInfo {
         if let Some(idx) = self.chunk_groups.get_index_of(&chunk_group) {
             Ok(Vc::cell(idx))
         } else {
-            bail!(
-                "Couldn't find chunk group index for {} in {}",
-                chunk_group.debug_str(self).await?,
-                self.chunk_groups
-                    .iter()
-                    .map(|c| c.debug_str(self))
-                    .try_join()
-                    .await?
-                    .join(", ")
-            );
+            if cfg!(debug_assertions) {
+                bail!(
+                    "Couldn't find chunk group index for {} in {}",
+                    chunk_group.debug_str(self).await?,
+                    self.chunk_groups
+                        .iter()
+                        .map(|c| c.debug_str(self))
+                        .try_join()
+                        .await?
+                        .join(", ")
+                );
+            } else {
+                bail!("Couldn't find chunk group index")
+            }
         }
     }
 }
