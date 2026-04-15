@@ -33,7 +33,7 @@ use swc_core::{
 use tracing::{Instrument, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ResolvedVc, ValueToString, Vc, turbofmt, util::WrapFuture};
-use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::Rope};
+use turbo_tasks_fs::{FileContent, FileSystemPath, rope::Rope};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     SOURCE_URL_PROTOCOL,
@@ -752,27 +752,27 @@ impl Visit for VarDeclWithTsDeclareCollector {
     }
 }
 
-/// Extracts the raw [`File`] from a source's content, if it is a regular file.
+/// Extracts the raw bytes of a source's content, if it is a regular file.
 /// Returns `None` for `NotFound`, redirects, or read errors.
-pub async fn get_file_from_source(source: ResolvedVc<Box<dyn Source>>) -> Result<Option<File>> {
+pub async fn get_rope_from_source(source: ResolvedVc<Box<dyn Source>>) -> Result<Option<Rope>> {
     let content = match source.content().await {
         Ok(c) => c,
         Err(_) => return Ok(None),
     };
     Ok(match &*content {
         AssetContent::File(file) => match &*file.await? {
-            FileContent::Content(f) => Some(f.clone()),
+            FileContent::Content(f) => Some(f.content().clone()),
             FileContent::NotFound => None,
         },
         AssetContent::Redirect { .. } => None,
     })
 }
 
-/// Re-parses a module directly from a saved [`File`], bypassing `source.content()`.
+/// Re-parses a module directly from saved bytes, bypassing `source.content()`.
 ///
 /// Used by `failsafe_parse` to serve the last good AST when the live file has a syntax error.
-pub async fn parse_from_file(
-    file: &File,
+pub async fn parse_from_rope(
+    rope: &Rope,
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
@@ -783,7 +783,7 @@ pub async fn parse_from_file(
     let file_path_hash = hash_xxh3_hash64(ident) as u128;
     let query = source.ident().await?.query.clone();
     let transforms = &*transforms.await?;
-    match bytes_str::BytesStr::from_utf8(file.content().clone().into_bytes()) {
+    match bytes_str::BytesStr::from_utf8(rope.clone().into_bytes()) {
         Ok(string) => {
             parse_file_content(
                 string,

@@ -80,7 +80,7 @@ use turbo_tasks::{
     FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
     ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
-use turbo_tasks_fs::{File, FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
@@ -363,20 +363,20 @@ impl EcmascriptModuleAssetBuilder {
     }
 }
 
-/// Stores the raw file bytes of the last successfully parsed version of a module.
+/// Stores the raw bytes of the last successfully parsed version of a module.
 ///
 /// This is used by `failsafe_parse` to serve the last good AST when the file has a syntax error.
 /// The newtype is always-equal and no-op-hash so it is invisible to turbo-tasks cache key logic,
-/// but it serializes the `File` contents fully so the fallback survives eviction and restarts.
-struct LastSuccessfulSource(Mutex<Option<ReadRef<File>>>);
+/// but serializes the `Rope` contents so the fallback survives eviction and restarts.
+struct LastSuccessfulSource(Mutex<Option<Rope>>);
 
 impl LastSuccessfulSource {
-    fn get(&self) -> Option<ReadRef<File>> {
+    fn get(&self) -> Option<Rope> {
         self.0.lock().unwrap().clone()
     }
 
-    fn set(&self, file: File) {
-        *self.0.lock().unwrap() = Some(ReadRef::new_owned(file));
+    fn set(&self, rope: Rope) {
+        *self.0.lock().unwrap() = Some(rope);
     }
 
     fn clear(&self) {
@@ -413,8 +413,7 @@ impl bincode::Encode for LastSuccessfulSource {
         &self,
         encoder: &mut E,
     ) -> Result<(), bincode::error::EncodeError> {
-        let guard = self.0.lock().unwrap();
-        guard.as_deref().encode(encoder)
+        self.0.lock().unwrap().encode(encoder)
     }
 }
 
@@ -422,8 +421,8 @@ impl<C> bincode::Decode<C> for LastSuccessfulSource {
     fn decode<D: bincode::de::Decoder<Context = C>>(
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
-        let val: Option<File> = bincode::Decode::decode(decoder)?;
-        Ok(Self(Mutex::new(val.map(ReadRef::new_owned))))
+        let val: Option<Rope> = bincode::Decode::decode(decoder)?;
+        Ok(Self(Mutex::new(val)))
     }
 }
 
@@ -431,8 +430,8 @@ impl<'de, C> bincode::BorrowDecode<'de, C> for LastSuccessfulSource {
     fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = C>>(
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
-        let val: Option<File> = bincode::BorrowDecode::borrow_decode(decoder)?;
-        Ok(Self(Mutex::new(val.map(ReadRef::new_owned))))
+        let val: Option<Rope> = bincode::BorrowDecode::borrow_decode(decoder)?;
+        Ok(Self(Mutex::new(val)))
     }
 }
 
@@ -584,7 +583,7 @@ impl EcmascriptModuleAsset {
     /// which case the caller should fall back to the current (broken) result.
     /// On failure the cached source is cleared so we don't keep retrying it.
     async fn try_parse_last_successful_source(&self) -> Option<Vc<ParseResult>> {
-        let file_ref = self.last_successful_source.get()?;
+        let rope = self.last_successful_source.get()?;
         let result: Result<Vc<ParseResult>> = async {
             let node_env = self
                 .compile_time_info
@@ -594,14 +593,8 @@ impl EcmascriptModuleAsset {
                 .owned()
                 .await?
                 .unwrap_or_else(|| rcstr!("development"));
-            crate::parse::parse_from_file(
-                &file_ref,
-                self.source,
-                self.ty,
-                self.transforms,
-                node_env,
-            )
-            .await
+            crate::parse::parse_from_rope(&rope, self.source, self.ty, self.transforms, node_env)
+                .await
         }
         .await;
         match result {
@@ -624,8 +617,11 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
             let real_result_value = real_result.await?;
             if matches!(*real_result_value, ParseResult::Ok { .. }) {
                 // Store the current file bytes as the last-known-good source
-                if let Some(file) = crate::parse::get_file_from_source(self.source).await? {
-                    self.last_successful_source.set(file);
+                // As long as the file doesn't change, this is _just_ an Arc::clone
+                // If it does change then this will pin the old version
+                // Also after a session restore the bytes will be duplicated
+                if let Some(rope) = crate::parse::get_rope_from_source(self.source).await? {
+                    self.last_successful_source.set(rope);
                 }
                 Ok(real_result)
             } else {
