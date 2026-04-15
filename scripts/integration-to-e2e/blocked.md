@@ -8,12 +8,11 @@ These suites cannot be automatically converted to the `nextTestSetup()` e2e form
 
 These tests spin up auxiliary HTTP servers (proxies, CDN simulators, external APIs) alongside the Next.js server.
 
-| Suite                                     | Reason                                                        |
-| ----------------------------------------- | ------------------------------------------------------------- |
-| `test/integration/filesystempublicroutes` | Custom server via `initNextServerScript(server.js)`           |
-| `test/integration/image-optimizer`        | External HTTP server + shared test runner + custom server API |
+| Suite                              | Reason                                                        |
+| ---------------------------------- | ------------------------------------------------------------- |
+| `test/integration/image-optimizer` | External HTTP server + shared test runner + custom server API |
 
-> **Converted from this category:** `api-body-parser` (via `startCommand: 'node server.js'`), `app-document-style-fragment` (was just a standard build+start test)
+> **Converted from this category:** `api-body-parser` (via `startCommand: 'node server.js'`), `app-document-style-fragment` (was just a standard build+start test), `filesystempublicroutes` (via `startCommand: 'node server.js'`)
 
 ### Per-Test App Lifecycle Management
 
@@ -33,11 +32,9 @@ These tests start/stop the Next.js server multiple times within a single test fi
 
 These tests use `initNextServerScript()` or programmatic Next.js server APIs.
 
-| Suite                       | Reason                                                                 |
-| --------------------------- | ---------------------------------------------------------------------- |
-| `test/integration/ondemand` | Custom server + webpack-specific on-demand entries (Turbopack-skipped) |
+No remaining suites in this category.
 
-> **Converted from this category:** `custom-server` → `test/e2e/custom-server/` (via `startCommand: 'node server.js'` with HTTP/HTTPS variants, legacy methods, HMR)
+> **Converted from this category:** `custom-server` → `test/e2e/custom-server/` (via `startCommand: 'node server.js'` with HTTP/HTTPS variants, legacy methods, HMR), `ondemand` → `test/development/ondemand/` (via `startCommand: 'node server.js'`, webpack-only)
 
 ### CLI Testing (Not Server Tests)
 
@@ -76,6 +73,8 @@ These 3 suites were blocked as "custom server API" or "programmatic nextServer()
 - `custom-server` → `test/e2e/custom-server/` (via `startCommand: 'node server.js'`, HTTP/HTTPS, legacy methods, HMR)
 - `api-body-parser` → `test/e2e/api-body-parser/` (via `startCommand: 'node server.js'`)
 - `app-document-style-fragment` → `test/production/app-document-style-fragment/` (was just a standard build+start)
+- `filesystempublicroutes` → `test/e2e/filesystempublicroutes/` (via `startCommand: 'node server.js'`)
+- `ondemand` → `test/development/ondemand/` (via `startCommand: 'node server.js'`, webpack-only)
 
 ## Summary
 
@@ -89,10 +88,10 @@ These 3 suites were blocked as "custom server API" or "programmatic nextServer()
 | Converted (output:export / mixed) | 21      |
 | Converted (i18n-support)          | 2       |
 | Converted (build-only score-10)   | 27      |
-| Converted (custom server / API)   | 3       |
-| **Total converted**               | **245** |
-| Blocked (Phase 1-3, score 1-9)    | 11      |
+| Converted (custom server / API)   | 5       |
+| **Total converted**               | **247** |
+| Blocked (Phase 1-3, score 1-9)    | 9       |
 | Blocked (score 10, ranker)        | 20      |
 | No test files                     | 1       |
-| **Total blocked**                 | **32**  |
+| **Total blocked**                 | **30**  |
 | **Grand total**                   | **277** |
