@@ -79,7 +79,6 @@ These directories contain only fixtures, no test files:
 
 - `test/integration/bundle-size-profiling`
 - `test/integration/css-fixtures`
-- `test/integration/scss`
 
 ## Summary
 
