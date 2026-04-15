@@ -14,9 +14,7 @@
     "jsx": "react-jsx",
     "lib": ["ESNext", "DOM"],
     "target": "esnext",
-    "ignoreDeprecations": "6.0",
     // modules
-    "baseUrl": ".",
     "module": "node16",
     "moduleResolution": "node16",
     "resolveJsonModule": true,

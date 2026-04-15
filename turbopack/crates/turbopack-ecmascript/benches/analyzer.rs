@@ -72,6 +72,7 @@ pub fn benchmark(c: &mut Criterion) {
                     &program,
                     &eval_context,
                     AnalyzeMode::CodeGenerationAndTracing,
+                    true,
                 );
 
                 let input = BenchInput {
@@ -103,6 +104,7 @@ fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
             &input.program,
             &input.eval_context,
             AnalyzeMode::CodeGenerationAndTracing,
+            true,
         )
     });
 }

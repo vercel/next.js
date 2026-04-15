@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Result, bail};
+use turbo_frozenmap::FrozenMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
@@ -142,7 +141,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
             bail!("EcmascriptModuleLocalsModule must only be used on modules with EsmExports");
         };
         let esm_exports = exports.await?;
-        let mut exports = BTreeMap::new();
+        let mut exports = Vec::new();
 
         for (name, export) in &esm_exports.exports {
             match export {
@@ -150,19 +149,19 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                     // not included in locals module
                 }
                 EsmExport::LocalBinding(local_name, liveness) => {
-                    exports.insert(
+                    exports.push((
                         name.clone(),
                         EsmExport::LocalBinding(local_name.clone(), *liveness),
-                    );
+                    ));
                 }
                 EsmExport::Error => {
-                    exports.insert(name.clone(), EsmExport::Error);
+                    exports.push((name.clone(), EsmExport::Error));
                 }
             }
         }
 
         let exports = EsmExports {
-            exports,
+            exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: vec![],
         }
         .resolved_cell();
