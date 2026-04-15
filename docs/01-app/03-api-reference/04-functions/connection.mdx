@@ -7,8 +7,6 @@ The `connection()` function allows you to indicate rendering should wait for an 
 
 It's useful when a component doesn't use [Request-time APIs](/docs/app/glossary#request-time-apis) like `cookies` or `headers`, but still needs to produce different output per request, such as `Math.random()` or `new Date()`.
 
-> **Good to know**: If you want to display a date formatted for the user's timezone on a **prerendered** page without making the page dynamic, see [Displaying dates and times](/docs/app/guides/displaying-dates) instead.
-
 ```ts filename="app/page.tsx" switcher
 import { connection } from 'next/server'
 
