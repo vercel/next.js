@@ -31,7 +31,10 @@ use super::{
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
-    references::{constant_value::parse_single_expr_lit, for_each_ident_in_pat},
+    code_gen::CodeGen,
+    references::{
+        constant_value::parse_single_expr_lit, esm::EsmModuleItem, for_each_ident_in_pat,
+    },
     utils::{AstPathRange, unparen},
 };
 
@@ -364,6 +367,8 @@ pub struct VarGraph {
     pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
+    // Some unconditional codegens, usually for ESM items.
+    pub code_gens: Vec<CodeGen>,
 
     // ident -> immediate usage (top level decl)
     pub decl_usages: FxHashMap<Id, DeclUsage>,
@@ -388,11 +393,13 @@ pub fn create_graph(
     m: &Program,
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
+    supports_block_scoping: bool,
 ) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
         free_var_ids: Default::default(),
         effects: Default::default(),
+        code_gens: Default::default(),
         decl_usages: Default::default(),
         import_usages: Default::default(),
         exports: Default::default(),
@@ -406,6 +413,8 @@ pub fn create_graph(
             state: Default::default(),
             effects: Default::default(),
             hoisted_effects: Default::default(),
+            code_gens: Default::default(),
+            supports_block_scoping,
         },
         &mut Default::default(),
     );
@@ -940,6 +949,13 @@ struct Analyzer<'a> {
     /// Tracked separately so we can preserve effects from hoisted declarations even when we don't
     /// collect effects from the declaring context.
     hoisted_effects: Vec<Effect>,
+
+    // Some unconditional codegens, usually for ESM items.
+    code_gens: Vec<CodeGen>,
+
+    /// Whether we may codegen `let` and `const` or if we should fallback to var (at the cost of
+    /// slightly less correct circular import errors) for EsmModuleItem
+    supports_block_scoping: bool,
 
     eval_context: &'a EvalContext,
 }
@@ -1937,9 +1953,30 @@ impl Analyzer<'_> {
             span: member_expr.span(),
         });
     }
+
+    fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
+        if self.analyze_mode.is_code_gen() {
+            self.code_gens.push(
+                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
+                    .into(),
+            );
+        }
+    }
 }
 
 impl VisitAstPath for Analyzer<'_> {
+    fn visit_import_decl<'ast: 'r, 'r>(
+        &mut self,
+        import: &'ast ImportDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        import.visit_children_with_ast_path(self, ast_path);
+        if import.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+    }
+
     fn visit_import_specifier<'ast: 'r, 'r>(
         &mut self,
         _import_specifier: &'ast ImportSpecifier,
@@ -2727,6 +2764,7 @@ impl VisitAstPath for Analyzer<'_> {
         });
         self.effects.append(&mut self.hoisted_effects);
         self.data.effects = take(&mut self.effects);
+        self.data.code_gens = take(&mut self.code_gens);
     }
 
     fn visit_cond_expr<'ast: 'r, 'r>(
@@ -2981,6 +3019,18 @@ impl VisitAstPath for Analyzer<'_> {
         self.effects = prev_effects;
     }
 
+    fn visit_export_all<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportAll,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if export.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
     fn visit_export_decl<'ast: 'r, 'r>(
         &mut self,
         node: &'ast ExportDecl,
@@ -3004,8 +3054,15 @@ impl VisitAstPath for Analyzer<'_> {
                     });
                 }
             }
-            _ => {}
+            Decl::Using(_) => {
+                // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#:~:text=You%20cannot%20use%20export%20on%20a%20using%20or%20await%20using%20declaration
+                unreachable!("using declarations can not be exported");
+            }
+            Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {
+                // ignore typescript for code generation
+            }
         };
+        self.add_esm_module_item(ast_path);
         node.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3014,6 +3071,9 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast ExportNamedSpecifier,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        if node.is_type_only {
+            return;
+        }
         let export_name = node
             .exported
             .as_ref()
@@ -3028,6 +3088,36 @@ impl VisitAstPath for Analyzer<'_> {
             },
         );
         node.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_export_default_expr<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_export_default_decl<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_named_export<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast NamedExport,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if export.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 }
 

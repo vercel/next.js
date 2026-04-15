@@ -3801,8 +3801,12 @@ mod tests {
                     None,
                 );
 
-                let mut var_graph =
-                    create_graph(&m, &eval_context, AnalyzeMode::CodeGenerationAndTracing);
+                let mut var_graph = create_graph(
+                    &m,
+                    &eval_context,
+                    AnalyzeMode::CodeGenerationAndTracing,
+                    true,
+                );
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph

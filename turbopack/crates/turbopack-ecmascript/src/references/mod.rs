@@ -130,9 +130,9 @@ use crate::{
         },
         dynamic_expression::DynamicExpression,
         esm::{
-            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmExports, EsmModuleItem,
-            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
-            base::EsmAssetReferences, export::EsmExport, module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmExports, ImportMetaBinding,
+            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
+            export::EsmExport, module_id::EsmModuleIdAssetReference,
         },
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
@@ -750,10 +750,16 @@ async fn analyze_ecmascript_module_internal(
     let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
+    let supports_block_scoping = *compile_time_info
+        .environment()
+        .runtime_versions()
+        .supports_block_scoping()
+        .await?;
+
     let mut var_graph = {
         let _span = tracing::trace_span!("analyze variable values").entered();
         set_handler_and_globals(&handler, globals, || {
-            create_graph(program, eval_context, analyze_mode)
+            create_graph(program, eval_context, analyze_mode, supports_block_scoping)
         })
     };
 
@@ -861,21 +867,13 @@ async fn analyze_ecmascript_module_internal(
 
     let span = tracing::trace_span!("exports");
     async {
-        let supports_block_scoping = *compile_time_info
-            .environment()
-            .runtime_versions()
-            .supports_block_scoping()
-            .await?;
-
         let mut esm_exports = set_handler_and_globals(&handler, globals, || {
             // TODO migrate to effects
             let mut visitor = ModuleReferencesVisitor::new(
                 eval_context,
                 &import_references,
                 &mut analysis,
-                analyze_mode,
                 &var_graph,
-                supports_block_scoping,
             );
             // ModuleReferencesVisitor has already called analysis.add_esm_reexport_reference
             // for any references in esm_exports
@@ -1019,6 +1017,7 @@ async fn analyze_ecmascript_module_internal(
 
     let span = tracing::trace_span!("effects processing");
     async {
+        analysis.code_gens.extend(take(&mut var_graph.code_gens));
         let effects = take(&mut var_graph.effects);
         let compile_time_info_ref = compile_time_info.await?;
 
@@ -3854,14 +3853,12 @@ async fn require_context_visitor(
 /// A visitor that walks the AST and collects information about the various
 /// references a module makes to other parts of the code.
 struct ModuleReferencesVisitor<'a> {
-    analyze_mode: AnalyzeMode,
     eval_context: &'a EvalContext,
     imports: FxHashMap<String, (String, Vec<String>)>,
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
     esm_exports: Vec<(RcStr, EsmExport)>,
     var_graph: &'a VarGraph,
-    supports_block_scoping: bool,
 }
 
 impl<'a> ModuleReferencesVisitor<'a> {
@@ -3869,24 +3866,18 @@ impl<'a> ModuleReferencesVisitor<'a> {
         eval_context: &'a EvalContext,
         import_references: &'a [ResolvedVc<EsmAssetReference>],
         analysis: &'a mut AnalyzeEcmascriptModuleResultBuilder,
-        analyze_mode: AnalyzeMode,
         var_graph: &'a VarGraph,
-        supports_block_scoping: bool,
     ) -> Self {
         Self {
-            analyze_mode,
             eval_context,
             imports: FxHashMap::default(),
             import_references,
             analysis,
             esm_exports: Vec::new(),
             var_graph,
-            supports_block_scoping,
         }
     }
-}
 
-impl<'a> ModuleReferencesVisitor<'a> {
     /// Returns the liveness of a given export identifier.  An export is live if it might
     /// change values after module evaluation.
     fn get_export_ident_liveness(&self, id: Id) -> Liveness {
@@ -3909,10 +3900,6 @@ impl<'a> ModuleReferencesVisitor<'a> {
             Liveness::Live
         }
     }
-}
-
-fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
-    ast_path.iter().map(|n| n.kind()).collect()
 }
 
 pub(crate) fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Atom, SyntaxContext)) {
@@ -3951,25 +3938,14 @@ pub(crate) fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Atom, SyntaxC
 }
 
 impl VisitAstPath for ModuleReferencesVisitor<'_> {
-    fn visit_export_all<'ast: 'r, 'r>(
-        &mut self,
-        export: &'ast ExportAll,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        if self.analyze_mode.is_code_gen() {
-            self.analysis.add_code_gen(EsmModuleItem::new(
-                as_parent_path(ast_path).into(),
-                self.supports_block_scoping,
-            ));
-        }
-        export.visit_children_with_ast_path(self, ast_path);
-    }
-
     fn visit_named_export<'ast: 'r, 'r>(
         &mut self,
         export: &'ast NamedExport,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
+        if export.type_only {
+            return;
+        }
         // We create mutable exports for fake ESMs generated by module splitting
         let is_fake_esm = export
             .with
@@ -4041,13 +4017,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         }
-
-        if self.analyze_mode.is_code_gen() {
-            self.analysis.add_code_gen(EsmModuleItem::new(
-                as_parent_path(ast_path).into(),
-                self.supports_block_scoping,
-            ));
-        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -4088,12 +4057,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         };
-        if self.analyze_mode.is_code_gen() {
-            self.analysis.add_code_gen(EsmModuleItem::new(
-                as_parent_path(ast_path).into(),
-                self.supports_block_scoping,
-            ));
-        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -4110,12 +4073,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 Liveness::Constant,
             ),
         ));
-        if self.analyze_mode.is_code_gen() {
-            self.analysis.add_code_gen(EsmModuleItem::new(
-                as_parent_path(ast_path).into(),
-                self.supports_block_scoping,
-            ));
-        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -4143,12 +4100,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 // ignore
             }
         }
-        if self.analyze_mode.is_code_gen() {
-            self.analysis.add_code_gen(EsmModuleItem::new(
-                as_parent_path(ast_path).into(),
-                self.supports_block_scoping,
-            ));
-        }
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -4157,7 +4108,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         import: &'ast ImportDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = as_parent_path(ast_path).into();
         let src = import.src.value.to_string_lossy().into_owned();
         import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
@@ -4194,26 +4144,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         }
-        if self.analyze_mode.is_code_gen() {
-            self.analysis
-                .add_code_gen(EsmModuleItem::new(path, self.supports_block_scoping));
-        }
-    }
-
-    fn visit_var_declarator<'ast: 'r, 'r>(
-        &mut self,
-        decl: &'ast VarDeclarator,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        decl.visit_children_with_ast_path(self, ast_path);
-    }
-
-    fn visit_call_expr<'ast: 'r, 'r>(
-        &mut self,
-        call: &'ast CallExpr,
-        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
-    ) {
-        call.visit_children_with_ast_path(self, ast_path);
     }
 }
 
