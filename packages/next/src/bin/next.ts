@@ -604,7 +604,7 @@ internal
   .addOption(
     new Option(
       '--mcp-port <mcpPort>',
-      'Port for the MCP (Model Context Protocol) server. Defaults to 5748.'
+      'Port for the MCP (Model Context Protocol) server. Defaults to --port + 1.'
     ).argParser(parseValidPositiveInteger)
   )
   .action(
