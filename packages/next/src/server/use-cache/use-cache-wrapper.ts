@@ -1808,8 +1808,28 @@ export async function cache(
               'dynamic "use cache"'
             )
           }
-          break
+        // fallthrough
         case 'prerender-runtime':
+          if (!cacheSignal) {
+            // This is the final prerender (cacheSignal is null), which means
+            // all caches should have been warmed during the prospective
+            // prerender. A cache miss here indicates that the cache key is
+            // non-deterministic (e.g. due to unstable array order in the
+            // arguments). We return a hanging promise so this becomes a dynamic
+            // hole rather than generating a broken cache entry that gets
+            // aborted.
+            console.warn(
+              new Error(
+                `Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.`
+              )
+            )
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              'dynamic "use cache"'
+            )
+          }
+          break
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
