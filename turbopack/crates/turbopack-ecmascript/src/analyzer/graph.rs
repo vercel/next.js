@@ -1953,6 +1953,15 @@ impl Analyzer<'_> {
             span: member_expr.span(),
         });
     }
+
+    fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
+        if self.analyze_mode.is_code_gen() {
+            self.code_gens.push(
+                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
+                    .into(),
+            );
+        }
+    }
 }
 
 impl VisitAstPath for Analyzer<'_> {
@@ -1965,12 +1974,7 @@ impl VisitAstPath for Analyzer<'_> {
         if import.type_only {
             return;
         }
-        if self.analyze_mode.is_code_gen() {
-            self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
-            );
-        }
+        self.add_esm_module_item(ast_path);
     }
 
     fn visit_import_specifier<'ast: 'r, 'r>(
@@ -3023,12 +3027,7 @@ impl VisitAstPath for Analyzer<'_> {
         if export.type_only {
             return;
         }
-        if self.analyze_mode.is_code_gen() {
-            self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
-            );
-        }
+        self.add_esm_module_item(ast_path);
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3063,12 +3062,7 @@ impl VisitAstPath for Analyzer<'_> {
                 // ignore typescript for code generation
             }
         };
-        if self.analyze_mode.is_code_gen() {
-            self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
-            );
-        }
+        self.add_esm_module_item(ast_path);
         node.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3101,12 +3095,7 @@ impl VisitAstPath for Analyzer<'_> {
         export: &'ast ExportDefaultExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() {
-            self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
-            );
-        }
+        self.add_esm_module_item(ast_path);
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3115,12 +3104,7 @@ impl VisitAstPath for Analyzer<'_> {
         export: &'ast ExportDefaultDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() {
-            self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
-            );
-        }
+        self.add_esm_module_item(ast_path);
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3132,12 +3116,7 @@ impl VisitAstPath for Analyzer<'_> {
         if export.type_only {
             return;
         }
-        if self.analyze_mode.is_code_gen() {
-            self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
-            );
-        }
+        self.add_esm_module_item(ast_path);
         export.visit_children_with_ast_path(self, ast_path);
     }
 }
