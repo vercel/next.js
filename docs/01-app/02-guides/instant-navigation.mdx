@@ -109,7 +109,7 @@ Open the Next.js DevTools and select **Instant Navs**. Two options are available
 - **Page load**: click **Reload** to refresh the page and freeze it at the initial static UI generated for this route, before any dynamic data streams in.
 - **Client navigation**: once enabled, clicking any link in your app shows the prefetched UI for that page instead of the full result.
 
-For the product page above, try a **page load**. "Loading product..." and "Checking availability..." appear as separate fallbacks. On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
+Try a **page load** on the product page. Two separate fallbacks appear: "Loading product..." and "Checking availability...". On the first visit the cache is cold and both fallbacks are visible. Navigate to the page again and the product name appears immediately from cache.
 
 Now try a **client navigation** (click a link from `/store/shoes` to `/store/hats`). The product name and price appear immediately (cached). "Checking availability..." shows where inventory will stream in.
 
