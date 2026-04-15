@@ -94,12 +94,6 @@ These test CLI tools directly, not server behavior.
 
 See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full list with per-suite notes.
 
-### No Test Files
-
-These directories contain only fixtures, no test files:
-
-- `test/integration/css-fixtures`
-
 ## Summary
 
 | Category                          | Count   |
@@ -113,6 +107,5 @@ These directories contain only fixtures, no test files:
 | **Total converted**               | **213** |
 | Blocked (Phase 1-3, score 1-9)    | 11      |
 | Blocked (score 10, ranker)        | 49      |
-| No test files                     | 3       |
-| **Total blocked**                 | **63**  |
+| **Total blocked**                 | **60**  |
 | **Grand total**                   | **276** |
