@@ -3798,7 +3798,6 @@ mod tests {
                     top_level_mark,
                     Default::default(),
                     Some(&comments),
-                    None,
                 );
 
                 let mut var_graph = create_graph(

@@ -811,8 +811,7 @@ async fn analyze_ecmascript_module_internal(
                 module,
                 ResolvedVc::upcast(module),
                 RcStr::from(&*r.module_path.to_string_lossy()),
-                r.issue_source
-                    .unwrap_or_else(|| IssueSource::from_source_only(source)),
+                IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32()),
                 r.annotations.as_ref().map(|a| (**a).clone()),
                 match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {

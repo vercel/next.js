@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
+    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -17,7 +17,7 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
+use turbopack_core::loader::WebpackLoaderItem;
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
@@ -410,7 +410,7 @@ pub(crate) struct ImportMapReference {
     pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
     pub annotations: Option<Arc<ImportAnnotations>>,
-    pub issue_source: Option<IssueSource>,
+    pub span: Span,
 }
 
 impl ImportMap {
@@ -524,15 +524,10 @@ impl ImportMap {
     }
 
     /// Analyze ES import
-    pub(super) fn analyze(
-        m: &Program,
-        source: Option<ResolvedVc<Box<dyn Source>>>,
-        comments: Option<&dyn Comments>,
-    ) -> Self {
+    pub(super) fn analyze(m: &Program, comments: Option<&dyn Comments>) -> Self {
         let mut data = ImportMap::default();
         let mut analyzer = Analyzer {
             data: &mut data,
-            source,
             comments,
         };
 
@@ -719,7 +714,6 @@ impl Visit for StarImportAnalyzer<'_> {
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    source: Option<ResolvedVc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
 }
 
@@ -731,14 +725,10 @@ impl Analyzer<'_> {
         imported_symbol: ImportedSymbol,
         annotations: Option<ImportAnnotations>,
     ) -> usize {
-        let issue_source = self
-            .source
-            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
-
         let r = ImportMapReference {
             module_path,
             imported_symbol,
-            issue_source,
+            span,
             annotations: annotations.map(Arc::new),
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
@@ -1049,8 +1039,8 @@ impl Visit for Analyzer<'_> {
     fn visit_new_expr(&mut self, n: &NewExpr) {
         // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
-            let callee_span = match &n.callee {
-                box Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
+            let callee_span = match &*n.callee {
+                Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
                 _ => None,
             };
 
