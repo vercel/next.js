@@ -80,7 +80,7 @@ use turbo_tasks::{
     FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
     ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
-use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{File, FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
@@ -363,6 +363,81 @@ impl EcmascriptModuleAssetBuilder {
     }
 }
 
+/// Stores the raw file bytes of the last successfully parsed version of a module.
+///
+/// This is used by `failsafe_parse` to serve the last good AST when the file has a syntax error.
+/// The newtype is always-equal and no-op-hash so it is invisible to turbo-tasks cache key logic,
+/// but it serializes the `File` contents fully so the fallback survives eviction and restarts.
+struct LastSuccessfulSource(Mutex<Option<ReadRef<File>>>);
+
+impl LastSuccessfulSource {
+    fn get(&self) -> Option<ReadRef<File>> {
+        self.0.lock().unwrap().clone()
+    }
+
+    fn set(&self, file: File) {
+        *self.0.lock().unwrap() = Some(ReadRef::new_owned(file));
+    }
+}
+
+impl Default for LastSuccessfulSource {
+    fn default() -> Self {
+        Self(Mutex::new(None))
+    }
+}
+
+impl std::fmt::Debug for LastSuccessfulSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("LastSuccessfulSource")
+    }
+}
+
+impl PartialEq for LastSuccessfulSource {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for LastSuccessfulSource {}
+
+impl std::hash::Hash for LastSuccessfulSource {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+}
+
+impl bincode::Encode for LastSuccessfulSource {
+    fn encode<E: bincode::enc::Encoder>(
+        &self,
+        encoder: &mut E,
+    ) -> Result<(), bincode::error::EncodeError> {
+        let guard = self.0.lock().unwrap();
+        guard.as_deref().encode(encoder)
+    }
+}
+
+impl<C> bincode::Decode<C> for LastSuccessfulSource {
+    fn decode<D: bincode::de::Decoder<Context = C>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let val: Option<File> = bincode::Decode::decode(decoder)?;
+        Ok(Self(Mutex::new(val.map(ReadRef::new_owned))))
+    }
+}
+
+impl<'de, C> bincode::BorrowDecode<'de, C> for LastSuccessfulSource {
+    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = C>>(
+        decoder: &mut D,
+    ) -> Result<Self, bincode::error::DecodeError> {
+        let val: Option<File> = bincode::BorrowDecode::borrow_decode(decoder)?;
+        Ok(Self(Mutex::new(val.map(ReadRef::new_owned))))
+    }
+}
+
+impl turbo_tasks::trace::TraceRawVcs for LastSuccessfulSource {
+    fn trace_raw_vcs(&self, _context: &mut turbo_tasks::trace::TraceRawVcsContext) {}
+}
+
+unsafe impl turbo_tasks::NonLocalValue for LastSuccessfulSource {}
+
 #[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
@@ -374,7 +449,7 @@ pub struct EcmascriptModuleAsset {
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
-    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
+    last_successful_source: LastSuccessfulSource,
 }
 impl core::fmt::Debug for EcmascriptModuleAsset {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -505,15 +580,21 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         let real_result = self.parse().await?;
         if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
-            let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                self.last_successful_parse
-                    .set_unconditionally(real_result_value.clone());
-                real_result_value
+            if matches!(*real_result_value, ParseResult::Ok { .. }) {
+                // Store the current file bytes as the last-known-good source
+                if let Some(file) = crate::parse::get_file_from_source(self.source).await? {
+                    self.last_successful_source.set(file);
+                }
+                Ok(real_result)
             } else {
-                let state_ref = self.last_successful_parse.get();
-                state_ref.as_ref().unwrap_or(&real_result_value).clone()
-            };
-            Ok(ReadRef::cell(result_value))
+                // Fall back: re-parse from saved file bytes if available
+                if let Some(file_ref) = self.last_successful_source.get() {
+                    crate::parse::parse_from_file(&file_ref, self.source, self.ty, self.transforms)
+                        .await
+                } else {
+                    Ok(real_result)
+                }
+            }
         } else {
             Ok(real_result)
         }
@@ -642,7 +723,7 @@ impl EcmascriptModuleAsset {
             compile_time_info,
             side_effect_free_packages,
             inner_assets: None,
-            last_successful_parse: Default::default(),
+            last_successful_source: Default::default(),
         })
     }
 
@@ -677,7 +758,7 @@ impl EcmascriptModuleAsset {
                 compile_time_info,
                 side_effect_free_packages,
                 inner_assets: Some(inner_assets),
-                last_successful_parse: Default::default(),
+                last_successful_source: Default::default(),
             }))
         }
     }
