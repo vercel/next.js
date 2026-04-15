@@ -555,16 +555,32 @@ function getHydrationErrorDetails(
   }
 }
 
+function isRuntimeVariant(message: string): boolean {
+  if (
+    message.includes('Runtime data such as') &&
+    !message.includes('Dynamic or runtime data')
+  ) {
+    return true
+  }
+  if (message.includes('Runtime data was accessed inside')) return true
+  if (
+    message.includes('A request-time API') &&
+    !message.includes('Uncached data or a request-time API')
+  ) {
+    return true
+  }
+  return false
+}
+
 function getBlockingRouteErrorDetails(
   error: Error
 ): BlockingRouteErrorDetails | null {
   const isBlockingPageLoadError = error.message.includes('/blocking-route')
 
   if (isBlockingPageLoadError) {
-    const isRuntimeData = !error.message.includes('fetch()')
     return {
       type: 'blocking-route',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: '',
     }
   }
@@ -573,10 +589,9 @@ function getBlockingRouteErrorDetails(
     '/next-prerender-dynamic-viewport'
   )
   if (isBlockingViewportError) {
-    const isRuntimeData = !error.message.includes('fetch()')
     return {
       type: 'blocking-route',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: 'generateViewport',
     }
   }
@@ -591,10 +606,9 @@ function getDynamicMetadataErrorDetails(
     return null
   }
 
-  const isRuntimeData = error.message.includes('cookies()')
   return {
     type: 'dynamic-metadata',
-    variant: isRuntimeData ? 'runtime' : 'navigation',
+    variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
   }
 }
 
