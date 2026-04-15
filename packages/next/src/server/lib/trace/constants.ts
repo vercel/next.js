@@ -40,6 +40,12 @@ enum NextNodeServerSpan {
   getBuildId = 'NextNodeServer.getBuildId',
   createComponentTree = 'NextNodeServer.createComponentTree',
   clientComponentLoading = 'NextNodeServer.clientComponentLoading',
+  clientComponentWarmup = 'NextNodeServer.clientComponentWarmup',
+  htmlShellWarmup = 'NextNodeServer.htmlShellWarmup',
+  htmlAllReady = 'NextNodeServer.htmlAllReady',
+  cacheMissWarmup = 'NextNodeServer.cacheMissWarmup',
+  serverPrerenderWarmup = 'NextNodeServer.serverPrerenderWarmup',
+  clientPrerenderWarmup = 'NextNodeServer.clientPrerenderWarmup',
   getLayoutOrPageModule = 'NextNodeServer.getLayoutOrPageModule',
   generateStaticRoutes = 'NextNodeServer.generateStaticRoutes',
   generateFsStaticRoutes = 'NextNodeServer.generateFsStaticRoutes',
@@ -142,6 +148,12 @@ export const NextVanillaSpanAllowlist = new Set([
   NextNodeServerSpan.getLayoutOrPageModule,
   NextNodeServerSpan.startResponse,
   NextNodeServerSpan.clientComponentLoading,
+  NextNodeServerSpan.clientComponentWarmup,
+  NextNodeServerSpan.htmlShellWarmup,
+  NextNodeServerSpan.htmlAllReady,
+  NextNodeServerSpan.cacheMissWarmup,
+  NextNodeServerSpan.serverPrerenderWarmup,
+  NextNodeServerSpan.clientPrerenderWarmup,
 ])
 
 // These Spans are allowed to be always logged
@@ -150,6 +162,12 @@ export const LogSpanAllowList = new Set([
   NextNodeServerSpan.findPageComponents,
   NextNodeServerSpan.createComponentTree,
   NextNodeServerSpan.clientComponentLoading,
+  NextNodeServerSpan.clientComponentWarmup,
+  NextNodeServerSpan.htmlShellWarmup,
+  NextNodeServerSpan.htmlAllReady,
+  NextNodeServerSpan.cacheMissWarmup,
+  NextNodeServerSpan.serverPrerenderWarmup,
+  NextNodeServerSpan.clientPrerenderWarmup,
 ])
 
 export {
