@@ -237,6 +237,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
   /* ── Card ─────────────────────────────────────── */
   [data-nextjs-fix-card] {
     flex: 1 0 30%;
+    min-width: 260px;
     scroll-snap-align: start;
   }
 
