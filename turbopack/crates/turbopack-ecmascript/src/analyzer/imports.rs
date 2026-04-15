@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, hash_map::Entry},
+    fmt::Display,
+    sync::Arc,
+};
 
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
@@ -711,10 +716,10 @@ impl Analyzer<'_> {
         };
 
         match self.data.assignment_scopes.entry(id) {
-            std::collections::hash_map::Entry::Occupied(mut e) => {
+            Entry::Occupied(mut e) => {
                 *e.get_mut() = e.get().merge(scope);
             }
-            std::collections::hash_map::Entry::Vacant(e) => {
+            Entry::Vacant(e) => {
                 e.insert(AssignmentScopes::new(scope));
             }
         }
