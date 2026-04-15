@@ -27,9 +27,8 @@ describe('many-promises', () => {
   })
 
   it('should handle many awaited promises in a Client Component with Top Level Await on the client', async () => {
-    const res = await next.fetch('/client-tla-client')
-    expect(res.status).toBe(200)
-    const html = await res.text()
-    expect(html).toContain('done')
+    const browser = await next.browser('/client-tla-client')
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('done')
   })
 })
