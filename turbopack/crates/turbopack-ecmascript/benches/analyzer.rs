@@ -20,7 +20,7 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     AnalyzeMode,
     analyzer::{
-        graph::{EvalContext, VarGraph, VarMeta, create_graph},
+        graph::{EvalContext, VarGraph, create_graph},
         imports::ImportAttributes,
         linker::link,
         test_utils::{early_visitor, visitor},
@@ -115,7 +115,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
 
     b.to_async(rt).iter(|| async {
         let var_cache = Default::default();
-        for VarMeta { value, .. } in input.var_graph.values.values() {
+        for value in input.var_graph.values.values() {
             VcStorage::with(async {
                 let compile_time_info = CompileTimeInfo::builder(
                     Environment::new(ExecutionEnvironment::NodeJsLambda(

@@ -308,25 +308,6 @@ impl AssignmentScopes {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct VarMeta {
-    pub value: JsValue,
-}
-
-impl VarMeta {
-    pub fn new(value: JsValue) -> Self {
-        Self { value }
-    }
-
-    pub fn normalize(&mut self) {
-        self.value.normalize();
-    }
-
-    fn add_alt(&mut self, value: JsValue) {
-        self.value.add_alt(value);
-    }
-}
-
 #[derive(Clone, Debug)]
 pub enum DeclUsage {
     SideEffects,
@@ -353,7 +334,7 @@ impl DeclUsage {
 
 #[derive(Debug)]
 pub struct VarGraph {
-    pub values: FxHashMap<Id, VarMeta>,
+    pub values: FxHashMap<Id, JsValue>,
 
     /// Map [`JsValue::FreeVar`] names to their [`Id`] to facilitate lookups into [`Self::values`].
     ///
@@ -1530,7 +1511,7 @@ impl Analyzer<'_> {
         if let Some(prev) = self.data.values.get_mut(&id) {
             prev.add_alt(value);
         } else {
-            self.data.values.insert(id, VarMeta::new(value));
+            self.data.values.insert(id, value);
         }
         // TODO(kdy1): We may need to report an error for this.
         // Variables declared with `var` are hoisted, but using undefined as its
