@@ -6048,13 +6048,20 @@ async function validateInstantConfigs(
 
   const clientReferenceManifest = getClientReferenceManifest()
 
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+  const createDebugChannel = process.env.__NEXT_USE_NODE_STREAMS
+    ? createNodeDebugChannel
+    : createWebDebugChannel
+
   const {
     cache,
     payload: initialRscPayload,
     stageEndTimes,
   } = await collectStagedSegmentData(
     ctx.componentMod,
-    renderToWebFlightStream,
+    renderFlightStream,
     {
       [RenderStage.Static]: accumulatedChunks.staticChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
@@ -6063,7 +6070,8 @@ async function validateInstantConfigs(
     debugChunks,
     startTime,
     hasRuntimePrefetch,
-    clientReferenceManifest
+    clientReferenceManifest,
+    createDebugChannel
   )
 
   const { implicitTags, nonce, workStore } = ctx
@@ -6131,13 +6139,14 @@ async function validateInstantConfigs(
     const { stream: serverStream, debugStream } =
       await createCombinedPayloadStream(
         ctx.componentMod,
-        renderToWebFlightStream,
+        renderFlightStream,
         payloadResult.payload,
         extraChunksController,
         reactController.signal,
         clientReferenceManifest,
         startTime,
-        isDebugChannelEnabled
+        isDebugChannelEnabled,
+        createDebugChannel
       )
 
     const instantValidationState = createInstantValidationState(
