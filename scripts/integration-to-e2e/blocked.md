@@ -48,26 +48,47 @@ These test CLI tools directly, not server behavior.
 
 #### Converted (formerly blocked)
 
-| Suite                                                      | Converted to                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/integration/css`                                     | `test/production/css-features/{valid-invalid-css,basic-global-support,css-compilation,css-rendering}.test.ts`, `test/e2e/css-features/css-and-styled-jsx.test.ts`, `test/development/css-features/dev-css-handling.test.ts`                                                                                                                                                                                                                                               |
-| `test/integration/css-modules`                             | `test/production/css-features/{css-modules-support,css-modules-ordering}.test.ts`, `test/e2e/css-features/css-modules-ordering.test.ts`, `test/development/css-features/css-modules-support.test.ts`                                                                                                                                                                                                                                                                      |
-| `test/integration/next-image-new` (38 of 39 test files)    | `test/e2e/next-image-new/{default,app-dir,base-path,trailing-slash,unicode,asset-prefix,both-basepath-trailingslash,loader-config,loader-config-default-loader-with-file,loader-config-edge-runtime,unoptimized,typescript,image-from-node-modules,app-dir-image-from-node-modules,app-dir-localpatterns,app-dir-qualities}/`, `test/development/next-image-new/{middleware,export-config,invalid-image-import}/`, `test/production/next-image-new/invalid-image-import/` |
-| `test/integration/next-image-legacy` (15 of 15 test files) | `test/e2e/next-image-legacy/{default,base-path,trailing-slash,unicode,asset-prefix,unoptimized,typescript,image-from-node-modules}/`, `test/production/next-image-legacy/{basic,custom-resolver,noscript,no-intersection-observer-fallback}/`                                                                                                                                                                                                                             |
-| `test/integration/css-client-nav`                          | `test/e2e/css-client-nav/css-client-nav.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| `test/integration/custom-routes-i18n`                      | `test/e2e/custom-routes-i18n/custom-routes-i18n.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| `test/integration/next-dynamic-css-asset-prefix`           | `test/e2e/next-dynamic-css-asset-prefix/next-dynamic-css-asset-prefix.test.ts`                                                                                                                                                                                                                                                                                                                                                                                            |
-| `test/integration/preload-viewport`                        | `test/production/preload-viewport/preload-viewport.test.ts`                                                                                                                                                                                                                                                                                                                                                                                                               |
-| `test/integration/next-image-new/react-virtualized`        | `test/production/next-image-new/react-virtualized/react-virtualized.test.ts`                                                                                                                                                                                                                                                                                                                                                                                              |
-| `test/integration/next-image-legacy/react-virtualized`     | `test/production/next-image-legacy/react-virtualized/react-virtualized.test.ts`                                                                                                                                                                                                                                                                                                                                                                                           |
+| Suite                                                      | Converted to                                                                                                                                                                                                                |
+| ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/integration/css`                                     | `test/production/css-features/{valid-invalid-css,basic-global-support,css-compilation,css-rendering}.test.ts`, `test/e2e/css-features/css-and-styled-jsx.test.ts`, `test/development/css-features/dev-css-handling.test.ts` |
+| `test/integration/css-modules`                             | `test/production/css-features/{css-modules-support,css-modules-ordering}.test.ts`, `test/e2e/css-features/css-modules-ordering.test.ts`, `test/development/css-features/css-modules-support.test.ts`                        |
+| `test/integration/next-image-new` (39 of 39 test files)    | `test/e2e/next-image-new/...`, `test/development/next-image-new/...`, `test/production/next-image-new/...`                                                                                                                  |
+| `test/integration/next-image-legacy` (15 of 15 test files) | `test/e2e/next-image-legacy/...`, `test/production/next-image-legacy/...`                                                                                                                                                   |
+| `test/integration/css-client-nav`                          | `test/e2e/css-client-nav/css-client-nav.test.ts`                                                                                                                                                                            |
+| `test/integration/custom-routes-i18n`                      | `test/e2e/custom-routes-i18n/custom-routes-i18n.test.ts`                                                                                                                                                                    |
+| `test/integration/next-dynamic-css-asset-prefix`           | `test/e2e/next-dynamic-css-asset-prefix/next-dynamic-css-asset-prefix.test.ts`                                                                                                                                              |
+| `test/integration/preload-viewport`                        | `test/production/preload-viewport/preload-viewport.test.ts`                                                                                                                                                                 |
+| `test/integration/next-image-new/react-virtualized`        | `test/production/next-image-new/react-virtualized/react-virtualized.test.ts`                                                                                                                                                |
+| `test/integration/next-image-legacy/react-virtualized`     | `test/production/next-image-legacy/react-virtualized/react-virtualized.test.ts`                                                                                                                                             |
+| `test/integration/export-404`                              | `test/production/export-404/export-404.test.ts`                                                                                                                                                                             |
+| `test/integration/export-dynamic-pages`                    | `test/production/export-dynamic-pages/export-dynamic-pages.test.ts`                                                                                                                                                         |
+| `test/integration/export-fallback-true-error`              | `test/production/export-fallback-true-error/export-fallback-true-error.test.ts`                                                                                                                                             |
+| `test/integration/export-getInitialProps-warn`             | `test/production/export-getInitialProps-warn/export-getInitialProps-warn.test.ts`                                                                                                                                           |
+| `test/integration/export-image-default`                    | `test/production/export-image-default/export-image-default.test.ts`                                                                                                                                                         |
+| `test/integration/export-image-loader`                     | `test/production/export-image-loader/export-image-loader.test.ts`                                                                                                                                                           |
+| `test/integration/export-image-loader-legacy`              | `test/production/export-image-loader-legacy/export-image-loader-legacy.test.ts`                                                                                                                                             |
+| `test/integration/export-index-not-found-gsp`              | `test/production/export-index-not-found-gsp/export-index-not-found-gsp.test.ts`                                                                                                                                             |
+| `test/integration/export-intent`                           | `test/production/export-intent/export-intent.test.ts`                                                                                                                                                                       |
+| `test/integration/export-subfolders`                       | `test/production/export-subfolders/export-subfolders.test.ts`                                                                                                                                                               |
+| `test/integration/no-op-export`                            | `test/production/no-op-export/no-op-export.test.ts`                                                                                                                                                                         |
+| `test/integration/errors-on-output-to-public`              | `test/production/errors-on-output-to-public/errors-on-output-to-public.test.ts`                                                                                                                                             |
+| `test/integration/errors-on-output-to-static`              | `test/production/errors-on-output-to-static/errors-on-output-to-static.test.ts`                                                                                                                                             |
+| `test/integration/getserversideprops-export-error`         | `test/production/getserversideprops-export-error/getserversideprops-export-error.test.ts`                                                                                                                                   |
+| `test/integration/prerender-export`                        | `test/production/prerender-export/prerender-export.test.ts`                                                                                                                                                                 |
+| `test/integration/config-output-export`                    | `test/development/config-output-export/config-output-export.test.ts`                                                                                                                                                        |
+| `test/integration/middleware-src`                          | `test/e2e/middleware-src/middleware-src.test.ts`                                                                                                                                                                            |
+| `test/integration/middleware-src-node`                     | `test/e2e/middleware-src-node/middleware-src-node.test.ts`                                                                                                                                                                  |
+| `test/integration/repeated-slashes`                        | `test/e2e/repeated-slashes/repeated-slashes.test.ts`                                                                                                                                                                        |
+| `test/integration/api-support`                             | `test/e2e/api-support/api-support.test.ts`                                                                                                                                                                                  |
+| `test/integration/custom-routes`                           | `test/e2e/custom-routes/custom-routes.test.ts`                                                                                                                                                                              |
+| `test/integration/telemetry` (3 test files)                | `test/e2e/telemetry/{telemetry,config,page-features}.test.ts`                                                                                                                                                               |
 
 ### Score-10 (Originally Blocked by Ranker)
 
-70 additional suites were scored 10 by the ranker and excluded from conversion. These typically involve:
+49 additional suites were scored 10 by the ranker and excluded from conversion. These typically involve:
 
 - `runNextCommand`/`runNextCommandDev` CLI testing
 - Programmatic `nextServer()` API
-- `output: 'export'` static export without server
 - Complex multi-config test matrices
 - Custom server implementations
 
@@ -81,16 +102,17 @@ These directories contain only fixtures, no test files:
 
 ## Summary
 
-| Category                        | Count   |
-| ------------------------------- | ------- |
-| Converted (Phase 1, score 1-3)  | 102     |
-| Converted (Phase 2, score 4-6)  | 75      |
-| Converted (Phase 3, score 7-9)  | 5       |
-| Converted (large multi-fixture) | 4       |
-| Converted (external HTTP proxy) | 6       |
-| **Total converted**             | **192** |
-| Blocked (Phase 1-3, score 1-9)  | 11      |
-| Blocked (score 10, ranker)      | 70      |
-| No test files                   | 3       |
-| **Total blocked**               | **84**  |
-| **Grand total**                 | **276** |
+| Category                          | Count   |
+| --------------------------------- | ------- |
+| Converted (Phase 1, score 1-3)    | 102     |
+| Converted (Phase 2, score 4-6)    | 75      |
+| Converted (Phase 3, score 7-9)    | 5       |
+| Converted (large multi-fixture)   | 4       |
+| Converted (external HTTP proxy)   | 6       |
+| Converted (output:export / mixed) | 21      |
+| **Total converted**               | **213** |
+| Blocked (Phase 1-3, score 1-9)    | 11      |
+| Blocked (score 10, ranker)        | 49      |
+| No test files                     | 3       |
+| **Total blocked**                 | **63**  |
+| **Grand total**                   | **276** |
