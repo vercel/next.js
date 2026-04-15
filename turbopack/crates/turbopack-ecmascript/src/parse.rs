@@ -605,7 +605,6 @@ async fn parse_file_content(
                 top_level_mark,
                 Arc::new(var_with_ts_declare),
                 Some(&comments),
-                Some(source),
             );
 
             let (comments, source_mapping_url) =

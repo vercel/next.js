@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
+    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -17,13 +17,13 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
+use turbopack_core::loader::WebpackLoaderItem;
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
     analyzer::{ConstantValue, ObjectPart, graph::VarGraph},
-    magic_identifier,
+    magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     references::{
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
@@ -410,7 +410,7 @@ pub(crate) struct ImportMapReference {
     pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
     pub annotations: Option<Arc<ImportAnnotations>>,
-    pub issue_source: Option<IssueSource>,
+    pub span: Span,
 }
 
 impl ImportMap {
@@ -524,15 +524,10 @@ impl ImportMap {
     }
 
     /// Analyze ES import
-    pub(super) fn analyze(
-        m: &Program,
-        source: Option<ResolvedVc<Box<dyn Source>>>,
-        comments: Option<&dyn Comments>,
-    ) -> Self {
+    pub(super) fn analyze(m: &Program, comments: Option<&dyn Comments>) -> Self {
         let mut data = ImportMap::default();
         let mut analyzer = Analyzer {
             data: &mut data,
-            source,
             comments,
             namespace_imports_to_specifier: FxIndexMap::default(),
         };
@@ -650,7 +645,6 @@ impl ImportMap {
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    source: Option<ResolvedVc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
     /// Map from local identifier of namespace imports to module path, used temporarily during
     /// analysis to detect dynamic accesses to namespace imports.
@@ -665,14 +659,10 @@ impl Analyzer<'_> {
         imported_symbol: ImportedSymbol,
         annotations: Option<ImportAnnotations>,
     ) -> usize {
-        let issue_source = self
-            .source
-            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
-
         let r = ImportMapReference {
             module_path,
             imported_symbol,
-            issue_source,
+            span,
             annotations: annotations.map(Arc::new),
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
@@ -858,7 +848,7 @@ impl Visit for Analyzer<'_> {
                 ident.as_ref().map_or_else(
                     || {
                         (
-                            magic_identifier::mangle("default export").into(),
+                            MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                             SyntaxContext::empty(),
                         )
                     },
@@ -868,7 +858,7 @@ impl Visit for Analyzer<'_> {
             DefaultDecl::TsInterfaceDecl(_) => {
                 // not matching, might happen due to eventual consistency
                 (
-                    magic_identifier::mangle("default export").into(),
+                    MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                     SyntaxContext::empty(),
                 )
             }
@@ -887,13 +877,13 @@ impl Visit for Analyzer<'_> {
 
         self.data.exports.insert(
             rcstr!("default"),
-            Export::LocalBinding(magic_identifier::mangle("default export").into(), false),
+            Export::LocalBinding(MAGIC_IDENTIFIER_DEFAULT_EXPORT.clone(), false),
         );
         self.data.exports_ids.insert(
             rcstr!("default"),
             (
                 // `EsmModuleItem::code_generation` inserts this variable.
-                magic_identifier::mangle("default export").into(),
+                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                 SyntaxContext::empty(),
             ),
         );

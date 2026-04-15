@@ -1122,7 +1122,7 @@
         span: 486..488,
     },
     ImportedBinding {
-        esm_reference_index: 2,
+        esm_reference_index: 3,
         export: Some(
             "join",
         ),

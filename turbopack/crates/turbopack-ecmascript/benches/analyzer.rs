@@ -66,7 +66,6 @@ pub fn benchmark(c: &mut Criterion) {
                     top_level_mark,
                     Default::default(),
                     None,
-                    None,
                 );
                 let var_graph = create_graph(
                     &program,

@@ -492,7 +492,6 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
     }
 
     let parse_result = parsed.await?;
-    let source = asset.source().to_resolved().await?;
 
     match &*parse_result {
         ParseResult::Ok {
@@ -570,7 +569,6 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
                         None,
-                        Some(source),
                     );
 
                     ParseResult::resolved_cell(ParseResult::Ok {
@@ -695,7 +693,6 @@ pub(crate) async fn part_of_module(
                         eval_context.unresolved_mark,
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
-                        None,
                         None,
                     );
 

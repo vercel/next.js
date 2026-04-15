@@ -5,6 +5,14 @@ use std::{
 
 use once_cell::sync::Lazy;
 use regex::{Captures, Regex, Replacer};
+use swc_core::atoms::Atom;
+use turbo_rcstr::RcStr;
+
+pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT: Lazy<RcStr> =
+    Lazy::new(|| RcStr::from(mangle("default export")));
+
+pub static MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM: Lazy<Atom> =
+    Lazy::new(|| Atom::from(mangle("default export")));
 
 pub fn mangle(content: &str) -> String {
     let mut r = "__TURBOPACK__".to_string();

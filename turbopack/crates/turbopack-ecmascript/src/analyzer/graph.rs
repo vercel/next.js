@@ -22,8 +22,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::ResolvedVc;
-use turbopack_core::{resolve::ExportUsage, source::Source};
+use turbopack_core::resolve::ExportUsage;
 
 use super::{
     ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind, is_unresolved_id,
@@ -474,14 +473,11 @@ impl EvalContext {
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
-        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: module.map_or(ImportMap::default(), |m| {
-                ImportMap::analyze(m, source, comments)
-            }),
+            imports: module.map_or(ImportMap::default(), |m| ImportMap::analyze(m, comments)),
             force_free_values,
         }
     }
@@ -914,14 +910,8 @@ impl EvalContext {
         let js_value = try_with_handler(cm, Default::default(), |_| {
             GLOBALS.set(&Default::default(), || {
                 let expr = parse_single_expr_lit(expr_lit);
-                let eval_context = EvalContext::new(
-                    None,
-                    Mark::new(),
-                    Mark::new(),
-                    Default::default(),
-                    None,
-                    None,
-                );
+                let eval_context =
+                    EvalContext::new(None, Mark::new(), Mark::new(), Default::default(), None);
 
                 Ok(eval_context.eval(&expr))
             })

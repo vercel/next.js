@@ -33,7 +33,10 @@ use super::{
         Vars, collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested,
     },
 };
-use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
+use crate::{
+    magic_identifier::{self, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
+    tree_shake::optimizations::GraphOptimizer,
+};
 
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -1012,7 +1015,7 @@ impl DepGraph {
                         // bindings if the class/function has an identifier.
                         let default_var = id.unwrap_or_else(|| {
                             Ident::new(
-                                magic_identifier::mangle("default export").into(),
+                                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                                 DUMMY_SP,
                                 Default::default(),
                             )
@@ -1083,7 +1086,7 @@ impl DepGraph {
                         // Mirror what `EsmModuleItem::code_generation` does, these are live
                         // bindings if the class/function has an identifier.
                         let default_var = Ident::new(
-                            magic_identifier::mangle("default export").into(),
+                            MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                             DUMMY_SP,
                             Default::default(),
                         );

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
+use std::{collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
@@ -31,7 +31,7 @@ use crate::{
     analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    magic_identifier,
+    magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     references::esm::base::ReferencedAsset,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     tree_shake::part::module::EcmascriptModulePartAsset,
@@ -709,7 +709,7 @@ impl EsmExports {
                     let binding = if let Some((local, ctxt)) =
                         eval_context.imports.exports_ids.get(exported)
                     {
-                        Some((Cow::Borrowed(local.as_str()), *ctxt))
+                        Some((local.clone(), *ctxt))
                     } else {
                         bail!(
                             "Expected export to be in eval context {:?} {:?}",
@@ -721,15 +721,15 @@ impl EsmExports {
                         // Fallback, shouldn't happen in practice
                         (
                             if name == "default" {
-                                Cow::Owned(magic_identifier::mangle("default export"))
+                                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone()
                             } else {
-                                Cow::Borrowed(name.as_str())
+                                name.as_str().into()
                             },
                             SyntaxContext::empty(),
                         )
                     });
 
-                    let local = Ident::new(local.into(), DUMMY_SP, ctxt);
+                    let local = Ident::new(local, DUMMY_SP, ctxt);
                     match (liveness, export_usage_info.is_circuit_breaker) {
                         (Liveness::Constant, false) => ExportBinding::Value(Expr::Ident(local)),
                         // If the value might change or we are a circuit breaker we must bind a
