@@ -65,6 +65,9 @@ export default function Page() {
             Independent head B
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/test-not-found/exists">Not found</LinkAccordion>
+        </li>
       </ul>
     </div>
   )

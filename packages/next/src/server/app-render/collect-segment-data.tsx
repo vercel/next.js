@@ -487,7 +487,9 @@ async function collectPrefetchHintsImpl(
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
     const childSeedData =
-      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+      seedDataChildren !== null
+        ? (seedDataChildren[parallelRouteKey] ?? null)
+        : null
 
     const childRequestKey = appendSegmentRequestKeyPart(
       requestKey,
@@ -870,7 +872,9 @@ function collectSegmentDataImpl(
     const childRoute = children[parallelRouteKey]
     const childSegment = childRoute[0]
     const childSeedData =
-      seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+      seedDataChildren !== null
+        ? (seedDataChildren[parallelRouteKey] ?? null)
+        : null
 
     const childRequestKey = appendSegmentRequestKeyPart(
       requestKey,
