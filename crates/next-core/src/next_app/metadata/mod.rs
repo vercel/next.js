@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks_fs::FileSystemPath;
 
-use crate::next_app::{AppPage, PageSegment, PageType};
+use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
 
 pub mod image;
 pub mod route;
@@ -195,31 +195,6 @@ fn join_path(dir: &str, basename: &str) -> String {
     }
 }
 
-fn normalize_app_path(route: &str) -> String {
-    let segments: Vec<&str> = route.split('/').collect();
-    let last_index = segments.len().saturating_sub(1);
-    let mut pathname = String::new();
-
-    for (index, segment) in segments.into_iter().enumerate() {
-        if segment.is_empty()
-            || (segment.starts_with('(') && segment.ends_with(')'))
-            || segment.starts_with('@')
-            || ((segment == "page" || segment == "route") && index == last_index)
-        {
-            continue;
-        }
-
-        pathname.push('/');
-        pathname.push_str(segment);
-    }
-
-    if pathname.is_empty() {
-        "/".to_string()
-    } else {
-        pathname
-    }
-}
-
 fn normalize_static_metadata_route_segment(segment: &str) -> String {
     let mut normalized_segment = segment.to_string();
 
@@ -233,7 +208,7 @@ fn normalize_static_metadata_route_segment(segment: &str) -> String {
 }
 
 fn get_static_metadata_route(segment: &str) -> String {
-    let pathname = normalize_app_path(segment);
+    let pathname = AppPath::from(AppPage::parse(segment).unwrap_or_default()).to_string();
     let mut route = String::new();
 
     for segment in pathname.split('/').filter(|segment| !segment.is_empty()) {
