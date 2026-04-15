@@ -1045,6 +1045,11 @@ function assignDefaultsAndValidate(
     result.experimental.supportsImmutableAssets = true
   }
 
+  if (process.env.NEXT_HASH_SALT) {
+    result.experimental.outputHashSalt =
+      (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
+  }
+
   const tracingRoot = result?.outputFileTracingRoot
   const turbopackRoot = result?.turbopack?.root
 
@@ -1516,10 +1521,7 @@ function assignDefaultsAndValidate(
 
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  // Pre-compute the effective hash salt (used by both Webpack and Turbopack).
-  ;(result as NextConfigComplete).hashSalt =
-    (result.experimental?.outputHashSalt ?? '') +
-    (process.env.NEXT_HASH_SALT ?? '')
+
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
   }

@@ -370,11 +370,6 @@ pub struct ProjectOptions {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     pub server_hmr: bool,
-
-    /// A salt to mix into chunk and asset content hashes, allowing users to
-    /// force new filenames without changing file content. Empty string means
-    /// no salt.
-    pub hash_salt: RcStr,
 }
 
 #[derive(Default)]
@@ -425,9 +420,6 @@ pub struct PartialProjectOptions {
     /// Debug build paths for selective builds.
     /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
-
-    /// An optional salt to mix into chunk and asset content hashes.
-    pub hash_salt: Option<RcStr>,
 }
 
 #[derive(
@@ -687,7 +679,6 @@ impl ProjectContainer {
                 no_mangling,
                 write_routes_hashes_manifest,
                 debug_build_paths,
-                hash_salt,
             } = options;
 
             let mut new_options = this
@@ -737,9 +728,6 @@ impl ProjectContainer {
             }
             if let Some(debug_build_paths) = debug_build_paths {
                 new_options.debug_build_paths = Some(debug_build_paths);
-            }
-            if let Some(hash_salt) = hash_salt {
-                new_options.hash_salt = hash_salt;
             }
 
             // TODO: Handle mode switch, should prevent mode being switched.
@@ -823,7 +811,6 @@ impl ProjectContainer {
         let deferred_entries;
         let is_persistent_caching_enabled;
         let server_hmr;
-        let hash_salt;
         {
             let options = self.options_state.get();
             let options = options
@@ -852,7 +839,6 @@ impl ProjectContainer {
             deferred_entries = options.deferred_entries.clone().unwrap_or_default();
             is_persistent_caching_enabled = options.is_persistent_caching_enabled;
             server_hmr = options.server_hmr;
-            hash_salt = options.hash_salt.clone();
         }
 
         let root_path = ResolvedVc::cell(root_path_str);
@@ -884,7 +870,6 @@ impl ProjectContainer {
             deferred_entries,
             is_persistent_caching_enabled,
             server_hmr,
-            hash_salt,
         }
         .cell())
     }
@@ -988,10 +973,6 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
-
-    /// A salt to mix into chunk and asset content hashes. Empty string means
-    /// no salt.
-    hash_salt: RcStr,
 }
 
 #[turbo_tasks::value]
@@ -1247,11 +1228,6 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn no_mangling(&self) -> Vc<bool> {
         Vc::cell(self.no_mangling)
-    }
-
-    #[turbo_tasks::function]
-    pub(crate) fn hash_salt(&self) -> Vc<RcStr> {
-        Vc::cell(self.hash_salt.clone())
     }
 
     #[turbo_tasks::function]
@@ -1609,7 +1585,7 @@ impl Project {
             debug_ids: self.next_config().turbopack_debug_ids(),
             should_use_absolute_url_references: self.next_config().inline_css(),
             css_url_suffix,
-            hash_salt: self.hash_salt().to_resolved().await?,
+            hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
         }))
     }
@@ -1645,7 +1621,7 @@ impl Project {
                 .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
-            hash_salt: self.hash_salt().to_resolved().await?,
+            hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)
@@ -1684,7 +1660,7 @@ impl Project {
                 .await?,
             asset_prefix: self.next_config().computed_asset_prefix().owned().await?,
             css_url_suffix,
-            hash_salt: self.hash_salt().to_resolved().await?,
+            hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             cross_origin: self.next_config().cross_origin(),
         };
         Ok(if client_assets {

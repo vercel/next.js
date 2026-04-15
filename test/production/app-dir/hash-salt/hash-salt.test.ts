@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { listClientChunks } from 'next-test-utils'
 import { join } from 'path'
 
-describe('NEXT_HASH_SALT', () => {
+describe.each(['NEXT_HASH_SALT', 'ADAPTER_HASH_SALT'])('%s', (saltEnvVar) => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -11,7 +11,7 @@ describe('NEXT_HASH_SALT', () => {
   /** Build with the given salt and return { chunks, images, css } filename lists. */
   async function buildWithSalt(salt: string) {
     await next.clean()
-    await next.build({ env: { NEXT_HASH_SALT: salt } })
+    await next.build({ env: { [saltEnvVar]: salt } })
     const files = await listClientChunks(join(next.testDir, next.distDir))
     const chunks = files.filter(
       (f) => f.includes('/chunks/') && f.endsWith('.js')

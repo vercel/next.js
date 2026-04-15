@@ -1347,7 +1347,9 @@ export default async function getBaseWebpackConfig(
       hashDigestLength: 16,
       // Webpack requires hashSalt to be a non-empty string; omit it entirely
       // when no salt is configured.
-      ...(config.hashSalt ? { hashSalt: config.hashSalt } : {}),
+      ...(config.experimental?.outputHashSalt
+        ? { hashSalt: config.experimental.outputHashSalt }
+        : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1799,7 +1801,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
-                  hashSalt: config.hashSalt,
+                  outputHashSalt: config.experimental?.outputHashSalt,
                 },
               },
             ]
