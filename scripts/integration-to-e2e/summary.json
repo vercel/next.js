@@ -15,18 +15,18 @@
     "i18nSupport": 2,
     "buildOnlyScore10": 27,
     "customServerApi": 5,
-    "total": 247
+    "imageOptimizer": 1,
+    "perTestLifecycle": 7,
+    "score10ServerCli": 11,
+    "finalBatch": 7,
+    "total": 273
   },
   "blocked": {
-    "externalHttpServer": 1,
-    "perTestLifecycle": 7,
-    "customServerApi": 0,
     "cliTesting": 1,
-    "score10": 20,
-    "noTestFiles": 1,
-    "total": 30
+    "noTestFiles": 3,
+    "total": 4
   },
-  "conversionRate": "89.2%",
+  "conversionRate": "98.6%",
   "scoreDistribution": {
     "1": 23,
     "2": 45,
