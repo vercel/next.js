@@ -9,5 +9,5 @@ warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack
          +          ^-------------------^
       11 | }
       12 | 
-      13 | it('should emit warnings for invalid glob calls', () => {
-      14 |   // The compile-time warnings are the main verification (issue snapshots).
+      13 | function getNonObjOptions() {
+      14 |   return import.meta.glob('./dir/*.js', 'eager')

@@ -11,14 +11,6 @@ const unknown = import.meta.glob(['./dir/*.js', './dir2/*.js'], {
   exhaust: true,
 })
 
-// Warning: second argument must be an object literal
-const nonObjOptions = import.meta.glob('./dir3/*.js', 'eager')
-
-// Warning: query object with spread (non-constant key-value)
-// The spread makes the object non-analyzable for that property.
-// Note: the analyzer may or may not resolve the spread — we test that a
-// warning is produced for the non-constant parts.
-
 it('should still produce a lazy glob when "as" option is used', () => {
   const keys = Object.keys(withAs).sort()
   expect(keys).toEqual(['./dir/bar.js', './dir/foo.js'])

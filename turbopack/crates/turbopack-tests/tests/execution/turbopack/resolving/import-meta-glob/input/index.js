@@ -103,21 +103,25 @@ it('should support query as object literal', () => {
   expect(typeof queryObjModules['./dir/foo.js']).toBe('function')
 })
 
-// Dotfile directories should be excluded by default
+// Dotfile directories are matched by wildcards (not excluded)
 const dotfileGlob = import.meta.glob(['./**/*.js', '!./index.js'], {
   eager: true,
 })
 
-it('should exclude dotfile directories by default', () => {
+it('should include dotfile directories with wildcard patterns', () => {
   const keys = Object.keys(dotfileGlob).sort()
-  // .foo/hidden.js should NOT be included
-  expect(keys).toEqual(['./dir/bar.js', './dir/foo.js', './other/baz.js'])
+  expect(keys).toEqual([
+    './.foo/hidden.js',
+    './dir/bar.js',
+    './dir/foo.js',
+    './other/baz.js',
+  ])
 })
 
-// Dotfile directories targeted explicitly should still be excluded
+// Dotfile directories targeted explicitly should be included
 const dotfileExplicit = import.meta.glob('./.foo/*.js', { eager: true })
 
-it('should exclude dotfile directories even when explicitly targeted', () => {
+it('should include dotfile directories when explicitly targeted', () => {
   const keys = Object.keys(dotfileExplicit)
-  expect(keys).toEqual([])
+  expect(keys).toEqual(['./.foo/hidden.js'])
 })

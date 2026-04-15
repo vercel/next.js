@@ -197,16 +197,18 @@ pub fn parse_import_meta_glob(
                                     query = Some(q);
                                 } else if let JsValue::Object { parts, .. } = val {
                                     // Support object form: { query: { bar: 'foo', raw: true } }
-                                    // Serializes to "?bar=foo&raw=true"
+                                    // Serializes to "?bar=foo&raw=true" with URL-encoding.
                                     use crate::analyzer::ObjectPart;
                                     let mut pairs: Vec<String> = Vec::new();
                                     for part in parts {
                                         if let ObjectPart::KeyValue(k, v) = part {
                                             if let Some(k_str) = k.as_str() {
+                                                let enc_key = urlencoding::encode(k_str);
                                                 if let Some(v_str) = v.as_str() {
-                                                    pairs.push(format!("{k_str}={v_str}"));
+                                                    let enc_val = urlencoding::encode(v_str);
+                                                    pairs.push(format!("{enc_key}={enc_val}"));
                                                 } else if let Some(v_bool) = v.as_bool() {
-                                                    pairs.push(format!("{k_str}={v_bool}"));
+                                                    pairs.push(format!("{enc_key}={v_bool}"));
                                                 } else {
                                                     handler.span_warn_with_code(
                                                         span,
@@ -291,11 +293,12 @@ pub fn parse_import_meta_glob(
                 }
             }
             _ => {
-                handler.span_warn_with_code(
+                handler.span_err_with_code(
                     span,
                     "import.meta.glob() second argument must be an object literal",
                     diagnostic_id.clone(),
                 );
+                return None;
             }
         }
     }
@@ -331,17 +334,12 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
     let mut files = Vec::new();
 
     // Collect file entries from the current node.
-    // Skips dotfiles (files whose name starts with '.') to match Vite behavior.
     fn collect_files(
         node: &ReadGlobResult,
         prefix: &str,
         files: &mut Vec<(RcStr, FileSystemPath)>,
     ) {
         for (segment, entry) in &node.results {
-            // Skip dotfiles (e.g. .gitignore, .DS_Store)
-            if segment.starts_with('.') {
-                continue;
-            }
             let full_path = if prefix.is_empty() {
                 segment.to_string()
             } else {
@@ -359,9 +357,6 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
 
     // Resolve child directories (skip dot-directories like .git, .next, etc.)
     for (segment, inner_vc) in &result.inner {
-        if segment.starts_with('.') {
-            continue;
-        }
         let child_prefix = segment.to_string();
         let inner = inner_vc.await?;
         pending.push((child_prefix, inner));
@@ -370,9 +365,6 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
     while let Some((prefix, node)) = pending.pop() {
         collect_files(&node, &prefix, &mut files);
         for (segment, inner_vc) in &node.inner {
-            if segment.starts_with('.') {
-                continue;
-            }
             let child_prefix = format!("{prefix}/{segment}");
             let inner = inner_vc.await?;
             pending.push((child_prefix, inner));
