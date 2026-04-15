@@ -13,18 +13,19 @@
     "externalHttpProxy": 6,
     "outputExportMixed": 21,
     "i18nSupport": 2,
-    "total": 215
+    "buildOnlyScore10": 27,
+    "total": 242
   },
   "blocked": {
     "externalHttpServer": 2,
     "perTestLifecycle": 7,
     "customServerApi": 2,
     "cliTesting": 1,
-    "score10": 49,
+    "score10": 22,
     "noTestFiles": 1,
-    "total": 62
+    "total": 35
   },
-  "conversionRate": "77.6%",
+  "conversionRate": "87.4%",
   "scoreDistribution": {
     "1": 23,
     "2": 45,

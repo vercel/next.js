@@ -46,7 +46,7 @@ These test CLI tools directly, not server behavior.
 
 ### Score-10 (Originally Blocked by Ranker)
 
-49 additional suites were scored 10 by the ranker and excluded from conversion. These typically involve:
+22 additional suites were scored 10 by the ranker and excluded from conversion. These typically involve:
 
 - `runNextCommand`/`runNextCommandDev` CLI testing
 - Programmatic `nextServer()` API
@@ -54,6 +54,19 @@ These test CLI tools directly, not server behavior.
 - Custom server implementations
 
 See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full list with per-suite notes.
+
+### Converted (formerly score-10 build-only / build-artifact inspection)
+
+These 27 suites were originally scored 10 by the ranker (assumed to need a running server), but converted using `skipStart: true` + `next.build()`:
+
+- `app-dynamic-error`, `app-types`, `build-trace-extra-entries`, `build-trace-extra-entries-monorepo`, `build-trace-extra-entries-turbo`
+- `config-promise-error`, `config-syntax-error`, `config-validation`, `conflicting-ssg-paths`
+- `cpu-profiling`, `css-customization`, `custom-server-types`
+- `error-plugin-stack-overflow`, `json-serialize-original-error`
+- `middleware-build-errors`, `mixed-ssg-serverprops-error`, `non-next-dist-exclude`
+- `tsconfig-verifier`, `turborepo-access-trace`, `turbotrace-with-webpack-worker`
+- `typeof-window-replace`, `typescript-custom-tsconfig`, `typescript-filtered-files`, `typescript-ignore-errors`
+- `webpack-bun-externals`, `webpack-config-extensionalias`, `webpack-config-mainjs`
 
 ## Summary
 
@@ -66,9 +79,10 @@ See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full li
 | Converted (external HTTP proxy)   | 6       |
 | Converted (output:export / mixed) | 21      |
 | Converted (i18n-support)          | 2       |
-| **Total converted**               | **215** |
+| Converted (build-only score-10)   | 27      |
+| **Total converted**               | **242** |
 | Blocked (Phase 1-3, score 1-9)    | 12      |
-| Blocked (score 10, ranker)        | 49      |
+| Blocked (score 10, ranker)        | 22      |
 | No test files                     | 1       |
-| **Total blocked**                 | **62**  |
+| **Total blocked**                 | **35**  |
 | **Grand total**                   | **277** |
