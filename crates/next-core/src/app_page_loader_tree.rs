@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{ModuleAssetContext, transition::Transition};
@@ -231,13 +231,6 @@ impl AppPageLoaderTreeBuilder {
 
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
-        let helper_import = rcstr!(
-            "import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'"
-        );
-
-        if !self.base.imports.contains(&helper_import) {
-            self.base.imports.push(helper_import);
-        }
 
         // This should use the same importing mechanism as create_module_tuple_code, so that the
         // relative order of items is retained (which isn't the case when mixing ESM imports and

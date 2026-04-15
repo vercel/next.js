@@ -144,6 +144,13 @@ pub fn match_global_metadata_file<'a>(
     })
 }
 
+/// Regular expression pattern used to match route parameters.
+/// Matches both single parameters and parameter groups.
+/// Examples:
+///   - `[[...slug]]` matches parameter group with key 'slug', repeat: true, optional: true
+///   - `[...slug]` matches parameter group with key 'slug', repeat: true, optional: false
+///   - `[[foo]]` matches parameter with key 'foo', repeat: false, optional: true
+///   - `[bar]` matches parameter with key 'bar', repeat: false, optional: false
 static PARAMETER_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^([^\[]*)\[((?:\[[^\]]*\])|[^\]]+)\](.*)$").unwrap());
 
