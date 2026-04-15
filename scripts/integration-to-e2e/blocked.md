@@ -33,10 +33,11 @@ These tests start/stop the Next.js server multiple times within a single test fi
 
 These tests use `initNextServerScript()` or programmatic Next.js server APIs.
 
-| Suite                            | Reason                                                                     |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `test/integration/custom-server` | Custom `server.js`, HTTPS, programmatic APIs (`renderToHTML`, `render404`) |
-| `test/integration/ondemand`      | Custom server + webpack-specific on-demand entries (Turbopack-skipped)     |
+| Suite                       | Reason                                                                 |
+| --------------------------- | ---------------------------------------------------------------------- |
+| `test/integration/ondemand` | Custom server + webpack-specific on-demand entries (Turbopack-skipped) |
+
+> **Converted from this category:** `custom-server` → `test/e2e/custom-server/` (via `startCommand: 'node server.js'` with HTTP/HTTPS variants, legacy methods, HMR)
 
 ### CLI Testing (Not Server Tests)
 
@@ -68,10 +69,11 @@ These 27 suites were originally scored 10 by the ranker (assumed to need a runni
 - `typeof-window-replace`, `typescript-custom-tsconfig`, `typescript-filtered-files`, `typescript-ignore-errors`
 - `webpack-bun-externals`, `webpack-config-extensionalias`, `webpack-config-mainjs`
 
-### Converted (formerly blocked programmatic nextServer() API)
+### Converted (formerly blocked custom server / programmatic API)
 
-These 2 suites were blocked as "programmatic nextServer() API" but converted using `startCommand` or standard `nextTestSetup()`:
+These 3 suites were blocked as "custom server API" or "programmatic nextServer() API" but converted using `startCommand` or standard `nextTestSetup()`:
 
+- `custom-server` → `test/e2e/custom-server/` (via `startCommand: 'node server.js'`, HTTP/HTTPS, legacy methods, HMR)
 - `api-body-parser` → `test/e2e/api-body-parser/` (via `startCommand: 'node server.js'`)
 - `app-document-style-fragment` → `test/production/app-document-style-fragment/` (was just a standard build+start)
 
@@ -87,10 +89,10 @@ These 2 suites were blocked as "programmatic nextServer() API" but converted usi
 | Converted (output:export / mixed) | 21      |
 | Converted (i18n-support)          | 2       |
 | Converted (build-only score-10)   | 27      |
-| Converted (programmatic server)   | 2       |
-| **Total converted**               | **244** |
-| Blocked (Phase 1-3, score 1-9)    | 12      |
+| Converted (custom server / API)   | 3       |
+| **Total converted**               | **245** |
+| Blocked (Phase 1-3, score 1-9)    | 11      |
 | Blocked (score 10, ranker)        | 20      |
 | No test files                     | 1       |
-| **Total blocked**                 | **33**  |
+| **Total blocked**                 | **32**  |
 | **Grand total**                   | **277** |
