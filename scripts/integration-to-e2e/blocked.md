@@ -50,7 +50,6 @@ These test CLI tools directly, not server behavior.
 
 - `runNextCommand`/`runNextCommandDev` CLI testing
 - Programmatic `nextServer()` API
-- Complex multi-config test matrices
 - Custom server implementations
 
 See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full list with per-suite notes.
