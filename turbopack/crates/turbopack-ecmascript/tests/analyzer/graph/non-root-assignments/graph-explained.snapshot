@@ -1,4 +1,4 @@
-*arrow function 907* (const after eval) = (...) => undefined
+*arrow function 907* = (...) => undefined
 
 ConstAfterEvalClass (const after eval) = ???*0*
 - *0* unsupported expression
