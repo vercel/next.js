@@ -27,7 +27,7 @@ async function missingDependencyError(dir: string) {
             ? 'yarn add --dev'
             : packageManager === 'pnpm'
               ? 'pnpm install --save-dev'
-              : 'npm install --save-dev') + ' @builder.io/partytown'
+              : 'npm install --save-dev') + ' @qwik.dev/partytown'
         )
       )}` +
       '\n\n' +
@@ -55,7 +55,7 @@ async function copyPartytownStaticFiles(
   }
 
   const { copyLibFiles } = await Promise.resolve(
-    require(path.join(deps.resolved.get('@builder.io/partytown')!, '../utils'))
+    require(path.join(deps.resolved.get('@qwik.dev/partytown')!, '../utils'))
   )
 
   await copyLibFiles(partytownLibDir)
@@ -68,8 +68,8 @@ export async function verifyPartytownSetup(
   try {
     const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
       {
-        file: '@builder.io/partytown',
-        pkg: '@builder.io/partytown',
+        file: '@qwik.dev/partytown',
+        pkg: '@qwik.dev/partytown',
         exportsRestrict: false,
       },
     ])
@@ -82,7 +82,7 @@ export async function verifyPartytownSetup(
       } catch (err) {
         Log.warn(
           `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
-            cyan('@builder.io/partytown')
+            cyan('@qwik.dev/partytown')
           )} is installed as a dependency.`
         )
       }

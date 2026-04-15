@@ -176,7 +176,7 @@ function getPreNextWorkerScripts(context: HtmlProps, props: OriginProps) {
   try {
     // @ts-expect-error: Prevent webpack from processing this require
     let { partytownSnippet } = __non_webpack_require__(
-      '@builder.io/partytown/integration'!
+      '@qwik.dev/partytown/integration'!
     )
 
     const children = Array.isArray(props.children)

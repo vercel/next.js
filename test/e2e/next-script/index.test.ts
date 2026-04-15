@@ -299,7 +299,7 @@ describe('empty strategy in document body', () => {
         `,
           },
           dependencies: {
-            '@builder.io/partytown': '0.4.2',
+            '@qwik.dev/partytown': '0.4.2',
           },
         })
       })
@@ -386,7 +386,7 @@ describe('empty strategy in document body', () => {
       `,
           },
           dependencies: {
-            '@builder.io/partytown': '0.4.2',
+            '@qwik.dev/partytown': '0.4.2',
           },
         })
 
@@ -499,7 +499,7 @@ describe('empty strategy in document body', () => {
         `,
           },
           dependencies: {
-            '@builder.io/partytown': '0.4.2',
+            '@qwik.dev/partytown': '0.4.2',
           },
         })
       })

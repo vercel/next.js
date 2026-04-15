@@ -984,7 +984,7 @@ export default async function getBaseWebpackConfig(
             ...(isEdgeServer
               ? [
                   {
-                    '@builder.io/partytown': '{}',
+                    '@qwik.dev/partytown': '{}',
                     'next/dist/compiled/etag': '{}',
                   },
                   getEdgePolyfilledModules(),
