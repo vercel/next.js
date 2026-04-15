@@ -8,12 +8,10 @@ These suites cannot be automatically converted to the `nextTestSetup()` e2e form
 
 These tests spin up auxiliary HTTP servers (proxies, CDN simulators, external APIs) alongside the Next.js server.
 
-| Suite                                     | Reason                                                         |
-| ----------------------------------------- | -------------------------------------------------------------- |
-| `test/integration/filesystempublicroutes` | Custom server via `initNextServerScript(server.js)`            |
-| `test/integration/i18n-support`           | External HTTP server + massive shared test runner (3772 lines) |
-| `test/integration/i18n-support-base-path` | External HTTP server + shared test runner from i18n-support    |
-| `test/integration/image-optimizer`        | External HTTP server + shared test runner + custom server API  |
+| Suite                                     | Reason                                                        |
+| ----------------------------------------- | ------------------------------------------------------------- |
+| `test/integration/filesystempublicroutes` | Custom server via `initNextServerScript(server.js)`           |
+| `test/integration/image-optimizer`        | External HTTP server + shared test runner + custom server API |
 
 ### Per-Test App Lifecycle Management
 
@@ -67,8 +65,10 @@ See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full li
 | Converted (large multi-fixture)   | 4       |
 | Converted (external HTTP proxy)   | 6       |
 | Converted (output:export / mixed) | 21      |
-| **Total converted**               | **213** |
-| Blocked (Phase 1-3, score 1-9)    | 11      |
+| Converted (i18n-support)          | 2       |
+| **Total converted**               | **215** |
+| Blocked (Phase 1-3, score 1-9)    | 12      |
 | Blocked (score 10, ranker)        | 49      |
-| **Total blocked**                 | **60**  |
-| **Grand total**                   | **273** |
+| No test files                     | 1       |
+| **Total blocked**                 | **62**  |
+| **Grand total**                   | **277** |
