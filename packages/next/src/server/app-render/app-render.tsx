@@ -8286,8 +8286,7 @@ async function prerenderToStream(
           onError: htmlRendererErrorHandler,
           nonce,
           bootstrapScripts: [bootstrapScript],
-        },
-        { waitForAllReady: true }
+        }
       )
 
       if (shouldGenerateStaticFlightData(workStore)) {
@@ -8498,8 +8497,7 @@ async function prerenderToStream(
           nonce,
           bootstrapScripts: [errorBootstrapScript],
           formState,
-        },
-        { waitForAllReady: true }
+        }
       )
 
       const resolvedFlightResult = errorFlightResultPromise
