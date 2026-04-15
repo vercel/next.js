@@ -1,4 +1,9 @@
-use std::{borrow::Cow, collections::BTreeMap, fmt::Display, sync::Arc};
+use std::{
+    borrow::Cow,
+    collections::{BTreeMap, hash_map::Entry},
+    fmt::Display,
+    sync::Arc,
+};
 
 use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
@@ -6,7 +11,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments, source_map::SmallPos},
+    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -17,13 +22,16 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::{issue::IssueSource, loader::WebpackLoaderItem, source::Source};
+use turbopack_core::loader::WebpackLoaderItem;
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
     SpecifiedModuleType,
-    analyzer::{ConstantValue, ObjectPart, graph::VarGraph},
-    magic_identifier,
+    analyzer::{
+        ConstantValue, ObjectPart,
+        graph::{AssignmentScope, AssignmentScopes, EvalContext},
+    },
+    magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     references::{
         esm::{EsmAssetReference, EsmExport, Liveness},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
@@ -311,6 +319,10 @@ pub(crate) struct ImportMap {
     /// as a whole.
     full_star_imports: FxHashSet<Wtf8Atom>,
 
+    /// Map from export binding id to the scopes where it's assigned. This is used to determine
+    /// whether an export is live or not.
+    pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
+
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, Id>,
 }
@@ -410,7 +422,7 @@ pub(crate) struct ImportMapReference {
     pub module_path: Wtf8Atom,
     pub imported_symbol: ImportedSymbol,
     pub annotations: Option<Arc<ImportAnnotations>>,
-    pub issue_source: Option<IssueSource>,
+    pub span: Span,
 }
 
 impl ImportMap {
@@ -481,7 +493,7 @@ impl ImportMap {
     pub fn as_esm_exports(
         &self,
         import_references: &[ResolvedVc<EsmAssetReference>],
-        var_graph: &VarGraph,
+        eval_context: &EvalContext,
     ) -> Result<FrozenMap<RcStr, EsmExport>> {
         Ok(FrozenMap::from(
             self.exports
@@ -494,7 +506,7 @@ impl ImportMap {
                                 // it is likely that these are not always actually mutable.
                                 Liveness::Mutable
                             } else {
-                                var_graph.get_export_ident_liveness(
+                                eval_context.imports.get_export_ident_liveness(
                                     self.exports_ids.get(name).cloned().with_context(|| {
                                         format!("Exported binding {name} not found in exports_ids")
                                     })?,
@@ -523,25 +535,37 @@ impl ImportMap {
         self.reexport_namespaces.iter().copied()
     }
 
+    /// Returns the liveness of a given export identifier. An export is live if it might change
+    /// values after module evaluation.
+    pub fn get_export_ident_liveness(&self, id: Id) -> Liveness {
+        if let Some(assignment_scopes) = self.assignment_scopes.get(&id) {
+            // If all assignments are in module scope, the export is not live.
+            if *assignment_scopes != AssignmentScopes::AllInModuleEvalScope {
+                Liveness::Live
+            } else {
+                Liveness::Constant
+            }
+        } else {
+            // If we haven't computed a value for it, that means it might be
+            // - A free variable or
+            // - an imported variable
+            // In those cases, we just assume that the value is live since we don't know anything
+            Liveness::Live
+        }
+    }
+
     /// Analyze ES import
-    pub(super) fn analyze(
-        m: &Program,
-        source: Option<ResolvedVc<Box<dyn Source>>>,
-        comments: Option<&dyn Comments>,
-    ) -> Self {
+    pub(super) fn analyze(m: &Program, comments: Option<&dyn Comments>) -> Self {
         let mut data = ImportMap::default();
         let mut analyzer = Analyzer {
             data: &mut data,
-            source,
             comments,
+            namespace_imports_to_specifier: FxIndexMap::default(),
+            is_in_fn: false,
         };
 
-        // Do a prepass to:
-        // - analyze imports first to determine if a star import can be rewritten to named import
-        // - detect imports to be able to rewrite import+export pairs to true reexports
+        // A prepass to detect imports to be able to rewrite import+export pairs to true reexports
         if let Program::Module(m) = m {
-            let mut namespace_imports = FxIndexMap::default();
-
             for stmt in &m.body {
                 match stmt {
                     ModuleItem::ModuleDecl(ModuleDecl::Import(import)) => {
@@ -576,7 +600,8 @@ impl ImportMap {
 
                             let (local, orig_sym) = match s {
                                 ImportSpecifier::Namespace(s) => {
-                                    namespace_imports
+                                    analyzer
+                                        .namespace_imports_to_specifier
                                         .insert(s.local.to_id(), import.src.value.clone());
                                     analyzer.data.namespace_imports.insert(s.local.to_id(), i);
                                     continue;
@@ -636,12 +661,6 @@ impl ImportMap {
                     _ => (),
                 }
             }
-
-            let mut analyzer = StarImportAnalyzer {
-                namespace_imports,
-                full_star_imports: &mut analyzer.data.full_star_imports,
-            };
-            m.visit_with(&mut analyzer);
         }
 
         m.visit_with(&mut analyzer);
@@ -656,71 +675,14 @@ impl ImportMap {
     }
 }
 
-/// This is a "fast" pre-analyze step to figure out all namespace imports that can't be optimized
-/// away into named imports.
-struct StarImportAnalyzer<'a> {
-    /// The local identifiers of the star imports
-    namespace_imports: FxIndexMap<Id, Wtf8Atom>,
-    full_star_imports: &'a mut FxHashSet<Wtf8Atom>,
-}
-
-impl Visit for StarImportAnalyzer<'_> {
-    fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node
-            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
-        {
-            self.full_star_imports.insert(module_path.clone());
-            return;
-        }
-
-        node.visit_children_with(self);
-    }
-
-    fn visit_import_decl(&mut self, _: &ImportDecl) {}
-
-    fn visit_member_expr(&mut self, node: &MemberExpr) {
-        match &node.prop {
-            MemberProp::Ident(..) | MemberProp::PrivateName(..) => {
-                if node.obj.is_ident() {
-                    return;
-                }
-                // We can skip `visit_expr(obj)` because it's not a dynamic access
-                node.obj.visit_children_with(self);
-            }
-            MemberProp::Computed(..) => {
-                node.obj.visit_with(self);
-                node.prop.visit_with(self);
-            }
-        }
-    }
-
-    fn visit_pat(&mut self, pat: &Pat) {
-        if let Pat::Ident(i) = pat
-            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
-        {
-            self.full_star_imports.insert(module_path.clone());
-            return;
-        }
-
-        pat.visit_children_with(self);
-    }
-
-    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
-        if let SimpleAssignTarget::Ident(i) = node
-            && let Some(module_path) = self.namespace_imports.get(&i.to_id())
-        {
-            self.full_star_imports.insert(module_path.clone());
-            return;
-        }
-
-        node.visit_children_with(self);
-    }
-}
-
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
-    source: Option<ResolvedVc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
+    /// Map from local identifier of namespace imports to module path, used temporarily during
+    /// analysis to detect dynamic accesses to namespace imports.
+    namespace_imports_to_specifier: FxIndexMap<Id, Wtf8Atom>,
+
+    is_in_fn: bool,
 }
 
 impl Analyzer<'_> {
@@ -731,14 +693,10 @@ impl Analyzer<'_> {
         imported_symbol: ImportedSymbol,
         annotations: Option<ImportAnnotations>,
     ) -> usize {
-        let issue_source = self
-            .source
-            .map(|s| IssueSource::from_swc_offsets(s, span.lo.to_u32(), span.hi.to_u32()));
-
         let r = ImportMapReference {
             module_path,
             imported_symbol,
-            issue_source,
+            span,
             annotations: annotations.map(Arc::new),
         };
         if let Some(i) = self.data.references.get_index_of(&r) {
@@ -747,6 +705,23 @@ impl Analyzer<'_> {
             let i = self.data.references.len();
             self.data.references.insert(r);
             i
+        }
+    }
+
+    fn register_assignment_scope(&mut self, id: Id) {
+        let scope = if self.is_in_fn {
+            AssignmentScope::Function
+        } else {
+            AssignmentScope::ModuleEval
+        };
+
+        match self.data.assignment_scopes.entry(id) {
+            Entry::Occupied(mut e) => {
+                *e.get_mut() = e.get().merge(scope);
+            }
+            Entry::Vacant(e) => {
+                e.insert(AssignmentScopes::new(scope));
+            }
         }
     }
 }
@@ -875,10 +850,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_decl(&mut self, n: &ExportDecl) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         match &n.decl {
@@ -917,10 +889,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         let id = match &n.decl {
@@ -930,7 +899,7 @@ impl Visit for Analyzer<'_> {
                 ident.as_ref().map_or_else(
                     || {
                         (
-                            magic_identifier::mangle("default export").into(),
+                            MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                             SyntaxContext::empty(),
                         )
                     },
@@ -940,7 +909,7 @@ impl Visit for Analyzer<'_> {
             DefaultDecl::TsInterfaceDecl(_) => {
                 // not matching, might happen due to eventual consistency
                 (
-                    magic_identifier::mangle("default export").into(),
+                    MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                     SyntaxContext::empty(),
                 )
             }
@@ -954,21 +923,18 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
+        n.visit_children_with(self);
         self.data.has_exports = true;
 
         self.data.exports.insert(
             rcstr!("default"),
-            Export::LocalBinding(magic_identifier::mangle("default export").into(), false),
+            Export::LocalBinding(MAGIC_IDENTIFIER_DEFAULT_EXPORT.clone(), false),
         );
         self.data.exports_ids.insert(
             rcstr!("default"),
             (
                 // `EsmModuleItem::code_generation` inserts this variable.
-                magic_identifier::mangle("default export").into(),
+                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                 SyntaxContext::empty(),
             ),
         );
@@ -1007,13 +973,6 @@ impl Visit for Analyzer<'_> {
         m.visit_children_with(self);
     }
 
-    fn visit_stmt(&mut self, n: &Stmt) {
-        if self.comments.is_some() {
-            // only visit children if we potentially need to mark import / requires
-            n.visit_children_with(self);
-        }
-    }
-
     /// check if import or require contains magic comments
     ///
     /// We are checking for the following cases:
@@ -1028,7 +987,6 @@ impl Visit for Analyzer<'_> {
     // potentially support more webpack magic comments in the future:
     // https://webpack.js.org/api/module-methods/#magic-comments
     fn visit_call_expr(&mut self, n: &CallExpr) {
-        // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
                 Callee::Import(Import { span, .. }) => Some(*span),
@@ -1047,10 +1005,9 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_new_expr(&mut self, n: &NewExpr) {
-        // we could actually unwrap thanks to the optimisation above but it can't hurt to be safe...
         if let Some(comments) = self.comments {
-            let callee_span = match &n.callee {
-                box Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
+            let callee_span = match &*n.callee {
+                Expr::Ident(Ident { sym, .. }) if sym == "Worker" => Some(n.span),
                 _ => None,
             };
 
@@ -1062,6 +1019,120 @@ impl Visit for Analyzer<'_> {
         }
 
         n.visit_children_with(self);
+    }
+
+    fn visit_getter_prop(&mut self, node: &GetterProp) {
+        let old_is_in_fn = self.is_in_fn;
+        self.is_in_fn = true;
+        node.visit_children_with(self);
+        self.is_in_fn = old_is_in_fn;
+    }
+    fn visit_setter_prop(&mut self, node: &SetterProp) {
+        let old_is_in_fn = self.is_in_fn;
+        self.is_in_fn = true;
+        node.visit_children_with(self);
+        self.is_in_fn = old_is_in_fn;
+    }
+    fn visit_function(&mut self, node: &Function) {
+        let old_is_in_fn = self.is_in_fn;
+        self.is_in_fn = true;
+        node.visit_children_with(self);
+        self.is_in_fn = old_is_in_fn;
+    }
+    fn visit_constructor(&mut self, node: &Constructor) {
+        let old_is_in_fn = self.is_in_fn;
+        self.is_in_fn = true;
+        node.visit_children_with(self);
+        self.is_in_fn = old_is_in_fn;
+    }
+    fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
+        let old_is_in_fn = self.is_in_fn;
+        self.is_in_fn = true;
+        node.visit_children_with(self);
+        self.is_in_fn = old_is_in_fn;
+    }
+
+    fn visit_member_expr(&mut self, node: &MemberExpr) {
+        if let MemberProp::Ident(..) | MemberProp::PrivateName(..) = &node.prop
+            && node.obj.is_ident()
+        {
+            // Skip if obj is a Expr::Ident, so that it doesn't get added to full_star_imports below
+            // in visit_expr.
+            return;
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_pat(&mut self, pat: &Pat) {
+        if let Pat::Ident(i) = pat {
+            self.register_assignment_scope(i.to_id());
+            if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
+                self.data.full_star_imports.insert(module_path.clone());
+            }
+        } else {
+            pat.visit_children_with(self);
+        }
+    }
+
+    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
+        if let SimpleAssignTarget::Ident(i) = node {
+            self.register_assignment_scope(i.to_id());
+            if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
+                self.data.full_star_imports.insert(module_path.clone());
+            }
+        } else {
+            node.visit_children_with(self);
+        }
+    }
+
+    fn visit_expr(&mut self, node: &Expr) {
+        if let Expr::Ident(i) = node {
+            if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
+                self.data.full_star_imports.insert(module_path.clone());
+            }
+        } else {
+            node.visit_children_with(self);
+        }
+    }
+
+    fn visit_fn_expr(&mut self, node: &FnExpr) {
+        if let Some(ident) = &node.ident {
+            self.register_assignment_scope(ident.to_id());
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_decl(&mut self, node: &Decl) {
+        match node {
+            Decl::Class(c) => {
+                self.register_assignment_scope(c.ident.to_id());
+            }
+            Decl::Fn(f) => {
+                self.register_assignment_scope(f.ident.to_id());
+            }
+            Decl::Using(v) => {
+                let ids: Vec<Id> = find_pat_ids(&v.decls);
+                for id in ids {
+                    self.register_assignment_scope(id);
+                }
+            }
+            Decl::Var(v) => {
+                let ids: Vec<Id> = find_pat_ids(&v.decls);
+                for id in ids {
+                    self.register_assignment_scope(id);
+                }
+            }
+            Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {}
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_update_expr(&mut self, node: &UpdateExpr) {
+        if let Some(key) = node.arg.as_ident() {
+            // node.arg can also be a member expression
+            self.register_assignment_scope(key.to_id());
+        }
+        node.visit_children_with(self);
     }
 }
 
