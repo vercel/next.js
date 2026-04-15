@@ -14,19 +14,19 @@
     "outputExportMixed": 21,
     "i18nSupport": 2,
     "buildOnlyScore10": 27,
-    "programmaticServer": 2,
-    "total": 244
+    "customServerApi": 3,
+    "total": 245
   },
   "blocked": {
     "externalHttpServer": 2,
     "perTestLifecycle": 7,
-    "customServerApi": 2,
+    "customServerApi": 1,
     "cliTesting": 1,
     "score10": 20,
     "noTestFiles": 1,
-    "total": 33
+    "total": 32
   },
-  "conversionRate": "88.1%",
+  "conversionRate": "88.4%",
   "scoreDistribution": {
     "1": 23,
     "2": 45,
