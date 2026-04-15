@@ -561,7 +561,7 @@ function getBlockingRouteErrorDetails(
   const isBlockingPageLoadError = error.message.includes('/blocking-route')
 
   if (isBlockingPageLoadError) {
-    const isRuntimeData = error.message.includes('cookies()')
+    const isRuntimeData = !error.message.includes('fetch()')
     return {
       type: 'blocking-route',
       variant: isRuntimeData ? 'runtime' : 'navigation',
@@ -573,7 +573,7 @@ function getBlockingRouteErrorDetails(
     '/next-prerender-dynamic-viewport'
   )
   if (isBlockingViewportError) {
-    const isRuntimeData = error.message.includes('cookies()')
+    const isRuntimeData = !error.message.includes('fetch()')
     return {
       type: 'blocking-route',
       variant: isRuntimeData ? 'runtime' : 'navigation',
