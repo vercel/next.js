@@ -72,6 +72,12 @@ export default defineRule({
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
+    const nextSettings: {
+      rootDir?: string | string[]
+      pageExtensions?: string[]
+    } = context.settings.next || {}
+    const pageExtensions = nextSettings.pageExtensions
+
     const rootDirs = getRootDirs(context)
 
     const pagesDirs = (
@@ -107,8 +113,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
