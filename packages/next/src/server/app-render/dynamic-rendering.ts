@@ -820,9 +820,9 @@ export function trackAllowedDynamicAccess(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    const syncError = clientDynamic.syncDynamicErrorWithStack
-    syncError.message = runtimeBodyMessage(workStore.route)
-    dynamicValidation.dynamicErrors.push(syncError)
+    dynamicValidation.dynamicErrors.push(
+      clientDynamic.syncDynamicErrorWithStack
+    )
     return
   } else {
     const message = dynamicBodyMessage(workStore.route)
@@ -980,7 +980,6 @@ export function trackDynamicHoleInNavigation(
 
   if (clientDynamic.syncDynamicErrorWithStack) {
     const syncError = clientDynamic.syncDynamicErrorWithStack
-    syncError.message = runtimeBodyMessage(workStore.route)
     if (effectiveCreateInstantStack !== null && syncError.cause === undefined) {
       syncError.cause = effectiveCreateInstantStack()
     }
@@ -1092,9 +1091,9 @@ export function trackDynamicHoleInRuntimeShell(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    const syncError = clientDynamic.syncDynamicErrorWithStack
-    syncError.message = runtimeBodyMessage(workStore.route)
-    dynamicValidation.dynamicErrors.push(syncError)
+    dynamicValidation.dynamicErrors.push(
+      clientDynamic.syncDynamicErrorWithStack
+    )
     return
   }
 
@@ -1140,9 +1139,9 @@ export function trackDynamicHoleInStaticShell(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    const syncError = clientDynamic.syncDynamicErrorWithStack
-    syncError.message = runtimeBodyMessage(workStore.route)
-    dynamicValidation.dynamicErrors.push(syncError)
+    dynamicValidation.dynamicErrors.push(
+      clientDynamic.syncDynamicErrorWithStack
+    )
     return
   } else {
     const message = runtimeBodyMessage(workStore.route)

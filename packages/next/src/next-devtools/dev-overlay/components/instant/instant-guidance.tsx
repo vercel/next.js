@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import { css } from '../../utils/css'
 
 const DOCS = 'https://nextjs.org/docs/messages/blocking-route'
@@ -76,49 +76,22 @@ const dynamicCards: FixCard[] = [
   },
 ]
 
+const VISIBLE_CARDS = 3
+
 function CardGallery({ cards }: { cards: FixCard[] }) {
   const [activePage, setActivePage] = useState(0)
-  const [pageCount, setPageCount] = useState(1)
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
+  const pageCount = Math.max(1, cards.length - VISIBLE_CARDS + 1)
+
+  const handleScroll = () => {
     const el = scrollRef.current
-    if (!el) return
-
-    const update = () => {
-      const children = Array.from(el.children) as HTMLElement[]
-      if (children.length === 0) return
-
-      const cardWidth = children[0].offsetWidth
-      const gap =
-        children.length > 1
-          ? children[1].offsetLeft - children[0].offsetLeft - cardWidth
-          : 0
-      const visibleCount = Math.max(
-        1,
-        Math.floor((el.clientWidth + gap) / (cardWidth + gap))
-      )
-      const pages = Math.max(1, children.length - visibleCount + 1)
-      setPageCount(pages)
-
-      const maxScroll = el.scrollWidth - el.clientWidth
-      if (maxScroll <= 0) {
-        setActivePage(0)
-      } else {
-        const progress = el.scrollLeft / maxScroll
-        setActivePage(Math.round(progress * (pages - 1)))
-      }
-    }
-
-    update()
-    const observer = new ResizeObserver(update)
-    observer.observe(el)
-    el.addEventListener('scroll', update, { passive: true })
-    return () => {
-      observer.disconnect()
-      el.removeEventListener('scroll', update)
-    }
-  }, [])
+    if (!el || pageCount <= 1) return
+    const maxScroll = el.scrollWidth - el.clientWidth
+    if (maxScroll <= 0) return
+    const progress = el.scrollLeft / maxScroll
+    setActivePage(Math.round(progress * (pageCount - 1)))
+  }
 
   const scrollToPage = (page: number) => {
     const el = scrollRef.current
@@ -139,7 +112,7 @@ function CardGallery({ cards }: { cards: FixCard[] }) {
 
   return (
     <div data-nextjs-card-gallery>
-      <div data-nextjs-card-gallery-row ref={scrollRef}>
+      <div data-nextjs-card-gallery-row ref={scrollRef} onScroll={handleScroll}>
         {cards.map((card) => (
           <div data-nextjs-fix-card key={card.title}>
             <pre data-nextjs-fix-snippet>
