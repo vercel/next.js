@@ -3,7 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc, turbofmt};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext, find_emit_option},
+    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     environment::Environment,
     ident::AssetIdent,
@@ -335,14 +335,7 @@ impl CssChunkItem for CssModuleChunkItem {
             }
         }
 
-        let css_emit = find_emit_option::<CssEmitOptions>(chunking_context.emit_options()).await?;
-        let css_emit_ref = if let Some(vc) = css_emit {
-            Some(vc.await?)
-        } else {
-            None
-        };
-        let css_emit_default = CssEmitOptions::default();
-        let css_emit = css_emit_ref.as_deref().unwrap_or(&css_emit_default);
+        let css_emit = CssEmitOptions::get_or_default(*chunking_context).await?;
         let result = self
             .module
             .finalize_css(*chunking_context, css_emit.minify)

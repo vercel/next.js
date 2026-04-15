@@ -86,7 +86,7 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
         MergeableModule, MergeableModuleExposure, MergeableModules, MergeableModulesExposed,
-        ModuleChunkItemIdExt, ModuleId, find_emit_option,
+        ModuleChunkItemIdExt, ModuleId,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -1038,14 +1038,7 @@ impl EcmascriptModuleContent {
             ..
         } = &*input;
 
-        let ecma_emit =
-            find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
-        let ecma_emit = if let Some(vc) = ecma_emit {
-            Some(vc.await?)
-        } else {
-            None
-        };
-        let ecma_emit = ecma_emit.as_deref().cloned().unwrap_or_default();
+        let ecma_emit = EcmascriptEmitOptions::get_or_default(**chunking_context).await?;
 
         let content = process_parse_result(
             *parsed,
@@ -1139,18 +1132,7 @@ impl EcmascriptModuleContent {
                         *specified_module_type,
                         *generate_source_map,
                         *original_source_map,
-                        {
-                            let ecma_emit = find_emit_option::<EcmascriptEmitOptions>(
-                                chunking_context.emit_options(),
-                            )
-                            .await?;
-                            let ecma_emit = if let Some(vc) = ecma_emit {
-                                Some(vc.await?)
-                            } else {
-                                None
-                            };
-                            ecma_emit.as_deref().cloned().unwrap_or_default()
-                        },
+                        EcmascriptEmitOptions::get_or_default(**chunking_context).await?,
                         Some(&*options),
                         Some(ScopeHoistingOptions {
                             module: *module,
@@ -1189,18 +1171,7 @@ impl EcmascriptModuleContent {
                 original_source_map: CodeGenResultOriginalSourceMap::ScopeHoisting(
                     original_source_maps,
                 ),
-                minify: {
-                    let ecma_emit = find_emit_option::<EcmascriptEmitOptions>(
-                        options.chunking_context.emit_options(),
-                    )
-                    .await?;
-                    let ecma_emit = if let Some(vc) = ecma_emit {
-                        Some(vc.await?)
-                    } else {
-                        None
-                    };
-                    ecma_emit.as_deref().cloned().unwrap_or_default()
-                },
+                minify: EcmascriptEmitOptions::get_or_default(*options.chunking_context).await?,
                 scope_hoisting_syntax_contexts: None,
             };
 

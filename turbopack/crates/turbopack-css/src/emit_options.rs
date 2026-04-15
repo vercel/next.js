@@ -1,4 +1,6 @@
-use turbopack_core::chunk::EmitOption;
+use anyhow::Result;
+use turbo_tasks::Vc;
+use turbopack_core::chunk::{ChunkingContext, EmitOption, find_emit_option};
 
 /// CSS-specific emit options for controlling minification and comment output.
 ///
@@ -34,6 +36,24 @@ impl CssEmitOptions {
         CssEmitOptionsBuilder {
             options: CssEmitOptions::default(),
         }
+    }
+}
+
+impl CssEmitOptions {
+    /// Look up `CssEmitOptions` from a chunking context's emit options,
+    /// falling back to defaults (no minification, comments enabled).
+    pub async fn get_or_default(chunking_context: Vc<Box<dyn ChunkingContext>>) -> Result<Self> {
+        let opts = find_emit_option::<CssEmitOptions>(chunking_context.emit_options()).await?;
+        Ok(match opts {
+            Some(vc) => {
+                let read = vc.await?;
+                CssEmitOptions {
+                    minify: read.minify,
+                    chunk_item_comments: read.chunk_item_comments,
+                }
+            }
+            None => CssEmitOptions::default(),
+        })
     }
 }
 

@@ -29,8 +29,8 @@ use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        SourceMapSourceType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, EmitOption, EvaluatableAsset,
+        EvaluatableAssetExt, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{
@@ -110,7 +110,6 @@ enum Runtime {
 }
 
 /// Minification mode for snapshot tests.
-/// Replaces the former `MinifyType` from turbopack-core.
 #[derive(Debug, Deserialize, Default)]
 enum MinifyMode {
     /// No minification (default).
@@ -123,6 +122,35 @@ enum MinifyMode {
     Deterministic,
     /// Minify without mangling (compress only).
     NoMangle,
+}
+
+impl MinifyMode {
+    /// Returns JS and CSS minification emit options for this mode.
+    /// Returns an empty vec for `MinifyMode::None`.
+    fn emit_options(&self) -> Vec<ResolvedVc<Box<dyn EmitOption>>> {
+        match self {
+            MinifyMode::None => vec![],
+            mode => {
+                let ecma_opts = match mode {
+                    MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
+                        .preset_minify_optimal_size()
+                        .build(),
+                    MinifyMode::Deterministic => EcmascriptEmitOptions::builder()
+                        .preset_minify_deterministic()
+                        .build(),
+                    MinifyMode::NoMangle => EcmascriptEmitOptions::builder()
+                        .preset_minify_no_mangle()
+                        .build(),
+                    MinifyMode::None => unreachable!(),
+                };
+                let css_opts = CssEmitOptions::builder().preset_minify().build();
+                vec![
+                    ResolvedVc::upcast(ecma_opts.resolved_cell()),
+                    ResolvedVc::upcast(css_opts.resolved_cell()),
+                ]
+            }
+        }
+    }
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -521,23 +549,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .source_map_source_type(options.source_map_source_type)
             .chunk_loading_global(options.chunk_loading_global.into());
 
-            if !matches!(options.minify_mode, MinifyMode::None) {
-                let ecma_opts = match options.minify_mode {
-                    MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
-                        .preset_minify_optimal_size()
-                        .build(),
-                    MinifyMode::Deterministic => EcmascriptEmitOptions::builder()
-                        .preset_minify_deterministic()
-                        .build(),
-                    MinifyMode::NoMangle => EcmascriptEmitOptions::builder()
-                        .preset_minify_no_mangle()
-                        .build(),
-                    MinifyMode::None => unreachable!(),
-                };
-                let css_opts = CssEmitOptions::builder().preset_minify().build();
-                builder = builder
-                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
-                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+            for opt in options.minify_mode.emit_options() {
+                builder = builder.emit_option(opt);
             }
 
             if options.remove_unused_imports {
@@ -586,23 +599,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             .debug_ids(options.enable_debug_ids)
             .source_map_source_type(options.source_map_source_type);
 
-            if !matches!(options.minify_mode, MinifyMode::None) {
-                let ecma_opts = match options.minify_mode {
-                    MinifyMode::OptimalSize => EcmascriptEmitOptions::builder()
-                        .preset_minify_optimal_size()
-                        .build(),
-                    MinifyMode::Deterministic => EcmascriptEmitOptions::builder()
-                        .preset_minify_deterministic()
-                        .build(),
-                    MinifyMode::NoMangle => EcmascriptEmitOptions::builder()
-                        .preset_minify_no_mangle()
-                        .build(),
-                    MinifyMode::None => unreachable!(),
-                };
-                let css_opts = CssEmitOptions::builder().preset_minify().build();
-                builder = builder
-                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
-                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+            for opt in options.minify_mode.emit_options() {
+                builder = builder.emit_option(opt);
             }
 
             if options.remove_unused_imports {

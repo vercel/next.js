@@ -26,10 +26,10 @@ use turbopack_core::{
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     resolve::{parse::Request, pattern::Pattern},
 };
-use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions,
-    references::esm::UrlRewriteBehavior, transform::PresetEnvConfig,
+    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+    transform::PresetEnvConfig,
 };
 use turbopack_node::{
     execution_context::ExecutionContext,
@@ -69,7 +69,7 @@ use crate::{
     util::{
         OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, internal_assets_conditions,
-        module_styles_rule_condition, worker_forwarded_globals,
+        minify_emit_options, module_styles_rule_condition, worker_forwarded_globals,
     },
 };
 
@@ -531,19 +531,8 @@ pub async fn get_client_chunking_context(
     .asset_suffix(AssetSuffix::Inferred.resolved_cell())
     .source_maps(*source_maps.await?);
 
-    if *minify.await? {
-        let ecma_opts = if *no_mangling.await? {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_no_mangle()
-                .build()
-        } else {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_optimal_size()
-                .build()
-        };
-        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder().preset_minify().build();
-        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    for opt in minify_emit_options(minify, no_mangling, false).await? {
+        builder = builder.emit_option(opt);
     }
 
     builder = builder

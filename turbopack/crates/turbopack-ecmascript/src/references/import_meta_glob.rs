@@ -28,7 +28,6 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ModuleChunkItemIdExt,
-        find_emit_option,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -697,15 +696,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.await?;
         let map = &*self.map().await?;
-        let ecma_emit =
-            find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
-        let ecma_emit_ref = if let Some(vc) = ecma_emit {
-            Some(vc.await?)
-        } else {
-            None
-        };
-        let ecma_emit_default = EcmascriptEmitOptions::default();
-        let ecma_emit = ecma_emit_ref.as_deref().unwrap_or(&ecma_emit_default);
+        let ecma_emit = EcmascriptEmitOptions::get_or_default(chunking_context).await?;
 
         let mut glob_map = ObjectLit {
             span: DUMMY_SP,

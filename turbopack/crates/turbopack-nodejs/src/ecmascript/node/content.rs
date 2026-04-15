@@ -3,7 +3,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, find_emit_option},
+    chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
@@ -75,13 +75,10 @@ impl EcmascriptBuildNodeChunkContent {
 
         let mut code = code.build();
 
-        if let Some(ecma_opts) =
-            find_emit_option::<EcmascriptEmitOptions>(self.chunking_context.emit_options()).await?
-        {
-            let ecma_opts = ecma_opts.await?;
-            if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
-                code = minify(code, source_maps, swc_opts)?;
-            }
+        let ecma_opts =
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*self.chunking_context)).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+            code = minify(code, source_maps, swc_opts)?;
         }
 
         Ok(code.cell())
@@ -93,8 +90,9 @@ impl EcmascriptBuildNodeChunkContent {
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
             *self.content,
-            find_emit_option::<EcmascriptEmitOptions>(self.chunking_context.emit_options())
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*self.chunking_context))
                 .await?
+                .swc_minify_options
                 .is_some(),
         ))
     }

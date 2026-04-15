@@ -6,12 +6,13 @@ use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports}
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs, turbobail,
+    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, Vc, fxindexset, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
     asset::AssetContent,
+    chunk::EmitOption,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, DefinableNameSegment, FreeVarReference,
         FreeVarReferences,
@@ -21,6 +22,8 @@ use turbopack_core::{
     source::Source,
     virtual_source::VirtualSource,
 };
+use turbopack_css::emit_options::CssEmitOptions;
+use turbopack_ecmascript::emit_options::EcmascriptEmitOptions;
 
 use crate::{
     embed_js::next_js_fs, next_config::NextConfig, next_import_map::get_next_package,
@@ -556,4 +559,41 @@ pub fn worker_forwarded_globals() -> Vec<RcStr> {
         rcstr!("NEXT_DEPLOYMENT_ID"),
         rcstr!("NEXT_CLIENT_ASSET_SUFFIX"),
     ]
+}
+
+/// Returns JS and CSS minification emit options to add to a chunking context
+/// builder. Returns an empty `Vec` when minification is disabled.
+///
+/// `deterministic_mangle` selects the mangling strategy used when mangling IS
+/// enabled (i.e. `no_mangling` is `false`):
+/// - `true`  → `preset_minify_deterministic` (stable names, used for SSR)
+/// - `false` → `preset_minify_optimal_size`  (smallest output, used for client)
+pub async fn minify_emit_options(
+    minify: Vc<bool>,
+    no_mangling: Vc<bool>,
+    deterministic_mangle: bool,
+) -> Result<Vec<ResolvedVc<Box<dyn EmitOption>>>> {
+    if !*minify.await? {
+        return Ok(vec![]);
+    }
+
+    let ecma_opts = if *no_mangling.await? {
+        EcmascriptEmitOptions::builder()
+            .preset_minify_no_mangle()
+            .build()
+    } else if deterministic_mangle {
+        EcmascriptEmitOptions::builder()
+            .preset_minify_deterministic()
+            .build()
+    } else {
+        EcmascriptEmitOptions::builder()
+            .preset_minify_optimal_size()
+            .build()
+    };
+    let css_opts = CssEmitOptions::builder().preset_minify().build();
+
+    Ok(vec![
+        ResolvedVc::upcast(ecma_opts.resolved_cell()),
+        ResolvedVc::upcast(css_opts.resolved_cell()),
+    ])
 }

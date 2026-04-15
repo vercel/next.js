@@ -7,7 +7,7 @@ use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{ChunkingContext, ModuleId, find_emit_option},
+    chunk::{ChunkingContext, ModuleId},
     code_builder::{Code, CodeBuilder},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMapAsset},
@@ -130,13 +130,10 @@ impl EcmascriptBrowserChunkContent {
 
         let mut code = code.build();
 
-        if let Some(ecma_opts) =
-            find_emit_option::<EcmascriptEmitOptions>(this.chunking_context.emit_options()).await?
-        {
-            let ecma_opts = ecma_opts.await?;
-            if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
-                code = minify(code, source_maps, swc_opts)?;
-            }
+        let ecma_opts =
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*this.chunking_context)).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+            code = minify(code, source_maps, swc_opts)?;
         }
 
         Ok(code.cell())

@@ -15,8 +15,8 @@ use turbopack_core::{
     issue::IssueSeverity,
     module_graph::binding_usage_info::OptionBindingUsageInfo,
 };
-use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
-use turbopack_ecmascript::{chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions};
+use turbopack_css::chunk::CssChunkType;
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
 use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
@@ -30,7 +30,8 @@ use crate::{
     next_shared::resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
-        free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
+        free_var_references_with_vercel_system_env_warnings, minify_emit_options,
+        worker_forwarded_globals,
     },
 };
 
@@ -262,19 +263,8 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
-    if *turbo_minify.await? {
-        let ecma_opts = if *no_mangling.await? {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_no_mangle()
-                .build()
-        } else {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_deterministic()
-                .build()
-        };
-        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder().preset_minify().build();
-        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    for opt in minify_emit_options(turbo_minify, no_mangling, true).await? {
+        builder = builder.emit_option(opt);
     }
 
     if !next_mode.is_development() {
@@ -372,19 +362,8 @@ pub async fn get_edge_chunking_context(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
-    if *turbo_minify.await? {
-        let ecma_opts = if *no_mangling.await? {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_no_mangle()
-                .build()
-        } else {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_optimal_size()
-                .build()
-        };
-        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder().preset_minify().build();
-        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    for opt in minify_emit_options(turbo_minify, no_mangling, false).await? {
+        builder = builder.emit_option(opt);
     }
 
     if !next_mode.is_development() {

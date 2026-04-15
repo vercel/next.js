@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
+use anyhow::Result;
 use swc_core::{
     atoms::atom,
     ecma::minifier::option::{CompressOptions, MangleOptions, MinifyOptions as SwcMinifyOptions},
 };
-use turbopack_core::chunk::EmitOption;
+use turbo_tasks::Vc;
+use turbopack_core::chunk::{ChunkingContext, EmitOption, find_emit_option};
 
 /// Ecmascript-specific emit options for controlling minification, indentation,
 /// and other code generation settings.
@@ -67,7 +69,26 @@ impl EcmascriptEmitOptions {
     }
 }
 
+impl EcmascriptEmitOptions {
+    /// Look up `EcmascriptEmitOptions` from a chunking context's emit options,
+    /// falling back to defaults (no minification, indent enabled, comments enabled).
+    pub async fn get_or_default(chunking_context: Vc<Box<dyn ChunkingContext>>) -> Result<Self> {
+        let opts =
+            find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
+        Ok(match opts {
+            Some(vc) => (*vc.await?).clone(),
+            None => EcmascriptEmitOptions::default(),
+        })
+    }
+}
+
 impl EcmascriptEmitOptionsBuilder {
+    /// Common settings applied by all minification presets.
+    fn apply_minify_defaults(&mut self) {
+        self.options.indent = false;
+        self.options.merged_module_comments = false;
+    }
+
     /// Set full SWC minify options directly.
     pub fn swc_minify_options(mut self, opts: SwcMinifyOptions) -> Self {
         self.options.swc_minify_options = Some(Arc::new(opts));
@@ -88,8 +109,7 @@ impl EcmascriptEmitOptionsBuilder {
             }),
             ..Default::default()
         }));
-        self.options.indent = false;
-        self.options.merged_module_comments = false;
+        self.apply_minify_defaults();
         self
     }
 
@@ -109,8 +129,7 @@ impl EcmascriptEmitOptionsBuilder {
             }),
             ..Default::default()
         }));
-        self.options.indent = false;
-        self.options.merged_module_comments = false;
+        self.apply_minify_defaults();
         self
     }
 
@@ -128,8 +147,7 @@ impl EcmascriptEmitOptionsBuilder {
             mangle: None,
             ..Default::default()
         }));
-        self.options.indent = false;
-        self.options.merged_module_comments = false;
+        self.apply_minify_defaults();
         self
     }
 

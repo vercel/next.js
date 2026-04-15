@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{Chunk, ChunkItem, ChunkingContext, find_emit_option},
+    chunk::{Chunk, ChunkItem, ChunkingContext},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     introspect::Introspectable,
@@ -59,20 +59,10 @@ impl SingleItemCssChunk {
         // CSS chunks never have debug IDs
         let mut code = CodeBuilder::new(source_maps, false);
 
-        {
-            let css_emit =
-                find_emit_option::<CssEmitOptions>(this.chunking_context.emit_options()).await?;
-            let css_emit_ref = if let Some(vc) = css_emit {
-                Some(vc.await?)
-            } else {
-                None
-            };
-            let css_emit_default = CssEmitOptions::default();
-            let css_emit = css_emit_ref.as_deref().unwrap_or(&css_emit_default);
-            if css_emit.chunk_item_comments {
-                let id = this.item.asset_ident().to_string().await?;
-                writeln!(code, "/* {id} */")?;
-            }
+        let css_emit = CssEmitOptions::get_or_default(*this.chunking_context).await?;
+        if css_emit.chunk_item_comments {
+            let id = this.item.asset_ident().to_string().await?;
+            writeln!(code, "/* {id} */")?;
         }
         let content = this.item.content().await?;
         let close = write_import_context(&mut code, content.import_context).await?;

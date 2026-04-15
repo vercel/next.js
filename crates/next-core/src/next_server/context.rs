@@ -25,10 +25,17 @@ use turbopack_core::{
     module_graph::binding_usage_info::OptionBindingUsageInfo,
     target::CompileTarget,
 };
-use turbopack_css::{chunk::CssChunkType, emit_options::CssEmitOptions};
+use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
+<<<<<<< HEAD
     AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
     emit_options::EcmascriptEmitOptions, references::esm::UrlRewriteBehavior,
+||||||| parent of 020235e3 (Clean up EmitOption usage: extract helpers, reduce duplication)
+    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, emit_options::EcmascriptEmitOptions,
+    references::esm::UrlRewriteBehavior,
+=======
+    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+>>>>>>> 020235e3 (Clean up EmitOption usage: extract helpers, reduce duplication)
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -74,8 +81,8 @@ use crate::{
     util::{
         NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
         free_var_references_with_vercel_system_env_warnings, get_transpiled_packages,
-        internal_assets_conditions, load_next_js_jsonc_file, module_styles_rule_condition,
-        worker_forwarded_globals,
+        internal_assets_conditions, load_next_js_jsonc_file, minify_emit_options,
+        module_styles_rule_condition, worker_forwarded_globals,
     },
 };
 
@@ -1099,19 +1106,8 @@ pub async fn get_server_chunking_context_with_client_assets(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
-    if *minify.await? {
-        let ecma_opts = if *no_mangling.await? {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_no_mangle()
-                .build()
-        } else {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_deterministic()
-                .build()
-        };
-        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder().preset_minify().build();
-        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    for opt in minify_emit_options(minify, no_mangling, true).await? {
+        builder = builder.emit_option(opt);
     }
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
@@ -1213,19 +1209,8 @@ pub async fn get_server_chunking_context(
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
-    if *minify.await? {
-        let ecma_opts = if *no_mangling.await? {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_no_mangle()
-                .build()
-        } else {
-            EcmascriptEmitOptions::builder()
-                .preset_minify_optimal_size()
-                .build()
-        };
-        builder = builder.emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()));
-        let css_opts = CssEmitOptions::builder().preset_minify().build();
-        builder = builder.emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+    for opt in minify_emit_options(minify, no_mangling, false).await? {
+        builder = builder.emit_option(opt);
     }
 
     if next_mode.is_development() {

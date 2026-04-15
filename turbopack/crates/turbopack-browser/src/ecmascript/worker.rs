@@ -8,7 +8,7 @@ use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, find_emit_option},
+    chunk::ChunkingContext,
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     output::{OutputAsset, OutputAssetsReference, OutputAssetsWithReferenced},
@@ -57,13 +57,9 @@ impl EcmascriptBrowserWorkerEntrypoint {
         let forwarded_globals = this.forwarded_globals.await?;
         let mut code = generate_worker_bootstrap_code(&forwarded_globals)?;
 
-        if let Some(ecma_opts) =
-            find_emit_option::<EcmascriptEmitOptions>(this.chunking_context.emit_options()).await?
-        {
-            let ecma_opts = ecma_opts.await?;
-            if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
-                code = minify(code, source_maps, swc_opts)?;
-            }
+        let ecma_opts = EcmascriptEmitOptions::get_or_default(*this.chunking_context).await?;
+        if let Some(ref swc_opts) = ecma_opts.swc_minify_options {
+            code = minify(code, source_maps, swc_opts)?;
         }
 
         Ok(code.cell())
