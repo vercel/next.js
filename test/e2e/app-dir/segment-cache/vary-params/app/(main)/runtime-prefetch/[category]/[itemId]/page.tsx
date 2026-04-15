@@ -21,7 +21,7 @@ export const unstable_instant: {
     { params: { category: 'clothing', itemId: 'shirt' } },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 type Params = { category: string; itemId: string }
 

@@ -49,11 +49,20 @@ const InstantConfigSchema = z.union([
   z.literal(false),
 ])
 
-const PrefetchSchema = z.enum(['static', 'runtime'])
+const PrefetchSchema = z.enum([
+  'auto',
+  'force-disabled',
+  'force-static',
+  'force-runtime',
+])
 
 export type Instant = InstantConfigStatic | InstantConfigRuntime | false
 
-export type Prefetch = 'static' | 'runtime'
+export type Prefetch =
+  | 'auto'
+  | 'force-disabled'
+  | 'force-static'
+  | 'force-runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericPrefetch type is used to avoid type widening issues with
@@ -208,7 +217,7 @@ export function parseAppSegmentConfig(
           }
           case 'unstable_prefetch': {
             return {
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "static" or "runtime".`,
+              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "force-disabled", "force-static", or "force-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {

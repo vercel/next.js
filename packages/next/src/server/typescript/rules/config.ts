@@ -156,6 +156,18 @@ const API_DOCS: Record<
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
     insertText: 'unstable_instant = { prefetch: "static" };',
   },
+  unstable_prefetch: {
+    description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
+    link: '(docs coming soon)',
+    type: `"auto" | "force-disabled" | "force-static" | "force-runtime"`,
+    options: {
+      auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      'force-disabled': 'Never prefetch this segment.',
+      'force-static': 'Always prefetch this segment statically.',
+      'force-runtime': 'Always prefetch this segment at runtime.',
+    },
+    insertText: `unstable_prefetch = 'force-runtime';`,
+  },
   unstable_dynamicStaleTime: {
     description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
     link: '(docs coming soon)',
