@@ -58,16 +58,16 @@ pub async fn get_server_actions_transform_rule(
 async fn next_server_actions_transform_plugin(
     mode: Vc<NextMode>,
     transform: ActionsTransform,
-    encryption_key: Vc<RcStr>,
+    encryption_key: ResolvedVc<RcStr>,
     use_cache_enabled: bool,
-    cache_kinds: Vc<CacheKinds>,
+    cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<Vc<TransformPlugin>> {
     Ok(Vc::cell(Box::new(NextServerActions {
         mode: *mode.await?,
         is_react_server_layer: matches!(transform, ActionsTransform::Server),
-        encryption_key: encryption_key.to_resolved().await?,
+        encryption_key,
         use_cache_enabled,
-        cache_kinds: cache_kinds.to_resolved().await?,
+        cache_kinds,
     }) as Box<dyn CustomTransformer + Send + Sync>))
 }
 

@@ -23,7 +23,7 @@ use crate::{next_config::NextConfig, next_shared::transforms::EcmascriptTransfor
 /// +-----------------+---------+--------------------+
 /// | SSR             | true    | false              |
 /// | Client          | true    | false              |
-/// | Middleware       | false   | false              |
+/// | Middleware      | false   | false              |
 /// | Api             | false   | false              |
 /// | RSC             | true    | true               |
 /// | Pages           | true    | false              |
