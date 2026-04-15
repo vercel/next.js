@@ -77,7 +77,6 @@ See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full li
 
 These directories contain only fixtures, no test files:
 
-- `test/integration/bundle-size-profiling`
 - `test/integration/css-fixtures`
 
 ## Summary
