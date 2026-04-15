@@ -6092,6 +6092,12 @@
     "styles": ["normal", "italic"],
     "axes": [
       {
+        "tag": "MONO",
+        "min": 0,
+        "max": 1,
+        "defaultValue": 1
+      },
+      {
         "tag": "wght",
         "min": 300,
         "max": 800,
