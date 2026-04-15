@@ -50,21 +50,23 @@ These test CLI tools directly, not server behavior.
 | ---------------------------------- | ------------------------------------------------------- |
 | `test/integration/create-next-app` | Spawns `create-next-app` binary, checks generated files |
 
-### Large Multi-Fixture Suites
+### Large Multi-Fixture Suites (Remaining Blocked)
 
-These suites use dozens of separate fixture directories, making 1:1 conversion impractical.
+The `react-virtualized` sub-tests from both image suites remain blocked due to external HTTP proxy usage.
 
-| Suite                                | Fixture dirs | Reason                           |
-| ------------------------------------ | ------------ | -------------------------------- |
-| `test/integration/next-image-legacy` | 14           | 15 test files, 101 fixture files |
-| `test/integration/next-image-new`    | 20+          | 24 test files, 202 fixture files |
+| Suite                                                  | Reason                                            |
+| ------------------------------------------------------ | ------------------------------------------------- |
+| `test/integration/next-image-new/react-virtualized`    | HTTP proxy (`http-proxy`) to stall image requests |
+| `test/integration/next-image-legacy/react-virtualized` | HTTP proxy (`http-proxy`) to stall image requests |
 
 #### Converted (formerly blocked)
 
-| Suite                          | Converted to                                                                                                                                                                                                                |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/integration/css`         | `test/production/css-features/{valid-invalid-css,basic-global-support,css-compilation,css-rendering}.test.ts`, `test/e2e/css-features/css-and-styled-jsx.test.ts`, `test/development/css-features/dev-css-handling.test.ts` |
-| `test/integration/css-modules` | `test/production/css-features/{css-modules-support,css-modules-ordering}.test.ts`, `test/e2e/css-features/css-modules-ordering.test.ts`, `test/development/css-features/css-modules-support.test.ts`                        |
+| Suite                                                      | Converted to                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/integration/css`                                     | `test/production/css-features/{valid-invalid-css,basic-global-support,css-compilation,css-rendering}.test.ts`, `test/e2e/css-features/css-and-styled-jsx.test.ts`, `test/development/css-features/dev-css-handling.test.ts`                                                                                                                                                                                                                                               |
+| `test/integration/css-modules`                             | `test/production/css-features/{css-modules-support,css-modules-ordering}.test.ts`, `test/e2e/css-features/css-modules-ordering.test.ts`, `test/development/css-features/css-modules-support.test.ts`                                                                                                                                                                                                                                                                      |
+| `test/integration/next-image-new` (37 of 39 test files)    | `test/e2e/next-image-new/{default,app-dir,base-path,trailing-slash,unicode,asset-prefix,both-basepath-trailingslash,loader-config,loader-config-default-loader-with-file,loader-config-edge-runtime,unoptimized,typescript,image-from-node-modules,app-dir-image-from-node-modules,app-dir-localpatterns,app-dir-qualities}/`, `test/development/next-image-new/{middleware,export-config,invalid-image-import}/`, `test/production/next-image-new/invalid-image-import/` |
+| `test/integration/next-image-legacy` (14 of 15 test files) | `test/e2e/next-image-legacy/{default,base-path,trailing-slash,unicode,asset-prefix,unoptimized,typescript,image-from-node-modules}/`, `test/production/next-image-legacy/{basic,custom-resolver,noscript,no-intersection-observer-fallback}/`                                                                                                                                                                                                                             |
 
 ### Score-10 (Originally Blocked by Ranker)
 
@@ -93,10 +95,11 @@ These directories contain only fixtures, no test files:
 | Converted (Phase 1, score 1-3)  | 102     |
 | Converted (Phase 2, score 4-6)  | 75      |
 | Converted (Phase 3, score 7-9)  | 5       |
-| Converted (large multi-fixture) | 2       |
-| **Total converted**             | **184** |
+| Converted (large multi-fixture) | 4       |
+| **Total converted**             | **186** |
 | Blocked (Phase 1-3, score 1-9)  | 15      |
 | Blocked (score 10, ranker)      | 70      |
+| Blocked (react-virtualized)     | 2       |
 | No test files                   | 3       |
-| **Total blocked**               | **88**  |
-| **Grand total**                 | **275** |
+| **Total blocked**               | **90**  |
+| **Grand total**                 | **276** |
