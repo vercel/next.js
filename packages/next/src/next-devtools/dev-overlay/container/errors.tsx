@@ -21,10 +21,6 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { InstantGuidance } from '../components/instant/instant-guidance'
-import {
-  getBlockingRouteErrorDetails,
-  getDynamicMetadataErrorDetails,
-} from '../components/blocking-route/blocking-route-error-details'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -481,11 +477,16 @@ type HydrationErrorDetails = {
   reactOutputComponentDiff: string | null
 }
 
-type BlockingRouteErrorDetails =
-  import('../components/blocking-route/blocking-route-error-details').BlockingRouteErrorDetails
+type BlockingRouteErrorDetails = {
+  type: 'blocking-route'
+  variant: 'navigation' | 'runtime'
+  refinement: '' | 'generateViewport'
+}
 
-type DynamicMetadataErrorDetails =
-  import('../components/blocking-route/blocking-route-error-details').DynamicMetadataErrorDetails
+type DynamicMetadataErrorDetails = {
+  type: 'dynamic-metadata'
+  variant: 'navigation' | 'runtime'
+}
 
 const noErrorDetails: ErrorDetails = {
   type: 'empty',
@@ -551,6 +552,63 @@ function getHydrationErrorDetails(
     warning: message,
     notes,
     reactOutputComponentDiff: diff,
+  }
+}
+
+function isRuntimeVariant(message: string): boolean {
+  if (
+    message.includes('Runtime data such as') &&
+    !message.includes('Dynamic or runtime data')
+  ) {
+    return true
+  }
+  if (message.includes('Runtime data was accessed inside')) return true
+  if (
+    message.includes('A request-time API') &&
+    !message.includes('Uncached data or a request-time API')
+  ) {
+    return true
+  }
+  return false
+}
+
+function getBlockingRouteErrorDetails(
+  error: Error
+): BlockingRouteErrorDetails | null {
+  const isBlockingPageLoadError = error.message.includes('/blocking-route')
+
+  if (isBlockingPageLoadError) {
+    return {
+      type: 'blocking-route',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
+      refinement: '',
+    }
+  }
+
+  const isBlockingViewportError = error.message.includes(
+    '/next-prerender-dynamic-viewport'
+  )
+  if (isBlockingViewportError) {
+    return {
+      type: 'blocking-route',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
+      refinement: 'generateViewport',
+    }
+  }
+
+  return null
+}
+
+function getDynamicMetadataErrorDetails(
+  error: Error
+): DynamicMetadataErrorDetails | null {
+  if (!error.message.includes('/next-prerender-dynamic-metadata')) {
+    return null
+  }
+
+  return {
+    type: 'dynamic-metadata',
+    variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
   }
 }
 
