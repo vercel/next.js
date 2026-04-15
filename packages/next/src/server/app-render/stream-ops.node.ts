@@ -597,13 +597,11 @@ export { renderToWebFizzStream } from './stream-ops.web'
 
 export async function renderToNodeFizzStream(
   element: React.ReactElement,
-  streamOptions: any,
-  options?: { waitForAllReady?: boolean }
+  streamOptions: any
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
   const shellReady = new DetachedPromise<void>()
   const allReady = new DetachedPromise<void>()
-  const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
     renderToPipeableStream(element, {
@@ -611,9 +609,7 @@ export async function renderToNodeFizzStream(
       onHeaders: streamOptions?.onHeaders,
       onShellReady() {
         streamOptions?.onShellReady?.()
-        if (!deferPipe) {
-          pipeable.pipe(pt)
-        }
+        pipeable.pipe(pt)
         shellReady.resolve()
       },
       onShellError(error: unknown) {
@@ -622,9 +618,6 @@ export async function renderToNodeFizzStream(
       },
       onAllReady() {
         streamOptions?.onAllReady?.()
-        if (deferPipe) {
-          pipeable.pipe(pt)
-        }
         allReady.resolve()
       },
       onError: streamOptions?.onError,
