@@ -572,77 +572,46 @@ impl TurboFn<'_> {
         let mut block = if self.is_self_used
             && let Some(converted_this) = self.converted_this()
         {
-            // Self case: try optimized path when both this and args are resolved.
+            // Self case: args stay on the stack in a StackArgSlot; boxing is deferred
+            // to the cache-miss path inside the backend.
             quote! {
                 {
                     #assertions
-                    let inputs = (#(#inputs,)*);
                     let this = #converted_this;
+                    let inputs = (#(#inputs,)*);
                     let persistence =
                         turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(
                             this, &inputs,
                         );
-                    if this.is_resolved()
-                        && turbo_tasks::macro_helpers::NativeFunction::arg_is_resolved(
+                    let mut arg = turbo_tasks::StackArgSlot::new(inputs);
+                    <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                        turbo_tasks::dynamic_call(
                             &#native_function_ident,
-                            &inputs as &dyn turbo_tasks::MagicAny,
+                            Some(this),
+                            &mut arg,
+                            persistence,
                         )
-                    {
-                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                            turbo_tasks::native_call_if_consistent(
-                                &#native_function_ident,
-                                Some(this),
-                                inputs,
-                                persistence,
-                            )
-                        )
-                    } else {
-                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                            turbo_tasks::dynamic_call(
-                                &#native_function_ident,
-                                Some(this),
-                                std::boxed::Box::new(inputs)
-                                    as std::boxed::Box<dyn turbo_tasks::MagicAny>,
-                                persistence,
-                            )
-                        )
-                    }
+                    )
                 }
             }
         } else {
-            // No-self case: use the optimized path that avoids boxing on cache hit.
-            // First check if all inputs are resolved. If so, use native_call_if_consistent
-            // which does a read-only cache lookup with borrowed args.
-            // On cache miss or unresolved inputs, fall back to the boxed dynamic_call path.
+            // No-self case: args stay on the stack in a StackArgSlot; boxing is deferred
+            // to the cache-miss path inside the backend.
             quote! {
                 {
                     #assertions
                     let inputs = (#(#inputs,)*);
                     let persistence =
                         turbo_tasks::macro_helpers::get_persistence_from_inputs(&inputs);
-                    if turbo_tasks::macro_helpers::NativeFunction::arg_is_resolved(
-                        &#native_function_ident,
-                        &inputs as &dyn turbo_tasks::MagicAny,
-                    ) {
-                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                            turbo_tasks::native_call_if_consistent(
-                                &#native_function_ident,
-                                None,
-                                inputs,
-                                persistence,
-                            )
+                    let mut arg = turbo_tasks::StackArgSlot::new(inputs);
+                    <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
+                        turbo_tasks::dynamic_call(
+                            &#native_function_ident,
+                            None,
+                            &mut arg,
+                            persistence,
                         )
-                    } else {
-                        <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                            turbo_tasks::dynamic_call(
-                                &#native_function_ident,
-                                None,
-                                std::boxed::Box::new(inputs)
-                                    as std::boxed::Box<dyn turbo_tasks::MagicAny>,
-                                persistence,
-                            )
-                        )
-                    }
+                    )
                 }
             }
         };

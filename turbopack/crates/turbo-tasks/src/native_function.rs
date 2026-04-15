@@ -244,11 +244,6 @@ impl NativeFunction {
         }
     }
 
-    /// Check if the argument is resolved (all inner Vc values are resolved).
-    pub fn arg_is_resolved(&self, arg: &dyn MagicAny) -> bool {
-        self.arg_meta.is_resolved(arg)
-    }
-
     pub fn span(
         &'static self,
         persistence: TaskPersistence,

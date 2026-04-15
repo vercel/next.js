@@ -27,9 +27,10 @@ use tokio::time::{Duration, Instant};
 use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
-    CellId, FxDashMap, MagicAny, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SharedReference, TRANSIENT_TASK_BIT, TaskExecutionReason,
-    TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic, ValueTypeId,
+    CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
+    ReadOutputOptions, ReadTracking, SharedReference, StackArg, TRANSIENT_TASK_BIT,
+    TaskExecutionReason, TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic,
+    ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, CellHash, TaskExecutionSpec, TransientTaskType,
         TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -351,18 +352,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.options.active_tracking
     }
 
-    fn track_cache_hit(&self, task_type: &CachedTaskType) {
-        self.track_cache_hit_by_fn(task_type.native_fn);
-    }
-
     fn track_cache_hit_by_fn(&self, native_fn: &'static NativeFunction) {
         self.task_statistics
             .map(|stats| stats.increment_cache_hit(native_fn));
-    }
-
-    #[allow(dead_code)]
-    fn track_cache_miss(&self, task_type: &CachedTaskType) {
-        self.track_cache_miss_by_fn(task_type.native_fn);
     }
 
     fn track_cache_miss_by_fn(&self, native_fn: &'static NativeFunction) {
@@ -1516,20 +1508,36 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn get_or_create_persistent_task(
         &self,
-        task_type: CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackArg,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
-        let is_root = task_type.native_fn.is_root;
+        let is_root = native_fn.is_root;
 
-        // First check if the task exists in the cache which only uses a read lock
-        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
-        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
-        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
-            self.track_cache_hit(&task_type);
+        // Phase 1: Fast read-only cache lookup using borrowed arg (no heap allocation).
+        let arg_ref = arg.arg_ref();
+        let hash = CachedTaskType::hash_from_components(
+            self.task_cache.hasher(),
+            native_fn,
+            this,
+            arg_ref,
+        );
+        if let Some(task_id) = raw_get(&self.task_cache, hash, |k| {
+            k.eq_components(native_fn, this, arg_ref)
+        }) {
+            self.track_cache_hit_by_fn(native_fn);
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
+
+        // Phase 2: Cache miss — materialize the box and go through the full path.
+        let task_type = CachedTaskType {
+            native_fn,
+            this,
+            arg: arg.take_box(),
+        };
 
         // Create a single ExecuteContext for both lookup and connect_child
         let mut ctx = self.execute_context(turbo_tasks);
@@ -1538,7 +1546,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_id = if let Some(task_id) = ctx.task_by_type(&task_type) {
             // Task exists in backing storage
             // So we only need to insert it into the in-memory cache
-            self.track_cache_hit(&task_type);
+            self.track_cache_hit_by_fn(native_fn);
             match raw_entry(&self.task_cache, &task_type) {
                 RawEntry::Occupied(_) => {}
                 RawEntry::Vacant(e) => {
@@ -1556,12 +1564,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // They will handle logging the new task as modified
                     let task_id = *e.get();
                     drop(e);
-                    self.track_cache_hit(&task_type);
+                    self.track_cache_hit_by_fn(native_fn);
                     task_id
                 }
                 RawEntry::Vacant(e) => {
                     // We're creating a new task.
-                    let native_fn = task_type.native_fn;
                     let task_type = Arc::new(task_type);
                     let task_id = self.persisted_task_id_factory.get();
                     // Initialize storage BEFORE making task_id visible in the cache.
@@ -1597,40 +1604,57 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn get_or_create_transient_task(
         &self,
-        task_type: CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackArg,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
-        let is_root = task_type.native_fn.is_root;
+        let is_root = native_fn.is_root;
 
         if let Some(parent_task) = parent_task
             && !parent_task.is_transient()
         {
             self.panic_persistent_calling_transient(
                 self.debug_get_task_description(parent_task),
-                Some(&task_type),
+                None,
                 /* cell_id */ None,
             );
         }
-        // First check if the task exists in the cache which only uses a read lock.
-        // .map(|r| *r) copies the TaskId and drops the DashMap Ref (releasing the read lock)
-        // before ConnectChildOperation::run, which may re-enter task_cache with a write lock.
-        if let Some(task_id) = self.task_cache.get(&task_type).map(|r| *r) {
-            self.track_cache_hit(&task_type);
+
+        // Phase 1: Fast read-only cache lookup using borrowed arg (no heap allocation).
+        let arg_ref = arg.arg_ref();
+        let hash = CachedTaskType::hash_from_components(
+            self.task_cache.hasher(),
+            native_fn,
+            this,
+            arg_ref,
+        );
+        if let Some(task_id) = raw_get(&self.task_cache, hash, |k| {
+            k.eq_components(native_fn, this, arg_ref)
+        }) {
+            self.track_cache_hit_by_fn(native_fn);
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
-        // If not, acquire a write lock and double check / insert
+
+        // Phase 2: Cache miss — materialize the box and go through the full path.
+        let task_type = CachedTaskType {
+            native_fn,
+            this,
+            arg: arg.take_box(),
+        };
+
+        // Double-check under write lock
         match raw_entry(&self.task_cache, &task_type) {
             RawEntry::Occupied(e) => {
                 let task_id = *e.get();
                 drop(e);
-                self.track_cache_hit(&task_type);
+                self.track_cache_hit_by_fn(native_fn);
                 self.connect_child(parent_task, task_id, turbo_tasks);
                 task_id
             }
             RawEntry::Vacant(e) => {
-                let native_fn = task_type.native_fn;
                 let task_type = Arc::new(task_type);
                 let task_id = self.transient_task_id_factory.get();
                 // Initialize storage BEFORE making task_id visible in the cache.
@@ -1655,63 +1679,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                 task_id
             }
-        }
-    }
-
-    /// Read-only cache lookup for a persistent task using borrowed components.
-    /// On hit: connects the parent task and returns `Ok(task_id)`.
-    /// On miss: returns `Err(hash)` with the pre-computed hash for reuse.
-    fn try_get_or_create_persistent_task(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &dyn MagicAny,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> Result<TaskId, u64> {
-        let hash =
-            CachedTaskType::hash_from_components(self.task_cache.hasher(), native_fn, this, arg);
-        if let Some(task_id) = raw_get(&self.task_cache, hash, |k| {
-            k.eq_components(native_fn, this, arg)
-        }) {
-            self.track_cache_hit_by_fn(native_fn);
-            self.connect_child(parent_task, task_id, turbo_tasks);
-            Ok(task_id)
-        } else {
-            Err(hash)
-        }
-    }
-
-    /// Read-only cache lookup for a transient task using borrowed components.
-    /// On hit: connects the parent task and returns `Ok(task_id)`.
-    /// On miss: returns `Err(hash)` with the pre-computed hash for reuse.
-    fn try_get_or_create_transient_task(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &dyn MagicAny,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> Result<TaskId, u64> {
-        if let Some(parent_task) = parent_task
-            && !parent_task.is_transient()
-        {
-            self.panic_persistent_calling_transient(
-                self.debug_get_task_description(parent_task),
-                None,
-                /* cell_id */ None,
-            );
-        }
-        let hash =
-            CachedTaskType::hash_from_components(self.task_cache.hasher(), native_fn, this, arg);
-        if let Some(task_id) = raw_get(&self.task_cache, hash, |k| {
-            k.eq_components(native_fn, this, arg)
-        }) {
-            self.track_cache_hit_by_fn(native_fn);
-            self.connect_child(parent_task, task_id, turbo_tasks);
-            Ok(task_id)
-        } else {
-            Err(hash)
         }
     }
 
@@ -3525,46 +3492,26 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn get_or_create_persistent_task(
         &self,
-        task_type: CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackArg,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_persistent_task(task_type, parent_task, turbo_tasks)
+            .get_or_create_persistent_task(native_fn, this, arg, parent_task, turbo_tasks)
     }
 
     fn get_or_create_transient_task(
         &self,
-        task_type: CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackArg,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_transient_task(task_type, parent_task, turbo_tasks)
-    }
-
-    fn try_get_or_create_persistent_task(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &dyn MagicAny,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<TaskId, u64> {
-        self.0
-            .try_get_or_create_persistent_task(native_fn, this, arg, parent_task, turbo_tasks)
-    }
-
-    fn try_get_or_create_transient_task(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &dyn MagicAny,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<TaskId, u64> {
-        self.0
-            .try_get_or_create_transient_task(native_fn, this, arg, parent_task, turbo_tasks)
+            .get_or_create_transient_task(native_fn, this, arg, parent_task, turbo_tasks)
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {

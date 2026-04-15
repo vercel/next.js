@@ -38,3 +38,76 @@ pub fn any_as_encode<T: Any>(this: &dyn Any) -> &T {
         type_name::<T>()
     );
 }
+
+/// A trait for task arguments that may reside on the stack.
+///
+/// This enables deferred boxing: on the cache-hit path (~85%), we only borrow
+/// the argument via [`arg_ref`](StackArg::arg_ref) for hash/equality lookups,
+/// avoiding any heap allocation. On cache miss, [`take_box`](StackArg::take_box)
+/// moves the value into a `Box` with zero clones.
+pub trait StackArg {
+    /// Borrow the argument as a type-erased reference (for cache lookup).
+    fn arg_ref(&self) -> &dyn MagicAny;
+    /// Move the argument out into a heap-allocated Box (panics if already taken).
+    fn take_box(&mut self) -> Box<dyn MagicAny>;
+}
+
+/// Stack-resident argument slot wrapping a concrete typed value.
+///
+/// Created by macro-generated callsites. The value starts in `Some` on the
+/// stack; [`take_box`](StackArg::take_box) moves it to the heap on cache miss.
+pub struct StackArgSlot<T> {
+    slot: Option<T>,
+}
+
+impl<T> StackArgSlot<T> {
+    #[inline]
+    pub fn new(value: T) -> Self {
+        Self { slot: Some(value) }
+    }
+}
+
+impl<T: MagicAny> StackArg for StackArgSlot<T> {
+    #[inline]
+    fn arg_ref(&self) -> &dyn MagicAny {
+        self.slot
+            .as_ref()
+            .expect("StackArgSlot::arg_ref called after take_box")
+    }
+
+    #[inline]
+    fn take_box(&mut self) -> Box<dyn MagicAny> {
+        Box::new(
+            self.slot
+                .take()
+                .expect("StackArgSlot::take_box called twice"),
+        )
+    }
+}
+
+/// Adapter for an already-boxed argument (e.g., from async resolution tasks).
+pub struct OwnedArg {
+    slot: Option<Box<dyn MagicAny>>,
+}
+
+impl OwnedArg {
+    #[inline]
+    pub fn new(value: Box<dyn MagicAny>) -> Self {
+        Self { slot: Some(value) }
+    }
+}
+
+impl StackArg for OwnedArg {
+    #[inline]
+    fn arg_ref(&self) -> &dyn MagicAny {
+        &**self
+            .slot
+            .as_ref()
+            .expect("OwnedArg::arg_ref called after take_box")
+    }
+
+    #[inline]
+    fn take_box(&mut self) -> Box<dyn MagicAny> {
+        self.slot.take().expect("OwnedArg::take_box called twice")
+    }
+}
