@@ -13,6 +13,8 @@ These tests spin up auxiliary HTTP servers (proxies, CDN simulators, external AP
 | `test/integration/filesystempublicroutes` | Custom server via `initNextServerScript(server.js)`           |
 | `test/integration/image-optimizer`        | External HTTP server + shared test runner + custom server API |
 
+> **Converted from this category:** `api-body-parser` (via `startCommand: 'node server.js'`), `app-document-style-fragment` (was just a standard build+start test)
+
 ### Per-Test App Lifecycle Management
 
 These tests start/stop the Next.js server multiple times within a single test file, often with different configurations.
@@ -46,10 +48,9 @@ These test CLI tools directly, not server behavior.
 
 ### Score-10 (Originally Blocked by Ranker)
 
-22 additional suites were scored 10 by the ranker and excluded from conversion. These typically involve:
+20 additional suites were scored 10 by the ranker and excluded from conversion. These typically involve:
 
 - `runNextCommand`/`runNextCommandDev` CLI testing
-- Programmatic `nextServer()` API
 - Custom server implementations
 
 See `scripts/integration-to-e2e/ranker-results/all-scores.jsonl` for the full list with per-suite notes.
@@ -67,6 +68,13 @@ These 27 suites were originally scored 10 by the ranker (assumed to need a runni
 - `typeof-window-replace`, `typescript-custom-tsconfig`, `typescript-filtered-files`, `typescript-ignore-errors`
 - `webpack-bun-externals`, `webpack-config-extensionalias`, `webpack-config-mainjs`
 
+### Converted (formerly blocked programmatic nextServer() API)
+
+These 2 suites were blocked as "programmatic nextServer() API" but converted using `startCommand` or standard `nextTestSetup()`:
+
+- `api-body-parser` → `test/e2e/api-body-parser/` (via `startCommand: 'node server.js'`)
+- `app-document-style-fragment` → `test/production/app-document-style-fragment/` (was just a standard build+start)
+
 ## Summary
 
 | Category                          | Count   |
@@ -79,9 +87,10 @@ These 27 suites were originally scored 10 by the ranker (assumed to need a runni
 | Converted (output:export / mixed) | 21      |
 | Converted (i18n-support)          | 2       |
 | Converted (build-only score-10)   | 27      |
-| **Total converted**               | **242** |
+| Converted (programmatic server)   | 2       |
+| **Total converted**               | **244** |
 | Blocked (Phase 1-3, score 1-9)    | 12      |
-| Blocked (score 10, ranker)        | 22      |
+| Blocked (score 10, ranker)        | 20      |
 | No test files                     | 1       |
-| **Total blocked**                 | **35**  |
+| **Total blocked**                 | **33**  |
 | **Grand total**                   | **277** |
