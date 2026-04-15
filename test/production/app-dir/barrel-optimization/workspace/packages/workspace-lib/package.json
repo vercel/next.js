@@ -1,0 +1,7 @@
+{
+  "name": "@test/workspace-lib",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js"
+  }
+}
