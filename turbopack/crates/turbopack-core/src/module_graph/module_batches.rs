@@ -4,7 +4,7 @@ use std::{
     mem::take,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
@@ -79,19 +79,23 @@ pub struct ModuleBatchesGraph {
 impl ModuleBatchesGraph {
     pub async fn get_entry_index(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
         let Some(entry) = self.entries.get(&entry) else {
-            let possible_entries = format!(
-                "{:#?}",
-                self.entries
-                    .keys()
-                    .map(|e| e.ident().to_string())
-                    .try_join()
-                    .await?
-            );
-            turbobail!(
-                "Entry {} is not in graph (possible entries: {})",
-                entry.ident(),
-                possible_entries
-            );
+            if cfg!(debug_assertions) {
+                let possible_entries = format!(
+                    "{:#?}",
+                    self.entries
+                        .keys()
+                        .map(|e| e.ident().to_string())
+                        .try_join()
+                        .await?
+                );
+                turbobail!(
+                    "Entry {} is not in graph (possible entries: {})",
+                    entry.ident(),
+                    possible_entries
+                );
+            } else {
+                bail!("Entry is not in graph");
+            }
         };
         Ok(*entry)
     }
