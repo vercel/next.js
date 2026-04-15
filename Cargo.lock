@@ -10389,6 +10389,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bincode 2.0.1",
+ "either",
  "indoc",
  "lightningcss",
  "parcel_selectors",

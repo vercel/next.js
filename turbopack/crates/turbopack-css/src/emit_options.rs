@@ -1,5 +1,8 @@
+use std::{ops::Deref, sync::LazyLock};
+
 use anyhow::Result;
-use turbo_tasks::{ReadRef, Vc};
+use either::Either;
+use turbo_tasks::Vc;
 use turbopack_core::chunk::{ChunkingContext, EmitOption, chunking_context::find_emit_option};
 
 /// CSS-specific emit options for controlling minification and comment output.
@@ -40,14 +43,15 @@ impl CssEmitOptions {
     }
 
     /// Look up `CssEmitOptions` from a chunking context's emit options,
-    /// falling back to defaults (no minification, comments enabled).
+    /// falling back to a static default (no minification, comments enabled).
     pub async fn get_or_default(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<ReadRef<CssEmitOptions>> {
+    ) -> Result<impl Deref<Target = CssEmitOptions>> {
+        static DEFAULT: LazyLock<CssEmitOptions> = LazyLock::new(CssEmitOptions::default);
         let opts = find_emit_option::<CssEmitOptions>(chunking_context.emit_options()).await?;
         Ok(match opts {
-            Some(vc) => vc.await?,
-            None => ReadRef::new_owned(CssEmitOptions::default()),
+            Some(vc) => Either::Left(vc.await?),
+            None => Either::Right(&*DEFAULT),
         })
     }
 }

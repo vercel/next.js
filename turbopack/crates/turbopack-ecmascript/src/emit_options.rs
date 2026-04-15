@@ -1,9 +1,12 @@
+use std::{ops::Deref, sync::LazyLock};
+
 use anyhow::Result;
+use either::Either;
 use swc_core::{
     atoms::atom,
     ecma::minifier::option::{CompressOptions, MangleOptions, MinifyOptions as SwcMinifyOptions},
 };
-use turbo_tasks::{ReadRef, Vc};
+use turbo_tasks::Vc;
 use turbopack_core::chunk::{ChunkingContext, EmitOption, chunking_context::find_emit_option};
 
 /// Ecmascript-specific emit options for controlling minification, indentation,
@@ -13,7 +16,7 @@ use turbopack_core::chunk::{ChunkingContext, EmitOption, chunking_context::find_
 /// callers should use `EcmascriptEmitOptions::default()` (no minification, indent enabled,
 /// merged module comments enabled).
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 pub struct EcmascriptEmitOptions {
     /// Full SWC minify options. `None` means no minification.
     #[turbo_tasks(trace_ignore)]
@@ -50,15 +53,20 @@ impl EcmascriptEmitOptions {
     }
 
     /// Look up `EcmascriptEmitOptions` from a chunking context's emit options,
-    /// falling back to defaults (no minification, indent enabled, comments enabled).
+    /// falling back to a static default (no minification, indent enabled, comments enabled).
+    ///
+    /// Returns an `impl Deref<Target = EcmascriptEmitOptions>` — either a `ReadRef` from the
+    /// chunking context or a reference to the static default, without allocating.
     pub async fn get_or_default(
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<ReadRef<EcmascriptEmitOptions>> {
+    ) -> Result<impl Deref<Target = EcmascriptEmitOptions>> {
+        static DEFAULT: LazyLock<EcmascriptEmitOptions> =
+            LazyLock::new(EcmascriptEmitOptions::default);
         let opts =
             find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
         Ok(match opts {
-            Some(vc) => vc.await?,
-            None => ReadRef::new_owned(EcmascriptEmitOptions::default()),
+            Some(vc) => Either::Left(vc.await?),
+            None => Either::Right(&*DEFAULT),
         })
     }
 }

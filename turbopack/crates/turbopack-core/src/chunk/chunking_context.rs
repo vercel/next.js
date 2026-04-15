@@ -49,12 +49,12 @@ where
     T: turbo_tasks::VcValueType + turbo_tasks::UpcastStrict<Box<dyn EmitOption>>,
 {
     let list = list.await?;
-    for item in list.iter().rev() {
-        if let Some(downcasted) = ResolvedVc::try_downcast_type::<T>(*item) {
-            return Ok(Some(*downcasted));
-        }
-    }
-    Ok(None)
+    Ok(list
+        .iter()
+        .rev()
+        .filter_map(|item| ResolvedVc::try_downcast_type::<T>(*item))
+        .next()
+        .map(|v| *v))
 }
 
 #[turbo_tasks::value(shared)]
