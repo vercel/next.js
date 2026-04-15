@@ -76,8 +76,6 @@ impl ConnectChildOperation {
                 task: child_task_id,
             });
         } else {
-            // persistent_task_type is already set eagerly by initialize_new_task,
-            // so we only need to check scheduling here.
             let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
 
             if !child_task.has_output()

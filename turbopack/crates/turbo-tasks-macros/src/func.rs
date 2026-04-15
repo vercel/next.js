@@ -482,13 +482,6 @@ impl TurboFn<'_> {
         None
     }
 
-    #[allow(dead_code)]
-    pub fn persistence(&self) -> impl ToTokens {
-        quote! {
-            turbo_tasks::macro_helpers::get_persistence_from_inputs(&*inputs)
-        }
-    }
-
     pub fn persistence_with_this(&self) -> impl ToTokens {
         quote! {
             turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(this, &*inputs)

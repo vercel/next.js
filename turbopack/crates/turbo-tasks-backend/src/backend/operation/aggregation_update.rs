@@ -2627,8 +2627,6 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
-        // persistent_task_type is already set eagerly by initialize_new_task,
-        // so we only need Meta here.
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();

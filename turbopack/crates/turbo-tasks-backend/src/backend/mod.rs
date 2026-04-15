@@ -360,9 +360,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .map(|stats| stats.increment_cache_hit(native_fn));
     }
 
+    #[allow(dead_code)]
     fn track_cache_miss(&self, task_type: &CachedTaskType) {
+        self.track_cache_miss_by_fn(task_type.native_fn);
+    }
+
+    fn track_cache_miss_by_fn(&self, native_fn: &'static NativeFunction) {
         self.task_statistics
-            .map(|stats| stats.increment_cache_miss(task_type.native_fn));
+            .map(|stats| stats.increment_cache_miss(native_fn));
     }
 
     /// Reconstructs a full [`TurboTasksExecutionError`] from the compact [`TaskError`] storage
@@ -1556,6 +1561,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
                 RawEntry::Vacant(e) => {
                     // We're creating a new task.
+                    let native_fn = task_type.native_fn;
                     let task_type = Arc::new(task_type);
                     let task_id = self.persisted_task_id_factory.get();
                     // Initialize storage BEFORE making task_id visible in the cache.
@@ -1565,9 +1571,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // persistence snapshots without propagating through connect_child.
                     self.storage
                         .initialize_new_task(task_id, Some(task_type.clone()));
-                    e.insert(task_type.clone(), task_id);
+                    e.insert(task_type, task_id);
                     // insert() consumes e, releasing the lock
-                    self.track_cache_miss(&task_type);
+                    self.track_cache_miss_by_fn(native_fn);
                     is_new = true;
                     task_id
                 }
@@ -1624,13 +1630,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task_id
             }
             RawEntry::Vacant(e) => {
+                let native_fn = task_type.native_fn;
                 let task_type = Arc::new(task_type);
                 let task_id = self.transient_task_id_factory.get();
                 // Initialize storage BEFORE making task_id visible in the cache.
                 self.storage
                     .initialize_new_task(task_id, Some(task_type.clone()));
-                e.insert(task_type.clone(), task_id);
-                self.track_cache_miss(&task_type);
+                e.insert(task_type, task_id);
+                self.track_cache_miss_by_fn(native_fn);
 
                 if is_root {
                     let mut ctx = self.execute_context(turbo_tasks);
