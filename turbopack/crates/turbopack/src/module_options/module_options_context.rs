@@ -14,8 +14,8 @@ use turbopack_core::{
     environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
-    transform::PresetEnvConfig,
+    AnalyzeMode, TreeShakingMode, TypeofWindow, chunk::SideEffectFreePackages,
+    references::esm::UrlRewriteBehavior, transform::PresetEnvConfig,
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -215,7 +215,7 @@ pub struct ModuleOptionsContext {
 
     pub environment: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
-    pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
+    pub side_effect_free_packages: Option<ResolvedVc<SideEffectFreePackages>>,
     pub tree_shaking_mode: Option<TreeShakingMode>,
 
     pub static_url_tag: Option<RcStr>,
@@ -322,16 +322,25 @@ impl ValueDefault for ModuleOptionsContext {
 #[turbo_tasks::function]
 pub async fn side_effect_free_packages_glob(
     side_effect_free_packages: ResolvedVc<Vec<RcStr>>,
-) -> Result<Vc<Glob>> {
-    let side_effect_free_packages = &*side_effect_free_packages.await?;
-    if side_effect_free_packages.is_empty() {
-        return Ok(Glob::new(rcstr!(""), GlobOptions::default()));
+) -> Result<Vc<SideEffectFreePackages>> {
+    let packages = &*side_effect_free_packages.await?;
+    let glob = if packages.is_empty() {
+        Glob::new(rcstr!(""), GlobOptions::default())
+            .to_resolved()
+            .await?
+    } else {
+        let mut globs = String::new();
+        globs.push_str("**/node_modules/{");
+        globs.push_str(&packages.join(","));
+        globs.push_str("}/**");
+        Glob::new(globs.into(), GlobOptions::default())
+            .to_resolved()
+            .await?
+    };
+
+    Ok(SideEffectFreePackages {
+        glob,
+        package_names: side_effect_free_packages,
     }
-
-    let mut globs = String::new();
-    globs.push_str("**/node_modules/{");
-    globs.push_str(&side_effect_free_packages.join(","));
-    globs.push_str("}/**");
-
-    Ok(Glob::new(globs.into(), GlobOptions::default()))
+    .cell())
 }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use either::Either;
 use itertools::Itertools;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
@@ -223,20 +223,51 @@ pub enum SideEffectsDeclaration {
     None,
 }
 
+#[turbo_tasks::value(shared)]
+pub struct SideEffectFreePackages {
+    pub glob: ResolvedVc<Glob>,
+    pub package_names: ResolvedVc<Vec<RcStr>>,
+}
+
+#[turbo_tasks::function]
+async fn package_name_from_package_json(package_json: FileSystemPath) -> Result<Vc<Option<RcStr>>> {
+    let package_json_file = FileSource::new(package_json).to_resolved().await?;
+    let package_json = &*package_json_file.content().parse_json().await?;
+    if let FileJsonContent::Content(content) = package_json
+        && let Some(name) = content.get("name").and_then(|n| n.as_str())
+    {
+        return Ok(Vc::cell(Some(name.into())));
+    }
+    Ok(Vc::cell(None))
+}
+
 #[turbo_tasks::function]
 pub async fn get_side_effect_free_declaration(
     path: FileSystemPath,
-    side_effect_free_packages: Option<Vc<Glob>>,
+    side_effect_free_packages: Option<Vc<SideEffectFreePackages>>,
 ) -> Result<Vc<SideEffectsDeclaration>> {
-    if let Some(side_effect_free_packages) = side_effect_free_packages
-        && side_effect_free_packages.await?.matches(&path.path)
-    {
-        return Ok(SideEffectsDeclaration::SideEffectFree.cell());
+    if let Some(side_effect_free_packages) = side_effect_free_packages {
+        let pkgs = side_effect_free_packages.await?;
+        if pkgs.glob.await?.matches(&path.path) {
+            return Ok(SideEffectsDeclaration::SideEffectFree.cell());
+        }
     }
 
     let find_package_json = find_context_file(path.parent(), package_json(), false).await?;
 
     if let FindContextFileResult::Found(package_json, _) = &*find_package_json {
+        // Check if this package is in the optimizePackageImports list by name.
+        // This handles workspace packages whose resolved paths don't go through
+        // node_modules/ and thus don't match the glob.
+        if let Some(sfp) = side_effect_free_packages {
+            let pkgs = sfp.await?;
+            if let Some(name) = &*package_name_from_package_json(package_json.clone()).await? {
+                if pkgs.package_names.await?.contains(name) {
+                    return Ok(SideEffectsDeclaration::SideEffectFree.cell());
+                }
+            }
+        }
+
         match *side_effects_from_package_json(package_json.clone()).await? {
             SideEffectsValue::None => {}
             SideEffectsValue::Constant(side_effects) => {

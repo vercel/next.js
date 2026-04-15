@@ -80,7 +80,7 @@ use turbo_tasks::{
     FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
     ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
-use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{FileJsonContent, FileSystemPath, rope::Rope};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkableModule, ChunkingContext, EvaluatableAsset,
@@ -107,7 +107,9 @@ use crate::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
-        placeable::{SideEffectsDeclaration, get_side_effect_free_declaration},
+        placeable::{
+            SideEffectFreePackages, SideEffectsDeclaration, get_side_effect_free_declaration,
+        },
     },
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt, CodeGens, ModifiableAst},
     merged_module::MergedEcmascriptModule,
@@ -322,7 +324,7 @@ pub struct EcmascriptModuleAssetBuilder {
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     options: ResolvedVc<EcmascriptOptions>,
     compile_time_info: ResolvedVc<CompileTimeInfo>,
-    side_effect_free_packages: Option<ResolvedVc<Glob>>,
+    side_effect_free_packages: Option<ResolvedVc<SideEffectFreePackages>>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 }
 
@@ -371,7 +373,7 @@ pub struct EcmascriptModuleAsset {
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
     pub options: ResolvedVc<EcmascriptOptions>,
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
-    pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
+    pub side_effect_free_packages: Option<ResolvedVc<SideEffectFreePackages>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
@@ -454,7 +456,7 @@ impl EcmascriptModuleAsset {
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
-        side_effect_free_packages: Option<ResolvedVc<Glob>>,
+        side_effect_free_packages: Option<ResolvedVc<SideEffectFreePackages>>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
@@ -631,7 +633,7 @@ impl EcmascriptModuleAsset {
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
-        side_effect_free_packages: Option<ResolvedVc<Glob>>,
+        side_effect_free_packages: Option<ResolvedVc<SideEffectFreePackages>>,
     ) -> Vc<Self> {
         Self::cell(EcmascriptModuleAsset {
             source,
@@ -654,7 +656,7 @@ impl EcmascriptModuleAsset {
         transforms: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         compile_time_info: ResolvedVc<CompileTimeInfo>,
-        side_effect_free_packages: Option<ResolvedVc<Glob>>,
+        side_effect_free_packages: Option<ResolvedVc<SideEffectFreePackages>>,
         inner_assets: ResolvedVc<InnerAssets>,
     ) -> Result<Vc<Self>> {
         if inner_assets.await?.is_empty() {
