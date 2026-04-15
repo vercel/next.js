@@ -3421,11 +3421,12 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at Page [Server] (<anonymous>)
-                     at main (<anonymous>)
-                     at body (<anonymous>)
-                     at html (<anonymous>)
-                     at Root [Server] (<anonymous>)
+                     at Page (app/use-cache-params/[slug]/page.tsx:1:16)
+                 > 1 | export default async function Page({
+                     |                ^
+                   2 |   params,
+                   3 | }: {
+                   4 |   params: Promise<{ slug: string }>
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
 
@@ -3449,8 +3450,14 @@ describe('Cache Components Errors', () => {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
                  "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at Page [Server] (<anonymous>)
-                     at <FIXME-library-internal>
+                     at cache (webpack:///<next-src>)
+                   1559 |         case 'prerender':
+                   1560 |         case 'prerender-runtime':
+                 > 1561 |           return makeHangingPromise(
+                        |                  ^
+                   1562 |             workUnitStore.renderSignal,
+                   1563 |             workStore.route,
+                   1564 |             'dynamic "use cache"'
                  To debug the issue, start the app in development mode by running \`next dev\`, then open "/use-cache-params/[slug]" in your browser to investigate the error.
                  Error occurred prerendering page "/use-cache-params/[slug]". Read more: https://nextjs.org/docs/messages/prerender-error
 
