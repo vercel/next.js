@@ -32,9 +32,7 @@ use crate::{
     analyzer::{WellKnownObjectKind, is_unresolved},
     code_gen::CodeGen,
     references::{
-        constant_value::parse_single_expr_lit,
-        esm::{EsmModuleItem, Liveness},
-        for_each_ident_in_pat,
+        constant_value::parse_single_expr_lit, esm::EsmModuleItem, for_each_ident_in_pat,
     },
     utils::{AstPathRange, unparen},
 };
@@ -273,63 +271,40 @@ impl Effect {
     }
 }
 
+#[derive(Debug)]
 pub enum AssignmentScope {
+    /// assigned in the root scope
     ModuleEval,
+    /// assigned in a function scopes
     Function,
 }
 
+/// Tracks the locations where this was assigned to:
+/// This is used to track the _liveness_ of exports.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AssignmentScopes {
+    /// assigned only in the root scope
     AllInModuleEvalScope,
+    /// assigned in any set of function scopes
     AllInFunctionScopes,
+    /// assigned in both module and function scopes
     Mixed,
 }
 impl AssignmentScopes {
-    fn new(initial: AssignmentScope) -> Self {
+    pub fn new(initial: AssignmentScope) -> Self {
         match initial {
             AssignmentScope::ModuleEval => AssignmentScopes::AllInModuleEvalScope,
             AssignmentScope::Function => AssignmentScopes::AllInFunctionScopes,
         }
     }
 
-    fn merge(self, other: AssignmentScope) -> Self {
+    pub fn merge(self, other: AssignmentScope) -> Self {
         // If the other assignment kind is the same as the current one, return the current one.
         if self == Self::new(other) {
             self
         } else {
             AssignmentScopes::Mixed
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct VarMeta {
-    pub value: JsValue,
-    /// Tracks the locations where this was assigned to:
-    /// - [`AssignmentScopes::AllInModuleEvalScope`] if it was assigned only in the root scope
-    /// - [`AssignmentScopes::AllInFunctionScopes`] if it was assigned in any set of function
-    ///   scopes
-    /// - [`AssignmentScopes::Mixed`] if it was assigned in both
-    ///
-    /// This is used to track the _liveness_ of exports.
-    pub assignment_scopes: AssignmentScopes,
-}
-
-impl VarMeta {
-    pub fn new(value: JsValue, kind: AssignmentScope) -> Self {
-        Self {
-            value,
-            assignment_scopes: AssignmentScopes::new(kind),
-        }
-    }
-
-    pub fn normalize(&mut self) {
-        self.value.normalize();
-    }
-
-    fn add_alt(&mut self, value: JsValue, kind: AssignmentScope) {
-        self.value.add_alt(value);
-        self.assignment_scopes = self.assignment_scopes.merge(kind);
     }
 }
 
@@ -359,7 +334,7 @@ impl DeclUsage {
 
 #[derive(Debug)]
 pub struct VarGraph {
-    pub values: FxHashMap<Id, VarMeta>,
+    pub values: FxHashMap<Id, JsValue>,
 
     /// Map [`JsValue::FreeVar`] names to their [`Id`] to facilitate lookups into [`Self::values`].
     ///
@@ -386,29 +361,6 @@ impl VarGraph {
         }
         for effect in self.effects.iter_mut() {
             effect.normalize();
-        }
-    }
-
-    /// Returns the liveness of a given export identifier.  An export is live if it might
-    /// change values after module evaluation.
-    pub fn get_export_ident_liveness(&self, id: Id) -> Liveness {
-        if let Some(VarMeta {
-            value: _,
-            assignment_scopes: assignment_kinds,
-        }) = self.values.get(&id)
-        {
-            // If all assignments are in module scope, the export is not live.
-            if *assignment_kinds != AssignmentScopes::AllInModuleEvalScope {
-                Liveness::Live
-            } else {
-                Liveness::Constant
-            }
-        } else {
-            // If we haven't computed a value for it, that means it might be
-            // - A free variable or
-            // - an imported variable
-            // In those cases, we just assume that the value is live since we don't know anything
-            Liveness::Live
         }
     }
 }
@@ -1556,15 +1508,10 @@ impl Analyzer<'_> {
             self.data.free_var_ids.insert(id.0.clone(), id.clone());
         }
 
-        let kind = if self.is_in_fn() {
-            AssignmentScope::Function
-        } else {
-            AssignmentScope::ModuleEval
-        };
         if let Some(prev) = self.data.values.get_mut(&id) {
-            prev.add_alt(value, kind);
+            prev.add_alt(value);
         } else {
-            self.data.values.insert(id, VarMeta::new(value, kind));
+            self.data.values.insert(id, value);
         }
         // TODO(kdy1): We may need to report an error for this.
         // Variables declared with `var` are hoisted, but using undefined as its

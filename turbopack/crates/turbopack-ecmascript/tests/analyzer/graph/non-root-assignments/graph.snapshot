@@ -40,6 +40,56 @@
         ),
     ),
     (
+        "foo_const_after_eval",
+        Object {
+            total_nodes: 3,
+            parts: [
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+            ],
+            mutable: true,
+        },
+    ),
+    (
+        "getter_not_const_after_eval",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
         "i",
         Alternatives {
             total_nodes: 3,
@@ -193,6 +243,48 @@
                 ),
             ],
             logical_property: None,
+        },
+    ),
+    (
+        "setter_not_const_after_eval",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "v",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "v",
+                        #11,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
         },
     ),
 ]

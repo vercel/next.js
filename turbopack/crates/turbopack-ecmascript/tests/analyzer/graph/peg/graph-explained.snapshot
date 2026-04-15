@@ -140,7 +140,7 @@
 
 *anonymous function 5936* = (...) => {"type": "sort_expression", "expression": expression, "order": order}
 
-*anonymous function 625* (const after eval) = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
+*anonymous function 625* = (...) => `Expected ${describeExpected(expected)} but ${describeFound(found)} found.`
 
 *anonymous function 6287* = (...) => {"type": "scalar_function_expression", "name": name, "arguments": args, "udf": true}
 

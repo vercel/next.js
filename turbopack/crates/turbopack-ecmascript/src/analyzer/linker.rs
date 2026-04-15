@@ -6,7 +6,6 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
 
 use super::{JsValue, graph::VarGraph};
-use crate::analyzer::graph::VarMeta;
 
 pub async fn link<'a, B, RB, F, RF>(
     graph: &VarGraph,
@@ -123,7 +122,7 @@ where
                     if let Some(val) = var_cache_lock.as_deref().and_then(|cache| cache.get(&var)) {
                         total_nodes += val.total_nodes();
                         done.push(val.clone());
-                    } else if let Some(VarMeta { value, .. }) = graph.values.get(&var) {
+                    } else if let Some(value) = graph.values.get(&var) {
                         cycle_stack.insert(var.clone());
                         work_queue_stack.push(Step::LeaveVar(var));
                         total_nodes += value.total_nodes();
