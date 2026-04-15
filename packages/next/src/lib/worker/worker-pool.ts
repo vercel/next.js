@@ -570,9 +570,9 @@ export class WorkerPool {
         const error = new Error('Error when calling setup: ' + message[2])
         ;(error as any).type = message[1]
         error.stack = message[3]
-        // Setup errors affect all in-flight requests on this worker.
-        // Reject them first, then clear booting so queued tasks can be
-        // dispatched to this (now available) worker and new workers can spawn.
+        // setup() threw, but require() already ran — main is set and the worker
+        // can still handle CALLs. Reject any active requests, then transition to
+        // RUNNING so queued tasks are dispatched to this (now available) worker.
         this._rejectActiveRequests(worker, error)
         if (worker.state === WorkerState.BOOTING) {
           worker.state = WorkerState.RUNNING
@@ -668,8 +668,13 @@ export class WorkerPool {
     this._allWorkers.delete(worker)
     this._availableWorkers.delete(worker)
 
-    // A slot freed up — try to spawn replacements for queued tasks
+    // Offer queued tasks to any already-available workers before spawning new
+    // ones; this avoids unnecessary cold-boot latency when idle workers exist.
     if (!this._ending) {
+      for (const available of this._availableWorkers) {
+        if (this._taskQueue.length === 0) break
+        this._drainQueue(available)
+      }
       this._spawnForQueuedTasks()
     }
   }

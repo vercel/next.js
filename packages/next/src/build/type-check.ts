@@ -76,8 +76,8 @@ function verifyAndRunTypeScript(
     debugBuildPaths,
     rootParams,
   })
-    .then((result) => {
-      typeCheckWorker?.shutdown()
+    .then(async (result) => {
+      await typeCheckWorker?.shutdown()
       return result
     })
     .catch(() => {

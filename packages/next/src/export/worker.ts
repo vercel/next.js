@@ -372,9 +372,11 @@ export async function exportPages(
   installCodeFrameSupport()
 
   // Reset per-call so the flag doesn't leak across sequential batches.
+  // Restore console.error first (realConsoleError is still the original captured
+  // at module load; reassigning it here would overwrite it with the no-op set by
+  // setEarlyExiting() if a previous batch triggered an early exit).
+  console.error = realConsoleError
   isEarlyExiting = false
-  realConsoleError = console.error
-  console.error = realConsoleError // restore in case a previous call silenced it
 
   const {
     exportPaths,

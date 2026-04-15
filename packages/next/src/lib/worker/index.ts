@@ -162,6 +162,12 @@ export class Worker {
 
   private _onActivity: (() => void) | undefined
   private _onActivityAbort: (() => void) | undefined
+  /**
+   * Tracks whether onActivityAbort has already fired since the last
+   * setOnActivityAbort() call. Reset when the caller re-registers the callback
+   * so that each new progress spinner gets exactly one abort notification.
+   */
+  private _activityAborted = false
 
   /**
    * Bound exit handler registered on `process`. Stored so it can be removed
@@ -206,11 +212,10 @@ export class Worker {
       forkOptions,
     })
 
-    let aborted = false
     const onActivityAbortImpl = () => {
-      if (!aborted) {
+      if (!this._activityAborted) {
+        this._activityAborted = true
         this._onActivityAbort?.()
-        aborted = true
       }
     }
 
@@ -290,6 +295,8 @@ export class Worker {
   }
   setOnActivityAbort(onActivityAbort: (() => void) | undefined): void {
     this._onActivityAbort = onActivityAbort
+    // Reset the guard so the new callback fires on the next stdout/stderr output.
+    this._activityAborted = false
   }
 
   /** Remove the `process.on('exit')` handler to prevent listener leaks */
