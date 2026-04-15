@@ -1,6 +1,6 @@
-import { nextTestSetup, isTurbopack } from 'e2e-utils'
-import { retry } from 'next-test-utils'
-;(isTurbopack ? describe.skip : describe)('On Demand Entries', () => {
+import { nextTestSetup } from 'e2e-utils'
+import { retry, shouldUseTurbopack } from 'next-test-utils'
+;(shouldUseTurbopack() ? describe.skip : describe)('On Demand Entries', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',
