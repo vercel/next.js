@@ -378,6 +378,10 @@ impl LastSuccessfulSource {
     fn set(&self, file: File) {
         *self.0.lock().unwrap() = Some(ReadRef::new_owned(file));
     }
+
+    fn clear(&self) {
+        *self.0.lock().unwrap() = None;
+    }
 }
 
 impl Default for LastSuccessfulSource {
@@ -573,6 +577,44 @@ impl ModuleTypeResult {
     }
 }
 
+impl EcmascriptModuleAsset {
+    /// Attempts to re-parse the module from the last known-good file bytes.
+    ///
+    /// Returns `None` if no saved source is available or if any step fails, in
+    /// which case the caller should fall back to the current (broken) result.
+    /// On failure the cached source is cleared so we don't keep retrying it.
+    async fn try_parse_last_successful_source(&self) -> Option<Vc<ParseResult>> {
+        let file_ref = self.last_successful_source.get()?;
+        let result: Result<Vc<ParseResult>> = async {
+            let node_env = self
+                .compile_time_info
+                .await?
+                .defines
+                .read_process_env(rcstr!("NODE_ENV"))
+                .owned()
+                .await?
+                .unwrap_or_else(|| rcstr!("development"));
+            crate::parse::parse_from_file(
+                &file_ref,
+                self.source,
+                self.ty,
+                self.transforms,
+                node_env,
+            )
+            .await
+        }
+        .await;
+        match result {
+            Ok(result) => Some(result),
+            Err(_) => {
+                // A failure is very unexpected, but we don't want to keep bad bytes around
+                self.last_successful_source.clear();
+                None
+            }
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
@@ -587,13 +629,10 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
                 }
                 Ok(real_result)
             } else {
-                // Fall back: re-parse from saved file bytes if available
-                if let Some(file_ref) = self.last_successful_source.get() {
-                    crate::parse::parse_from_file(&file_ref, self.source, self.ty, self.transforms)
-                        .await
-                } else {
-                    Ok(real_result)
-                }
+                Ok(self
+                    .try_parse_last_successful_source()
+                    .await
+                    .unwrap_or(real_result))
             }
         } else {
             Ok(real_result)
