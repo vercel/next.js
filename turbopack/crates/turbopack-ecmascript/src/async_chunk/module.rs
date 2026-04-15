@@ -70,8 +70,8 @@ impl AsyncLoaderModule {
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
                 && chunk_items
+                    .contains_key(&AvailableModuleItem::from(chunkable_module_or_batch))
                     .await?
-                    .contains(&AvailableModuleItem::from(chunkable_module_or_batch))
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),

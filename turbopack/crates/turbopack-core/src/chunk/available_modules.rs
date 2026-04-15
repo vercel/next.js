@@ -51,11 +51,6 @@ impl From<ChunkableModuleOrBatch> for AvailableModuleItem {
 
 /// A flat set of modules/items that are already available in the current chunk
 /// group context and therefore do not need to be included again.
-///
-/// This is a `#[turbo_tasks::value(transparent)]` wrapping
-/// `FxIndexSet<AvailableModuleItem>`. Awaiting a `Vc<AvailableModulesSet>`
-/// yields a `ReadRef` whose `Deref` target is the inner `FxIndexSet`, and
-/// `Vc::cell` takes an `FxIndexSet<AvailableModuleItem>` directly.
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 pub struct AvailableModulesSet(
@@ -70,9 +65,6 @@ impl AvailableModulesSet {
         self: ResolvedVc<Self>,
         extra: Vc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {
-        // For transparent Vc, .await? yields a ReadRef whose Deref target is the
-        // inner FxIndexSet<AvailableModuleItem>. Explicitly dereferencing with `*`
-        // gives the inner set.
         let base = self.await?;
         let extra = extra.await?;
         let mut merged = (*base).clone();
@@ -109,7 +101,6 @@ impl AvailableModulesSet {
 impl AvailableModulesSet {
     /// Returns true if this set contains the given item.
     pub fn contains(&self, item: &AvailableModuleItem) -> bool {
-        // Self is #[repr(transparent)] over FxIndexSet; field .0 is accessible here.
         self.0.contains(item)
     }
 }
