@@ -5460,12 +5460,22 @@ async function logMessagesAndSendErrorsToBrowser(
 
     const { clientModules } = getClientReferenceManifest()
 
-    const errorsFlightStream = renderToWebFlightStream(
-      ctx.componentMod,
-      { errors, errorCodes },
-      clientModules,
-      { filterStackFrame }
-    )
+    let errorsFlightStream: AnyStream
+    if (process.env.__NEXT_USE_NODE_STREAMS) {
+      errorsFlightStream = renderToNodeFlightStream(
+        ctx.componentMod,
+        { errors, errorCodes },
+        clientModules,
+        { filterStackFrame }
+      )
+    } else {
+      errorsFlightStream = renderToWebFlightStream(
+        ctx.componentMod,
+        { errors, errorCodes },
+        clientModules,
+        { filterStackFrame }
+      )
+    }
 
     sendErrorsToBrowser(errorsFlightStream, htmlRequestId)
   }
