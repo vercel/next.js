@@ -1,12 +1,10 @@
-use std::sync::Arc;
-
 use anyhow::Result;
 use swc_core::{
     atoms::atom,
     ecma::minifier::option::{CompressOptions, MangleOptions, MinifyOptions as SwcMinifyOptions},
 };
-use turbo_tasks::Vc;
-use turbopack_core::chunk::{ChunkingContext, EmitOption, find_emit_option};
+use turbo_tasks::{ReadRef, Vc};
+use turbopack_core::chunk::{ChunkingContext, EmitOption, chunking_context::find_emit_option};
 
 /// Ecmascript-specific emit options for controlling minification, indentation,
 /// and other code generation settings.
@@ -15,12 +13,11 @@ use turbopack_core::chunk::{ChunkingContext, EmitOption, find_emit_option};
 /// callers should use `EcmascriptEmitOptions::default()` (no minification, indent enabled,
 /// merged module comments enabled).
 #[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct EcmascriptEmitOptions {
     /// Full SWC minify options. `None` means no minification.
-    /// Wrapped in Arc because `SwcMinifyOptions` doesn't implement Clone.
     #[turbo_tasks(trace_ignore)]
-    pub swc_minify_options: Option<Arc<SwcMinifyOptions>>,
+    pub swc_minify_options: Option<SwcMinifyOptions>,
     /// Whether to indent JS output (pretty-print).
     pub indent: bool,
     /// Whether to emit `// MERGED MODULE: ...` comments in scope-hoisted output.
@@ -37,22 +34,6 @@ impl Default for EcmascriptEmitOptions {
     }
 }
 
-impl PartialEq for EcmascriptEmitOptions {
-    fn eq(&self, other: &Self) -> bool {
-        // SwcMinifyOptions doesn't implement PartialEq, so compare by debug representation.
-        let opts_eq = match (&self.swc_minify_options, &other.swc_minify_options) {
-            (Some(a), Some(b)) => Arc::ptr_eq(a, b) || format!("{a:?}") == format!("{b:?}"),
-            (None, None) => true,
-            _ => false,
-        };
-        opts_eq
-            && self.indent == other.indent
-            && self.merged_module_comments == other.merged_module_comments
-    }
-}
-
-impl Eq for EcmascriptEmitOptions {}
-
 #[turbo_tasks::value_impl]
 impl EmitOption for EcmascriptEmitOptions {}
 
@@ -67,17 +48,17 @@ impl EcmascriptEmitOptions {
             options: EcmascriptEmitOptions::default(),
         }
     }
-}
 
-impl EcmascriptEmitOptions {
     /// Look up `EcmascriptEmitOptions` from a chunking context's emit options,
     /// falling back to defaults (no minification, indent enabled, comments enabled).
-    pub async fn get_or_default(chunking_context: Vc<Box<dyn ChunkingContext>>) -> Result<Self> {
+    pub async fn get_or_default(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<ReadRef<EcmascriptEmitOptions>> {
         let opts =
             find_emit_option::<EcmascriptEmitOptions>(chunking_context.emit_options()).await?;
         Ok(match opts {
-            Some(vc) => (*vc.await?).clone(),
-            None => EcmascriptEmitOptions::default(),
+            Some(vc) => vc.await?,
+            None => ReadRef::new_owned(EcmascriptEmitOptions::default()),
         })
     }
 }
@@ -91,14 +72,14 @@ impl EcmascriptEmitOptionsBuilder {
 
     /// Set full SWC minify options directly.
     pub fn swc_minify_options(mut self, opts: SwcMinifyOptions) -> Self {
-        self.options.swc_minify_options = Some(Arc::new(opts));
+        self.options.swc_minify_options = Some(opts);
         self
     }
 
     /// Preset: minify with optimal-size mangling (char-freq enabled).
     /// Disables indent and merged module comments.
     pub fn preset_minify_optimal_size(mut self) -> Self {
-        self.options.swc_minify_options = Some(Arc::new(SwcMinifyOptions {
+        self.options.swc_minify_options = Some(SwcMinifyOptions {
             compress: Some(CompressOptions {
                 passes: 2,
                 ..Default::default()
@@ -108,7 +89,7 @@ impl EcmascriptEmitOptionsBuilder {
                 ..Default::default()
             }),
             ..Default::default()
-        }));
+        });
         self.apply_minify_defaults();
         self
     }
@@ -117,7 +98,7 @@ impl EcmascriptEmitOptionsBuilder {
     /// For React SSR contexts that need stable function names across renders.
     /// Disables indent and merged module comments.
     pub fn preset_minify_deterministic(mut self) -> Self {
-        self.options.swc_minify_options = Some(Arc::new(SwcMinifyOptions {
+        self.options.swc_minify_options = Some(SwcMinifyOptions {
             compress: Some(CompressOptions {
                 passes: 2,
                 ..Default::default()
@@ -128,7 +109,7 @@ impl EcmascriptEmitOptionsBuilder {
                 ..Default::default()
             }),
             ..Default::default()
-        }));
+        });
         self.apply_minify_defaults();
         self
     }
@@ -137,7 +118,7 @@ impl EcmascriptEmitOptionsBuilder {
     /// Keeps class names and function names.
     /// Disables indent and merged module comments.
     pub fn preset_minify_no_mangle(mut self) -> Self {
-        self.options.swc_minify_options = Some(Arc::new(SwcMinifyOptions {
+        self.options.swc_minify_options = Some(SwcMinifyOptions {
             compress: Some(CompressOptions {
                 passes: 2,
                 keep_classnames: true,
@@ -146,7 +127,7 @@ impl EcmascriptEmitOptionsBuilder {
             }),
             mangle: None,
             ..Default::default()
-        }));
+        });
         self.apply_minify_defaults();
         self
     }

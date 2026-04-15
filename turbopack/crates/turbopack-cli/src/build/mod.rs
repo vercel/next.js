@@ -26,8 +26,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EvaluatableAsset,
-        SourceMapsType, availability_info::AvailabilityInfo,
+        ChunkingConfig, ChunkingContext, ChunkingContextExt, ContentHashing, EmitOption,
+        EvaluatableAsset, SourceMapsType, availability_info::AvailabilityInfo,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -182,6 +182,17 @@ impl TurbopackBuildBuilder {
 async fn extract_effects_operation(op: OperationVc<()>) -> Result<Vc<Effects>> {
     let _ = op.resolve().strongly_consistent().await?;
     Ok(take_effects(op).await?.cell())
+}
+
+fn minify_emit_options() -> [ResolvedVc<Box<dyn EmitOption>>; 2] {
+    let ecma_opts = EcmascriptEmitOptions::builder()
+        .preset_minify_optimal_size()
+        .build();
+    let css_opts = CssEmitOptions::builder().preset_minify().build();
+    [
+        ResolvedVc::upcast(ecma_opts.resolved_cell()),
+        ResolvedVc::upcast(css_opts.resolved_cell()),
+    ]
 }
 
 #[turbo_tasks::function(operation)]
@@ -357,13 +368,7 @@ async fn build_internal(
             .current_chunk_method(CurrentChunkMethod::DocumentCurrentScript);
 
             if minify {
-                let ecma_opts = EcmascriptEmitOptions::builder()
-                    .preset_minify_optimal_size()
-                    .build();
-                let css_opts = CssEmitOptions::builder().preset_minify().build();
-                builder = builder
-                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
-                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+                builder = builder.emit_options(minify_emit_options());
             }
 
             match *node_env.await? {
@@ -416,13 +421,7 @@ async fn build_internal(
             .unused_references(unused_references);
 
             if minify {
-                let ecma_opts = EcmascriptEmitOptions::builder()
-                    .preset_minify_optimal_size()
-                    .build();
-                let css_opts = CssEmitOptions::builder().preset_minify().build();
-                builder = builder
-                    .emit_option(ResolvedVc::upcast(ecma_opts.resolved_cell()))
-                    .emit_option(ResolvedVc::upcast(css_opts.resolved_cell()));
+                builder = builder.emit_options(minify_emit_options());
             }
 
             match *node_env.await? {

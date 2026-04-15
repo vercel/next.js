@@ -1,3 +1,8 @@
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+};
+
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent};
@@ -86,14 +91,19 @@ impl EcmascriptBuildNodeChunkContent {
 
     #[turbo_tasks::function]
     pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBuildNodeChunkVersion>> {
+        let ecma_opts =
+            EcmascriptEmitOptions::get_or_default(Vc::upcast(*self.chunking_context)).await?;
+        let mut hasher = DefaultHasher::new();
+        // SwcMinifyOptions doesn't implement Hash; use debug representation
+        format!("{:?}", ecma_opts.swc_minify_options).hash(&mut hasher);
+        ecma_opts.indent.hash(&mut hasher);
+        ecma_opts.merged_module_comments.hash(&mut hasher);
+        let emit_options_hash = hasher.finish();
         Ok(EcmascriptBuildNodeChunkVersion::new(
             self.chunking_context.output_root().owned().await?,
             self.chunk.path().owned().await?,
             *self.content,
-            EcmascriptEmitOptions::get_or_default(Vc::upcast(*self.chunking_context))
-                .await?
-                .swc_minify_options
-                .is_some(),
+            emit_options_hash,
         ))
     }
 }
