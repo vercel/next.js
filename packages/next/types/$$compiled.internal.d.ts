@@ -485,9 +485,7 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
 }
 
 declare module 'next/dist/compiled/commander' {
-  import commander from 'commander'
   export * from 'commander'
-  export default commander
 }
 
 declare module 'next/dist/compiled/node-html-parser' {
@@ -568,11 +566,6 @@ declare module 'next/dist/compiled/image-detector/detector.js' {
 
 declare module 'next/dist/compiled/@hapi/accept' {
   import m from '@hapi/accept'
-  export = m
-}
-
-declare module 'next/dist/compiled/acorn' {
-  import m from 'acorn'
   export = m
 }
 
@@ -757,6 +750,9 @@ declare module 'next/dist/compiled/ua-parser-js' {
 declare module 'next/dist/compiled/strip-ansi' {
   import m from 'strip-ansi'
   export = m
+}
+declare module 'next/dist/compiled/@vercel/blob' {
+  export * from '@vercel/blob'
 }
 declare module 'next/dist/compiled/@vercel/nft' {
   import m from '@vercel/nft'
