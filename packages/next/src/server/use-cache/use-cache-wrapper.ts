@@ -1550,6 +1550,32 @@ export async function cache(
   const implicitTags = workUnitStore.implicitTags?.tags ?? []
 
   if (renderResumeDataCache) {
+    // If this cache key was already determined to be dynamic during the
+    // prospective prerender (e.g. because it accessed fallback params), we
+    // return a hanging promise early to avoid trying to regenerate the entry,
+    // which would be aborted anyway.
+    if (renderResumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-runtime':
+          return makeHangingPromise(
+            workUnitStore.renderSignal,
+            workStore.route,
+            'dynamic "use cache"'
+          )
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+        case 'generate-static-params':
+          break
+        default:
+          workUnitStore satisfies never
+      }
+    }
+
     const cacheSignal = getCacheSignal(workUnitStore)
 
     if (cacheSignal) {
@@ -1802,6 +1828,31 @@ export async function cache(
           // an async function, before being passed into the "use cache"
           // function, which escapes the instrumentation.
           if (workUnitStore.allowEmptyStaticShell) {
+            if (prerenderResumeDataCache) {
+              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            }
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              'dynamic "use cache"'
+            )
+          }
+        // fallthrough
+        case 'prerender-runtime':
+          if (!cacheSignal) {
+            // This is the final prerender (cacheSignal is null), which means
+            // all caches should have been warmed during the prospective
+            // prerender. A cache miss here indicates that the cache key is
+            // non-deterministic (e.g. due to unstable array order in the
+            // arguments). Known dynamic keys (e.g. from fallback params) are
+            // already handled by the early return above. We return a hanging
+            // promise so this becomes a dynamic hole rather than generating a
+            // broken cache entry that gets aborted.
+            console.warn(
+              new Error(
+                `Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.`
+              )
+            )
             return makeHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
@@ -1809,7 +1860,6 @@ export async function cache(
             )
           }
           break
-        case 'prerender-runtime':
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
@@ -2006,6 +2056,9 @@ export async function cache(
       )
 
       if (result.type === 'prerender-dynamic') {
+        if (prerenderResumeDataCache) {
+          prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+        }
         return result.hangingPromise
       }
 
