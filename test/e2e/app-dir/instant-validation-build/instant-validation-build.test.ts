@@ -63,7 +63,15 @@ describe('instant-validation-build', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/invalid-missing-suspense-around-runtime": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/invalid-missing-suspense-around-runtime": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+
+         This prevents Next.js from prerendering this page.
+
+         Possible fixes:
+           - Add a <Suspense> boundary around the component that accesses the data
+           - Move the access into a child component inside an existing <Suspense>
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at main (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
