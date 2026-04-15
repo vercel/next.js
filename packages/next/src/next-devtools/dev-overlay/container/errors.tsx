@@ -514,11 +514,6 @@ export function useErrorDetails(
       return blockingRouteErrorDetails
     }
 
-    const dynamicMetadataErrorDetails = getDynamicMetadataErrorDetails(error)
-    if (dynamicMetadataErrorDetails) {
-      return dynamicMetadataErrorDetails
-    }
-
     return noErrorDetails
   }, [error, getSquashedHydrationErrorDetails])
 }
@@ -565,9 +560,7 @@ function isRuntimeVariant(message: string): boolean {
   return false
 }
 
-function getBlockingRouteErrorDetails(
-  error: Error
-): BlockingRouteErrorDetails | null {
+function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   const isBlockingPageLoadError = error.message.includes('/blocking-route')
 
   if (isBlockingPageLoadError) {
@@ -575,6 +568,16 @@ function getBlockingRouteErrorDetails(
       type: 'blocking-route',
       variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: '',
+    }
+  }
+
+  const isDynamicMetadataError = error.message.includes(
+    '/next-prerender-dynamic-metadata'
+  )
+  if (isDynamicMetadataError) {
+    return {
+      type: 'dynamic-metadata',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
     }
   }
 
@@ -590,19 +593,6 @@ function getBlockingRouteErrorDetails(
   }
 
   return null
-}
-
-function getDynamicMetadataErrorDetails(
-  error: Error
-): DynamicMetadataErrorDetails | null {
-  if (!error.message.includes('/next-prerender-dynamic-metadata')) {
-    return null
-  }
-
-  return {
-    type: 'dynamic-metadata',
-    variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
-  }
 }
 
 export function Errors({
