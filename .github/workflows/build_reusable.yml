@@ -213,6 +213,11 @@ jobs:
       - run: corepack enable
       - run: pwd
 
+      - name: Kill stale sccache processes
+        if: ${{ runner.os == 'Windows' }}
+        shell: powershell
+        run: Get-Process sccache -ErrorAction SilentlyContinue | Stop-Process -Force
+
       - run: rm -rf .git
 
       - uses: actions/checkout@v4
