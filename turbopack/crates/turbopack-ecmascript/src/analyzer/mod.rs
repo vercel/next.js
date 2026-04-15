@@ -3861,16 +3861,13 @@ mod tests {
                         .unwrap();
                     }
                     NormalizedOutput::from(explain_all(named_values.iter().map(
-                        |(
-                            name,
+                        |(name, (id, VarMeta { value }))| {
                             (
-                                _,
-                                VarMeta {
-                                    value,
-                                    assignment_scopes,
-                                },
-                            ),
-                        )| (name, value, Some(*assignment_scopes)),
+                                name,
+                                value,
+                                eval_context.imports.assignment_scopes.get(id).copied(),
+                            )
+                        },
                     )))
                     .compare_to_file(&graph_explained_snapshot_path)
                     .unwrap();

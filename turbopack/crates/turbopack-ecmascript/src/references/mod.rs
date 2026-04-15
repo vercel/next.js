@@ -867,7 +867,7 @@ async fn analyze_ecmascript_module_internal(
             .collect();
         let esm_exports = eval_context
             .imports
-            .as_esm_exports(&import_references, &var_graph)?;
+            .as_esm_exports(&import_references, eval_context)?;
 
         for idx in eval_context.imports.reexports_reference_idxs() {
             analysis.add_esm_reexport_reference(idx);
