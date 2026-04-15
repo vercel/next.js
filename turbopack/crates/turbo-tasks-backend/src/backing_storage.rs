@@ -108,6 +108,12 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     fn shutdown(&self) -> Result<()> {
         Ok(())
     }
+
+    /// Returns true if the database is in an unrecoverable error state where a previous write or
+    /// compaction failed and the rollback also failed, permanently disabling further writes.
+    fn has_unrecoverable_write_error(&self) -> bool {
+        false
+    }
 }
 
 impl<L, R> BackingStorage for Either<L, R>
@@ -170,5 +176,9 @@ where
 
     fn shutdown(&self) -> Result<()> {
         either::for_both!(self, this => this.shutdown())
+    }
+
+    fn has_unrecoverable_write_error(&self) -> bool {
+        either::for_both!(self, this => this.has_unrecoverable_write_error())
     }
 }

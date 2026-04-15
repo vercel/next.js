@@ -4989,7 +4989,6 @@ dependencies = [
  "turbo-unix-path",
  "turbopack-core",
  "turbopack-ecmascript-hmr-protocol",
- "turbopack-ecmascript-plugins",
  "turbopack-node",
  "turbopack-trace-server",
  "turbopack-trace-utils",
@@ -10133,6 +10132,7 @@ dependencies = [
 name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
+ "libmimalloc-sys",
  "mimalloc",
 ]
 
@@ -10481,6 +10481,7 @@ dependencies = [
  "tracing",
  "turbo-bincode",
  "turbo-esregex",
+ "turbo-frozenmap",
  "turbo-rcstr",
  "turbo-tasks",
  "turbo-tasks-backend",

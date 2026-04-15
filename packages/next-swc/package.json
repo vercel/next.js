@@ -1,6 +1,6 @@
 {
   "name": "@next/swc",
-  "version": "16.2.1-canary.38",
+  "version": "16.2.1-canary.42",
   "private": true,
   "files": [
     "native/"
@@ -8,11 +8,9 @@
   "scripts": {
     "build-native-auto": "node maybe-build-native.mjs",
     "clean": "node ../../scripts/rm.mjs native",
-    "build-native": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --features plugin,image-extended --js false native",
-    "build-native-release": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --release --features plugin,image-extended,tracing/release_max_level_trace --js false native",
-    "build-native-release-with-assertions": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --profile release-with-assertions --features plugin,image-extended,tracing/release_max_level_trace --js false native",
-    "build-native-no-plugin": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --features image-webp --js false native",
-    "build-native-no-plugin-release": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --release --features image-webp,tracing/release_max_level_trace --js false native",
+    "build-native": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --features image-extended --js false native",
+    "build-native-release": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --release --features image-extended,tracing/release_max_level_trace --js false native",
+    "build-native-release-with-assertions": "napi build --platform -p next-napi-bindings --cargo-cwd ../../ --cargo-name next_napi_bindings --profile release-with-assertions --features image-extended,tracing/release_max_level_trace --js false native",
     "build-native-wasi": "npx --package=@napi-rs/cli@3.0.0-alpha.45 napi build --platform --target wasm32-wasip1-threads -p next-napi-bindings --cwd ../../ --output-dir packages/next-swc/native --no-default-features",
     "build-sccache": "node ../../scripts/build-sccache.js",
     "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",

@@ -87,6 +87,9 @@ static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
         })
+        .on_thread_park(|| {
+            TurboMalloc::thread_park();
+        })
         .build()
         .unwrap()
 });

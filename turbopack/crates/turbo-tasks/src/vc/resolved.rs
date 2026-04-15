@@ -12,9 +12,10 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
-    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
 };
@@ -350,6 +351,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ResolvedVc<T>
 where
     T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
