@@ -10,7 +10,7 @@ pub(crate) mod evaluate;
 
 use std::fmt::Display;
 
-use anyhow::Result;
+use anyhow::{Result, bail};
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
@@ -71,6 +71,42 @@ pub enum ContentHashing {
     },
 }
 
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize, TaskInput)]
+#[serde(rename_all = "kebab-case")]
+pub enum CrossOrigin {
+    #[default]
+    None,
+    Anonymous,
+    UseCredentials,
+}
+
+impl CrossOrigin {
+    pub fn as_str(self) -> Option<&'static str> {
+        match self {
+            Self::None => None,
+            Self::Anonymous => Some("anonymous"),
+            Self::UseCredentials => Some("use-credentials"),
+        }
+    }
+}
+
+impl TryFrom<Option<&str>> for CrossOrigin {
+    type Error = anyhow::Error;
+
+    fn try_from(value: Option<&str>) -> Result<Self> {
+        match value {
+            None => Ok(Self::None),
+            Some("anonymous") => Ok(Self::Anonymous),
+            Some("use-credentials") => Ok(Self::UseCredentials),
+            Some(value) => bail!(
+                "invalid crossOrigin value `{value}`; supported values are `anonymous` and \
+                 `use-credentials`"
+            ),
+        }
+    }
+}
+
 /// A module id, which can be a number or string
 #[turbo_tasks::value(shared, operation)]
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash, Serialize, ValueToString)]
@@ -111,17 +147,6 @@ pub trait ChunkableModule: Module {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>>;
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
-
-#[turbo_tasks::value_impl]
-impl ChunkableModules {
-    #[turbo_tasks::function]
-    pub fn interned(modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>) -> Vc<Self> {
-        Vc::cell(modules)
-    }
 }
 
 /// A [Module] that can be merged with other [Module]s (to perform scope hoisting)

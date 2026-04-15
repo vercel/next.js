@@ -2,6 +2,7 @@
 dist
 !.github/actions/*/dist
 .next
+.next-profiles
 target
 packages/next/wasm/@next
 tarballs/
@@ -25,6 +26,7 @@ test/node_modules
 pids
 *.cpuprofile
 *.heapsnapshot
+.next-profiles
 
 # coverage
 .nyc_output

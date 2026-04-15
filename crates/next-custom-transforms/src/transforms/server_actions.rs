@@ -1819,7 +1819,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                         }
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportNamed(named_export))
-                        if named_export.src.is_none() =>
+                        if named_export.src.is_none() && !named_export.type_only =>
                     {
                         for spec in &named_export.specifiers {
                             match spec {
@@ -3942,7 +3942,7 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                 r#"
                     To use "{directive}", please enable the feature flag `cacheComponents` in your Next.js config.
 
-                    Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
+                    Read more: https://nextjs.org/docs/app/api-reference/directives/use-cache#usage
                 "#
             },
         ),

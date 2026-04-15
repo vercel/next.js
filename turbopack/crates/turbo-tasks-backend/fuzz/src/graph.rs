@@ -87,6 +87,9 @@ static RUNTIME: Lazy<tokio::runtime::Runtime> = Lazy::new(|| {
         .on_thread_stop(|| {
             TurboMalloc::thread_stop();
         })
+        .on_thread_park(|| {
+            TurboMalloc::thread_park();
+        })
         .build()
         .unwrap()
 });
@@ -133,16 +136,17 @@ pub fn run(data: Vec<TaskSpec>) {
 struct Iteration(State<usize>);
 
 fn actual_operation(spec: Arc<Vec<TaskSpec>>, iterations: usize) {
-    let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
-        turbo_tasks_backend::BackendOptions {
-            storage_mode: None,
-            small_preallocation: true,
-            ..Default::default()
-        },
-        turbo_tasks_backend::noop_backing_storage(),
-    ));
     RUNTIME
         .block_on(async {
+            let tt = TurboTasks::new(turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWrite),
+                    small_preallocation: false,
+                    active_tracking: true,
+                    ..Default::default()
+                },
+                turbo_tasks_backend::noop_backing_storage(),
+            ));
             for i in 0..iterations {
                 let spec = spec.clone();
                 tt.run(async move {

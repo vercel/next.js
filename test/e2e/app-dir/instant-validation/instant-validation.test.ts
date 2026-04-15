@@ -183,7 +183,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -272,7 +272,7 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -318,12 +318,12 @@ describe('instant validation', () => {
          Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
-           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (25:19) @ Dynamic
-         > 25 |   await connection()
+           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (26:19) @ Dynamic
+         > 26 |   await connection()
               |                   ^",
            "stack": [
-             "Dynamic app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (25:19)",
-             "Page app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (18:9)",
+             "Dynamic app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (26:19)",
+             "Page app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (19:9)",
            ],
          }
         `)
@@ -333,7 +333,7 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
              at body (<anonymous>)
@@ -368,7 +368,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -443,11 +443,11 @@ describe('instant validation', () => {
          Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
-           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (10:19) @ Layout
-         > 10 |   await connection()
+           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (11:19) @ Layout
+         > 11 |   await connection()
               |                   ^",
            "stack": [
-             "Layout app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (10:19)",
+             "Layout app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (11:19)",
            ],
          }
         `)
@@ -457,7 +457,7 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at body (<anonymous>)
              at html (<anonymous>)
              at a (<anonymous>)
@@ -493,7 +493,7 @@ describe('instant validation', () => {
          "code": "E1078",
          "description": "Runtime data was accessed outside of <Suspense>
 
-       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+       This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
        To fix this:
 
@@ -555,7 +555,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -652,7 +652,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -730,12 +730,12 @@ describe('instant validation', () => {
          Learn more: https://nextjs.org/docs/messages/blocking-route",
            "environmentLabel": "Server",
            "label": "Blocking Route",
-           "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (26:19) @ Dynamic
-         > 26 |   await connection()
+           "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (27:19) @ Dynamic
+         > 27 |   await connection()
               |                   ^",
            "stack": [
-             "Dynamic app/suspense-in-root/runtime/suspense-too-high/page.tsx (26:19)",
-             "Page app/suspense-in-root/runtime/suspense-too-high/page.tsx (19:9)",
+             "Dynamic app/suspense-in-root/runtime/suspense-too-high/page.tsx (27:19)",
+             "Page app/suspense-in-root/runtime/suspense-too-high/page.tsx (20:9)",
            ],
          }
         `)
@@ -745,7 +745,7 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
              at a (<anonymous>)
@@ -770,11 +770,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (10:20) @ Page
-         > 10 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (11:20) @ Page
+         > 11 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Page app/suspense-in-root/runtime/invalid-sync-io/page.tsx (10:20)",
+             "Page app/suspense-in-root/runtime/invalid-sync-io/page.tsx (11:20)",
              "Page <anonymous>",
            ],
          }
@@ -786,23 +786,23 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:10:20)
-            8 | export default async function Page() {
-            9 |   await cookies()
-         > 10 |   const now = Date.now()
+             at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:11:20)
+            9 | export default async function Page() {
+           10 |   await cookies()
+         > 11 |   const now = Date.now()
               |                    ^
-           11 |   return (
-           12 |     <main>
-           13 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
+           12 |   return (
+           13 |     <main>
+           14 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:10:20)
-            8 | export default async function Page() {
-            9 |   await cookies()
-         > 10 |   const now = Date.now()
+             at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:11:20)
+            9 | export default async function Page() {
+           10 |   await cookies()
+         > 11 |   const now = Date.now()
               |                    ^
-           11 |   return (
-           12 |     <main>
-           13 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
+           12 |   return (
+           13 |     <main>
+           14 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io".
          Stopping prerender due to instant validation errors."
         `)
@@ -825,11 +825,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (14:20) @ Page
-         > 14 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (15:20) @ Page
+         > 15 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Page app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (14:20)",
+             "Page app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (15:20)",
              "Page <anonymous>",
            ],
          }
@@ -841,32 +841,32 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
-           12 | export default async function Page() {
-           13 |   await cookies()
-         > 14 |   const now = Date.now()
+             at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:15:20)
+           13 | export default async function Page() {
+           14 |   await cookies()
+         > 15 |   const now = Date.now()
               |                    ^
-           15 |   return (
-           16 |     <main>
-           17 |       <p>Runtime page with sync IO after cookies: {now}</p>
+           16 |   return (
+           17 |     <main>
+           18 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
-           12 | export default async function Page() {
-           13 |   await cookies()
-         > 14 |   const now = Date.now()
+             at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:15:20)
+           13 | export default async function Page() {
+           14 |   await cookies()
+         > 15 |   const now = Date.now()
               |                    ^
-           15 |   return (
-           16 |     <main>
-           17 |       <p>Runtime page with sync IO after cookies: {now}</p>
+           16 |   return (
+           17 |     <main>
+           18 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:14:20)
-           12 | export default async function Page() {
-           13 |   await cookies()
-         > 14 |   const now = Date.now()
+             at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:15:20)
+           13 | export default async function Page() {
+           14 |   await cookies()
+         > 15 |   const now = Date.now()
               |                    ^
-           15 |   return (
-           16 |     <main>
-           17 |       <p>Runtime page with sync IO after cookies: {now}</p>
+           16 |   return (
+           17 |     <main>
+           18 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent".
          Stopping prerender due to instant validation errors."
         `)
@@ -895,11 +895,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (30:20) @ Page
-         > 30 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (31:20) @ Page
+         > 31 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Page app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (30:20)",
+             "Page app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (31:20)",
              "Page <anonymous>",
            ],
          }
@@ -911,14 +911,14 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" accessed cookie "testCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "testCookie", value: null }\` if it should be absent.
-             at <unknown> (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:28:49)
-           26 |
-           27 | export default async function Page() {
-         > 28 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
+             at <unknown> (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:29:49)
+           27 |
+           28 | export default async function Page() {
+         > 29 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
               |                                                 ^
-           29 |   await cachedFn(cookiePromise)
-           30 |   const now = Date.now()
-           31 |   return ( {
+           30 |   await cachedFn(cookiePromise)
+           31 |   const now = Date.now()
+           32 |   return ( {
            digest: 'INSTANT_VALIDATION_ERROR'
          }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input".
@@ -960,11 +960,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (11:20) @ Module.generateMetadata
-         > 11 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (12:20) @ Module.generateMetadata
+         > 12 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Module.generateMetadata app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (11:20)",
+             "Module.generateMetadata app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (12:20)",
              "Next.MetadataOutlet <anonymous>",
            ],
          }
@@ -976,23 +976,23 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
+             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:12:20)
+           10 | export async function generateMetadata() {
+           11 |   await cookies()
+         > 12 |   const now = Date.now()
               |                    ^
-           12 |   return {
-           13 |     title: \`Sync IO in metadata: \${now}\`,
-           14 |   }
+           13 |   return {
+           14 |     title: \`Sync IO in metadata: \${now}\`,
+           15 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:11:20)
-            9 | export async function generateMetadata() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
+             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:12:20)
+           10 | export async function generateMetadata() {
+           11 |   await cookies()
+         > 12 |   const now = Date.now()
               |                    ^
-           12 |   return {
-           13 |     title: \`Sync IO in metadata: \${now}\`,
-           14 |   }
+           13 |   return {
+           14 |     title: \`Sync IO in metadata: \${now}\`,
+           15 |   }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata".
          Stopping prerender due to instant validation errors."
         `)
@@ -1169,7 +1169,7 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at main (<anonymous>)
              at a (<anonymous>)
@@ -1233,7 +1233,7 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
              at div (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
@@ -1282,7 +1282,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1372,7 +1372,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1462,7 +1462,7 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1499,7 +1499,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1563,7 +1563,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -1627,7 +1627,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2267,7 +2267,7 @@ describe('instant validation', () => {
              "code": "E1086",
              "description": "Runtime data was accessed inside generateViewport()
 
-           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2342,11 +2342,11 @@ describe('instant validation', () => {
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (13:19) @ Module.generateViewport
-           > 13 |   await connection()
+             "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (14:19) @ Module.generateViewport
+           > 14 |   await connection()
                 |                   ^",
              "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (13:19)",
+               "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (14:19)",
              ],
            }
           `)
@@ -2487,7 +2487,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2550,7 +2550,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2614,7 +2614,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2678,7 +2678,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2742,7 +2742,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2813,7 +2813,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -2891,7 +2891,7 @@ describe('instant validation', () => {
                "code": "E1078",
                "description": "Runtime data was accessed outside of <Suspense>
 
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
              To fix this:
 
@@ -2963,7 +2963,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3036,7 +3036,7 @@ describe('instant validation', () => {
            "code": "E1078",
            "description": "Runtime data was accessed outside of <Suspense>
 
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
          To fix this:
 
@@ -3106,7 +3106,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3171,7 +3171,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3237,7 +3237,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3304,7 +3304,7 @@ describe('instant validation', () => {
              "code": "E1078",
              "description": "Runtime data was accessed outside of <Suspense>
 
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), and searchParams, are examples of Runtime data that can only come from a user request.
+           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
 
            To fix this:
 
@@ -3400,7 +3400,7 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Uncached data, \`params\`, \`searchParams\`, or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)

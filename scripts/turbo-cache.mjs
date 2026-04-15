@@ -64,8 +64,15 @@ export async function get(key) {
 
 /**
  * Download an artifact as a Node.js Readable stream. Throws on failure.
+ *
+ * The returned stream has a `.stats` property with transfer metrics
+ * (populated as data flows):
+ *   { totalBytes, startTime, endTime, maxStallMs, stallWarned }
+ *
+ * A console warning is printed (once) if no data arrives for 5+ seconds.
+ * The stream is destroyed if no data arrives within `stallTimeout` ms.
  */
-export async function getStream(key) {
+export async function getStream(key, { stallTimeout = 30_000 } = {}) {
   const res = await fetch(artifactUrl(key), {
     method: 'GET',
     headers: baseHeaders(),
@@ -73,7 +80,128 @@ export async function getStream(key) {
   if (!res.ok) {
     throw new Error(`GET ${key} failed: ${res.status} ${res.statusText}`)
   }
-  return Readable.fromWeb(res.body)
+  // Use a large buffer to avoid backpressure stalls — the default
+  // highWaterMark for Readable.fromWeb() is only 16KB which throttles
+  // throughput when piping large artifacts to shell commands.
+  const stream = Readable.fromWeb(res.body, {
+    highWaterMark: 16 * 1024 * 1024,
+  })
+
+  const stats = {
+    totalBytes: 0,
+    startTime: Date.now(),
+    endTime: 0,
+    maxStallMs: 0,
+    stallWarned: false,
+  }
+  stream.stats = stats
+
+  let lastDataTime = Date.now()
+
+  // Stall detection: warn once at 5s, destroy at stallTimeout.
+  let timer = setTimeout(() => {
+    stream.destroy(new Error(`Download stalled: no data for ${stallTimeout}ms`))
+  }, stallTimeout)
+
+  const STALL_WARN_MS = 5_000
+  let warnTimer = setTimeout(() => {
+    if (!stats.stallWarned) {
+      stats.stallWarned = true
+      const elapsed = ((Date.now() - stats.startTime) / 1000).toFixed(1)
+      const mb = (stats.totalBytes / 1024 / 1024).toFixed(1)
+      console.log(
+        `WARNING: download stall detected — ${mb} MB received in ${elapsed}s, no data for 5s+`
+      )
+    }
+  }, STALL_WARN_MS)
+
+  stream.on('data', (chunk) => {
+    const now = Date.now()
+    const gap = now - lastDataTime
+    if (gap > stats.maxStallMs) stats.maxStallMs = gap
+    lastDataTime = now
+    stats.totalBytes += chunk.length
+
+    clearTimeout(timer)
+    timer = setTimeout(() => {
+      stream.destroy(
+        new Error(`Download stalled: no data for ${stallTimeout}ms`)
+      )
+    }, stallTimeout)
+
+    clearTimeout(warnTimer)
+    warnTimer = setTimeout(() => {
+      if (!stats.stallWarned) {
+        stats.stallWarned = true
+        const elapsed = ((Date.now() - stats.startTime) / 1000).toFixed(1)
+        const mb = (stats.totalBytes / 1024 / 1024).toFixed(1)
+        console.log(
+          `WARNING: download stall detected — ${mb} MB received in ${elapsed}s, no data for 5s+`
+        )
+      }
+    }, STALL_WARN_MS)
+  })
+
+  stream.on('end', () => {
+    clearTimeout(timer)
+    clearTimeout(warnTimer)
+    stats.endTime = Date.now()
+  })
+  stream.on('error', () => {
+    clearTimeout(timer)
+    clearTimeout(warnTimer)
+    stats.endTime = Date.now()
+  })
+
+  return stream
+}
+
+/** Format transfer stats as a human-readable string. */
+export function formatStats(stats) {
+  const duration = ((stats.endTime - stats.startTime) / 1000).toFixed(1)
+  const mb = (stats.totalBytes / 1024 / 1024).toFixed(1)
+  const speed = (
+    stats.totalBytes /
+    1024 /
+    1024 /
+    ((stats.endTime - stats.startTime) / 1000)
+  ).toFixed(1)
+  const stall =
+    stats.maxStallMs > 1000
+      ? `, max stall ${(stats.maxStallMs / 1000).toFixed(1)}s`
+      : ''
+  return `${mb} MB in ${duration}s (${speed} MB/s${stall})`
+}
+
+/**
+ * Download an artifact to a file.
+ * Returns { ok: true, stats } on hit, { ok: false } on miss/failure.
+ * Uses streaming to handle files larger than 2GB.
+ * Retries up to `retries` times on stall or network errors.
+ */
+export async function getToFile(key, destPath, { retries = 2 } = {}) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const stream = await getStream(key)
+      await new Promise((resolve, reject) => {
+        const ws = fs.createWriteStream(destPath)
+        stream.pipe(ws)
+        ws.on('finish', resolve)
+        ws.on('error', reject)
+        stream.on('error', reject)
+      })
+      return { ok: true, stats: stream.stats }
+    } catch (e) {
+      if (attempt < retries) {
+        console.log(
+          `Download attempt ${attempt + 1} failed: ${e.message} — retrying...`
+        )
+        continue
+      }
+      return { ok: false }
+    }
+  }
+  return { ok: false }
 }
 
 /**
@@ -96,7 +224,9 @@ export async function put(key, data) {
   let body
   if (isFile) {
     // Stream from file — avoids loading into memory
-    body = Readable.toWeb(fs.createReadStream(data))
+    body = Readable.toWeb(
+      fs.createReadStream(data, { highWaterMark: 16 * 1024 * 1024 })
+    )
   } else {
     body = data
   }

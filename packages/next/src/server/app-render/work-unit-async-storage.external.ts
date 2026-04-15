@@ -114,6 +114,10 @@ export type AsyncApiPromises = {
   // Connection is not a runtime promise and doesn't
   // need to distinguish between early and late
   connection: Promise<undefined>
+
+  // IO is not a runtime promise and doesn't
+  // need to distinguish between early and late
+  io: Promise<undefined>
 }
 
 /**
@@ -342,6 +346,7 @@ export interface CommonUseCacheStore extends CommonCacheStore, RevalidateStore {
   readonly isHmrRefresh: boolean
   readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
   readonly forceRevalidate: boolean
+  readonly outerOwnerStack: string | undefined
 }
 
 export interface PublicUseCacheStore extends CommonUseCacheStore {

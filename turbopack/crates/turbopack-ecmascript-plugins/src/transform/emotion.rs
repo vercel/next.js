@@ -84,20 +84,6 @@ pub struct EmotionTransformConfig {
     pub import_map: Option<IndexMap<RcStr, EmotionImportMapValue, FxBuildHasher>>,
 }
 
-#[turbo_tasks::value_impl]
-impl EmotionTransformConfig {
-    #[turbo_tasks::function]
-    pub fn default_private() -> Vc<Self> {
-        Self::cell(Default::default())
-    }
-}
-
-impl ValueDefault for EmotionTransformConfig {
-    fn value_default() -> Vc<Self> {
-        EmotionTransformConfig::default_private()
-    }
-}
-
 #[derive(Debug)]
 pub struct EmotionTransformer {
     #[cfg(feature = "transform_emotion")]

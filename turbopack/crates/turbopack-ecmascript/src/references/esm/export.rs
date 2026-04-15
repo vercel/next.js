@@ -11,6 +11,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs, turbofmt,
@@ -529,7 +530,7 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     /// Explicit exports
-    pub exports: BTreeMap<RcStr, EsmExport>,
+    pub exports: FrozenMap<RcStr, EsmExport>,
     /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
@@ -541,7 +542,7 @@ pub struct EsmExports {
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct ExpandedExports {
-    pub exports: BTreeMap<RcStr, EsmExport>,
+    pub exports: FrozenMap<RcStr, EsmExport>,
     /// Modules we couldn't analyze all exports of.
     pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
@@ -559,16 +560,16 @@ impl EsmExports {
         module_reference: Vc<Box<dyn ModuleReference>>,
     ) -> Result<Vc<EcmascriptExports>> {
         let module_reference = module_reference.to_resolved().await?;
-        let mut exports = BTreeMap::new();
+        let mut exports = Vec::new();
         let default = rcstr!("default");
-        exports.insert(
+        exports.push((
             default.clone(),
             EsmExport::ImportedBinding(module_reference, default, false),
-        );
+        ));
 
         Ok(EcmascriptExports::EsmExports(
             EsmExports {
-                exports,
+                exports: FrozenMap::from(exports),
                 star_exports: vec![module_reference],
             }
             .resolved_cell(),
@@ -581,7 +582,11 @@ impl EsmExports {
         &self,
         export_usage_info: Vc<ModuleExportUsageInfo>,
     ) -> Result<Vc<ExpandedExports>> {
-        let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
+        let mut exports: BTreeMap<_, _> = self
+            .exports
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         let mut dynamic_exports = vec![];
         let export_usage_info = export_usage_info.await?;
 
@@ -608,12 +613,10 @@ impl EsmExports {
                     continue;
                 }
 
-                if !exports.contains_key(export) {
-                    exports.insert(
-                        export.clone(),
-                        EsmExport::ImportedBinding(esm_ref, export.clone(), false),
-                    );
-                }
+                // the spec indicates first-one-wins: https://tc39.es/ecma262/#_ref_9060
+                exports
+                    .entry(export.clone())
+                    .or_insert_with(|| EsmExport::ImportedBinding(esm_ref, export.clone(), false));
             }
 
             if !export_info.dynamic_exporting_modules.is_empty() {
@@ -622,7 +625,7 @@ impl EsmExports {
         }
 
         Ok(ExpandedExports {
-            exports,
+            exports: FrozenMap::from(exports),
             dynamic_exports,
         }
         .cell())

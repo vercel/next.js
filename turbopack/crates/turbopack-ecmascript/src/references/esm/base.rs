@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use either::Either;
 use strsim::jaro;
 use swc_core::{
@@ -14,10 +15,7 @@ use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     loader::ResolvedWebpackLoaderItem,
     module::{Module, ModuleSideEffects},
     module_graph::binding_usage_info::ModuleExportUsageInfo,
@@ -790,90 +788,78 @@ pub struct InvalidExport {
     source: IssueSource,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidExport {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Export ")),
             StyledString::Code(self.export.clone()),
             StyledString::Text(rcstr!(" doesn't exist in target module")),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Bindings
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let export_names = all_known_export_names(*self.module).await?;
         let did_you_mean = export_names
             .iter()
             .map(|s| (s, jaro(self.export.as_str(), s.as_str())))
             .max_by(|a, b| a.1.partial_cmp(&b.1).unwrap())
             .map(|(s, _)| s);
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("The export ")),
-                    StyledString::Code(self.export.clone()),
-                    StyledString::Text(rcstr!(" was not found in module ")),
-                    StyledString::Strong(self.module.ident().to_string().owned().await?),
-                    StyledString::Text(rcstr!(".")),
-                ]),
-                if let Some(did_you_mean) = did_you_mean {
-                    StyledString::Line(vec![
-                        StyledString::Text(rcstr!("Did you mean to import ")),
-                        StyledString::Code(did_you_mean.clone()),
-                        StyledString::Text(rcstr!("?")),
-                    ])
-                } else {
-                    StyledString::Strong(rcstr!("The module has no exports at all."))
-                },
-                StyledString::Text(
-                    "All exports of the module are statically known (It doesn't have dynamic \
-                     exports). So it's known statically that the requested export doesn't exist."
-                        .into(),
-                ),
-            ])
-            .resolved_cell(),
-        )))
-    }
-
-    #[turbo_tasks::function]
-    async fn detail(&self) -> Result<Vc<OptionStyledString>> {
-        let export_names = all_known_export_names(*self.module).await?;
-        Ok(Vc::cell(Some(
+        Ok(Some(StyledString::Stack(vec![
             StyledString::Line(vec![
-                StyledString::Text(rcstr!("These are the exports of the module:\n")),
-                StyledString::Code(
-                    export_names
-                        .iter()
-                        .map(|s| s.as_str())
-                        .intersperse(", ")
-                        .collect::<String>()
-                        .into(),
-                ),
-            ])
-            .resolved_cell(),
-        )))
+                StyledString::Text(rcstr!("The export ")),
+                StyledString::Code(self.export.clone()),
+                StyledString::Text(rcstr!(" was not found in module ")),
+                StyledString::Strong(self.module.ident().to_string().owned().await?),
+                StyledString::Text(rcstr!(".")),
+            ]),
+            if let Some(did_you_mean) = did_you_mean {
+                StyledString::Line(vec![
+                    StyledString::Text(rcstr!("Did you mean to import ")),
+                    StyledString::Code(did_you_mean.clone()),
+                    StyledString::Text(rcstr!("?")),
+                ])
+            } else {
+                StyledString::Strong(rcstr!("The module has no exports at all."))
+            },
+            StyledString::Text(
+                "All exports of the module are statically known (It doesn't have dynamic \
+                 exports). So it's known statically that the requested export doesn't exist."
+                    .into(),
+            ),
+        ])))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        let export_names = all_known_export_names(*self.module).await?;
+        Ok(Some(StyledString::Line(vec![
+            StyledString::Text(rcstr!("These are the exports of the module:\n")),
+            StyledString::Code(
+                export_names
+                    .iter()
+                    .map(|s| s.as_str())
+                    .intersperse(", ")
+                    .collect::<String>()
+                    .into(),
+            ),
+        ])))
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
@@ -885,60 +871,52 @@ pub struct CircularReExport {
     module_cycle: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for CircularReExport {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Export ")),
             StyledString::Code(self.export.clone()),
             StyledString::Text(rcstr!(" is a circular re-export")),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Bindings.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Bindings
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.module.ident().path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.module.ident().path().owned().await
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
-                StyledString::Line(vec![
-                    StyledString::Code(self.export.clone()),
-                    StyledString::Text(rcstr!(" of module ")),
-                    StyledString::Strong(self.module.ident().to_string().owned().await?),
-                ]),
-                StyledString::Line(vec![StyledString::Text(rcstr!(
-                    "is a re-export of the export"
-                ))]),
-                StyledString::Line(vec![
-                    StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
-                    StyledString::Text(rcstr!(" of module ")),
-                    StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
-                    StyledString::Text(rcstr!(".")),
-                ]),
-            ])
-            .resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![StyledString::Text(rcstr!("The export"))]),
+            StyledString::Line(vec![
+                StyledString::Code(self.export.clone()),
+                StyledString::Text(rcstr!(" of module ")),
+                StyledString::Strong(self.module.ident().to_string().owned().await?),
+            ]),
+            StyledString::Line(vec![StyledString::Text(rcstr!(
+                "is a re-export of the export"
+            ))]),
+            StyledString::Line(vec![
+                StyledString::Code(self.import.clone().unwrap_or_else(|| rcstr!("*"))),
+                StyledString::Text(rcstr!(" of module ")),
+                StyledString::Strong(self.module_cycle.ident().to_string().owned().await?),
+                StyledString::Text(rcstr!(".")),
+            ]),
+        ])))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
+    fn source(&self) -> Option<IssueSource> {
         // TODO(PACK-4879): This should point at the buggy export by querying for the source
         // location
-        Vc::cell(None)
+        None
     }
 }

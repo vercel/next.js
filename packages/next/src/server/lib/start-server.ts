@@ -16,7 +16,6 @@ import http from 'http'
 import https from 'https'
 import os from 'os'
 import { exec } from 'child_process'
-import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE } from './utils'
@@ -548,7 +547,8 @@ export async function startServer(
     }
 
     const configFiles = CONFIG_FILES.map((file) => path.join(dir, file))
-
+    const Watchpack =
+      require('next/dist/compiled/watchpack') as typeof import('next/dist/compiled/watchpack').default
     const wp = new Watchpack()
     wp.watch({
       files: configFiles,
@@ -599,6 +599,13 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         )
       }
 
+      let rageRestartAttrsFromParent = {}
+      if (process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS) {
+        rageRestartAttrsFromParent = JSON.parse(
+          process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS
+        )
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
@@ -606,6 +613,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
         ...enabledFeaturesFromParent,
+        ...rageRestartAttrsFromParent,
       })
 
       initializeTraceState({

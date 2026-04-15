@@ -25,7 +25,10 @@ use shrink_to_fit::ShrinkToFit;
 
 pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
-    cell_mode::{VcCellCompareMode, VcCellKeyedCompareMode, VcCellMode, VcCellNewMode},
+    cell_mode::{
+        VcCellCompareMode, VcCellHashedCompareMode, VcCellKeyedCompareMode, VcCellMode,
+        VcCellNewMode,
+    },
     default::ValueDefault,
     local::NonLocalValue,
     operation::{OperationValue, OperationVc, ResolveOperationVcFuture},
@@ -33,9 +36,10 @@ pub use self::{
     resolved::ResolvedVc,
     traits::{Dynamic, Upcast, UpcastStrict, VcValueTrait, VcValueType},
 };
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     CellId, RawVc, ResolveRawVcFuture,
-    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     keyed::{KeyedAccess, KeyedEq},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
@@ -473,16 +477,16 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for Vc<T>
 where
     T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,
 {
     fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
         ValueDebugFormatString::Async(Box::pin(async move {
-            Ok({
-                let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);
-                vc_value_debug.dbg_depth(depth).await?.to_string()
-            })
+            let vc_value_debug = Vc::upcast::<Box<dyn ValueDebug>>(*self);
+            let trait_ref = vc_value_debug.into_trait_ref().await?;
+            trait_ref.dbg_depth(depth).await
         }))
     }
 }

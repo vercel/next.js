@@ -288,6 +288,13 @@ impl TryFrom<CellContent> for SharedReference {
 
 pub type TaskCollectiblesMap = AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1>;
 
+/// A 128-bit content hash stored as little-endian bytes.
+///
+/// Using a byte array rather than `u128` keeps the alignment at 1 byte, which avoids padding
+/// in structures such as `AutoMap`/`LazyField` enums that would otherwise grow to accommodate
+/// `u128`'s 16-byte alignment requirement.
+pub type CellHash = [u8; 16];
+
 // Structurally and functionally similar to Cow<&'static, str> but explicitly notes the importance
 // of non-static strings potentially containing PII (Personal Identifiable Information).
 #[derive(Debug, Clone, Encode, Decode, PartialEq, Eq)]
@@ -591,6 +598,7 @@ pub trait Backend: Sync + Send {
         is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        content_hash: Option<CellHash>,
         verification_mode: VerificationMode,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
