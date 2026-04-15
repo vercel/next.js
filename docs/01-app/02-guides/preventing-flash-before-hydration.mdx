@@ -4,11 +4,11 @@ nav_title: Preventing Flash
 description: Learn how to correct server-rendered content before the browser paints, avoiding visible flash when the page hydrates.
 ---
 
-Some values can only be formatted correctly in the browser. A date needs the user's locale and timezone. A theme depends on a preference saved in `localStorage`. The server doesn't have access to these, so the HTML it sends is a best guess.
+User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, timezone, theme, persisted interactions) needs to be updated before the user sees it.
 
-The usual approaches each have a tradeoff: a Client Component causes a hydration error or a visible flash after hydration, a `useEffect` update flashes too, and a Server Component locks in the server's formatting permanently. On slow connections or large pages, the browser paints the server HTML well before hydration completes, making any flash more noticeable.
+Common approaches to this problem each have tradeoffs. A Client Component that re-renders with client values causes a hydration error. Deferring to `useEffect` avoids the error but introduces a visible flash. And rendering only on the server means giving up on client-specific formatting entirely.
 
-Using an **inline script** that runs synchronously as the browser parses the HTML, you can correct the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
+Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
 
 ## Example
 
@@ -22,7 +22,7 @@ Use Chrome DevTools [Sensors](https://developer.chrome.com/docs/devtools/sensors
 
 ## Dates and formatting
 
-A timestamp like `2026-06-15T18:00:00Z` is the same instant everywhere. But to be useful to the reader, you'll want to format it for their locale and timezone. When you call `toLocaleDateString()` or `Intl.DateTimeFormat` on the server, they format using the **server's** settings, not the user's.
+A UTC timestamp like `2026-06-15T18:00:00Z` represents a fixed point in time, but how it is formatted for display depends on the user's locale and timezone. `toLocaleDateString()` and `Intl.DateTimeFormat` on the server use the server's settings, which may not match the user's.
 
 ### The problem
 
@@ -48,11 +48,13 @@ During SSR, `toLocaleDateString()` runs in Node.js and formats using the server'
 
 You could work around this with `useEffect` to update the date after hydration, but the user still sees the server-formatted date first. A Server Component avoids the error entirely, but the date is permanently in the server's locale.
 
-> **Good to know:** This issue is easy to miss in local development if your machine's locale matches your browser's. If you typically deploy to a different region, run your dev server with `TZ` and `LANG` set to a different locale than your browser (e.g. `LANG=ja_JP.UTF-8 next dev` or `LANG=en_US.UTF-8 next dev`) to catch these mismatches early.
+> **Good to know:** This issue is easy to miss in local development if your machine's locale matches your browser's. Run your dev server with `TZ` and `LANG` set differently from your browser to catch mismatches early (e.g. `TZ=UTC LANG=ja_JP.UTF-8 next dev`). `TZ=UTC` is a good default since most servers run in UTC.
 
 ### Fixing it with an inline script
 
-Place a small inline `<script>` after the element. The browser executes it synchronously as it parses the HTML, correcting the date before the first paint.
+1. The server renders the date with its locale into a `<p>`.
+2. Place a `<script>` (via [`dangerouslySetInnerHTML`](https://react.dev/reference/react-dom/components/common#dangerously-setting-the-inner-html)) after the element. The browser runs it **synchronously** during HTML parsing, before the first paint.
+3. Add [`suppressHydrationWarning`](https://react.dev/reference/react-dom/client/hydrateRoot#suppressing-unavoidable-hydration-mismatch-errors) to the element, since the inline script changes the text before React hydrates. See [Understanding `suppressHydrationWarning`](#understanding-suppresshydrationwarning) below.
 
 ```tsx filename="app/events/page.tsx" switcher
 import { getEvent } from '@/app/lib/events'
@@ -98,24 +100,22 @@ export default async function Page() {
 }
 ```
 
-1. The server renders the date with its locale into the `<p>`. No component code is sent to the browser.
-2. The inline script runs **synchronously** during HTML parsing and replaces the text.
-3. React hydrates. The RSC payload has the server text, but the DOM has the corrected text. `suppressHydrationWarning` tells React to accept the DOM.
+This works on full page loads (direct visits, refreshes). For client-side navigations via `<Link>`, see [Extracting a reusable component](#extracting-a-reusable-component).
 
 ### Understanding `suppressHydrationWarning`
 
 When React hydrates and finds a text mismatch:
 
-- **Without `suppressHydrationWarning`**: React treats it as a hydration error and recovers by client-rendering the entire client component boundary from scratch. This causes a flash, and inline script corrections on **other components in the same tree are lost** - the scripts don't re-execute when React rebuilds the DOM.
+- **Without `suppressHydrationWarning`**: React treats it as a hydration error and recovers by client-rendering from the nearest error or Suspense boundary. This causes a flash, and inline script corrections on **other components within that boundary are lost** because the scripts don't re-execute when React rebuilds the DOM.
 - **With `suppressHydrationWarning`**: React keeps whatever is in the DOM and discards the client's output for that element. The DOM wins.
 
 The inline script puts the correct value in the DOM before React hydrates. Even for Server Components, React compares the DOM against the RSC payload during hydration, and the inline script has changed the text. `suppressHydrationWarning` tells React to accept the DOM rather than the payload.
 
 ### Extracting a reusable component
 
-For multiple dates, extract the pattern into a Client Component. This means `toLocaleDateString()` runs in the browser on client-side navigations, producing the correct locale directly. On hard navigations, the inline script corrects the date before paint.
+Scripts inserted via DOM updates don't execute in the browser. On client-side navigations, React renders the component from the RSC payload and the script won't run. Making the component a Client Component solves this: `toLocaleDateString()` runs directly in the browser on soft navigations, while the inline script handles hard navigations. [`useId`](https://react.dev/reference/react/useId) generates a stable unique ID for each instance.
 
-React warns in development when rendering produces `<script>` tags, because scripts inserted via DOM updates don't execute in the browser. To avoid this, wrap the script in a helper that sets `type="text/javascript"` on the server and `type="text/plain"` on the client. `suppressHydrationWarning` handles the type mismatch.
+React also warns in development when rendering produces `<script>` tags. To avoid this, wrap the script in a helper that sets `type="text/javascript"` on the server and `type="text/plain"` on the client. `suppressHydrationWarning` handles the type mismatch.
 
 ```tsx filename="app/components/inline-script.tsx" switcher
 export function InlineScript({ html }: { html: string }) {
@@ -232,7 +232,10 @@ export default async function Page() {
 }
 ```
 
-> **Good to know:** Use a `<time>` element with a `dateTime` attribute so search engines and screen readers can parse the ISO string regardless of the displayed text.
+> **Good to know:**
+>
+> - Use a [`<time>`](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/time) element with a `dateTime` attribute so search engines and screen readers can parse the ISO string regardless of the displayed text.
+> - Inline scripts with `dangerouslySetInnerHTML` are blocked by strict [Content Security Policies](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) that don't allow `'unsafe-inline'`. If your app uses a CSP, you'll need to add a [nonce](/docs/app/guides/content-security-policy).
 
 ## Themes
 
@@ -290,8 +293,6 @@ export default function RootLayout({ children }) {
 
 The script runs in `<head>`, so the correct theme is applied before any content is painted. The `try/catch` handles cases where `localStorage` is unavailable.
 
-> **Good to know:** If the theme preference is stored in a cookie, read it on the server in a [layout](/docs/app/api-reference/file-conventions/layout) or [middleware](/docs/app/building-your-application/routing/middleware) and render the correct theme directly.
-
 ## Syncing with React state
 
 When a Client Component manages interactive state (like which accordion section is open), React's initial state must match the DOM that the inline script set. Use a **lazy state initializer** that reads from the same source as the script.
@@ -305,9 +306,21 @@ import { InlineScript } from './inline-script'
 const STORAGE_KEY = 'open-section'
 
 const sections = [
-  { id: 'setup', title: 'Setup', content: 'Install dependencies and create your project.' },
-  { id: 'usage', title: 'Usage', content: 'Import the component and pass your data.' },
-  { id: 'deploy', title: 'Deploy', content: 'Push to your Git provider and deploy.' },
+  {
+    id: 'setup',
+    title: 'Setup',
+    content: 'Install dependencies and create your project.',
+  },
+  {
+    id: 'usage',
+    title: 'Usage',
+    content: 'Import the component and pass your data.',
+  },
+  {
+    id: 'deploy',
+    title: 'Deploy',
+    content: 'Push to your Git provider and deploy.',
+  },
 ]
 
 const DEFAULT_ID = sections[0].id
@@ -360,9 +373,21 @@ import { InlineScript } from './inline-script'
 const STORAGE_KEY = 'open-section'
 
 const sections = [
-  { id: 'setup', title: 'Setup', content: 'Install dependencies and create your project.' },
-  { id: 'usage', title: 'Usage', content: 'Import the component and pass your data.' },
-  { id: 'deploy', title: 'Deploy', content: 'Push to your Git provider and deploy.' },
+  {
+    id: 'setup',
+    title: 'Setup',
+    content: 'Install dependencies and create your project.',
+  },
+  {
+    id: 'usage',
+    title: 'Usage',
+    content: 'Import the component and pass your data.',
+  },
+  {
+    id: 'deploy',
+    title: 'Deploy',
+    content: 'Push to your Git provider and deploy.',
+  },
 ]
 
 const DEFAULT_ID = sections[0].id
@@ -410,13 +435,12 @@ The inline script and the lazy `useState` initializer both read from `localStora
 
 ## When to use other approaches
 
-| Situation | Approach |
-| --- | --- |
+| Situation                                       | Approach                                                                                                                                                             |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Date depends on request data (cookies, headers) | Use [`headers()`](/docs/app/api-reference/functions/headers) or [`cookies()`](/docs/app/api-reference/functions/cookies) to read request data and format server-side |
-| Date updates live (countdown timers, clocks) | Use a Client Component with `useEffect` and `suppressHydrationWarning` |
-| Page is already fully dynamic | Format the date on the server using the `Accept-Language` header |
-| Translating content between languages | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering |
-| Theme stored in a cookie | Read the cookie in a [layout](/docs/app/api-reference/file-conventions/layout) or [middleware](/docs/app/building-your-application/routing/middleware) and render the correct theme server-side |
+| Date updates live (countdown timers, clocks)    | Use a Client Component with `useEffect` and `suppressHydrationWarning`                                                                                               |
+| Page is already fully dynamic                   | Format the date on the server using the `Accept-Language` header                                                                                                     |
+| Translating content between languages           | Use [internationalization](/docs/app/guides/internationalization) with per-locale static builds or dynamic rendering                                                 |
 
 ### Why not `useEffect`?
 
