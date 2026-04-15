@@ -393,6 +393,9 @@ pub async fn parse_segment_config_from_source(
             EcmascriptModuleAssetType::Ecmascript
         },
         EcmascriptInputTransforms::empty(),
+        // node_env is not used here: EcmascriptInputTransforms::empty() means no
+        // transforms are applied, so TransformContext::node_env is never accessed.
+        rcstr!("development"),
         false,
         false,
     )

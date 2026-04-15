@@ -9,7 +9,7 @@ use bincode::{Decode, Encode};
 use indexmap::Equivalent;
 use num_bigint::BigInt;
 use rustc_hash::FxHashSet;
-use smallvec::SmallVec;
+use smallvec::{SmallVec, smallvec};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
@@ -339,6 +339,19 @@ impl CompileTimeDefines {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(FxIndexMap::default())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn read_process_env(&self, key: RcStr) -> Result<Vc<Option<RcStr>>> {
+        let key = DefinableNameSegmentRefs(smallvec![
+            DefinableNameSegmentRef::Name("process"),
+            DefinableNameSegmentRef::Name("env"),
+            DefinableNameSegmentRef::Name(&key),
+        ]);
+        Ok(Vc::cell(match self.0.get(&key) {
+            Some(CompileTimeDefineValue::String(s)) => Some(s.clone()),
+            _ => None,
+        }))
     }
 }
 

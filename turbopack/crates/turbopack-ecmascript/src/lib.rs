@@ -701,10 +701,19 @@ impl EcmascriptModuleAsset {
 impl EcmascriptModuleAsset {
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
+        let node_env = self
+            .compile_time_info
+            .await?
+            .defines
+            .read_process_env(rcstr!("NODE_ENV"))
+            .owned()
+            .await?
+            .unwrap_or_else(|| rcstr!("development"));
         Ok(parse(
             *self.source,
             self.ty,
             *self.transforms,
+            node_env,
             options.analyze_mode == AnalyzeMode::Tracing,
             options.inline_helpers,
         ))
