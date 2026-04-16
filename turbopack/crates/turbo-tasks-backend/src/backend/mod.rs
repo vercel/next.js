@@ -1545,6 +1545,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         );
 
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
+        // Use a read lock rather than a write lock to avoid contention. connect_child
+        // may re-enter task_cache with a write lock, so we must not hold a write lock here.
         if let Some(task_id) = raw_get(&self.task_cache, hash, |k| {
             k.eq_components(native_fn, this, arg_ref)
         }) {
@@ -1564,7 +1566,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut is_new = false;
 
-        // For persistent tasks, check backing storage (no dashmap lock held).
+        // Task exists in backing storage.
+        // We only need to insert it into the in-memory cache.
         let task_id = if !transient && let Some(task_id) = ctx.task_by_type(&task_type) {
             self.track_cache_hit_by_fn(native_fn);
             // Step 3a: Insert into in-memory cache using pre-computed hash.
@@ -1579,7 +1582,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             task_id
         } else {
-            // Step 3b: Double-check under write lock using pre-computed hash.
+            // Task doesn't exist in memory cache or backing storage.
+            // Double-check under write lock using pre-computed hash.
             match raw_entry_with_hash(&self.task_cache, hash, |k| {
                 k.eq_components(native_fn, this, task_type.arg.as_ref())
             }) {

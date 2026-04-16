@@ -55,10 +55,6 @@ use crate::{
 pub trait TurboTasksCallApi: Sync + Send {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
-    ///
-    /// The `arg` is a [`StackMagicAny`] that holds the arguments on the caller's
-    /// stack. On cache hit, only the borrowed reference is used (zero allocation).
-    /// On cache miss, `arg.take_box()` moves the value to the heap.
     fn dynamic_call(
         &self,
         native_fn: &'static NativeFunction,
@@ -798,12 +794,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc {
-        let parent_task = current_task_if_available("turbo_function calls");
         RawVc::TaskOutput(self.backend.get_or_create_task(
             native_fn,
             this,
             arg,
-            parent_task,
+            current_task_if_available("turbo_function calls"),
             persistence,
             self,
         ))
