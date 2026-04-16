@@ -5,7 +5,7 @@ use either::Either;
 use smallvec::SmallVec;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{
-    MagicAny, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
+    DynTaskInputs, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -52,7 +52,7 @@ pub fn compute_task_type_hash(task_type: &CachedTaskType) -> TaskTypeHash {
 pub fn compute_task_type_hash_from_components(
     native_fn: &'static NativeFunction,
     this: Option<RawVc>,
-    arg: &dyn MagicAny,
+    arg: &dyn DynTaskInputs,
 ) -> TaskTypeHash {
     let mut hasher = Xxh3Hash64Hasher::new();
     CachedTaskType::hash_encode_components(native_fn, this, arg, &mut hasher);
@@ -103,7 +103,7 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
     ) -> Result<SmallVec<[TaskId; 1]>>;
     /// Looks up and decodes persisted data for a single task, updating the provided storage with
     /// data from the database in the given category.
@@ -174,7 +174,7 @@ where
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
     ) -> Result<SmallVec<[TaskId; 1]>> {
         either::for_both!(self, this_impl => this_impl.lookup_task_candidates(native_fn, this, arg))
     }
