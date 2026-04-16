@@ -27,7 +27,7 @@ async function missingDependencyError(dir: string) {
             ? 'yarn add --dev'
             : packageManager === 'pnpm'
               ? 'pnpm install --save-dev'
-              : 'npm install --save-dev') + ' @builder.io/partytown'
+              : 'npm install --save-dev') + ' @qwik.dev/partytown'
         )
       )}` +
       '\n\n' +
@@ -54,8 +54,12 @@ async function copyPartytownStaticFiles(
     await promises.rm(partytownLibDir, { recursive: true, force: true })
   }
 
+  const partytownPkg =
+    deps.resolved.get('@qwik.dev/partytown') ||
+    deps.resolved.get('@builder.io/partytown')
+
   const { copyLibFiles } = await Promise.resolve(
-    require(path.join(deps.resolved.get('@builder.io/partytown')!, '../utils'))
+    require(path.join(partytownPkg!, '../utils'))
   )
 
   await copyLibFiles(partytownLibDir)
@@ -68,13 +72,21 @@ export async function verifyPartytownSetup(
   try {
     const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
       {
+        file: '@qwik.dev/partytown',
+        pkg: '@qwik.dev/partytown',
+        exportsRestrict: false,
+      },
+      {
         file: '@builder.io/partytown',
         pkg: '@builder.io/partytown',
         exportsRestrict: false,
       },
     ])
 
-    if (partytownDeps.missing?.length > 0) {
+    const hasNewPkg = partytownDeps.resolved.has('@qwik.dev/partytown')
+    const hasOldPkg = partytownDeps.resolved.has('@builder.io/partytown')
+
+    if (!hasNewPkg && !hasOldPkg) {
       await missingDependencyError(dir)
     } else {
       try {
@@ -82,7 +94,7 @@ export async function verifyPartytownSetup(
       } catch (err) {
         Log.warn(
           `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
-            cyan('@builder.io/partytown')
+            cyan('@qwik.dev/partytown')
           )} is installed as a dependency.`
         )
       }
