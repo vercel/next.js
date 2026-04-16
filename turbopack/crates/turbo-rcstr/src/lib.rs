@@ -655,35 +655,35 @@ impl RcStrInterning {
         rc
     }
 
-    /// Intern a `Cow<str>`. When the cow is `Owned`, avoids an extra clone
+    /// Intern an owned `String`. When the string is not yet interned, avoids
+    /// an extra copy compared to [`intern`](Self::intern).
+    fn intern_owned(&mut self, s: String) -> RcStr {
+        if s.len() < tagged_value::MAX_INLINE_LEN {
+            return RcStr::from(s);
+        }
+        if let Some(existing) = self.set.get(s.as_str()) {
+            return existing.clone();
+        }
+        let rc = RcStr::from(s);
+        self.set.insert(rc.clone());
+        rc
+    }
+
+    /// Intern a `Cow<str>`. When the cow is `Owned`, avoids an extra copy
     /// if the string is not yet interned.
     pub fn intern_cow(&mut self, s: std::borrow::Cow<'_, str>) -> RcStr {
         match s {
             std::borrow::Cow::Borrowed(s) => self.intern(s),
-            std::borrow::Cow::Owned(s) => {
-                if s.len() < tagged_value::MAX_INLINE_LEN {
-                    return RcStr::from(s);
-                }
-                if let Some(existing) = self.set.get(s.as_str()) {
-                    return existing.clone();
-                }
-                let rc = RcStr::from(s);
-                self.set.insert(rc.clone());
-                rc
-            }
+            std::borrow::Cow::Owned(s) => self.intern_owned(s),
         }
     }
 
     /// Intern the [`Display`](std::fmt::Display) output of a value.
-    ///
-    /// This first formats the value to a `String`, then interns the result.
     pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
-        // Fast path: try to avoid allocation by using a small stack buffer.
-        // Most trace values (numbers, booleans, short strings) are < 24 bytes.
         use std::fmt::Write;
         let mut buf = String::new();
         write!(buf, "{v}").unwrap();
-        self.intern_cow(std::borrow::Cow::Owned(buf))
+        self.intern_owned(buf)
     }
 }
 

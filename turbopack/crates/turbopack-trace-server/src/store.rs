@@ -68,9 +68,9 @@ impl Store {
     pub fn new() -> Self {
         Self {
             spans: {
-                let mut spans = Vec::with_capacity(131072);
-                spans.push(new_root_span());
-                spans
+                let mut v = Vec::with_capacity(131_072);
+                v.push(new_root_span());
+                v
             },
             self_time_tree: env::var("NO_CORRECTED_TIME")
                 .ok()

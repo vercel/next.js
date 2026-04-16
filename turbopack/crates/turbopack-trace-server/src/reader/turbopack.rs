@@ -125,15 +125,10 @@ impl InternalRowType<'_> {
     }
 }
 
-#[derive(Default)]
-struct QueuedRows {
-    rows: Vec<InternalRow<'static>>,
-}
-
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
     id_mapping: FxHashMap<u64, SpanIndex>,
-    queued_rows: FxHashMap<u64, QueuedRows>,
+    queued_rows: FxHashMap<u64, Vec<InternalRow<'static>>>,
     outdated_spans: FxHashSet<SpanIndex>,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
@@ -145,9 +140,9 @@ impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
         Self {
             store,
-            id_mapping: FxHashMap::with_capacity_and_hasher(131072, Default::default()),
+            id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
             queued_rows: FxHashMap::default(),
-            outdated_spans: FxHashSet::with_capacity_and_hasher(8192, Default::default()),
+            outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
             thread_stacks: FxHashMap::default(),
             thread_allocation_counters: FxHashMap::default(),
             self_time_started: FxHashMap::default(),
@@ -359,7 +354,6 @@ impl TurbopackFormat {
     }
 
     fn process_internal_row(&mut self, store: &mut StoreWriteGuard, row: InternalRow<'_>) {
-        // Fast path: most rows are processed without queuing additional work.
         let mut queue = Vec::new();
         self.process_internal_row_queue(store, row, &mut queue);
         while !queue.is_empty() {
@@ -383,7 +377,6 @@ impl TurbopackFormat {
                 self.queued_rows
                     .entry(id)
                     .or_default()
-                    .rows
                     .push(row.into_static());
                 return;
             }
@@ -410,10 +403,8 @@ impl TurbopackFormat {
                     &mut self.outdated_spans,
                 );
                 self.id_mapping.insert(new_id, span_id);
-                if let Some(QueuedRows { rows }) = self.queued_rows.remove(&new_id) {
-                    for row in rows {
-                        queue.push(row);
-                    }
+                if let Some(rows) = self.queued_rows.remove(&new_id) {
+                    queue.extend(rows);
                 }
             }
             InternalRowType::Record { ref values } => {

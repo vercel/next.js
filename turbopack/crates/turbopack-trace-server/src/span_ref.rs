@@ -446,42 +446,55 @@ impl<'a> SpanRef<'a> {
                 Map(HashMap<RcStr, Vec<SpanIndex>>),
             }
 
+            /// Insert `span_index` into `index` under the given key.
+            ///
+            /// `lookup` is the string used for the hash lookup. `make_key` produces
+            /// the stored map key when a new entry is created (may differ from
+            /// `lookup`, e.g. `"name=foo"` stored under the hash of `"foo"`).
+            fn push_to_index(
+                index: &mut HashMap<RcStr, Vec<SpanIndex>>,
+                lookup: &str,
+                make_key: impl FnOnce() -> RcStr,
+                span_index: SpanIndex,
+            ) {
+                index
+                    .raw_entry_mut()
+                    .from_key(lookup)
+                    .and_modify(|_, v| v.push(span_index))
+                    .or_insert_with(|| (make_key(), vec![span_index]));
+            }
+
             fn add_span_to_map<'a>(index: &mut HashMap<RcStr, Vec<SpanIndex>>, span: SpanRef<'a>) {
-                if !span.is_root() {
-                    let (cat, name) = span.nice_name();
-                    if !cat.is_empty() {
-                        index
-                            .raw_entry_mut()
-                            .from_key(cat)
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (RcStr::from(cat), vec![span.index()]));
-                    }
-                    if !name.is_empty() {
-                        index
-                            .raw_entry_mut()
-                            .from_key(name)
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| {
-                                (RcStr::from(format!("name={name}")), vec![span.index()])
-                            });
-                    }
-                    for (name, value) in span.span.args.iter() {
-                        index
-                            .raw_entry_mut()
-                            .from_key(value.as_str())
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| {
-                                (RcStr::from(format!("{name}={value}")), vec![span.index()])
-                            });
-                    }
-                    if !span.is_complete() && span.span.name != "thread" {
-                        let name = "incomplete_span";
-                        index
-                            .raw_entry_mut()
-                            .from_key(name)
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (RcStr::from(name), vec![span.index()]));
-                    }
+                if span.is_root() {
+                    return;
+                }
+                let (cat, name) = span.nice_name();
+                if !cat.is_empty() {
+                    push_to_index(index, cat, || RcStr::from(cat), span.index());
+                }
+                if !name.is_empty() {
+                    push_to_index(
+                        index,
+                        name,
+                        || RcStr::from(format!("name={name}")),
+                        span.index(),
+                    );
+                }
+                for (k, v) in span.span.args.iter() {
+                    push_to_index(
+                        index,
+                        v.as_str(),
+                        || RcStr::from(format!("{k}={v}")),
+                        span.index(),
+                    );
+                }
+                if !span.is_complete() && span.span.name != "thread" {
+                    push_to_index(
+                        index,
+                        "incomplete_span",
+                        || RcStr::from("incomplete_span"),
+                        span.index(),
+                    );
                 }
             }
 
