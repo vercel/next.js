@@ -64,6 +64,21 @@ runs:
           process.stdout.write(JSON.stringify(c, null, 2));
         " > ~/.docker/config.json
 
+    - name: Detect host APT mirror
+      id: apt-mirror
+      shell: bash
+      run: |
+        # Extract the mirror base URL from the host's sources.list.
+        # Hetzner uses: http://mirror.hetzner.com/ubuntu/packages
+        # We grab everything before the suite name (jammy, focal, etc).
+        MIRROR=$(grep -oP 'https?://\S+(?=\s+(focal|jammy|noble)\b)' /etc/apt/sources.list 2>/dev/null | head -1)
+        if [ -n "$MIRROR" ]; then
+          echo "url=${MIRROR}" >> "$GITHUB_OUTPUT"
+          echo "Detected host APT mirror: ${MIRROR}"
+        else
+          echo "url=" >> "$GITHUB_OUTPUT"
+        fi
+
     - name: Build Docker image
       uses: docker/build-push-action@v6
       with:
@@ -72,5 +87,7 @@ runs:
         target: ${{ inputs.target || '' }}
         load: true
         tags: ${{ inputs.image-tag }}
+        build-args: |
+          APT_MIRROR=${{ steps.apt-mirror.outputs.url }}
         cache-from: type=registry,ref=${{ steps.resolve.outputs.host }}/${{ inputs.cache-ref }}:cache
         cache-to: type=registry,ref=${{ steps.resolve.outputs.host }}/${{ inputs.cache-ref }}:cache,mode=max
