@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { connection } from 'next/server'
 import { FormWithArg, Form, UnrecognizedActionBoundary } from './client'
 
 const action = async (...args: any[]) => {
@@ -10,7 +11,13 @@ const action = async (...args: any[]) => {
 // simulate client-side version skew by changing the action ID to something the server won't recognize
 setServerActionId(action, 'decafc0ffeebad01')
 
-export default function Page() {
+export default async function Page() {
+  // Opt out of static prerender: the fake $$id above is only meaningful at
+  // runtime, and with prefetch inlining enabled, build-time prerender would
+  // try to serialize the action reference into the prefetch payload and fail
+  // to resolve the id in the server manifest.
+  await connection()
+
   return (
     <div>
       <div>
