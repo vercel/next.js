@@ -5,26 +5,20 @@ use swc_core::{
     atoms::{Wtf8Atom, atom},
     ecma::{ast::Program, visit::VisitMutWith},
 };
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbopack_ecmascript::{
+    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
+};
 
 use super::module_rule_match_js_no_url;
 
 /// Returns a rule which applies the Next.js font transform.
-pub fn get_next_font_transform_rule(enable_mdx_rs: bool) -> ModuleRule {
-    let font_loaders = vec![
-        atom!("next/font/google").into(),
-        atom!("@next/font/google").into(),
-        atom!("next/font/local").into(),
-        atom!("@next/font/local").into(),
-    ];
-
+pub async fn get_next_font_transform_rule(enable_mdx_rs: bool) -> Result<ModuleRule> {
     let transformer =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(
-            Box::new(NextJsFont { font_loaders }) as _
-        ));
-    ModuleRule::new(
+        EcmascriptInputTransform::Plugin(next_font_transform_plugin().to_resolved().await?);
+    // TODO: use get_ecma_transform_rule instead
+    Ok(ModuleRule::new(
         // TODO: Only match in pages (not pages/api), app/, etc.
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -32,7 +26,18 @@ pub fn get_next_font_transform_rule(enable_mdx_rs: bool) -> ModuleRule {
             main: ResolvedVc::cell(vec![]),
             postprocess: ResolvedVc::cell(vec![transformer]),
         }],
-    )
+    ))
+}
+
+#[turbo_tasks::function]
+fn next_font_transform_plugin() -> Vc<TransformPlugin> {
+    let font_loaders = vec![
+        atom!("next/font/google").into(),
+        atom!("@next/font/google").into(),
+        atom!("next/font/local").into(),
+        atom!("@next/font/local").into(),
+    ];
+    Vc::cell(Box::new(NextJsFont { font_loaders }) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Debug)]

@@ -1,18 +1,46 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use next_custom_transforms::transforms::strip_page_exports::{
     ExportFilter, next_transform_strip_page_exports,
 };
 use swc_core::ecma::ast::Program;
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbopack_ecmascript::{
+    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
+};
 
 use super::module_rule_match_js_no_url;
 
+/// A [`TaskInput`]-compatible mirror of [`ExportFilter`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+enum ExportFilterInput {
+    StripDataExports,
+    StripDefaultExport,
+}
+
+impl From<ExportFilter> for ExportFilterInput {
+    fn from(filter: ExportFilter) -> Self {
+        match filter {
+            ExportFilter::StripDataExports => ExportFilterInput::StripDataExports,
+            ExportFilter::StripDefaultExport => ExportFilterInput::StripDefaultExport,
+        }
+    }
+}
+
+impl From<ExportFilterInput> for ExportFilter {
+    fn from(filter: ExportFilterInput) -> Self {
+        match filter {
+            ExportFilterInput::StripDataExports => ExportFilter::StripDataExports,
+            ExportFilterInput::StripDefaultExport => ExportFilter::StripDefaultExport,
+        }
+    }
+}
+
 /// Returns a rule which applies the Next.js page export stripping transform.
-pub fn get_next_pages_transforms_rule(
+pub async fn get_next_pages_transforms_rule(
     pages_dir: FileSystemPath,
     export_filter: ExportFilter,
     enable_mdx_rs: bool,
@@ -20,10 +48,11 @@ pub fn get_next_pages_transforms_rule(
     page_extensions: &[String],
 ) -> Result<ModuleRule> {
     // Apply the Next SSG transform to all pages.
-    let strip_transform =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsStripPageExports {
-            export_filter,
-        }) as _));
+    let strip_transform = EcmascriptInputTransform::Plugin(
+        next_strip_page_exports_transform_plugin(export_filter.into())
+            .to_resolved()
+            .await?,
+    );
     let document_exclusions: Vec<RuleCondition> = page_extensions
         .iter()
         .map(|ext| {
@@ -51,6 +80,15 @@ pub fn get_next_pages_transforms_rule(
             postprocess: ResolvedVc::cell(vec![strip_transform]),
         }],
     ))
+}
+
+#[turbo_tasks::function]
+fn next_strip_page_exports_transform_plugin(
+    export_filter: ExportFilterInput,
+) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(NextJsStripPageExports {
+        export_filter: export_filter.into(),
+    }) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Debug)]
