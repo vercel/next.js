@@ -73,7 +73,7 @@ use crate::{
     error::TaskError,
     utils::{
         dash_map_drop_contents::drop_contents,
-        dash_map_raw_entry::{RawEntry, raw_entry, raw_get},
+        dash_map_raw_entry::{RawEntry, raw_entry_with_hash},
         ptr_eq_arc::PtrEqArc,
         shard_amount::compute_shard_amount,
     },
@@ -1554,7 +1554,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> TaskId {
         let is_root = native_fn.is_root;
 
-        // Phase 1: Fast read-only cache lookup using borrowed arg (no heap allocation).
+        // Compute hash once from borrowed components (no heap allocation).
         let arg_ref = arg.arg_ref();
         let hash = CachedTaskType::hash_from_components(
             self.task_cache.hasher(),
@@ -1562,77 +1562,66 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             this,
             arg_ref,
         );
-        if let Some(task_id) = raw_get(&self.task_cache, hash, |k| {
+
+        // Single entry lookup with pre-computed hash.
+        match raw_entry_with_hash(&self.task_cache, hash, |k| {
             k.eq_components(native_fn, this, arg_ref)
         }) {
-            self.track_cache_hit_by_fn(native_fn);
-            self.connect_child(parent_task, task_id, turbo_tasks);
-            return task_id;
-        }
-
-        // Phase 2: Cache miss — materialize the box and go through the full path.
-        let task_type = CachedTaskType {
-            native_fn,
-            this,
-            arg: arg.take_box(),
-        };
-
-        let mut ctx = self.execute_context(turbo_tasks);
-
-        let mut is_new = false;
-
-        // For persistent tasks, check backing storage first.
-        let task_id = if !transient && let Some(task_id) = ctx.task_by_type(&task_type) {
-            // Task exists in backing storage — insert into in-memory cache.
-            self.track_cache_hit_by_fn(native_fn);
-            match raw_entry(&self.task_cache, &task_type) {
-                RawEntry::Occupied(_) => {}
-                RawEntry::Vacant(e) => {
-                    let task_type = Arc::new(task_type);
-                    e.insert(task_type, task_id);
-                }
-            };
-            task_id
-        } else {
-            // Double-check under write lock
-            match raw_entry(&self.task_cache, &task_type) {
-                RawEntry::Occupied(e) => {
-                    let task_id = *e.get();
-                    drop(e);
-                    self.track_cache_hit_by_fn(native_fn);
-                    task_id
-                }
-                RawEntry::Vacant(e) => {
-                    let task_type = Arc::new(task_type);
-                    let task_id = if transient {
-                        self.transient_task_id_factory.get()
-                    } else {
-                        self.persisted_task_id_factory.get()
-                    };
-                    self.storage
-                        .initialize_new_task(task_id, Some(task_type.clone()));
-                    e.insert(task_type, task_id);
-                    self.track_cache_miss_by_fn(native_fn);
-                    is_new = true;
-                    task_id
-                }
+            RawEntry::Occupied(e) => {
+                // Cache hit — no heap allocation needed.
+                let task_id = *e.get();
+                drop(e);
+                self.track_cache_hit_by_fn(native_fn);
+                self.connect_child(parent_task, task_id, turbo_tasks);
+                task_id
             }
-        };
+            RawEntry::Vacant(e) => {
+                // Cache miss — materialize the box and create or restore the task.
+                let task_type = CachedTaskType {
+                    native_fn,
+                    this,
+                    arg: arg.take_box(),
+                };
 
-        if is_new && is_root {
-            AggregationUpdateQueue::run(
-                AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id,
-                    base_aggregation_number: u32::MAX,
-                    distance: None,
-                },
-                &mut ctx,
-            );
+                let mut ctx = self.execute_context(turbo_tasks);
+
+                // For persistent tasks, check backing storage.
+                let (task_id, is_new) =
+                    if !transient && let Some(task_id) = ctx.task_by_type(&task_type) {
+                        self.track_cache_hit_by_fn(native_fn);
+                        let task_type = Arc::new(task_type);
+                        e.insert(task_type, task_id);
+                        (task_id, false)
+                    } else {
+                        let task_type = Arc::new(task_type);
+                        let task_id = if transient {
+                            self.transient_task_id_factory.get()
+                        } else {
+                            self.persisted_task_id_factory.get()
+                        };
+                        self.storage
+                            .initialize_new_task(task_id, Some(task_type.clone()));
+                        e.insert(task_type, task_id);
+                        self.track_cache_miss_by_fn(native_fn);
+                        (task_id, true)
+                    };
+
+                if is_new && is_root {
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            base_aggregation_number: u32::MAX,
+                            distance: None,
+                        },
+                        &mut ctx,
+                    );
+                }
+
+                operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+
+                task_id
+            }
         }
-
-        operation::ConnectChildOperation::run(parent_task, task_id, ctx);
-
-        task_id
     }
 
     /// Generate an object that implements [`fmt::Display`] explaining why the given

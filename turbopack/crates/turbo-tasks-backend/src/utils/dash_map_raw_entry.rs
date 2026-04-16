@@ -6,34 +6,20 @@ use std::{
 use dashmap::{DashMap, RwLockWriteGuard, SharedValue};
 use hashbrown::raw::{Bucket, InsertSlot, RawTable};
 
-/// Read-only heterogeneous lookup with a pre-computed hash.
-/// Returns `Some(value)` on hit, `None` on miss. Uses only a read lock.
-pub fn raw_get<K: Eq + Hash, V: Copy, S: BuildHasher + Clone>(
-    map: &DashMap<K, V, S>,
+/// Write-lock entry lookup with a pre-computed hash and heterogeneous equality.
+///
+/// Takes a pre-computed `hash` and an `eq` closure for key comparison, avoiding
+/// the need to construct the full key type for lookups.
+pub fn raw_entry_with_hash<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
+    map: &'l DashMap<K, V, S>,
     hash: u64,
     eq: impl Fn(&K) -> bool,
-) -> Option<V> {
-    let shard = map.determine_shard(hash as usize);
-    let shard = map.shards()[shard].read();
-    // Safety: We have a read lock on the shard.
-    shard
-        .find(hash, |(k, _v)| eq(k))
-        .map(|bucket| *unsafe { bucket.as_ref() }.1.get())
-}
-
-pub fn raw_entry<'l, K: Eq + Hash + AsRef<Q>, V, Q: Eq + Hash, S: BuildHasher + Clone>(
-    map: &'l DashMap<K, V, S>,
-    key: &Q,
 ) -> RawEntry<'l, K, V> {
     let hasher = map.hasher();
-    let hash = hasher.hash_one(key);
     let shard = map.determine_shard(hash as usize);
     let mut shard = map.shards()[shard].write();
-    let result = shard.find_or_find_insert_slot(
-        hash,
-        |(k, _v)| k.as_ref() == key,
-        |(k, _v)| hasher.hash_one(k),
-    );
+    let result =
+        shard.find_or_find_insert_slot(hash, |(k, _v)| eq(k), |(k, _v)| hasher.hash_one(k));
     match result {
         Ok(bucket) => RawEntry::Occupied(OccupiedEntry { bucket, shard }),
         Err(insert_slot) => RawEntry::Vacant(VacantEntry {
