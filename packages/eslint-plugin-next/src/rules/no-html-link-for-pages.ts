@@ -21,6 +21,50 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 // Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
 
+/**
+ * Attempts to read pageExtensions from next.config.js or next.config.mjs
+ * in the project root directory.
+ */
+function getPageExtensions(context: any): string[] | undefined {
+  const rootDirs = getRootDirs(context)
+  const configNames = [
+    'next.config.js',
+    'next.config.mjs',
+    'next.config.ts',
+    'next.config.cjs',
+  ]
+
+  for (const rootDir of rootDirs) {
+    for (const configName of configNames) {
+      const configPath = path.join(rootDir, configName)
+      if (fs.existsSync(configPath)) {
+        try {
+          const content = fs.readFileSync(configPath, 'utf8')
+          // Match pageExtensions assignment: pageExtensions: [...] or "pageExtensions": [...]
+          const match = content.match(/pageExtensions\s*:\s*\[([^\]]+)\]/)
+          if (match) {
+            // Extract quoted strings from the array
+            const extensions: string[] = []
+            const arrayContent = match[1]
+            const quoteMatches = arrayContent.match(/['"](\w+)['"]/g)
+            if (quoteMatches) {
+              for (const qm of quoteMatches) {
+                extensions.push(qm.slice(1, -1))
+              }
+            }
+            if (extensions.length > 0) {
+              return extensions
+            }
+          }
+        } catch {
+          // Ignore read errors, continue to next config
+        }
+      }
+    }
+  }
+  return undefined
+}
+
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
   return (...args: any[]): T => {
@@ -107,8 +151,19 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    // Get pageExtensions from next.config.js if available
+    const pageExtensions = getPageExtensions(context)
+
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
