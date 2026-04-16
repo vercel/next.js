@@ -462,10 +462,10 @@ impl TurboFn<'_> {
                         }
                     },
                     filter_and_resolve: quote! {
-                        |magic_any| {
+                        |dyn_task_inputs: &dyn turbo_tasks::DynTaskInputs| {
                             Box::pin(async move {
                                 let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
-                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
+                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(dyn_task_inputs);
                                 let resolved = (#(
                                     <_ as turbo_tasks::TaskInput>::resolve_input(
                                         #inline_input_idents
