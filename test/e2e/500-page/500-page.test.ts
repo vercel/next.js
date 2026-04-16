@@ -193,6 +193,14 @@ describe('500 Page build validation', () => {
     expect(cliOutput).not.toMatch(gip500Err)
     expect(cliOutput).not.toContain('rendered 500')
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
+
+    const outputBeforeStart = next.cliOutput.length
+    await next.start()
+    await next.render('/err')
+    expect(next.cliOutput.substring(outputBeforeStart)).toContain(
+      'rendered 500'
+    )
+
     await next.deleteFile('pages/_app.js')
   })
 
@@ -224,6 +232,14 @@ describe('500 Page build validation', () => {
     expect(cliOutput).not.toMatch(gip500Err)
     expect(cliOutput).toContain('rendered 500')
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(true)
+
+    const outputBeforeStart = next.cliOutput.length
+    await next.start()
+    await next.render('/err')
+    expect(next.cliOutput.substring(outputBeforeStart)).not.toContain(
+      'rendered 500'
+    )
+
     await next.deleteFile('pages/_app.js')
   })
 
@@ -231,7 +247,15 @@ describe('500 Page build validation', () => {
     await next.deleteFile('pages/500.js')
     const { exitCode } = await next.build()
     expect(exitCode).toBe(0)
+    expect(next.cliOutput).not.toMatch(gip500Err)
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(true)
+
+    await next.start()
+    const browser = await next.browser('/err?hello=world')
+    const initialTitle = await browser.eval('document.title')
+    const currentTitle = await browser.eval('document.title')
+    expect(initialTitle).toBe(currentTitle)
+    expect(initialTitle).toBe('500: Internal Server Error')
   })
 
   it('builds 500 statically by default with no pages/500 and custom _error without getInitialProps', async () => {
@@ -276,7 +300,59 @@ describe('500 Page build validation', () => {
     expect(exitCode).toBe(0)
     expect(next.cliOutput).not.toMatch(gip500Err)
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
+
+    const outputBeforeStart = next.cliOutput.length
+    await next.start()
+    await next.render('/err')
+    expect(next.cliOutput.substring(outputBeforeStart)).toContain(
+      'called _error.getInitialProps'
+    )
+
     await next.deleteFile('pages/_error.js')
+  })
+
+  it('does not build 500 statically with no pages/500 and custom getInitialProps in _error and _app', async () => {
+    await next.deleteFile('pages/500.js')
+    await next.patchFile(
+      'pages/_error.js',
+      `
+      function Error({ statusCode }) {
+        return <p>Error status: {statusCode}</p>
+      }
+      Error.getInitialProps = ({ req, res, err }) => {
+        console.error('called _error.getInitialProps')
+        if (req.url === '/500') {
+          throw new Error('should not export /500')
+        }
+        return {
+          statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
+        }
+      }
+      export default Error
+    `
+    )
+    await next.patchFile(
+      'pages/_app.js',
+      `
+      function App({ pageProps, Component }) {
+        return <Component {...pageProps} />
+      }
+      App.getInitialProps = async ({ Component, ctx }) => {
+        let pageProps = {}
+        if (Component.getInitialProps) {
+          pageProps = await Component.getInitialProps(ctx)
+        }
+        return { pageProps }
+      }
+      export default App
+    `
+    )
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+    expect(next.cliOutput).not.toMatch(gip500Err)
+    expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
+    await next.deleteFile('pages/_error.js')
+    await next.deleteFile('pages/_app.js')
   })
 
   it('does not build 500 statically with no pages/500 and getServerSideProps in _error', async () => {
@@ -305,6 +381,14 @@ describe('500 Page build validation', () => {
     expect(exitCode).toBe(0)
     expect(next.cliOutput).not.toMatch(gip500Err)
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
+
+    const outputBeforeStart = next.cliOutput.length
+    await next.start()
+    await next.render('/err')
+    expect(next.cliOutput.substring(outputBeforeStart)).toContain(
+      'called _error getServerSideProps'
+    )
+
     await next.deleteFile('pages/_error.js')
   })
 })

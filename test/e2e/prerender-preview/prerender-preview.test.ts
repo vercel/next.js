@@ -222,7 +222,69 @@ describe('Prerender Preview Mode', () => {
     })
   })
 
+  if (isNextStart) {
+    it('should compile successfully', async () => {
+      expect(next.cliOutput).toMatch(/Compiled successfully/)
+      expect(next.cliOutput).not.toContain('Build error occurred')
+    })
+
+    it('should start production application', async () => {
+      const res = await next.fetch('/')
+      expect(res.status).toBe(200)
+    })
+  }
+
   if (isNextDev) {
+    it('should start development application', async () => {
+      const html = await next.render('/')
+      expect(html).toBeTruthy()
+    })
+
+    it('should enable preview mode in dev', async () => {
+      const res = await next.fetch(
+        '/api/preview?' + qs.stringify({ lets: 'goooo' })
+      )
+      expect(res.status).toBe(200)
+
+      const cookies = res.headers
+        .get('set-cookie')!
+        .split(',')
+        .map((cookieRaw) => cookie.parse(cookieRaw))
+
+      expect(cookies.length).toBe(2)
+    })
+
+    it('should return cookies to be expired after dev server reboot', async () => {
+      const res = await next.fetch('/', {
+        headers: {
+          Cookie:
+            '__prerender_bypass=stale-value; __next_preview_data=stale-data',
+        },
+      })
+      expect(res.status).toBe(200)
+
+      const body = await res.text()
+      expect(body).not.toContain('"err"')
+      expect(body).not.toContain('TypeError')
+      expect(body).not.toContain('previewModeId')
+
+      const cookies = res.headers
+        .get('set-cookie')!
+        .replace(/(=(?!Lax)\w{3}),/g, '$1')
+        .split(',')
+        .map((cookieRaw) => cookie.parse(cookieRaw))
+
+      expect(cookies.length).toBe(2)
+    })
+
+    it('should start the client-side browser', async () => {
+      const browser = await next.browser(
+        '/api/preview?' + qs.stringify({ client: 'mode' })
+      )
+      const url = await browser.url()
+      expect(url).toContain('/api/preview')
+    })
+
     it('should fetch preview data on SSR via browser', async () => {
       const browser = await next.browser(
         '/api/preview?' + qs.stringify({ client: 'mode' })
@@ -258,6 +320,23 @@ describe('Prerender Preview Mode', () => {
       await browser.waitForElementByCss('#props-pre')
       expect(await browser.elementById('props-pre').text()).toBe(
         'false and null'
+      )
+    })
+
+    it('should fetch live static props with preview active', async () => {
+      const browser = await next.browser(
+        '/api/preview?' + qs.stringify({ client: 'mode' })
+      )
+
+      await browser.loadPage(next.url + '/')
+      await browser.waitForElementByCss('#ssg-random')
+      const initialRandom = await browser.elementById('ssg-random').text()
+
+      await browser.elementById('reload-props').click()
+      await browser.waitForElementByCss('#ssg-reloaded')
+
+      expect(await browser.elementById('ssg-random').text()).not.toBe(
+        initialRandom
       )
     })
   }

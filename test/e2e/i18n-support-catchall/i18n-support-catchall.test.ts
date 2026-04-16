@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import assert from 'assert'
+import fs from 'fs'
+import { join } from 'path'
 
 describe('i18n Support Root Catch-all', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -159,6 +161,14 @@ describe('i18n Support Root Catch-all', () => {
   })
 
   if (isNextStart) {
+    it('should output prerendered index routes correctly', async () => {
+      const buildPagesDir = join(next.testDir, '.next/server')
+      expect(fs.existsSync(join(buildPagesDir, 'pages/en-US.html'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/en-US.json'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/fr.html'))).toBe(true)
+      expect(fs.existsSync(join(buildPagesDir, 'pages/fr.json'))).toBe(true)
+    })
+
     it('should preload data correctly', async () => {
       const browser = await next.browser('/')
 

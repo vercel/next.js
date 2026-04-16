@@ -2,6 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+const isTurbopack = process.env.IS_TURBOPACK_TEST
+
 describe('server-side dev errors', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -38,11 +40,15 @@ describe('server-side dev errors', () => {
         stripAnsi(next.cliOutput.slice(cliOutputIdx)).trim()
       )
 
-      expect(stderrOutput).toContain(
-        '⨯ ReferenceError: missingVar is not defined'
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined\n    at getStaticProps'
       )
-      expect(stderrOutput).toContain('at getStaticProps')
-      expect(stderrOutput).toContain('pages/gsp.js:6:3')
+      expect(stderrOutput).toContain('gsp.js:6:3')
+      expect(stderrOutput).toContain(
+        '  5 | export async function getStaticProps() {\n' +
+          '> 6 |   missingVar;return {\n' +
+          '    |   ^'
+      )
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -86,11 +92,15 @@ describe('server-side dev errors', () => {
       const stderrOutput = stripInternalHandler(
         stripAnsi(next.cliOutput.slice(cliOutputIdx)).trim()
       )
-      expect(stderrOutput).toContain(
-        '⨯ ReferenceError: missingVar is not defined'
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined\n    at getServerSideProps'
       )
-      expect(stderrOutput).toContain('at getServerSideProps')
-      expect(stderrOutput).toContain('pages/gssp.js:6:3')
+      expect(stderrOutput).toContain('gssp.js:6:3')
+      expect(stderrOutput).toContain(
+        '  5 | export async function getServerSideProps() {\n' +
+          '> 6 |   missingVar;return {\n' +
+          '    |   ^'
+      )
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -134,11 +144,15 @@ describe('server-side dev errors', () => {
       const stderrOutput = stripInternalHandler(
         stripAnsi(next.cliOutput.slice(cliOutputIdx)).trim()
       )
-      expect(stderrOutput).toContain(
-        '⨯ ReferenceError: missingVar is not defined'
+      expect(stderrOutput).toStartWith(
+        '⨯ ReferenceError: missingVar is not defined\n    at getServerSideProps'
       )
-      expect(stderrOutput).toContain('at getServerSideProps')
-      expect(stderrOutput).toContain('pages/blog/[slug].js:6:3')
+      expect(stderrOutput).toContain('[slug].js:6:3')
+      expect(stderrOutput).toContain(
+        '  5 | export async function getServerSideProps() {\n' +
+          '> 6 |   missingVar;return {\n' +
+          '    |   ^'
+      )
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -179,11 +193,29 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(next.cliOutput.slice(cliOutputIdx)).trim()
-      expect(stderrOutput).toContain(
-        '⨯ ReferenceError: missingVar is not defined'
-      )
-      expect(stderrOutput).toContain('at handler')
-      expect(stderrOutput).toContain('pages/api/hello.js:2:3')
+      if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined\n    at handler'
+        )
+        expect(stderrOutput).toContain('hello.js:2:3')
+        expect(stderrOutput).toContain(
+          '  1 | export default function handler(req, res) {\n' +
+            "> 2 |   missingVar;res.status(200).json({ hello: 'world' })\n" +
+            '    |   ^'
+        )
+      } else {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined\n    at handler'
+        )
+        expect(stderrOutput).toContain('hello.js:2:3')
+        // TODO(veil): Why not ignore-listed?
+        expect(stderrOutput).toContain('\n    at ')
+        expect(stderrOutput).toContain(
+          '  1 | export default function handler(req, res) {\n' +
+            "> 2 |   missingVar;res.status(200).json({ hello: 'world' })\n" +
+            '    |   ^'
+        )
+      }
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -229,11 +261,29 @@ describe('server-side dev errors', () => {
       })
 
       const stderrOutput = stripAnsi(next.cliOutput.slice(cliOutputIdx)).trim()
-      expect(stderrOutput).toContain(
-        '⨯ ReferenceError: missingVar is not defined'
-      )
-      expect(stderrOutput).toContain('at handler')
-      expect(stderrOutput).toContain('pages/api/blog/[slug].js:2:3')
+      if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined\n    at handler'
+        )
+        expect(stderrOutput).toContain('[slug].js:2:3')
+        expect(stderrOutput).toContain(
+          '  1 | export default function handler(req, res) {\n' +
+            '> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })\n' +
+            '    |   ^'
+        )
+      } else {
+        expect(stderrOutput).toStartWith(
+          '⨯ ReferenceError: missingVar is not defined\n    at handler'
+        )
+        expect(stderrOutput).toContain('[slug].js:2:3')
+        // TODO(veil): Why not ignore-listed?
+        expect(stderrOutput).toContain('\n    at')
+        expect(stderrOutput).toContain(
+          '  1 | export default function handler(req, res) {\n' +
+            '> 2 |   missingVar;res.status(200).json({ slug: req.query.slug })\n' +
+            '    |   ^'
+        )
+      }
 
       await expect(browser).toDisplayRedbox(`
        {
@@ -278,9 +328,22 @@ describe('server-side dev errors', () => {
       )
       .trim()
 
+    // FIXME(veil): error repeated
     expect(stderrOutput).toContain('Error: catch this rejection')
-    expect(stderrOutput).toContain('pages/uncaught-rejection.js')
-    expect(stderrOutput).toContain('unhandledRejection')
+    expect(stderrOutput).toContain('uncaught-rejection.js:7:20')
+    if (isTurbopack) {
+      expect(stderrOutput).toContain('at Timeout._onTimeout')
+    } else {
+      expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
+    }
+    expect(stderrOutput).toContain(
+      '  5 | export async function getServerSideProps() {\n' +
+        '  6 |   setTimeout(() => {\n' +
+        "> 7 |     Promise.reject(new Error('catch this rejection'))"
+    )
+    expect(stderrOutput).toContain(
+      '⨯ unhandledRejection: Error: catch this rejection'
+    )
   })
 
   it('should show server-side error for uncaught empty rejection correctly', async () => {
@@ -298,8 +361,19 @@ describe('server-side dev errors', () => {
       )
       .trim()
 
-    expect(stderrOutput).toContain('pages/uncaught-empty-rejection.js')
-    expect(stderrOutput).toContain('unhandledRejection')
+    // FIXME(veil): error repeated
+    expect(stderrOutput).toContain('uncaught-empty-rejection.js:7:20')
+    if (isTurbopack) {
+      expect(stderrOutput).toContain('at Timeout._onTimeout')
+    } else {
+      expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
+    }
+    expect(stderrOutput).toContain(
+      '  5 | export async function getServerSideProps() {\n' +
+        '  6 |   setTimeout(() => {\n' +
+        '>  7 |     Promise.reject(new Error())'
+    )
+    expect(stderrOutput).toContain('⨯ unhandledRejection: Error:')
   })
 
   it('should show server-side error for uncaught exception correctly', async () => {
@@ -317,9 +391,22 @@ describe('server-side dev errors', () => {
       )
       .trim()
 
+    // FIXME(veil): error repeated
     expect(stderrOutput).toContain('Error: catch this exception')
-    expect(stderrOutput).toContain('pages/uncaught-exception.js')
-    expect(stderrOutput).toContain('uncaughtException')
+    expect(stderrOutput).toContain('uncaught-exception.js:7:11')
+    if (isTurbopack) {
+      expect(stderrOutput).toContain('at Timeout._onTimeout')
+    } else {
+      expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
+    }
+    expect(stderrOutput).toContain(
+      '  5 | export async function getServerSideProps() {\n' +
+        '  6 |   setTimeout(() => {\n' +
+        "> 7 |     throw new Error('catch this exception')"
+    )
+    expect(stderrOutput).toContain(
+      '⨯ uncaughtException: Error: catch this exception'
+    )
   })
 
   it('should show server-side error for uncaught empty exception correctly', async () => {
@@ -337,7 +424,18 @@ describe('server-side dev errors', () => {
       )
       .trim()
 
-    expect(stderrOutput).toContain('pages/uncaught-empty-exception.js')
-    expect(stderrOutput).toContain('uncaughtException')
+    // FIXME(veil): error repeated
+    expect(stderrOutput).toContain('uncaught-empty-exception.js:7:11')
+    if (isTurbopack) {
+      expect(stderrOutput).toContain('at Timeout._onTimeout')
+    } else {
+      expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
+    }
+    expect(stderrOutput).toContain(
+      '  5 | export async function getServerSideProps() {\n' +
+        '  6 |   setTimeout(() => {\n' +
+        '>  7 |     throw new Error()'
+    )
+    expect(stderrOutput).toContain('⨯ uncaughtException: Error:')
   })
 })

@@ -1,8 +1,11 @@
-import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import {
+  getClientBuildManifestLoaderChunkUrlPath,
+  retry,
+} from 'next-test-utils'
 
 describe('Link ref forwarding', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
@@ -26,66 +29,70 @@ describe('Link ref forwarding', () => {
 
   async function didPrefetch(pathname: string) {
     const browser = await next.browser(pathname)
+    const chunk = getClientBuildManifestLoaderChunkUrlPath(next.testDir, '/')
 
     await retry(async () => {
       const links = await browser.elementsByCss('link[rel=prefetch]')
       const hrefs = await Promise.all(
         links.map((link) => link.getAttribute('href'))
       )
-      expect(hrefs.length).toBeGreaterThan(0)
+      // Same as integration: prefetch hrefs must include the client build manifest loader chunk for `/`.
+      expect(hrefs).toEqual(
+        expect.arrayContaining([expect.stringContaining(chunk)])
+      )
     })
 
     await browser.close()
   }
 
-  it('should not have a race condition with a click handler', async () => {
-    const browser = await next.browser('/click-away-race-condition')
-    await browser.elementByCss('#click-me').click()
-    await browser.waitForElementByCss('#the-menu')
-  })
+  function runCommonTests() {
+    it('should not have a race condition with a click handler', async () => {
+      const browser = await next.browser('/click-away-race-condition')
+      await browser.elementByCss('#click-me').click()
+      await browser.waitForElementByCss('#the-menu')
+    })
+  }
 
-  it('should not show error for function component with forwardRef', async () => {
-    if (!isNextDev) return
-    await noError('/function')
-  })
+  ;(isNextDev ? describe : describe.skip)('development mode', () => {
+    runCommonTests()
 
-  it('should not show error for class component as child of next/link', async () => {
-    if (!isNextDev) return
-    await noError('/class')
-  })
+    it('should not show error for function component with forwardRef', async () => {
+      await noError('/function')
+    })
 
-  it('should handle child ref with React.createRef', async () => {
-    if (!isNextDev) return
-    await noError('/child-ref')
-  })
+    it('should not show error for class component as child of next/link', async () => {
+      await noError('/class')
+    })
 
-  it('should handle child ref that is a function', async () => {
-    if (!isNextDev) return
-    await noError('/child-ref-func')
-  })
+    it('should handle child ref with React.createRef', async () => {
+      await noError('/child-ref')
+    })
 
-  it('should handle child ref that is a function that returns a cleanup function', async () => {
-    if (!isNextDev) return
-    await noError('/child-ref-func-cleanup')
-  })
+    it('should handle child ref that is a function', async () => {
+      await noError('/child-ref-func')
+    })
 
-  it('should preload with forwardRef', async () => {
-    if (!isNextStart) return
-    await didPrefetch('/function')
+    it('should handle child ref that is a function that returns a cleanup function', async () => {
+      await noError('/child-ref-func-cleanup')
+    })
   })
+  ;(isNextStart ? describe : describe.skip)('production mode', () => {
+    runCommonTests()
 
-  it('should preload with child ref with React.createRef', async () => {
-    if (!isNextStart) return
-    await didPrefetch('/child-ref')
-  })
+    it('should preload with forwardRef', async () => {
+      await didPrefetch('/function')
+    })
 
-  it('should preload with child ref with function', async () => {
-    if (!isNextStart) return
-    await didPrefetch('/child-ref-func')
-  })
+    it('should preload with child ref with React.createRef', async () => {
+      await didPrefetch('/child-ref')
+    })
 
-  it('should preload with child ref with function that returns a cleanup function', async () => {
-    if (!isNextStart) return
-    await didPrefetch('/child-ref-func-cleanup')
+    it('should preload with child ref with function', async () => {
+      await didPrefetch('/child-ref-func')
+    })
+
+    it('should preload with child ref with function that returns a cleanup function', async () => {
+      await didPrefetch('/child-ref-func-cleanup')
+    })
   })
 })

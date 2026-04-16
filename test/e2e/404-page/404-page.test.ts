@@ -43,6 +43,10 @@ describe('404 Page Support', () => {
       expect(page.endsWith('.html')).toBe(true)
     })
 
+    it('should still output 404.js anyway', async () => {
+      expect(await next.hasFile('.next/server/pages/404.js')).toBe(true)
+    })
+
     it('should add /404 to pages-manifest correctly', async () => {
       const manifest = await next.readJSON('.next/server/pages-manifest.json')
       expect('/404' in manifest).toBe(true)

@@ -1,5 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import fs from 'fs'
+import { join } from 'path'
 
 describe('Fallback path encoding', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
@@ -21,7 +23,34 @@ describe('Fallback path encoding', () => {
     `mixed-${encodeURIComponent('商業日語')}`,
   ]
 
+  const prerenderedPaths = [
+    '%2Fmy-post%2F',
+    '%252Fmy-post%252F',
+    '+my-post+',
+    '%3Fmy-post%3F',
+    '&my-post&',
+    '商業日語',
+    encodeURIComponent('商業日語'),
+    ' my-post ',
+    '%2Fsecond-post%2F',
+    '+second-post+',
+    '&second-post&',
+    'mixed-商業日語',
+  ]
+
   const modePaths = ['fallback-blocking', 'fallback-false', 'fallback-true']
+
+  if (isNextStart) {
+    it('should output paths correctly', async () => {
+      const pagesDir = join(next.testDir, '.next/server/pages')
+      for (const path of prerenderedPaths) {
+        for (const mode of modePaths) {
+          expect(fs.existsSync(join(pagesDir, mode, path + '.html'))).toBe(true)
+          expect(fs.existsSync(join(pagesDir, mode, path + '.json'))).toBe(true)
+        }
+      }
+    })
+  }
 
   if (isNextStart) {
     it('should handle non-prerendered paths correctly', async () => {
@@ -31,6 +60,14 @@ describe('Fallback path encoding', () => {
         '%3Fanother-post%3F',
         '%26another-post%26',
         encodeURIComponent('商業日語商業日語'),
+      ]
+
+      const newPrerenderedPaths = [
+        '%2Fanother-post%2F',
+        '+another-post+',
+        '%3Fanother-post%3F',
+        '&another-post&',
+        '商業日語商業日語',
       ]
 
       for (const mode of modePaths) {
@@ -50,6 +87,19 @@ describe('Fallback path encoding', () => {
 
             expect(props.params).toEqual({
               slug: decodeURIComponent(testSlug),
+            })
+
+            const pagesDir = join(next.testDir, '.next/server/pages')
+            const prerenderedPath = newPrerenderedPaths[i]
+            await retry(async () => {
+              expect(
+                fs.existsSync(join(pagesDir, mode, prerenderedPath + '.html'))
+              ).toBe(true)
+            })
+            await retry(async () => {
+              expect(
+                fs.existsSync(join(pagesDir, mode, prerenderedPath + '.json'))
+              ).toBe(true)
             })
 
             const browser = await next.browser(`/${mode}/${testSlug}`)

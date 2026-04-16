@@ -1,5 +1,5 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { retry, nextBuild } from 'next-test-utils'
 
 describe('GS(S)P Redirect Support', () => {
   const { next } = nextTestSetup({
@@ -414,6 +414,43 @@ describe('GS(S)P Redirect Support', () => {
   if (isNextStart) {
     it('should not have errors in output', async () => {
       expect(next.cliOutput).not.toContain('Failed to update prerender files')
+    })
+
+    it('should error for redirect during prerendering', async () => {
+      await next.patchFile(
+        'pages/invalid/[slug].js',
+        `
+        export default function Post(props) {
+          return "hi"
+        }
+
+        export const getStaticProps = ({ params }) => {
+          return {
+            redirect: {
+              permanent: true,
+              destination: '/another'
+            }
+          }
+        }
+
+        export const getStaticPaths = () => {
+          return {
+            paths: ['first', 'second'].map((slug) => ({ params: { slug } })),
+            fallback: true,
+          }
+        }
+      `
+      )
+      const { stdout, stderr } = await nextBuild(next.testDir, undefined, {
+        stdout: true,
+        stderr: true,
+      })
+      const output = stdout + stderr
+      await next.deleteFile('pages/invalid/[slug].js')
+
+      expect(output).toContain(
+        '`redirect` can not be returned from getStaticProps during prerendering'
+      )
     })
   }
 })

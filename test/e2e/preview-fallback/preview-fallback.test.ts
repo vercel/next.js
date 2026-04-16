@@ -1,7 +1,9 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextStart } from 'e2e-utils'
 import cheerio from 'cheerio'
 import cookie from 'cookie'
 import { retry } from 'next-test-utils'
+import fs from 'fs'
+import { join } from 'path'
 
 describe('Preview mode with fallback pages', () => {
   const { next } = nextTestSetup({
@@ -60,6 +62,18 @@ describe('Preview mode with fallback pages', () => {
       previewData: {},
     })
 
+    if (isNextStart) {
+      const fsHtml = fs.readFileSync(
+        join(next.testDir, '.next', 'server', 'pages', 'index.html'),
+        'utf8'
+      )
+      const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
+      expect(fsProps).toEqual({
+        preview: false,
+        previewData: null,
+      })
+    }
+
     const html2 = await next.render('/')
     const props2 = JSON.parse(cheerio.load(html2)('#props').text())
 
@@ -93,6 +107,26 @@ describe('Preview mode with fallback pages', () => {
       params: { post: 'first' },
     })
 
+    if (isNextStart) {
+      const fsHtml = fs.readFileSync(
+        join(
+          next.testDir,
+          '.next',
+          'server',
+          'pages',
+          'no-fallback',
+          'first.html'
+        ),
+        'utf8'
+      )
+      const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
+      expect(fsProps).toEqual({
+        preview: false,
+        previewData: null,
+        params: { post: 'first' },
+      })
+    }
+
     const html2 = await next.render('/no-fallback/first')
     const props2 = JSON.parse(cheerio.load(html2)('#props').text())
 
@@ -121,6 +155,21 @@ describe('Preview mode with fallback pages', () => {
       params: { post: 'second' },
     })
 
+    if (isNextStart) {
+      expect(
+        fs.existsSync(
+          join(
+            next.testDir,
+            '.next',
+            'server',
+            'pages',
+            'no-fallback',
+            'second.html'
+          )
+        )
+      ).toBe(false)
+    }
+
     const res2 = await next.fetch('/no-fallback/second')
     expect(res2.status).toBe(404)
   })
@@ -148,6 +197,26 @@ describe('Preview mode with fallback pages', () => {
       previewData: {},
       params: { post: 'first' },
     })
+
+    if (isNextStart) {
+      const fsHtml = fs.readFileSync(
+        join(
+          next.testDir,
+          '.next',
+          'server',
+          'pages',
+          'fallback',
+          'first.html'
+        ),
+        'utf8'
+      )
+      const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
+      expect(fsProps).toEqual({
+        preview: false,
+        previewData: null,
+        params: { post: 'first' },
+      })
+    }
 
     const html2 = await next.render('/fallback/first')
     const props2 = JSON.parse(cheerio.load(html2)('#props').text())
@@ -188,6 +257,26 @@ describe('Preview mode with fallback pages', () => {
       previewData: {},
       params: { post: 'second' },
     })
+
+    if (isNextStart) {
+      const fsHtml = fs.readFileSync(
+        join(
+          next.testDir,
+          '.next',
+          'server',
+          'pages',
+          'fallback',
+          'second.html'
+        ),
+        'utf8'
+      )
+      const fsProps = JSON.parse(cheerio.load(fsHtml)('#props').text())
+      expect(fsProps).toEqual({
+        preview: false,
+        previewData: null,
+        params: { post: 'second' },
+      })
+    }
 
     browser = await next.browser('/fallback/second')
 
