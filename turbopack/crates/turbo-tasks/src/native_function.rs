@@ -80,7 +80,14 @@ impl ArgMeta {
         fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
             args
         }
-        Self::with_filter_trait_call::<T>(noop_filter_args, resolve_functor_impl::<T>)
+        // When T contains no Vc, use trivial_clone_resolve instead of resolve_functor_impl.
+        // This avoids generating the full async resolve state machine for non-Vc arg tuples.
+        let resolve_fn: ResolveFunctor = if T::NEEDS_RESOLVE {
+            resolve_functor_impl::<T>
+        } else {
+            trivial_clone_resolve::<T>
+        };
+        Self::with_filter_trait_call::<T>(noop_filter_args, resolve_fn)
     }
 
     pub const fn with_filter_trait_call<T>(
@@ -107,7 +114,11 @@ impl ArgMeta {
                     .expect("encoding to hasher should not fail");
             },
             is_resolved: |value| downcast_args_ref::<T>(value).is_resolved(),
-            resolve: resolve_functor_impl::<T>,
+            resolve: if T::NEEDS_RESOLVE {
+                resolve_functor_impl::<T>
+            } else {
+                trivial_clone_resolve::<T>
+            },
             filter_owned,
             filter_and_resolve,
         }
@@ -136,6 +147,19 @@ fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> Resolv
     Box::pin(async move {
         let value = downcast_args_ref::<T>(value);
         let resolved = value.resolve_input().await?;
+        Ok(Box::new(resolved) as Box<dyn MagicAny>)
+    })
+}
+
+/// Shared resolve functor for argument types that contain no [`Vc`][crate::Vc]s
+/// (i.e. [`TaskInput::NEEDS_RESOLVE`] is `false`).
+///
+/// Unlike [`resolve_functor_impl`], this does not call `resolve_input()` — it only
+/// clones the args. This has a simpler body, giving the compiler a better chance to
+/// deduplicate instances across many argument-tuple types via ICF.
+fn trivial_clone_resolve<T: MagicAny + Clone>(value: &dyn MagicAny) -> ResolveFuture<'_> {
+    Box::pin(async move {
+        let resolved = downcast_args_ref::<T>(value).clone();
         Ok(Box::new(resolved) as Box<dyn MagicAny>)
     })
 }
