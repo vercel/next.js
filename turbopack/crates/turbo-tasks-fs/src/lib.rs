@@ -69,6 +69,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
+    hash_xxh3_hash128,
 };
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
@@ -934,18 +935,19 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<PersistedFileContent>,
+            content_hash: u128,
         }
 
         impl Effect for WriteEffect {
             type Error = AnyhowWrapper;
-            type Value = ReadRef<PersistedFileContent>;
+            type Value = u128;
 
             fn key(&self) -> Vec<u8> {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> &ReadRef<PersistedFileContent> {
-                &self.content
+            fn value(&self) -> &u128 {
+                &self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1077,10 +1079,12 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteEffect {
             full_path,
             inner,
             content,
+            content_hash,
         });
 
         Ok(())
@@ -1107,18 +1111,19 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<LinkContent>,
+            content_hash: u128,
         }
 
         impl Effect for WriteLinkEffect {
             type Error = AnyhowWrapper;
-            type Value = ReadRef<LinkContent>;
+            type Value = u128;
 
             fn key(&self) -> Vec<u8> {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> &ReadRef<LinkContent> {
-                &self.content
+            fn value(&self) -> &u128 {
+                &self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1356,10 +1361,12 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteLinkEffect {
             full_path,
             inner,
             content,
+            content_hash,
         });
         Ok(())
     }
@@ -2087,7 +2094,7 @@ bitflags! {
 /// creating a new link, we always create junction points, because symlink creation may fail if
 /// Windows "developer mode" is not enabled and we're running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(Debug, DeterministicHash)]
 pub enum LinkContent {
     /// A valid symbolic link pointing to `target`.
     ///
