@@ -77,8 +77,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
-    ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
+    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator, trace::TraceRawVcs,
+    turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -368,25 +369,36 @@ impl EcmascriptModuleAssetBuilder {
 /// This is used by `failsafe_parse` to serve the last good AST when the file has a syntax error.
 /// The newtype is always-equal and no-op-hash so it is invisible to turbo-tasks cache key logic,
 /// but serializes the `Rope` contents so the fallback survives eviction and restarts.
-struct LastSuccessfulSource(Mutex<Option<Rope>>);
+#[derive(TraceRawVcs)]
+struct LastSuccessfulSource {
+    source: Mutex<Option<Rope>>,
+    /// Notifies the backend when the in-memory `source` changes so that the
+    /// serialized task state is written back to the persistence layer.
+    serialization_invalidator: SerializationInvalidator,
+}
 
 impl LastSuccessfulSource {
     fn get(&self) -> Option<Rope> {
-        self.0.lock().unwrap().clone()
+        self.source.lock().unwrap().clone()
     }
 
     fn set(&self, rope: Rope) {
-        *self.0.lock().unwrap() = Some(rope);
+        *self.source.lock().unwrap() = Some(rope);
+        self.serialization_invalidator.invalidate();
     }
 
     fn clear(&self) {
-        *self.0.lock().unwrap() = None;
+        *self.source.lock().unwrap() = None;
+        self.serialization_invalidator.invalidate();
     }
 }
 
 impl Default for LastSuccessfulSource {
     fn default() -> Self {
-        Self(Mutex::new(None))
+        Self {
+            source: Mutex::new(None),
+            serialization_invalidator: get_serialization_invalidator(),
+        }
     }
 }
 
@@ -396,6 +408,9 @@ impl std::fmt::Debug for LastSuccessfulSource {
     }
 }
 
+// Always-equal and no-op hash so that this field is invisible to the
+// turbo-tasks cache key: two `EcmascriptModuleAsset` values with different
+// `last_successful_source` bytes compare equal and hash identically.
 impl PartialEq for LastSuccessfulSource {
     fn eq(&self, _other: &Self) -> bool {
         true
@@ -408,12 +423,16 @@ impl std::hash::Hash for LastSuccessfulSource {
     fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
 }
 
+// `Mutex` does not support `#[derive(Encode/Decode)]`, so these are written
+// by hand. They encode/decode only the `source` field; the
+// `serialization_invalidator` is re-created from the running task context on
+// decode (matching the pattern used by `turbo_tasks::State`).
 impl bincode::Encode for LastSuccessfulSource {
     fn encode<E: bincode::enc::Encoder>(
         &self,
         encoder: &mut E,
     ) -> Result<(), bincode::error::EncodeError> {
-        self.0.lock().unwrap().encode(encoder)
+        self.source.lock().unwrap().encode(encoder)
     }
 }
 
@@ -422,7 +441,10 @@ impl<C> bincode::Decode<C> for LastSuccessfulSource {
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
         let val: Option<Rope> = bincode::Decode::decode(decoder)?;
-        Ok(Self(Mutex::new(val)))
+        Ok(Self {
+            source: Mutex::new(val),
+            serialization_invalidator: get_serialization_invalidator(),
+        })
     }
 }
 
@@ -431,14 +453,15 @@ impl<'de, C> bincode::BorrowDecode<'de, C> for LastSuccessfulSource {
         decoder: &mut D,
     ) -> Result<Self, bincode::error::DecodeError> {
         let val: Option<Rope> = bincode::BorrowDecode::borrow_decode(decoder)?;
-        Ok(Self(Mutex::new(val)))
+        Ok(Self {
+            source: Mutex::new(val),
+            serialization_invalidator: get_serialization_invalidator(),
+        })
     }
 }
 
-impl turbo_tasks::trace::TraceRawVcs for LastSuccessfulSource {
-    fn trace_raw_vcs(&self, _context: &mut turbo_tasks::trace::TraceRawVcsContext) {}
-}
-
+// `SerializationInvalidator` does not implement `NonLocalValue`, so this
+// cannot be derived. The field contains no `Vc`s, so the impl is sound.
 unsafe impl turbo_tasks::NonLocalValue for LastSuccessfulSource {}
 
 #[turbo_tasks::value]
@@ -616,10 +639,13 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
             if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                // Store the current file bytes as the last-known-good source
-                // As long as the file doesn't change, this is _just_ an Arc::clone
-                // If it does change then this will pin the old version
-                // Also after a session restore the bytes will be duplicated
+                // Store the current file bytes as the last-known-good source.
+                // As long as the file doesn't change, this is _just_ an Arc::clone.
+                // If it does change then this will pin the old version until this
+                // task re-runs (at which point the new bytes are stored or cleared).
+                // After a session restore the bytes will be duplicated in memory
+                // until the task re-runs; making the task session-dependent would
+                // avoid that but is too expensive.
                 if let Some(rope) = crate::parse::get_rope_from_source(self.source).await? {
                     self.last_successful_source.set(rope);
                 }
