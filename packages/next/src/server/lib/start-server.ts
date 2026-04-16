@@ -374,32 +374,6 @@ export async function startServer(
       // Get env info first (fast, doesn't require config)
       const envInfo = isDev ? getEnvInfo(dir) : undefined
 
-      // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
-      // is detected but the managed agent-rules block is missing.
-      if (isDev) {
-        const agentFilesResult = ensureAgentRulesForDev(dir)
-        if (agentFilesResult) {
-          const generated: string[] = []
-          if (
-            agentFilesResult.agentsMd === 'created' ||
-            agentFilesResult.agentsMd === 'updated'
-          ) {
-            generated.push('AGENTS.md')
-          }
-          if (
-            agentFilesResult.claudeMd === 'created' ||
-            agentFilesResult.claudeMd === 'updated'
-          ) {
-            generated.push('CLAUDE.md')
-          }
-          if (generated.length > 0) {
-            Log.info(
-              `Generated ${generated.join(' and ')} with Next.js agent rules`
-            )
-          }
-        }
-      }
-
       // Log basic startup info immediately (before loading config)
       logStartInfo({
         networkUrl,
@@ -533,6 +507,36 @@ export async function startServer(
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
           })
+
+          // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
+          // is detected but the managed agent-rules block is missing.
+          // Gated on `agentRules` in next.config (default true). Runs
+          // after config load so the flag is respected.
+          if (initResult.agentRules !== false) {
+            const agentFilesResult = ensureAgentRulesForDev(dir)
+            if (agentFilesResult) {
+              const generated: string[] = []
+              if (
+                agentFilesResult.agentsMd === 'created' ||
+                agentFilesResult.agentsMd === 'updated'
+              ) {
+                generated.push('AGENTS.md')
+              }
+              if (
+                agentFilesResult.claudeMd === 'created' ||
+                agentFilesResult.claudeMd === 'updated'
+              ) {
+                generated.push('CLAUDE.md')
+              }
+              if (generated.length > 0) {
+                Log.info(
+                  `Generated ${generated.join(' and ')} so AI agents use version-matched Next.js docs. ` +
+                    `We think this is a good default. If you'd rather not have these files, delete them and ` +
+                    `set \`agentRules: false\` in next.config.`
+                )
+              }
+            }
+          }
         }
 
         handlersReady()
