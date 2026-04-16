@@ -101,8 +101,10 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns `Some(task_id)` if a matching task is found, `None` otherwise.
-    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId>;
+    /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
+    /// the existing `Arc<CachedTaskType>` from storage (avoiding a duplicate allocation).
+    fn task_by_type(&mut self, task_type: &CachedTaskType)
+    -> Option<(TaskId, Arc<CachedTaskType>)>;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -969,7 +971,10 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         self.turbo_tasks.pin()
     }
 
-    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
+    fn task_by_type(
+        &mut self,
+        task_type: &CachedTaskType,
+    ) -> Option<(TaskId, Arc<CachedTaskType>)> {
         if !self.backend.should_restore() {
             return None;
         }
@@ -988,7 +993,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
             if let Some(stored_type) = task.get_persistent_task_type()
                 && stored_type.as_ref() == task_type
             {
-                return Some(candidate_id);
+                return Some((candidate_id, stored_type.clone()));
             }
         }
         None

@@ -1568,47 +1568,48 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Task exists in backing storage.
         // We only need to insert it into the in-memory cache.
-        let task_id = if !transient && let Some(task_id) = ctx.task_by_type(&task_type) {
-            self.track_cache_hit_by_fn(native_fn);
-            // Step 3a: Insert into in-memory cache using pre-computed hash.
-            match raw_entry_with_hash(&self.task_cache, hash, |k| {
-                k.eq_components(native_fn, this, task_type.arg.as_ref())
-            }) {
-                RawEntry::Occupied(_) => {}
-                RawEntry::Vacant(e) => {
-                    let task_type = Arc::new(task_type);
-                    e.insert(task_type, task_id);
+        let task_id =
+            if !transient && let Some((task_id, stored_type)) = ctx.task_by_type(&task_type) {
+                self.track_cache_hit_by_fn(native_fn);
+                // Step 3a: Insert into in-memory cache using pre-computed hash.
+                // Use the existing Arc from storage to avoid a duplicate allocation.
+                match raw_entry_with_hash(&self.task_cache, hash, |k| {
+                    k.eq_components(native_fn, this, task_type.arg.as_ref())
+                }) {
+                    RawEntry::Occupied(_) => {}
+                    RawEntry::Vacant(e) => {
+                        e.insert(stored_type, task_id);
+                    }
+                };
+                task_id
+            } else {
+                // Task doesn't exist in memory cache or backing storage.
+                // Double-check under write lock using pre-computed hash.
+                match raw_entry_with_hash(&self.task_cache, hash, |k| {
+                    k.eq_components(native_fn, this, task_type.arg.as_ref())
+                }) {
+                    RawEntry::Occupied(e) => {
+                        let task_id = *e.get();
+                        drop(e);
+                        self.track_cache_hit_by_fn(native_fn);
+                        task_id
+                    }
+                    RawEntry::Vacant(e) => {
+                        let task_type = Arc::new(task_type);
+                        let task_id = if transient {
+                            self.transient_task_id_factory.get()
+                        } else {
+                            self.persisted_task_id_factory.get()
+                        };
+                        self.storage
+                            .initialize_new_task(task_id, Some(task_type.clone()));
+                        e.insert(task_type, task_id);
+                        self.track_cache_miss_by_fn(native_fn);
+                        is_new = true;
+                        task_id
+                    }
                 }
             };
-            task_id
-        } else {
-            // Task doesn't exist in memory cache or backing storage.
-            // Double-check under write lock using pre-computed hash.
-            match raw_entry_with_hash(&self.task_cache, hash, |k| {
-                k.eq_components(native_fn, this, task_type.arg.as_ref())
-            }) {
-                RawEntry::Occupied(e) => {
-                    let task_id = *e.get();
-                    drop(e);
-                    self.track_cache_hit_by_fn(native_fn);
-                    task_id
-                }
-                RawEntry::Vacant(e) => {
-                    let task_type = Arc::new(task_type);
-                    let task_id = if transient {
-                        self.transient_task_id_factory.get()
-                    } else {
-                        self.persisted_task_id_factory.get()
-                    };
-                    self.storage
-                        .initialize_new_task(task_id, Some(task_type.clone()));
-                    e.insert(task_type, task_id);
-                    self.track_cache_miss_by_fn(native_fn);
-                    is_new = true;
-                    task_id
-                }
-            }
-        };
 
         if is_new && is_root {
             AggregationUpdateQueue::run(
