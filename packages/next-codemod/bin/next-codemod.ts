@@ -12,7 +12,6 @@
 import { Command } from 'commander'
 import { runUpgrade } from './upgrade'
 import { runAgentsMd } from './agents-md'
-import { runUpgradeAgentsMd } from './upgrade-agents-md'
 import { runTransform } from './transform'
 import { BadInput } from './shared'
 
@@ -55,7 +54,7 @@ const program = new Command(packageJson.name)
   // x-ref: https://github.com/tj/commander.js/pull/1427
   .enablePositionalOptions()
 
-const upgradeCommand = program
+program
   .command('upgrade')
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
@@ -71,29 +70,6 @@ const upgradeCommand = program
       await runUpgrade(revision, options)
     } catch (error) {
       if (!options.verbose && error instanceof BadInput) {
-        console.error(error.message)
-      } else {
-        console.error(error)
-      }
-      process.exit(1)
-    }
-  })
-
-// Nested subcommand: `@next/codemod upgrade agents-md`.
-// Scaffolds AGENTS.md / CLAUDE.md from the bundled Next.js docs in
-// the current app directory. Nested under `upgrade` so it shares the
-// strict-cwd contract and mental model with the rest of the upgrade
-// workflow — you cd into the app and run `codemod upgrade ...`.
-upgradeCommand
-  .command('agents-md')
-  .description(
-    'Scaffold AGENTS.md / CLAUDE.md from the bundled Next.js docs (Next.js 16.2+). Must be run from the Next.js app directory.'
-  )
-  .action(async () => {
-    try {
-      await runUpgradeAgentsMd()
-    } catch (error) {
-      if (error instanceof BadInput) {
         console.error(error.message)
       } else {
         console.error(error)

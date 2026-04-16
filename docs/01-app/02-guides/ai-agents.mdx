@@ -59,13 +59,13 @@ npx create-next-app@canary --no-agents-md
 
 ### Existing projects
 
-On Next.js `v16.2.0-canary.37` or later, run the codemod from your Next.js app directory (in a monorepo, the sub-package that declares `next`):
+On Next.js `v16.2.0-canary.37` or later, upgrading via the codemod automatically scaffolds the agent-rules block as a post-upgrade step. Run it from your Next.js app directory (in a monorepo, the sub-package that declares `next`):
 
 ```bash
-npx @next/codemod@canary upgrade agents-md
+npx @next/codemod@canary upgrade
 ```
 
-`codemod upgrade` also runs this scaffold as a post-upgrade step. The codemod upserts into an existing `AGENTS.md` or `CLAUDE.md`, or creates both if neither exists:
+The codemod upserts into an existing `AGENTS.md` or `CLAUDE.md`, or creates both if neither exists:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->

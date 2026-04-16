@@ -44,9 +44,9 @@ export function getNextjsVersion(cwd: string): NextjsVersionResult {
 }
 
 /**
- * Strict-cwd check shared by `codemod upgrade` and `upgrade agents-md`:
- * `cwd/package.json` must exist and `next` must be resolvable from
- * `cwd`. No walk-up — monorepo root or wrong subdir both error out.
+ * Strict-cwd check for `codemod upgrade`: `cwd/package.json` must
+ * exist and `next` must be resolvable from `cwd`. No walk-up —
+ * monorepo root or wrong subdir both error out.
  *
  * Throws a plain `Error` (this module is in the `lib/` layer and
  * can't import `BadInput`); `bin/` callers rewrap for clean CLI

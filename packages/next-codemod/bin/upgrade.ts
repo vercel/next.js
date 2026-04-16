@@ -121,9 +121,8 @@ export async function runUpgrade(
   const { verbose } = options
 
   // Validate `cwd` once at the top: must have `package.json` and a
-  // resolvable `next` install. Shared with `upgrade agents-md` via
-  // `requireNextProjectDir`, which throws a plain `Error` that we
-  // rewrap as `BadInput` for clean CLI formatting.
+  // resolvable `next` install. `requireNextProjectDir` throws a plain
+  // `Error` that we rewrap as `BadInput` for clean CLI formatting.
   let projectDir: string
   try {
     projectDir = requireNextProjectDir(cwd)
@@ -440,8 +439,8 @@ export async function runUpgrade(
   warnDependenciesOutOfRange(appPackageJson, versionMapping)
 
   // Scaffold `AGENTS.md` + `CLAUDE.md` when the upgraded Next.js
-  // ships bundled docs. Same fast path `upgrade agents-md` runs, so
-  // upgrading picks up the agent rules as a side effect.
+  // ships bundled docs, so upgrading picks up the agent rules as a
+  // side effect.
   if (hasBundledDocs(projectDir)) {
     const result = writeBundledDocsAgentFiles(projectDir)
     const touched: string[] = []
