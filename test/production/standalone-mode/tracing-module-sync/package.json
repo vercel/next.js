@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "module-sync-pkg": "file:./module-sync-pkg"
+  }
+}
