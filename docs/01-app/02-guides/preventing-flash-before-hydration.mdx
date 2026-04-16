@@ -6,7 +6,11 @@ description: Learn how to correct server-rendered content before the browser pai
 
 User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, timezone, theme, persisted interactions) needs to be updated before the user sees it.
 
-Common approaches to this problem each have tradeoffs. A Client Component that re-renders with client values causes a hydration error. Deferring to `useEffect` avoids the error but introduces a visible flash. And rendering only on the server means giving up on client-specific formatting entirely.
+Some common approaches to this problem:
+
+- A Client Component that re-renders with client values causes a hydration error.
+- Deferring to `useEffect` avoids the error but introduces a visible flash.
+- Rendering only on the server means giving up on client-specific formatting entirely.
 
 Using an **inline script** that runs synchronously as the browser parses the HTML, you can update the DOM **before the first paint**. This guide covers dates, themes, and persisted UI state.
 
