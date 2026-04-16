@@ -1,24 +1,27 @@
 export function runtimeBodyMessage(route: string): string {
   return (
-    `Route "${route}": Runtime data such as \`cookies()\`, \`headers()\`, ` +
-    `\`params\`, or \`searchParams\` was accessed during the static prerender.\n\n` +
-    `This prevents Next.js from prerendering this page.\n\n` +
+    `Route "${route}": Next.js encountered runtime data during the initial render.\n\n` +
+    `Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` ` +
+    `blocks this page from streaming, resulting in a slower user experience.\n\n` +
     `Possible fixes:\n` +
-    `  - Add a <Suspense> boundary around the component that accesses the data\n` +
-    `  - Move the access into a child component inside an existing <Suspense>\n\n` +
+    `  - Move the data access into a child component within a <Suspense> boundary\n` +
+    `  - Use \`generateStaticParams\` to make route params static\n` +
+    `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
     `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }
 
 export function dynamicBodyMessage(route: string): string {
   return (
-    `Route "${route}": Dynamic or runtime data such as \`fetch()\`, ` +
-    `\`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, ` +
-    `or \`connection()\` was accessed during the static prerender.\n\n` +
-    `This prevents Next.js from prerendering this page.\n\n` +
+    `Route "${route}": Next.js encountered uncached or runtime data during the initial render.\n\n` +
+    `Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, ` +
+    `\`searchParams\`, or \`connection()\` blocks this page from streaming, ` +
+    `resulting in a slower user experience.\n\n` +
     `Possible fixes:\n` +
-    `  - Add a <Suspense> boundary around the component that accesses the data\n` +
-    `  - Move the access into a child component inside an existing <Suspense>\n\n` +
+    `  - Cache the data access with \`"use cache"\`\n` +
+    `  - Move the data access into a child component within a <Suspense> boundary\n` +
+    `  - Use \`generateStaticParams\` to make route params static\n` +
+    `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
     `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
 }

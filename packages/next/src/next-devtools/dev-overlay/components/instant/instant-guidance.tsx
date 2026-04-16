@@ -1,4 +1,3 @@
-import { useRef, useState } from 'react'
 import { css } from '../../utils/css'
 
 const DOCS = 'https://nextjs.org/docs/messages/blocking-route'
@@ -9,6 +8,7 @@ type FixCard = {
   title: string
   color: CardColor
   snippets: Snippet[]
+  conditional?: boolean
 }
 
 type Snippet = {
@@ -18,26 +18,18 @@ type Snippet = {
 
 const runtimeCards: FixCard[] = [
   {
-    title: 'Move into Suspense',
-    color: 'purple',
-    snippets: [
-      { text: '<Suspense>' },
-      { text: '  <DataChild />', highlight: true },
-      { text: '</Suspense>' },
-    ],
-  },
-  {
-    title: 'Wrap in Suspense',
+    title: 'Move within Suspense',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <Component />' },
+      { text: '  <DataChild />' },
       { text: '</Suspense>', highlight: true },
     ],
   },
   {
     title: 'Make route params static',
     color: 'blue',
+    conditional: true,
     snippets: [
       { text: 'export async function' },
       { text: '  generateStaticParams() {', highlight: true },
@@ -68,31 +60,12 @@ const dynamicCards: FixCard[] = [
     ],
   },
   {
-    title: 'Move into Suspense',
-    color: 'purple',
-    snippets: [
-      { text: '<Suspense>' },
-      { text: '  <DataChild />', highlight: true },
-      { text: '</Suspense>' },
-    ],
-  },
-  {
-    title: 'Wrap in Suspense',
+    title: 'Move within Suspense',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
-      { text: '  <Component />' },
+      { text: '  <DataChild />' },
       { text: '</Suspense>', highlight: true },
-    ],
-  },
-  {
-    title: 'Make route params static',
-    color: 'blue',
-    snippets: [
-      { text: 'export async function' },
-      { text: '  generateStaticParams() {', highlight: true },
-      { text: '  return [{ slug: "…" }]' },
-      { text: '}' },
     ],
   },
   {
@@ -106,60 +79,31 @@ const dynamicCards: FixCard[] = [
   },
 ]
 
-const VISIBLE_CARDS = 3
-
-function CardGallery({ cards }: { cards: FixCard[] }) {
-  const [activePage, setActivePage] = useState(0)
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const pageCount = Math.max(1, cards.length - VISIBLE_CARDS + 1)
-
-  const handleScroll = () => {
-    const el = scrollRef.current
-    if (!el || pageCount <= 1) return
-    const maxScroll = el.scrollWidth - el.clientWidth
-    if (maxScroll <= 0) return
-    const progress = el.scrollLeft / maxScroll
-    setActivePage(Math.round(progress * (pageCount - 1)))
-  }
-
+function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
-    <div data-nextjs-card-gallery>
-      <div data-nextjs-card-gallery-row ref={scrollRef} onScroll={handleScroll}>
-        {cards.map((card) => (
-          <div
-            data-nextjs-fix-card
-            data-card-color={card.color}
-            key={card.title}
-          >
-            <pre data-nextjs-fix-snippet>
-              {card.snippets.map((s, i) => (
-                <span
-                  key={i}
-                  data-snippet-line
-                  data-snippet-highlight={s.highlight || undefined}
-                >
-                  {s.text}
-                  {'\n'}
-                </span>
-              ))}
-            </pre>
-            <span data-nextjs-fix-card-title>{card.title}</span>
-          </div>
-        ))}
-      </div>
-
-      {pageCount > 1 && (
-        <div data-nextjs-card-gallery-dots>
-          {Array.from({ length: pageCount }, (_, i) => (
-            <span
-              key={i}
-              data-nextjs-gallery-dot
-              data-active={i === activePage || undefined}
-            />
-          ))}
+    <div data-nextjs-card-grid>
+      {cards.map((card) => (
+        <div
+          data-nextjs-fix-card
+          data-card-color={card.color}
+          data-card-conditional={card.conditional || undefined}
+          key={card.title}
+        >
+          <pre data-nextjs-fix-snippet>
+            {card.snippets.map((s, i) => (
+              <span
+                key={i}
+                data-snippet-line
+                data-snippet-highlight={s.highlight || undefined}
+              >
+                {s.text}
+                {'\n'}
+              </span>
+            ))}
+          </pre>
+          <span data-nextjs-fix-card-title>{card.title}</span>
         </div>
-      )}
+      ))}
     </div>
   )
 }
@@ -174,7 +118,8 @@ export function InstantGuidance({
   return (
     <div data-nextjs-instant-guidance>
       <p data-nextjs-instant-explanation>
-        This prevents Next.js from prerendering this page.{' '}
+        This blocks the page from streaming, resulting in a slower user
+        experience.{' '}
         <a href={DOCS} target="_blank" rel="noopener noreferrer">
           Learn more
         </a>
@@ -182,7 +127,7 @@ export function InstantGuidance({
 
       <p data-nextjs-instant-fix-heading>To fix this:</p>
 
-      <CardGallery cards={cards} />
+      <CardGrid cards={cards} />
     </div>
   )
 }
@@ -190,7 +135,7 @@ export function InstantGuidance({
 export const INSTANT_GUIDANCE_STYLES = css`
   [data-nextjs-instant-guidance] {
     margin-top: 16px;
-    padding: 0 16px;
+    padding: 0 16px 16px;
   }
 
   [data-nextjs-instant-explanation] {
@@ -218,27 +163,17 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border-top: 1px solid var(--color-gray-alpha-400);
   }
 
-  /* ── Gallery ──────────────────────────────────── */
-  [data-nextjs-card-gallery-row] {
-    display: flex;
+  /* ── Grid ───────────────────────────────────── */
+  [data-nextjs-card-grid] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 12px;
-    align-items: stretch;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-    padding: 0 2px;
-  }
-
-  [data-nextjs-card-gallery-row]::-webkit-scrollbar {
-    display: none;
   }
 
   /* ── Card ─────────────────────────────────────── */
   [data-nextjs-fix-card] {
-    flex: 1 0 30%;
-    min-width: 260px;
-    scroll-snap-align: start;
+    min-width: 0;
+    overflow: hidden;
   }
 
   [data-nextjs-fix-card-title] {
@@ -247,6 +182,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
     font-size: var(--size-13);
     color: var(--color-gray-900);
     text-align: center;
+  }
+
+  [data-card-conditional] [data-nextjs-fix-snippet] {
+    border-style: dashed;
   }
 
   /* ── Snippet ──────────────────────────────────── */
@@ -315,30 +254,5 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-card-color='red'] [data-snippet-line][data-snippet-highlight] {
     color: var(--color-red-800);
-  }
-
-  /* ── Dots ─────────────────────────────────────── */
-  [data-nextjs-card-gallery-dots] {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 14px;
-  }
-
-  [data-nextjs-gallery-dot] {
-    width: 7px;
-    height: 7px;
-    border-radius: 4px;
-    border: none;
-    padding: 0;
-    background: var(--color-gray-alpha-400);
-    transition:
-      width 200ms ease,
-      background 200ms ease;
-  }
-
-  [data-nextjs-gallery-dot][data-active] {
-    width: 18px;
-    background: var(--color-blue-900);
   }
 `

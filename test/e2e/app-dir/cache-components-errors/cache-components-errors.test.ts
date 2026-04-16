@@ -153,7 +153,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Dynamic data was accessed during the static prerender.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
@@ -183,13 +183,15 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
@@ -209,13 +211,15 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
@@ -231,13 +235,15 @@ describe('Cache Components Errors', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
@@ -257,13 +263,15 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
@@ -555,7 +563,7 @@ describe('Cache Components Errors', () => {
            [
              {
                "code": "E394",
-               "description": "Dynamic data was accessed during the static prerender.",
+               "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -569,7 +577,7 @@ describe('Cache Components Errors', () => {
              },
              {
                "code": "E394",
-               "description": "Dynamic data was accessed during the static prerender.",
+               "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -600,13 +608,15 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
@@ -620,13 +630,15 @@ describe('Cache Components Errors', () => {
                  64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
                  65 |   )
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
@@ -647,13 +659,15 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/dynamic-root/indirection.tsx:7:34)
@@ -670,13 +684,15 @@ describe('Cache Components Errors', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
@@ -692,13 +708,15 @@ describe('Cache Components Errors', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
@@ -712,13 +730,15 @@ describe('Cache Components Errors', () => {
                  64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
                  65 |   )
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
@@ -739,13 +759,15 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
@@ -776,13 +798,15 @@ describe('Cache Components Errors', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/dynamic-root": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at w (<next-dist-dir>)
@@ -1988,7 +2012,7 @@ describe('Cache Components Errors', () => {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E394",
-               "description": "Runtime data was accessed during the static prerender.",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
@@ -2017,13 +2041,14 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
@@ -2043,13 +2068,15 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
@@ -2067,13 +2094,15 @@ describe('Cache Components Errors', () => {
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
@@ -2093,13 +2122,15 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
@@ -2707,7 +2738,7 @@ describe('Cache Components Errors', () => {
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E394",
-                 "description": "Runtime data was accessed during the static prerender.",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
@@ -2735,13 +2766,14 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
@@ -2760,13 +2792,15 @@ describe('Cache Components Errors', () => {
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
@@ -2785,25 +2819,29 @@ describe('Cache Components Errors', () => {
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-low-expire/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
 
-This prevents Next.js from prerendering this page.
+Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
 Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
@@ -2860,7 +2898,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E394",
-                 "description": "Runtime data was accessed during the static prerender.",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
@@ -2888,13 +2926,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
@@ -2913,13 +2952,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
@@ -2938,25 +2979,29 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-low-expire/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
 
-This prevents Next.js from prerendering this page.
+Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
 Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
@@ -3118,7 +3163,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E394",
-                 "description": "Runtime data was accessed during the static prerender.",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
@@ -3146,13 +3191,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
@@ -3171,13 +3217,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
@@ -3196,25 +3244,29 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-revalidate-0/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
 
-This prevents Next.js from prerendering this page.
+Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
 Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
@@ -3271,7 +3323,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               await expect(browser).toDisplayCollapsedRedbox(`
                {
                  "code": "E394",
-                 "description": "Runtime data was accessed during the static prerender.",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
                  "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
@@ -3299,13 +3351,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
@@ -3324,13 +3377,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                    "Error: Route "/use-cache-revalidate-0/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                    "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                    This prevents Next.js from prerendering this page.
+                    Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                     Possible fixes:
-                      - Add a <Suspense> boundary around the component that accesses the data
-                      - Move the access into a child component inside an existing <Suspense>
+                      - Cache the data access with \`"use cache"\`
+                      - Move the data access into a child component within a <Suspense> boundary
+                      - Use \`generateStaticParams\` to make route params static
+                      - Set \`export const instant = false\` to allow a blocking route
 
                     Learn more: https://nextjs.org/docs/messages/blocking-route
                         at main (<anonymous>)
@@ -3349,25 +3404,29 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    `Error: Route "/use-cache-revalidate-0/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
 
-This prevents Next.js from prerendering this page.
+Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
 Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
 
-                   This prevents Next.js from prerendering this page.
+                   Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                    Possible fixes:
-                     - Add a <Suspense> boundary around the component that accesses the data
-                     - Move the access into a child component inside an existing <Suspense>
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
 
                    Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
@@ -3530,7 +3589,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E394",
-               "description": "Runtime data was accessed during the static prerender.",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": null,
@@ -3556,13 +3615,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Page (app/use-cache-params/[slug]/page.tsx:1:16)
@@ -3579,13 +3639,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
@@ -3604,17 +3666,19 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 // Next.js internals, and is also flaky on resolving the exact
                 // location, so we don't assert on the stack frames here.
                 expect(output).toInclude(
-                  `Error: Route "/use-cache-params/[slug]": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.`
+                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
                 )
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<next-dist-dir>)
@@ -4475,7 +4539,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             await expect(browser).toDisplayCollapsedRedbox(`
              {
                "code": "E394",
-               "description": "Runtime data was accessed during the static prerender.",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
@@ -4504,13 +4568,14 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
@@ -4530,13 +4595,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
@@ -4555,25 +4622,29 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                 // Next.js internals, and is also flaky on resolving the exact
                 // location, so we don't assert on the stack frames here.
                 expect(output).toInclude(
-                  `Error: Route "/use-cache-private-without-suspense": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                  `Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
 
-This prevents Next.js from prerendering this page.
+Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
 Possible fixes:
-  - Add a <Suspense> boundary around the component that accesses the data
-  - Move the access into a child component inside an existing <Suspense>
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
 
 Learn more: https://nextjs.org/docs/messages/blocking-route`
                 )
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
 
-                 This prevents Next.js from prerendering this page.
+                 Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                  Possible fixes:
-                   - Add a <Suspense> boundary around the component that accesses the data
-                   - Move the access into a child component inside an existing <Suspense>
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<next-dist-dir>)
@@ -6437,7 +6508,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Dynamic data was accessed during the static prerender.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
@@ -6466,13 +6537,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (app/client-awaited-io/client.tsx:6:19)
@@ -6492,13 +6565,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
@@ -6521,13 +6596,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
@@ -6547,13 +6624,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Dynamic or runtime data such as \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` was accessed during the static prerender.
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
 
-               This prevents Next.js from prerendering this page.
+               Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
                Possible fixes:
-                 - Add a <Suspense> boundary around the component that accesses the data
-                 - Move the access into a child component inside an existing <Suspense>
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
 
                Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)

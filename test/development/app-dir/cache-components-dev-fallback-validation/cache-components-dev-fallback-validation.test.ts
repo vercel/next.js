@@ -53,7 +53,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -68,7 +68,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -86,7 +86,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -101,7 +101,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -119,7 +119,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -134,7 +134,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/partial/[top]/unwrapped/[bottom]/page.tsx (6:26) @ Page
@@ -156,7 +156,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -171,7 +171,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -189,7 +189,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -204,7 +204,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -222,7 +222,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -237,7 +237,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/wrapped/layout.tsx (10:3) @ Layout
@@ -255,7 +255,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -270,7 +270,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -288,7 +288,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -303,7 +303,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -321,7 +321,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout
@@ -336,7 +336,7 @@ describe('Cache Components Fallback Validation', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
          "code": "E394",
-         "description": "Runtime data was accessed during the static prerender.",
+         "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
          "source": "app/none/[top]/unwrapped/layout.tsx (8:3) @ Layout

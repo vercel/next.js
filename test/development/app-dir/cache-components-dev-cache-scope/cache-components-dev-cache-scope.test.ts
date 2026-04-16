@@ -75,12 +75,12 @@ describe('Cache Components Dev Errors', () => {
     await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
-    expect(desc).toContain('was accessed during the static prerender')
+    expect(desc).toContain('during the initial render')
 
     await browser.refresh()
     await openRedbox(browser)
     desc = await getRedboxDescription(browser)
 
-    expect(desc).toContain('was accessed during the static prerender')
+    expect(desc).toContain('during the initial render')
   })
 })

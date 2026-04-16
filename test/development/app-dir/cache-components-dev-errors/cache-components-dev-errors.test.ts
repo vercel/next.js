@@ -99,7 +99,7 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E394",
-       "description": "Dynamic data was accessed during the static prerender.",
+       "description": "Next.js encountered uncached data during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/no-accessed-data/page.js (2:9) @ Page

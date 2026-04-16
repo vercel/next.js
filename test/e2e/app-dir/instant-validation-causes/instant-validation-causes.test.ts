@@ -106,7 +106,7 @@ describe('instant validation causes', () => {
          },
        ],
        "code": "E394",
-       "description": "Runtime data was accessed during the static prerender.",
+       "description": "Next.js encountered runtime data during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/named-export/page.tsx (7:16) @ Page
@@ -137,7 +137,7 @@ describe('instant validation causes', () => {
          },
        ],
        "code": "E394",
-       "description": "Runtime data was accessed during the static prerender.",
+       "description": "Next.js encountered runtime data during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/aliased-export/page.tsx (7:16) @ Page
@@ -168,7 +168,7 @@ describe('instant validation causes', () => {
          },
        ],
        "code": "E394",
-       "description": "Runtime data was accessed during the static prerender.",
+       "description": "Next.js encountered runtime data during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/reexport/page.tsx (6:16) @ Page
@@ -202,7 +202,7 @@ describe('instant validation causes', () => {
          },
        ],
        "code": "E394",
-       "description": "Runtime data was accessed during the static prerender.",
+       "description": "Next.js encountered runtime data during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
        "source": "app/indirect-export/page.tsx (8:16) @ Page

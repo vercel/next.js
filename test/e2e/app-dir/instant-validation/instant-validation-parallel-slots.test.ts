@@ -125,7 +125,7 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E394",
-             "description": "Runtime data was accessed during the static prerender.",
+             "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-config-only/page.tsx (4:16) @ ChildrenPage
@@ -142,13 +142,14 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/slot-config-only": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+           "Error: Route "/suspense-in-root/parallel/slot-config-only": Next.js encountered runtime data during the initial render.
 
-           This prevents Next.js from prerendering this page.
+           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
-             - Add a <Suspense> boundary around the component that accesses the data
-             - Move the access into a child component inside an existing <Suspense>
+             - Move the data access into a child component within a <Suspense> boundary
+             - Use \`generateStaticParams\` to make route params static
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -181,7 +182,7 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E394",
-             "description": "Runtime data was accessed during the static prerender.",
+             "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-layout-config/page.tsx (4:16) @ ChildrenPage
@@ -198,13 +199,14 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/slot-layout-config": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+           "Error: Route "/suspense-in-root/parallel/slot-layout-config": Next.js encountered runtime data during the initial render.
 
-           This prevents Next.js from prerendering this page.
+           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
-             - Add a <Suspense> boundary around the component that accesses the data
-             - Move the access into a child component inside an existing <Suspense>
+             - Move the data access into a child component within a <Suspense> boundary
+             - Use \`generateStaticParams\` to make route params static
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -237,7 +239,7 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E394",
-             "description": "Runtime data was accessed during the static prerender.",
+             "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/parallel/slot-runtime-config/page.tsx (4:16) @ ChildrenPage
@@ -254,13 +256,14 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/slot-runtime-config": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+           "Error: Route "/suspense-in-root/parallel/slot-runtime-config": Next.js encountered runtime data during the initial render.
 
-           This prevents Next.js from prerendering this page.
+           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
-             - Add a <Suspense> boundary around the component that accesses the data
-             - Move the access into a child component inside an existing <Suspense>
+             - Move the data access into a child component within a <Suspense> boundary
+             - Use \`generateStaticParams\` to make route params static
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -295,7 +298,7 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E394",
-             "description": "Runtime data was accessed during the static prerender.",
+             "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/parallel/children-config-with-slot/@slot/page.tsx (4:16) @ SlotPage
@@ -312,13 +315,14 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/children-config-with-slot": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+           "Error: Route "/suspense-in-root/parallel/children-config-with-slot": Next.js encountered runtime data during the initial render.
 
-           This prevents Next.js from prerendering this page.
+           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
-             - Add a <Suspense> boundary around the component that accesses the data
-             - Move the access into a child component inside an existing <Suspense>
+             - Move the data access into a child component within a <Suspense> boundary
+             - Use \`generateStaticParams\` to make route params static
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
@@ -353,7 +357,7 @@ describe('instant validation - parallel slot configs', () => {
                  },
                ],
                "code": "E394",
-               "description": "Runtime data was accessed during the static prerender.",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/@slot/page.tsx (4:16) @ SlotPage
@@ -377,7 +381,7 @@ describe('instant validation - parallel slot configs', () => {
                  },
                ],
                "code": "E394",
-               "description": "Runtime data was accessed during the static prerender.",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/suspense-in-root/parallel/fork-layout-config-with-slot/page.tsx (4:16) @ ChildrenPage
@@ -395,26 +399,28 @@ describe('instant validation - parallel slot configs', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+           "Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during the initial render.
 
-           This prevents Next.js from prerendering this page.
+           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
-             - Add a <Suspense> boundary around the component that accesses the data
-             - Move the access into a child component inside an existing <Suspense>
+             - Move the data access into a child component within a <Suspense> boundary
+             - Use \`generateStaticParams\` to make route params static
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
                at a (<anonymous>)
-           Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+           Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during the initial render.
 
-           This prevents Next.js from prerendering this page.
+           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
-             - Add a <Suspense> boundary around the component that accesses the data
-             - Move the access into a child component inside an existing <Suspense>
+             - Move the data access into a child component within a <Suspense> boundary
+             - Use \`generateStaticParams\` to make route params static
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at body (<anonymous>)
@@ -515,7 +521,7 @@ describe('instant validation - parallel slot configs', () => {
                },
              ],
              "code": "E394",
-             "description": "Runtime data was accessed during the static prerender.",
+             "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/suspense-in-root/parallel/conditional-breadcrumbs/show-both/@breadcrumbs/blocked/page.tsx (3:16) @ BreadcrumbsPage
@@ -530,13 +536,14 @@ describe('instant validation - parallel slot configs', () => {
           const result = await prerender(href)
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed during the static prerender.
+           "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked": Next.js encountered runtime data during the initial render.
 
-           This prevents Next.js from prerendering this page.
+           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
-             - Add a <Suspense> boundary around the component that accesses the data
-             - Move the access into a child component inside an existing <Suspense>
+             - Move the data access into a child component within a <Suspense> boundary
+             - Use \`generateStaticParams\` to make route params static
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
                at div (<anonymous>)

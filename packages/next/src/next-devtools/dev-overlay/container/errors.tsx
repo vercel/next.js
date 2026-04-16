@@ -21,6 +21,9 @@ import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { InstantGuidance } from '../components/instant/instant-guidance'
+import { CodeFrame } from '../components/code-frame/code-frame'
+import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
+import { useFrames } from '../utils/get-error-by-type'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -550,6 +553,48 @@ function getHydrationErrorDetails(
   }
 }
 
+function InstantRuntimeError({
+  error,
+  variant,
+  dialogResizerRef,
+}: {
+  error: ReadyRuntimeError
+  variant: 'runtime' | 'navigation'
+  dialogResizerRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const frames = useFrames(error)
+
+  const firstFrame = useMemo(() => {
+    const idx = frames.findIndex(
+      (entry) =>
+        !entry.ignored &&
+        Boolean(entry.originalCodeFrame) &&
+        Boolean(entry.originalStackFrame)
+    )
+    return frames[idx] ?? null
+  }, [frames])
+
+  return (
+    <>
+      {firstFrame && (
+        <CodeFrame
+          stackFrame={firstFrame.originalStackFrame!}
+          codeFrame={firstFrame.originalCodeFrame!}
+        />
+      )}
+
+      <InstantGuidance variant={variant} />
+
+      {frames.length > 0 && (
+        <ErrorOverlayCallStack
+          dialogResizerRef={dialogResizerRef}
+          frames={frames}
+        />
+      )}
+    </>
+  )
+}
+
 function isRuntimeVariant(message: string): boolean {
   if (
     message.includes('Runtime data such as') &&
@@ -768,8 +813,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             errorType={errorType}
             errorMessage={
               errorDetails.variant === 'runtime'
-                ? 'Runtime data was accessed during the static prerender.'
-                : 'Dynamic data was accessed during the static prerender.'
+                ? 'Next.js encountered runtime data during the initial render.'
+                : 'Next.js encountered uncached data during the initial render.'
             }
             onClose={isServerError ? undefined : onClose}
             debugInfo={debugInfo}
@@ -782,13 +827,13 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
             {...props}
           >
             <Suspense fallback={<div data-nextjs-error-suspended />}>
-              <RuntimeError
+              <InstantRuntimeError
                 key={activeError.id.toString()}
                 error={activeError}
+                variant={errorDetails.variant}
                 dialogResizerRef={dialogResizerRef}
               />
             </Suspense>
-            <InstantGuidance variant={errorDetails.variant} />
           </ErrorOverlayLayout>
         )
       }
