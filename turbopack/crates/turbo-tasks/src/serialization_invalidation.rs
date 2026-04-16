@@ -1,7 +1,4 @@
-use std::{
-    hash::Hash,
-    sync::{Arc, Weak},
-};
+use std::hash::Hash;
 
 use bincode::{
     Decode, Encode,
@@ -11,15 +8,20 @@ use bincode::{
     impl_borrow_decode,
 };
 use serde::{Deserialize, Serialize, de::Visitor};
-use tokio::runtime::Handle;
 
-use crate::{TaskId, TurboTasksApi, manager::with_turbo_tasks, trace::TraceRawVcs};
+use crate::{TaskId, manager::with_turbo_tasks, trace::TraceRawVcs};
 
+/// Allows a turbo-tasks value type to notify the backend that its serialized
+/// state has changed out-of-band (i.e. without going through the normal
+/// output-cell mechanism).
+///
+/// `invalidate` must always be called from within a turbo-tasks execution
+/// context (i.e. inside a `#[turbo_tasks::function]` body or a `State`
+/// mutation triggered from one), so `TURBO_TASKS` task-local is always
+/// available and we do not need to capture handles at construction time.
 #[derive(Clone)]
 pub struct SerializationInvalidator {
     task: TaskId,
-    turbo_tasks: Weak<dyn TurboTasksApi>,
-    handle: Handle,
 }
 
 impl Hash for SerializationInvalidator {
@@ -38,23 +40,11 @@ impl Eq for SerializationInvalidator {}
 
 impl SerializationInvalidator {
     pub fn invalidate(&self) {
-        let SerializationInvalidator {
-            task,
-            turbo_tasks,
-            handle,
-        } = self;
-        let _guard = handle.enter();
-        if let Some(turbo_tasks) = turbo_tasks.upgrade() {
-            turbo_tasks.invalidate_serialization(*task);
-        }
+        with_turbo_tasks(|tt| tt.invalidate_serialization(self.task));
     }
 
     pub(crate) fn new(task_id: TaskId) -> Self {
-        Self {
-            task: task_id,
-            turbo_tasks: with_turbo_tasks(Arc::downgrade),
-            handle: Handle::current(),
-        }
+        Self { task: task_id }
     }
 }
 
@@ -93,8 +83,6 @@ impl<'de> Deserialize<'de> for SerializationInvalidator {
             {
                 Ok(SerializationInvalidator {
                     task: TaskId::deserialize(deserializer)?,
-                    turbo_tasks: with_turbo_tasks(Arc::downgrade),
-                    handle: tokio::runtime::Handle::current(),
                 })
             }
         }
@@ -112,8 +100,6 @@ impl<Context> Decode<Context> for SerializationInvalidator {
     fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
         Ok(SerializationInvalidator {
             task: Decode::decode(decoder)?,
-            turbo_tasks: with_turbo_tasks(Arc::downgrade),
-            handle: tokio::runtime::Handle::current(),
         })
     }
 }

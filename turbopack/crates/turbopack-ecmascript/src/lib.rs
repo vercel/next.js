@@ -78,7 +78,7 @@ use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator, trace::TraceRawVcs,
+    TryJoinIterExt, Upcast, ValueToString, Vc, parking_lot_mutex_bincode, trace::TraceRawVcs,
     turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
@@ -369,9 +369,12 @@ impl EcmascriptModuleAssetBuilder {
 /// This is used by `failsafe_parse` to serve the last good AST when the file has a syntax error.
 /// The newtype is always-equal and no-op-hash so it is invisible to turbo-tasks cache key logic,
 /// but serializes the `Rope` contents so the fallback survives eviction and restarts.
-#[derive(TraceRawVcs)]
+#[derive(TraceRawVcs, Encode, Decode)]
 struct LastSuccessfulSource {
-    source: Mutex<Option<Rope>>,
+    /// `parking_lot::Mutex` does not implement `Encode`/`Decode` directly; the
+    /// `parking_lot_mutex_bincode` helper provides the encoding.
+    #[bincode(with = "parking_lot_mutex_bincode")]
+    source: parking_lot::Mutex<Option<Rope>>,
     /// Notifies the backend when the in-memory `source` changes so that the
     /// serialized task state is written back to the persistence layer.
     serialization_invalidator: SerializationInvalidator,
@@ -379,16 +382,16 @@ struct LastSuccessfulSource {
 
 impl LastSuccessfulSource {
     fn get(&self) -> Option<Rope> {
-        self.source.lock().unwrap().clone()
+        self.source.lock().clone()
     }
 
     fn set(&self, rope: Rope) {
-        *self.source.lock().unwrap() = Some(rope);
+        *self.source.lock() = Some(rope);
         self.serialization_invalidator.invalidate();
     }
 
     fn clear(&self) {
-        *self.source.lock().unwrap() = None;
+        *self.source.lock() = None;
         self.serialization_invalidator.invalidate();
     }
 }
@@ -396,8 +399,8 @@ impl LastSuccessfulSource {
 impl Default for LastSuccessfulSource {
     fn default() -> Self {
         Self {
-            source: Mutex::new(None),
-            serialization_invalidator: get_serialization_invalidator(),
+            source: parking_lot::Mutex::new(None),
+            serialization_invalidator: turbo_tasks::get_serialization_invalidator(),
         }
     }
 }
@@ -421,43 +424,6 @@ impl Eq for LastSuccessfulSource {}
 
 impl std::hash::Hash for LastSuccessfulSource {
     fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
-}
-
-// `Mutex` does not support `#[derive(Encode/Decode)]`, so these are written
-// by hand. They encode/decode only the `source` field; the
-// `serialization_invalidator` is re-created from the running task context on
-// decode (matching the pattern used by `turbo_tasks::State`).
-impl bincode::Encode for LastSuccessfulSource {
-    fn encode<E: bincode::enc::Encoder>(
-        &self,
-        encoder: &mut E,
-    ) -> Result<(), bincode::error::EncodeError> {
-        self.source.lock().unwrap().encode(encoder)
-    }
-}
-
-impl<C> bincode::Decode<C> for LastSuccessfulSource {
-    fn decode<D: bincode::de::Decoder<Context = C>>(
-        decoder: &mut D,
-    ) -> Result<Self, bincode::error::DecodeError> {
-        let val: Option<Rope> = bincode::Decode::decode(decoder)?;
-        Ok(Self {
-            source: Mutex::new(val),
-            serialization_invalidator: get_serialization_invalidator(),
-        })
-    }
-}
-
-impl<'de, C> bincode::BorrowDecode<'de, C> for LastSuccessfulSource {
-    fn borrow_decode<D: bincode::de::BorrowDecoder<'de, Context = C>>(
-        decoder: &mut D,
-    ) -> Result<Self, bincode::error::DecodeError> {
-        let val: Option<Rope> = bincode::BorrowDecode::borrow_decode(decoder)?;
-        Ok(Self {
-            source: Mutex::new(val),
-            serialization_invalidator: get_serialization_invalidator(),
-        })
-    }
 }
 
 // `SerializationInvalidator` does not implement `NonLocalValue`, so this
