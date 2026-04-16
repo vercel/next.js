@@ -9934,6 +9934,7 @@ dependencies = [
  "bincode 2.0.1",
  "bitfield",
  "codspeed-criterion-compat",
+ "crossbeam-utils",
  "dashmap 6.1.0",
  "either",
  "futures",

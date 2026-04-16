@@ -18,7 +18,8 @@ use smallvec::SmallVec;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
     CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
-    ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    ReadOutputOptions, StackMagicAny, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi,
+    TurboTasksCallApi,
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
     event::{Event, EventListener},
     message_queue::CompilationEvent,
@@ -96,26 +97,26 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
-        arg: Box<dyn MagicAny>,
+        arg: &mut dyn StackMagicAny,
         _persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(func, this, arg)
+        self.dynamic_call(func, this, arg.take_box())
     }
     fn native_call(
         &self,
-        _func: &'static turbo_tasks::macro_helpers::NativeFunction,
-        _this: Option<RawVc>,
-        _arg: Box<dyn MagicAny>,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackMagicAny,
         _persistence: TaskPersistence,
     ) -> RawVc {
-        unreachable!()
+        self.dynamic_call(func, this, arg.take_box())
     }
 
     fn trait_call(
         &self,
         _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
-        _arg: Box<dyn MagicAny>,
+        _arg: &mut dyn StackMagicAny,
         _persistence: TaskPersistence,
     ) -> RawVc {
         unreachable!()

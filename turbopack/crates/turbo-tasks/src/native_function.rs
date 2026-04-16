@@ -10,7 +10,7 @@ use turbo_tasks_hash::DeterministicHasher;
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     macro_helpers::into_task_fn,
-    magic_any::{MagicAny, any_as_encode},
+    magic_any::{MagicAny, OwnedMagicAny, StackMagicAny, StackMagicAnySlot, any_as_encode},
     registry::{RegistryType, turbo_registry},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
@@ -21,7 +21,7 @@ type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
 type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 
 #[doc(hidden)]
-pub type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
+pub type FilterOwnedArgsFunctor = for<'a> fn(&'a mut dyn StackMagicAny) -> OwnedMagicAny;
 #[doc(hidden)]
 pub type FilterAndResolveFunctor = ResolveFunctor;
 
@@ -38,16 +38,18 @@ pub struct ArgMeta {
     pub hash_encode: AnyHashEncodeFn,
     is_resolved: IsResolvedFunctor,
     resolve: ResolveFunctor,
-    /// Used for trait methods, filters out unused arguments.
-    filter_owned: FilterOwnedArgsFunctor,
+    /// Used for trait methods to filter out unused arguments. `None` when all arguments are used
+    /// (no filtering needed).
+    pub(crate) filter_owned: Option<FilterOwnedArgsFunctor>,
     /// Accepts a reference (instead of ownership) of arguments, and does the filtering and
-    /// resolution in a single operation.
+    /// resolution in a single operation. `None` when all arguments are used (no filtering needed),
+    /// in which case the caller should use [`resolve`](ArgMeta::resolve) directly.
     //
     // When filtering a `&dyn MagicAny` while running a resolution task, we can't return a filtered
     // `&dyn MagicAny`, we'd be forced to return a `Box<dyn MagicAny>`. However, the next thing we
     // do is resolution, which also accepts a `&dyn MagicAny` and returns a `Box<dyn MagicAny>`.
     // This functor combines the two operations to avoid extra cloning.
-    filter_and_resolve: FilterAndResolveFunctor,
+    filter_and_resolve: Option<FilterAndResolveFunctor>,
 }
 
 impl ArgMeta {
@@ -64,8 +66,8 @@ impl ArgMeta {
     #[doc(hidden)]
     pub const fn with_filter_trait_call_from<T>(
         _t: &T,
-        filter_owned: FilterOwnedArgsFunctor,
-        filter_and_resolve: FilterAndResolveFunctor,
+        filter_owned: Option<FilterOwnedArgsFunctor>,
+        filter_and_resolve: Option<FilterAndResolveFunctor>,
     ) -> Self
     where
         T: TaskFnInputs,
@@ -77,15 +79,12 @@ impl ArgMeta {
     where
         T: TaskInput + Encode + Decode<()> + 'static,
     {
-        fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
-            args
-        }
-        Self::with_filter_trait_call::<T>(noop_filter_args, resolve_functor_impl::<T>)
+        Self::with_filter_trait_call::<T>(None, None)
     }
 
     pub const fn with_filter_trait_call<T>(
-        filter_owned: FilterOwnedArgsFunctor,
-        filter_and_resolve: FilterAndResolveFunctor,
+        filter_owned: Option<FilterOwnedArgsFunctor>,
+        filter_and_resolve: Option<FilterAndResolveFunctor>,
     ) -> Self
     where
         T: TaskInput + Encode + Decode<()> + 'static,
@@ -121,14 +120,12 @@ impl ArgMeta {
         (self.resolve)(value).await
     }
 
-    pub fn filter_owned(&self, args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
-        (self.filter_owned)(args)
-    }
-
-    /// This will return `(None, _)` even if the target is a method, if the method does not use
-    /// `self`.
     pub async fn filter_and_resolve(&self, args: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
-        (self.filter_and_resolve)(args).await
+        if let Some(filter_and_resolve) = self.filter_and_resolve {
+            (filter_and_resolve)(args).await
+        } else {
+            (self.resolve)(args).await
+        }
     }
 }
 
@@ -177,6 +174,21 @@ pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
             return anyhow::anyhow!("Invalid argument type");
         })
         .unwrap()
+}
+
+/// Downcast a `&mut dyn StackMagicAny` to a concrete [`StackMagicAnySlot<T>`] and take the value
+/// out, avoiding the intermediate heap allocation that `take_box` + `downcast_args_owned` would
+/// require.
+pub fn downcast_stack_args_owned<T: MagicAny>(args: &mut dyn StackMagicAny) -> T {
+    args.as_any_mut()
+        .downcast_mut::<StackMagicAnySlot<T>>()
+        .unwrap_or_else(|| {
+            panic!(
+                "downcast_stack_args_owned::<{}> called with incorrect StackMagicAny type",
+                std::any::type_name::<T>(),
+            )
+        })
+        .take()
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by

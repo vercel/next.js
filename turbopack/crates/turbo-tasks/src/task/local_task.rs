@@ -3,8 +3,9 @@ use std::{fmt, sync::Arc};
 use anyhow::{Result, bail};
 
 use crate::{
-    CellId, MagicAny, OutputContent, RawVc, TaskPersistence, TraitMethod, TurboTasksBackendApi,
-    ValueTypeId, backend::Backend, event::Event, macro_helpers::NativeFunction, registry,
+    CellId, MagicAny, OutputContent, OwnedMagicAny, RawVc, TaskPersistence, TraitMethod,
+    TurboTasksBackendApi, ValueTypeId, backend::Backend, event::Event,
+    macro_helpers::NativeFunction, registry,
 };
 
 /// A potentially in-flight local task stored in `CurrentGlobalTaskState::local_tasks`.
@@ -60,7 +61,8 @@ impl LocalTaskType {
             *this = this.resolve().await?;
         }
         let arg = native_fn.arg_meta.resolve(arg).await?;
-        Ok(turbo_tasks.native_call(native_fn, this, arg, persistence))
+        let mut arg = OwnedMagicAny::new(arg);
+        Ok(turbo_tasks.native_call(native_fn, this, &mut arg, persistence))
     }
     /// Implementation of the LocalTaskType::ResolveTrait task.
     pub(crate) async fn run_resolve_trait<B: Backend + 'static>(
@@ -77,7 +79,8 @@ impl LocalTaskType {
 
         let native_fn = Self::resolve_trait_method_from_value(trait_method, type_id)?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
-        Ok(turbo_tasks.native_call(native_fn, Some(this), arg, persistence))
+        let mut arg = OwnedMagicAny::new(arg);
+        Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))
     }
 
     fn resolve_trait_method_from_value(

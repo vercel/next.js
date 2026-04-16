@@ -5,7 +5,6 @@ use std::{
     mem::take,
     num::NonZeroU32,
     ops::{ControlFlow, Deref},
-    sync::Arc,
     thread::yield_now,
     time::{Duration, Instant},
 };
@@ -23,10 +22,7 @@ use tracing::span::Span;
     feature = "trace_find_and_schedule"
 ))]
 use tracing::trace_span;
-use turbo_tasks::{
-    FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, backend::CachedTaskType,
-    event::EventDescription,
-};
+use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -272,8 +268,6 @@ pub enum AggregationUpdateJob {
         // upon attempted serialization) similar to #[serde(skip)] on variants
         #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
-        /// Set the task type if not already set
-        task_type: Option<Arc<CachedTaskType>>,
     },
     /// Increases the active counters of the tasks
     IncreaseActiveCounts {
@@ -1168,12 +1162,12 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task, task_type } => {
-                    self.increase_active_count(ctx, task, task_type);
+                AggregationUpdateJob::IncreaseActiveCount { task } => {
+                    self.increase_active_count(ctx, task);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id, None);
+                        self.increase_active_count(ctx, task_id);
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -1380,10 +1374,7 @@ impl AggregationUpdateQueue {
                         let has_active_count =
                             upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
-                            self.push(AggregationUpdateJob::IncreaseActiveCount {
-                                task: task_id,
-                                task_type: None,
-                            });
+                            self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
                         }
                     }
                     // notify uppers about new follower
@@ -2475,7 +2466,6 @@ impl AggregationUpdateQueue {
                     if has_active_count {
                         self.push(AggregationUpdateJob::IncreaseActiveCount {
                             task: new_follower_id,
-                            task_type: None,
                         });
                     }
 
@@ -2633,29 +2623,16 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(
-        &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
-        task_id: TaskId,
-        task_type: Option<Arc<CachedTaskType>>,
-    ) {
+    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
         let mut task = ctx.task(
             task_id,
-            if task_type.is_some() {
-                TaskDataCategory::All
-            } else {
-                // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta
-            },
+            // For performance reasons this should stay Meta and not All.
+            // persistent_task_type is now set eagerly in initialize_new_task.
+            TaskDataCategory::Meta,
         );
-        if let Some(task_type) = task_type
-            && !task.has_persistent_task_type()
-        {
-            task.set_persistent_task_type(task_type);
-        }
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();

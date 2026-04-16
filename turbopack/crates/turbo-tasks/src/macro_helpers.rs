@@ -22,6 +22,7 @@ pub use crate::{
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
         ArgMeta, NativeFunction, VTABLE_DEFAULT, downcast_args_owned, downcast_args_ref,
+        downcast_stack_args_owned,
     },
     registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
