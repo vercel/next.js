@@ -41,7 +41,10 @@ const DEFAULT_PAGE_EXTENSIONS = ['.tsx', '.ts', '.jsx', '.js']
  * Builds a regex pattern that matches any of the given extensions.
  */
 function buildExtensionRegex(extensions: string[]): RegExp {
-  const escaped = extensions.map((ext) => ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  // Normalize extensions to always include a leading dot, so both
+  // 'tsx' and '.tsx' are handled correctly.
+  const normalized = extensions.map((ext) => (ext.startsWith('.') ? ext : '.' + ext))
+  const escaped = normalized.map((ext) => ext.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
   return new RegExp(`(${escaped.join('|')})$`)
 }
 
@@ -141,8 +144,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, extensionRegex)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, extensionRegex)
+    const pageUrls = getUrlFromPagesDirectories('/', foundPagesDirs, extensionRegex)
+    const appDirUrls = getUrlFromAppDirectory('/', foundAppDirs, extensionRegex)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
