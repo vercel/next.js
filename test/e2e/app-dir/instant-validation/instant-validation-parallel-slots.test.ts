@@ -144,9 +144,9 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/slot-config-only": Next.js encountered runtime data during the initial render.
 
-           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
-           Possible fixes:
+           Ways to fix this:
              - Move the data access into a child component within a <Suspense> boundary
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
@@ -204,9 +204,9 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/slot-layout-config": Next.js encountered runtime data during the initial render.
 
-           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
-           Possible fixes:
+           Ways to fix this:
              - Move the data access into a child component within a <Suspense> boundary
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
@@ -264,9 +264,9 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/slot-runtime-config": Next.js encountered runtime data during the initial render.
 
-           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
-           Possible fixes:
+           Ways to fix this:
              - Move the data access into a child component within a <Suspense> boundary
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
@@ -326,9 +326,9 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/children-config-with-slot": Next.js encountered runtime data during the initial render.
 
-           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
-           Possible fixes:
+           Ways to fix this:
              - Move the data access into a child component within a <Suspense> boundary
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
@@ -413,9 +413,9 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during the initial render.
 
-           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
-           Possible fixes:
+           Ways to fix this:
              - Move the data access into a child component within a <Suspense> boundary
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
@@ -427,9 +427,9 @@ describe('instant validation - parallel slot configs', () => {
                at a (<anonymous>)
            Error: Route "/suspense-in-root/parallel/fork-layout-config-with-slot": Next.js encountered runtime data during the initial render.
 
-           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
-           Possible fixes:
+           Ways to fix this:
              - Move the data access into a child component within a <Suspense> boundary
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
@@ -553,9 +553,9 @@ describe('instant validation - parallel slot configs', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked": Next.js encountered runtime data during the initial render.
 
-           Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` blocks this page from streaming, resulting in a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
-           Possible fixes:
+           Ways to fix this:
              - Move the data access into a child component within a <Suspense> boundary
              - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route

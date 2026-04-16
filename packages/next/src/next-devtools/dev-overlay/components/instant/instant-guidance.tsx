@@ -118,14 +118,13 @@ export function InstantGuidance({
   return (
     <div data-nextjs-instant-guidance>
       <p data-nextjs-instant-explanation>
-        This blocks the page from streaming, resulting in a slower user
-        experience.{' '}
+        This blocks navigation, leading to a slower user experience.{' '}
         <a href={DOCS} target="_blank" rel="noopener noreferrer">
           Learn more
         </a>
       </p>
 
-      <p data-nextjs-instant-fix-heading>To fix this:</p>
+      <p data-nextjs-instant-fix-heading>Ways to fix this:</p>
 
       <CardGrid cards={cards} />
     </div>

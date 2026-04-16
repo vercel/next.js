@@ -1,9 +1,8 @@
 export function runtimeBodyMessage(route: string): string {
   return (
     `Route "${route}": Next.js encountered runtime data during the initial render.\n\n` +
-    `Accessing \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` ` +
-    `blocks this page from streaming, resulting in a slower user experience.\n\n` +
-    `Possible fixes:\n` +
+    `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.\n\n` +
+    `Ways to fix this:\n` +
     `  - Move the data access into a child component within a <Suspense> boundary\n` +
     `  - Use \`generateStaticParams\` to make route params static\n` +
     `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
@@ -14,9 +13,8 @@ export function runtimeBodyMessage(route: string): string {
 export function dynamicBodyMessage(route: string): string {
   return (
     `Route "${route}": Next.js encountered uncached data during the initial render.\n\n` +
-    `Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, ` +
-    `resulting in a slower user experience.\n\n` +
-    `Possible fixes:\n` +
+    `\`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.\n\n` +
+    `Ways to fix this:\n` +
     `  - Cache the data access with \`"use cache"\`\n` +
     `  - Move the data access into a child component within a <Suspense> boundary\n` +
     `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
@@ -32,10 +30,8 @@ export function dynamicBodyMessage(route: string): string {
 export function dynamicOrRuntimeBodyMessage(route: string): string {
   return (
     `Route "${route}": Next.js encountered uncached or runtime data during the initial render.\n\n` +
-    `Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, ` +
-    `\`searchParams\`, or \`connection()\` blocks this page from streaming, ` +
-    `resulting in a slower user experience.\n\n` +
-    `Possible fixes:\n` +
+    `\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.\n\n` +
+    `Ways to fix this:\n` +
     `  - Cache the data access with \`"use cache"\`\n` +
     `  - Move the data access into a child component within a <Suspense> boundary\n` +
     `  - Use \`generateStaticParams\` to make route params static\n` +
@@ -45,19 +41,19 @@ export function dynamicOrRuntimeBodyMessage(route: string): string {
 }
 
 export function runtimeMetadataMessage(route: string): string {
-  return `Route "${route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+  return `Route "${route}": Next.js encountered runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` inside \`generateMetadata\`, or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
 }
 
 export function dynamicMetadataMessage(route: string): string {
-  return `Route "${route}": Uncached data or \`connection()\` was accessed inside \`generateMetadata\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+  return `Route "${route}": Next.js encountered uncached data such as \`fetch(...)\` or \`connection()\` inside \`generateMetadata\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
 }
 
 export function runtimeViewportMessage(route: string): string {
-  return `Route "${route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+  return `Route "${route}": Next.js encountered runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
 }
 
 export function dynamicViewportMessage(route: string): string {
-  return `Route "${route}": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+  return `Route "${route}": Next.js encountered uncached data such as \`fetch(...)\` or \`connection()\` inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
 }
 
 export function disallowedDynamicViewportMessage(route: string): string {
