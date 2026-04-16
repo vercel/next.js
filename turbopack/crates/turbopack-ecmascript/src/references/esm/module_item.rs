@@ -15,7 +15,8 @@ use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
-    create_visitor, magic_identifier,
+    create_visitor,
+    magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     references::AstPath,
 };
 
@@ -68,7 +69,7 @@ impl EsmModuleItem {
                                 decls: vec![VarDeclarator {
                                     span: DUMMY_SP,
                                     name: Ident::new(
-                                        magic_identifier::mangle("default export").into(),
+                                        MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                                         DUMMY_SP,
                                         Default::default(),
                                     )
@@ -86,8 +87,7 @@ impl EsmModuleItem {
                                         ModuleItem::Stmt(Stmt::Decl(Decl::Class(ClassDecl {
                                             ident: class.ident.unwrap_or_else(|| {
                                                 Ident::new(
-                                                    magic_identifier::mangle("default export")
-                                                        .into(),
+                                                    MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                                                     DUMMY_SP,
                                                     Default::default(),
                                                 )
@@ -100,7 +100,7 @@ impl EsmModuleItem {
                                     *module_item = ModuleItem::Stmt(Stmt::Decl(Decl::Fn(FnDecl {
                                         ident: fn_expr.ident.unwrap_or_else(|| {
                                             Ident::new(
-                                                magic_identifier::mangle("default export").into(),
+                                                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                                                 DUMMY_SP,
                                                 Default::default(),
                                             )

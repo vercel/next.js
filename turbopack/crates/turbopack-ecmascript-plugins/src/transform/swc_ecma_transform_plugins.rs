@@ -163,8 +163,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
 
             let transform_metadata_context = Arc::new(TransformPluginMetadataContext::new(
                 Some(ctx.file_path_str.to_string()),
-                //[TODO]: Support env-related variable injection, i.e process.env.NODE_ENV
-                "development".to_string(),
+                ctx.node_env.to_string(),
                 None,
             ));
 
