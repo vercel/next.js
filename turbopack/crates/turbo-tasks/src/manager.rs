@@ -38,7 +38,7 @@ use crate::{
     id_factory::IdFactoryWithReuse,
     keyed::KeyedEq,
     macro_helpers::NativeFunction,
-    magic_any::{MagicAny, OwnedArg, StackArg},
+    magic_any::{OwnedArg, StackArg},
     message_queue::{CompilationEvent, CompilationEventQueue},
     priority_runner::{Executor, JoinHandle, PriorityRunner},
     raw_vc::{CellId, RawVc},
@@ -81,7 +81,7 @@ pub trait TurboTasksCallApi: Sync + Send {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: Box<dyn MagicAny>,
+        arg: &mut dyn StackArg,
         persistence: TaskPersistence,
     ) -> RawVc;
 
@@ -837,7 +837,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: Box<dyn MagicAny>,
+        arg: &mut dyn StackArg,
         persistence: TaskPersistence,
     ) -> RawVc {
         // avoid creating a wrapper task if self is already resolved
@@ -846,7 +846,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
             match registry::get_value_type(type_id).get_trait_method(trait_method) {
                 Some(native_fn) => {
-                    let arg = native_fn.arg_meta.filter_owned(arg);
+                    let arg = native_fn.arg_meta.filter_owned(arg.take_box());
                     let mut arg = OwnedArg::new(arg);
                     return self.dynamic_call(native_fn, Some(this), &mut arg, persistence);
                 }
@@ -862,7 +862,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let task_type = LocalTaskSpec {
             task_type: LocalTaskType::ResolveTrait { trait_method },
             this: Some(this),
-            arg,
+            arg: arg.take_box(),
         };
 
         self.schedule_local_task(task_type, persistence)
@@ -1382,7 +1382,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: Box<dyn MagicAny>,
+        arg: &mut dyn StackArg,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.trait_call(trait_method, this, arg, persistence)
@@ -1851,7 +1851,7 @@ pub fn dynamic_call(
 pub fn trait_call(
     trait_method: &'static TraitMethod,
     this: RawVc,
-    arg: Box<dyn MagicAny>,
+    arg: &mut dyn StackArg,
     persistence: TaskPersistence,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))

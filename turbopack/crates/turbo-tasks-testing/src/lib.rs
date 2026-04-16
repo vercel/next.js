@@ -116,7 +116,7 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
-        _arg: Box<dyn MagicAny>,
+        _arg: &mut dyn StackArg,
         _persistence: TaskPersistence,
     ) -> RawVc {
         unreachable!()

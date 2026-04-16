@@ -482,9 +482,15 @@ impl TurboFn<'_> {
         None
     }
 
+    pub fn persistence(&self) -> impl ToTokens {
+        quote! {
+            turbo_tasks::macro_helpers::get_persistence_from_inputs(&inputs)
+        }
+    }
+
     pub fn persistence_with_this(&self) -> impl ToTokens {
         quote! {
-            turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(this, &*inputs)
+            turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(this, &inputs)
         }
     }
 
@@ -547,16 +553,17 @@ impl TurboFn<'_> {
         quote! {
             {
                 #assertions
-                let inputs = std::boxed::Box::new((#(#inputs,)*));
+                let inputs = (#(#inputs,)*);
                 let this = #converted_this;
                 let persistence = #persistence;
+                let mut arg = turbo_tasks::StackArgSlot::new(inputs);
                 static TRAIT_METHOD: turbo_tasks::macro_helpers::Lazy<&'static turbo_tasks::TraitMethod> =
                         turbo_tasks::macro_helpers::Lazy::new(|| #trait_type_ident.get(stringify!(#ident)));
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                     turbo_tasks::trait_call(
                         *TRAIT_METHOD,
                         this,
-                        inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
+                        &mut arg,
                         persistence,
                     )
                 )
@@ -572,17 +579,13 @@ impl TurboFn<'_> {
         let mut block = if self.is_self_used
             && let Some(converted_this) = self.converted_this()
         {
-            // Self case: args stay on the stack in a StackArgSlot; boxing is deferred
-            // to the cache-miss path inside the backend.
+            let persistence = self.persistence_with_this();
             quote! {
                 {
                     #assertions
                     let this = #converted_this;
                     let inputs = (#(#inputs,)*);
-                    let persistence =
-                        turbo_tasks::macro_helpers::get_persistence_from_inputs_and_this(
-                            this, &inputs,
-                        );
+                    let persistence = #persistence;
                     let mut arg = turbo_tasks::StackArgSlot::new(inputs);
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
@@ -595,14 +598,12 @@ impl TurboFn<'_> {
                 }
             }
         } else {
-            // No-self case: args stay on the stack in a StackArgSlot; boxing is deferred
-            // to the cache-miss path inside the backend.
+            let persistence = self.persistence();
             quote! {
                 {
                     #assertions
                     let inputs = (#(#inputs,)*);
-                    let persistence =
-                        turbo_tasks::macro_helpers::get_persistence_from_inputs(&inputs);
+                    let persistence = #persistence;
                     let mut arg = turbo_tasks::StackArgSlot::new(inputs);
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
