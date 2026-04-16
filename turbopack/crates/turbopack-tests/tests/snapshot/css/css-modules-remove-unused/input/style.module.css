@@ -1,12 +1,34 @@
 .green {
   color: green;
+  animation-name: green-slide-in;
+}
+
+.green :not(a) {
+  font-size: 12;
+}
+@keyframes green-slide-in {
+  from {
+    transform: translateX(0%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.green,
+.unused {
+  background: blue;
 }
 
 .unused {
   color: red;
 
   animation-name: unused-slide-in;
-  animation-duration: 2s;
+}
+
+.unused :not(a) {
+  background: red;
 }
 
 @keyframes unused-slide-in {

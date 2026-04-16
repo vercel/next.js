@@ -330,8 +330,11 @@ pub async fn finalize_css(
                     ModuleExportUsageInfo::Evaluation | ModuleExportUsageInfo::Exports(_) => {
                         exports
                             .iter()
-                            .filter(|(orig_name, _)| {
+                            .filter(|(orig_name, export)| {
                                 !export_usage_info.is_export_used(&RcStr::from(orig_name.as_str()))
+                                    && !export.is_referenced
+                                // TODO we can't differente `is_referenced because of used class`
+                                // and `is_referenced because of unused class` at this pint
                             })
                             .map(|(orig_name, _)| orig_name.clone())
                             .collect()

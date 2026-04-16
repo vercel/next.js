@@ -1,6 +1,35 @@
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/style.module.css [test] (css) */
 .style-module__o6j6Ba__green {
   color: green;
+  animation-name: style-module__o6j6Ba__green-slide-in;
+}
+
+.style-module__o6j6Ba__green :not(a) {
+  font-size: 12px;
+}
+
+@keyframes style-module__o6j6Ba__green-slide-in {
+  from {
+    transform: translateX(0%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.style-module__o6j6Ba__green, .style-module__o6j6Ba__unused {
+  background: #00f;
+}
+
+@keyframes style-module__o6j6Ba__unused-slide-in {
+  from {
+    transform: translateX(0%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
 }
 
 /* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/default.module.css [test] (css) */
