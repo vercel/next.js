@@ -781,6 +781,18 @@ export const useLinkStatus = () => {
 function getFetchStrategyFromPrefetchProp(
   prefetchProp: Exclude<LinkProps['prefetch'], undefined | false>
 ): PrefetchTaskFetchStrategy {
+  // In `output: "export"` mode, a Full prefetch issues a dynamic RSC request
+  // via request headers, but the static host can't interpret those headers and
+  // responds with the pre-rendered HTML document instead. Fall back to PPR so
+  // the prefetch reads the per-segment `__next.*.txt` files the exporter
+  // emitted for this route.
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.__NEXT_CONFIG_OUTPUT === 'export'
+  ) {
+    return FetchStrategy.PPR
+  }
+
   if (process.env.__NEXT_CACHE_COMPONENTS) {
     if (prefetchProp === true) {
       return FetchStrategy.Full

@@ -275,11 +275,18 @@ export function onNavigationIntent(
   }
   // Prefetch the link on hover/touchstart.
   if (instance !== undefined) {
+    // Switch to a full prefetch, except in `output: "export"` mode — a Full
+    // prefetch issues a dynamic RSC request via request headers, which the
+    // static host cannot interpret, so it would fall back to the HTML
+    // document instead of a per-segment `__next.*.txt` file.
     if (
       process.env.__NEXT_DYNAMIC_ON_HOVER &&
-      unstable_upgradeToDynamicPrefetch
+      unstable_upgradeToDynamicPrefetch &&
+      !(
+        process.env.NODE_ENV === 'production' &&
+        process.env.__NEXT_CONFIG_OUTPUT === 'export'
+      )
     ) {
-      // Switch to a full prefetch
       instance.fetchStrategy = FetchStrategy.Full
     }
     rescheduleLinkPrefetch(instance, PrefetchPriority.Intent)
