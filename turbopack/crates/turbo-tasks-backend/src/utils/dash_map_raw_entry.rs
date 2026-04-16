@@ -6,6 +6,21 @@ use std::{
 use dashmap::{DashMap, RwLockWriteGuard, SharedValue};
 use hashbrown::raw::{Bucket, InsertSlot, RawTable};
 
+/// Read-only heterogeneous lookup with a pre-computed hash.
+/// Returns `Some(value)` on hit, `None` on miss. Uses only a read lock.
+pub fn raw_get<K: Eq + Hash, V: Copy, S: BuildHasher + Clone>(
+    map: &DashMap<K, V, S>,
+    hash: u64,
+    eq: impl Fn(&K) -> bool,
+) -> Option<V> {
+    let shard = map.determine_shard(hash as usize);
+    let shard = map.shards()[shard].read();
+    // Safety: We have a read lock on the shard.
+    shard
+        .find(hash, |(k, _v)| eq(k))
+        .map(|bucket| *unsafe { bucket.as_ref() }.1.get())
+}
+
 /// Write-lock entry lookup with a pre-computed hash and heterogeneous equality.
 ///
 /// Takes a pre-computed `hash` and an `eq` closure for key comparison, avoiding
