@@ -789,5 +789,6 @@
   "788": "Failed to find Server Action%s. This request might be from an older or newer deployment.\\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action",
   "789": "LRUCache: calculateSize returned %s, but size must be > 0. Items with size 0 would never be evicted, causing unbounded cache growth.",
   "790": "Invariant: cache entry \"%s\" not found in dir \"%s\"",
-  "791": "image of size %s could not be tracked by lru cache"
+  "791": "image of size %s could not be tracked by lru cache",
+  "792": "Response body exceeded maximum size of %s bytes"
 }
