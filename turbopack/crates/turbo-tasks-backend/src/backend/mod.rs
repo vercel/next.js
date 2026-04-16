@@ -1517,21 +1517,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> TaskId {
         let transient = matches!(persistence, TaskPersistence::Transient);
 
-        if transient {
-            if let Some(parent_task) = parent_task
-                && !parent_task.is_transient()
-            {
-                let task_type = CachedTaskType {
-                    native_fn,
-                    this,
-                    arg: arg.take_box(),
-                };
-                self.panic_persistent_calling_transient(
-                    self.debug_get_task_description(parent_task),
-                    Some(&task_type),
-                    /* cell_id */ None,
-                );
-            }
+        if transient
+            && let Some(parent_task) = parent_task
+            && !parent_task.is_transient()
+        {
+            let task_type = CachedTaskType {
+                native_fn,
+                this,
+                arg: arg.take_box(),
+            };
+            self.panic_persistent_calling_transient(
+                self.debug_get_task_description(parent_task),
+                Some(&task_type),
+                /* cell_id */ None,
+            );
         }
 
         let is_root = native_fn.is_root;
