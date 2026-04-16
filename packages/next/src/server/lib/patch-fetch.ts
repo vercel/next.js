@@ -39,6 +39,8 @@ type PatchedFetcher = Fetcher & {
   readonly __nextPatched: true
   readonly __nextGetStaticStore: () => WorkAsyncStorage
   readonly _nextOriginalFetch: Fetcher
+  /** The globalThis.fetch value before patchFetch() applied any wrapping. */
+  _nextPrePatchFetch: Fetcher
 }
 
 export const NEXT_PATCH_SYMBOL = Symbol.for('next-patch')
@@ -1281,6 +1283,8 @@ export function createPatchedFetcher(
   patched.__nextPatched = true as const
   patched.__nextGetStaticStore = () => workAsyncStorage
   patched._nextOriginalFetch = originFetch
+  // Store the fetch as it was before patchFetch() touched it (pre-dedupe).
+  // resetFetch() uses this to cleanly unwrap without accumulating dedupe layers.
   ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = true
 
   // Assign the function name also as a name property, so that it's preserved
@@ -1296,12 +1300,19 @@ export function patchFetch(options: PatchableModule) {
   // If we've already patched fetch, we should not patch it again.
   if (isFetchPatched()) return
 
+  // Save the current fetch before any wrapping. resetFetch() uses this to
+  // cleanly restore without accumulating createDedupeFetch layers across
+  // HMR cycles.
+  const prePatchFetch = globalThis.fetch
+
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.
-  const original = createDedupeFetch(globalThis.fetch)
+  const original = createDedupeFetch(prePatchFetch)
 
   // Set the global fetch to the patched fetch.
-  globalThis.fetch = createPatchedFetcher(original, options)
+  const patched = createPatchedFetcher(original, options)
+  patched._nextPrePatchFetch = prePatchFetch
+  globalThis.fetch = patched
 }
 
 let currentTimeoutBoundary: null | Promise<void> = null

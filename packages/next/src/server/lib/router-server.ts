@@ -153,16 +153,16 @@ export async function initialize(opts: {
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
     const resetFetch = () => {
-      // If fetch was patched by Next.js, unwrap only the Next.js layer by
-      // restoring _nextOriginalFetch. This preserves any third-party
-      // instrumentation (e.g. OpenTelemetry) that wrapped fetch before
-      // Next.js's patchFetch() ran. Only fall back to the startup snapshot
-      // when there's no Next.js patch layer to unwrap.
+      // Unwrap only the Next.js patchFetch() + createDedupeFetch layers by
+      // restoring the fetch reference from before patchFetch() ran. This
+      // preserves any third-party instrumentation (e.g. OpenTelemetry) that
+      // wrapped globalThis.fetch before Next.js patched it, and avoids
+      // accumulating createDedupeFetch wrappers across HMR cycles.
       const currentFetch: typeof globalThis.fetch & {
-        _nextOriginalFetch?: typeof globalThis.fetch
+        _nextPrePatchFetch?: typeof globalThis.fetch
       } = globalThis.fetch
-      if (currentFetch._nextOriginalFetch) {
-        globalThis.fetch = currentFetch._nextOriginalFetch
+      if (currentFetch._nextPrePatchFetch) {
+        globalThis.fetch = currentFetch._nextPrePatchFetch
       } else {
         globalThis.fetch = originalFetch
       }
