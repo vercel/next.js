@@ -10,7 +10,8 @@ use swc_core::{
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
-            ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsSatisfiesExpr,
+            ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsConstAssertion,
+            TsSatisfiesExpr, TsTypeAssertion,
         },
         utils::IsDirective,
     },
@@ -613,6 +614,8 @@ async fn parse_config_value(
         // this is already transpiled away, but we are looking at the original source here.
         let init = match init {
             Some(Expr::TsAs(TsAsExpr { expr, .. }))
+            | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
+            | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
             | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
             _ => init,
         };
