@@ -3,33 +3,45 @@ use std::hash::{BuildHasher, Hash};
 use dashmap::{DashMap, RwLockWriteGuard, SharedValue};
 use hashbrown::raw::{Bucket, InsertSlot, RawTable};
 
-/// Read-only heterogeneous lookup with a pre-computed hash.
-/// Returns `Some(value)` on hit, `None` on miss. Uses only a read lock.
-pub fn raw_get<K: Eq + Hash, V: Copy, S: BuildHasher + Clone>(
+/// Returns the shard index for a pre-computed hash, without locking anything.
+///
+/// Pass the returned index to [`raw_get_shard`] and [`raw_entry_by_shard`] so
+/// that the shard is only located once even when a read-lock miss is followed
+/// by a write-lock retry.
+pub fn shard_index<K: Eq + Hash, V, S: BuildHasher + Clone>(
     map: &DashMap<K, V, S>,
+    hash: u64,
+) -> usize {
+    map.determine_shard(hash as usize)
+}
+
+/// Read-only heterogeneous lookup using a pre-computed shard index.
+/// Returns `Some(value)` on hit, `None` on miss. Uses only a read lock.
+pub fn raw_get_shard<K: Eq + Hash, V: Copy, S: BuildHasher + Clone>(
+    map: &DashMap<K, V, S>,
+    shard_idx: usize,
     hash: u64,
     eq: impl Fn(&K) -> bool,
 ) -> Option<V> {
-    let shard = map.determine_shard(hash as usize);
-    let shard = map.shards()[shard].read();
+    let shard = map.shards()[shard_idx].read();
     // Safety: We have a read lock on the shard.
     shard
         .find(hash, |(k, _v)| eq(k))
         .map(|bucket| *unsafe { bucket.as_ref() }.1.get())
 }
 
-/// Write-lock entry lookup with a pre-computed hash and heterogeneous equality.
+/// Write-lock entry lookup using a pre-computed shard index and heterogeneous equality.
 ///
-/// Takes a pre-computed `hash` and an `eq` closure for key comparison, avoiding
-/// the need to construct the full key type for lookups.
-pub fn raw_entry_with_hash<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
+/// Takes a pre-computed `shard_idx` (from [`shard_index`]) and `hash` so the
+/// shard is not located a second time on a read-miss/write-retry path.
+pub fn raw_entry_by_shard<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
     map: &'l DashMap<K, V, S>,
+    shard_idx: usize,
     hash: u64,
     eq: impl Fn(&K) -> bool,
 ) -> RawEntry<'l, K, V> {
     let hasher = map.hasher();
-    let shard = map.determine_shard(hash as usize);
-    let mut shard = map.shards()[shard].write();
+    let mut shard = map.shards()[shard_idx].write();
     let result =
         shard.find_or_find_insert_slot(hash, |(k, _v)| eq(k), |(k, _v)| hasher.hash_one(k));
     match result {

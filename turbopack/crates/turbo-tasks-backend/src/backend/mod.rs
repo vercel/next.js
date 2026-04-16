@@ -73,7 +73,7 @@ use crate::{
     error::TaskError,
     utils::{
         dash_map_drop_contents::drop_contents,
-        dash_map_raw_entry::{RawEntry, raw_entry_with_hash, raw_get},
+        dash_map_raw_entry::{RawEntry, raw_entry_by_shard, raw_get_shard, shard_index},
         ptr_eq_arc::PtrEqArc,
         shard_amount::compute_shard_amount,
     },
@@ -1535,7 +1535,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let is_root = native_fn.is_root;
 
-        // Compute hash once from borrowed components (no heap allocation).
+        // Compute hash and shard index once from borrowed components (no heap allocation).
         let arg_ref = arg.as_ref();
         let hash = CachedTaskType::hash_from_components(
             self.task_cache.hasher(),
@@ -1543,11 +1543,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             this,
             arg_ref,
         );
+        // Compute the shard index once so that the read-only lookup and any
+        // write-lock retry below share the same value (saves a modulo + memory
+        // lookup on the miss path).
+        let shard_idx = shard_index(&self.task_cache, hash);
 
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
-        if let Some(task_id) = raw_get(&self.task_cache, hash, |k| {
+        if let Some(task_id) = raw_get_shard(&self.task_cache, shard_idx, hash, |k| {
             k.eq_components(native_fn, this, arg_ref)
         }) {
             self.track_cache_hit_by_fn(native_fn);
@@ -1571,9 +1575,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let task_id =
             if !transient && let Some((task_id, stored_type)) = ctx.task_by_type(&task_type) {
                 self.track_cache_hit_by_fn(native_fn);
-                // Step 3a: Insert into in-memory cache using pre-computed hash.
+                // Step 3a: Insert into in-memory cache using pre-computed shard index.
                 // Use the existing Arc from storage to avoid a duplicate allocation.
-                match raw_entry_with_hash(&self.task_cache, hash, |k| {
+                match raw_entry_by_shard(&self.task_cache, shard_idx, hash, |k| {
                     k.eq_components(native_fn, this, task_type.arg.as_ref())
                 }) {
                     RawEntry::Occupied(_) => {}
@@ -1584,8 +1588,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 task_id
             } else {
                 // Task doesn't exist in memory cache or backing storage.
-                // Double-check under write lock using pre-computed hash.
-                match raw_entry_with_hash(&self.task_cache, hash, |k| {
+                // Double-check under write lock using pre-computed shard index.
+                match raw_entry_by_shard(&self.task_cache, shard_idx, hash, |k| {
                     k.eq_components(native_fn, this, task_type.arg.as_ref())
                 }) {
                     RawEntry::Occupied(e) => {
