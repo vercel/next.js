@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { checkAgentRulesForDev } from './app-info-log'
+import { ensureAgentRulesForDev } from './app-info-log'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 
@@ -25,18 +25,14 @@ function clearAgentEnv() {
   delete process.env.COPILOT_MODEL
   delete process.env.COPILOT_ALLOW_ALL
   delete process.env.COPILOT_GITHUB_TOKEN
-  delete process.env.NEXT_DISABLE_AGENT_RULE_CHECK
 }
 
-describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
+describe('ensureAgentRulesForDev (auto-generate agent files)', () => {
   let tmpDir: string
   let originalEnv: NodeJS.ProcessEnv
 
   beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-dev-'))
-    // `package.json` at the fixture root defines the Next.js project
-    // root the gate anchors on. `next dev` resolves this via
-    // `getProjectDir` before calling the gate.
     fs.writeFileSync(path.join(tmpDir, 'package.json'), '{"name": "fixture"}')
     originalEnv = { ...process.env }
     clearAgentEnv()
@@ -48,108 +44,99 @@ describe('checkAgentRulesForDev (dev-side fatal gate)', () => {
   })
 
   it('returns null when no agent is detected', () => {
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+    expect(ensureAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('returns null when the managed block is installed in AGENTS.md', () => {
+  it('returns null when the managed block is already in AGENTS.md', () => {
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+    expect(ensureAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('returns null when the managed block is installed in CLAUDE.md', () => {
+  it('returns null when the managed block is already in CLAUDE.md', () => {
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(path.join(tmpDir, 'CLAUDE.md'), `${AGENT_RULES_MARKER}\n`)
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+    expect(ensureAgentRulesForDev(tmpDir)).toBeNull()
   })
 
-  it('returns null when NEXT_DISABLE_AGENT_RULE_CHECK is set', () => {
+  it('creates both AGENTS.md and CLAUDE.md when neither exists', () => {
     process.env.CLAUDECODE = '1'
-    process.env.NEXT_DISABLE_AGENT_RULE_CHECK = '1'
-    // Neither AGENTS.md nor CLAUDE.md exists — but the bypass env var
-    // is set, so the gate must respect it and stay silent.
-    expect(checkAgentRulesForDev(tmpDir)).toBeNull()
+    const result = ensureAgentRulesForDev(tmpDir)
+
+    expect(result).not.toBeNull()
+    expect(result!.agentsMd).toBe('created')
+    expect(result!.claudeMd).toBe('created')
+
+    const agentsContent = fs.readFileSync(
+      path.join(tmpDir, 'AGENTS.md'),
+      'utf-8'
+    )
+    expect(agentsContent).toContain(AGENT_RULES_MARKER)
+    expect(agentsContent).toContain('node_modules/next/dist/docs/')
+
+    const claudeContent = fs.readFileSync(
+      path.join(tmpDir, 'CLAUDE.md'),
+      'utf-8'
+    )
+    expect(claudeContent).toBe('@AGENTS.md\n')
   })
 
-  it('fires when AGENTS.md exists without the managed block', () => {
-    // File existence alone isn't enough — we care specifically about
-    // the Next.js directive, so a custom AGENTS.md without the marker
-    // still counts as "not installed".
+  it('upserts into existing AGENTS.md without the marker', () => {
     process.env.CLAUDECODE = '1'
     fs.writeFileSync(
       path.join(tmpDir, 'AGENTS.md'),
       '# Team rules\n\nUse tabs, not spaces.\n'
     )
-    expect(checkAgentRulesForDev(tmpDir)).not.toBeNull()
+
+    const result = ensureAgentRulesForDev(tmpDir)
+
+    expect(result).not.toBeNull()
+    expect(result!.agentsMd).toBe('updated')
+    expect(result!.claudeMd).toBe('skipped')
+
+    const content = fs.readFileSync(path.join(tmpDir, 'AGENTS.md'), 'utf-8')
+    expect(content).toContain('Use tabs, not spaces.')
+    expect(content).toContain(AGENT_RULES_MARKER)
+  })
+
+  it('upserts into existing CLAUDE.md when AGENTS.md does not exist', () => {
+    process.env.CLAUDECODE = '1'
+    fs.writeFileSync(
+      path.join(tmpDir, 'CLAUDE.md'),
+      '# My rules\n\nBe concise.\n'
+    )
+
+    const result = ensureAgentRulesForDev(tmpDir)
+
+    expect(result).not.toBeNull()
+    expect(result!.agentsMd).toBe('skipped')
+    expect(result!.claudeMd).toBe('updated')
+
+    const content = fs.readFileSync(path.join(tmpDir, 'CLAUDE.md'), 'utf-8')
+    expect(content).toContain('Be concise.')
+    expect(content).toContain(AGENT_RULES_MARKER)
   })
 
   it('only checks the Next.js project directory — a marker in an ancestor does not count', () => {
-    // The gate is strictly anchored on `dir` (the Next.js project
-    // directory). A marker dropped at a parent directory is
-    // irrelevant: AI agents read agent-rules files from the package
-    // they're working in, not from some ancestor. In a monorepo this
-    // means the marker must live in the app sub-package, never at
-    // the monorepo root.
     process.env.CLAUDECODE = '1'
     const appDir = path.join(tmpDir, 'apps', 'web')
     fs.mkdirSync(appDir, { recursive: true })
     fs.writeFileSync(path.join(appDir, 'package.json'), '{"name": "web"}')
-    // Marker at the monorepo root — wrong place for an `apps/web/`
-    // invocation.
+    // Marker at the monorepo root — wrong place for apps/web/
     fs.writeFileSync(path.join(tmpDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
 
-    expect(checkAgentRulesForDev(appDir)).not.toBeNull()
+    const result = ensureAgentRulesForDev(appDir)
+    expect(result).not.toBeNull()
+    expect(result!.agentsMd).toBe('created')
   })
 
-  it('respects the marker when it is in the sub-package, not the monorepo root', () => {
-    // Same monorepo layout, but the marker is now in the sub-package
-    // (where it belongs). The gate must find it.
+  it('respects the marker when it is in the sub-package', () => {
     process.env.CLAUDECODE = '1'
     const appDir = path.join(tmpDir, 'apps', 'web')
     fs.mkdirSync(appDir, { recursive: true })
     fs.writeFileSync(path.join(appDir, 'package.json'), '{"name": "web"}')
     fs.writeFileSync(path.join(appDir, 'AGENTS.md'), `${AGENT_RULES_MARKER}\n`)
 
-    expect(checkAgentRulesForDev(appDir)).toBeNull()
-  })
-
-  it('fires with a `Fatal: Dev Server exited.`-prefixed rationale message', () => {
-    process.env.CLAUDECODE = '1'
-
-    const message = checkAgentRulesForDev(tmpDir)
-    expect(message).not.toBeNull()
-
-    // Leads with title-cased `Fatal: Dev Server exited.` — the
-    // caller will `process.exit(1)` right after, and this wording
-    // makes it clear in the log that the process terminated
-    // intentionally.
-    expect(message!.startsWith('Fatal: Dev Server exited.')).toBe(true)
-
-    // States the cause.
-    expect(message).toContain('AI coding agent')
-    expect(message).toContain('AGENTS.md')
-    expect(message).toContain('CLAUDE.md')
-
-    // Explains WHY the rules matter in concrete terms. These
-    // specific phrases are what agents weigh heavily when deciding
-    // whether to take the codemod path vs the escape path — losing
-    // any of them significantly weakens the discouragement.
-    expect(message).toContain('trained on older Next.js versions')
-    expect(message).toContain('breaking changes')
-    expect(message).toContain('deprecated APIs')
-    expect(message).toContain('outdated patterns')
-    expect(message).toContain('fail at runtime')
-
-    // Primary fix — the codemod command.
-    expect(message).toContain('npx @next/codemod@canary upgrade agents-md')
-
-    // Escape hatch — disclosed as an env var (not a CLI flag, since
-    // agents grab CLI flags more readily), and explicitly framed as
-    // "Strongly discouraged" with a concrete negative consequence
-    // attached.
-    expect(message).toContain('NEXT_DISABLE_AGENT_RULE_CHECK=1')
-    expect(message).toContain('Strongly discouraged')
-    expect(message).toContain('last-resort')
-    expect(message).toContain('far more time than the codemod takes to run')
+    expect(ensureAgentRulesForDev(appDir)).toBeNull()
   })
 })
