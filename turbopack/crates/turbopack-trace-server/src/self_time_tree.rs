@@ -53,6 +53,11 @@ impl<T> SelfTimeTree<T> {
         self.check_for_split();
     }
 
+    fn insert_without_check(&mut self, start: Timestamp, end: Timestamp, item: T) {
+        self.count += 1;
+        self.entries.push(SelfTimeEntry { start, end, item });
+    }
+
     fn check_for_split(&mut self) {
         if self.entries.len() >= SPLIT_COUNT {
             let spanning_entries = if let Some(children) = &mut self.children {
@@ -92,16 +97,18 @@ impl<T> SelfTimeTree<T> {
             let SelfTimeEntry { start, end, .. } = self.entries[i];
             if end <= children.split_point {
                 let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
-                children.left.insert(start, end, item);
+                children.left.insert_without_check(start, end, item);
             } else if start >= children.split_point {
                 let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
-                children.right.insert(start, end, item);
+                children.right.insert_without_check(start, end, item);
             } else {
                 self.entries.swap(i, children.spanning_entries);
                 children.spanning_entries += 1;
                 i += 1;
             }
         }
+        children.left.check_for_split();
+        children.right.check_for_split();
     }
 
     fn rebalance(&mut self) {
