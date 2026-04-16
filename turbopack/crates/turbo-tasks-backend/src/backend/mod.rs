@@ -73,7 +73,7 @@ use crate::{
     error::TaskError,
     utils::{
         dash_map_drop_contents::drop_contents,
-        dash_map_raw_entry::{RawEntry, raw_entry_by_shard, raw_get_shard, shard_index},
+        dash_map_raw_entry::{RawEntry, get_shard, raw_entry_in_shard, raw_get_in_shard},
         ptr_eq_arc::PtrEqArc,
         shard_amount::compute_shard_amount,
     },
@@ -1543,77 +1543,78 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             this,
             arg_ref,
         );
-        // Compute the shard index once so that the read-only lookup and any
-        // write-lock retry below share the same value (saves a modulo + memory
-        // lookup on the miss path).
-        let shard_idx = shard_index(&self.task_cache, hash);
+        // Locate the shard once so that the read-only lookup and any
+        // write-lock retry below share the same reference (saves a modulo +
+        // memory lookup on the miss path).
+        let shard = get_shard(&self.task_cache, hash);
 
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
-        if let Some(task_id) = raw_get_shard(&self.task_cache, shard_idx, hash, |k| {
-            k.eq_components(native_fn, this, arg_ref)
-        }) {
+        if let Some(task_id) =
+            raw_get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
+        {
             self.track_cache_hit_by_fn(native_fn);
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
 
-        // Step 2: Cache miss — materialize the box for backing storage + write lock.
-        let task_type = CachedTaskType {
-            native_fn,
-            this,
-            arg: arg.take_box(),
-        };
-
+        // Step 2: Check backing storage using borrowed components (no box needed yet).
         let mut ctx = self.execute_context(turbo_tasks);
 
         let mut is_new = false;
 
         // Task exists in backing storage.
         // We only need to insert it into the in-memory cache.
-        let task_id =
-            if !transient && let Some((task_id, stored_type)) = ctx.task_by_type(&task_type) {
-                self.track_cache_hit_by_fn(native_fn);
-                // Step 3a: Insert into in-memory cache using pre-computed shard index.
-                // Use the existing Arc from storage to avoid a duplicate allocation.
-                match raw_entry_by_shard(&self.task_cache, shard_idx, hash, |k| {
-                    k.eq_components(native_fn, this, task_type.arg.as_ref())
-                }) {
-                    RawEntry::Occupied(_) => {}
-                    RawEntry::Vacant(e) => {
-                        e.insert(stored_type, task_id);
-                    }
-                };
-                task_id
-            } else {
-                // Task doesn't exist in memory cache or backing storage.
-                // Double-check under write lock using pre-computed shard index.
-                match raw_entry_by_shard(&self.task_cache, shard_idx, hash, |k| {
-                    k.eq_components(native_fn, this, task_type.arg.as_ref())
-                }) {
-                    RawEntry::Occupied(e) => {
-                        let task_id = *e.get();
-                        drop(e);
-                        self.track_cache_hit_by_fn(native_fn);
-                        task_id
-                    }
-                    RawEntry::Vacant(e) => {
-                        let task_type = Arc::new(task_type);
-                        let task_id = if transient {
-                            self.transient_task_id_factory.get()
-                        } else {
-                            self.persisted_task_id_factory.get()
-                        };
-                        self.storage
-                            .initialize_new_task(task_id, Some(task_type.clone()));
-                        e.insert(task_type, task_id);
-                        self.track_cache_miss_by_fn(native_fn);
-                        is_new = true;
-                        task_id
-                    }
+        let task_id = if !transient
+            && let Some((task_id, stored_type)) = ctx.task_by_type(native_fn, this, arg_ref)
+        {
+            self.track_cache_hit_by_fn(native_fn);
+            // Step 3a: Insert into in-memory cache using the pre-located shard.
+            // Use the existing Arc from storage to avoid a duplicate allocation.
+            match raw_entry_in_shard(shard, self.task_cache.hasher(), hash, |k| {
+                k.eq_components(native_fn, this, arg_ref)
+            }) {
+                RawEntry::Occupied(_) => {}
+                RawEntry::Vacant(e) => {
+                    e.insert(stored_type, task_id);
                 }
             };
+            task_id
+        } else {
+            // Task doesn't exist in memory cache or backing storage.
+            // Only now do we box the arg and construct CachedTaskType.
+            let task_type = CachedTaskType {
+                native_fn,
+                this,
+                arg: arg.take_box(),
+            };
+            // Double-check under write lock using the pre-located shard.
+            match raw_entry_in_shard(shard, self.task_cache.hasher(), hash, |k| {
+                k.eq_components(native_fn, this, task_type.arg.as_ref())
+            }) {
+                RawEntry::Occupied(e) => {
+                    let task_id = *e.get();
+                    drop(e);
+                    self.track_cache_hit_by_fn(native_fn);
+                    task_id
+                }
+                RawEntry::Vacant(e) => {
+                    let task_type = Arc::new(task_type);
+                    let task_id = if transient {
+                        self.transient_task_id_factory.get()
+                    } else {
+                        self.persisted_task_id_factory.get()
+                    };
+                    self.storage
+                        .initialize_new_task(task_id, Some(task_type.clone()));
+                    e.insert(task_type, task_id);
+                    self.track_cache_miss_by_fn(native_fn);
+                    is_new = true;
+                    task_id
+                }
+            }
+        };
 
         if is_new && is_root {
             AggregationUpdateQueue::run(

@@ -179,6 +179,25 @@ impl CachedTaskType {
         state.finish()
     }
 
+    /// Compute the deterministic hash for backing storage from components.
+    ///
+    /// This mirrors the logic in [`CachedTaskType::hash_encode`] but works with
+    /// borrowed components, avoiding the need to construct a full [`CachedTaskType`].
+    pub fn hash_encode_components<H: DeterministicHasher>(
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+        hasher: &mut H,
+    ) {
+        let fn_id = registry::get_function_id(native_fn);
+        {
+            let mut encoder = new_hash_encoder(hasher);
+            Encode::encode(&fn_id, &mut encoder).expect("fn_id encoding should not fail");
+            Encode::encode(&this, &mut encoder).expect("this encoding should not fail");
+        }
+        (native_fn.arg_meta.hash_encode)(arg, hasher);
+    }
+
     /// Check equality of components against this CachedTaskType.
     pub fn eq_components(
         &self,

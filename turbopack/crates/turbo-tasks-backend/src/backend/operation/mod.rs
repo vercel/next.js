@@ -18,8 +18,9 @@ use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
-    TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
+    CellId, FxIndexMap, MagicAny, RawVc, TaskExecutionReason, TaskId, TaskPriority,
+    TurboTasksBackendApi, TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
+    macro_helpers::NativeFunction,
 };
 
 use self::aggregation_update::ComputeDirtyAndCleanUpdate;
@@ -103,8 +104,14 @@ pub trait ExecuteContext<'e>: Sized {
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
     /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
     /// the existing `Arc<CachedTaskType>` from storage (avoiding a duplicate allocation).
-    fn task_by_type(&mut self, task_type: &CachedTaskType)
-    -> Option<(TaskId, Arc<CachedTaskType>)>;
+    ///
+    /// Accepts exploded components so the caller does not need to box the argument before calling.
+    fn task_by_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
+    ) -> Option<(TaskId, Arc<CachedTaskType>)>;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -973,7 +980,9 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
 
     fn task_by_type(
         &mut self,
-        task_type: &CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn MagicAny,
     ) -> Option<(TaskId, Arc<CachedTaskType>)> {
         if !self.backend.should_restore() {
             return None;
@@ -983,7 +992,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         let candidates = self
             .backend
             .backing_storage
-            .lookup_task_candidates(task_type)
+            .lookup_task_candidates(native_fn, this, arg)
             .expect("Failed to lookup task ids");
 
         // Verify each candidate by comparing the stored persistent_task_type.
@@ -991,7 +1000,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         for candidate_id in candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
             if let Some(stored_type) = task.get_persistent_task_type()
-                && stored_type.as_ref() == task_type
+                && stored_type.eq_components(native_fn, this, arg)
             {
                 return Some((candidate_id, stored_type.clone()));
             }
