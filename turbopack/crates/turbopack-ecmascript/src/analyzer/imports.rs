@@ -22,7 +22,7 @@ use swc_core::{
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
-use turbopack_core::loader::WebpackLoaderItem;
+use turbopack_core::{loader::WebpackLoaderItem, resolve::ImportUsage};
 
 use super::{JsValue, ModuleValue, top_level_await::has_top_level_await};
 use crate::{
@@ -280,13 +280,61 @@ impl DeclUsage {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct ImportUsage {
+pub(crate) struct ProgramDeclUsage {
     // ident -> immediate usage (top level decl)
     pub(crate) decl_usages: FxHashMap<Id, DeclUsage>,
     // import -> immediate usage (top level decl)
     pub(crate) import_usages: FxHashMap<usize, DeclUsage>,
     // export name -> top level decl
     pub(crate) exports: FxHashMap<Atom, Id>,
+}
+impl ProgramDeclUsage {
+    fn compute_import_usage(&self) -> FxHashMap<usize, ImportUsage> {
+        let mut import_usage =
+            FxHashMap::with_capacity_and_hasher(self.import_usages.len(), Default::default());
+        for (reference, usage) in &self.import_usages {
+            // TODO make this more efficient, i.e. cache the result?
+            if let DeclUsage::Bindings(ids) = usage {
+                // compute transitive closure of `ids` over `top_level_mappings`
+                let mut visited = ids.clone();
+                let mut stack = ids.iter().collect::<Vec<_>>();
+                let mut has_global_usage = false;
+                while let Some(id) = stack.pop() {
+                    match self.decl_usages.get(id) {
+                        Some(DeclUsage::SideEffects) => {
+                            has_global_usage = true;
+                            break;
+                        }
+                        Some(DeclUsage::Bindings(callers)) => {
+                            for caller in callers {
+                                if visited.insert(caller.clone()) {
+                                    stack.push(caller);
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                // Collect all `visited` declarations which are exported
+                import_usage.insert(
+                    *reference,
+                    if has_global_usage {
+                        ImportUsage::TopLevel
+                    } else {
+                        ImportUsage::Exports(
+                            self.exports
+                                .iter()
+                                .filter(|(_, id)| visited.contains(*id))
+                                .map(|(exported, _)| exported.as_str().into())
+                                .collect(),
+                        )
+                    },
+                );
+            }
+        }
+        import_usage
+    }
 }
 
 /// A version of [crate::references::esm::export::EsmExport] with usize instead of the module
@@ -358,7 +406,7 @@ pub(crate) struct ImportMap {
     /// whether an export is live or not.
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
 
-    pub(crate) import_usage: ImportUsage,
+    pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
 
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, Id>,
@@ -604,6 +652,7 @@ impl ImportMap {
             comments,
             namespace_imports_to_specifier: FxIndexMap::default(),
             state: Default::default(),
+            program_decl_usage: Default::default(),
         };
 
         // A prepass to detect imports to be able to rewrite import+export pairs to true reexports
@@ -707,6 +756,8 @@ impl ImportMap {
 
         m.visit_with(&mut analyzer);
 
+        data.import_usage = analyzer.program_decl_usage.compute_import_usage();
+
         data
     }
 
@@ -776,6 +827,8 @@ struct Analyzer<'a> {
     /// Map from local identifier of namespace imports to module path, used temporarily during
     /// analysis to detect dynamic accesses to namespace imports.
     namespace_imports_to_specifier: FxIndexMap<Id, Wtf8Atom>,
+
+    program_decl_usage: ProgramDeclUsage,
 
     state: analyzer_state::AnalyzerState,
 }
@@ -958,8 +1011,7 @@ impl Visit for Analyzer<'_> {
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
                 self.data.exports_ids.insert(name, n.ident.to_id());
-                self.data
-                    .import_usage
+                self.program_decl_usage
                     .exports
                     .insert(n.ident.sym.clone(), n.ident.to_id());
             }
@@ -969,8 +1021,7 @@ impl Visit for Analyzer<'_> {
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
                 self.data.exports_ids.insert(name, n.ident.to_id());
-                self.data
-                    .import_usage
+                self.program_decl_usage
                     .exports
                     .insert(n.ident.sym.clone(), n.ident.to_id());
             }
@@ -981,8 +1032,7 @@ impl Visit for Analyzer<'_> {
                     self.data
                         .exports
                         .insert(name.clone(), Export::LocalBinding(name.clone(), false));
-                    self.data
-                        .import_usage
+                    self.program_decl_usage
                         .exports
                         .insert(id.0.clone(), id.clone());
                     self.data.exports_ids.insert(name, id);
@@ -1063,8 +1113,7 @@ impl Visit for Analyzer<'_> {
             .exports_ids
             .insert(exported.as_str().into(), local.to_id());
 
-        self.data
-            .import_usage
+        self.program_decl_usage
             .exports
             .insert(exported.into_owned(), local.to_id());
         n.visit_children_with(self);
@@ -1216,8 +1265,7 @@ impl Visit for Analyzer<'_> {
         if let Some((esm_reference_index, _)) = self.data.get_binding(&id) {
             // An import binding
             let usage = self
-                .data
-                .import_usage
+                .program_decl_usage
                 .import_usages
                 .entry(esm_reference_index)
                 .or_default();
@@ -1231,16 +1279,14 @@ impl Visit for Analyzer<'_> {
             if !is_unresolved(node, self.unresolved_mark) {
                 if let Some(top_level) = self.state.cur_top_level_decl_name() {
                     if &id != top_level {
-                        self.data
-                            .import_usage
+                        self.program_decl_usage
                             .decl_usages
                             .entry(id)
                             .or_default()
                             .add_usage(top_level);
                     }
                 } else {
-                    self.data
-                        .import_usage
+                    self.program_decl_usage
                         .decl_usages
                         .entry(id)
                         .or_default()

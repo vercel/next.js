@@ -102,7 +102,7 @@ use crate::{
         ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
         graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
-        imports::{DeclUsage, ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol},
+        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol},
         linker::link,
         parse_require_context, side_effects,
         top_level_await::has_top_level_await,
@@ -751,56 +751,6 @@ async fn analyze_ecmascript_module_internal(
         .supports_block_scoping()
         .await?;
 
-    let mut import_usage = FxHashMap::with_capacity_and_hasher(
-        eval_context.imports.import_usage.import_usages.len(),
-        Default::default(),
-    );
-    for (reference, usage) in &eval_context.imports.import_usage.import_usages {
-        // TODO move this into EvalContext and only store the one resulting import_usage
-        // TODO make this more efficient, i.e. cache the result?
-        if let DeclUsage::Bindings(ids) = usage {
-            // compute transitive closure of `ids` over `top_level_mappings`
-            let mut visited = ids.clone();
-            let mut stack = ids.iter().collect::<Vec<_>>();
-            let mut has_global_usage = false;
-            while let Some(id) = stack.pop() {
-                match eval_context.imports.import_usage.decl_usages.get(id) {
-                    Some(DeclUsage::SideEffects) => {
-                        has_global_usage = true;
-                        break;
-                    }
-                    Some(DeclUsage::Bindings(callers)) => {
-                        for caller in callers {
-                            if visited.insert(caller.clone()) {
-                                stack.push(caller);
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            // Collect all `visited` declarations which are exported
-            import_usage.insert(
-                *reference,
-                if has_global_usage {
-                    ImportUsage::TopLevel
-                } else {
-                    ImportUsage::Exports(
-                        eval_context
-                            .imports
-                            .import_usage
-                            .exports
-                            .iter()
-                            .filter(|(_, id)| visited.contains(*id))
-                            .map(|(exported, _)| exported.as_str().into())
-                            .collect(),
-                    )
-                },
-            );
-        }
-    }
-
     let span = tracing::trace_span!("esm import references");
     let import_references = async {
         let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
@@ -841,7 +791,12 @@ async fn analyze_ecmascript_module_internal(
                     )
                     .then(ModulePart::exports),
                 },
-                import_usage.get(&i).cloned().unwrap_or_default(),
+                eval_context
+                    .imports
+                    .import_usage
+                    .get(&i)
+                    .cloned()
+                    .unwrap_or_default(),
                 import_externals,
                 options.tree_shaking_mode,
             )
@@ -3259,6 +3214,8 @@ async fn handle_free_var_reference(
                         ),
                         Default::default(),
                         export.clone().map(ModulePart::export),
+                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
+                        // level function could set ImportUsage properly here
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
