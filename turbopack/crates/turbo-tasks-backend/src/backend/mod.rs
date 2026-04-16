@@ -28,7 +28,7 @@ use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SharedReference, StackArg, TRANSIENT_TASK_BIT,
+    ReadOutputOptions, ReadTracking, SharedReference, StackMagicAny, TRANSIENT_TASK_BIT,
     TaskExecutionReason, TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic,
     ValueTypeId,
     backend::{
@@ -1510,7 +1510,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
@@ -1521,7 +1521,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
@@ -1547,7 +1547,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
         transient: bool,
@@ -1555,7 +1555,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let is_root = native_fn.is_root;
 
         // Compute hash once from borrowed components (no heap allocation).
-        let arg_ref = arg.arg_ref();
+        let arg_ref = arg.as_ref();
         let hash = CachedTaskType::hash_from_components(
             self.task_cache.hasher(),
             native_fn,
@@ -3453,7 +3453,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
@@ -3465,7 +3465,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {

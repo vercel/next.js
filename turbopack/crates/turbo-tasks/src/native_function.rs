@@ -10,7 +10,7 @@ use turbo_tasks_hash::DeterministicHasher;
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
     macro_helpers::into_task_fn,
-    magic_any::{MagicAny, any_as_encode},
+    magic_any::{MagicAny, OwnedMagicAny, StackMagicAny, any_as_encode},
     registry::{RegistryType, turbo_registry},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
@@ -21,7 +21,7 @@ type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
 type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
 
 #[doc(hidden)]
-pub type FilterOwnedArgsFunctor = for<'a> fn(Box<dyn MagicAny>) -> Box<dyn MagicAny>;
+pub type FilterOwnedArgsFunctor = for<'a> fn(&'a mut dyn StackMagicAny) -> OwnedMagicAny;
 #[doc(hidden)]
 pub type FilterAndResolveFunctor = ResolveFunctor;
 
@@ -77,8 +77,8 @@ impl ArgMeta {
     where
         T: TaskInput + Encode + Decode<()> + 'static,
     {
-        fn noop_filter_args(args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
-            args
+        fn noop_filter_args(args: &mut dyn StackMagicAny) -> OwnedMagicAny {
+            OwnedMagicAny::new(args.take_box())
         }
         Self::with_filter_trait_call::<T>(noop_filter_args, resolve_functor_impl::<T>)
     }
@@ -121,7 +121,7 @@ impl ArgMeta {
         (self.resolve)(value).await
     }
 
-    pub fn filter_owned(&self, args: Box<dyn MagicAny>) -> Box<dyn MagicAny> {
+    pub fn filter_owned(&self, args: &mut dyn StackMagicAny) -> OwnedMagicAny {
         (self.filter_owned)(args)
     }
 

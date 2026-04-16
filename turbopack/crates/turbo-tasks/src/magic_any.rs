@@ -42,37 +42,37 @@ pub fn any_as_encode<T: Any>(this: &dyn Any) -> &T {
 /// A trait for task arguments that may reside on the stack.
 ///
 /// This enables deferred boxing: on the cache-hit path (~85%), we only borrow
-/// the argument via [`arg_ref`](StackArg::arg_ref) for hash/equality lookups,
-/// avoiding any heap allocation. On cache miss, [`take_box`](StackArg::take_box)
+/// the argument via [`as_ref`](StackMagicAny::as_ref) for hash/equality lookups,
+/// avoiding any heap allocation. On cache miss, [`take_box`](StackMagicAny::take_box)
 /// moves the value into a `Box` with zero clones.
-pub trait StackArg {
+pub trait StackMagicAny {
     /// Borrow the argument as a type-erased reference (for cache lookup).
-    fn arg_ref(&self) -> &dyn MagicAny;
+    fn as_ref(&self) -> &dyn MagicAny;
     /// Move the argument out into a heap-allocated Box (panics if already taken).
     fn take_box(&mut self) -> Box<dyn MagicAny>;
 }
 
-/// Stack-resident argument slot wrapping a concrete typed value.
+/// Stack-resident slot wrapping a concrete typed value.
 ///
 /// Created by macro-generated callsites. The value starts in `Some` on the
-/// stack; [`take_box`](StackArg::take_box) moves it to the heap on cache miss.
-pub struct StackArgSlot<T> {
+/// stack; [`take_box`](StackMagicAny::take_box) moves it to the heap on cache miss.
+pub struct StackMagicAnySlot<T> {
     slot: Option<T>,
 }
 
-impl<T> StackArgSlot<T> {
+impl<T> StackMagicAnySlot<T> {
     #[inline]
     pub fn new(value: T) -> Self {
         Self { slot: Some(value) }
     }
 }
 
-impl<T: MagicAny> StackArg for StackArgSlot<T> {
+impl<T: MagicAny> StackMagicAny for StackMagicAnySlot<T> {
     #[inline]
-    fn arg_ref(&self) -> &dyn MagicAny {
+    fn as_ref(&self) -> &dyn MagicAny {
         self.slot
             .as_ref()
-            .expect("StackArgSlot::arg_ref called after take_box")
+            .expect("StackMagicAnySlot::as_ref called after take_box")
     }
 
     #[inline]
@@ -80,34 +80,36 @@ impl<T: MagicAny> StackArg for StackArgSlot<T> {
         Box::new(
             self.slot
                 .take()
-                .expect("StackArgSlot::take_box called twice"),
+                .expect("StackMagicAnySlot::take_box called twice"),
         )
     }
 }
 
-/// Adapter for an already-boxed argument (e.g., from async resolution tasks).
-pub struct OwnedArg {
+/// Adapter for an already-boxed value (e.g., from async resolution tasks).
+pub struct OwnedMagicAny {
     slot: Option<Box<dyn MagicAny>>,
 }
 
-impl OwnedArg {
+impl OwnedMagicAny {
     #[inline]
     pub fn new(value: Box<dyn MagicAny>) -> Self {
         Self { slot: Some(value) }
     }
 }
 
-impl StackArg for OwnedArg {
+impl StackMagicAny for OwnedMagicAny {
     #[inline]
-    fn arg_ref(&self) -> &dyn MagicAny {
+    fn as_ref(&self) -> &dyn MagicAny {
         &**self
             .slot
             .as_ref()
-            .expect("OwnedArg::arg_ref called after take_box")
+            .expect("OwnedMagicAny::as_ref called after take_box")
     }
 
     #[inline]
     fn take_box(&mut self) -> Box<dyn MagicAny> {
-        self.slot.take().expect("OwnedArg::take_box called twice")
+        self.slot
+            .take()
+            .expect("OwnedMagicAny::take_box called twice")
     }
 }

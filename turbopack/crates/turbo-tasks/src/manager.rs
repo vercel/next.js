@@ -38,7 +38,7 @@ use crate::{
     id_factory::IdFactoryWithReuse,
     keyed::KeyedEq,
     macro_helpers::NativeFunction,
-    magic_any::{OwnedArg, StackArg},
+    magic_any::StackMagicAny,
     message_queue::{CompilationEvent, CompilationEventQueue},
     priority_runner::{Executor, JoinHandle, PriorityRunner},
     raw_vc::{CellId, RawVc},
@@ -56,14 +56,14 @@ pub trait TurboTasksCallApi: Sync + Send {
     /// Calls a native function with arguments. Resolves arguments when needed
     /// with a wrapper task.
     ///
-    /// The `arg` is a [`StackArg`] that holds the arguments on the caller's
+    /// The `arg` is a [`StackMagicAny`] that holds the arguments on the caller's
     /// stack. On cache hit, only the borrowed reference is used (zero allocation).
     /// On cache miss, `arg.take_box()` moves the value to the heap.
     fn dynamic_call(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Call a native function with arguments.
@@ -72,7 +72,7 @@ pub trait TurboTasksCallApi: Sync + Send {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc;
     /// Calls a trait method with arguments. First input is the `self` object.
@@ -81,7 +81,7 @@ pub trait TurboTasksCallApi: Sync + Send {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc;
 
@@ -795,7 +795,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc {
         let parent_task = current_task_if_available("turbo_function calls");
@@ -815,11 +815,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc {
         if this.is_none_or(|this| this.is_resolved())
-            && native_fn.arg_meta.is_resolved(arg.arg_ref())
+            && native_fn.arg_meta.is_resolved(arg.as_ref())
         {
             return self.native_call(native_fn, this, arg, persistence);
         }
@@ -837,7 +837,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc {
         // avoid creating a wrapper task if self is already resolved
@@ -846,8 +846,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
             match registry::get_value_type(type_id).get_trait_method(trait_method) {
                 Some(native_fn) => {
-                    let arg = native_fn.arg_meta.filter_owned(arg.take_box());
-                    let mut arg = OwnedArg::new(arg);
+                    let mut arg = native_fn.arg_meta.filter_owned(arg);
                     return self.dynamic_call(native_fn, Some(this), &mut arg, persistence);
                 }
                 None => {
@@ -1364,7 +1363,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.dynamic_call(native_fn, this, arg, persistence)
@@ -1373,7 +1372,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.native_call(native_fn, this, arg, persistence)
@@ -1382,7 +1381,7 @@ impl<B: Backend + 'static> TurboTasksCallApi for TurboTasks<B> {
         &self,
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         persistence: TaskPersistence,
     ) -> RawVc {
         self.trait_call(trait_method, this, arg, persistence)
@@ -1841,7 +1840,7 @@ pub async fn run_once_with_reason<T: Send + 'static>(
 pub fn dynamic_call(
     func: &'static NativeFunction,
     this: Option<RawVc>,
-    arg: &mut dyn StackArg,
+    arg: &mut dyn StackMagicAny,
     persistence: TaskPersistence,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.dynamic_call(func, this, arg, persistence))
@@ -1851,7 +1850,7 @@ pub fn dynamic_call(
 pub fn trait_call(
     trait_method: &'static TraitMethod,
     this: RawVc,
-    arg: &mut dyn StackArg,
+    arg: &mut dyn StackMagicAny,
     persistence: TaskPersistence,
 ) -> RawVc {
     with_turbo_tasks(|tt| tt.trait_call(trait_method, this, arg, persistence))

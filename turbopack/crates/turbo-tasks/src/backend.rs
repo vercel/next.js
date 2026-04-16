@@ -33,7 +33,7 @@ use crate::{
     VcValueTrait, VcValueType,
     event::EventListener,
     macro_helpers::NativeFunction,
-    magic_any::{MagicAny, StackArg},
+    magic_any::{MagicAny, StackMagicAny},
     manager::TurboTasksBackendApi,
     raw_vc::CellId,
     registry,
@@ -642,7 +642,7 @@ pub trait Backend: Sync + Send {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
@@ -651,7 +651,7 @@ pub trait Backend: Sync + Send {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackArg,
+        arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
