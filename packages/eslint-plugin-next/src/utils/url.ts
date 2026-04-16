@@ -7,26 +7,34 @@ const fsReadDirSyncCache = {}
 
 /**
  * Recursively parse directory for page URLs.
+ * @param urlprefix - URL prefix for pages in this directory
+ * @param directory - Absolute path to the directory to scan
+ * @param pageExtensions - Array of file extensions to treat as page files (e.g. ['js','jsx','ts','tsx','mdx'])
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
+function parseUrlForPages(
+  urlprefix: string,
+  directory: string,
+  pageExtensions: string[] = ['js', 'jsx', 'ts', 'tsx']
+) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
+  const extPattern = new RegExp(`\\.(${pageExtensions.join('|')})$`)
+  const indexPattern = new RegExp(`^index\\.(${pageExtensions.join('|')})$`)
+
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
+    if (extPattern.test(dirent.name)) {
+      if (indexPattern.test(dirent.name)) {
+        res.push(`${urlprefix}`)
+      } else {
+        const nameWithoutExt = dirent.name.replace(extPattern, '')
+        res.push(`${urlprefix}${nameWithoutExt}`)
       }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, pageExtensions))
       }
     }
   })
@@ -35,25 +43,35 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 
 /**
  * Recursively parse app directory for URLs.
+ * @param urlprefix - URL prefix for pages in this directory
+ * @param directory - Absolute path to the directory to scan
+ * @param pageExtensions - Array of file extensions to treat as page files
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
+function parseUrlForAppDir(
+  urlprefix: string,
+  directory: string,
+  pageExtensions: string[] = ['js', 'jsx', 'ts', 'tsx']
+) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
   const res = []
+  const extPattern = new RegExp(`\\.(${pageExtensions.join('|')})$`)
+  const pagePattern = new RegExp(`^page\\.(${pageExtensions.join('|')})$`)
+  const layoutPattern = new RegExp(`^layout\\.(${pageExtensions.join('|')})$`)
+
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
+    if (extPattern.test(dirent.name)) {
+      if (pagePattern.test(dirent.name)) {
+        res.push(`${urlprefix}`)
+      } else if (!layoutPattern.test(dirent.name)) {
+        const nameWithoutExt = dirent.name.replace(extPattern, '')
+        res.push(`${urlprefix}${nameWithoutExt}`)
       }
     } else {
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
+        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, pageExtensions))
       }
     }
   })
@@ -133,16 +151,20 @@ export function normalizeAppPath(route: string) {
 
 /**
  * Gets the possible URLs from a directory.
+ * @param urlPrefix - URL prefix for pages in these directories
+ * @param directories - Array of absolute directory paths to scan
+ * @param pageExtensions - Array of file extensions to treat as page files
  */
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions?: string[]
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
+        .flatMap((directory) => parseUrlForPages(urlPrefix, directory, pageExtensions))
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
@@ -156,13 +178,14 @@ export function getUrlFromPagesDirectories(
 
 export function getUrlFromAppDirectory(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions?: string[]
 ) {
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory, pageExtensions))
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
