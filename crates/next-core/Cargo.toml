@@ -100,3 +100,8 @@ dynamic_embed_contents = [
   "turbo-tasks-fs/dynamic_embed_contents",
   "turbopack-browser/dynamic_embed_contents",
 ]
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-tasks-backend = { workspace = true }

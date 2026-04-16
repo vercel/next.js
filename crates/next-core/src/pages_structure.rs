@@ -337,6 +337,7 @@ async fn get_pages_structure_for_directory(
         let dir_content = project_path.read_dir().await?;
         if let DirectoryContent::Entries(entries) = &*dir_content {
             for (name, entry) in entries.iter() {
+                let entry = entry.clone().resolve_symlink().await?;
                 match entry {
                     DirectoryEntry::File(_) => {
                         let Some(basename) = page_basename(name, page_extensions_raw) else {
@@ -417,4 +418,94 @@ fn next_router_path_for_basename(
     } else {
         next_router_path.join(basename)?
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        fs::{File, create_dir_all},
+        io::Write,
+    };
+
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{ResolvedVc, Vc};
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+
+    /// Pages in subdirectories that are cross-root symlinks (like in a Bazel
+    /// sandbox) must be discovered by `get_pages_structure_for_directory`.
+    /// Without `resolve_symlink()`, symlink entries fall through the match
+    /// and are silently dropped.
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_pages_structure_finds_symlinked_pages_in_subdirs() {
+        use std::os::unix::fs::symlink;
+
+        let scratch = tempfile::tempdir().unwrap();
+        let root_dir = scratch.path().join("root");
+        let external_dir = scratch.path().join("external");
+
+        // root/subdir/ — simulates a pages subdirectory like src/pages/[project]/
+        create_dir_all(root_dir.join("subdir")).unwrap();
+
+        // external/page.tsx — the real file, outside the fs root
+        create_dir_all(&external_dir).unwrap();
+        File::create_new(external_dir.join("page.tsx"))
+            .unwrap()
+            .write_all(b"export default () => null")
+            .unwrap();
+
+        // root/subdir/page.tsx → absolute symlink to external file
+        symlink(
+            external_dir.join("page.tsx"),
+            root_dir.join("subdir/page.tsx"),
+        )
+        .unwrap();
+
+        let root = RcStr::from(root_dir.to_str().unwrap());
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        tt.run_once(async move {
+            #[turbo_tasks::function(operation)]
+            async fn check(root: RcStr) -> anyhow::Result<Vc<()>> {
+                use turbo_rcstr::rcstr;
+
+                let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(root))
+                    .to_resolved()
+                    .await?;
+                let root_path = FileSystemPath {
+                    fs: ResolvedVc::upcast(fs),
+                    path: rcstr!(""),
+                };
+                let subdir_path = root_path.join("subdir")?;
+                let router_path = root_path.join("subdir")?;
+                let extensions: Vc<Vec<RcStr>> =
+                    Vc::cell(vec![rcstr!("tsx"), rcstr!("ts"), rcstr!("js")]);
+
+                let structure =
+                    super::get_pages_structure_for_directory(subdir_path, router_path, extensions)
+                        .await?;
+
+                assert_eq!(
+                    structure.items.len(),
+                    1,
+                    "get_pages_structure_for_directory should find the symlinked page file, got \
+                     {} items (cross-root symlinks are dropped without resolve_symlink)",
+                    structure.items.len()
+                );
+
+                Ok(Vc::cell(()))
+            }
+
+            check(root).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+
+        tt.stop_and_wait().await;
+    }
 }

@@ -14,7 +14,7 @@ use turbo_tasks::{
     NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
+    FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry, to_sys_path,
 };
 use turbo_unix_path::normalize_path;
 
@@ -1607,15 +1607,39 @@ pub async fn read_matches(
                         )),
                         RawDirectoryEntry::Symlink => {
                             let fs_path = parent_fs_path.join(last_segment)?;
-                            let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
-                            else {
-                                continue;
-                            };
+                            let link = fs_path.read_link().await?;
                             let path = concat(&prefix, str).into();
-                            if link_type.contains(LinkType::DIRECTORY) {
-                                results.push((index, PatternMatch::Directory(path, fs_path)));
-                            } else {
-                                results.push((index, PatternMatch::File(path, fs_path)))
+                            match &*link {
+                                LinkContent::Link { link_type, .. } => {
+                                    if link_type.contains(LinkType::DIRECTORY) {
+                                        results
+                                            .push((index, PatternMatch::Directory(path, fs_path)));
+                                    } else {
+                                        results.push((index, PatternMatch::File(path, fs_path)))
+                                    }
+                                }
+                                // Symlink target is outside the fs root (e.g. Bazel
+                                // sandbox absolute symlinks that point back to the
+                                // real execroot). Fall back to OS-level metadata:
+                                // if the kernel can resolve the chain, classify the
+                                // entry by the target's type. Mirrors the fallback
+                                // in `turbo_tasks_fs::get_type`.
+                                LinkContent::Invalid => {
+                                    if let Some(sys_path) = to_sys_path(fs_path.clone()).await?
+                                        && let Ok(meta) = std::fs::metadata(&sys_path)
+                                    {
+                                        if meta.is_dir() {
+                                            results.push((
+                                                index,
+                                                PatternMatch::Directory(path, fs_path),
+                                            ));
+                                        } else {
+                                            results
+                                                .push((index, PatternMatch::File(path, fs_path)));
+                                        }
+                                    }
+                                }
+                                LinkContent::NotFound => {}
                             }
                         }
                         _ => {}

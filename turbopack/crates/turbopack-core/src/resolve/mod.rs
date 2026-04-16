@@ -3831,4 +3831,92 @@ mod tests {
             r => panic!("request should be relative, got {r:?}"),
         }
     }
+
+    /// Reproduces the Bazel-sandboxed `next build --turbopack` failure mode:
+    /// rules_js stages node_modules with a relative symlink from the service's
+    /// local `node_modules/<pkg>` to a shared `.aspect_rules_js/<pkg>/node_modules/<pkg>/`
+    /// dir. Inside that shared dir, each file is an *absolute* symlink to the
+    /// real execroot, which sits outside the sandbox mount (and thus outside
+    /// the turbopack fs root). Resolving `<pkg>/package.json` from the service
+    /// dir must succeed — cross-root absolute symlinks should be followed via
+    /// the OS when they point to readable files.
+    #[cfg(unix)]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_resolve_across_bazel_sandbox_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        use crate::{
+            reference_type::{CommonJsReferenceSubType, ReferenceType},
+            resolve::node::node_cjs_resolve_options,
+        };
+
+        let scratch = tempfile::tempdir().unwrap();
+        let root_dir = scratch.path().join("bin"); // DiskFileSystem root
+        let external_dir = scratch.path().join("execroot"); // real execroot (outside fs root)
+
+        // Service dir with a relative symlink to the staged package dir.
+        let app_nm_dir = root_dir.join("services/app/node_modules");
+        create_dir_all(&app_nm_dir).unwrap();
+        let staged_next_dir =
+            root_dir.join("node_modules/.aspect_rules_js/next@0.0.0/node_modules/next");
+        create_dir_all(&staged_next_dir).unwrap();
+        symlink(
+            "../../../node_modules/.aspect_rules_js/next@0.0.0/node_modules/next",
+            app_nm_dir.join("next"),
+        )
+        .unwrap();
+
+        // The "real" package.json lives outside the fs root.
+        let external_next_dir =
+            external_dir.join("node_modules/.aspect_rules_js/next@0.0.0/node_modules/next");
+        create_dir_all(&external_next_dir).unwrap();
+        let real_pkg = external_next_dir.join("package.json");
+        File::create_new(&real_pkg)
+            .unwrap()
+            .write_all(br#"{"name":"next","version":"1.0.0","main":"./index.js"}"#)
+            .unwrap();
+
+        // Staged next/package.json is an absolute symlink to the external one.
+        symlink(&real_pkg, staged_next_dir.join("package.json")).unwrap();
+
+        let root_path: RcStr = root_dir.to_str().unwrap().into();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+
+        tt.run_once(async move {
+            #[turbo_tasks::value(transparent)]
+            struct BoolOut(bool);
+
+            #[turbo_tasks::function(operation)]
+            async fn run(root: RcStr) -> anyhow::Result<Vc<BoolOut>> {
+                let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(root));
+                let fs_root = fs.root().owned().await?;
+                let lookup_path = fs_root.join("services/app")?;
+
+                let options = node_cjs_resolve_options(fs_root);
+                let request = Request::parse(Pattern::Constant(rcstr!("next/package.json")));
+                let result = crate::resolve::resolve(
+                    lookup_path,
+                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                    request,
+                    options,
+                );
+                let first = result.first_source().await?;
+                Ok(Vc::cell(first.is_some()))
+            }
+
+            let found = run(root_path).read_strongly_consistent().await?;
+            assert!(
+                *found,
+                "resolve should find next/package.json across a relative→absolute symlink chain \
+                 that crosses the fs root (Bazel sandbox scenario)"
+            );
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }

@@ -2795,7 +2795,24 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
         RawDirectoryContent::Entries(entries) => {
             let (_, file_name) = path.split_file_name();
             if let Some(entry) = entries.get(file_name) {
-                Ok(FileSystemEntryType::from(entry).cell())
+                let ty = FileSystemEntryType::from(entry);
+                // For symlinks pointing outside the filesystem root (e.g.,
+                // Bazel builds), read_link() returns Invalid. Fall back to
+                // OS-level metadata so callers see File/Directory, not Symlink.
+                if matches!(ty, FileSystemEntryType::Symlink) {
+                    if let LinkContent::Invalid = &*path.read_link().await? {
+                        if let Some(sys_path) = to_sys_path(path).await? {
+                            if let Ok(meta) = std::fs::metadata(&sys_path) {
+                                return Ok(if meta.is_dir() {
+                                    FileSystemEntryType::Directory.cell()
+                                } else {
+                                    FileSystemEntryType::File.cell()
+                                });
+                            }
+                        }
+                    }
+                }
+                Ok(ty.cell())
             } else {
                 Ok(FileSystemEntryType::NotFound.cell())
             }
@@ -2875,6 +2892,22 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
                 break;
             }
             LinkContent::Invalid => {
+                // The symlink target resolves outside the filesystem root.
+                // This is valid in build systems like Bazel where the source
+                // tree is assembled via symlinks pointing to external artifact
+                // caches. Check if the OS can resolve the symlink; if so,
+                // treat the symlink path itself as the realpath so callers can
+                // read the file normally (std::fs::read follows OS symlinks).
+                if let Some(sys_path) = to_sys_path(current_path.clone()).await? {
+                    if std::fs::metadata(&sys_path).is_ok() {
+                        symlinks.insert(current_path.clone());
+                        return Ok(RealPathResult {
+                            path_result: Ok(current_path),
+                            symlinks: symlinks.into_iter().collect(),
+                        }
+                        .cell());
+                    }
+                }
                 error = RealPathResultError::Invalid;
                 break;
             }
@@ -3355,6 +3388,191 @@ mod tests {
                     .await?;
                 }
 
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+
+            tt.stop_and_wait().await;
+        }
+
+        /// Verifies that symlinks pointing outside the filesystem root are handled
+        /// gracefully: `realpath_with_links` should return the symlink path itself
+        /// (not an error), and `get_type` should return `File` or `Directory`
+        /// (not `Symlink`), so module resolution can read the target transparently.
+        ///
+        /// This is the Bazel use-case: the source tree is assembled via symlinks
+        /// pointing to an external artifact cache.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_cross_root_symlink() {
+            use std::os::unix::fs::symlink;
+
+            use crate::FileSystemEntryType;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let root_dir = scratch.path().join("root");
+            let external_dir = scratch.path().join("external");
+
+            // Create the filesystem root directory
+            create_dir_all(&root_dir).unwrap();
+
+            // Create a file OUTSIDE the root (simulates a Bazel artifact cache)
+            create_dir_all(&external_dir).unwrap();
+            std::fs::File::create_new(external_dir.join("package.json"))
+                .unwrap()
+                .write_all(b"{\"type\":\"module\"}")
+                .unwrap();
+
+            // Create a relative symlink INSIDE the root pointing to the external file.
+            // The target uses "../external/package.json" which resolves outside `root/`.
+            symlink("../external/package.json", root_dir.join("package.json")).unwrap();
+
+            let root = RcStr::from(root_dir.to_str().unwrap());
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let root_path = disk_file_system_root(fs);
+                let symlink_path = root_path.join("package.json")?;
+
+                // `get_type` must return `File`, not `Symlink` — the resolver
+                // uses this to decide whether the path is a valid module file.
+                let ty = *symlink_path.get_type().strongly_consistent().await?;
+                assert_eq!(
+                    ty,
+                    FileSystemEntryType::File,
+                    "get_type should return File for cross-root symlink"
+                );
+
+                // `realpath_with_links` must succeed (Ok) and return the
+                // symlink path itself as the canonical path.
+                let result = symlink_path
+                    .realpath_with_links()
+                    .strongly_consistent()
+                    .await?;
+                assert!(
+                    result.path_result.is_ok(),
+                    "realpath_with_links should succeed for cross-root symlink, got: {:?}",
+                    result.path_result
+                );
+                assert_eq!(
+                    result.path_result.as_ref().unwrap().path.as_str(),
+                    "package.json",
+                    "realpath should be the symlink path itself"
+                );
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+
+            tt.stop_and_wait().await;
+        }
+
+        /// Simulates the pages_structure.rs pattern: iterate `read_dir` entries
+        /// and match on `File`/`Directory`. Cross-root symlinks (like Bazel
+        /// sandbox absolute links) show up as `DirectoryEntry::Symlink` —
+        /// callers MUST call `resolve_symlink()` before matching, otherwise
+        /// these entries are silently skipped.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_subdir_symlinks_need_resolve_for_match() {
+            use std::os::unix::fs::symlink;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let root_dir = scratch.path().join("root");
+            let external_dir = scratch.path().join("external");
+
+            // root/subdir/ — a real directory inside the fs root
+            create_dir_all(root_dir.join("subdir")).unwrap();
+
+            // external/page.tsx — a file outside the fs root
+            create_dir_all(&external_dir).unwrap();
+            std::fs::File::create_new(external_dir.join("page.tsx"))
+                .unwrap()
+                .write_all(b"export default () => null")
+                .unwrap();
+
+            // root/subdir/page.tsx → absolute symlink to external/page.tsx
+            symlink(
+                external_dir.join("page.tsx"),
+                root_dir.join("subdir/page.tsx"),
+            )
+            .unwrap();
+
+            let root = RcStr::from(root_dir.to_str().unwrap());
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                #[turbo_tasks::function(operation)]
+                async fn check(root: RcStr) -> anyhow::Result<Vc<()>> {
+                    use turbo_rcstr::rcstr;
+
+                    use crate::{DirectoryContent, DirectoryEntry, DiskFileSystem, FileSystemPath};
+
+                    let fs = DiskFileSystem::new(rcstr!("temp"), Vc::cell(root))
+                        .to_resolved()
+                        .await?;
+                    let root_path = FileSystemPath {
+                        fs: ResolvedVc::upcast(fs),
+                        path: rcstr!(""),
+                    };
+                    let subdir_path = root_path.join("subdir")?;
+
+                    let dir_content = subdir_path.read_dir().await?;
+                    let entries = match &*dir_content {
+                        DirectoryContent::Entries(e) => e,
+                        _ => panic!("expected directory entries"),
+                    };
+
+                    // Count files found WITHOUT resolve_symlink (the
+                    // pages_structure.rs bug pattern).
+                    let mut files_without_resolve = 0u32;
+                    let mut files_with_resolve = 0u32;
+
+                    for (_name, entry) in entries.iter() {
+                        // Without resolve_symlink: direct match like
+                        // pages_structure.rs does in subdirectories
+                        match entry {
+                            DirectoryEntry::File(_) => files_without_resolve += 1,
+                            DirectoryEntry::Directory(_) => {}
+                            _ => {} // Symlink falls here → silently skipped!
+                        }
+
+                        // With resolve_symlink: correct approach
+                        let resolved = entry.clone().resolve_symlink().await?;
+                        match resolved {
+                            DirectoryEntry::File(_) => files_with_resolve += 1,
+                            DirectoryEntry::Directory(_) => {}
+                            _ => {}
+                        }
+                    }
+
+                    // This assertion catches the bug: without resolve_symlink,
+                    // the cross-root symlinked file is invisible.
+                    assert_eq!(
+                        files_without_resolve, 0,
+                        "without resolve_symlink, cross-root symlink files are missed"
+                    );
+                    assert_eq!(
+                        files_with_resolve, 1,
+                        "with resolve_symlink, the symlinked file is correctly found"
+                    );
+
+                    Ok(Vc::cell(()))
+                }
+
+                check(root).read_strongly_consistent().await?;
                 anyhow::Ok(())
             })
             .await
