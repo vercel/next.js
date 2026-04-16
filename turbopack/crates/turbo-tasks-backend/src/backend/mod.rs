@@ -3378,7 +3378,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent: String,
         child: Option<&CachedTaskType>,
         cell_id: Option<CellId>,
-    ) {
+    ) -> ! {
         let transient_reason = if let Some(child) = child {
             Cow::Owned(format!(
                 " The callee is transient because it depends on:\n{}",
