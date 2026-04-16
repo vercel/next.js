@@ -16,7 +16,12 @@ describe('Test Draft Mode', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({ files: __dirname })
 
   if (isNextDev) {
-    it('should enable draft mode', async () => {
+    it('should start development application', async () => {
+      const html = await next.render('/')
+      expect(html).toBeTruthy()
+    })
+
+    it('should enable draft mode via dev API', async () => {
       const res = await next.fetch('/api/enable')
       expect(res.status).toBe(200)
 
@@ -62,12 +67,39 @@ describe('Test Draft Mode', () => {
       expect(await browser.elementById('draft').text()).toBe('false')
       await browser.close()
     })
+
+    it('should return cookies to be expired after dev server reboot', async () => {
+      const res = await next.fetch('/', {
+        headers: {
+          Cookie: '__prerender_bypass=stale-value',
+        },
+      })
+      expect(res.status).toBe(200)
+
+      const body = await res.text()
+      expect(body).not.toContain('"err"')
+      expect(body).not.toContain('TypeError')
+      expect(body).not.toContain('previewModeId')
+
+      const setCookie = res.headers.get('set-cookie')
+      expect(setCookie).toBeTruthy()
+    })
   }
 
   if (isNextStart) {
     let cookieString: string
     let initialRand: string
     const getOpts = () => ({ headers: { Cookie: cookieString } })
+
+    it('should start production application', async () => {
+      const html = await next.render('/')
+      expect(html).toBeTruthy()
+    })
+
+    it('should compile successfully', async () => {
+      expect(next.cliOutput).toMatch(/Compiled successfully/)
+      expect(next.cliOutput).not.toContain('Build error occurred')
+    })
 
     it('should return prerendered page on first request', async () => {
       const html = await next.render('/')

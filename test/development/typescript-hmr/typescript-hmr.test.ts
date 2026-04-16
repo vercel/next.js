@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { getRedboxHeader, retry } from 'next-test-utils'
 
 describe('TypeScript HMR', () => {
   const { next } = nextTestSetup({
@@ -30,6 +30,30 @@ describe('TypeScript HMR', () => {
         expect(await browser.elementByCss('body').text()).toMatch(/Hello World/)
       })
     })
+  })
+
+  // old behavior:
+  it.skip('should recover from a type error', async () => {
+    const browser = await next.browser('/type-error-recover')
+    const originalContent = await next.readFile('pages/type-error-recover.tsx')
+    const errContent = originalContent.replace('() =>', '(): boolean =>')
+    try {
+      await next.patchFile('pages/type-error-recover.tsx', errContent)
+      await retry(async () => {
+        const header = await getRedboxHeader(browser)
+        expect(header).toMatch(
+          /Type 'Element' is not assignable to type 'boolean'/
+        )
+      })
+
+      await next.patchFile('pages/type-error-recover.tsx', originalContent)
+      await retry(async () => {
+        const html = await browser.eval('document.documentElement.innerHTML')
+        expect(html).not.toMatch(/iframe/)
+      })
+    } finally {
+      await next.patchFile('pages/type-error-recover.tsx', originalContent)
+    }
   })
 
   it('should ignore type errors in development', async () => {

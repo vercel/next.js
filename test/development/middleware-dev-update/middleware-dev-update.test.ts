@@ -30,19 +30,36 @@ describe('Middleware development errors', () => {
   }
 
   describe('when middleware is removed', () => {
+    let stderrLog = ''
+    let onStderr: ((msg: string) => void) | undefined
+
     beforeEach(async () => {
+      stderrLog = ''
+      onStderr = (msg: string) => {
+        stderrLog += msg
+      }
+      next.on('stderr', onStderr)
+
       await next.patchFile('middleware.js', middlewareContent)
       await assertMiddlewareFetch(true)
       await next.deleteFile('middleware.js')
     })
 
     afterEach(async () => {
+      if (onStderr) {
+        next.off('stderr', onStderr)
+      }
       await next.patchFile('middleware.js', middlewareContent)
     })
 
     it('sends response correctly', async () => {
       await assertMiddlewareFetch(false)
       await assertMiddlewareRender(false)
+
+      // Mirrors integration `assert no extra message on stderr` (context.logs.stderr).
+      await retry(async () => {
+        expect(stderrLog).not.toContain('error')
+      })
     })
   })
 

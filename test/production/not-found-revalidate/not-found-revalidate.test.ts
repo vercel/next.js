@@ -63,21 +63,25 @@ describe('SSG notFound revalidate', () => {
     await retry(async () => {
       res = await next.fetch('/fallback-blocking/hello')
       $ = await next.render$('/fallback-blocking/hello')
+      expect(res.headers.get('cache-control')).toBe(
+        's-maxage=1, stale-while-revalidate=31535999'
+      )
       expect(res.status).toBe(200)
+      const p = JSON.parse($('#props').text())
+      expect(p.found).toBe(true)
+      expect(p.params).toEqual({ slug: 'hello' })
+      expect(isNaN(p.random)).toBe(false)
     })
 
     const props = JSON.parse($('#props').text())
-    expect(res.headers.get('cache-control')).toBe(
-      's-maxage=1, stale-while-revalidate=31535999'
-    )
-    expect(props.found).toBe(true)
-    expect(props.params).toEqual({ slug: 'hello' })
-    expect(isNaN(props.random)).toBe(false)
 
     await retry(async () => {
       const r = await next.fetch('/fallback-blocking/hello')
       const $r = await next.render$('/fallback-blocking/hello')
       const p = JSON.parse($r('#props').text())
+      expect(r.headers.get('cache-control')).toBe(
+        's-maxage=1, stale-while-revalidate=31535999'
+      )
       expect(r.status).toBe(200)
       expect(p.found).toBe(true)
       expect(p.params).toEqual({ slug: 'hello' })
@@ -92,6 +96,9 @@ describe('SSG notFound revalidate', () => {
 
     await retry(async () => {
       const res = await next.fetch('/fallback-true/world')
+      expect(res.headers.get('cache-control')).toBe(
+        's-maxage=1, stale-while-revalidate=31535999'
+      )
       expect(res.status).toBe(404)
       const $ = await next.render$('/fallback-true/world')
       expect(JSON.parse($('#props').text()).notFound).toBe(true)
@@ -101,6 +108,9 @@ describe('SSG notFound revalidate', () => {
       const res = await next.fetch('/fallback-true/world')
       const $ = await next.render$('/fallback-true/world')
       const props = JSON.parse($('#props').text())
+      expect(res.headers.get('cache-control')).toBe(
+        's-maxage=1, stale-while-revalidate=31535999'
+      )
       expect(res.status).toBe(200)
       expect(props.found).toBe(true)
       expect(props.params).toEqual({ slug: 'world' })
@@ -111,8 +121,13 @@ describe('SSG notFound revalidate', () => {
     const props = JSON.parse($('#props').text())
 
     await retry(async () => {
+      const r = await next.fetch('/fallback-true/world')
       const $r = await next.render$('/fallback-true/world')
       const props3 = JSON.parse($r('#props').text())
+      expect(r.headers.get('cache-control')).toBe(
+        's-maxage=1, stale-while-revalidate=31535999'
+      )
+      expect(r.status).toBe(200)
       expect(props3.found).toBe(true)
       expect(props3.params).toEqual({ slug: 'world' })
       expect(isNaN(props3.random)).toBe(false)

@@ -9,6 +9,12 @@ describe('404 Page Support with _app', () => {
     /`pages\/404` can not have getInitialProps\/getServerSideProps/
 
   if (isNextStart) {
+    it('should build successfully', async () => {
+      expect(next.cliOutput).toContain('Compiled successfully')
+      expect(next.cliOutput).not.toMatch(gip404Err)
+      expect(next.cliOutput).not.toContain('Build error occurred')
+    })
+
     it('should not output static 404 if _app has getInitialProps', async () => {
       const browser = await next.browser('/404')
       const isAutoExported = await browser.eval('__NEXT_DATA__.autoExport')
@@ -34,5 +40,6 @@ describe('404 Page Support with _app', () => {
     const $ = await next.render$('/abc')
     expect($('#404-title').text()).toBe('Hi There')
     expect(next.cliOutput).not.toMatch(gip404Err)
+    expect(next.cliOutput).not.toContain('Build error occurred')
   })
 })

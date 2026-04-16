@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('jsconfig.json', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -17,7 +17,7 @@ describe('jsconfig.json', () => {
       await next.patchFile('jsconfig.json', '{')
       const { exitCode } = await next.build()
       expect(exitCode).not.toBe(0)
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(next.cliOutput).toMatch(/An issue occurred while parsing/)
         expect(next.cliOutput).toMatch(/jsconfig.json:1:1/)
         expect(next.cliOutput).toMatch(

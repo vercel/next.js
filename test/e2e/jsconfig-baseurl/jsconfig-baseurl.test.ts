@@ -1,52 +1,57 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { retry } from 'next-test-utils'
 
 describe('jsconfig.json baseurl', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  it('should render the page', async () => {
-    const $ = await next.render$('/hello')
-    expect($('body').text()).toMatch(/World/)
-  })
+  describe('default behavior', () => {
+    it('should render the page', async () => {
+      const $ = await next.render$('/hello')
+      expect($('body').text()).toMatch(/World/)
+    })
 
-  it('should have correct module not found error', async () => {
-    if (!isNextDev) return
+    // Integration ran this under `launchApp` only. e2e splits dev vs `next start` jobs, so
+    // `it.skip` when !isNextDev is correct: the module-not-found overlay is dev-only; production
+    // jobs still cover `should trace correctly` under `should build` below.
+    ;(isNextDev ? it : it.skip)(
+      'should have correct module not found error',
+      async () => {
+        const contents = await next.readFile('pages/hello.js')
+        try {
+          await next.patchFile(
+            'pages/hello.js',
+            contents.replace('components/world', 'components/worldd')
+          )
 
-    const contents = await next.readFile('pages/hello.js')
-    try {
-      await next.patchFile(
-        'pages/hello.js',
-        contents.replace('components/world', 'components/worldd')
-      )
-
-      await retry(async () => {
-        await next.render('/hello').catch(() => {})
-        const strippedOutput = stripAnsi(next.cliOutput)
-        expect(strippedOutput).toMatch(
-          /Module not found: Can't resolve 'components\/worldd'/
-        )
-      })
-    } finally {
-      await next.patchFile('pages/hello.js', contents)
-    }
-  })
-
-  it('should trace correctly', async () => {
-    if (isNextDev) return
-
-    const helloTrace = JSON.parse(
-      await next.readFile('.next/server/pages/hello.js.nft.json')
+          await retry(async () => {
+            await next.render('/hello').catch(() => {})
+            const strippedOutput = stripAnsi(next.cliOutput)
+            expect(strippedOutput).toMatch(
+              /Module not found: Can't resolve 'components\/worldd'/
+            )
+          })
+        } finally {
+          await next.patchFile('pages/hello.js', contents)
+        }
+      }
     )
-    expect(
-      helloTrace.files.some((file: string) =>
-        file.includes('components/world.js')
+  })
+  ;(isNextStart ? describe : describe.skip)('should build', () => {
+    it('should trace correctly', async () => {
+      const helloTrace = JSON.parse(
+        await next.readFile('.next/server/pages/hello.js.nft.json')
       )
-    ).toBe(false)
-    expect(
-      helloTrace.files.some((file: string) => file.includes('react/index.js'))
-    ).toBe(true)
+      expect(
+        helloTrace.files.some((file: string) =>
+          file.includes('components/world.js')
+        )
+      ).toBe(false)
+      expect(
+        helloTrace.files.some((file: string) => file.includes('react/index.js'))
+      ).toBe(true)
+    })
   })
 })

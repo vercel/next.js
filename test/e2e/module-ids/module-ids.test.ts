@@ -4,43 +4,36 @@ import fs from 'fs-extra'
 import path from 'path'
 
 describe('minified module ids', () => {
-  if (!process.env.IS_TURBOPACK_TEST) {
-    it('should skip for webpack', () => {})
-    return
-  }
+  ;(!process.env.IS_TURBOPACK_TEST || process.env.TURBOPACK_DEV
+    ? describe.skip
+    : describe)('production mode', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+    })
 
-  const { next, isNextDev } = nextTestSetup({
-    files: __dirname,
-  })
+    let ssrBundles = ''
+    let staticBundles = ''
 
-  let ssrBundles = ''
-  let staticBundles = ''
+    beforeAll(async () => {
+      const distDir = path.join(next.testDir, next.distDir)
+      const ssrPath = path.join(distDir, 'server/chunks/ssr/')
+      const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
+        p.match(/\.js$/)
+      )
+      for (const basename of ssrBundleBasenames) {
+        const output = await fs.readFile(path.join(ssrPath, basename), 'utf8')
+        ssrBundles += output
+      }
 
-  beforeAll(async () => {
-    if (isNextDev) {
-      await next.render('/')
-    }
+      const staticBundleBasenames = (await listClientChunks(distDir)).filter(
+        (p) => p.endsWith('.js')
+      )
+      for (const basename of staticBundleBasenames) {
+        const output = await fs.readFile(path.join(distDir, basename), 'utf8')
+        staticBundles += output
+      }
+    })
 
-    const distDir = path.join(next.testDir, next.distDir)
-    const ssrPath = path.join(distDir, 'server/chunks/ssr/')
-    const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
-      p.match(/\.js$/)
-    )
-    for (const basename of ssrBundleBasenames) {
-      const output = await fs.readFile(path.join(ssrPath, basename), 'utf8')
-      ssrBundles += output
-    }
-
-    const staticBundleBasenames = (await listClientChunks(distDir)).filter(
-      (p) => p.endsWith('.js')
-    )
-    for (const basename of staticBundleBasenames) {
-      const output = await fs.readFile(path.join(distDir, basename), 'utf8')
-      staticBundles += output
-    }
-  })
-
-  if (process.env.TURBOPACK_BUILD) {
     it('should have no long module ids for basic modules', async () => {
       expect(ssrBundles).not.toContain('module-with-long-name')
       expect(ssrBundles).toContain('the content of a module with a long name')
@@ -61,9 +54,39 @@ describe('minified module ids', () => {
     it('should have no long module id for the next client runtime module', async () => {
       expect(staticBundles).not.toContain('next/dist/client/next-turbopack')
     })
-  }
+  })
+  ;(!process.env.IS_TURBOPACK_TEST || process.env.TURBOPACK_BUILD
+    ? describe.skip
+    : describe)('development mode', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+    })
 
-  if (process.env.TURBOPACK_DEV) {
+    let ssrBundles = ''
+    let staticBundles = ''
+
+    beforeAll(async () => {
+      await next.render('/')
+
+      const distDir = path.join(next.testDir, next.distDir)
+      const ssrPath = path.join(distDir, 'server/chunks/ssr/')
+      const ssrBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
+        p.match(/\.js$/)
+      )
+      for (const basename of ssrBundleBasenames) {
+        const output = await fs.readFile(path.join(ssrPath, basename), 'utf8')
+        ssrBundles += output
+      }
+
+      const staticBundleBasenames = (await listClientChunks(distDir)).filter(
+        (p) => p.endsWith('.js')
+      )
+      for (const basename of staticBundleBasenames) {
+        const output = await fs.readFile(path.join(distDir, basename), 'utf8')
+        staticBundles += output
+      }
+    })
+
     it('should have long module ids for basic modules', async () => {
       expect(ssrBundles).toContain('module-with-long-name')
       expect(ssrBundles).toContain('the content of a module with a long name')
@@ -84,5 +107,5 @@ describe('minified module ids', () => {
     it('should have long module id for the next client runtime module', async () => {
       expect(staticBundles).toContain('next/dist/client/next-dev-turbopack')
     })
-  }
+  })
 })

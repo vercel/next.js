@@ -25,6 +25,77 @@ describe('Build Output', () => {
       expect(stdout).toContain('○ /')
     })
 
+    // TODO: change format of this test to be more reliable
+    it.skip('should not deviate from snapshot', () => {
+      console.log(stdout)
+
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
+
+      const parsePageSize = (page: string) =>
+        stdout.match(
+          new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
+        )![1]
+
+      const parsePageFirstLoad = (page: string) =>
+        stdout.match(
+          new RegExp(
+            ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
+          )
+        )![1]
+
+      const parseSharedSize = (sharedPartName: string) => {
+        const matches = stdout.match(
+          new RegExp(`${sharedPartName} .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`)
+        )
+
+        if (!matches) {
+          throw new Error(`Could not match ${sharedPartName}`)
+        }
+
+        return matches[1]
+      }
+
+      const indexSize = parsePageSize('/')
+      const indexFirstLoad = parsePageFirstLoad('/')
+
+      const err404Size = parsePageSize('/404')
+      const err404FirstLoad = parsePageFirstLoad('/404')
+
+      const sharedByAll = parseSharedSize('shared by all')
+      const _appSize = parseSharedSize('_app-.*?\\.js')
+      const webpackSize = parseSharedSize('webpack-.*?\\.js')
+      const mainSize = parseSharedSize('main-.*?\\.js')
+      const frameworkSize = parseSharedSize('framework-.*?\\.js')
+
+      for (const size of [
+        indexSize,
+        indexFirstLoad,
+        err404Size,
+        err404FirstLoad,
+        sharedByAll,
+        _appSize,
+        webpackSize,
+        mainSize,
+        frameworkSize,
+      ]) {
+        expect(parseFloat(size)).toBeGreaterThan(0)
+      }
+
+      expect(indexSize.endsWith('B')).toBe(true)
+      expect(indexFirstLoad.endsWith('kB')).toBe(true)
+      expect(err404Size.endsWith('B')).toBe(true)
+      expect(err404FirstLoad.endsWith('kB')).toBe(true)
+      expect(sharedByAll.endsWith('kB')).toBe(true)
+      expect(_appSize.endsWith('kB') || _appSize.endsWith(' B')).toBe(true)
+      expect(webpackSize.endsWith('kB') || webpackSize.endsWith(' B')).toBe(
+        true
+      )
+      expect(mainSize.endsWith('kB')).toBe(true)
+      expect(frameworkSize.endsWith('kB')).toBe(true)
+    })
+
     it('should print duration when rendering or get static props takes long', () => {
       const matches = stdout.match(
         / \/slow-static\/.+\/.+(?: \(\d+ ms\))?| \[\+\d+ more paths\]/g
@@ -90,6 +161,77 @@ describe('Build Output', () => {
       expect(stdout).toContain('○ /')
     })
 
+    // TODO: change format of this test to be more reliable
+    it.skip('should not deviate from snapshot', () => {
+      console.log(stdout)
+
+      if (process.env.NEXT_PRIVATE_SKIP_SIZE_TESTS) {
+        return
+      }
+
+      const parsePageSize = (page: string) =>
+        stdout.match(
+          new RegExp(` ${page} .*?((?:\\d|\\.){1,} (?:\\w{1,})) `)
+        )![1]
+
+      const parsePageFirstLoad = (page: string) =>
+        stdout.match(
+          new RegExp(
+            ` ${page} .*?(?:(?:\\d|\\.){1,}) .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`
+          )
+        )![1]
+
+      const parseSharedSize = (sharedPartName: string) => {
+        const matches = stdout.match(
+          new RegExp(`${sharedPartName} .*? ((?:\\d|\\.){1,} (?:\\w{1,}))`)
+        )
+
+        if (!matches) {
+          throw new Error(`Could not match ${sharedPartName}`)
+        }
+
+        return matches[1]
+      }
+
+      const indexSize = parsePageSize('/')
+      const indexFirstLoad = parsePageFirstLoad('/')
+
+      const err404Size = parsePageSize('/404')
+      const err404FirstLoad = parsePageFirstLoad('/404')
+
+      const sharedByAll = parseSharedSize('shared by all')
+      const _appSize = parseSharedSize('_app-.*?\\.js')
+      const webpackSize = parseSharedSize('webpack-.*?\\.js')
+      const mainSize = parseSharedSize('main-.*?\\.js')
+      const frameworkSize = parseSharedSize('framework-.*?\\.js')
+
+      for (const size of [
+        indexSize,
+        indexFirstLoad,
+        err404Size,
+        err404FirstLoad,
+        sharedByAll,
+        _appSize,
+        webpackSize,
+        mainSize,
+        frameworkSize,
+      ]) {
+        expect(parseFloat(size)).toBeGreaterThan(0)
+      }
+
+      expect(indexSize.endsWith('B')).toBe(true)
+      expect(indexFirstLoad.endsWith('kB')).toBe(true)
+      expect(err404Size.endsWith('B')).toBe(true)
+      expect(err404FirstLoad.endsWith('kB')).toBe(true)
+      expect(sharedByAll.endsWith('kB')).toBe(true)
+      expect(_appSize.endsWith('kB') || _appSize.endsWith(' B')).toBe(true)
+      expect(webpackSize.endsWith('kB') || webpackSize.endsWith(' B')).toBe(
+        true
+      )
+      expect(mainSize.endsWith('kB')).toBe(true)
+      expect(frameworkSize.endsWith('kB')).toBe(true)
+    })
+
     it('should print duration when rendering or get static props takes long', () => {
       const matches = stdout.match(
         / \/slow-static\/.+\/.+(?: \(\d+ ms\))?| \[\+\d+ more paths\]/g
@@ -106,6 +248,25 @@ describe('Build Output', () => {
       ]) {
         expect(matches).toContainEqual(check)
       }
+    })
+
+    it('should not emit extracted comments', () => {
+      const nextDir = join(next.testDir, '.next')
+      const allFiles: string[] = []
+
+      function walk(dir: string) {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+          const full = join(dir, entry.name)
+          if (entry.isDirectory()) walk(full)
+          else allFiles.push(full)
+        }
+      }
+      walk(nextDir)
+
+      const txtOrLicenseFiles = allFiles.filter((f) =>
+        /\.txt|\.LICENSE\./.test(f)
+      )
+      expect(txtOrLicenseFiles).toEqual([])
     })
   })
 

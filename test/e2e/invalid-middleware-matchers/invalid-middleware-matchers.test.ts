@@ -1,13 +1,15 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('Errors on invalid custom middleware matchers', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
 
   afterEach(async () => {
-    await next.deleteFile('middleware.js')
+    await next.deleteFile('middleware.js').catch(() => {})
+    await next.stop().catch(() => {})
   })
 
   function writeMiddleware(matchers: any) {
@@ -27,67 +29,9 @@ describe('Errors on invalid custom middleware matchers', () => {
     )
   }
 
-  it('should error when source length is exceeded', async () => {
-    await writeMiddleware([{ source: `/${Array(4096).join('a')}` }])
-    await next.build()
-    expect(next.cliOutput).toContain(
-      'exceeds max built length of 4096 for route'
-    )
-  })
-
-  it('should error during build for invalid matchers', async () => {
-    await writeMiddleware([
-      {
-        // missing source
-      },
-      {
-        // invalid source
-        source: 123,
-      },
-      // missing forward slash in source
-      'hello',
-      {
-        // extra field
-        source: '/hello',
-        destination: '/not-allowed',
-      },
-      // invalid objects
-      null,
-      // invalid has items
-      {
-        source: '/hello',
-        has: [
-          {
-            type: 'cookiee',
-            key: 'loggedIn',
-          },
-        ],
-      },
-      {
-        source: '/hello',
-        has: [
-          {
-            type: 'headerr',
-          },
-          {
-            type: 'queryr',
-            key: 'hello',
-          },
-        ],
-      },
-      {
-        source: '/hello',
-        basePath: false,
-      },
-      {
-        source: '/hello',
-        locale: true,
-      },
-    ])
-    await next.build()
-    const stderr = next.cliOutput
-
-    if (process.env.IS_TURBOPACK_TEST && !isNextDev) {
+  /** Same branching as integration `runTests(getStderr, isDev)`. */
+  function assertInvalidMatchersStderr(stderr: string, isDev: boolean) {
+    if (isTurbopack && !isDev) {
       expect(stderr).toContain('Turbopack build failed with 10 errors')
 
       let matches = 0
@@ -134,11 +78,13 @@ describe('Errors on invalid custom middleware matchers', () => {
       expect(stderr).toContain(
         'Expected string, received number at "matcher[1].source"'
       )
-      expect(stderr).toContain('source must start with / at "matcher[2]"')
       expect(stderr).toContain(
         'Unrecognized key(s) in object: \'destination\' at "matcher[3]"'
       )
       expect(stderr).toContain('Expected string, received null at "matcher[4]"')
+      expect(stderr).toContain(
+        "Expected 'header' | 'query' | 'cookie' | 'host' at \"matcher[6].has[1].type\""
+      )
       expect(stderr).toContain(
         "Expected 'header' | 'query' | 'cookie' | 'host' at \"matcher[5].has[0].type\""
       )
@@ -154,6 +100,108 @@ describe('Errors on invalid custom middleware matchers', () => {
       expect(stderr).toContain(
         'Expected string, received object at "matcher[8]", or Invalid literal value, expected false at "matcher[8].locale", or Expected undefined, received boolean at "matcher[8].locale"'
       )
+
+      // TODO currently not covered by Turbopack
+      expect(stderr).toContain('source must start with / at "matcher[2]"')
     }
+  }
+
+  function runTests(mode: 'dev' | 'start') {
+    const isDevMode = mode === 'dev'
+
+    it('should error when source length is exceeded', async () => {
+      await writeMiddleware([{ source: `/${Array(4096).join('a')}` }])
+      if (isDevMode) {
+        await next.start()
+        try {
+          await next.fetch('/').catch(() => {})
+          await retry(() => {
+            expect(next.cliOutput).toContain(
+              'exceeds max built length of 4096 for route'
+            )
+          })
+        } finally {
+          await next.stop()
+        }
+      } else {
+        await next.build()
+        expect(next.cliOutput).toContain(
+          'exceeds max built length of 4096 for route'
+        )
+      }
+    })
+
+    it('should error during next build for invalid matchers', async () => {
+      await writeMiddleware([
+        {
+          // missing source
+        },
+        {
+          // invalid source
+          source: 123,
+        },
+        // missing forward slash in source
+        'hello',
+        {
+          // extra field
+          source: '/hello',
+          destination: '/not-allowed',
+        },
+        // invalid objects
+        null,
+        // invalid has items
+        {
+          source: '/hello',
+          has: [
+            {
+              type: 'cookiee',
+              key: 'loggedIn',
+            },
+          ],
+        },
+        {
+          source: '/hello',
+          has: [
+            {
+              type: 'headerr',
+            },
+            {
+              type: 'queryr',
+              key: 'hello',
+            },
+          ],
+        },
+        {
+          source: '/hello',
+          basePath: false,
+        },
+        {
+          source: '/hello',
+          locale: true,
+        },
+      ])
+
+      if (isDevMode) {
+        await next.start()
+        try {
+          await next.fetch('/').catch(() => {})
+          await retry(async () => {
+            assertInvalidMatchersStderr(next.cliOutput, isDevMode)
+          })
+        } finally {
+          await next.stop()
+        }
+      } else {
+        await next.build()
+        assertInvalidMatchersStderr(next.cliOutput, isDevMode)
+      }
+    })
+  }
+
+  ;(isNextDev ? describe : describe.skip)('development mode', () => {
+    runTests('dev')
+  })
+  ;(isNextStart ? describe : describe.skip)('production mode', () => {
+    runTests('start')
   })
 })
