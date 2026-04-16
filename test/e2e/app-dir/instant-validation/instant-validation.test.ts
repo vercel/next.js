@@ -204,7 +204,6 @@ describe('instant validation', () => {
 
          Possible fixes:
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -258,14 +257,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Next.js encountered uncached or runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render.
 
-         Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+         Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
          Possible fixes:
            - Cache the data access with \`"use cache"\`
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -320,14 +318,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Next.js encountered uncached or runtime data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic": Next.js encountered uncached data during the initial render.
 
-         Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+         Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
          Possible fixes:
            - Cache the data access with \`"use cache"\`
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -389,7 +386,6 @@ describe('instant validation', () => {
 
          Possible fixes:
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -443,14 +439,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Next.js encountered uncached or runtime data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout": Next.js encountered uncached data during the initial render.
 
-         Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+         Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
          Possible fixes:
            - Cache the data access with \`"use cache"\`
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -561,7 +556,6 @@ describe('instant validation', () => {
 
          Possible fixes:
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -656,7 +650,6 @@ describe('instant validation', () => {
 
          Possible fixes:
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -714,14 +707,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached or runtime data during the initial render.
+         "Error: Route "/suspense-in-root/runtime/suspense-too-high": Next.js encountered uncached data during the initial render.
 
-         Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+         Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
          Possible fixes:
            - Cache the data access with \`"use cache"\`
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1154,14 +1146,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Next.js encountered uncached or runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/invalid-loading-above-route-group": Next.js encountered uncached data during the initial render.
 
-         Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+         Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
          Possible fixes:
            - Cache the data access with \`"use cache"\`
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1219,14 +1210,13 @@ describe('instant validation', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Next.js encountered uncached or runtime data during the initial render.
+         "Error: Route "/suspense-in-root/static/invalid-dynamic-layout-with-loading": Next.js encountered uncached data during the initial render.
 
-         Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+         Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
          Possible fixes:
            - Cache the data access with \`"use cache"\`
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1302,7 +1292,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1390,7 +1379,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1445,14 +1433,13 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached or runtime data during the initial render.
+           "Error: Route "/suspense-in-root/runtime/invalid-blocking-inside-runtime": Next.js encountered uncached data during the initial render.
 
-           Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+           Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
              - Cache the data access with \`"use cache"\`
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1516,7 +1503,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1578,7 +1564,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -1640,7 +1625,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2522,7 +2506,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2583,7 +2566,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2645,7 +2627,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2707,7 +2688,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2769,7 +2749,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2838,7 +2817,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2914,7 +2892,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -2984,7 +2961,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3055,7 +3031,6 @@ describe('instant validation', () => {
 
          Possible fixes:
            - Move the data access into a child component within a <Suspense> boundary
-           - Use \`generateStaticParams\` to make route params static
            - Set \`export const instant = false\` to allow a blocking route
 
          Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3174,7 +3149,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3238,7 +3212,6 @@ describe('instant validation', () => {
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
@@ -3364,13 +3337,12 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached or runtime data during the initial render.
+           "Error: Route "/suspense-in-root/disable-validation/disable-dev": Next.js encountered uncached data during the initial render.
 
-           Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
+           Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, resulting in a slower user experience.
 
            Possible fixes:
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
