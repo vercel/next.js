@@ -1,6 +1,8 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {}
+const nextConfig = {
+  cacheComponents: true,
+}
 
 module.exports = nextConfig
