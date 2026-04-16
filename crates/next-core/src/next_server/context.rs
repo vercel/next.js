@@ -27,7 +27,8 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+    AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
+    references::esm::UrlRewriteBehavior,
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -752,17 +753,18 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            let client_directive_transformer = ecmascript_client_reference_transition_name.map(
-                |ecmascript_client_reference_transition_name| {
-                    get_ecma_transform_rule(
-                        Box::new(ClientDirectiveTransformer::new(
-                            ecmascript_client_reference_transition_name,
-                        )),
+            let client_directive_transformer =
+                if let Some(name) = ecmascript_client_reference_transition_name {
+                    Some(get_ecma_transform_rule(
+                        client_directive_transform_plugin(name)
+                            .to_resolved()
+                            .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
-                    )
-                },
-            );
+                    ))
+                } else {
+                    None
+                };
 
             foreign_next_server_rules.extend(internal_custom_rules);
             foreign_next_server_rules.extend(client_directive_transformer.clone());
@@ -839,9 +841,9 @@ pub async fn get_server_module_options_context(
                 ecmascript_client_reference_transition_name
             {
                 common_next_server_rules.push(get_ecma_transform_rule(
-                    Box::new(ClientDirectiveTransformer::new(
-                        ecmascript_client_reference_transition_name,
-                    )),
+                    client_directive_transform_plugin(ecmascript_client_reference_transition_name)
+                        .to_resolved()
+                        .await?,
                     enable_mdx_rs.is_some(),
                     EcmascriptTransformStage::Preprocess,
                 ));
@@ -910,26 +912,28 @@ pub async fn get_server_module_options_context(
             app_dir,
             ecmascript_client_reference_transition_name,
         } => {
-            let custom_source_transform_rules: Vec<ModuleRule> = vec![
-                if let Some(ecmascript_client_reference_transition_name) =
-                    ecmascript_client_reference_transition_name
-                {
+            let directive_transform_rule =
+                if let Some(name) = ecmascript_client_reference_transition_name {
                     get_ecma_transform_rule(
-                        Box::new(ClientDirectiveTransformer::new(
-                            ecmascript_client_reference_transition_name,
-                        )),
+                        client_directive_transform_plugin(name)
+                            .to_resolved()
+                            .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
                     )
                 } else {
                     get_ecma_transform_rule(
-                        Box::new(ClientDisallowedDirectiveTransformer::new(
-                            "next/dist/client/use-client-disallowed.js".to_string(),
-                        )),
+                        client_disallowed_directive_transform_plugin(rcstr!(
+                            "next/dist/client/use-client-disallowed.js"
+                        ))
+                        .to_resolved()
+                        .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
                     )
-                },
+                };
+            let custom_source_transform_rules: Vec<ModuleRule> = vec![
+                directive_transform_rule,
                 get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
             ];
 
@@ -991,6 +995,19 @@ pub async fn get_server_module_options_context(
     .cell();
 
     Ok(module_options_context)
+}
+
+#[turbo_tasks::function]
+fn client_directive_transform_plugin(transition_name: RcStr) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(ClientDirectiveTransformer::new(transition_name))
+        as Box<dyn CustomTransformer + Send + Sync>)
+}
+
+#[turbo_tasks::function]
+fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(ClientDisallowedDirectiveTransformer::new(
+        error_proxy_module.to_string(),
+    )) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
