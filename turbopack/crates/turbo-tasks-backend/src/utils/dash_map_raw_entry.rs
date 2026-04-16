@@ -1,55 +1,65 @@
 use std::hash::{BuildHasher, Hash};
 
-use dashmap::{DashMap, RwLockWriteGuard, SharedValue};
+use crossbeam_utils::CachePadded;
+use dashmap::{DashMap, RwLock, RwLockWriteGuard, SharedValue};
 use hashbrown::raw::{Bucket, InsertSlot, RawTable};
 
-/// Returns the shard index for a pre-computed hash, without locking anything.
+/// The type of a single shard inside a [`DashMap`].
 ///
-/// Pass the returned index to [`raw_get_shard`] and [`raw_entry_by_shard`] so
-/// that the shard is only located once even when a read-lock miss is followed
-/// by a write-lock retry.
-pub fn shard_index<K: Eq + Hash, V, S: BuildHasher + Clone>(
+/// `dashmap::HashMap<K, V>` is a private alias for `RawTable<(K, SharedValue<V>)>`.
+pub type Shard<K, V> = CachePadded<RwLock<RawTable<(K, SharedValue<V>)>>>;
+
+/// Returns a reference to the shard that owns the given pre-computed hash,
+/// without locking anything.
+///
+/// Pass the returned reference to [`raw_get_in_shard`] and
+/// [`raw_entry_in_shard`] so that the shard is only located once even when a
+/// read-lock miss is followed by a write-lock retry.
+pub fn get_shard<K: Eq + Hash, V, S: BuildHasher + Clone>(
     map: &DashMap<K, V, S>,
     hash: u64,
-) -> usize {
-    map.determine_shard(hash as usize)
+) -> &Shard<K, V> {
+    let idx = map.determine_shard(hash as usize);
+    &map.shards()[idx]
 }
 
-/// Read-only heterogeneous lookup using a pre-computed shard index.
+/// Read-only heterogeneous lookup using a pre-located shard reference.
 /// Returns `Some(value)` on hit, `None` on miss. Uses only a read lock.
-pub fn raw_get_shard<K: Eq + Hash, V: Copy, S: BuildHasher + Clone>(
-    map: &DashMap<K, V, S>,
-    shard_idx: usize,
+pub fn raw_get_in_shard<K: Eq + Hash, V: Copy>(
+    shard: &Shard<K, V>,
     hash: u64,
     eq: impl Fn(&K) -> bool,
 ) -> Option<V> {
-    let shard = map.shards()[shard_idx].read();
+    let guard = shard.read();
     // Safety: We have a read lock on the shard.
-    shard
+    guard
         .find(hash, |(k, _v)| eq(k))
         .map(|bucket| *unsafe { bucket.as_ref() }.1.get())
 }
 
-/// Write-lock entry lookup using a pre-computed shard index and heterogeneous equality.
+/// Write-lock entry lookup using a pre-located shard reference and
+/// heterogeneous equality.
 ///
-/// Takes a pre-computed `shard_idx` (from [`shard_index`]) and `hash` so the
-/// shard is not located a second time on a read-miss/write-retry path.
-pub fn raw_entry_by_shard<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
-    map: &'l DashMap<K, V, S>,
-    shard_idx: usize,
+/// Takes a pre-located `shard` (from [`get_shard`]) and `hash` so the shard is
+/// not located a second time on a read-miss / write-retry path.
+pub fn raw_entry_in_shard<'l, K: Eq + Hash, V, S: BuildHasher + Clone>(
+    shard: &'l Shard<K, V>,
+    map_hasher: &S,
     hash: u64,
     eq: impl Fn(&K) -> bool,
 ) -> RawEntry<'l, K, V> {
-    let hasher = map.hasher();
-    let mut shard = map.shards()[shard_idx].write();
+    let mut guard = shard.write();
     let result =
-        shard.find_or_find_insert_slot(hash, |(k, _v)| eq(k), |(k, _v)| hasher.hash_one(k));
+        guard.find_or_find_insert_slot(hash, |(k, _v)| eq(k), |(k, _v)| map_hasher.hash_one(k));
     match result {
-        Ok(bucket) => RawEntry::Occupied(OccupiedEntry { bucket, shard }),
+        Ok(bucket) => RawEntry::Occupied(OccupiedEntry {
+            bucket,
+            shard: guard,
+        }),
         Err(insert_slot) => RawEntry::Vacant(VacantEntry {
             hash,
             insert_slot,
-            shard,
+            shard: guard,
         }),
     }
 }
