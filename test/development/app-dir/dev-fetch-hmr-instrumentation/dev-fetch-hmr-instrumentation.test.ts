@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-import cheerio from 'cheerio'
 
 describe('dev-fetch-hmr-instrumentation', () => {
   const { next } = nextTestSetup({
@@ -12,11 +11,11 @@ describe('dev-fetch-hmr-instrumentation', () => {
   // had a chance to wrap it. Every HMR event would therefore strip any
   // third-party fetch instrumentation (e.g. @vercel/otel trace-context
   // propagation). The fix makes resetFetch() unwrap only the Next.js
-  // patchFetch() layer via _nextOriginalFetch, preserving instrumentation.
+  // patchFetch() layer via _nextPrePatchFetch, preserving instrumentation.
   it('should preserve instrumentation fetch wrapping after HMR', async () => {
     // 1. Cold start: instrumentation.ts wraps fetch, the probe should work.
-    const html = await next.render('/')
-    expect(cheerio.load(html)('#instrumented').text()).toBe('yes')
+    const $ = await next.render$('/')
+    expect($('#instrumented').text()).toBe('yes')
 
     // 2. Trigger HMR by editing the page component.
     await next.patchFile('app/page.tsx', (content) =>
@@ -25,12 +24,11 @@ describe('dev-fetch-hmr-instrumentation', () => {
 
     // 3. After HMR, the instrumentation wrapper must still be active.
     await retry(async () => {
-      const html2 = await next.render('/')
-      const $ = cheerio.load(html2)
+      const $2 = await next.render$('/')
       // Confirm HMR actually happened
-      expect($('#update').text()).toBe('touch to trigger HMR 2')
+      expect($2('#update').text()).toBe('touch to trigger HMR 2')
       // Confirm instrumentation survived
-      expect($('#instrumented').text()).toBe('yes')
+      expect($2('#instrumented').text()).toBe('yes')
     })
   })
 })
