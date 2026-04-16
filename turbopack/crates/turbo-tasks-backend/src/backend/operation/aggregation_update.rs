@@ -2627,7 +2627,12 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
-        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
+        let mut task = ctx.task(
+            task_id,
+            // For performance reasons this should stay Meta and not All.
+            // persistent_task_type is now set eagerly in initialize_new_task.
+            TaskDataCategory::Meta,
+        );
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();

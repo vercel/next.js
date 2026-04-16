@@ -1594,6 +1594,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 k.eq_components(native_fn, this, task_type.arg.as_ref())
             }) {
                 RawEntry::Occupied(e) => {
+                    // Another thread beat us to creating this task — use their task_id.
+                    // They will handle logging the new task as modified.
                     let task_id = *e.get();
                     drop(e);
                     self.track_cache_hit_by_fn(native_fn);
@@ -1606,8 +1608,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     } else {
                         self.persisted_task_id_factory.get()
                     };
+                    // Initialize storage BEFORE making task_id visible in the cache.
+                    // This ensures any thread that reads task_id from the cache sees
+                    // the storage entry already initialized (restored flags set).
                     self.storage
                         .initialize_new_task(task_id, Some(task_type.clone()));
+                    // insert() consumes e, releasing the shard write lock.
                     e.insert(task_type, task_id);
                     self.track_cache_miss_by_fn(native_fn);
                     is_new = true;

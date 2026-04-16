@@ -315,7 +315,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
             .database
             .get_multiple(KeySpace::TaskCache, &hash)
             .with_context(|| {
-                format!("Looking up task id for {native_fn:?} from database failed")
+                format!("Looking up task id for {native_fn:?}(this={this:?}) from database failed")
             })?;
 
         let mut task_ids = SmallVec::with_capacity(buffers.len());

@@ -39,8 +39,7 @@ impl ConnectChildOperation {
             };
 
             // Quick skip if the child was already connected before
-            // We can't call insert here as this would skip the mandatory task type update below
-            // Instead we only add it after updating the child task type
+            // We defer the insert until after the aggregation queue is processed.
             if new_children.contains(&child_task_id) {
                 return;
             }
