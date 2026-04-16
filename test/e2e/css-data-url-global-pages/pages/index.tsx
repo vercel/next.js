@@ -1,3 +1,4 @@
+// @ts-ignore: data uri types aren't resolving
 import 'data:text/css,#styled{font-weight:700}'
 
 export default function Home() {
