@@ -1095,7 +1095,7 @@
   "1094": "Draft mode cannot be disabled during build-time instant validation.",
   "1095": "Route \"%s\" accessed param \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`params\\` object.",
   "1096": "Route \"%s\" accessed %s \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`%s\\` array%s",
-  "1097": "An unexpected error occcured during instant validation",
+  "1097": "An unexpected error occurred during instant validation",
   "1098": "Route \"%s\" accessed searchParam \"%s\" which is not defined in the \\`samples\\` of \\`unstable_instant\\`. Add it to the sample's \\`searchParams\\` object, or \\`{ \"%s\": null }\\` if it should be absent.",
   "1099": "createPrerenderParamsForClientSegment should not be called in validation contexts.",
   "1100": "Stopping prerender due to instant validation errors.",

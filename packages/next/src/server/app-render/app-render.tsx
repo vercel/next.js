@@ -6628,7 +6628,7 @@ async function validateInstantConfigsInBuild(
     } catch (err) {
       console.error(
         new InvariantError(
-          'An unexpected error occcured during instant validation',
+          'An unexpected error occurred during instant validation',
           { cause: err }
         )
       )
