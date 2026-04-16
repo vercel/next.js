@@ -312,10 +312,12 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_read_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_read_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
             self.invalidator_map.insert(path.to_owned(), invalidator);
-            self.watcher.ensure_watched_file(path, self.root_path())?;
+            self.watcher
+                .ensure_watched_file(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
@@ -341,11 +343,13 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
             self.dir_invalidator_map
                 .insert(path.to_owned(), invalidator);
-            self.watcher.ensure_watched_dir(path, self.root_path())?;
+            self.watcher
+                .ensure_watched_dir(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
@@ -489,7 +493,8 @@ impl DiskFileSystemInner {
             .await?;
 
         self.watcher
-            .start_watching(self.clone(), report_invalidation_reason, poll_interval)?;
+            .start_watching(self.clone(), report_invalidation_reason, poll_interval)
+            .await?;
 
         Ok(())
     }
@@ -546,8 +551,8 @@ impl DiskFileSystem {
             .await
     }
 
-    pub fn stop_watching(&self) {
-        self.inner.watcher.stop_watching();
+    pub async fn stop_watching(&self) {
+        self.inner.watcher.stop_watching().await;
     }
 
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
@@ -711,7 +716,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
@@ -739,7 +744,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_dir_invalidator(&full_path)?;
+        self.inner.register_dir_invalidator(&full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
@@ -829,7 +834,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
@@ -1374,7 +1379,7 @@ impl FileSystem for DiskFileSystem {
             turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let meta = retry_blocking(|| std::fs::metadata(&full_path))
