@@ -315,8 +315,29 @@ jobs:
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm playwright install --with-deps ${{ inputs.browser }}
+      - name: Install Playwright browsers
         if: ${{ inputs.skipInstallBuild != 'yes' }}
+        run: |
+          PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
+          CACHE_DIR="$HOME/.cache"
+          VERSION_FILE="$CACHE_DIR/playwright-version"
+          STAMP="$CACHE_DIR/playwright-deps-$(echo "${{ inputs.browser }}" | tr ' ' '-')"
+
+          # Clear stamp files when Playwright version changes
+          if [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" != "$PW_VERSION" ]; then
+            echo "Playwright version changed ($(cat "$VERSION_FILE") -> $PW_VERSION), clearing stamps"
+            rm -f "$CACHE_DIR"/playwright-deps-*
+          fi
+
+          mkdir -p "$CACHE_DIR"
+          echo "$PW_VERSION" > "$VERSION_FILE"
+
+          if [ -f "$STAMP" ]; then
+            pnpm playwright install ${{ inputs.browser }}
+          else
+            pnpm playwright install --with-deps ${{ inputs.browser }}
+            touch "$STAMP"
+          fi
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}
