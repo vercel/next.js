@@ -973,6 +973,7 @@ export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
+  maximumResponseBody: number,
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
@@ -987,6 +988,7 @@ export async function fetchInternalImage(
       url: href,
       method,
       socket: _req.socket,
+      maximumResponseBody,
     })
 
     await handleRequest(mocked.req, mocked.res, nodeUrl.parse(href, true))
@@ -1000,6 +1002,14 @@ export async function fetchInternalImage(
       )
     }
 
+    if (mocked.res.buffers.length === 0) {
+      Log.error('internal image response is empty for', href)
+      throw new ImageError(
+        400,
+        '"url" parameter is valid but internal response is invalid'
+      )
+    }
+
     const buffer = Buffer.concat(mocked.res.buffers)
     const contentType = mocked.res.getHeader('Content-Type')
     const cacheControl = mocked.res.getHeader('Cache-Control')
@@ -1007,6 +1017,23 @@ export async function fetchInternalImage(
 
     return { buffer, contentType, cacheControl, etag }
   } catch (err) {
+    if (err instanceof ImageError) {
+      throw err
+    }
+
+    if (
+      err &&
+      typeof err === 'object' &&
+      'code' in err &&
+      err.code === 'ERR_MAX_BODY_SIZE_EXCEEDED'
+    ) {
+      Log.error('internal image response exceeded maximum size for', href)
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but internal response is invalid'
+      )
+    }
+
     Log.error('upstream image response failed for', href, err)
     throw new ImageError(
       500,
