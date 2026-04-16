@@ -34,7 +34,7 @@ use crate::{
     event::EventListener,
     macro_helpers::NativeFunction,
     magic_any::{MagicAny, StackMagicAny},
-    manager::TurboTasksBackendApi,
+    manager::{TaskPersistence, TurboTasksBackendApi},
     raw_vc::CellId,
     registry,
     task::shared_reference::TypedSharedReference,
@@ -638,21 +638,13 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
-    fn get_or_create_persistent_task(
+    fn get_or_create_task(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> TaskId;
-
-    fn get_or_create_transient_task(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
-        parent_task: Option<TaskId>,
+        persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 

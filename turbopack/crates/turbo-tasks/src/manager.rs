@@ -799,16 +799,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
         persistence: TaskPersistence,
     ) -> RawVc {
         let parent_task = current_task_if_available("turbo_function calls");
-        RawVc::TaskOutput(match persistence {
-            TaskPersistence::Transient => {
-                self.backend
-                    .get_or_create_transient_task(native_fn, this, arg, parent_task, self)
-            }
-            TaskPersistence::Persistent => {
-                self.backend
-                    .get_or_create_persistent_task(native_fn, this, arg, parent_task, self)
-            }
-        })
+        RawVc::TaskOutput(self.backend.get_or_create_task(
+            native_fn,
+            this,
+            arg,
+            parent_task,
+            persistence,
+            self,
+        ))
     }
 
     pub fn dynamic_call(

@@ -29,8 +29,8 @@ use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bin
 use turbo_tasks::{
     CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
     ReadOutputOptions, ReadTracking, SharedReference, StackMagicAny, TRANSIENT_TASK_BIT,
-    TaskExecutionReason, TaskId, TaskPriority, TraitTypeId, TurboTasksBackendApi, TurboTasksPanic,
-    ValueTypeId,
+    TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasksBackendApi,
+    TurboTasksPanic, ValueTypeId,
     backend::{
         Backend, CachedTaskType, CellContent, CellHash, TaskExecutionSpec, TransientTaskType,
         TurboTaskContextError, TurboTaskLocalContextError, TurboTasksError,
@@ -1506,52 +1506,34 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         self.idle_end_event.notify(usize::MAX);
     }
 
-    fn get_or_create_persistent_task(
+    fn get_or_create_task(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
+        persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
-        self.get_or_create_task_inner(native_fn, this, arg, parent_task, turbo_tasks, false)
-    }
+        let transient = matches!(persistence, TaskPersistence::Transient);
 
-    fn get_or_create_transient_task(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> TaskId {
-        if let Some(parent_task) = parent_task
-            && !parent_task.is_transient()
-        {
-            let task_type = CachedTaskType {
-                native_fn,
-                this,
-                arg: arg.take_box(),
-            };
-            self.panic_persistent_calling_transient(
-                self.debug_get_task_description(parent_task),
-                Some(&task_type),
-                /* cell_id */ None,
-            );
+        if transient {
+            if let Some(parent_task) = parent_task
+                && !parent_task.is_transient()
+            {
+                let task_type = CachedTaskType {
+                    native_fn,
+                    this,
+                    arg: arg.take_box(),
+                };
+                self.panic_persistent_calling_transient(
+                    self.debug_get_task_description(parent_task),
+                    Some(&task_type),
+                    /* cell_id */ None,
+                );
+            }
         }
 
-        self.get_or_create_task_inner(native_fn, this, arg, parent_task, turbo_tasks, true)
-    }
-
-    fn get_or_create_task_inner(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-        transient: bool,
-    ) -> TaskId {
         let is_root = native_fn.is_root;
 
         // Compute hash once from borrowed components (no heap allocation).
@@ -3449,28 +3431,17 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.idle_end();
     }
 
-    fn get_or_create_persistent_task(
+    fn get_or_create_task(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &mut dyn StackMagicAny,
         parent_task: Option<TaskId>,
+        persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId {
         self.0
-            .get_or_create_persistent_task(native_fn, this, arg, parent_task, turbo_tasks)
-    }
-
-    fn get_or_create_transient_task(
-        &self,
-        native_fn: &'static NativeFunction,
-        this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
-        parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> TaskId {
-        self.0
-            .get_or_create_transient_task(native_fn, this, arg, parent_task, turbo_tasks)
+            .get_or_create_task(native_fn, this, arg, parent_task, persistence, turbo_tasks)
     }
 
     fn invalidate_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
