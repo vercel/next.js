@@ -208,7 +208,7 @@ impl<T> SelfTimeTree<T> {
     pub fn lookup_range_count(&self, start: Timestamp, end: Timestamp) -> Timestamp {
         let mut total_count = Timestamp::ZERO;
         for entry in &self.entries {
-            if entry.start < end && entry.end > start {
+            if entry.start <= end && entry.end >= start {
                 let start = std::cmp::max(entry.start, start);
                 let end = std::cmp::min(entry.end, end);
                 let span = end - start;
@@ -216,10 +216,10 @@ impl<T> SelfTimeTree<T> {
             }
         }
         if let Some(children) = &self.children {
-            if start < children.split_point {
+            if start <= children.split_point {
                 total_count += children.left.lookup_range_count(start, end);
             }
-            if end > children.split_point {
+            if end >= children.split_point {
                 total_count += children.right.lookup_range_count(start, end);
             }
         }
@@ -282,15 +282,15 @@ impl<T> SelfTimeTree<T> {
         f: &mut impl FnMut(Timestamp, Timestamp, &T),
     ) {
         for entry in &self.entries {
-            if entry.start < end && entry.end > start {
+            if entry.start <= end && entry.end >= start {
                 f(entry.start, entry.end, &entry.item);
             }
         }
         if let Some(children) = &self.children {
-            if start < children.split_point {
+            if start <= children.split_point {
                 children.left.for_each_in_range_ref(start, end, f);
             }
-            if end > children.split_point {
+            if end >= children.split_point {
                 children.right.for_each_in_range_ref(start, end, f);
             }
         }
