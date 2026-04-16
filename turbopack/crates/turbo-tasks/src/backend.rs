@@ -687,3 +687,173 @@ pub trait Backend: Sync + Send {
     /// to lazily resolve task names instead of storing them eagerly in error objects.
     fn get_task_name(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) -> String;
 }
+
+#[cfg(test)]
+mod cached_task_type_tests {
+    use std::{
+        collections::hash_map::RandomState,
+        hash::{BuildHasher, Hash, Hasher},
+    };
+
+    use crate::{
+        RawVc, TaskId,
+        backend::CachedTaskType,
+        macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
+        magic_any::MagicAny,
+    };
+
+    // Two distinct static NativeFunctions for testing pointer-based identity.
+    //
+    // NativeFunction uses pointer-based Hash/Eq (via `turbo_registry!`), so each
+    // static gets a unique address that serves as its identity.
+    fn dummy_fn_a() {}
+    fn dummy_fn_b() {}
+
+    static FN_A: NativeFunction = NativeFunction::new(
+        "dummy_fn_a",
+        "dummy_fn_a",
+        ArgMeta::new::<(i32,)>(),
+        &into_task_fn(dummy_fn_a),
+        false,
+    );
+
+    static FN_B: NativeFunction = NativeFunction::new(
+        "dummy_fn_b",
+        "dummy_fn_b",
+        ArgMeta::new::<(i32,)>(),
+        &into_task_fn(dummy_fn_b),
+        false,
+    );
+
+    /// Build a `u64` hash for a `CachedTaskType` using its `Hash` impl and a `RandomState`.
+    fn hash_task(rs: &RandomState, task: &CachedTaskType) -> u64 {
+        let mut h = rs.build_hasher();
+        task.hash(&mut h);
+        h.finish()
+    }
+
+    /// Build an arg `Box<dyn MagicAny>` for `(i32,)`.
+    fn make_arg(value: i32) -> Box<dyn MagicAny> {
+        Box::new((value,))
+    }
+
+    /// Build a `Some(RawVc::TaskOutput(..))` this value.
+    fn make_this(id: u32) -> Option<RawVc> {
+        Some(RawVc::TaskOutput(
+            TaskId::new(id).expect("non-zero task id"),
+        ))
+    }
+
+    // -----------------------------------------------------------------------
+    // 1. hash_from_components matches Hash impl on CachedTaskType
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn hash_from_components_matches_hash_impl_no_this() {
+        let rs = RandomState::new();
+        let arg = make_arg(42);
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(42),
+        };
+        let expected = hash_task(&rs, &task);
+        let actual = CachedTaskType::hash_from_components(&rs, &FN_A, None, &*arg);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn hash_from_components_matches_hash_impl_with_this() {
+        let rs = RandomState::new();
+        let this = make_this(1);
+        let arg = make_arg(99);
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this,
+            arg: make_arg(99),
+        };
+        let expected = hash_task(&rs, &task);
+        let actual = CachedTaskType::hash_from_components(&rs, &FN_A, this, &*arg);
+        assert_eq!(actual, expected);
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. eq_components returns true when all components match
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_true_when_all_match() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(7),
+        };
+        assert!(task.eq_components(&FN_A, None, &(7i32,)));
+    }
+
+    #[test]
+    fn eq_components_returns_true_with_matching_this() {
+        let this = make_this(1);
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this,
+            arg: make_arg(7),
+        };
+        assert!(task.eq_components(&FN_A, this, &(7i32,)));
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. eq_components returns false when native_fn differs
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_false_when_native_fn_differs() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(7),
+        };
+        // FN_B is a different static, so ptr::eq will be false
+        assert!(!task.eq_components(&FN_B, None, &(7i32,)));
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. eq_components returns false when `this` differs
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_false_when_this_differs() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(7),
+        };
+        // Task has this=None, but we check with Some(...)
+        assert!(!task.eq_components(&FN_A, make_this(1), &(7i32,)));
+    }
+
+    #[test]
+    fn eq_components_returns_false_when_this_has_different_task_id() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: make_this(1),
+            arg: make_arg(7),
+        };
+        assert!(!task.eq_components(&FN_A, make_this(2), &(7i32,)));
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. eq_components returns false when arg differs
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_false_when_arg_differs() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(1),
+        };
+        // Same function and this, but different arg value
+        assert!(!task.eq_components(&FN_A, None, &(2i32,)));
+    }
+}
