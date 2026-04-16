@@ -134,9 +134,12 @@ export type ClientState = {
 export type ClientStateMap = WeakMap<ws, ClientState>
 
 // hooks only used by the dev server.
+// subscribeToChanges is optional: omit it to skip wiring HMR subscriptions
+// for one-shot compilations (e.g. the compile_route MCP tool) where there
+// is no client to receive updates and no unsubscribe path.
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
-  subscribeToChanges: StartChangeSubscription
+  subscribeToChanges?: StartChangeSubscription
 }
 
 export async function handleRouteType({
@@ -167,6 +170,8 @@ export async function handleRouteType({
 
   readyIds?: ReadyIds // dev
 
+  // hooks.subscribeToChanges may be omitted to skip HMR subscriptions for
+  // one-shot compilations (e.g. the compile_route MCP tool).
   hooks?: HandleRouteTypeHooks // dev
 }) {
   switch (route.type) {
@@ -251,7 +256,7 @@ export async function handleRouteType({
         if (dev) {
           // TODO subscriptions should only be caused by the WebSocket connections
           // otherwise we don't known when to unsubscribe and this leaking
-          hooks?.subscribeToChanges(
+          hooks?.subscribeToChanges?.(
             serverKey,
             false,
             route.dataEndpoint,
@@ -270,7 +275,7 @@ export async function handleRouteType({
               }
             }
           )
-          hooks?.subscribeToChanges(
+          hooks?.subscribeToChanges?.(
             clientKey,
             false,
             route.htmlEndpoint,
@@ -287,7 +292,7 @@ export async function handleRouteType({
             }
           )
           if (entrypoints.global.document) {
-            hooks?.subscribeToChanges(
+            hooks?.subscribeToChanges?.(
               getEntryKey('pages', 'server', '_document'),
               false,
               entrypoints.global.document,
@@ -344,7 +349,7 @@ export async function handleRouteType({
       if (dev) {
         // TODO subscriptions should only be caused by the WebSocket connections
         // otherwise we don't known when to unsubscribe and this leaking
-        hooks?.subscribeToChanges(
+        hooks?.subscribeToChanges?.(
           key,
           true,
           route.rscEndpoint,
@@ -864,7 +869,7 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.app.writeToDisk()
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-    hooks.subscribeToChanges(
+    hooks.subscribeToChanges?.(
       key,
       false,
       entrypoints.global.app,
@@ -893,7 +898,7 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.document.writeToDisk()
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-    hooks.subscribeToChanges(
+    hooks.subscribeToChanges?.(
       key,
       false,
       entrypoints.global.document,
@@ -919,7 +924,7 @@ export async function handlePagesErrorRoute({
 
     const writtenEndpoint = await entrypoints.global.error.writeToDisk()
     hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-    hooks.subscribeToChanges(
+    hooks.subscribeToChanges?.(
       key,
       false,
       entrypoints.global.error,

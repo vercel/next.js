@@ -1178,5 +1178,6 @@
   "1177": "The middleware \"%s\" accepts an async API directly with the form:\n  \n  export function middleware(request, event) {\n    return NextResponse.redirect('/new-location')\n  }\n  \n  Read more: https://nextjs.org/docs/messages/middleware-new-signature\n  ",
   "1178": "The request.page has been deprecated in favour of \\`URLPattern\\`.\n  Read more: https://nextjs.org/docs/messages/middleware-request-page\n  ",
   "1179": "Invariant: %s This is a bug in Next.js.",
-  "1180": "Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options"
+  "1180": "Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options",
+  "1181": "Compilation failed but no issues were recorded"
 }
