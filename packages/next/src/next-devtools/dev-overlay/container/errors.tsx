@@ -601,10 +601,12 @@ function InstantRuntimeError({
 }
 
 function isRuntimeVariant(message: string): boolean {
-  // Discriminates between `runtimeBodyMessage` and `dynamicBodyMessage`
+  // Body messages use "encountered runtime data" vs "uncached or runtime data"
+  // Viewport/metadata messages use "Runtime data such as" vs "Uncached data or"
+  if (message.includes('Runtime data such as')) return true
   return (
     message.includes('encountered runtime data') &&
-    !message.includes('encountered uncached data')
+    !message.includes('uncached or runtime data')
   )
 }
 
