@@ -153,7 +153,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Next.js encountered uncached or runtime data during the initial render.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
@@ -563,7 +563,7 @@ describe('Cache Components Errors', () => {
            [
              {
                "code": "E394",
-               "description": "Next.js encountered uncached or runtime data during the initial render.",
+               "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -577,7 +577,7 @@ describe('Cache Components Errors', () => {
              },
              {
                "code": "E394",
-               "description": "Next.js encountered uncached or runtime data during the initial render.",
+               "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
@@ -6508,7 +6508,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           await expect(browser).toDisplayCollapsedRedbox(`
            {
              "code": "E394",
-             "description": "Next.js encountered uncached or runtime data during the initial render.",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
