@@ -56,6 +56,7 @@ pub trait StackMagicAny {
 ///
 /// Created by macro-generated callsites. The value starts in `Some` on the
 /// stack; [`take_box`](StackMagicAny::take_box) moves it to the heap on cache miss.
+#[repr(transparent)]
 pub struct StackMagicAnySlot<T> {
     slot: Option<T>,
 }
