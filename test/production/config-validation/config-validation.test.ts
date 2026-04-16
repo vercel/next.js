@@ -1,18 +1,21 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next.config.js validation', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      const { next } = nextTestSetup({
-        files: __dirname,
-        skipStart: true,
-      })
+  describe('production mode', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+    })
 
-      it.each([
-        {
-          name: 'invalid config types',
-          configContent: `
+    if (!isNextStart) {
+      it('skipped for non-start mode', () => {})
+      return
+    }
+
+    it.each([
+      {
+        name: 'invalid config types',
+        configContent: `
         module.exports = {
           rewrites: true,
           images: {
@@ -20,14 +23,14 @@ describe('next.config.js validation', () => {
           }
         }
       `,
-          outputs: [
-            `received 'something' at "images.loader"`,
-            'Expected function, received boolean at "rewrites"',
-          ],
-        },
-        {
-          name: 'unexpected config fields',
-          configContent: `
+        outputs: [
+          `received 'something' at "images.loader"`,
+          'Expected function, received boolean at "rewrites"',
+        ],
+      },
+      {
+        name: 'unexpected config fields',
+        configContent: `
         module.exports = {
           nonExistent: true,
           experimental: {
@@ -35,36 +38,36 @@ describe('next.config.js validation', () => {
           }
         }
       `,
-          outputs: [
-            `Unrecognized key(s) in object: 'nonExistent'`,
-            `Unrecognized key(s) in object: 'anotherNonExistent' at "experimental"`,
-          ],
-        },
-        {
-          name: 'invalid config array lengths',
-          configContent: `
+        outputs: [
+          `Unrecognized key(s) in object: 'nonExistent'`,
+          `Unrecognized key(s) in object: 'anotherNonExistent' at "experimental"`,
+        ],
+      },
+      {
+        name: 'invalid config array lengths',
+        configContent: `
         module.exports = {
           pageExtensions: []
         }
       `,
-          outputs: [
-            'Array must contain at least 1 element(s) at "pageExtensions"',
-          ],
-        },
-      ])(
-        'it should validate correctly for $name',
-        async ({ outputs, configContent }) => {
-          await next.patchFile('next.config.js', configContent)
-          await next.build()
+        outputs: [
+          'Array must contain at least 1 element(s) at "pageExtensions"',
+        ],
+      },
+    ])(
+      'it should validate correctly for $name',
+      async ({ outputs, configContent }) => {
+        await next.patchFile('next.config.js', configContent)
+        await next.build()
 
-          for (const output of outputs) {
-            expect(next.cliOutput).toContain(output)
-          }
+        for (const output of outputs) {
+          expect(next.cliOutput).toContain(output)
         }
-      )
+      }
+    )
 
-      it('should allow undefined environment variables', async () => {
-        const configContent = `
+    it('should allow undefined environment variables', async () => {
+      const configContent = `
         module.exports = {
           env: {
             FOO: 'bar',
@@ -73,11 +76,10 @@ describe('next.config.js validation', () => {
         }
       `
 
-        await next.patchFile('next.config.js', configContent)
-        await next.build()
+      await next.patchFile('next.config.js', configContent)
+      await next.build()
 
-        expect(next.cliOutput).not.toContain('"env.QUX" is missing')
-      })
-    }
-  )
+      expect(next.cliOutput).not.toContain('"env.QUX" is missing')
+    })
+  })
 })

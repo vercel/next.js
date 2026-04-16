@@ -1,10 +1,10 @@
-import { nextTestSetup, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 // Webpack-specific test, not needed for Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'Handles Webpack Require Hook',
   () => {
-    const { next } = nextTestSetup({
+    const { next, isNextStart, isNextDev } = nextTestSetup({
       files: __dirname,
     })
 
@@ -19,14 +19,11 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
       })
     }
 
-    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-      'development mode',
-      () => {
-        it('should apply and not error during development', async () => {
-          await next.render('/')
-          expect(next.cliOutput).toMatch(/Initialized config/)
-        })
-      }
-    )
+    ;(isNextDev ? describe : describe.skip)('development mode', () => {
+      it('should apply and not error during development', async () => {
+        await next.render('/')
+        expect(next.cliOutput).toMatch(/Initialized config/)
+      })
+    })
   }
 )

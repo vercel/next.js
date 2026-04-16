@@ -4,7 +4,7 @@ import httpProxy from 'http-proxy'
 import cheerio from 'cheerio'
 import { findPort } from 'next-test-utils'
 import webdriver from 'next-webdriver'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('CSS Module client-side navigation', () => {
   const { next } = nextTestSetup({
@@ -178,7 +178,7 @@ describe('CSS Module client-side navigation', () => {
       await browser.close()
     }
   })
-  ;(process.env.TURBOPACK_DEV ? it.skip : it)(
+  ;(isNextStart ? it : it.skip)(
     'should time out and hard navigate for stalled CSS request',
     async () => {
       stallCss = true

@@ -14,7 +14,7 @@ describe('CSS Support', () => {
   describe('CSS Compilation and Prefixing', () => {
     describe('without lightningcss', () => {
       const useLightningcss = false
-      const { next } = nextTestSetup({
+      const { next, isTurbopack } = nextTestSetup({
         files: join(__dirname, 'fixtures', 'compilation-and-prefixing'),
         nextConfig: {
           ...cssFixturesNextConfigBase,
@@ -43,11 +43,11 @@ describe('CSS Support', () => {
           .replace(/\/\*.*?\*\/\n?/g, '')
           .trim()
 
-        if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+        if (isTurbopack && useLightningcss) {
           expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
             `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px, 0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
           )
-        } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+        } else if (isTurbopack && !useLightningcss) {
           expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
             `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px, 0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
           )
@@ -84,7 +84,7 @@ describe('CSS Support', () => {
         delete sourceMapContentParsed.file
         delete sourceMapContentParsed.sources
 
-        if (process.env.IS_TURBOPACK_TEST) {
+        if (isTurbopack) {
           // Turbopack always uses lightningcss
           expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                {
@@ -228,11 +228,11 @@ describe('CSS Support', () => {
             /media-query-test.jsx-[a-f0-9]{16}/g,
             'media-query-test.jsx-HASH'
           )
-        if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+        if (isTurbopack && useLightningcss) {
           expect(inlineCssContent).toMatchInlineSnapshot(
             `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
           )
-        } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+        } else if (isTurbopack && !useLightningcss) {
           expect(inlineCssContent).toMatchInlineSnapshot(
             `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
           )
@@ -250,7 +250,7 @@ describe('CSS Support', () => {
 
     describe('with lightningcss', () => {
       const useLightningcss = true
-      const { next } = nextTestSetup({
+      const { next, isTurbopack } = nextTestSetup({
         files: join(__dirname, 'fixtures', 'compilation-and-prefixing'),
         nextConfig: {
           ...cssFixturesNextConfigBase,
@@ -279,11 +279,11 @@ describe('CSS Support', () => {
           .replace(/\/\*.*?\*\/\n?/g, '')
           .trim()
 
-        if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+        if (isTurbopack && useLightningcss) {
           expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
             `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px, 0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
           )
-        } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+        } else if (isTurbopack && !useLightningcss) {
           expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
             `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px, 0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
           )
@@ -320,7 +320,7 @@ describe('CSS Support', () => {
         delete sourceMapContentParsed.file
         delete sourceMapContentParsed.sources
 
-        if (process.env.IS_TURBOPACK_TEST) {
+        if (isTurbopack) {
           // Turbopack always uses lightningcss
           expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                {
@@ -464,11 +464,11 @@ describe('CSS Support', () => {
             /media-query-test.jsx-[a-f0-9]{16}/g,
             'media-query-test.jsx-HASH'
           )
-        if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+        if (isTurbopack && useLightningcss) {
           expect(inlineCssContent).toMatchInlineSnapshot(
             `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
           )
-        } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+        } else if (isTurbopack && !useLightningcss) {
           expect(inlineCssContent).toMatchInlineSnapshot(
             `".media-query-test.jsx-HASH{color:#00f}@media (max-width:400px){.media-query-test.jsx-HASH{color:orange}}"`
           )
@@ -712,7 +712,7 @@ describe('CSS Support', () => {
   describe('Good Nested CSS Import from node_modules', () => {
     describe('without lightningcss', () => {
       const useLightningcss = false
-      const { next } = nextTestSetup({
+      const { next, isTurbopack } = nextTestSetup({
         files: join(__dirname, 'fixtures', 'npm-import-nested'),
         nextConfig: {
           ...cssFixturesNextConfigBase,
@@ -736,13 +736,13 @@ describe('CSS Support', () => {
           .replace(/\/\*.*?\*\/\n?/g, '')
           .trim()
 
-        if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+        if (isTurbopack && useLightningcss) {
           expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
                  ".other{color:#00f}
                  .test{color:red}"
                 `)
-        } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+        } else if (isTurbopack && !useLightningcss) {
           expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
                  ".other{color:#00f}
@@ -762,7 +762,7 @@ describe('CSS Support', () => {
 
     describe('with lightningcss', () => {
       const useLightningcss = true
-      const { next } = nextTestSetup({
+      const { next, isTurbopack } = nextTestSetup({
         files: join(__dirname, 'fixtures', 'npm-import-nested'),
         nextConfig: {
           ...cssFixturesNextConfigBase,
@@ -786,13 +786,13 @@ describe('CSS Support', () => {
           .replace(/\/\*.*?\*\/\n?/g, '')
           .trim()
 
-        if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+        if (isTurbopack && useLightningcss) {
           expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
                  ".other{color:#00f}
                  .test{color:red}"
                 `)
-        } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+        } else if (isTurbopack && !useLightningcss) {
           expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
             .toMatchInlineSnapshot(`
                  ".other{color:#00f}

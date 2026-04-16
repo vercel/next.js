@@ -3,7 +3,7 @@ import { join } from 'path'
 import { nextTestSetup, isNextStart, isNextDev } from 'e2e-utils'
 
 describe('externals-pages-bundle', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -19,7 +19,7 @@ describe('externals-pages-bundle', () => {
     })
 
     it('should have no externals with the config set', async () => {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         const ssrPath = join(next.testDir, '.next/server/chunks/ssr')
         const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
           p.match(/\.js$/)
@@ -39,7 +39,7 @@ describe('externals-pages-bundle', () => {
     })
 
     it('should respect the serverExternalPackages config', async () => {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         const ssrPath = join(next.testDir, '.next/server/chunks/ssr')
         const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
           p.match(/\.js$/)
@@ -72,7 +72,7 @@ describe('externals-pages-bundle', () => {
 
     it('should use externals for unvendored node_modules reachable from the project', async () => {
       await next.render('/')
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         const ssrPath = join(next.testDir, `${next.distDir}/server/chunks/ssr`)
         const pageBundleBasenames = (await fs.readdir(ssrPath)).filter((p) =>
           p.match(/\.js$/)

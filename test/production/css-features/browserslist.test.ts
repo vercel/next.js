@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('Browserslist: Old', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'browsers-old'),
   })
 
@@ -19,7 +19,7 @@ describe('Browserslist: Old', () => {
       .replace(/\/\*.*?\*\/\n?/g, '')
       .trim()
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
         `"a{all:initial}@media (-webkit-min-device-pixel-ratio:2),(min-resolution:2dppx){.image{background-image:url(data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==)}}"`
       )
@@ -32,7 +32,7 @@ describe('Browserslist: Old', () => {
 })
 
 describe('Browserslist: New', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'browsers-new'),
   })
 
@@ -49,7 +49,7 @@ describe('Browserslist: New', () => {
       .replace(/\/\*.*?\*\/\n?/g, '')
       .trim()
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
         `"a{all:initial}@media (min-resolution:2x){.image{background-image:url(data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==)}}"`
       )

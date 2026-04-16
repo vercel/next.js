@@ -5,7 +5,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('Basic CSS Module Support', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'basic-module'),
   })
 
@@ -18,7 +18,7 @@ describe('Basic CSS Module Support', () => {
 
     const cssContent = await next.fetch(stylesheet).then((res) => res.text())
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".index-module__VJHdSq__redText{color:red}"`)
@@ -44,7 +44,7 @@ describe('Basic CSS Module Support', () => {
       /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
     )
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
         `"index-module__VJHdSq__redText"`
       )
@@ -57,7 +57,7 @@ describe('Basic CSS Module Support', () => {
 })
 
 describe('3rd Party CSS Module Support', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', '3rd-party-module'),
   })
 
@@ -69,7 +69,7 @@ describe('3rd Party CSS Module Support', () => {
     const stylesheet = cssSheet.attr('href')!
 
     const cssContent = await next.fetch(stylesheet).then((res) => res.text())
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
@@ -99,7 +99,7 @@ describe('3rd Party CSS Module Support', () => {
       /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
     )
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
         `"index-module__jAE1EW__foo"`
       )
@@ -127,7 +127,7 @@ describe('Has CSS Module in computed styles in Production', () => {
 })
 
 describe('Valid CSS Module Usage from within node_modules', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'nm-module'),
   })
 
@@ -135,7 +135,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const $ = await next.render$('/')
 
     const cssPreload = $('#nm-div')
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(cssPreload.text()).toMatchInlineSnapshot(
         `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__kwuKnq__redText","default":{"redText":"index-module__kwuKnq__redText"}}"`
       )
@@ -155,7 +155,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
     const cssContent = await next.fetch(stylesheet).then((res) => res.text())
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".index-module__kwuKnq__redText{color:red}"`)
@@ -193,25 +193,17 @@ describe('Valid CSS Module Usage from within node_modules', () => {
 
       const cssContent = await next.fetch(stylesheet).then((res) => res.text())
 
-      if (process.env.IS_TURBOPACK_TEST) {
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
-        )
-      } else {
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:yellow}.example_subClass__m6Tyy{background:blue}"`
-        )
-      }
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:yellow}.example_subClass__m6Tyy{background:blue}"`
+      )
     })
   }
 )
 
 describe('CSS Module Composes Usage (Basic)', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'composes-basic'),
   })
 
@@ -224,7 +216,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
 
     const cssContent = await next.fetch(stylesheet).then((res) => res.text())
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
@@ -255,25 +247,17 @@ describe('CSS Module Composes Usage (Basic)', () => {
 
       const cssContent = await next.fetch(stylesheet).then((res) => res.text())
 
-      if (process.env.IS_TURBOPACK_TEST) {
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
-        )
-      } else {
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(
-          `".other_className__eZV4M{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
-        )
-      }
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(
+        `".other_className__eZV4M{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
+      )
     })
   }
 )
 
 describe('Dynamic Route CSS Module Usage', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'dynamic-route-module'),
   })
 
@@ -295,7 +279,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     const stylesheet = cssSheet.attr('href')!
 
     const cssContent = await next.fetch(stylesheet).then((res) => res.text())
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`".index-module__Iury9a__home{background:red}"`)
@@ -308,7 +292,7 @@ describe('Dynamic Route CSS Module Usage', () => {
 })
 
 describe('Catch-all Route CSS Module Usage', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'catch-all-module'),
   })
 
@@ -333,7 +317,7 @@ describe('Catch-all Route CSS Module Usage', () => {
 
     const cssContent = await next.fetch(stylesheet).then((res) => res.text())
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
         .toMatchInlineSnapshot(`
 ".index-module___rV4CG__home{background:red}

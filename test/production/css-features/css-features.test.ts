@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('Custom Properties: Pass-Through IE11', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'cp-ie-11'),
   })
 
@@ -17,7 +17,7 @@ describe('Custom Properties: Pass-Through IE11', () => {
       .replace(/\/\*.*?\*\//g, '')
       .trim()
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
@@ -30,7 +30,7 @@ describe('Custom Properties: Pass-Through IE11', () => {
 })
 
 describe('Custom Properties: Pass-Through Modern', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'cp-modern'),
   })
 
@@ -45,7 +45,7 @@ describe('Custom Properties: Pass-Through Modern', () => {
       .replace(/\/\*.*?\*\//g, '')
       .trim()
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
@@ -78,15 +78,9 @@ describe('Custom Properties: Pass-Through Modern', () => {
         .replace(/\/\*.*?\*\//g, '')
         .trim()
 
-      if (process.env.IS_TURBOPACK_TEST) {
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(`""`)
-      } else {
-        expect(
-          cssContent.replace(/\/\*.*?\*\//g, '').trim()
-        ).toMatchInlineSnapshot(`"*{box-sizing:border-box}"`)
-      }
+      expect(
+        cssContent.replace(/\/\*.*?\*\//g, '').trim()
+      ).toMatchInlineSnapshot(`"*{box-sizing:border-box}"`)
     })
   }
 )

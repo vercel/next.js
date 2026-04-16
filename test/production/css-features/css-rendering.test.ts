@@ -64,7 +64,7 @@ describe('CSS Support', () => {
 
   // https://github.com/vercel/next.js/issues/18557
   describe('CSS page transition inject <style> with nonce so it works with CSP header', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(fixturesDir, 'csp-style-src-nonce'),
     })
 
@@ -118,7 +118,7 @@ describe('CSS Support', () => {
     it('should have correct CSS injection order', async () => {
       const browser = await next.browser('/')
       // There's a better test for CSS order in test/e2e/app-dir/css-order, this test in particular should check the UI, not the implementation detail of the ordering.
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         await checkGreenTitle(browser)
 
         await browser.elementByCss('#link-other').click()
@@ -192,10 +192,10 @@ describe('CSS Support', () => {
   })
 
   // Turbopack keeps styles which mirrors development with webpack. This test only checks a behavior for webpack.
-  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-    'CSS Cleanup on Render Failure',
-    () => {
-      describe('experimental.useLightningcss: true', () => {
+  describe('CSS Cleanup on Render Failure', () => {
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+      'experimental.useLightningcss: true',
+      () => {
         const { next } = nextTestSetup({
           files: join(fixturesDir, 'transition-cleanup'),
           overrideFiles: {
@@ -234,9 +234,11 @@ describe('CSS Support', () => {
           )
           expect(allPageStyles).toBeFalsy()
         })
-      })
-
-      describe('experimental.useLightningcss: false', () => {
+      }
+    )
+    ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+      'experimental.useLightningcss: false',
+      () => {
         const { next } = nextTestSetup({
           files: join(fixturesDir, 'transition-cleanup'),
           overrideFiles: {
@@ -244,6 +246,7 @@ describe('CSS Support', () => {
           },
         })
 
+        // eslint-disable-next-line jest/no-identical-title
         it('not have intermediary page styles on error rendering', async () => {
           const browser = await next.browser('/')
           await browser.elementByCss('#black-title')
@@ -275,9 +278,9 @@ describe('CSS Support', () => {
           )
           expect(allPageStyles).toBeFalsy()
         })
-      })
-    }
-  )
+      }
+    )
+  })
 
   // TODO: Port by running build, starting the server, deleting emitted CSS from `.next`, then asserting client navigation — needs lifecycle beyond `nextTestSetup` (post-start filesystem mutation + no restart API).
   describe.skip('Page reload on CSS missing', () => {})

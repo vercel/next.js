@@ -2,38 +2,40 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
 describe('Root Catch-all Cache', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      const { next } = nextTestSetup({ files: __dirname })
+  describe('production mode', () => {
+    const { next, isNextStart } = nextTestSetup({ files: __dirname })
 
-      const getRandom = async (path: string) => {
-        const $ = await next.render$(path)
-        return $('#random').text()
-      }
-
-      it('should cache / correctly', async () => {
-        const random = await getRandom('/')
-
-        {
-          //cached response (revalidate is 2 seconds)
-          await waitFor(1000)
-          const newRandom = await getRandom('/')
-          expect(random).toBe(newRandom)
-        }
-        {
-          //stale response, triggers revalidate
-          await waitFor(1000)
-          const newRandom = await getRandom('/')
-          expect(random).toBe(newRandom)
-        }
-        {
-          //new response
-          await waitFor(100)
-          const newRandom = await getRandom('/')
-          expect(random).not.toBe(newRandom)
-        }
-      })
+    if (!isNextStart) {
+      it('skipped for non-start mode', () => {})
+      return
     }
-  )
+
+    const getRandom = async (path: string) => {
+      const $ = await next.render$(path)
+      return $('#random').text()
+    }
+
+    it('should cache / correctly', async () => {
+      const random = await getRandom('/')
+
+      {
+        //cached response (revalidate is 2 seconds)
+        await waitFor(1000)
+        const newRandom = await getRandom('/')
+        expect(random).toBe(newRandom)
+      }
+      {
+        //stale response, triggers revalidate
+        await waitFor(1000)
+        const newRandom = await getRandom('/')
+        expect(random).toBe(newRandom)
+      }
+      {
+        //new response
+        await waitFor(100)
+        const newRandom = await getRandom('/')
+        expect(random).not.toBe(newRandom)
+      }
+    })
+  })
 })

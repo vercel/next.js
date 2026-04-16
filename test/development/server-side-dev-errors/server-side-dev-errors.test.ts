@@ -2,10 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox, retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const isTurbopack = process.env.IS_TURBOPACK_TEST
-
 describe('server-side dev errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 

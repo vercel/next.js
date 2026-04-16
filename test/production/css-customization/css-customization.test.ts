@@ -5,65 +5,70 @@ import escapeStringRegexp from 'escape-string-regexp'
 
 const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
 
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'CSS Customization',
-  () => {
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'production mode',
-      () => {
-        describe('Basic CSS', () => {
-          const { next } = nextTestSetup({
-            files: path.join(__dirname, 'css-fixtures/custom-configuration'),
-            skipStart: true,
-          })
+describe('CSS Customization', () => {
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+    'production mode',
+    () => {
+      const { isNextStart } = nextTestSetup({
+        files: path.join(__dirname, 'css-fixtures/custom-configuration'),
+        skipStart: true,
+      })
 
-          beforeAll(async () => {
-            await next.build()
-          })
+      if (!isNextStart) {
+        it('skipped for non-start mode', () => {})
+        return
+      }
 
-          it('should compile successfully', () => {
-            expect(next.cliOutput).toMatch(/Compiled successfully/)
-          })
+      describe('Basic CSS', () => {
+        const { next } = nextTestSetup({
+          files: path.join(__dirname, 'css-fixtures/custom-configuration'),
+          skipStart: true,
+        })
 
-          it(`should've compiled and prefixed`, async () => {
-            const cssFolder = path.join(next.testDir, '.next/static/css')
+        beforeAll(async () => {
+          await next.build()
+        })
 
-            const files = await fs.readdir(cssFolder)
-            const cssFiles = files.filter((f: string) => /\.css$/.test(f))
+        it('should compile successfully', () => {
+          expect(next.cliOutput).toMatch(/Compiled successfully/)
+        })
 
-            expect(cssFiles.length).toBe(1)
-            const cssContent = await fs.readFile(
-              path.join(cssFolder, cssFiles[0]),
-              'utf8'
-            )
-            expect(
-              cssContent.replace(/\/\*.*?\*\//g, '').trim()
-            ).toMatchInlineSnapshot(
-              `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
-            )
+        it(`should've compiled and prefixed`, async () => {
+          const cssFolder = path.join(next.testDir, '.next/static/css')
 
-            expect(cssContent).toMatch(
-              /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
-            )
-          })
+          const files = await fs.readdir(cssFolder)
+          const cssFiles = files.filter((f: string) => /\.css$/.test(f))
 
-          it(`should've emitted a source map`, async () => {
-            const cssFolder = path.join(next.testDir, '.next/static/css')
+          expect(cssFiles.length).toBe(1)
+          const cssContent = await fs.readFile(
+            path.join(cssFolder, cssFiles[0]),
+            'utf8'
+          )
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `"@media (480px <= width < 768px){::placeholder{color:green}}.video{max-width:400px;max-height:300px}"`
+          )
 
-            const files = await fs.readdir(cssFolder)
-            const cssMapFiles = files.filter((f: string) =>
-              /\.css\.map$/.test(f)
-            )
+          expect(cssContent).toMatch(
+            /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
+          )
+        })
 
-            expect(cssMapFiles.length).toBe(1)
-            const cssMapContent = (
-              await fs.readFile(path.join(cssFolder, cssMapFiles[0]), 'utf8')
-            ).trim()
+        it(`should've emitted a source map`, async () => {
+          const cssFolder = path.join(next.testDir, '.next/static/css')
 
-            const { version, mappings, sourcesContent } =
-              JSON.parse(cssMapContent)
-            expect({ version, mappings, sourcesContent })
-              .toMatchInlineSnapshot(`
+          const files = await fs.readdir(cssFolder)
+          const cssMapFiles = files.filter((f: string) => /\.css\.map$/.test(f))
+
+          expect(cssMapFiles.length).toBe(1)
+          const cssMapContent = (
+            await fs.readFile(path.join(cssFolder, cssMapFiles[0]), 'utf8')
+          ).trim()
+
+          const { version, mappings, sourcesContent } =
+            JSON.parse(cssMapContent)
+          expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
 {
   "mappings": "AACA,gCACE,cACE,WACF,CACF,CAGA,OACE,eAA0B,CAA1B,gBACF",
   "sourcesContent": [
@@ -83,65 +88,59 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
   "version": 3,
 }
 `)
-          })
+        })
+      })
+
+      describe('Correct CSS Customization Array', () => {
+        const { next } = nextTestSetup({
+          files: path.join(__dirname, 'css-fixtures/custom-configuration-arr'),
+          skipStart: true,
         })
 
-        describe('Correct CSS Customization Array', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/custom-configuration-arr'
-            ),
-            skipStart: true,
-          })
+        beforeAll(async () => {
+          await next.build()
+        })
 
-          beforeAll(async () => {
-            await next.build()
-          })
+        it('should compile successfully', () => {
+          expect(next.cliOutput).toMatch(/Compiled successfully/)
+        })
 
-          it('should compile successfully', () => {
-            expect(next.cliOutput).toMatch(/Compiled successfully/)
-          })
+        it(`should've compiled and prefixed`, async () => {
+          const cssFolder = path.join(next.testDir, '.next/static/css')
 
-          it(`should've compiled and prefixed`, async () => {
-            const cssFolder = path.join(next.testDir, '.next/static/css')
+          const files = await fs.readdir(cssFolder)
+          const cssFiles = files.filter((f: string) => /\.css$/.test(f))
 
-            const files = await fs.readdir(cssFolder)
-            const cssFiles = files.filter((f: string) => /\.css$/.test(f))
+          expect(cssFiles.length).toBe(1)
+          const cssContent = await fs.readFile(
+            path.join(cssFolder, cssFiles[0]),
+            'utf8'
+          )
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(
+            `"@media (480px <= width < 768px){a:before{content:""}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
+          )
 
-            expect(cssFiles.length).toBe(1)
-            const cssContent = await fs.readFile(
-              path.join(cssFolder, cssFiles[0]),
-              'utf8'
-            )
-            expect(
-              cssContent.replace(/\/\*.*?\*\//g, '').trim()
-            ).toMatchInlineSnapshot(
-              `"@media (480px <= width < 768px){a:before{content:""}::placeholder{color:green}}.video{max-width:6400px;max-height:4800px;max-width:400rem;max-height:300rem}"`
-            )
+          expect(cssContent).toMatch(
+            /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
+          )
+        })
 
-            expect(cssContent).toMatch(
-              /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
-            )
-          })
+        it(`should've emitted a source map`, async () => {
+          const cssFolder = path.join(next.testDir, '.next/static/css')
 
-          it(`should've emitted a source map`, async () => {
-            const cssFolder = path.join(next.testDir, '.next/static/css')
+          const files = await fs.readdir(cssFolder)
+          const cssMapFiles = files.filter((f: string) => /\.css\.map$/.test(f))
 
-            const files = await fs.readdir(cssFolder)
-            const cssMapFiles = files.filter((f: string) =>
-              /\.css\.map$/.test(f)
-            )
+          expect(cssMapFiles.length).toBe(1)
+          const cssMapContent = (
+            await fs.readFile(path.join(cssFolder, cssMapFiles[0]), 'utf8')
+          ).trim()
 
-            expect(cssMapFiles.length).toBe(1)
-            const cssMapContent = (
-              await fs.readFile(path.join(cssFolder, cssMapFiles[0]), 'utf8')
-            ).trim()
-
-            const { version, mappings, sourcesContent } =
-              JSON.parse(cssMapContent)
-            expect({ version, mappings, sourcesContent })
-              .toMatchInlineSnapshot(`
+          const { version, mappings, sourcesContent } =
+            JSON.parse(cssMapContent)
+          expect({ version, mappings, sourcesContent }).toMatchInlineSnapshot(`
 {
   "mappings": "AACA,gCACE,SACE,UACF,CACA,cACE,WACF,CACF,CAGA,OACE,gBAA4B,CAA5B,iBAA4B,CAA5B,gBAA4B,CAA5B,iBACF",
   "sourcesContent": [
@@ -164,288 +163,280 @@ const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
   "version": 3,
 }
 `)
+        })
+      })
+
+      describe('Correct CSS Customization custom loader', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/custom-configuration-loader'
+          ),
+          skipStart: true,
+        })
+
+        beforeAll(async () => {
+          await next.build()
+        })
+
+        it('should compile successfully', () => {
+          expect(next.cliOutput).toMatch(
+            /Built-in CSS support is being disabled/
+          )
+          expect(next.cliOutput).toMatch(/Compiled successfully/)
+        })
+
+        it(`should've applied style`, async () => {
+          const pagesFolder = path.join(
+            next.testDir,
+            '.next/static/chunks/pages'
+          )
+
+          const files = await fs.readdir(pagesFolder)
+          const indexFiles = files.filter((f: string) =>
+            /^index.+\.js$/.test(f)
+          )
+
+          expect(indexFiles.length).toBe(1)
+          const indexContent = await fs.readFile(
+            path.join(pagesFolder, indexFiles[0]),
+            'utf8'
+          )
+          expect(indexContent).toMatch(/\.my-text\.jsx-[0-9a-z]+{color:red}/)
+        })
+      })
+
+      describe('Bad CSS Customization', () => {
+        const { next } = nextTestSetup({
+          files: path.join(__dirname, 'css-fixtures/bad-custom-configuration'),
+          skipStart: true,
+        })
+
+        beforeAll(async () => {
+          await next.build()
+        })
+
+        it('should compile successfully', () => {
+          expect(next.cliOutput).toMatch(/Compiled successfully/)
+          expect(next.cliOutput).toMatch(
+            /field which is not supported.*?sourceMap/
+          )
+          ;[
+            'postcss-modules-values',
+            'postcss-modules-scope',
+            'postcss-modules-extract-imports',
+            'postcss-modules-local-by-default',
+            'postcss-modules',
+          ].forEach((plugin) => {
+            expect(next.cliOutput).toMatch(
+              new RegExp(`Please remove the.*?${escapeStringRegexp(plugin)}`)
+            )
           })
         })
 
-        describe('Correct CSS Customization custom loader', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/custom-configuration-loader'
-            ),
-            skipStart: true,
-          })
+        it(`should've compiled and prefixed`, async () => {
+          const cssFolder = path.join(next.testDir, '.next/static/css')
 
-          beforeAll(async () => {
-            await next.build()
-          })
+          const files = await fs.readdir(cssFolder)
+          const cssFiles = files.filter((f: string) => /\.css$/.test(f))
 
-          it('should compile successfully', () => {
-            expect(next.cliOutput).toMatch(
-              /Built-in CSS support is being disabled/
-            )
-            expect(next.cliOutput).toMatch(/Compiled successfully/)
-          })
+          expect(cssFiles.length).toBe(1)
+          const cssContent = await fs.readFile(
+            path.join(cssFolder, cssFiles[0]),
+            'utf8'
+          )
+          expect(
+            cssContent.replace(/\/\*.*?\*\//g, '').trim()
+          ).toMatchInlineSnapshot(`".video{max-width:400px;max-height:300px}"`)
 
-          it(`should've applied style`, async () => {
-            const pagesFolder = path.join(
-              next.testDir,
-              '.next/static/chunks/pages'
-            )
-
-            const files = await fs.readdir(pagesFolder)
-            const indexFiles = files.filter((f: string) =>
-              /^index.+\.js$/.test(f)
-            )
-
-            expect(indexFiles.length).toBe(1)
-            const indexContent = await fs.readFile(
-              path.join(pagesFolder, indexFiles[0]),
-              'utf8'
-            )
-            expect(indexContent).toMatch(/\.my-text\.jsx-[0-9a-z]+{color:red}/)
-          })
+          expect(cssContent).toMatch(
+            /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
+          )
         })
 
-        describe('Bad CSS Customization', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration'
-            ),
-            skipStart: true,
-          })
+        it(`should've emitted a source map`, async () => {
+          const cssFolder = path.join(next.testDir, '.next/static/css')
 
-          beforeAll(async () => {
-            await next.build()
-          })
+          const files = await fs.readdir(cssFolder)
+          const cssMapFiles = files.filter((f: string) => /\.css\.map$/.test(f))
 
-          it('should compile successfully', () => {
-            expect(next.cliOutput).toMatch(/Compiled successfully/)
-            expect(next.cliOutput).toMatch(
-              /field which is not supported.*?sourceMap/
-            )
-            ;[
-              'postcss-modules-values',
-              'postcss-modules-scope',
-              'postcss-modules-extract-imports',
-              'postcss-modules-local-by-default',
-              'postcss-modules',
-            ].forEach((plugin) => {
-              expect(next.cliOutput).toMatch(
-                new RegExp(`Please remove the.*?${escapeStringRegexp(plugin)}`)
-              )
-            })
-          })
+          expect(cssMapFiles.length).toBe(1)
+        })
+      })
 
-          it(`should've compiled and prefixed`, async () => {
-            const cssFolder = path.join(next.testDir, '.next/static/css')
-
-            const files = await fs.readdir(cssFolder)
-            const cssFiles = files.filter((f: string) => /\.css$/.test(f))
-
-            expect(cssFiles.length).toBe(1)
-            const cssContent = await fs.readFile(
-              path.join(cssFolder, cssFiles[0]),
-              'utf8'
-            )
-            expect(
-              cssContent.replace(/\/\*.*?\*\//g, '').trim()
-            ).toMatchInlineSnapshot(
-              `".video{max-width:400px;max-height:300px}"`
-            )
-
-            expect(cssContent).toMatch(
-              /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//
-            )
-          })
-
-          it(`should've emitted a source map`, async () => {
-            const cssFolder = path.join(next.testDir, '.next/static/css')
-
-            const files = await fs.readdir(cssFolder)
-            const cssMapFiles = files.filter((f: string) =>
-              /\.css\.map$/.test(f)
-            )
-
-            expect(cssMapFiles.length).toBe(1)
-          })
+      describe('Bad CSS Customization Array (1)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-1'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (1)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-1'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Array (2)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-2'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (2)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-2'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /Error: Your PostCSS configuration for 'postcss-trolling' cannot have null configuration./
+          )
+          expect(next.cliOutput).toMatch(
+            /To disable 'postcss-trolling', pass false, otherwise, pass true or a configuration object./
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /Error: Your PostCSS configuration for 'postcss-trolling' cannot have null configuration./
-            )
-            expect(next.cliOutput).toMatch(
-              /To disable 'postcss-trolling', pass false, otherwise, pass true or a configuration object./
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Array (3)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-3'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (3)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-3'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /A PostCSS Plugin must be provided as a string. Instead, we got: '5'/
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /A PostCSS Plugin must be provided as a string. Instead, we got: '5'/
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Array (4)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-4'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (4)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-4'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /An unknown PostCSS plugin was provided \(5\)/
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /An unknown PostCSS plugin was provided \(5\)/
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Array (5)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-5'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (5)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-5'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /Your custom PostCSS configuration must export a `plugins` key./
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /Your custom PostCSS configuration must export a `plugins` key./
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Array (6)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-6'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (6)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-6'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /Your custom PostCSS configuration must export a `plugins` key./
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /Your custom PostCSS configuration must export a `plugins` key./
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Array (7)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-7'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (7)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-7'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /A PostCSS Plugin was passed as an array but did not provide its configuration \('postcss-trolling'\)/
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Array (8)', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-arr-8'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Array (8)', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-arr-8'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
+          expect(next.cliOutput).toMatch(
+            /A PostCSS Plugin was passed as a function using require\(\), but it must be provided as a string/
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
+        })
+      })
 
-            expect(next.cliOutput).toMatch(
-              /A PostCSS Plugin was passed as a function using require\(\), but it must be provided as a string/
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+      describe('Bad CSS Customization Function', () => {
+        const { next } = nextTestSetup({
+          files: path.join(
+            __dirname,
+            'css-fixtures/bad-custom-configuration-func'
+          ),
+          skipStart: true,
         })
 
-        describe('Bad CSS Customization Function', () => {
-          const { next } = nextTestSetup({
-            files: path.join(
-              __dirname,
-              'css-fixtures/bad-custom-configuration-func'
-            ),
-            skipStart: true,
-          })
+        it('should fail the build', async () => {
+          await next.build()
 
-          it('should fail the build', async () => {
-            await next.build()
-
-            expect(next.cliOutput).toMatch(
-              /Your custom PostCSS configuration may not export a function/
-            )
-            expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
-          })
+          expect(next.cliOutput).toMatch(
+            /Your custom PostCSS configuration may not export a function/
+          )
+          expect(next.cliOutput).toMatch(BUILD_FAILURE_RE)
         })
-      }
-    )
-  }
-)
+      })
+    }
+  )
+})

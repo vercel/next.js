@@ -2,12 +2,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('GSP build errors', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
 
-  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+  ;(isTurbopack ? it.skip : it)(
     'should fail build from module not found',
     async () => {
       await next.patchFile(

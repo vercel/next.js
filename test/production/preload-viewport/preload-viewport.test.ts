@@ -12,7 +12,7 @@ import webdriver from 'next-webdriver'
 import { join } from 'path'
 
 describe('Prefetching Links in viewport', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -416,7 +416,7 @@ describe('Prefetching Links in viewport', () => {
       )
     })
   })
-  ;(process.env.IS_TURBOPACK_TEST ? it.skip : it)(
+  ;(isTurbopack ? it.skip : it)(
     'should not prefetch already loaded scripts',
     async () => {
       const browser = await webdriver(proxyPort, '/')

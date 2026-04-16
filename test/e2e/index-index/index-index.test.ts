@@ -3,7 +3,7 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('nested index.js', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -33,7 +33,7 @@ describe('nested index.js', () => {
   })
 
   // pages named "index" are never hydrated in Webpack during development
-  ;(isNextDev && !process.env.IS_TURBOPACK_TEST ? it.failing : it)(
+  ;(isNextDev && !isTurbopack ? it.failing : it)(
     'should client render page /index',
     async () => {
       const browser = await next.browser('/index')
@@ -57,7 +57,7 @@ describe('nested index.js', () => {
   })
 
   // pages named "index" are never hydrated in Webpack during development
-  ;(isNextDev && !process.env.IS_TURBOPACK_TEST ? it.failing : it)(
+  ;(isNextDev && !isTurbopack ? it.failing : it)(
     'should client render page /index/user',
     async () => {
       const browser = await next.browser('/index/user')
@@ -81,7 +81,7 @@ describe('nested index.js', () => {
   })
 
   // pages named "index" are never hydrated in Webpack during development
-  ;(isNextDev && !process.env.IS_TURBOPACK_TEST ? it.failing : it)(
+  ;(isNextDev && !isTurbopack ? it.failing : it)(
     'should client render page /index/project',
     async () => {
       const browser = await next.browser('/index/project')
@@ -105,7 +105,7 @@ describe('nested index.js', () => {
   })
 
   // pages named "index" are never hydrated in Webpack during development
-  ;(isNextDev && !process.env.IS_TURBOPACK_TEST ? it.failing : it)(
+  ;(isNextDev && !isTurbopack ? it.failing : it)(
     'should client render page /index/index',
     async () => {
       const browser = await next.browser('/index/index')

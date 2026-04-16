@@ -2,7 +2,7 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -25,7 +25,7 @@ describe('Build Error Tests', () => {
         expect(stderr).toContain(
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
-        if (process.env.IS_TURBOPACK_TEST) {
+        if (isTurbopack) {
           expect(stderr).toContain('/pages/static-img.js')
         } else {
           expect(stderr).toContain('./pages/static-img.js')
@@ -37,7 +37,7 @@ describe('Build Error Tests', () => {
 })
 
 describe('Static Image Component Tests for basePath', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -154,7 +154,7 @@ describe('Static Image Component Tests for basePath', () => {
   it('should add a blur placeholder a statically imported jpg', async () => {
     const style = $('#basic-static').attr('style')
     if (isNextDev) {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -164,7 +164,7 @@ describe('Static Image Component Tests for basePath', () => {
         )
       }
     } else {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -179,7 +179,7 @@ describe('Static Image Component Tests for basePath', () => {
   it('should add a blur placeholder a statically imported png', async () => {
     const style = $('#blur-png').attr('style')
     if (isNextDev) {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -189,7 +189,7 @@ describe('Static Image Component Tests for basePath', () => {
         )
       }
     } else {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )

@@ -7,10 +7,10 @@ import { retry } from 'next-test-utils'
 import path from 'path'
 
 // https://github.com/vercel/next.js/issues/12343
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'Basic CSS Modules Ordering',
-  () => {
-    describe('useLightningcss(true)', () => {
+describe('Basic CSS Modules Ordering', () => {
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+    'useLightningcss(true)',
+    () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixtures', 'next-issue-12343'),
         nextConfig: {
@@ -75,9 +75,11 @@ import path from 'path'
           await browser.close()
         }
       })
-    })
-
-    describe('useLightningcss(false)', () => {
+    }
+  )
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+    'useLightningcss(false)',
+    () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixtures', 'next-issue-12343'),
         nextConfig: {
@@ -142,9 +144,9 @@ import path from 'path'
           await browser.close()
         }
       })
-    })
-  }
-)
+    }
+  )
+})
 
 describe('Ordering with Global CSS and Modules', () => {
   describe('useLightningcss(true)', () => {
@@ -326,10 +328,10 @@ describe('Ordering with Global CSS and Modules', () => {
 
 // https://github.com/vercel/next.js/issues/12445
 // This feature is not supported in Turbopack
-;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-  'CSS Modules Composes Ordering',
-  () => {
-    describe('useLightningcss(true)', () => {
+describe('CSS Modules Composes Ordering', () => {
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+    'useLightningcss(true)',
+    () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixtures', 'composes-ordering'),
         nextConfig: {
@@ -484,9 +486,11 @@ describe('Ordering with Global CSS and Modules', () => {
           await browser.close()
         }
       })
-    })
-
-    describe('useLightningcss(false)', () => {
+    }
+  )
+  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
+    'useLightningcss(false)',
+    () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixtures', 'composes-ordering'),
         nextConfig: {
@@ -641,6 +645,6 @@ describe('Ordering with Global CSS and Modules', () => {
           await browser.close()
         }
       })
-    })
-  }
-)
+    }
+  )
+})

@@ -1,7 +1,7 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
 describe('Legacy Image Component assetPrefix Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -12,7 +12,7 @@ describe('Legacy Image Component assetPrefix Tests', () => {
     const bgImage = await browser.eval(
       `document.getElementById('${id}').style['background-image']`
     )
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(bgImage).toContain('data:image/jpeg;')
     } else {
       expect(bgImage).toMatch(

@@ -2,7 +2,7 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -25,7 +25,7 @@ describe('Build Error Tests', () => {
         expect(stderr).toContain(
           "Module not found: Can't resolve '../../public/foo/test-rect-broken.jpg"
         )
-        if (process.env.IS_TURBOPACK_TEST) {
+        if (isTurbopack) {
           expect(stderr).toContain('app/static-img/page.js')
         } else {
           expect(stderr).toContain('./app/static-img/page.js')
@@ -37,7 +37,7 @@ describe('Build Error Tests', () => {
 })
 
 describe('Static Image Component Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -160,7 +160,7 @@ describe('Static Image Component Tests', () => {
   it('should add a blur placeholder a statically imported jpg', async () => {
     const style = $('#basic-static').attr('style')
     if (isNextDev) {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -170,7 +170,7 @@ describe('Static Image Component Tests', () => {
         )
       }
     } else {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -185,7 +185,7 @@ describe('Static Image Component Tests', () => {
   it('should add a blur placeholder a statically imported png', async () => {
     const style = $('#blur-png').attr('style')
     if (isNextDev) {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -195,7 +195,7 @@ describe('Static Image Component Tests', () => {
         )
       }
     } else {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -210,7 +210,7 @@ describe('Static Image Component Tests', () => {
   it('should add a blur placeholder a statically imported png with fill', async () => {
     const style = $('#blur-png-fill').attr('style')
     if (isNextDev) {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )
@@ -220,7 +220,7 @@ describe('Static Image Component Tests', () => {
         )
       }
     } else {
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         expect(style).toContain(
           `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:cover;background-position:50% 50%;background-repeat:no-repeat;background-image:url("data:image/svg+xml`
         )

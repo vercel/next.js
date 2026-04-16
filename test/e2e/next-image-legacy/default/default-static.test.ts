@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
@@ -20,7 +20,7 @@ describe('Build Error Tests', () => {
         expect(stderr).toContain(
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
-        if (process.env.IS_TURBOPACK_TEST) {
+        if (isTurbopack) {
           expect(stderr).toContain('pages/static-img.js')
         } else {
           expect(stderr).toContain('./pages/static-img.js')
@@ -32,7 +32,7 @@ describe('Build Error Tests', () => {
 })
 
 describe('Static Image Component Tests', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -96,7 +96,7 @@ describe('Static Image Component Tests', () => {
 
   it('Should add a blur placeholder to statically imported jpg', async () => {
     const $ = cheerio.load(html)
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         replaceDataUrl($('#basic-static').attr('style'))
       ).toMatchInlineSnapshot(
@@ -113,7 +113,7 @@ describe('Static Image Component Tests', () => {
 
   it('Should add a blur placeholder to statically imported png', async () => {
     const $ = cheerio.load(html)
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAICAYAAAA870V8AAAARUlEQVR42l3MoQ0AQQhE0XG7xWwIJSBIKBRJOZRBEXOWnPjimQ8AXC3ce+nuPOcQEcHuppkRVcWZYWYSIkJV5XvvN9j4AFZHJTnjDHb/AAAAAElFTkSuQmCC")"`
       )

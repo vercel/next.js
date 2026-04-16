@@ -132,7 +132,7 @@ describe.each([
     }
 
     if (isNextStart) {
-      const { next } = nextTestSetup({
+      const { next, isTurbopack } = nextTestSetup({
         files: __dirname,
         skipStart: true,
       })
@@ -140,7 +140,7 @@ describe.each([
       it('should have middleware warning during build', async () => {
         const { cliOutput } = await next.build()
 
-        if (process.env.IS_TURBOPACK_TEST) {
+        if (isTurbopack) {
           expect(cliOutput).toContain(`Ecmascript file had an error`)
         } else {
           expect(cliOutput).toContain(`Failed to compile`)
