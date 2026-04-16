@@ -25,18 +25,27 @@ overrides:
 packageExtensionsChecksum: sha256-ylDR55omOZlT4Sfpfh6n7mO2r/cLCmlirAikJ/E/LAw=
 
 patchedDependencies:
+  '@modelcontextprotocol/sdk':
+    hash: 680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12
+    path: patches/@modelcontextprotocol__sdk.patch
   '@rspack/core@1.6.7':
     hash: 4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d
     path: patches/@rspack__core@1.6.7.patch
   '@types/node@20.17.6':
     hash: 9c31d25336aea4076b3cb942c35e59fd160c540947f01ea455a060367153f9fd
     path: patches/@types__node@20.17.6.patch
+  '@vercel/blob':
+    hash: cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893
+    path: patches/@vercel__blob.patch
   http-proxy@1.18.1:
     hash: 3aac1c597fabd03f9fb4e3fd6e689b87012758d4fed06f296541f9dc3b8d7b39
     path: patches/http-proxy@1.18.1.patch
   minizlib@3.1.0:
     hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
     path: patches/minizlib@3.1.0.patch
+  postcss-scss:
+    hash: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
+    path: patches/postcss-scss.patch
   stacktrace-parser@0.1.10:
     hash: 5e07adcb70fa52f969ea76c939668fd09762774a60ec849622e44e5362354dd5
     path: patches/stacktrace-parser@0.1.10.patch
@@ -1213,7 +1222,7 @@ importers:
         version: 29.5.0
       '@modelcontextprotocol/sdk':
         specifier: 1.18.1
-        version: 1.18.1
+        version: 1.18.1(patch_hash=680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12)
       '@mswjs/interceptors':
         specifier: 0.23.0
         version: 0.23.0
@@ -1384,7 +1393,7 @@ importers:
         version: 8.2.0
       '@vercel/blob':
         specifier: 2.3.2
-        version: 2.3.2
+        version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
       '@vercel/ncc':
         specifier: 0.34.0
         version: 0.34.0
@@ -1639,7 +1648,7 @@ importers:
         version: 6.0.0(postcss@8.4.31)
       postcss-scss:
         specifier: 4.0.3
-        version: 4.0.3(postcss@8.4.31)
+        version: 4.0.3(patch_hash=88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093)(postcss@8.4.31)
       postcss-value-parser:
         specifier: 4.2.0
         version: 4.2.0
@@ -21638,7 +21647,7 @@ snapshots:
       '@types/react': 19.2.10
       react: 19.3.0-canary-fef12a01-20260413
 
-  '@modelcontextprotocol/sdk@1.18.1':
+  '@modelcontextprotocol/sdk@1.18.1(patch_hash=680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12)':
     dependencies:
       ajv: 6.12.6
       content-type: 1.0.5
@@ -24690,7 +24699,7 @@ snapshots:
       - react-native-b4a
       - supports-color
 
-  '@vercel/blob@2.3.2':
+  '@vercel/blob@2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)':
     dependencies:
       async-retry: 1.3.3
       is-buffer: 2.0.5
@@ -35495,7 +35504,7 @@ snapshots:
     dependencies:
       postcss: 8.4.31
 
-  postcss-scss@4.0.3(postcss@8.4.31):
+  postcss-scss@4.0.3(patch_hash=88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093)(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
 

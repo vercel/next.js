@@ -1,9 +1,8 @@
 {
   "compilerOptions": {
     "target": "ES2018",
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "ignoreDeprecations": "6.0",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "strict": true,
     "importHelpers": false,
     "noEmitHelpers": false,
