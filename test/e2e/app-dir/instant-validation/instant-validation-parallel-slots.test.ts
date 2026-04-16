@@ -156,6 +156,9 @@ describe('instant validation - parallel slot configs', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/slot-config-only".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/slot-config-only" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -213,6 +216,9 @@ describe('instant validation - parallel slot configs', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/slot-layout-config".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/slot-layout-config" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -270,6 +276,9 @@ describe('instant validation - parallel slot configs', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/slot-runtime-config".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/slot-runtime-config" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -330,6 +339,9 @@ describe('instant validation - parallel slot configs', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/children-config-with-slot".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/children-config-with-slot" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -427,6 +439,9 @@ describe('instant validation - parallel slot configs', () => {
                at html (<anonymous>)
                at b (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/fork-layout-config-with-slot".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/fork-layout-config-with-slot" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -552,6 +567,9 @@ describe('instant validation - parallel slot configs', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/conditional-breadcrumbs/show-both/blocked" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -583,6 +601,9 @@ describe('instant validation - parallel slot configs', () => {
            "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/unblocked" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -614,6 +635,9 @@ describe('instant validation - parallel slot configs', () => {
            "Error: Route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/parallel/conditional-breadcrumbs/show-only-breadcrumbs/blocked" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)

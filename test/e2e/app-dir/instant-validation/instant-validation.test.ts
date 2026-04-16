@@ -212,6 +212,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-runtime".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-runtime" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -270,6 +273,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-dynamic".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-dynamic" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -331,6 +337,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/missing-suspense-around-dynamic".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/missing-suspense-around-dynamic" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -388,6 +397,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-dynamic-layout".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-dynamic-layout" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -446,6 +458,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/missing-suspense-around-dynamic-layout" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -554,6 +569,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-around-search-params".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-around-search-params" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -649,6 +667,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/suspense-too-high".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/suspense-too-high" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -711,6 +732,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/suspense-too-high".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/suspense-too-high" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -762,6 +786,9 @@ describe('instant validation', () => {
            13 |     <main>
            14 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -826,6 +853,9 @@ describe('instant validation', () => {
            17 |     <main>
            18 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -880,6 +910,9 @@ describe('instant validation', () => {
            digest: 'INSTANT_VALIDATION_ERROR'
          }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -952,6 +985,9 @@ describe('instant validation', () => {
            14 |     title: \`Sync IO in metadata: \${now}\`,
            15 |   }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -1034,6 +1070,9 @@ describe('instant validation', () => {
            13 |     title: \`Layout metadata with sync IO: \${now}\`,
            14 |   }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-in-layout-generate-metadata" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -1133,6 +1172,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at b (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/invalid-loading-above-route-group".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-loading-above-route-group" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -1193,6 +1235,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/static/invalid-dynamic-layout-with-loading".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-dynamic-layout-with-loading" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -1265,6 +1310,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1351,6 +1399,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-blocking-inside-static".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-blocking-inside-static" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1410,6 +1461,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-blocking-inside-runtime".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-blocking-inside-runtime" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1472,6 +1526,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-in-parallel-route" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1531,6 +1588,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route/foo".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-in-parallel-route/foo" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1589,6 +1649,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/missing-suspense-in-parallel-route/bar".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/missing-suspense-in-parallel-route/bar" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1652,6 +1715,9 @@ describe('instant validation', () => {
              8 |   const promise = dataCache.getOrLoad('my-key', async () => {
              9 |     await new Promise<void>((resolve) => setTimeout(resolve, 10))
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-client-data-blocks-validation".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-client-data-blocks-validation" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1837,6 +1903,9 @@ describe('instant validation', () => {
                8 | }
            }
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-client-error-in-parent-blocks-children" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1921,6 +1990,9 @@ describe('instant validation', () => {
                  at ignore-listed frames
            }
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-error-in-node-modules-blocks-children" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -1989,6 +2061,9 @@ describe('instant validation', () => {
              }
            }
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-csr-bailout-blocks-children".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-csr-bailout-blocks-children" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2095,6 +2170,9 @@ describe('instant validation', () => {
                8 | }
            }
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-client-error-in-parent-sibling".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/invalid-client-error-in-parent-sibling" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2226,6 +2304,9 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-runtime-viewport-in-static".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-runtime-viewport-in-static" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2286,6 +2367,9 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2384,6 +2468,9 @@ describe('instant validation', () => {
            "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
            Build-time instant validation failed for route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2444,6 +2531,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-only".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-config-only" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2503,6 +2593,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-and-segment-config".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-config-and-segment-config" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2562,6 +2655,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-segment-config-only".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-segment-config-only" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2621,6 +2717,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-config-with-deeper-segment/inner".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-config-with-deeper-segment/inner" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2680,6 +2779,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-deeper-segment-config/inner".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-deeper-segment-config/inner" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2746,6 +2848,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at b (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/route-group-shared-boundary".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/route-group-shared-boundary" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2819,6 +2924,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/parallel-group-depths-deep-slot-hole".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/parallel-group-depths-deep-slot-hole" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2885,6 +2993,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/parallel-group-depths-shallow-slot-hole" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -2952,6 +3063,9 @@ describe('instant validation', () => {
              at html (<anonymous>)
              at a (<anonymous>)
          Build-time instant validation failed for route "/suspense-in-root/runtime/static-layout-above-runtime-config/inner".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/static-layout-above-runtime-config/inner" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -3070,6 +3184,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/config-depth-preference-slot-wins/deeper/[...rest]" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -3131,6 +3248,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/static/config-children-preferred".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/static/config-children-preferred" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
@@ -3258,6 +3378,9 @@ describe('instant validation', () => {
                at html (<anonymous>)
                at a (<anonymous>)
            Build-time instant validation failed for route "/suspense-in-root/disable-validation/disable-dev".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/disable-validation/disable-dev" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Stopping prerender due to instant validation errors."
           `)
           expect(result.exitCode).toBe(1)
