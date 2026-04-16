@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_rcstr::{RcStr, RcStrInterning};
 use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 
 use super::TraceFormat;
@@ -137,18 +138,20 @@ pub struct TurbopackFormat {
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
+    interner: RcStrInterning,
 }
 
 impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
         Self {
             store,
-            id_mapping: FxHashMap::default(),
+            id_mapping: FxHashMap::with_capacity_and_hasher(131072, Default::default()),
             queued_rows: FxHashMap::default(),
-            outdated_spans: FxHashSet::default(),
+            outdated_spans: FxHashSet::with_capacity_and_hasher(8192, Default::default()),
             thread_stacks: FxHashMap::default(),
             thread_allocation_counters: FxHashMap::default(),
             self_time_started: FxHashMap::default(),
+            interner: RcStrInterning::new(),
         }
     }
 
@@ -356,8 +359,9 @@ impl TurbopackFormat {
     }
 
     fn process_internal_row(&mut self, store: &mut StoreWriteGuard, row: InternalRow<'_>) {
+        // Fast path: most rows are processed without queuing additional work.
         let mut queue = Vec::new();
-        queue.push(row);
+        self.process_internal_row_queue(store, row, &mut queue);
         while !queue.is_empty() {
             let q = take(&mut queue);
             for row in q {
@@ -397,11 +401,11 @@ impl TurbopackFormat {
                 let span_id = store.add_span(
                     id,
                     ts,
-                    target.into_owned(),
-                    name.into_owned(),
+                    self.interner.intern_cow(target),
+                    self.interner.intern_cow(name),
                     values
                         .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .map(|(k, v)| (self.interner.intern(k), self.interner.intern_display(v)))
                         .collect(),
                     &mut self.outdated_spans,
                 );
@@ -417,7 +421,7 @@ impl TurbopackFormat {
                     id.unwrap(),
                     values
                         .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .map(|(k, v)| (self.interner.intern(k), self.interner.intern_display(v)))
                         .collect(),
                     &mut self.outdated_spans,
                 );
@@ -438,17 +442,17 @@ impl TurbopackFormat {
                 );
                 let name = values
                     .swap_remove("name")
-                    .and_then(|v| v.as_str().map(|s| s.to_string()))
-                    .unwrap_or("event".into());
+                    .and_then(|v| v.as_str().map(|s| self.interner.intern(s)))
+                    .unwrap_or_else(|| RcStr::from("event"));
 
                 let id = store.add_span(
                     id,
                     ts.saturating_sub(duration),
-                    "event".into(),
+                    RcStr::from("event"),
                     name,
                     values
                         .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .map(|(k, v)| (self.interner.intern(k), self.interner.intern_display(v)))
                         .collect(),
                     &mut self.outdated_spans,
                 );
@@ -488,6 +492,10 @@ impl TurbopackFormat {
 
 impl TraceFormat for TurbopackFormat {
     type Reused = Vec<TraceRow<'static>>;
+
+    fn stats(&self) -> String {
+        format!("{} spans", self.id_mapping.len())
+    }
 
     fn read(&mut self, mut buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize> {
         reuse.clear();

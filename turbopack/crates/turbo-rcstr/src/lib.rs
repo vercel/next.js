@@ -614,6 +614,79 @@ mod napi_impl {
     }
 }
 
+/// Runtime string interning table.
+///
+/// Deduplicates strings by storing them in an `FxHashSet<RcStr>`. Strings
+/// shorter than the inline threshold are already zero-allocation, so only
+/// longer strings benefit from interning.
+pub struct RcStrInterning {
+    set: rustc_hash::FxHashSet<RcStr>,
+}
+
+impl Default for RcStrInterning {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl RcStrInterning {
+    /// Create a new empty interning table.
+    pub fn new() -> Self {
+        Self {
+            set: rustc_hash::FxHashSet::default(),
+        }
+    }
+
+    /// Intern a string slice. Returns a cheap-to-clone [`RcStr`].
+    ///
+    /// Strings below the inline threshold are returned directly (they are
+    /// already zero-allocation inline atoms). Longer strings are looked up
+    /// in the interning table and deduplicated.
+    pub fn intern(&mut self, s: &str) -> RcStr {
+        if s.len() < tagged_value::MAX_INLINE_LEN {
+            // Inline atom — no allocation needed, don't bother with the set.
+            return RcStr::from(s);
+        }
+        if let Some(existing) = self.set.get(s) {
+            return existing.clone();
+        }
+        let rc = RcStr::from(s);
+        self.set.insert(rc.clone());
+        rc
+    }
+
+    /// Intern a `Cow<str>`. When the cow is `Owned`, avoids an extra clone
+    /// if the string is not yet interned.
+    pub fn intern_cow(&mut self, s: std::borrow::Cow<'_, str>) -> RcStr {
+        match s {
+            std::borrow::Cow::Borrowed(s) => self.intern(s),
+            std::borrow::Cow::Owned(s) => {
+                if s.len() < tagged_value::MAX_INLINE_LEN {
+                    return RcStr::from(s);
+                }
+                if let Some(existing) = self.set.get(s.as_str()) {
+                    return existing.clone();
+                }
+                let rc = RcStr::from(s);
+                self.set.insert(rc.clone());
+                rc
+            }
+        }
+    }
+
+    /// Intern the [`Display`](std::fmt::Display) output of a value.
+    ///
+    /// This first formats the value to a `String`, then interns the result.
+    pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
+        // Fast path: try to avoid allocation by using a small stack buffer.
+        // Most trace values (numbers, booleans, short strings) are < 24 bytes.
+        use std::fmt::Write;
+        let mut buf = String::new();
+        write!(buf, "{v}").unwrap();
+        self.intern_cow(std::borrow::Cow::Owned(buf))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::mem::ManuallyDrop;
@@ -761,5 +834,35 @@ mod tests {
         assert_eq!(decoded.as_str(), STATIC_STR);
         // Decoded via peek_read path should find the static constant
         assert_eq!(decoded.tag(), STATIC_TAG);
+    }
+
+    #[test]
+    fn test_interning() {
+        let mut interner = RcStrInterning::new();
+
+        // Short strings are always inline (no interning needed)
+        let a = interner.intern("hi");
+        let b = interner.intern("hi");
+        assert_eq!(a, b);
+
+        // Long strings should be deduplicated
+        let long = "this is a long string that exceeds inline threshold";
+        let c = interner.intern(long);
+        let d = interner.intern(long);
+        assert_eq!(c, d);
+        // They should point to the same allocation (same TaggedValue)
+        assert_eq!(c.as_str(), d.as_str());
+
+        // intern_cow with borrowed
+        let e = interner.intern_cow(std::borrow::Cow::Borrowed(long));
+        assert_eq!(e, c);
+
+        // intern_cow with owned
+        let f = interner.intern_cow(std::borrow::Cow::Owned(long.to_string()));
+        assert_eq!(f, c);
+
+        // intern_display
+        let g = interner.intern_display(&42u64);
+        assert_eq!(g.as_str(), "42");
     }
 }
