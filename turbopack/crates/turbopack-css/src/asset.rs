@@ -23,7 +23,7 @@ use crate::{
     code_gen::CodeGenerateable,
     process::{
         CssWithPlaceholderResult, FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
-        finalize_css, parse_css, process_css_with_placeholder,
+        finalize_css, finalize_css_module, parse_css, process_css_with_placeholder,
     },
     references::{
         compose::CssModuleComposeReference, import::ImportAssetReference, url::ReferencedAsset,
@@ -43,6 +43,11 @@ pub struct CssModule {
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     lightningcss_features: LightningCssFeatureFlags,
+    /// For CSS Modules (`.module.css`), the owning [`EcmascriptCssModule`] that exports class
+    /// names. Used to retrieve export usage info for CSS tree shaking.
+    ///
+    /// [`EcmascriptCssModule`]: crate::EcmascriptCssModule
+    ecmascript_module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -56,6 +61,7 @@ impl CssModule {
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: LightningCssFeatureFlags,
+        ecmascript_module: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Vc<Self> {
         Self::cell(CssModule {
             source,
@@ -64,7 +70,32 @@ impl CssModule {
             ty,
             environment,
             lightningcss_features,
+            ecmascript_module,
         })
+    }
+
+    /// Returns a copy of this module with the given [`EcmascriptCssModule`] as its owner.
+    ///
+    /// Used by [`EcmascriptCssModule`] to give the inner [`CssModule`] a back-reference so that
+    /// the CSS chunk item can query export usage for CSS tree shaking.
+    ///
+    /// [`EcmascriptCssModule`]: crate::EcmascriptCssModule
+    #[turbo_tasks::function]
+    pub async fn with_ecmascript_module(
+        self: Vc<Self>,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<Self>> {
+        let this = self.await?;
+        Ok(CssModule {
+            source: this.source,
+            asset_context: this.asset_context,
+            import_context: this.import_context,
+            ty: this.ty,
+            environment: this.environment,
+            lightningcss_features: this.lightningcss_features,
+            ecmascript_module: Some(module),
+        }
+        .cell())
     }
 
     /// Returns the asset ident of the source without the "css" modifier
@@ -128,6 +159,32 @@ impl ProcessCss for CssModule {
             this.lightningcss_features,
         ))
     }
+
+    #[turbo_tasks::function]
+    async fn finalize_css_module(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        minify_type: MinifyType,
+        ecmascript_module: Vc<Box<dyn Module>>,
+    ) -> Result<Vc<FinalCssResult>> {
+        let process_result = self.get_css_with_placeholder();
+
+        let this = self.await?;
+        let origin_source_map =
+            match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
+                Some(gsm) => gsm.generate_source_map(),
+                None => FileContent::NotFound.cell(),
+            };
+        Ok(finalize_css_module(
+            process_result,
+            chunking_context,
+            minify_type,
+            origin_source_map,
+            this.environment.as_deref().copied(),
+            this.lightningcss_features,
+            ecmascript_module,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -180,6 +237,24 @@ impl StyleModule for CssModule {
 }
 
 #[turbo_tasks::value_impl]
+impl CssModule {
+    #[turbo_tasks::function]
+    async fn as_chunk_item_impl(
+        self: ResolvedVc<Self>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<CssModuleChunkItem>> {
+        let ecmascript_module = self.await?.ecmascript_module;
+        Ok(CssModuleChunkItem::cell(CssModuleChunkItem {
+            module: self,
+            module_graph: module_graph.to_resolved().await?,
+            chunking_context: chunking_context.to_resolved().await?,
+            ecmascript_module,
+        }))
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ChunkableModule for CssModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
@@ -187,11 +262,7 @@ impl ChunkableModule for CssModule {
         module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(CssModuleChunkItem::cell(CssModuleChunkItem {
-            module: self,
-            module_graph,
-            chunking_context,
-        }))
+        Vc::upcast(self.as_chunk_item_impl(*module_graph, *chunking_context))
     }
 }
 
@@ -216,6 +287,11 @@ struct CssModuleChunkItem {
     module: ResolvedVc<CssModule>,
     module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    /// For CSS Modules (`.module.css`), the owning [`EcmascriptCssModule`] that exports class
+    /// names. Used to query export usage info for CSS tree shaking.
+    ///
+    /// [`EcmascriptCssModule`]: crate::EcmascriptCssModule
+    ecmascript_module: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -334,10 +410,16 @@ impl CssChunkItem for CssModuleChunkItem {
             }
         }
 
-        let result = self
-            .module
-            .finalize_css(*chunking_context, *chunking_context.minify_type().await?)
-            .await?;
+        let minify_type = *chunking_context.minify_type().await?;
+        let result = if let Some(ecmascript_module) = self.ecmascript_module {
+            self.module
+                .finalize_css_module(*chunking_context, minify_type, *ecmascript_module)
+                .await?
+        } else {
+            self.module
+                .finalize_css(*chunking_context, minify_type)
+                .await?
+        };
 
         if let FinalCssResult::Ok {
             output_code,

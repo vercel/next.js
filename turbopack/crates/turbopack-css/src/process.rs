@@ -27,6 +27,8 @@ use turbopack_core::{
         AdditionalIssueSource, Issue, IssueExt, IssueSeverity, IssueSource, IssueStage,
         StyledString,
     },
+    module::Module,
+    module_graph::binding_usage_info::ModuleExportUsageInfo,
     reference::ModuleReferences,
     reference_type::ImportContext,
     resolve::origin::ResolveOrigin,
@@ -340,6 +342,143 @@ pub async fn finalize_css(
     }
 }
 
+/// Like [`finalize_css`], but also performs CSS tree shaking for CSS Modules by removing CSS rules
+/// for class names that are unused according to the JS module binding analysis.
+///
+/// The `ecmascript_module` parameter is the [`EcmascriptCssModule`] that owns this CSS, used to
+/// query [`ChunkingContext::module_export_usage`] and determine which class names are actually
+/// referenced in JS.
+///
+/// [`EcmascriptCssModule`]: crate::EcmascriptCssModule
+#[turbo_tasks::function]
+pub async fn finalize_css_module(
+    result: Vc<CssWithPlaceholderResult>,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    minify_type: MinifyType,
+    origin_source_map: Vc<FileContent>,
+    environment: Option<ResolvedVc<Environment>>,
+    feature_flags: LightningCssFeatureFlags,
+    ecmascript_module: Vc<Box<dyn Module>>,
+) -> Result<Vc<FinalCssResult>> {
+    let result = result.await?;
+    match &*result {
+        CssWithPlaceholderResult::Ok {
+            parse_result,
+            url_references,
+            exports,
+            ..
+        } => {
+            let (mut stylesheet, code) = match &*parse_result.await? {
+                ParseCssResult::Ok {
+                    stylesheet,
+                    options,
+                    code,
+                    ..
+                } => (stylesheet_into_static(stylesheet, options.clone()), *code),
+                ParseCssResult::Unparsable => return Ok(FinalCssResult::Unparsable.cell()),
+                ParseCssResult::NotFound => return Ok(FinalCssResult::NotFound.cell()),
+            };
+
+            let url_references = *url_references;
+
+            let mut url_map = FxHashMap::default();
+
+            for (src, reference) in (*url_references.await?).iter() {
+                let resolved = resolve_url_reference(**reference, chunking_context).await?;
+                if let Some(v) = resolved.as_ref().cloned() {
+                    url_map.insert(RcStr::from(src.as_str()), v);
+                }
+            }
+
+            replace_url_references(&mut stylesheet, &url_map);
+
+            // CSS tree shaking: remove rules for unused CSS classes.
+            //
+            // We query the binding usage info for the owning EcmascriptCssModule to determine
+            // which JS export names (= CSS class original names) are actually referenced. Any
+            // class whose original name is not used gets its hashed CSS name added to the
+            // `unused_symbols` set passed to lightningcss, which then removes the corresponding
+            // CSS rules.
+            if let Some(exports) = exports {
+                let export_usage = chunking_context
+                    .module_export_usage(ecmascript_module)
+                    .await?;
+
+                if !export_usage.is_circuit_breaker {
+                    let export_usage_info = export_usage.export_usage.await?;
+                    let unused_symbols: std::collections::HashSet<String> =
+                        match &*export_usage_info {
+                            // All exports used, or unknown — keep every class.
+                            ModuleExportUsageInfo::All => Default::default(),
+                            // Some or no exports used — collect hashed names of unused classes.
+                            ModuleExportUsageInfo::Evaluation
+                            | ModuleExportUsageInfo::Exports(_) => exports
+                                .iter()
+                                .filter(|(orig_name, _)| {
+                                    !export_usage_info
+                                        .is_export_used(&RcStr::from(orig_name.as_str()))
+                                })
+                                .map(|(_, export)| export.name.clone())
+                                .collect(),
+                        };
+
+                    if !unused_symbols.is_empty() {
+                        let targets = *get_lightningcss_browser_targets(
+                            environment.as_deref().copied(),
+                            true,
+                            feature_flags,
+                        )
+                        .await?;
+                        let _ = stylesheet.minify(MinifyOptions {
+                            targets,
+                            unused_symbols,
+                        });
+                    }
+                }
+            }
+
+            let code = code.await?;
+            let code = match &*code {
+                FileContent::Content(v) => v.content().to_str()?,
+                _ => bail!("this case should be filtered out while parsing"),
+            };
+
+            let origin_source_map = if let Some(rope) = origin_source_map.await?.as_content() {
+                Some(parcel_sourcemap::SourceMap::from_json(
+                    "",
+                    &rope.content().to_str()?,
+                )?)
+            } else {
+                None
+            };
+
+            let (result, srcmap) = stylesheet_to_css(
+                &stylesheet,
+                &code,
+                minify_type,
+                true,
+                true,
+                origin_source_map,
+                environment,
+                feature_flags,
+            )
+            .await?;
+
+            Ok(FinalCssResult::Ok {
+                output_code: result.code,
+                source_map: if let Some(srcmap) = srcmap {
+                    FileContent::Content(File::from(srcmap)).resolved_cell()
+                } else {
+                    FileContent::NotFound.resolved_cell()
+                },
+            }
+            .cell())
+        }
+        CssWithPlaceholderResult::Unparsable => Ok(FinalCssResult::Unparsable.cell()),
+        CssWithPlaceholderResult::NotFound => Ok(FinalCssResult::NotFound.cell()),
+    }
+}
+
 #[turbo_tasks::value_trait]
 pub trait ParseCss {
     #[turbo_tasks::function]
@@ -356,6 +495,14 @@ pub trait ProcessCss: ParseCss {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
+    ) -> Result<Vc<FinalCssResult>>;
+
+    #[turbo_tasks::function]
+    async fn finalize_css_module(
+        self: Vc<Self>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        minify_type: MinifyType,
+        ecmascript_module: Vc<Box<dyn Module>>,
     ) -> Result<Vc<FinalCssResult>>;
 }
 

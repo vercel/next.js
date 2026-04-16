@@ -265,6 +265,7 @@ async fn apply_module_type(
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
                 *lightningcss_features,
+                None, // ecmascript_module: set via with_ecmascript_module() for CSS Modules
             )
             .to_resolved()
             .await?,
