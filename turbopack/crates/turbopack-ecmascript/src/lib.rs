@@ -78,8 +78,8 @@ use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, parking_lot_mutex_bincode, trace::TraceRawVcs,
-    turbofmt,
+    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
+    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -369,10 +369,8 @@ impl EcmascriptModuleAssetBuilder {
 /// This is used by `failsafe_parse` to serve the last good AST when the file has a syntax error.
 /// The newtype is always-equal and no-op-hash so it is invisible to turbo-tasks cache key logic,
 /// but serializes the `Rope` contents so the fallback survives eviction and restarts.
-#[derive(TraceRawVcs, Encode, Decode)]
+#[derive(TraceRawVcs, Encode, Decode, NonLocalValue)]
 struct LastSuccessfulSource {
-    /// `parking_lot::Mutex` does not implement `Encode`/`Decode` directly; the
-    /// `parking_lot_mutex_bincode` helper provides the encoding.
     #[bincode(with = "parking_lot_mutex_bincode")]
     source: parking_lot::Mutex<Option<Rope>>,
     /// Notifies the backend when the in-memory `source` changes so that the
@@ -400,7 +398,7 @@ impl Default for LastSuccessfulSource {
     fn default() -> Self {
         Self {
             source: parking_lot::Mutex::new(None),
-            serialization_invalidator: turbo_tasks::get_serialization_invalidator(),
+            serialization_invalidator: get_serialization_invalidator(),
         }
     }
 }
@@ -425,10 +423,6 @@ impl Eq for LastSuccessfulSource {}
 impl std::hash::Hash for LastSuccessfulSource {
     fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
 }
-
-// `SerializationInvalidator` does not implement `NonLocalValue`, so this
-// cannot be derived. The field contains no `Vc`s, so the impl is sound.
-unsafe impl turbo_tasks::NonLocalValue for LastSuccessfulSource {}
 
 #[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
