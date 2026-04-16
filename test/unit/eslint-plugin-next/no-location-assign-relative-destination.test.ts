@@ -8,7 +8,7 @@ const err = (expression: string) => ({
   data: { expression },
 })
 
-describe('no-location-assign', () => {
+describe('no-location-assign-relative-destination', () => {
   new RuleTester({
     languageOptions: {
       ecmaVersion: 2018,
