@@ -10,7 +10,8 @@ use swc_core::{
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
-            ModuleExportName, ModuleItem, Program, Stmt, Str, TsSatisfiesExpr,
+            ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsConstAssertion,
+            TsSatisfiesExpr, TsTypeAssertion,
         },
         utils::IsDirective,
     },
@@ -609,12 +610,14 @@ async fn parse_config_value(
 ) -> Result<()> {
     let get_value = || {
         let init = init.as_deref();
-        // Unwrap `export const config = { .. } satisfies ProxyConfig`, usually this is already
-        // transpiled away, but we are looking at the original source here.
-        let init = if let Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) = init {
-            Some(&**expr)
-        } else {
-            init
+        // Unwrap typecasts such as `export const config = { .. } satisfies ProxyConfig`, usually
+        // this is already transpiled away, but we are looking at the original source here.
+        let init = match init {
+            Some(Expr::TsAs(TsAsExpr { expr, .. }))
+            | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
+            | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
+            | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
+            _ => init,
         };
         init.map(|init| eval_context.eval(init)).map(|v| {
             // Special case, as we don't call `link` here: assume that `undefined` is a free
