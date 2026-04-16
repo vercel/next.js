@@ -42,7 +42,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
-        GLOBALS, Globals, Span, Spanned, SyntaxContext,
+        GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, HANDLER, Handler, Level},
         source_map::SmallPos,
@@ -101,8 +101,8 @@ use crate::{
         ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue, JsValueUrlKind,
         ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
-        graph::{ConditionalKind, DeclUsage, Effect, EffectArg, VarGraph, create_graph},
-        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol},
+        graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
+        imports::{DeclUsage, ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol},
         linker::link,
         parse_require_context, side_effects,
         top_level_await::has_top_level_await,
@@ -751,16 +751,12 @@ async fn analyze_ecmascript_module_internal(
         .supports_block_scoping()
         .await?;
 
-    let mut var_graph = {
-        let _span = tracing::trace_span!("analyze variable values").entered();
-        set_handler_and_globals(&handler, globals, || {
-            create_graph(program, eval_context, analyze_mode, supports_block_scoping)
-        })
-    };
-
-    let mut import_usage =
-        FxHashMap::with_capacity_and_hasher(var_graph.import_usages.len(), Default::default());
-    for (reference, usage) in &var_graph.import_usages {
+    let mut import_usage = FxHashMap::with_capacity_and_hasher(
+        eval_context.imports.import_usage.import_usages.len(),
+        Default::default(),
+    );
+    for (reference, usage) in &eval_context.imports.import_usage.import_usages {
+        // TODO move this into EvalContext and only store the one resulting import_usage
         // TODO make this more efficient, i.e. cache the result?
         if let DeclUsage::Bindings(ids) = usage {
             // compute transitive closure of `ids` over `top_level_mappings`
@@ -768,7 +764,7 @@ async fn analyze_ecmascript_module_internal(
             let mut stack = ids.iter().collect::<Vec<_>>();
             let mut has_global_usage = false;
             while let Some(id) = stack.pop() {
-                match var_graph.decl_usages.get(id) {
+                match eval_context.imports.import_usage.decl_usages.get(id) {
                     Some(DeclUsage::SideEffects) => {
                         has_global_usage = true;
                         break;
@@ -791,7 +787,9 @@ async fn analyze_ecmascript_module_internal(
                     ImportUsage::TopLevel
                 } else {
                     ImportUsage::Exports(
-                        var_graph
+                        eval_context
+                            .imports
+                            .import_usage
                             .exports
                             .iter()
                             .filter(|(_, id)| visited.contains(*id))
@@ -978,6 +976,13 @@ async fn analyze_ecmascript_module_internal(
     }
     .instrument(span)
     .await?;
+
+    let mut var_graph = {
+        let _span = tracing::trace_span!("analyze variable values").entered();
+        set_handler_and_globals(&handler, globals, || {
+            create_graph(program, eval_context, analyze_mode, supports_block_scoping)
+        })
+    };
 
     let span = tracing::trace_span!("effects processing");
     async {
@@ -3812,41 +3817,6 @@ async fn require_context_visitor(
             RequireContextValue::from_context_map(map).await?,
         ),
     ))
-}
-
-pub(crate) fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Atom, SyntaxContext)) {
-    match pat {
-        Pat::Ident(BindingIdent { id, .. }) => {
-            f(&id.sym, id.ctxt);
-        }
-        Pat::Array(ArrayPat { elems, .. }) => elems.iter().for_each(|e| {
-            if let Some(e) = e {
-                for_each_ident_in_pat(e, f);
-            }
-        }),
-        Pat::Rest(RestPat { arg, .. }) => {
-            for_each_ident_in_pat(arg, f);
-        }
-        Pat::Object(ObjectPat { props, .. }) => {
-            props.iter().for_each(|p| match p {
-                ObjectPatProp::KeyValue(KeyValuePatProp { value, .. }) => {
-                    for_each_ident_in_pat(value, f);
-                }
-                ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                    f(&key.sym, key.ctxt);
-                }
-                ObjectPatProp::Rest(RestPat { arg, .. }) => {
-                    for_each_ident_in_pat(arg, f);
-                }
-            });
-        }
-        Pat::Assign(AssignPat { left, .. }) => {
-            for_each_ident_in_pat(left, f);
-        }
-        Pat::Invalid(_) | Pat::Expr(_) => {
-            panic!("Unexpected pattern while enumerating idents");
-        }
-    }
 }
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq, TraceRawVcs, Encode, Decode)]

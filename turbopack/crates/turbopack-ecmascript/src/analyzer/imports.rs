@@ -11,7 +11,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
     atoms::Wtf8Atom,
-    common::{BytePos, Span, Spanned, SyntaxContext, comments::Comments},
+    common::{BytePos, Mark, Span, Spanned, SyntaxContext, comments::Comments},
     ecma::{
         ast::*,
         atoms::{Atom, atom},
@@ -30,6 +30,7 @@ use crate::{
     analyzer::{
         ConstantValue, ObjectPart,
         graph::{AssignmentScope, AssignmentScopes, EvalContext},
+        is_unresolved,
     },
     magic_identifier::{MAGIC_IDENTIFIER_DEFAULT_EXPORT, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
     references::{
@@ -254,6 +255,40 @@ impl Display for ImportAnnotations {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum DeclUsage {
+    SideEffects,
+    Bindings(FxHashSet<Id>),
+}
+impl Default for DeclUsage {
+    fn default() -> Self {
+        DeclUsage::Bindings(Default::default())
+    }
+}
+impl DeclUsage {
+    fn add_usage(&mut self, user: &Id) {
+        match self {
+            Self::Bindings(set) => {
+                set.insert(user.clone());
+            }
+            Self::SideEffects => {}
+        }
+    }
+    fn make_side_effects(&mut self) {
+        *self = Self::SideEffects;
+    }
+}
+
+#[derive(Default, Debug)]
+pub(crate) struct ImportUsage {
+    // ident -> immediate usage (top level decl)
+    pub(crate) decl_usages: FxHashMap<Id, DeclUsage>,
+    // import -> immediate usage (top level decl)
+    pub(crate) import_usages: FxHashMap<usize, DeclUsage>,
+    // export name -> top level decl
+    pub(crate) exports: FxHashMap<Atom, Id>,
+}
+
 /// A version of [crate::references::esm::export::EsmExport] with usize instead of the module
 /// reference Vc, and missing the liveness fields.
 #[derive(Debug)]
@@ -322,6 +357,8 @@ pub(crate) struct ImportMap {
     /// Map from export binding id to the scopes where it's assigned. This is used to determine
     /// whether an export is live or not.
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
+
+    pub(crate) import_usage: ImportUsage,
 
     /// Map from exported name to local binding id (includes the syntax context).
     pub(crate) exports_ids: FxHashMap<RcStr, Id>,
@@ -555,13 +592,18 @@ impl ImportMap {
     }
 
     /// Analyze ES import
-    pub(super) fn analyze(m: &Program, comments: Option<&dyn Comments>) -> Self {
+    pub(super) fn analyze(
+        unresolved_mark: Mark,
+        m: &Program,
+        comments: Option<&dyn Comments>,
+    ) -> Self {
         let mut data = ImportMap::default();
         let mut analyzer = Analyzer {
+            unresolved_mark,
             data: &mut data,
             comments,
             namespace_imports_to_specifier: FxIndexMap::default(),
-            is_in_fn: false,
+            state: Default::default(),
         };
 
         // A prepass to detect imports to be able to rewrite import+export pairs to true reexports
@@ -675,14 +717,67 @@ impl ImportMap {
     }
 }
 
+mod analyzer_state {
+    use swc_core::ecma::ast::{Id, Ident};
+
+    use super::Analyzer;
+
+    #[derive(Default)]
+    pub(super) struct AnalyzerState {
+        is_in_fn: bool,
+        cur_top_level_decl_name: Option<Id>,
+    }
+
+    impl AnalyzerState {
+        /// Returns the identifier of the current top level declaration.
+        pub(super) fn cur_top_level_decl_name(&self) -> &Option<Id> {
+            &self.cur_top_level_decl_name
+        }
+
+        /// Returns whether the current context is inside a function.
+        pub(super) fn is_in_fn(&self) -> bool {
+            self.is_in_fn
+        }
+    }
+
+    impl Analyzer<'_> {
+        /// Runs `visitor` with the current top level declaration identifier
+        pub(super) fn enter_top_level_decl<T>(
+            &mut self,
+            name: &Ident,
+            visitor: impl FnOnce(&mut Self) -> T,
+        ) -> T {
+            let is_top_level_fn = self.state.cur_top_level_decl_name.is_none();
+            if is_top_level_fn {
+                self.state.cur_top_level_decl_name = Some(name.to_id());
+            }
+            let result = visitor(self);
+            if is_top_level_fn {
+                self.state.cur_top_level_decl_name = None;
+            }
+            result
+        }
+
+        /// Runs `visitor` with the right is_in_fn value
+        pub(super) fn enter_fn<T>(&mut self, visitor: impl FnOnce(&mut Self) -> T) -> T {
+            let old_is_in_fn = self.state.is_in_fn;
+            self.state.is_in_fn = true;
+            let result = visitor(self);
+            self.state.is_in_fn = old_is_in_fn;
+            result
+        }
+    }
+}
+
 struct Analyzer<'a> {
+    unresolved_mark: Mark,
     data: &'a mut ImportMap,
     comments: Option<&'a dyn Comments>,
     /// Map from local identifier of namespace imports to module path, used temporarily during
     /// analysis to detect dynamic accesses to namespace imports.
     namespace_imports_to_specifier: FxIndexMap<Id, Wtf8Atom>,
 
-    is_in_fn: bool,
+    state: analyzer_state::AnalyzerState,
 }
 
 impl Analyzer<'_> {
@@ -709,7 +804,7 @@ impl Analyzer<'_> {
     }
 
     fn register_assignment_scope(&mut self, id: Id) {
-        let scope = if self.is_in_fn {
+        let scope = if self.state.is_in_fn() {
             AssignmentScope::Function
         } else {
             AssignmentScope::ModuleEval
@@ -727,6 +822,10 @@ impl Analyzer<'_> {
 }
 
 impl Visit for Analyzer<'_> {
+    fn visit_import_decl(&mut self, _: &ImportDecl) {
+        // We already handled import above. Skip as the Idents in here confuse the analysis
+    }
+
     fn visit_export_all(&mut self, export: &ExportAll) {
         if export.type_only {
             return;
@@ -743,6 +842,7 @@ impl Visit for Analyzer<'_> {
         );
         self.data.reexport_namespaces.push(i);
         self.data.has_exports = true;
+        export.visit_children_with(self);
     }
 
     fn visit_named_export(&mut self, export: &NamedExport) {
@@ -850,9 +950,7 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_export_decl(&mut self, n: &ExportDecl) {
-        n.visit_children_with(self);
         self.data.has_exports = true;
-
         match &n.decl {
             Decl::Class(n) => {
                 let name = RcStr::from(n.ident.sym.as_str());
@@ -860,6 +958,10 @@ impl Visit for Analyzer<'_> {
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
                 self.data.exports_ids.insert(name, n.ident.to_id());
+                self.data
+                    .import_usage
+                    .exports
+                    .insert(n.ident.sym.clone(), n.ident.to_id());
             }
             Decl::Fn(n) => {
                 let name = RcStr::from(n.ident.sym.as_str());
@@ -867,6 +969,10 @@ impl Visit for Analyzer<'_> {
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
                 self.data.exports_ids.insert(name, n.ident.to_id());
+                self.data
+                    .import_usage
+                    .exports
+                    .insert(n.ident.sym.clone(), n.ident.to_id());
             }
             Decl::Var(..) => {
                 let ids: Vec<Id> = find_pat_ids(&n.decl);
@@ -875,6 +981,10 @@ impl Visit for Analyzer<'_> {
                     self.data
                         .exports
                         .insert(name.clone(), Export::LocalBinding(name.clone(), false));
+                    self.data
+                        .import_usage
+                        .exports
+                        .insert(id.0.clone(), id.clone());
                     self.data.exports_ids.insert(name, id);
                 }
             }
@@ -886,10 +996,11 @@ impl Visit for Analyzer<'_> {
                 // ignore typescript for code generation
             }
         }
+
+        n.visit_children_with(self);
     }
 
     fn visit_export_default_decl(&mut self, n: &ExportDefaultDecl) {
-        n.visit_children_with(self);
         self.data.has_exports = true;
 
         let id = match &n.decl {
@@ -920,10 +1031,10 @@ impl Visit for Analyzer<'_> {
             Export::LocalBinding(RcStr::from(id.0.as_str()), false),
         );
         self.data.exports_ids.insert(rcstr!("default"), id);
+        n.visit_children_with(self);
     }
 
     fn visit_export_default_expr(&mut self, n: &ExportDefaultExpr) {
-        n.visit_children_with(self);
         self.data.has_exports = true;
 
         self.data.exports.insert(
@@ -938,21 +1049,34 @@ impl Visit for Analyzer<'_> {
                 SyntaxContext::empty(),
             ),
         );
+        n.visit_children_with(self);
     }
 
     fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
-        if let ModuleExportName::Ident(local) = &n.orig {
-            let exported = n.exported.as_ref().unwrap_or(&n.orig);
-            self.data
-                .exports_ids
-                .insert(exported.atom().as_str().into(), local.to_id());
-        }
+        self.data.has_exports = true;
+
+        let exported = n.exported.as_ref().unwrap_or(&n.orig).atom();
+        let ModuleExportName::Ident(local) = &n.orig else {
+            unreachable!("exporting a string should be impossible")
+        };
+        self.data
+            .exports_ids
+            .insert(exported.as_str().into(), local.to_id());
+
+        self.data
+            .import_usage
+            .exports
+            .insert(exported.into_owned(), local.to_id());
+        n.visit_children_with(self);
     }
 
     fn visit_export_default_specifier(&mut self, n: &ExportDefaultSpecifier) {
+        self.data.has_exports = true;
+
         self.data
             .exports_ids
             .insert(rcstr!("default"), n.exported.to_id());
+        n.visit_children_with(self);
     }
 
     fn visit_program(&mut self, m: &Program) {
@@ -1022,42 +1146,37 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_getter_prop(&mut self, node: &GetterProp) {
-        let old_is_in_fn = self.is_in_fn;
-        self.is_in_fn = true;
-        node.visit_children_with(self);
-        self.is_in_fn = old_is_in_fn;
+        self.enter_fn(|this| {
+            node.visit_children_with(this);
+        });
     }
     fn visit_setter_prop(&mut self, node: &SetterProp) {
-        let old_is_in_fn = self.is_in_fn;
-        self.is_in_fn = true;
-        node.visit_children_with(self);
-        self.is_in_fn = old_is_in_fn;
+        self.enter_fn(|this| {
+            node.visit_children_with(this);
+        });
     }
     fn visit_function(&mut self, node: &Function) {
-        let old_is_in_fn = self.is_in_fn;
-        self.is_in_fn = true;
-        node.visit_children_with(self);
-        self.is_in_fn = old_is_in_fn;
+        self.enter_fn(|this| {
+            node.visit_children_with(this);
+        });
     }
     fn visit_constructor(&mut self, node: &Constructor) {
-        let old_is_in_fn = self.is_in_fn;
-        self.is_in_fn = true;
-        node.visit_children_with(self);
-        self.is_in_fn = old_is_in_fn;
+        self.enter_fn(|this| {
+            node.visit_children_with(this);
+        });
     }
     fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
-        let old_is_in_fn = self.is_in_fn;
-        self.is_in_fn = true;
-        node.visit_children_with(self);
-        self.is_in_fn = old_is_in_fn;
+        self.enter_fn(|this| {
+            node.visit_children_with(this);
+        });
     }
 
     fn visit_member_expr(&mut self, node: &MemberExpr) {
         if let MemberProp::Ident(..) | MemberProp::PrivateName(..) = &node.prop
             && node.obj.is_ident()
         {
-            // Skip if obj is a Expr::Ident, so that it doesn't get added to full_star_imports below
-            // in visit_expr.
+            // Skip traversing if obj is a Expr::Ident, so that it doesn't get added to
+            // full_star_imports below in visit_expr.
             return;
         }
         node.visit_children_with(self);
@@ -1069,9 +1188,8 @@ impl Visit for Analyzer<'_> {
             if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
                 self.data.full_star_imports.insert(module_path.clone());
             }
-        } else {
-            pat.visit_children_with(self);
         }
+        pat.visit_children_with(self);
     }
 
     fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
@@ -1080,18 +1198,55 @@ impl Visit for Analyzer<'_> {
             if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
                 self.data.full_star_imports.insert(module_path.clone());
             }
-        } else {
-            node.visit_children_with(self);
         }
+        node.visit_children_with(self);
     }
 
     fn visit_expr(&mut self, node: &Expr) {
-        if let Expr::Ident(i) = node {
-            if let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id()) {
-                self.data.full_star_imports.insert(module_path.clone());
+        if let Expr::Ident(i) = node
+            && let Some(module_path) = self.namespace_imports_to_specifier.get(&i.to_id())
+        {
+            self.data.full_star_imports.insert(module_path.clone());
+        }
+        node.visit_children_with(self);
+    }
+
+    fn visit_ident(&mut self, node: &Ident) {
+        let id = node.to_id();
+        if let Some((esm_reference_index, _)) = self.data.get_binding(&id) {
+            // An import binding
+            let usage = self
+                .data
+                .import_usage
+                .import_usages
+                .entry(esm_reference_index)
+                .or_default();
+            if let Some(top_level) = self.state.cur_top_level_decl_name() {
+                usage.add_usage(top_level);
+            } else {
+                usage.make_side_effects();
             }
         } else {
-            node.visit_children_with(self);
+            // A regular variable
+            if !is_unresolved(node, self.unresolved_mark) {
+                if let Some(top_level) = self.state.cur_top_level_decl_name() {
+                    if &id != top_level {
+                        self.data
+                            .import_usage
+                            .decl_usages
+                            .entry(id)
+                            .or_default()
+                            .add_usage(top_level);
+                    }
+                } else {
+                    self.data
+                        .import_usage
+                        .decl_usages
+                        .entry(id)
+                        .or_default()
+                        .make_side_effects();
+                }
+            }
         }
     }
 
@@ -1100,6 +1255,12 @@ impl Visit for Analyzer<'_> {
             self.register_assignment_scope(ident.to_id());
         }
         node.visit_children_with(self);
+    }
+
+    fn visit_fn_decl(&mut self, node: &FnDecl) {
+        self.enter_top_level_decl(&node.ident, |this| {
+            node.visit_children_with(this);
+        });
     }
 
     fn visit_decl(&mut self, node: &Decl) {
