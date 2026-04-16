@@ -162,7 +162,8 @@ jobs:
                 vendor: apple
                 sys: darwin
               windows:
-                host: "['self-hosted', 'windows', 'x64']"
+                host: "['self-hosted', 'linux', 'x64', 'metal']"
+                docker: next-swc-builder-win:latest
                 vendor: pc
                 sys: windows
                 abi: msvc
@@ -266,8 +267,9 @@ jobs:
         if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
         uses: ./.github/actions/docker-buildx
         with:
+          target: ${{ matrix.sys == 'windows' && 'windows' || 'linux' }}
           image-tag: ${{ matrix.docker }}
-          cache-ref: next-swc-builder
+          cache-ref: ${{ matrix.sys == 'windows' && 'next-swc-builder-win' || 'next-swc-builder' }}
 
       - name: Build in docker
         if: ${{ matrix.docker && steps.native-cache.outputs.HIT != 'yes' }}
