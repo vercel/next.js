@@ -97,12 +97,6 @@ impl CssModule {
         }
         .cell())
     }
-
-    /// Returns the asset ident of the source without the "css" modifier
-    #[turbo_tasks::function]
-    pub fn source_ident(&self) -> Vc<AssetIdent> {
-        self.source.ident()
-    }
 }
 
 #[turbo_tasks::value_impl]
