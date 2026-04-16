@@ -1161,5 +1161,6 @@
   "1160": "Route \"%s\" cannot use \\`export const unstable_prefetch = ...\\` without enabling \\`cacheComponents\\`.",
   "1161": "\"unstable_prefetch\" is a route segment config and can only be used when the segment is a Server Component module. Remove the \"use client\" directive from \"%s\" to use this API.",
   "1162": "Route \"%s\" cannot use \\`export const unstable_instant = ...\\` without enabling \\`cacheComponents\\`.",
-  "1163": "Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic."
+  "1163": "Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.",
+  "1164": "Response body exceeded maximum size of %s bytes"
 }

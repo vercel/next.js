@@ -749,6 +749,7 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
+            this.nextConfig.images.maximumResponseBody,
             handleInternalReq
           )
 
