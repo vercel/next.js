@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { assertNoRedbox, retry } from 'next-test-utils'
+import { waitForNoRedbox, retry } from 'next-test-utils'
 import { join } from 'path'
 import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
@@ -70,7 +70,7 @@ describe('app-root-param-getters - simple', () => {
       'This page could not be found.'
     )
     if (isNextDev) {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
   })
 

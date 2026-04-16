@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{self as turbo_tasks, RawVc, ResolvedVc, TryJoinIterExt, Vc};
+use crate::{self as turbo_tasks, ResolvedVc, TryJoinIterExt, Vc};
 
 /// Just an empty type, but it's never equal to itself.
 ///
@@ -30,20 +30,6 @@ impl Completion {
     pub fn new() -> Vc<Self> {
         Completion::cell(Completion)
     }
-
-    /// Uses the previous completion. Can be used to cancel without triggering a
-    /// new invalidation.
-    pub fn unchanged() -> Vc<Self> {
-        // This is the same code that Completion::cell uses except that it
-        // only updates the cell when it is empty (Completion::cell opted-out of
-        // that via `#[turbo_tasks::value(cell = "new")]`)
-        let cell = turbo_tasks::macro_helpers::find_cell_by_type(
-            <Completion as crate::VcValueType>::get_value_type_id(),
-        );
-        cell.conditional_update(|old| old.is_none().then_some(Completion));
-        let raw: RawVc = cell.into();
-        raw.into()
-    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -51,16 +37,6 @@ pub struct Completions(Vec<ResolvedVc<Completion>>);
 
 #[turbo_tasks::value_impl]
 impl Completions {
-    /// Merges multiple completions into one. The passed list will be part of
-    /// the cache key, so this function should not be used with varying lists.
-    ///
-    /// Varying lists should use `Vc::cell(list).completed()`
-    /// instead.
-    #[turbo_tasks::function]
-    pub fn all(completions: Vec<ResolvedVc<Completion>>) -> Vc<Completion> {
-        Vc::<Completions>::cell(completions).completed()
-    }
-
     /// Merges the list of completions into one.
     #[turbo_tasks::function]
     pub async fn completed(&self) -> anyhow::Result<Vc<Completion>> {
@@ -91,7 +67,7 @@ impl Completions {
 }
 
 #[turbo_tasks::function]
-pub async fn wrap(completion: Vc<Completion>) -> Result<Vc<Completion>> {
+async fn wrap(completion: Vc<Completion>) -> Result<Vc<Completion>> {
     completion.await?;
     Ok(Completion::new())
 }

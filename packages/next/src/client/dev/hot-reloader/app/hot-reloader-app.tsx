@@ -38,11 +38,18 @@ import {
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
+// TODO: Explicitly import from client.browser (doesn't work with Webpack).
+// eslint-disable-next-line import/no-extraneous-dependencies
+import { createFromReadableStream as createFromReadableStreamBrowser } from 'react-server-dom-webpack/client'
+import { findSourceMapURL } from '../../../app-find-source-map-url'
 
 export interface StaticIndicatorState {
   pathname: string | null
-  appIsrManifest: Record<string, true>
+  appIsrManifest: Record<string, boolean> | null
 }
+
+const createFromReadableStream =
+  createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
 let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
@@ -261,18 +268,18 @@ export function processMessage(
       if (process.env.__NEXT_DEV_INDICATOR) {
         staticIndicatorState.appIsrManifest = message.data
 
-        // handle initial status on receiving manifest
-        // navigation is handled in useEffect for pathname changes
-        // as we'll receive the updated manifest before usePathname
-        // triggers for new value
-        if (
-          staticIndicatorState.pathname &&
-          staticIndicatorState.pathname in message.data
-        ) {
-          dispatcher.onStaticIndicator(true)
-        } else {
-          dispatcher.onStaticIndicator(false)
-        }
+        // Handle the initial static indicator status on receiving the ISR
+        // manifest. Navigation is handled in an effect inside HotReload for
+        // pathname changes as we'll receive the updated manifest before
+        // usePathname triggers for a new value.
+
+        const isStatic = staticIndicatorState.pathname
+          ? message.data[staticIndicatorState.pathname]
+          : undefined
+
+        dispatcher.onStaticIndicator(
+          isStatic === undefined ? 'pending' : isStatic ? 'static' : 'dynamic'
+        )
       }
       break
     }
@@ -500,6 +507,44 @@ export function processMessage(
       sendMessage(JSON.stringify(response))
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR: {
+      dispatcher.onCacheIndicator(message.state)
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
+      createFromReadableStream<{
+        errors: Error[]
+        errorCodes: Map<Error, string>
+      }>(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(message.serializedErrors)
+            controller.close()
+          },
+        }),
+        { findSourceMapURL }
+      ).then(
+        ({ errors, errorCodes }) => {
+          for (const error of errors) {
+            const code = errorCodes.get(error)
+            if (code !== undefined) {
+              Object.defineProperty(error, '__NEXT_ERROR_CODE', {
+                value: code,
+                enumerable: false,
+                configurable: true,
+              })
+            }
+            console.error(error)
+          }
+        },
+        (err) => {
+          console.error(
+            new Error('Failed to deserialize errors.', { cause: err })
+          )
+        }
+      )
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.MIDDLEWARE_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES:
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ONLY_CHANGES:
@@ -542,10 +587,14 @@ export default function HotReload({
 
       staticIndicatorState.pathname = pathname
 
-      if (pathname && pathname in staticIndicatorState.appIsrManifest) {
-        dispatcher.onStaticIndicator(true)
-      } else {
-        dispatcher.onStaticIndicator(false)
+      if (staticIndicatorState.appIsrManifest) {
+        const isStatic = pathname
+          ? staticIndicatorState.appIsrManifest[pathname]
+          : undefined
+
+        dispatcher.onStaticIndicator(
+          isStatic === undefined ? 'pending' : isStatic ? 'static' : 'dynamic'
+        )
       }
     }, [pathname, staticIndicatorState])
   }

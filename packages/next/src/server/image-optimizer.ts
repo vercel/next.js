@@ -13,23 +13,30 @@ import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
-import type { NextConfigComplete } from './config-shared'
+import type { NextConfigComplete, NextConfigRuntime } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import {
   CachedRouteKind,
+  IncrementalCacheKind,
   type CachedImageValue,
   type IncrementalCacheEntry,
   type IncrementalCacheValue,
   type IncrementalResponseCacheEntry,
 } from './response-cache'
+import type { CacheHandler } from './lib/incremental-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
 import isError from '../lib/is-error'
+import { isPrivateIp } from './is-private-ip'
+import { getOrInitDiskLRU } from './lib/disk-lru-cache.external'
 import { parseUrl } from '../lib/url'
 import type { CacheControl } from './lib/cache-control'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { lookup } from 'dns/promises'
+import { isIP } from 'net'
+import { ALL } from 'dns'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -54,6 +61,29 @@ const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
+
+async function initCacheEntries(
+  cacheDir: string
+): Promise<Array<{ key: string; size: number; expireAt: number }>> {
+  const cacheKeys = await promises.readdir(cacheDir).catch(() => [])
+  const entries: Array<{ key: string; size: number; expireAt: number }> = []
+
+  for (const cacheKey of cacheKeys) {
+    try {
+      const { expireAt, buffer } = await readFromCacheDir(cacheDir, cacheKey)
+      entries.push({
+        key: cacheKey,
+        size: buffer.byteLength,
+        expireAt,
+      })
+    } catch {
+      // Skip entries that can't be read from disk
+    }
+  }
+
+  // Sort oldest-first so we can replay them chronologically into LRU
+  return entries.sort((a, b) => a.expireAt - b.expireAt)
+}
 
 export function getSharp(concurrency: number | null | undefined) {
   if (_sharp) {
@@ -133,7 +163,8 @@ export function getImageEtag(image: Buffer) {
 }
 
 async function writeToCacheDir(
-  dir: string,
+  cacheDir: string,
+  cacheKey: string,
   extension: string,
   maxAge: number,
   expireAt: number,
@@ -141,6 +172,7 @@ async function writeToCacheDir(
   etag: string,
   upstreamEtag: string
 ) {
+  const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
   const filename = join(
     /* turbopackIgnore: true */
     dir,
@@ -151,6 +183,37 @@ async function writeToCacheDir(
 
   await promises.mkdir(dir, { recursive: true })
   await promises.writeFile(filename, buffer)
+}
+
+async function readFromCacheDir(cacheDir: string, cacheKey: string) {
+  const dir = join(/* turbopackIgnore: true */ cacheDir, cacheKey)
+  const files = await promises.readdir(dir)
+  const file = files[0]
+  if (!file) {
+    throw new Error(
+      `Invariant: cache entry "${cacheKey}" not found in dir "${cacheDir}"`
+    )
+  }
+  const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] = file.split(
+    '.',
+    5
+  )
+  const filePath = join(/* turbopackIgnore: true */ dir, file)
+  const buffer = await promises.readFile(/* turbopackIgnore: true */ filePath)
+  const expireAt = Number(expireAtSt)
+  const maxAge = Number(maxAgeSt)
+  return { maxAge, expireAt, etag, upstreamEtag, buffer, extension }
+}
+
+async function deleteFromCacheDir(cacheDir: string, cacheKey: string) {
+  return promises
+    .rm(join(/* turbopackIgnore: true */ cacheDir, cacheKey), {
+      recursive: true,
+      force: true,
+    })
+    .catch((err) => {
+      Log.error(`Failed to delete cache key ${cacheKey}`, err)
+    })
 }
 
 /**
@@ -310,12 +373,15 @@ export async function detectContentType(
 
 export class ImageOptimizerCache {
   private cacheDir: string
-  private nextConfig: NextConfigComplete
+  private nextConfig: NextConfigRuntime
+  private cacheHandler?: CacheHandler
+  private cacheDiskLRU?: ReturnType<typeof getOrInitDiskLRU>
+  private isDiskCacheEnabled?: boolean
 
   static validateParams(
     req: IncomingMessage,
     query: UrlWithParsedQuery['query'],
-    nextConfig: NextConfigComplete,
+    nextConfig: NextConfigRuntime,
     isDev: boolean
   ): ImageParamsResult | { errorMessage: string } {
     const imageData = nextConfig.images
@@ -458,9 +524,11 @@ export class ImageOptimizerCache {
 
     const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
 
-    const isStatic = url.startsWith(
-      `${nextConfig.basePath || ''}/_next/static/media`
-    )
+    const isStatic =
+      url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
+      url.startsWith(
+        `${nextConfig.basePath || ''}/_next/static/immutable/media`
+      )
 
     return {
       href,
@@ -491,46 +559,100 @@ export class ImageOptimizerCache {
   constructor({
     distDir,
     nextConfig,
+    cacheHandler,
   }: {
     distDir: string
-    nextConfig: NextConfigComplete
+    nextConfig: NextConfigRuntime
+    cacheHandler?: CacheHandler
   }) {
     this.cacheDir = join(/* turbopackIgnore: true */ distDir, 'cache', 'images')
     this.nextConfig = nextConfig
+    this.cacheHandler = cacheHandler
+
+    // Eagerly start LRU initialization for filesystem cache
+    if (
+      !cacheHandler &&
+      nextConfig.images.maximumDiskCacheSize !== 0 &&
+      nextConfig.experimental.isrFlushToDisk
+    ) {
+      this.isDiskCacheEnabled = true
+      this.cacheDiskLRU = getOrInitDiskLRU(
+        this.cacheDir,
+        nextConfig.images.maximumDiskCacheSize,
+        initCacheEntries,
+        deleteFromCacheDir
+      )
+    }
   }
 
   async get(cacheKey: string): Promise<IncrementalResponseCacheEntry | null> {
-    try {
-      const cacheDir = join(/* turbopackIgnore: true */ this.cacheDir, cacheKey)
-      const files = await promises.readdir(cacheDir)
-      const now = Date.now()
+    // If a custom cache handler is provided, use it
+    if (this.cacheHandler) {
+      try {
+        const cacheData = await this.cacheHandler.get(cacheKey, {
+          kind: IncrementalCacheKind.IMAGE,
+          isFallback: false,
+        })
 
-      for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] =
-          file.split('.', 5)
-        const buffer = await promises.readFile(
-          /* turbopackIgnore: true */ join(
-            /* turbopackIgnore: true */ cacheDir,
-            file
-          )
-        )
-        const expireAt = Number(expireAtSt)
-        const maxAge = Number(maxAgeSt)
+        if (!cacheData?.value) {
+          return null
+        }
+
+        if (cacheData.value.kind !== CachedRouteKind.IMAGE) {
+          return null
+        }
+
+        const now = Date.now()
+        const lastModified = cacheData.lastModified || now
+        const revalidate =
+          typeof cacheData.value.revalidate === 'number'
+            ? cacheData.value.revalidate
+            : this.nextConfig.images.minimumCacheTTL
+        const revalidateAfter =
+          Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
+          lastModified
+        const isStale = revalidateAfter < now
 
         return {
-          value: {
-            kind: CachedRouteKind.IMAGE,
-            etag,
-            buffer,
-            extension,
-            upstreamEtag,
-          },
-          revalidateAfter:
-            Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
-            Date.now(),
-          cacheControl: { revalidate: maxAge, expire: undefined },
-          isStale: now > expireAt,
+          value: cacheData.value,
+          revalidateAfter,
+          cacheControl: { revalidate, expire: undefined },
+          isStale,
         }
+      } catch (_) {
+        // failed to get from custom cache handler, treat as cache miss
+      }
+      return null
+    }
+
+    // If the filesystem cache is disabled, return early
+    if (!this.isDiskCacheEnabled) {
+      return null
+    }
+
+    // Fall back to filesystem cache
+    try {
+      const now = Date.now()
+      const { maxAge, expireAt, etag, upstreamEtag, buffer, extension } =
+        await readFromCacheDir(this.cacheDir, cacheKey)
+
+      // Promote entry in LRU (mark as recently used)
+      const lru = await this.cacheDiskLRU
+      lru?.get(cacheKey)
+
+      return {
+        value: {
+          kind: CachedRouteKind.IMAGE,
+          etag,
+          buffer,
+          extension,
+          upstreamEtag,
+        },
+        revalidateAfter:
+          Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
+          Date.now(),
+        cacheControl: { revalidate: maxAge, expire: undefined },
+        isStale: now > expireAt,
       }
     } catch (_) {
       // failed to read from cache dir, treat as cache miss
@@ -546,10 +668,6 @@ export class ImageOptimizerCache {
       cacheControl?: CacheControl
     }
   ) {
-    if (!this.nextConfig.experimental.isrFlushToDisk) {
-      return
-    }
-
     if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
@@ -560,13 +678,52 @@ export class ImageOptimizerCache {
       throw new InvariantError('revalidate must be a number for image-cache')
     }
 
+    // If a custom cache handler is provided, use it
+    if (this.cacheHandler) {
+      try {
+        // Apply minimumCacheTTL at write time, similar to the implementation in the fallback filesystem cache
+        const effectiveRevalidate = Math.max(
+          revalidate,
+          this.nextConfig.images.minimumCacheTTL
+        )
+        const valueWithRevalidate = {
+          ...value,
+          revalidate: effectiveRevalidate,
+        }
+        await this.cacheHandler.set(cacheKey, valueWithRevalidate, {
+          cacheControl: {
+            revalidate: effectiveRevalidate,
+            expire: cacheControl?.expire,
+          },
+        })
+      } catch (err) {
+        Log.error(`Failed to write image to custom cache ${cacheKey}`, err)
+      }
+      return
+    }
+
+    // If the filesystem cache is disabled, return early
+    if (!this.isDiskCacheEnabled) {
+      return
+    }
+
+    // Fall back to filesystem cache
     const expireAt =
       Math.max(revalidate, this.nextConfig.images.minimumCacheTTL) * 1000 +
       Date.now()
 
     try {
+      const lru = await this.cacheDiskLRU
+      const success = lru?.set(cacheKey, value.buffer.byteLength)
+      if (success === false) {
+        throw new Error(
+          `image of size ${value.buffer.byteLength} could not be tracked by lru cache`
+        )
+      }
+
       await writeToCacheDir(
-        join(/* turbopackIgnore: true */ this.cacheDir, cacheKey),
+        this.cacheDir,
+        cacheKey,
         value.extension,
         revalidate,
         expireAt,
@@ -700,9 +857,41 @@ export async function optimizeImage({
   return optimizedBuffer
 }
 
-export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
+function isRedirect(statusCode: number) {
+  return [301, 302, 303, 307, 308].includes(statusCode)
+}
+
+export async function fetchExternalImage(
+  href: string,
+  dangerouslyAllowLocalIP: boolean,
+  maximumResponseBody: number,
+  count = 3
+): Promise<ImageUpstream> {
+  if (!dangerouslyAllowLocalIP) {
+    const { hostname } = new URL(href)
+    let ips = [hostname]
+    if (!isIP(hostname)) {
+      const records = await lookup(hostname, {
+        family: 0,
+        all: true,
+        hints: ALL,
+      }).catch((_) => [{ address: hostname }])
+      ips = records.map((record) => record.address)
+    }
+    const privateIps = ips.filter((ip) => isPrivateIp(ip))
+    if (privateIps.length > 0) {
+      Log.error(
+        'upstream image',
+        href,
+        'resolved to private ip',
+        JSON.stringify(privateIps)
+      )
+      throw new ImageError(400, '"url" parameter is not allowed')
+    }
+  }
   const res = await fetch(href, {
     signal: AbortSignal.timeout(7_000),
+    redirect: 'manual',
   }).catch((err) => err as Error)
 
   if (res instanceof Error) {
@@ -717,6 +906,28 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
     throw err
   }
 
+  const locationHeader = res.headers.get('Location')
+  if (
+    isRedirect(res.status) &&
+    locationHeader &&
+    URL.canParse(locationHeader, href)
+  ) {
+    if (count === 0) {
+      Log.error('upstream image response had too many redirects', href)
+      throw new ImageError(
+        508,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    const redirect = new URL(locationHeader, href).href
+    return fetchExternalImage(
+      redirect,
+      dangerouslyAllowLocalIP,
+      maximumResponseBody,
+      count - 1
+    )
+  }
+
   if (!res.ok) {
     Log.error('upstream image response failed for', href, res.status)
     throw new ImageError(
@@ -725,7 +936,35 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
     )
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer())
+  if (!res.body) {
+    Log.error('upstream image response is empty for', href)
+    throw new ImageError(
+      400,
+      '"url" parameter is valid but upstream response is invalid'
+    )
+  }
+
+  const chunks: Buffer[] = []
+  let totalSize = 0
+
+  for await (const c of res.body) {
+    const chunk = Buffer.from(c)
+    totalSize += chunk.byteLength
+    if (totalSize > maximumResponseBody) {
+      Log.error(
+        'upstream image response exceeded maximum size for',
+        href,
+        totalSize
+      )
+      throw new ImageError(
+        413,
+        '"url" parameter is valid but upstream response is invalid'
+      )
+    }
+    chunks.push(chunk)
+  }
+
+  const buffer = Buffer.concat(chunks)
   const contentType = res.headers.get('Content-Type')
   const cacheControl = res.headers.get('Cache-Control')
   const etag = extractEtag(res.headers.get('ETag'), buffer)
@@ -743,9 +982,12 @@ export async function fetchInternalImage(
   ) => Promise<void>
 ): Promise<ImageUpstream> {
   try {
+    // Coerce HEAD to GET to avoid issues with the image optimizer
+    const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
+
     const mocked = createRequestResponseMocks({
       url: href,
-      method: _req.method || 'GET',
+      method,
       socket: _req.socket,
     })
 
@@ -1036,7 +1278,12 @@ export function sendResponse(
   )
   if (!result.finished) {
     res.setHeader('Content-Length', Buffer.byteLength(buffer))
-    res.end(buffer)
+    // A response body must not be sent for HEAD requests
+    if (req.method === 'HEAD') {
+      res.end()
+    } else {
+      res.end(buffer)
+    }
   }
 }
 

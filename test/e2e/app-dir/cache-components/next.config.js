@@ -2,9 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-  },
+  cacheComponents: true,
+  adapterPath:
+    process.env.NEXT_ADAPTER_PATH ?? require.resolve('./my-adapter.mjs'),
 }
 
 module.exports = nextConfig

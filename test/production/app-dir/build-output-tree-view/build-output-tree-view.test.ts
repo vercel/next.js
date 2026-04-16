@@ -2,7 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('build-output-tree-view', () => {
-  describe('with mixed static and dynamic pages and app router routes', () => {
+  // TODO(NAR-423): Migrate to Cache Components.
+  describe.skip('with mixed static and dynamic pages and app router routes', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/mixed'),
       skipStart: true,
@@ -23,10 +24,10 @@ describe('build-output-tree-view', () => {
        ├ ○ /cache-life-custom         ≈7m     ≈2h
        ├ ○ /cache-life-hours           1h      1d
        ├ ƒ /dynamic
-       ├ ◐ /ppr/[slug]                 1w     30d
-       ├   ├ /ppr/[slug]               1w     30d
-       ├   ├ /ppr/days                 1d      1w
-       ├   └ /ppr/weeks                1w     30d
+       ├   /ppr/[slug]                 1w     30d
+       │ ├ ◐ /ppr/[slug]               1w     30d
+       │ ├ ◐ /ppr/days                 1d      1w
+       │ └ ◐ /ppr/weeks                1w     30d
        └ ○ /revalidate                15m      1y
 
        Route (pages)           Revalidate  Expire
@@ -65,6 +66,27 @@ describe('build-output-tree-view', () => {
 
        ○  (Static)  prerendered as static content"
       `)
+    })
+  })
+
+  describe('with generated app routes that mix static and partial outputs', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, '../../../e2e/app-dir/cache-components'),
+      skipStart: true,
+      env: {
+        __NEXT_PRIVATE_DETERMINISTIC_BUILD_OUTPUT: '1',
+      },
+    })
+
+    beforeAll(() => next.build())
+
+    it('should show child route symbols for generated app paths', async () => {
+      expect(getTreeView(next.cliOutput)).toContain(
+        `├   /params/semantics/[lowcard]/[highcard]/layout-has/server
+│ ├ ◐ /params/semantics/[lowcard]/[highcard]/layout-has/server
+│ ├ ◐ /params/semantics/one/[highcard]/layout-has/server
+│ └ ○ /params/semantics/one/build/layout-has/server`
+      )
     })
   })
 })

@@ -66,9 +66,7 @@ function valueProcessor(filename: any, options: any) {
           const split = unescaped.split(/([?#])/g),
             uri = split[0],
             absolute =
-              // eslint-disable-next-line @typescript-eslint/no-use-before-define
               (testIsRelative(uri) && join(uri, candidate)) ||
-              // eslint-disable-next-line @typescript-eslint/no-use-before-define
               (testIsAbsolute(uri) && join(uri)),
             query = options.keepQuery ? split.slice(1).join('') : ''
 

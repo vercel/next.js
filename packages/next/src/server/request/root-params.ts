@@ -10,193 +10,14 @@ import {
 import {
   workUnitAsyncStorage,
   type PrerenderStoreLegacy,
+  type PrerenderStoreModernServer,
   type PrerenderStorePPR,
-  type StaticPrerenderStore,
 } from '../app-render/work-unit-async-storage.external'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-import type { OpaqueFallbackRouteParams } from './fallback-params'
-import type { Params, ParamValue } from './params'
-import {
-  describeStringPropertyAccess,
-  wellKnownProperties,
-} from '../../shared/lib/utils/reflect-utils'
+import type { ParamValue } from './params'
+import { describeStringPropertyAccess } from '../../shared/lib/utils/reflect-utils'
 import { actionAsyncStorage } from '../app-render/action-async-storage.external'
-import { warnOnce } from '../../build/output/log'
-
-interface CacheLifetime {}
-const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
-
-/**
- * @deprecated import specific root params from `next/root-params` instead.
- */
-export async function unstable_rootParams(): Promise<Params> {
-  warnOnce(
-    '`unstable_rootParams()` is deprecated and will be removed in an upcoming major release. Import specific root params from `next/root-params` instead.'
-  )
-  const workStore = workAsyncStorage.getStore()
-  if (!workStore) {
-    throw new InvariantError('Missing workStore in unstable_rootParams')
-  }
-
-  const workUnitStore = workUnitAsyncStorage.getStore()
-
-  if (!workUnitStore) {
-    throw new Error(
-      `Route ${workStore.route} used \`unstable_rootParams()\` in Pages Router. This API is only available within App Router.`
-    )
-  }
-
-  switch (workUnitStore.type) {
-    case 'cache':
-    case 'unstable-cache': {
-      throw new Error(
-        `Route ${workStore.route} used \`unstable_rootParams()\` inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
-      )
-    }
-    case 'prerender':
-    case 'prerender-client':
-    case 'prerender-ppr':
-    case 'prerender-legacy':
-      return createPrerenderRootParams(
-        workUnitStore.rootParams,
-        workStore,
-        workUnitStore
-      )
-    case 'private-cache':
-    case 'prerender-runtime':
-    case 'request':
-      return Promise.resolve(workUnitStore.rootParams)
-    default:
-      return workUnitStore satisfies never
-  }
-}
-
-function createPrerenderRootParams(
-  underlyingParams: Params,
-  workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore
-): Promise<Params> {
-  switch (prerenderStore.type) {
-    case 'prerender-client': {
-      const exportName = '`unstable_rootParams`'
-      throw new InvariantError(
-        `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
-      )
-    }
-    case 'prerender': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            const cachedParams = CachedParams.get(underlyingParams)
-            if (cachedParams) {
-              return cachedParams
-            }
-
-            const promise = makeHangingPromise<Params>(
-              prerenderStore.renderSignal,
-              workStore.route,
-              '`unstable_rootParams`'
-            )
-            CachedParams.set(underlyingParams, promise)
-
-            return promise
-          }
-        }
-      }
-      break
-    }
-    case 'prerender-ppr': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            // We have fallback params at this level so we need to make an erroring
-            // params object which will postpone if you access the fallback params
-            return makeErroringRootParams(
-              underlyingParams,
-              fallbackParams,
-              workStore,
-              prerenderStore
-            )
-          }
-        }
-      }
-      break
-    }
-    case 'prerender-legacy':
-      break
-    default:
-      prerenderStore satisfies never
-  }
-
-  // We don't have any fallback params so we have an entirely static safe params object
-  return Promise.resolve(underlyingParams)
-}
-
-function makeErroringRootParams(
-  underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams,
-  workStore: WorkStore,
-  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
-): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  const augmentedUnderlying = { ...underlyingParams }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(augmentedUnderlying)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      if (fallbackParams.has(prop)) {
-        Object.defineProperty(augmentedUnderlying, prop, {
-          get() {
-            const expression = describeStringPropertyAccess(
-              'unstable_rootParams',
-              prop
-            )
-            // In most dynamic APIs we also throw if `dynamic = "error"` however
-            // for params is only dynamic when we're generating a fallback shell
-            // and even when `dynamic = "error"` we still support generating dynamic
-            // fallback shells
-            // TODO remove this comment when cacheComponents is the default since there
-            // will be no `dynamic = "error"`
-            if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
-            } else {
-              // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
-            }
-          },
-          enumerable: true,
-        })
-      } else {
-        ;(promise as any)[prop] = underlyingParams[prop]
-      }
-    }
-  })
-
-  return promise
-}
+import { accumulateRootVaryParam } from '../app-render/vary-params'
 
 /**
  * Used for the compiler-generated `next/root-params` module.
@@ -237,14 +58,21 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
   }
 
   switch (workUnitStore.type) {
-    case 'unstable-cache':
-    case 'cache': {
+    case 'unstable-cache': {
       throw new Error(
-        `Route ${workStore.route} used ${apiName} inside \`"use cache"\` or \`unstable_cache\`. Support for this API inside cache scopes is planned for a future version of Next.js.`
+        `Route ${workStore.route} used ${apiName} inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.`
       )
     }
+    case 'cache': {
+      if (!workUnitStore.rootParams) {
+        throw new Error(
+          `Route ${workStore.route} used ${apiName} inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.`
+        )
+      }
+      workUnitStore.readRootParamNames.add(paramName)
+      return Promise.resolve(workUnitStore.rootParams[paramName])
+    }
     case 'prerender':
-    case 'prerender-client':
     case 'prerender-ppr':
     case 'prerender-legacy': {
       return createPrerenderRootParamPromise(
@@ -254,30 +82,63 @@ export function getRootParam(paramName: string): Promise<ParamValue> {
         apiName
       )
     }
-    case 'private-cache':
-    case 'prerender-runtime':
+    case 'validation-client':
+    case 'prerender-client': {
+      throw new InvariantError(
+        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
+      )
+    }
     case 'request': {
+      if (
+        process.env.__NEXT_CACHE_COMPONENTS &&
+        workUnitStore.validationSamples
+      ) {
+        const { assertRootParamInSamples } =
+          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+        // If we error, make sure we return a rejected promise instead of erroring synchronously.
+        try {
+          assertRootParamInSamples(
+            workStore,
+            workUnitStore.validationSamples.params,
+            paramName
+          )
+        } catch (err) {
+          return Promise.reject(err)
+        }
+      }
+      break
+    }
+    case 'private-cache':
+    case 'prerender-runtime': {
+      break
+    }
+    case 'generate-static-params': {
+      if (!(paramName in workUnitStore.rootParams)) {
+        throw new Error(
+          `Route ${workStore.route} used ${apiName} inside \`generateStaticParams\`, but the \`${paramName}\` parameter was not provided by a parent \`generateStaticParams\`. In \`generateStaticParams\`, root params are only available for segments nested below the segment that provides them.`
+        )
+      }
       break
     }
     default: {
       workUnitStore satisfies never
     }
   }
+
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(workUnitStore.rootParams[paramName])
 }
 
 function createPrerenderRootParamPromise(
   paramName: string,
   workStore: WorkStore,
-  prerenderStore: StaticPrerenderStore,
+  prerenderStore:
+    | PrerenderStorePPR
+    | PrerenderStoreLegacy
+    | PrerenderStoreModernServer,
   apiName: string
 ): Promise<ParamValue> {
   switch (prerenderStore.type) {
-    case 'prerender-client': {
-      throw new InvariantError(
-        `${apiName} must not be used within a client component. Next.js should be preventing ${apiName} from being included in client components statically, but did not in this case.`
-      )
-    }
     case 'prerender':
     case 'prerender-legacy':
     case 'prerender-ppr':
@@ -288,7 +149,7 @@ function createPrerenderRootParamPromise(
 
   switch (prerenderStore.type) {
     case 'prerender': {
-      // We are in a dynamicIO prerender.
+      // We are in a cacheComponents prerender.
       // The param is a fallback, so it should be treated as dynamic.
       if (
         prerenderStore.fallbackRouteParams &&
@@ -303,7 +164,7 @@ function createPrerenderRootParamPromise(
       break
     }
     case 'prerender-ppr': {
-      // We aren't in a dynamicIO prerender, but the param is a fallback,
+      // We aren't in a cacheComponents prerender, but the param is a fallback,
       // so we need to make an erroring params object which will postpone/error if you access it
       if (
         prerenderStore.fallbackRouteParams &&
@@ -328,6 +189,7 @@ function createPrerenderRootParamPromise(
   }
 
   // If the param is not a fallback param, we just return the statically available value.
+  accumulateRootVaryParam(paramName)
   return Promise.resolve(underlyingParams[paramName])
 }
 
@@ -342,7 +204,7 @@ async function makeErroringRootParamPromise(
   // In most dynamic APIs, we also throw if `dynamic = "error"`.
   // However, root params are only dynamic when we're generating a fallback shell,
   // and even with `dynamic = "error"` we still support generating dynamic fallback shells.
-  // TODO: remove this comment when dynamicIO is the default since there will be no `dynamic = "error"`
+  // TODO: remove this comment when cacheComponents is the default since there will be no `dynamic = "error"`
   switch (prerenderStore.type) {
     case 'prerender-ppr': {
       return postponeWithTracking(

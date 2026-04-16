@@ -2,10 +2,8 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    prerenderEarlyExit: false,
-  },
+  cacheComponents: true,
+  experimental: { prerenderEarlyExit: false },
 }
 
 module.exports = nextConfig

@@ -2,10 +2,9 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  experimental: {
-    cacheComponents: true,
-    enablePrerenderSourceMaps: false,
-  },
+  enablePrerenderSourceMaps: false,
+
+  cacheComponents: true,
 }
 
 module.exports = nextConfig

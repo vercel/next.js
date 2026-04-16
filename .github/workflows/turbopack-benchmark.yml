@@ -19,12 +19,9 @@ concurrency:
 
 env:
   CI: 1
-  CARGO_INCREMENTAL: 0
-  # For faster CI
   RUST_LOG: 'off'
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
-  TURBO_TOKEN: ${{ secrets.HOSTED_TURBO_TOKEN }}
 
 jobs:
   benchmark-small-apps:
@@ -37,16 +34,14 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
           tool: cargo-codspeed@3.0.5
 
-      - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+      - name: Start sccache
+        uses: ./.github/actions/sccache
         with:
-          save-if: 'true'
-          cache-provider: 'turbo'
-          shared-key: build-turbopack-benchmark-small-apps-${{ hashFiles('.cargo/config.toml') }}
+          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -61,7 +56,7 @@ jobs:
         run: cargo codspeed build -p turbopack-cli small_apps
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-cli small_apps
@@ -77,16 +72,14 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
           tool: cargo-codspeed@3.0.5
 
-      - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
+      - name: Start sccache
+        uses: ./.github/actions/sccache
         with:
-          save-if: 'true'
-          cache-provider: 'turbo'
-          shared-key: build-turbopack-benchmark-analyzer-${{ hashFiles('.cargo/config.toml') }}
+          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -101,7 +94,7 @@ jobs:
         run: cargo codspeed build -p turbopack-ecmascript references
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-ecmascript references
@@ -118,9 +111,14 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@v2
+        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
         with:
           tool: cargo-codspeed@3.0.5
+
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        with:
+          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
 
       - name: Build the benchmark target(s)
         env:
@@ -128,7 +126,7 @@ jobs:
         run: cargo codspeed build -p turbopack -p turbopack-bench
 
       - name: Run the benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@1c8ae4843586d3ba879736b7f6b7b0c990757fab # v4.12.1
         with:
           mode: instrumentation
           run: cargo codspeed run

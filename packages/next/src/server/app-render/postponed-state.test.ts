@@ -21,8 +21,7 @@ export function createMockOpaqueFallbackRouteParams(
   return new Map(Object.entries(params))
 }
 
-const isCacheComponentsEnabled =
-  process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true'
+const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
 describe('getDynamicHTMLPostponedState', () => {
   it('serializes a HTML postponed state with fallback params', async () => {
@@ -35,24 +34,29 @@ describe('getDynamicHTMLPostponedState', () => {
     prerenderResumeDataCache.cache.set(
       '1',
       Promise.resolve({
-        value: streamFromString('hello'),
-        tags: [],
-        stale: 0,
-        timestamp: 0,
-        expire: 300,
-        revalidate: 1,
+        entry: {
+          value: streamFromString('hello'),
+          tags: [],
+          stale: 0,
+          timestamp: 0,
+          expire: 300,
+          revalidate: 1,
+        },
+        hasExplicitRevalidate: true,
+        hasExplicitExpire: true,
+        readRootParamNames: undefined,
       })
     )
 
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key, nested: { [key]: key } },
+      { [key]: key, nested: { [key]: key } } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       prerenderResumeDataCache,
       isCacheComponentsEnabled
     )
 
-    const parsed = parsePostponedState(state, '/blog/[slug]', { slug: '123' })
+    const parsed = parsePostponedState(state, { slug: '123' }, undefined)
 
     expect(parsed).toMatchInlineSnapshot(`
      {
@@ -81,12 +85,12 @@ describe('getDynamicHTMLPostponedState', () => {
 
     expect(value).toBeDefined()
 
-    await expect(streamToString(value!.value)).resolves.toEqual('hello')
+    await expect(streamToString(value!.entry.value)).resolves.toEqual('hello')
   })
 
   it('serializes a HTML postponed state without fallback params', async () => {
     const state = await getDynamicHTMLPostponedState(
-      { key: 'value' },
+      { key: 'value' } as any,
       DynamicHTMLPreludeState.Full,
       null,
       createPrerenderResumeDataCache(),
@@ -101,7 +105,7 @@ describe('getDynamicHTMLPostponedState', () => {
       slug: [key, 'd'],
     })
     const state = await getDynamicHTMLPostponedState(
-      { [key]: key },
+      { [key]: key } as any,
       DynamicHTMLPreludeState.Full,
       fallbackRouteParams,
       createPrerenderResumeDataCache(),
@@ -110,11 +114,16 @@ describe('getDynamicHTMLPostponedState', () => {
 
     const value = 'hello'
     const params = { slug: value }
-    const parsed = parsePostponedState(state, '/blog/[slug]', params)
+    const parsed = parsePostponedState(state, params, undefined)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: [1, { [value]: value }],
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
 
     // The replacements have been replaced.
@@ -138,13 +147,18 @@ describe('parsePostponedState', () => {
     const params = {
       slug: Math.random().toString(16).slice(3),
     }
-    const parsed = parsePostponedState(state, '/blog/[slug]', params)
+    const parsed = parsePostponedState(state, params, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
 
     // Ensure that the replacement worked and removed all the placeholders.
@@ -154,24 +168,34 @@ describe('parsePostponedState', () => {
   it('parses a HTML postponed state without fallback params', () => {
     const state = `2:{}null`
     const params = {}
-    const parsed = parsePostponedState(state, '/blog', params)
+    const parsed = parsePostponedState(state, params, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
   })
 
   it('parses a data postponed state', () => {
     const state = '4:nullnull'
-    const parsed = parsePostponedState(state, '/blog', undefined)
+    const parsed = parsePostponedState(state, {}, undefined)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.DATA,
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
   })
 })

@@ -8,6 +8,7 @@ export interface LogEntry {
   message: string
 }
 
+// Logging server and browser logs to a file
 export class FileLogger {
   private logFilePath: string = ''
   private isInitialized: boolean = false
@@ -29,12 +30,10 @@ export class FileLogger {
     }
 
     try {
-      // Create the log file if it doesn't exist
-      if (!fs.existsSync(this.logFilePath)) {
-        // ensure the directory exists
-        fs.mkdirSync(path.dirname(this.logFilePath), { recursive: true })
-        fs.writeFileSync(this.logFilePath, '')
-      }
+      // Clean up the log file on each initialization
+      // ensure the directory exists
+      fs.mkdirSync(path.dirname(this.logFilePath), { recursive: true })
+      fs.writeFileSync(this.logFilePath, '')
       this.isInitialized = true
     } catch (error) {
       console.error(error)
@@ -61,9 +60,7 @@ export class FileLogger {
 
   private formatLogEntry(entry: LogEntry): string {
     const { timestamp, source, level, message } = entry
-    const levelPadded = level.toUpperCase().padEnd(7, ' ') // Pad level to 7 characters for alignment
-    const sourcePadded = source === 'Browser' ? source : 'Server '
-    return `[${timestamp}] ${sourcePadded} ${levelPadded} ${message}\n`
+    return JSON.stringify({ timestamp, source, level, message }) + '\n'
   }
 
   private scheduleFlush(): void {
@@ -83,6 +80,10 @@ export class FileLogger {
     return this.logQueue
   }
 
+  public isEnabled(): boolean {
+    return this.mcpServerEnabled && this.isInitialized
+  }
+
   private flush(): void {
     if (this.logQueue.length === 0) {
       return
@@ -90,7 +91,7 @@ export class FileLogger {
 
     // Only flush to disk if mcpServer is enabled
     if (!this.mcpServerEnabled) {
-      this.logQueue = [] // Clear the queue without writing
+      this.logQueue.length = 0 // Clear the queue without GC overhead
       this.flushTimer = null
       return
     }
@@ -105,7 +106,7 @@ export class FileLogger {
       const logsToWrite = this.logQueue.join('')
       // Writing logs to files synchronously to ensure they're written before returning
       fs.appendFileSync(this.logFilePath, logsToWrite)
-      this.logQueue = []
+      this.logQueue.length = 0 // Clear the queue without GC overhead
     } catch (error) {
       console.error('Failed to flush logs to file:', error)
     } finally {
@@ -127,11 +128,7 @@ export class FileLogger {
 
   log(source: 'Server' | 'Browser', level: string, message: string): void {
     // Don't log anything if mcpServer is disabled
-    if (!this.mcpServerEnabled) {
-      return
-    }
-
-    if (!this.isInitialized) {
+    if (!this.isEnabled()) {
       return
     }
 

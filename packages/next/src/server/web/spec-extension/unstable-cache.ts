@@ -1,6 +1,6 @@
 import type { IncrementalCache } from '../../lib/incremental-cache'
 
-import { CACHE_ONE_YEAR } from '../../../lib/constants'
+import { CACHE_ONE_YEAR_SECONDS } from '../../../lib/constants'
 import { validateRevalidate, validateTags } from '../../lib/patch-fetch'
 import {
   workAsyncStorage,
@@ -45,7 +45,8 @@ async function cacheNewResult<T>(
         status: 200,
         url: '',
       } satisfies CachedFetchData,
-      revalidate: typeof revalidate !== 'number' ? CACHE_ONE_YEAR : revalidate,
+      revalidate:
+        typeof revalidate !== 'number' ? CACHE_ONE_YEAR_SECONDS : revalidate,
     },
     { fetchCache: true, tags, fetchIdx, fetchUrl }
   )
@@ -147,6 +148,7 @@ export function unstable_cache<T extends Callback>(
           workUnitStore &&
           workStore &&
           getDraftModeProviderForCacheScope(workStore, workUnitStore),
+        rootParams: undefined,
       }
 
       if (workStore) {
@@ -194,7 +196,9 @@ export function unstable_cache<T extends Callback>(
               isNestedUnstableCache = true
               break
             case 'prerender-client':
+            case 'validation-client':
             case 'request':
+            case 'generate-static-params':
               break
             default:
               workUnitStore satisfies never
@@ -408,12 +412,14 @@ function getFetchUrlPrefix(
       return `${pathname}${sortedSearch.length ? '?' : ''}${sortedSearch}`
     case 'prerender':
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-runtime':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
       return workStore.route
     default:
       return workUnitStore satisfies never

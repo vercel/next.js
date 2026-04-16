@@ -3,7 +3,11 @@ import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { connection } from 'next/server'
 import { cookies } from 'next/headers'
 
-export const unstable_prefetch = 'unstable_runtime'
+export const unstable_instant = {
+  prefetch: 'runtime',
+  samples: [{ searchParams: { searchParam: 'value' } }],
+}
+export const unstable_prefetch = 'runtime'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 

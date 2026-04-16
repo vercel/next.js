@@ -128,5 +128,3 @@ export function RouteInfoBody({
     <DynamicRouteContent routerType={routerType} {...props} />
   )
 }
-
-export const DEV_TOOLS_INFO_ROUTE_INFO_STYLES = ``

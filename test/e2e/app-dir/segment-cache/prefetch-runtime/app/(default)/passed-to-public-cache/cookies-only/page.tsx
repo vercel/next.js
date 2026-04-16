@@ -2,7 +2,11 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 
-export const unstable_prefetch = 'unstable_runtime'
+export const unstable_instant = {
+  prefetch: 'runtime',
+  samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
+}
+export const unstable_prefetch = 'runtime'
 
 export default async function Page() {
   return (

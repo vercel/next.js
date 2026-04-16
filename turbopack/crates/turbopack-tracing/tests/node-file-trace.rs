@@ -16,7 +16,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result};
 use difference::Changeset;
 use helpers::print_changeset;
 use regex::Regex;
@@ -24,33 +24,35 @@ use rstest::*;
 use rstest_reuse::{
     *, {self},
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use tokio::{process::Command, time::timeout};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects, backend::Backend, trace::TraceRawVcs,
+    Effects, ResolvedVc, TurboTasks, ValueToString, Vc, backend::Backend, take_effects,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_backend::TurboTasksBackend;
-use turbo_tasks_fs::{DiskFileSystem, FileSystem};
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbopack::{
-    ModuleAssetContext,
-    ecmascript::AnalyzeMode,
-    emit_with_completion_operation,
+    ModuleAssetContext, emit_assets_into_dir_operation,
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext,
         TypescriptTransformOptions,
     },
 };
 use turbopack_core::{
+    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     ident::Layer,
-    output::OutputAsset,
+    output::{OutputAsset, OutputAssetsReference},
     rebase::RebasedAsset,
+    reference::all_assets_from_entry,
     reference_type::ReferenceType,
 };
+use turbopack_ecmascript::AnalyzeMode;
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
 
 #[global_allocator]
@@ -63,8 +65,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::apollo("integration/apollo.js")]
 #[case::argon2("integration/argon2.js")]
 #[case::auth0("integration/auth0.js")]
+#[case::aws_sdk_old("integration/aws-sdk-old.js")]
 #[case::aws_sdk("integration/aws-sdk.js")]
-#[case::aws_sdk3("integration/aws-sdk3.js")]
 #[case::axios("integration/axios.js")]
 #[case::azure_cosmos("integration/azure-cosmos.js")]
 #[case::azure_storage("integration/azure-storage.js")]
@@ -146,9 +148,10 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 #[case::passport("integration/passport.js")]
 #[case::path_platform("integration/path-platform.js")]
 #[case::pixelmatch("integration/pixelmatch.js")]
-#[case::pdf2json("integration/pdf2json.mjs")]
+#[case::pdf2json("integration/pdf2json.js")]
 #[case::pdfkit("integration/pdfkit.js")]
 #[case::pg("integration/pg.js")]
+#[case::pino("integration/pino.js")]
 #[case::playwright_core("integration/playwright-core.js")]
 #[case::pnpm_like("integration/pnpm/pnpm-like.js")]
 #[case::polyfill_library("integration/polyfill-library.js")]
@@ -181,6 +184,15 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
     case::sharp("integration/sharp.js")
 )]
 #[cfg_attr(not(target_os = "windows"), case::sharp("integration/sharp.js"))]
+#[cfg_attr(
+    target_os = "windows",
+    should_panic(expected = "Something went wrong installing the \"sharp\" module"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
+#[cfg_attr(
+    not(target_os = "windows"),
+    case::sharp_pnpm("integration/sharp-pnpm.js")
+)]
 #[case::shiki("integration/shiki.js")]
 #[case::simple("integration/simple.js")]
 #[case::socket_io("integration/socket.io.js")]
@@ -302,7 +314,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
     node_file_trace(input, "persistent_cache", 2, 240, |directory_path| {
         TurboTasks::new(TurboTasksBackend::new(
             turbo_tasks_backend::BackendOptions::default(),
-            turbo_tasks_backend::default_backing_storage(
+            turbo_tasks_backend::turbo_backing_storage(
                 &directory_path.join(".cache"),
                 &turbo_tasks_backend::GitVersionInfo {
                     describe: "test-unversioned",
@@ -310,6 +322,7 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                 },
                 false,
                 true,
+                false,
             )
             .unwrap()
             .0,
@@ -333,20 +346,26 @@ fn bench_against_node_nft_inner(input: CaseInput) {
     });
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct NodeFileTraceResult {
+    rebased: ResolvedVc<RebasedAsset>,
+    effects: Effects,
+}
+
 #[turbo_tasks::function(operation)]
 async fn node_file_trace_operation(
     package_root: RcStr,
     input: RcStr,
     directory: RcStr,
-) -> Result<Vc<RebasedAsset>> {
+) -> Result<Vc<NodeFileTraceResult>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
-        package_root.clone(),
+        Vc::cell(package_root.clone()),
     ));
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&format!("tests/{input}"))?;
 
-    let output_fs = DiskFileSystem::new(rcstr!("output"), directory.clone());
+    let output_fs = DiskFileSystem::new(rcstr!("output"), Vc::cell(directory.clone()));
     let output_dir = output_fs.root().owned().await?;
 
     let source = FileSource::new(input);
@@ -357,22 +376,27 @@ async fn node_file_trace_operation(
         }
         .resolved_cell(),
     ));
-    let module_asset_context = ModuleAssetContext::new(
+    let module_asset_context = ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         // TODO These test cases should move into the `node-file-trace` crate and use the same
         // config.
-        // It's easy to make a mistake here as this should match the config in the binary from
-        // turbopack/crates/turbopack/src/lib.rs
+        // This config should be kept in sync with
+        // turbopack/crates/turbopack-tracing/tests/node-file-trace.rs and
+        // turbopack/crates/turbopack-tracing/tests/unit.rs and
+        // turbopack/crates/turbopack/src/lib.rs and
+        // turbopack/crates/turbopack-nft/src/nft.rs
         CompileTimeInfo::new(environment),
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                // enable_types is required here to ensure .d.ts files are collected.
                 enable_types: true,
                 ..Default::default()
             },
             css: CssOptionsContext {
+                source_maps: SourceMapsType::None,
                 enable_raw_css: true,
                 ..Default::default()
             },
@@ -380,6 +404,9 @@ async fn node_file_trace_operation(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
+            // execute at runtime.
+            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),
@@ -400,12 +427,15 @@ async fn node_file_trace_operation(
     let rebased = RebasedAsset::new(module, input_dir.clone(), output_dir.clone())
         .to_resolved()
         .await?;
+    let assets = all_assets_from_entry(Vc::upcast(*rebased))
+        .to_resolved()
+        .await?;
 
-    let emit_op = emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir.clone());
+    let emit_op = emit_assets_into_dir_operation(assets, output_dir.clone());
     emit_op.read_strongly_consistent().await?;
-    apply_effects(emit_op).await?;
+    let effects = take_effects(emit_op).await?;
 
-    Ok(*rebased)
+    Ok(NodeFileTraceResult { rebased, effects }.cell())
 }
 
 fn node_file_trace<B: Backend + 'static>(
@@ -446,7 +476,7 @@ fn node_file_trace<B: Backend + 'static>(
                     Err(err)
                 }
             })
-            .context(format!("Failed to remove directory: {directory}"))
+            .with_context(|| format!("Failed to remove directory: {directory}"))
             .unwrap();
 
         for _ in 0..run_count {
@@ -456,22 +486,23 @@ fn node_file_trace<B: Backend + 'static>(
             let input = input.clone();
             let directory = directory.clone();
             let task = async move {
-                #[allow(unused)]
-                let bench_suites = bench_suites.clone();
                 let before_start = Instant::now();
-
-                let rebased = node_file_trace_operation(
+                let trace_result = node_file_trace_operation(
                     package_root.clone(),
                     input.clone(),
                     directory.clone(),
                 )
-                .resolve_strongly_consistent()
+                .read_strongly_consistent()
                 .await?;
+                trace_result.effects.apply().await?;
+                let rebased = trace_result.rebased;
+                let duration = before_start.elapsed();
 
-                print_graph(ResolvedVc::upcast(rebased)).await?;
+                print_graph_operation(ResolvedVc::upcast(rebased))
+                    .read_strongly_consistent()
+                    .await?;
 
                 if cfg!(feature = "bench_against_node_nft") {
-                    let duration = before_start.elapsed();
                     let node_start = Instant::now();
                     exec_node(&package_root, &input).await?;
                     let node_duration = node_start.elapsed();
@@ -504,7 +535,10 @@ fn node_file_trace<B: Backend + 'static>(
                         stderr: String::new(),
                     })
                 } else {
-                    let output_path = &rebased.path().await?.path;
+                    let output_path = &asset_path_operation(ResolvedVc::upcast(rebased))
+                        .read_strongly_consistent()
+                        .await?
+                        .path;
                     let original_output =
                         exec_node(&package_root, &format!("{package_root}/tests/{input}")).await?;
                     let output = exec_node(&directory, output_path).await?;
@@ -590,6 +624,10 @@ async fn exec_node(directory: &str, path: &str) -> Result<CommandOutput> {
     let dir = f.parent().unwrap();
     println!("[CWD]: {}", dir.display());
 
+    // See https://github.com/nodejs/node/issues/51555
+    // The compile cache is causing flaky crashes when run on github actions.
+    cmd.env("DISABLE_V8_COMPILE_CACHE", "1");
+
     if path.contains("mdx") {
         cmd.arg("--experimental-loader=@mdx-js/node-loader")
             .arg("--no-warnings");
@@ -628,8 +666,8 @@ async fn exec_node(directory: &str, path: &str) -> Result<CommandOutput> {
 
     let output = timeout(Duration::from_secs(100), cmd.output())
         .await
-        .with_context(|| anyhow!("node execution of {path} is hanging"))?
-        .with_context(|| anyhow!("failed to spawn node process of {path}"))?;
+        .with_context(|| format!("node execution of {path} is hanging"))?
+        .with_context(|| format!("failed to spawn node process of {path}"))?;
 
     let output = CommandOutput {
         stdout: String::from_utf8_lossy(&output.stdout).to_string(),
@@ -688,7 +726,7 @@ fn assert_output(
     })
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize)]
 struct BenchSuite {
     suite: String,
     node_duration: String,
@@ -730,12 +768,18 @@ impl std::str::FromStr for CaseInput {
     }
 }
 
-async fn print_graph(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
+#[turbo_tasks::function(operation)]
+async fn asset_path_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<FileSystemPath> {
+    asset.path()
+}
+
+#[turbo_tasks::function(operation)]
+async fn print_graph_operation(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Result<()> {
     let mut visited = HashSet::new();
     let mut queue = Vec::new();
     queue.push((0, asset));
     while let Some((depth, asset)) = queue.pop() {
-        let references = asset.references().await?;
+        let references = asset.references().all_assets().await?;
         let mut indent = String::new();
         for _ in 0..depth {
             indent.push_str("  ");

@@ -1,11 +1,18 @@
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
+import type { VaryParamsAccumulator } from '../app-render/vary-params'
+import {
+  createVaryingSearchParams,
+  getMetadataVaryParamsAccumulator,
+} from '../app-render/vary-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
   postponeWithTracking,
   annotateDynamicAccess,
-  delayUntilRuntimeStage,
 } from '../app-render/dynamic-rendering'
 
 import {
@@ -16,6 +23,8 @@ import {
   type PrerenderStoreModernRuntime,
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
+  type RequestStore,
+  type ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -32,13 +41,17 @@ import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
 } from './utils'
+import { RenderStage } from '../app-render/staged-rendering'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
 
 export function createSearchParamsFromClient(
-  underlyingSearchParams: SearchParams,
-  workStore: WorkStore
+  underlyingSearchParams: SearchParams
 ): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -47,6 +60,13 @@ export function createSearchParamsFromClient(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
+      case 'validation-client': {
+        return createClientSearchParamsInValidation(
+          underlyingSearchParams,
+          workStore,
+          workUnitStore
+        )
+      }
       case 'prerender-runtime':
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in a runtime prerender.'
@@ -57,8 +77,19 @@ export function createSearchParamsFromClient(
         throw new InvariantError(
           'createSearchParamsFromClient should not be called in cache contexts.'
         )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createSearchParamsFromClient should not be called inside generateStaticParams.'
+        )
       case 'request':
-        return createRenderSearchParams(underlyingSearchParams, workStore)
+        // Client searchParams are not runtime prefetchable
+        const isRuntimePrefetchable = false
+        return createRenderSearchParams(
+          underlyingSearchParams,
+          workStore,
+          workUnitStore,
+          isRuntimePrefetchable
+        )
       default:
         workUnitStore satisfies never
     }
@@ -67,13 +98,27 @@ export function createSearchParamsFromClient(
 }
 
 // generateMetadata always runs in RSC context so it is equivalent to a Server Page Component
-export const createServerSearchParamsForMetadata =
-  createServerSearchParamsForServerPage
+export function createServerSearchParamsForMetadata(
+  underlyingSearchParams: SearchParams,
+  isRuntimePrefetchable: boolean
+): Promise<SearchParams> {
+  const metadataVaryParamsAccumulator = getMetadataVaryParamsAccumulator()
+  return createServerSearchParamsForServerPage(
+    underlyingSearchParams,
+    metadataVaryParamsAccumulator,
+    isRuntimePrefetchable
+  )
+}
 
 export function createServerSearchParamsForServerPage(
   underlyingSearchParams: SearchParams,
-  workStore: WorkStore
+  varyParamsAccumulator: VaryParamsAccumulator | null,
+  isRuntimePrefetchable: boolean
 ): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -82,19 +127,34 @@ export function createServerSearchParamsForServerPage(
       case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderSearchParams(workStore, workUnitStore)
+      case 'validation-client':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called in a client validation.'
+        )
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':
         throw new InvariantError(
           'createServerSearchParamsForServerPage should not be called in cache contexts.'
         )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerSearchParamsForServerPage should not be called inside generateStaticParams.'
+        )
       case 'prerender-runtime':
         return createRuntimePrerenderSearchParams(
           underlyingSearchParams,
-          workUnitStore
+          workUnitStore,
+          varyParamsAccumulator,
+          isRuntimePrefetchable
         )
       case 'request':
-        return createRenderSearchParams(underlyingSearchParams, workStore)
+        return createRenderSearchParams(
+          underlyingSearchParams,
+          workStore,
+          workUnitStore,
+          isRuntimePrefetchable
+        )
       default:
         workUnitStore satisfies never
     }
@@ -102,9 +162,11 @@ export function createServerSearchParamsForServerPage(
   throwInvariantForMissingStore()
 }
 
-export function createPrerenderSearchParamsForClientPage(
-  workStore: WorkStore
-): Promise<SearchParams> {
+export function createPrerenderSearchParamsForClientPage(): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
     // dictionary object.
@@ -123,6 +185,10 @@ export function createPrerenderSearchParamsForClientPage(
           workStore.route,
           '`searchParams`'
         )
+      case 'validation-client':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called in a client validation.'
+        )
       case 'prerender-runtime':
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in a runtime prerender.'
@@ -132,6 +198,10 @@ export function createPrerenderSearchParamsForClientPage(
       case 'unstable-cache':
         throw new InvariantError(
           'createPrerenderSearchParamsForClientPage should not be called in cache contexts.'
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createPrerenderSearchParamsForClientPage should not be called inside generateStaticParams.'
         )
       case 'prerender-ppr':
       case 'prerender-legacy':
@@ -171,17 +241,31 @@ function createStaticPrerenderSearchParams(
 
 function createRuntimePrerenderSearchParams(
   underlyingSearchParams: SearchParams,
-  workUnitStore: PrerenderStoreModernRuntime
+  workUnitStore: PrerenderStoreModernRuntime,
+  varyParamsAccumulator: VaryParamsAccumulator | null,
+  isRuntimePrefetchable: boolean
 ): Promise<SearchParams> {
-  return delayUntilRuntimeStage(
-    workUnitStore,
-    makeUntrackedSearchParams(underlyingSearchParams)
-  )
+  const underlyingSearchParamsWithVarying =
+    varyParamsAccumulator !== null
+      ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
+      : underlyingSearchParams
+
+  const result = makeUntrackedSearchParams(underlyingSearchParamsWithVarying)
+  const { stagedRendering } = workUnitStore
+  if (!stagedRendering) {
+    return result
+  }
+  const stage = isRuntimePrefetchable
+    ? RenderStage.EarlyRuntime
+    : RenderStage.Runtime
+  return stagedRendering.waitForStage(stage).then(() => result)
 }
 
 function createRenderSearchParams(
   underlyingSearchParams: SearchParams,
-  workStore: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore,
+  isRuntimePrefetchable: boolean
 ): Promise<SearchParams> {
   if (workStore.forceStatic) {
     // When using forceStatic we override all other logic and always just return an empty
@@ -194,8 +278,29 @@ function createRenderSearchParams(
       // as a proxy so we can statically exclude this code from production builds.
       return makeUntrackedSearchParamsWithDevWarnings(
         underlyingSearchParams,
-        workStore
+        workStore,
+        requestStore,
+        isRuntimePrefetchable
       )
+    } else if (requestStore.asyncApiPromises) {
+      if (requestStore.validationSamples) {
+        const { createExhaustiveSearchParamsProxy } =
+          require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+        const declaredKeys = new Set(
+          Object.keys(requestStore.validationSamples.searchParams ?? {})
+        )
+        underlyingSearchParams = createExhaustiveSearchParamsProxy(
+          underlyingSearchParams,
+          declaredKeys,
+          workStore.route
+        )
+      }
+
+      return (
+        isRuntimePrefetchable
+          ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
+          : requestStore.asyncApiPromises.sharedSearchParamsParent
+      ).then(() => underlyingSearchParams)
     } else {
       return makeUntrackedSearchParams(underlyingSearchParams)
     }
@@ -320,9 +425,11 @@ function makeErroringSearchParams(
  * error on access, because accessing searchParams inside of `"use cache"` is
  * not allowed.
  */
-export function makeErroringSearchParamsForUseCache(
-  workStore: WorkStore
-): Promise<SearchParams> {
+export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const cachedSearchParams = CachedSearchParamsForUseCache.get(workStore)
   if (cachedSearchParams) {
     return cachedSearchParams
@@ -371,30 +478,110 @@ function makeUntrackedSearchParams(
 
 function makeUntrackedSearchParamsWithDevWarnings(
   underlyingSearchParams: SearchParams,
-  store: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore,
+  isRuntimePrefetchable: boolean
 ): Promise<SearchParams> {
-  const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
-  if (cachedSearchParams) {
-    return cachedSearchParams
+  if (requestStore.asyncApiPromises) {
+    // Do not cache the resulting promise. If we do, we'll only show the first "awaited at"
+    // across all segments that receive searchParams.
+    return makeUntrackedSearchParamsWithDevWarningsImpl(
+      underlyingSearchParams,
+      workStore,
+      requestStore,
+      isRuntimePrefetchable
+    )
+  } else {
+    const cachedSearchParams = CachedSearchParams.get(underlyingSearchParams)
+    if (cachedSearchParams) {
+      return cachedSearchParams
+    }
+    const promise = makeUntrackedSearchParamsWithDevWarningsImpl(
+      underlyingSearchParams,
+      workStore,
+      requestStore,
+      isRuntimePrefetchable
+    )
+    CachedSearchParams.set(requestStore, promise)
+    return promise
   }
+}
 
-  // Track which properties we should warn for.
-  const proxiedProperties = new Set<string>()
+function makeUntrackedSearchParamsWithDevWarningsImpl(
+  underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
+  requestStore: RequestStore,
+  isRuntimePrefetchable: boolean
+): Promise<SearchParams> {
+  const promiseInitialized = { current: false }
+  const proxiedUnderlying = instrumentSearchParamsObjectWithDevWarnings(
+    underlyingSearchParams,
+    workStore,
+    promiseInitialized
+  )
 
+  let promise: Promise<SearchParams>
+  if (requestStore.asyncApiPromises) {
+    // We wrap each instance of searchParams in a `new Promise()`.
+    // This is important when all awaits are in third party which would otherwise
+    // track all the way to the internal params.
+    const sharedSearchParamsParent = isRuntimePrefetchable
+      ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
+      : requestStore.asyncApiPromises.sharedSearchParamsParent
+    promise = new Promise((resolve, reject) => {
+      sharedSearchParamsParent.then(() => resolve(proxiedUnderlying), reject)
+    })
+    // @ts-expect-error
+    promise.displayName = 'searchParams'
+  } else {
+    promise = makeDevtoolsIOAwarePromise(
+      proxiedUnderlying,
+      requestStore,
+      RenderStage.Runtime
+    )
+  }
+  promise.then(
+    () => {
+      promiseInitialized.current = true
+    },
+    // If we're in staged rendering, this promise will reject if the render
+    // is aborted before it can reach the runtime stage.
+    // In that case, we have to prevent an unhandled rejection from the promise
+    // created by this `.then()` call.
+    // This does not affect the `promiseInitialized` logic above,
+    // because `proxiedUnderlying` will not be used to resolve the promise,
+    // so there's no risk of any of its properties being accessed and triggering
+    // an undesireable warning.
+    ignoreReject
+  )
+
+  return instrumentSearchParamsPromiseWithDevWarnings(
+    underlyingSearchParams,
+    promise,
+    workStore
+  )
+}
+
+function ignoreReject() {}
+
+function instrumentSearchParamsObjectWithDevWarnings(
+  underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
+  promiseInitialized: { current: boolean }
+) {
   // We have an unfortunate sequence of events that requires this initialization logic. We want to instrument the underlying
   // searchParams object to detect if you are accessing values in dev. This is used for warnings and for things like the static prerender
   // indicator. However when we pass this proxy to our Promise.resolve() below the VM checks if the resolved value is a promise by looking
   // at the `.then` property. To our dynamic tracking logic this is indistinguishable from a `then` searchParam and so we would normally trigger
   // dynamic tracking. However we know that this .then is not real dynamic access, it's just how thenables resolve in sequence. So we introduce
   // this initialization concept so we omit the dynamic check until after we've constructed our resolved promise.
-  let promiseInitialized = false
-  const proxiedUnderlying = new Proxy(underlyingSearchParams, {
+  return new Proxy(underlyingSearchParams, {
     get(target, prop, receiver) {
-      if (typeof prop === 'string' && promiseInitialized) {
-        if (store.dynamicShouldError) {
+      if (typeof prop === 'string' && promiseInitialized.current) {
+        if (workStore.dynamicShouldError) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            store.route,
+            workStore.route,
             expression
           )
         }
@@ -403,13 +590,13 @@ function makeUntrackedSearchParamsWithDevWarnings(
     },
     has(target, prop) {
       if (typeof prop === 'string') {
-        if (store.dynamicShouldError) {
+        if (workStore.dynamicShouldError) {
           const expression = describeHasCheckingStringProperty(
             'searchParams',
             prop
           )
           throwWithStaticGenerationBailoutErrorWithDynamicError(
-            store.route,
+            workStore.route,
             expression
           )
         }
@@ -417,25 +604,26 @@ function makeUntrackedSearchParamsWithDevWarnings(
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
-      if (store.dynamicShouldError) {
+      if (workStore.dynamicShouldError) {
         const expression =
           '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          store.route,
+          workStore.route,
           expression
         )
       }
       return Reflect.ownKeys(target)
     },
   })
+}
 
-  // We don't use makeResolvedReactPromise here because searchParams
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = makeDevtoolsIOAwarePromise(proxiedUnderlying)
-  promise.then(() => {
-    promiseInitialized = true
-  })
+function instrumentSearchParamsPromiseWithDevWarnings(
+  underlyingSearchParams: SearchParams,
+  promise: Promise<SearchParams>,
+  workStore: WorkStore
+) {
+  // Track which properties we should warn for.
+  const proxiedProperties = new Set<string>()
 
   Object.keys(underlyingSearchParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {
@@ -446,12 +634,12 @@ function makeUntrackedSearchParamsWithDevWarnings(
     }
   })
 
-  const proxiedPromise = new Proxy(promise, {
+  return new Proxy(promise, {
     get(target, prop, receiver) {
-      if (prop === 'then' && store.dynamicShouldError) {
+      if (prop === 'then' && workStore.dynamicShouldError) {
         const expression = '`searchParams.then`'
         throwWithStaticGenerationBailoutErrorWithDynamicError(
-          store.route,
+          workStore.route,
           expression
         )
       }
@@ -464,7 +652,7 @@ function makeUntrackedSearchParamsWithDevWarnings(
             Reflect.has(target, prop) === false)
         ) {
           const expression = describeStringPropertyAccess('searchParams', prop)
-          warnForSyncAccess(store.route, expression)
+          warnForSyncAccess(workStore.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -488,20 +676,17 @@ function makeUntrackedSearchParamsWithDevWarnings(
             'searchParams',
             prop
           )
-          warnForSyncAccess(store.route, expression)
+          warnForSyncAccess(workStore.route, expression)
         }
       }
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
       const expression = '`Object.keys(searchParams)` or similar'
-      warnForSyncAccess(store.route, expression)
+      warnForSyncAccess(workStore.route, expression)
       return Reflect.ownKeys(target)
     },
   })
-
-  CachedSearchParams.set(underlyingSearchParams, proxiedPromise)
-  return proxiedPromise
 }
 
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
@@ -518,4 +703,22 @@ function createSearchAccessError(
       `\`searchParams\` is a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. ` +
       `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
   )
+}
+
+function createClientSearchParamsInValidation(
+  underlyingSearchParams: SearchParams,
+  workStore: WorkStore,
+  workUnitStore: ValidationStoreClient
+) {
+  const { createExhaustiveSearchParamsProxy } =
+    require('../app-render/instant-validation/instant-samples') as typeof import('../app-render/instant-validation/instant-samples')
+  const declaredKeys = new Set(
+    Object.keys(workUnitStore.validationSamples?.searchParams ?? {})
+  )
+  underlyingSearchParams = createExhaustiveSearchParamsProxy(
+    underlyingSearchParams,
+    declaredKeys,
+    workStore.route
+  )
+  return Promise.resolve(underlyingSearchParams)
 }

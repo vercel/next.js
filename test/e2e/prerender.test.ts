@@ -6,7 +6,7 @@ import escapeRegex from 'escape-string-regexp'
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  assertHasRedbox,
+  waitForRedbox,
   check,
   fetchViaHTTP,
   getBrowserBodyText,
@@ -15,6 +15,7 @@ import {
   renderViaHTTP,
   retry,
   waitFor,
+  getCacheHeader,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
@@ -90,7 +91,7 @@ describe('Prerender', () => {
   }
 
   function isCachingHeader(cacheControl) {
-    return !cacheControl || !/no-store/.test(cacheControl)
+    return !cacheControl || !/no-store|no-cache/.test(cacheControl)
   }
 
   const allowHeader = [
@@ -371,19 +372,19 @@ describe('Prerender', () => {
 
   const navigateTest = (isDev = false) => {
     it('should navigate between pages successfully', async () => {
-      const toBuild = [
-        '/',
-        '/another',
-        '/something',
-        '/normal',
-        '/blog/post-1',
-        '/blog/post-1/comment-1',
-        '/catchall/first',
+      // TODO: Compiling this many pages in parallel hits some race condition
+      // causing "SyntaxError: Unexpected non-whitespace character after JSON at position 614"
+      // which persists throughout Next.js Server instance lifetime.
+      // Compiling in batches to avoid that unknown bug.
+      const toBuildBatches = [
+        ['/', '/another', '/something', '/normal'],
+        ['/blog/post-1', '/blog/post-1/comment-1', '/catchall/first'],
       ]
 
-      await waitFor(2500)
-
-      await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      for (const toBuild of toBuildBatches) {
+        // eslint-disable-next-line no-loop-func -- we're not accessing `next` after the loop was exited.
+        await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
+      }
 
       const browser = await webdriver(next.url, '/')
       let text = await browser.elementByCss('p').text()
@@ -412,7 +413,6 @@ describe('Prerender', () => {
       await goFromAnotherToHome()
 
       // Client-side SSG data caching test
-      // eslint-disable-next-line no-lone-blocks
       {
         // Let revalidation period lapse
         await waitFor(2000)
@@ -773,13 +773,9 @@ describe('Prerender', () => {
       const browser = await webdriver(next.url, '/')
       await browser.eval('window.beforeClick = "abc"')
       await browser.elementByCss('#broken-post').click()
-      expect(
-        await check(() => browser.eval('window.beforeClick'), {
-          test(v) {
-            return v !== 'abc'
-          },
-        })
-      ).toBe(true)
+      await retry(async () => {
+        expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+      })
     })
 
     it('should SSR dynamic page with brackets in param as object', async () => {
@@ -907,13 +903,9 @@ describe('Prerender', () => {
         const browser = await webdriver(next.url, '/')
         await browser.eval('window.beforeClick = "abc"')
         await browser.elementByCss('#broken-at-first-post').click()
-        expect(
-          await check(() => browser.eval('window.beforeClick'), {
-            test(v) {
-              return v !== 'abc'
-            },
-          })
-        ).toBe(true)
+        await retry(async () => {
+          expect(await browser.eval('window.beforeClick')).not.toEqual('abc')
+        })
 
         const text = await browser.elementByCss('#params').text()
         expect(text).toMatch(/post.*?post-999/)
@@ -1357,7 +1349,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1373,7 +1365,7 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -2071,7 +2063,10 @@ describe('Prerender', () => {
 
       it('should handle revalidating JSON correctly', async () => {
         const route = `/_next/data/${next.buildId}/blog/post-2/comment-3.json`
-        const initialJson = await renderViaHTTP(next.url, route)
+        const initialRes = await fetchViaHTTP(next.url, route)
+        const initialJson = await initialRes.text()
+        expect(initialRes.headers.get('Content-Length')).toBeDefined()
+        expect(initialRes.headers.get('ETag')).toBeDefined()
         expect(initialJson).toMatch(/post-2/)
         expect(initialJson).toMatch(/comment-3/)
 
@@ -2086,7 +2081,10 @@ describe('Prerender', () => {
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
-          newJson = await renderViaHTTP(next.url, route)
+          const newRes = await fetchViaHTTP(next.url, route)
+          expect(newRes.headers.get('Content-Length')).toBeDefined()
+          expect(newRes.headers.get('ETag')).toBeDefined()
+          newJson = await newRes.text()
           return newJson !== initialJson ? 'success' : newJson
         }, 'success')
 
@@ -2143,7 +2141,10 @@ describe('Prerender', () => {
 
       it('should handle revalidating HTML correctly with blocking and seed', async () => {
         const route = '/blocking-fallback/a'
-        const initialHtml = await renderViaHTTP(next.url, route)
+        const initialRes = await fetchViaHTTP(next.url, route)
+        const initialHtml = await initialRes.text()
+        expect(initialRes.headers.get('Content-Length')).toBeDefined()
+        expect(initialRes.headers.get('ETag')).toBeDefined()
         const $initial = cheerio.load(initialHtml)
         expect($initial('p').text()).toBe('Post: a')
 
@@ -2158,7 +2159,10 @@ describe('Prerender', () => {
         await renderViaHTTP(next.url, route)
 
         await check(async () => {
-          newHtml = await renderViaHTTP(next.url, route)
+          const newRes = await fetchViaHTTP(next.url, route)
+          expect(newRes.headers.get('Content-Length')).toBeDefined()
+          expect(newRes.headers.get('ETag')).toBeDefined()
+          newHtml = await newRes.text()
           return newHtml !== initialHtml ? 'success' : newHtml
         }, 'success')
 
@@ -2214,7 +2218,7 @@ describe('Prerender', () => {
     if ((global as any).isNextStart) {
       it('should of formatted build output correctly', () => {
         expect(next.cliOutput).toMatch(/○ \/normal/)
-        expect(next.cliOutput).toMatch(/● \/blog\/\[post\]/)
+        expect(next.cliOutput).toMatch(/[├└] {3}\/blog\/\[post\]/)
         expect(next.cliOutput).toMatch(/\+2 more paths/)
       })
 
@@ -2308,9 +2312,8 @@ describe('Prerender', () => {
         const html = await res.text()
         const $ = cheerio.load(html)
         const initialTime = $('#time').text()
-        const cacheHeader = isDeploy ? 'x-vercel-cache' : 'x-nextjs-cache'
 
-        expect(res.headers.get(cacheHeader)).toMatch(/MISS/)
+        expect(getCacheHeader(res)).toMatch(/MISS/)
         expect($('p').text()).toMatch(/Post:.*?test-manual-1/)
 
         // we use retry here as the cache might still be
@@ -2323,7 +2326,7 @@ describe('Prerender', () => {
           const html2 = await res2.text()
           const $2 = cheerio.load(html2)
 
-          expect(res2.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(getCacheHeader(res2)).toMatch(/(HIT|STALE)/)
           expect(initialTime).toBe($2('#time').text())
         })
 
@@ -2349,7 +2352,7 @@ describe('Prerender', () => {
           const $4 = cheerio.load(html4)
 
           expect($4('#time').text()).not.toBe(initialTime)
-          expect(res4.headers.get(cacheHeader)).toMatch(/(HIT|STALE)/)
+          expect(getCacheHeader(res4)).toMatch(/(HIT|STALE)/)
         })
       })
     }

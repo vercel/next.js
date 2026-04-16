@@ -1,19 +1,18 @@
 use std::collections::BTreeMap;
 
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
+use bincode::{Decode, Encode};
 use indexmap::map::{Entry, OccupiedEntry};
 use rustc_hash::FxHashMap;
-use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault, Vc,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, ValueDefault,
+    ValueToStringRef, Vc, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath};
-use turbopack_core::issue::{
-    Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
-};
+use turbopack_core::issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString};
 
 use crate::{
     mode::NextMode,
@@ -37,31 +36,18 @@ fn normalize_underscore(string: &str) -> String {
 #[turbo_tasks::value]
 #[derive(Default, Debug, Clone)]
 pub struct AppDirModules {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub page: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub layout: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub global_error: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub global_not_found: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub loading: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub template: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub forbidden: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub unauthorized: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub not_found: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub default: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub route: Option<FileSystemPath>,
-    #[serde(skip_serializing_if = "Metadata::is_empty", default)]
     pub metadata: Metadata,
 }
 
@@ -86,7 +72,7 @@ impl AppDirModules {
 }
 
 /// A single metadata file plus an optional "alt" text file.
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum MetadataWithAltItem {
     Static {
         path: FileSystemPath,
@@ -99,7 +85,7 @@ pub enum MetadataWithAltItem {
 
 /// A single metadata file.
 #[derive(
-    Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq, TaskInput, TraceRawVcs, NonLocalValue,
+    Clone, Debug, Hash, PartialEq, Eq, TaskInput, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum MetadataItem {
     Static { path: FileSystemPath },
@@ -112,10 +98,7 @@ pub async fn get_metadata_route_name(meta: MetadataItem) -> Result<Vc<RcStr>> {
         MetadataItem::Static { path } => Vc::cell(path.file_name().into()),
         MetadataItem::Dynamic { path } => {
             let Some(stem) = path.file_stem() else {
-                bail!(
-                    "unable to resolve file stem for metadata item at {}",
-                    path.value_to_string().await?
-                );
+                turbobail!("unable to resolve file stem for metadata item at {path}");
             };
 
             match stem {
@@ -145,19 +128,12 @@ impl From<MetadataWithAltItem> for MetadataItem {
 }
 
 /// Metadata file that can be placed in any segment of the app directory.
-#[derive(
-    Default, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue,
-)]
+#[derive(Default, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct Metadata {
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub icon: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub apple: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub twitter: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub open_graph: Vec<MetadataWithAltItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub sitemap: Option<MetadataItem>,
     // The page indicates where the metadata is defined and captured.
     // The steps for capturing metadata (get_directory_tree) and constructing
@@ -166,7 +142,6 @@ pub struct Metadata {
     // the actual path incorrectly with fillMetadataSegment.
     //
     // This is only being used for the static metadata files.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub base_page: Option<AppPage>,
 }
 
@@ -192,11 +167,8 @@ impl Metadata {
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub favicon: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub robots: Option<MetadataItem>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub manifest: Option<MetadataItem>,
 }
 
@@ -225,6 +197,84 @@ struct PlainDirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
     pub subdirectories: BTreeMap<RcStr, PlainDirectoryTree>,
     pub modules: AppDirModules,
+    /// Flattened URL tree with route groups and parallel routes transparent.
+    pub url_tree: UrlSegmentTree,
+}
+
+/// A tree representing the URL segment structure, with route groups and parallel
+/// routes flattened out. This provides a unified view of all segments at each URL
+/// level, regardless of which route group they're defined in.
+///
+/// For example, given this directory structure:
+///
+///     app/
+///     ├── (group1)/
+///     │   └── products/
+///     │       └── sale/
+///     └── (group2)/
+///         └── products/
+///             └── [id]/
+///
+/// The UrlSegmentTree would be:
+///
+///     (root)
+///     └── products/
+///         ├── sale/
+///         └── [id]/
+///
+/// This makes it easy to find all siblings at a given URL level.
+#[derive(Clone, Debug, Default, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+struct UrlSegmentTree {
+    pub children: BTreeMap<RcStr, UrlSegmentTree>,
+}
+
+impl UrlSegmentTree {
+    fn static_children(&self) -> Vec<RcStr> {
+        self.children
+            .keys()
+            .filter(|name| !is_dynamic_segment(name))
+            .cloned()
+            .collect()
+    }
+
+    fn get_child(&self, segment: &str) -> Option<&UrlSegmentTree> {
+        self.children.get(segment)
+    }
+}
+
+fn build_url_segment_tree_from_subdirs(
+    subdirs: &BTreeMap<RcStr, PlainDirectoryTree>,
+) -> UrlSegmentTree {
+    let mut result = UrlSegmentTree::default();
+    build_url_segment_tree_recursive(subdirs, &mut result);
+    result
+}
+
+/// Recursively builds the URL segment tree by accumulating children at each
+/// URL level. Segments from different route groups that share the same URL path
+/// are merged together.
+///
+/// Example: `(group1)/products/sale/` and `(group2)/products/[id]/` both
+/// contribute to a single `products/` node containing both `sale/` and `[id]/`.
+fn build_url_segment_tree_recursive(
+    subdirs: &BTreeMap<RcStr, PlainDirectoryTree>,
+    result: &mut UrlSegmentTree,
+) {
+    for (name, subtree) in subdirs {
+        if is_url_transparent_segment(name) {
+            // Transparent segments (route groups, parallel routes) don't create
+            // a new URL level. Recurse with the same `result` so their children
+            // are accumulated at the current level.
+            build_url_segment_tree_recursive(&subtree.subdirectories, result);
+        } else {
+            // Non-transparent segments create a new URL level. Get or create a
+            // child node for this segment, then recurse to accumulate its children.
+            // Using `or_default()` ensures that if this segment was already added
+            // from a different route group, we merge into it rather than replace.
+            let child = result.children.entry(name.clone()).or_default();
+            build_url_segment_tree_recursive(&subtree.subdirectories, child);
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -237,9 +287,12 @@ impl DirectoryTree {
             subdirectories.insert(name.clone(), subdirectory.into_plain().owned().await?);
         }
 
+        let url_tree = build_url_segment_tree_from_subdirs(&subdirectories);
+
         Ok(PlainDirectoryTree {
             subdirectories,
             modules: self.modules.clone(),
+            url_tree,
         }
         .cell())
     }
@@ -271,7 +324,7 @@ async fn get_directory_tree(
 ) -> Result<Vc<DirectoryTree>> {
     let span = tracing::info_span!(
         "read app directory tree",
-        name = display(dir.value_to_string().await?)
+        name = display(dir.to_string_ref().await?)
     );
     get_directory_tree_internal(dir, page_extensions)
         .instrument(span)
@@ -376,15 +429,14 @@ async fn get_directory_tree_internal(
                     },
                 ));
             }
-            DirectoryEntry::Directory(dir) => {
+            DirectoryEntry::Directory(dir)
                 // appDir ignores paths starting with an underscore
-                if !basename.starts_with('_') {
+                if !basename.starts_with('_') => {
                     let result = get_directory_tree(dir.clone(), page_extensions)
                         .to_resolved()
                         .await?;
                     subdirectories.insert(basename.clone(), result);
                 }
-            }
             // TODO(WEB-952) handle symlinks in app dir
             _ => {}
         }
@@ -412,9 +464,14 @@ async fn get_directory_tree_internal(
 pub struct AppPageLoaderTree {
     pub page: AppPage,
     pub segment: RcStr,
+    #[bincode(with = "turbo_bincode::indexmap")]
     pub parallel_routes: FxIndexMap<RcStr, AppPageLoaderTree>,
     pub modules: AppDirModules,
     pub global_metadata: ResolvedVc<GlobalMetadata>,
+    /// For dynamic segments, contains the list of static sibling segments that
+    /// exist at the same URL path level. Used by the client router to determine
+    /// if a prefetch can be reused.
+    pub static_siblings: Vec<RcStr>,
 }
 
 impl AppPageLoaderTree {
@@ -509,13 +566,13 @@ impl ValueDefault for FileSystemPathVec {
     PartialEq,
     Eq,
     Hash,
-    Serialize,
-    Deserialize,
     TraceRawVcs,
     ValueDebugFormat,
     Debug,
     TaskInput,
     NonLocalValue,
+    Encode,
+    Decode,
 )]
 pub enum Entrypoint {
     AppPage {
@@ -554,7 +611,9 @@ impl Entrypoint {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
+pub struct Entrypoints(
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<AppPath, Entrypoint>,
+);
 
 fn is_parallel_route(name: &str) -> bool {
     name.starts_with('@')
@@ -562,6 +621,17 @@ fn is_parallel_route(name: &str) -> bool {
 
 fn is_group_route(name: &str) -> bool {
     name.starts_with('(') && name.ends_with(')')
+}
+
+/// Returns true if this segment is "transparent" from a URL perspective.
+/// Route groups like `(marketing)` and parallel routes like `@modal` exist in
+/// the file system but don't contribute to the URL path.
+fn is_url_transparent_segment(name: &str) -> bool {
+    is_group_route(name) || is_parallel_route(name)
+}
+
+fn is_dynamic_segment(name: &str) -> bool {
+    name.starts_with('[') && name.ends_with(']')
 }
 
 fn match_parallel_route(name: &str) -> Option<&str> {
@@ -768,7 +838,7 @@ pub fn get_entrypoints(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct CollectedRootParams(FxIndexSet<RcStr>);
+pub struct CollectedRootParams(#[bincode(with = "turbo_bincode::indexset")] FxIndexSet<RcStr>);
 
 #[turbo_tasks::function]
 pub async fn collect_root_params(
@@ -813,30 +883,100 @@ struct DuplicateParallelRouteIssue {
     page: AppPage,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for DuplicateParallelRouteIssue {
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.app_dir.join(&self.page.to_string())?.cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.app_dir.join(&self.page.to_string())
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
     }
 
-    #[turbo_tasks::function]
-    async fn title(self: Vc<Self>) -> Result<Vc<StyledString>> {
-        let this = self.await?;
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Text(
             format!(
                 "You cannot have two parallel pages that resolve to the same path. Please check \
                  {} and {}.",
-                this.previously_inserted_page, this.page
+                self.previously_inserted_page, self.page
             )
             .into(),
-        )
-        .cell())
+        ))
+    }
+}
+
+#[turbo_tasks::value]
+struct MissingDefaultParallelRouteIssue {
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+}
+
+#[turbo_tasks::function]
+fn missing_default_parallel_route_issue(
+    app_dir: FileSystemPath,
+    app_page: AppPage,
+    slot_name: RcStr,
+) -> Vc<MissingDefaultParallelRouteIssue> {
+    MissingDefaultParallelRouteIssue {
+        app_dir,
+        app_page,
+        slot_name,
+    }
+    .cell()
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for MissingDefaultParallelRouteIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.app_dir
+            .join(&self.app_page.to_string())?
+            .join(&format!("@{}", self.slot_name))
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!(
+                "Missing required default.js file for parallel route at {}/@{}",
+                self.app_page, self.slot_name
+            )
+            .into(),
+        ))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Text(
+                format!(
+                    "The parallel route slot \"@{}\" is missing a default.js file. When using \
+                     parallel routes, each slot must have a default.js file to serve as a \
+                     fallback.",
+                    self.slot_name
+                )
+                .into(),
+            ),
+            StyledString::Text(
+                format!(
+                    "Create a default.js file at: {}/@{}/default.js",
+                    self.app_page, self.slot_name
+                )
+                .into(),
+            ),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/messages/slot-missing-default")
     }
 }
 
@@ -861,6 +1001,32 @@ fn page_path_except_parallel(loader_tree: &AppPageLoaderTree) -> Option<AppPage>
     }
 
     None
+}
+
+/// Checks if a directory tree has child routes (non-parallel, non-group routes).
+/// Leaf segments don't need default.js because there are no child routes
+/// that could cause the parallel slot to unmatch.
+fn has_child_routes(directory_tree: &PlainDirectoryTree) -> bool {
+    for (name, subdirectory) in &directory_tree.subdirectories {
+        // Skip parallel routes (start with '@')
+        if is_parallel_route(name) {
+            continue;
+        }
+
+        // Skip route groups, but check if they have pages inside
+        if is_group_route(name) {
+            // Recursively check if the group has child routes
+            if has_child_routes(subdirectory) {
+                return true;
+            }
+            continue;
+        }
+
+        // If we get here, it's a regular route segment (child route)
+        return true;
+    }
+
+    false
 }
 
 async fn check_duplicate(
@@ -900,7 +1066,8 @@ async fn directory_tree_to_loader_tree(
     // the page this loader tree is constructed for
     for_app_path: AppPath,
 ) -> Result<Vc<AppPageLoaderTreeOption>> {
-    let plain_tree = &*directory_tree.into_plain().await?;
+    let plain_tree_vc = directory_tree.into_plain();
+    let plain_tree = &*plain_tree_vc.await?;
 
     let tree = directory_tree_to_loader_tree_internal(
         app_dir,
@@ -910,6 +1077,7 @@ async fn directory_tree_to_loader_tree(
         app_page,
         for_app_path,
         AppDirModules::default(),
+        Some(&plain_tree.url_tree),
     )
     .await?;
 
@@ -989,6 +1157,7 @@ async fn directory_tree_to_loader_tree_internal(
     // the page this loader tree is constructed for
     for_app_path: AppPath,
     mut parent_modules: AppDirModules,
+    url_tree: Option<&UrlSegmentTree>,
 ) -> Result<Option<AppPageLoaderTree>> {
     let app_path = AppPath::from(app_page.clone());
 
@@ -1048,18 +1217,36 @@ async fn directory_tree_to_loader_tree_internal(
         .await?;
     }
 
+    // For dynamic segments like [id], find all static siblings at the same URL level.
+    // This is used by the client to determine if a prefetch can be reused when
+    // navigating between routes that share the same parent layout.
+    let static_siblings: Vec<RcStr> = if is_dynamic_segment(&directory_name) {
+        url_tree
+            .map(|t| {
+                t.static_children()
+                    .into_iter()
+                    .filter(|s| s != &directory_name)
+                    .collect()
+            })
+            .unwrap_or_default()
+    } else {
+        // Static segments don't need sibling info - only dynamic segments use it
+        Vec::new()
+    };
+
     let mut tree = AppPageLoaderTree {
         page: app_page.clone(),
         segment: directory_name.clone(),
         parallel_routes: FxIndexMap::default(),
         modules: modules.without_leaves(),
         global_metadata: global_metadata.to_resolved().await?,
+        static_siblings,
     };
 
     let current_level_is_parallel_route = is_parallel_route(&directory_name);
 
     if current_level_is_parallel_route {
-        tree.segment = rcstr!("(slot)");
+        tree.segment = rcstr!("(__SLOT__)");
     }
 
     if let Some(page) = (app_path == for_app_path || app_path.is_catchall())
@@ -1078,6 +1265,7 @@ async fn directory_tree_to_loader_tree_internal(
                     ..Default::default()
                 },
                 global_metadata: global_metadata.to_resolved().await?,
+                static_siblings: Vec::new(),
             },
         );
     }
@@ -1097,6 +1285,14 @@ async fn directory_tree_to_loader_tree_internal(
             illegal_path_error = Some(e);
         }
 
+        // Root/transparent segments don't consume a URL level; others descend.
+        let child_url_tree: Option<&UrlSegmentTree> =
+            if directory_name.is_empty() || is_url_transparent_segment(&directory_name) {
+                url_tree
+            } else {
+                url_tree.and_then(|t| t.get_child(&directory_name))
+            };
+
         let subtree = Box::pin(directory_tree_to_loader_tree_internal(
             app_dir.clone(),
             global_metadata,
@@ -1105,6 +1301,7 @@ async fn directory_tree_to_loader_tree_internal(
             child_app_page.clone(),
             for_app_path.clone(),
             parent_modules.clone(),
+            child_url_tree,
         ))
         .await?;
 
@@ -1114,6 +1311,55 @@ async fn directory_tree_to_loader_tree_internal(
 
         if let Some(subtree) = subtree {
             if let Some(key) = parallel_route_key {
+                // Validate that parallel routes (except "children") have a default.js file.
+                // This validation matches the webpack loader's logic but is implemented
+                // differently due to Turbopack's single-pass recursive processing.
+
+                // Check if we're inside a catch-all route (i.e., the parallel route is a child
+                // of a catch-all segment). Only skip validation if the slot is UNDER a catch-all.
+                // For example:
+                //   /[...catchAll]/@slot - is_inside_catchall = true (skip validation) ✓
+                //   /@slot/[...catchAll] - is_inside_catchall = false (require default) ✓
+                // The catch-all provides fallback behavior, so default.js is not required.
+                let is_inside_catchall = app_page.is_catchall();
+
+                // Check if this is a leaf segment (no child routes).
+                // Leaf segments don't need default.js because there are no child routes
+                // that could cause the parallel slot to unmatch. For example:
+                //   /repo-overview/@slot/page with no child routes - is_leaf_segment = true (skip
+                // validation) ✓   /repo-overview/@slot/page with
+                // /repo-overview/child/page - is_leaf_segment = false (require default) ✓
+                // This also handles route groups correctly by filtering them out.
+                let is_leaf_segment = !has_child_routes(directory_tree);
+
+                // Turbopack-specific: Check if the parallel slot has matching child routes.
+                // In webpack, this is checked implicitly via the two-phase processing:
+                // slots with content are processed first and skip validation in the second phase.
+                // In Turbopack's single-pass approach, we check directly if the slot has child
+                // routes. If the slot has child routes that match the parent's
+                // child routes, it can render content for those routes and doesn't
+                // need a default. For example:
+                //   /parent/@slot/page + /parent/@slot/child + /parent/child - slot_has_children =
+                // true (skip validation) ✓   /parent/@slot/page + /parent/child (no
+                // @slot/child) - slot_has_children = false (require default) ✓
+                let slot_has_children = has_child_routes(subdirectory);
+
+                if key != "children"
+                    && subdirectory.modules.default.is_none()
+                    && !is_inside_catchall
+                    && !is_leaf_segment
+                    && !slot_has_children
+                {
+                    missing_default_parallel_route_issue(
+                        app_dir.clone(),
+                        app_page.clone(),
+                        key.into(),
+                    )
+                    .to_resolved()
+                    .await?
+                    .emit();
+                }
+
                 tree.parallel_routes.insert(key.into(), subtree);
                 continue;
             }
@@ -1173,10 +1419,37 @@ async fn directory_tree_to_loader_tree_internal(
                 None
             };
 
+            let is_inside_catchall = app_page.is_catchall();
+
+            // Check if this is a leaf segment (no child routes).
+            let is_leaf_segment = !has_child_routes(directory_tree);
+
+            // Only emit the issue if this is not the children slot and there's no default
+            // component. The children slot is implicit and doesn't require a default.js
+            // file. Also skip validation if the slot is UNDER a catch-all route or if
+            // this is a leaf segment (no child routes).
+            if default.is_none() && key != "children" && !is_inside_catchall && !is_leaf_segment {
+                missing_default_parallel_route_issue(
+                    app_dir.clone(),
+                    app_page.clone(),
+                    key.clone(),
+                )
+                .to_resolved()
+                .await?
+                .emit();
+            }
+
             tree.parallel_routes.insert(
-                key,
-                default_route_tree(app_dir.clone(), global_metadata, app_page.clone(), default)
-                    .await?,
+                key.clone(),
+                default_route_tree(
+                    app_dir.clone(),
+                    global_metadata,
+                    app_page.clone(),
+                    default,
+                    key.clone(),
+                    for_app_path.clone(),
+                )
+                .await?,
             );
         }
     }
@@ -1186,8 +1459,10 @@ async fn directory_tree_to_loader_tree_internal(
             tree = default_route_tree(
                 app_dir.clone(),
                 global_metadata,
-                app_page,
+                app_page.clone(),
                 modules.default.clone(),
+                rcstr!("children"),
+                for_app_path.clone(),
             )
             .await?;
         } else {
@@ -1199,8 +1474,10 @@ async fn directory_tree_to_loader_tree_internal(
             default_route_tree(
                 app_dir.clone(),
                 global_metadata,
-                app_page,
+                app_page.clone(),
                 modules.default.clone(),
+                rcstr!("children"),
+                for_app_path.clone(),
             )
             .await?,
         );
@@ -1222,6 +1499,8 @@ async fn default_route_tree(
     global_metadata: Vc<GlobalMetadata>,
     app_page: AppPage,
     default_component: Option<FileSystemPath>,
+    slot_name: RcStr,
+    for_app_path: AppPath,
 ) -> Result<AppPageLoaderTree> {
     Ok(AppPageLoaderTree {
         page: app_page.clone(),
@@ -1233,17 +1512,21 @@ async fn default_route_tree(
                 ..Default::default()
             }
         } else {
-            // default fallback component
+            let contains_interception = for_app_path.contains_interception();
+
+            let default_file = if contains_interception && slot_name == "children" {
+                "dist/client/components/builtin/default-null.js"
+            } else {
+                "dist/client/components/builtin/default.js"
+            };
+
             AppDirModules {
-                default: Some(
-                    get_next_package(app_dir)
-                        .await?
-                        .join("dist/client/components/builtin/default.js")?,
-                ),
+                default: Some(get_next_package(app_dir).await?.join(default_file)?),
                 ..Default::default()
             }
         },
         global_metadata: global_metadata.to_resolved().await?,
+        static_siblings: Vec::new(),
     })
 }
 
@@ -1438,6 +1721,13 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     .join("dist/client/components/builtin/unauthorized.js")?,
             );
         }
+        if modules.global_error.is_none() {
+            modules.global_error = Some(
+                get_next_package(app_dir.clone())
+                    .await?
+                    .join("dist/client/components/builtin/global-error.js")?,
+            );
+        }
 
         // Next.js has this logic in "collect-app-paths", where the root not-found page
         // is considered as its own entry point.
@@ -1486,12 +1776,14 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 }
                             },
                             global_metadata,
+                            static_siblings: Vec::new(),
                         }
                     },
                     modules: AppDirModules {
                         ..Default::default()
                     },
                     global_metadata,
+                    static_siblings: Vec::new(),
                 },
             },
             modules: AppDirModules {
@@ -1514,6 +1806,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 ..not_found_root_modules
             },
             global_metadata,
+            static_siblings: Vec::new(),
         }
         .resolved_cell();
 
@@ -1536,7 +1829,9 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         // the build isn't app-only. If the build is app-only (no user pages/api), we should still
         // expose the app global error so runtime errors render, but we shouldn't emit it otherwise.
         if matches!(*next_mode.await?, NextMode::Build) {
-            // Use built-in global-error.js to create a `_global-error/page` route.
+            // Create a `_global-error/page` route using user's global-error.js or built-in
+            // fallback.
+            let next_package = get_next_package(app_dir.clone()).await?;
             let global_error_tree = AppPageLoaderTree {
                 page: app_page.clone(),
                 segment: directory_name.clone(),
@@ -1546,16 +1841,22 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         segment: rcstr!("__PAGE__"),
                         parallel_routes: FxIndexMap::default(),
                         modules: AppDirModules {
-                            page: Some(get_next_package(app_dir.clone())
-                                .await?
+                            page: Some(next_package
                                 .join("dist/client/components/builtin/app-error.js")?),
                             ..Default::default()
                         },
                         global_metadata,
+                        static_siblings: Vec::new(),
                     }
                 },
-                modules: AppDirModules::default(),
+                // global-error is needed for getGlobalErrorStyles to work during rendering.
+                // Use user's custom global-error if defined, otherwise builtin fallback.
+                modules: AppDirModules {
+                    global_error: modules.global_error.clone(),
+                    ..Default::default()
+                },
                 global_metadata,
+                static_siblings: Vec::new(),
             }
             .resolved_cell();
 
@@ -1740,29 +2041,28 @@ struct DirectoryTreeIssue {
     pub message: ResolvedVc<StyledString>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for DirectoryTreeIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("An issue occurred while preparing your Next.js app")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "An issue occurred while preparing your Next.js app"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::AppStructure.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.app_dir.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.app_dir.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.message.await?).clone()))
     }
 }

@@ -1,14 +1,21 @@
 /**
- * This file contains the runtime code specific to the Turbopack development
- * ECMAScript DOM runtime.
+ * This file contains the runtime code specific to the Turbopack ECMAScript DOM runtime.
  *
- * It will be appended to the base development runtime code.
+ * It will be appended to the base runtime code.
  */
 
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../../../browser/runtime/base/runtime-base.ts" />
-/// <reference path="../../../shared/runtime-types.d.ts" />
+/// <reference path="../../../shared/runtime/runtime-types.d.ts" />
+
+function getAssetSuffixFromScriptSrc() {
+  // TURBOPACK_ASSET_SUFFIX is set in web workers
+  if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
+  const src = document?.currentScript?.getAttribute?.('src') ?? ''
+  const qi = src.indexOf('?')
+  return qi >= 0 ? src.slice(qi) : ''
+}
 
 type ChunkResolver = {
   resolved: boolean
@@ -27,8 +34,9 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
 ;(() => {
   BACKEND = {
-    async registerChunk(chunkPath, params) {
-      const chunkUrl = getChunkRelativeUrl(chunkPath)
+    async registerChunk(chunk, params) {
+      let chunkPath = getPathFromScript(chunk)
+      let chunkUrl = getUrlFromScript(chunk)
 
       const resolver = getOrCreateResolver(chunkUrl)
       resolver.resolve()
@@ -154,7 +162,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         // ignore
       } else if (isJs(chunkUrl)) {
         self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        importScripts(TURBOPACK_WORKER_LOCATION + chunkUrl)
+        importScripts(chunkUrl)
       } else {
         throw new Error(
           `can't infer type of chunk from URL ${chunkUrl} in worker`
@@ -175,6 +183,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         } else {
           const link = document.createElement('link')
           link.rel = 'stylesheet'
+          link.crossOrigin = CROSS_ORIGIN
           link.href = chunkUrl
           link.onerror = () => {
             resolver.reject()
@@ -201,6 +210,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           }
         } else {
           const script = document.createElement('script')
+          script.crossOrigin = CROSS_ORIGIN
           script.src = chunkUrl
           // We'll only mark the chunk as loaded once the script has been executed,
           // which happens in `registerChunk`. Hence the absence of `resolve()` in

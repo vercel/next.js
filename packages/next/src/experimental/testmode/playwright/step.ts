@@ -1,5 +1,4 @@
 import type { TestInfo } from '@playwright/test'
-// eslint-disable-next-line import/no-extraneous-dependencies
 import { test } from '@playwright/test'
 
 export interface StepProps {

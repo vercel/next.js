@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use anyhow::{Result, bail};
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
@@ -19,20 +19,21 @@ use turbopack_core::{
     target::{CompileTarget, Platform},
 };
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct NodePreGypConfigJson {
     binary: NodePreGypConfig,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Deserialize, Debug)]
 struct NodePreGypConfig {
     module_name: String,
     module_path: String,
-    napi_versions: Vec<u8>,
+    napi_versions: Vec<u32>,
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug)]
+#[derive(Hash, Clone, Debug, ValueToString)]
+#[value_to_string("node-gyp in {context_dir} with {config_file_pattern} for {compile_target}")]
 pub struct NodePreGypConfigReference {
     pub context_dir: FileSystemPath,
     pub config_file_pattern: ResolvedVc<Pattern>,
@@ -69,20 +70,6 @@ impl ModuleReference for NodePreGypConfigReference {
             self.collect_affecting_sources,
         )
         .await
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NodePreGypConfigReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let context_dir = self.context_dir.value_to_string().await?;
-        let config_file_pattern = self.config_file_pattern.to_string().await?;
-        let compile_target = self.compile_target.await?;
-        Ok(Vc::cell(
-            format!("node-gyp in {context_dir} with {config_file_pattern} for {compile_target}")
-                .into(),
-        ))
     }
 }
 
@@ -124,7 +111,7 @@ async fn resolve_node_pre_gyp_files(
         for version in node_pre_gyp_config.binary.napi_versions.iter() {
             let native_binding_path = NAPI_VERSION_TEMPLATE.replace(
                 node_pre_gyp_config.binary.module_path.as_str(),
-                format!("{version}"),
+                version.to_string(),
             );
             let platform = compile_target.platform;
             let native_binding_path =
@@ -197,7 +184,9 @@ async fn resolve_node_pre_gyp_files(
                             format!("deps/lib/{key}").into(),
                             Vc::upcast(FileSource::new(match &realpath_with_links.path_result {
                                 Ok(path) => path.clone(),
-                                Err(e) => bail!(e.as_error_message(dylib, &realpath_with_links)),
+                                Err(e) => {
+                                    bail!(e.as_error_message(dylib, &realpath_with_links).await?)
+                                }
                             })),
                         );
                     }
@@ -229,7 +218,8 @@ async fn resolve_node_pre_gyp_files(
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug)]
+#[derive(Hash, Clone, Debug, ValueToString)]
+#[value_to_string("node-gyp in {context_dir} for {compile_target}")]
 pub struct NodeGypBuildReference {
     pub context_dir: FileSystemPath,
     collect_affecting_sources: bool,
@@ -262,18 +252,6 @@ impl ModuleReference for NodeGypBuildReference {
             self.compile_target,
         )
         .await
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NodeGypBuildReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        let context_dir = self.context_dir.value_to_string().await?;
-        let compile_target = self.compile_target.await?;
-        Ok(Vc::cell(
-            format!("node-gyp in {context_dir} for {compile_target}").into(),
-        ))
     }
 }
 
@@ -337,8 +315,7 @@ async fn resolve_node_gyp_build_files(
                             ))
                         })
                         .try_join()
-                        .await?
-                        .into_iter(),
+                        .await?,
                     merged_affecting_sources,
                 ));
             }
@@ -362,7 +339,8 @@ async fn resolve_node_gyp_build_files(
 }
 
 #[turbo_tasks::value]
-#[derive(Hash, Clone, Debug)]
+#[derive(Hash, Clone, Debug, ValueToString)]
+#[value_to_string("bindings in {context_dir}")]
 pub struct NodeBindingsReference {
     pub context_dir: FileSystemPath,
     pub file_name: RcStr,
@@ -395,16 +373,6 @@ impl ModuleReference for NodeBindingsReference {
             self.collect_affecting_sources,
         )
         .await
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NodeBindingsReference {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("bindings in {}", self.context_dir.value_to_string().await?,).into(),
-        ))
     }
 }
 

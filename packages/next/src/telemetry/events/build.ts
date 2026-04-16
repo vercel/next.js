@@ -52,6 +52,27 @@ export function eventLintCheckCompleted(event: EventLintCheckCompleted): {
   }
 }
 
+const EVENT_ANALYZE_COMPLETED = 'NEXT_ANALYZE_COMPLETED'
+type AnalyzeEventCompleted =
+  | {
+      durationInSeconds: number
+      success: true
+      totalPageCount: number
+    }
+  | {
+      success: false
+    }
+
+export function eventAnalyzeCompleted(event: AnalyzeEventCompleted): {
+  eventName: string
+  payload: AnalyzeEventCompleted
+} {
+  return {
+    eventName: EVENT_ANALYZE_COMPLETED,
+    payload: event,
+  }
+}
+
 const EVENT_BUILD_COMPLETED = 'NEXT_BUILD_COMPLETED'
 type EventBuildCompleted = {
   bundler: 'webpack' | 'rspack' | 'turbopack'
@@ -185,16 +206,15 @@ export type EventBuildFeatureUsage = {
     | 'swcEmotion'
     | `swc/target/${SWC_TARGET_TRIPLE}`
     | 'turbotrace'
-    | 'build-lint'
     | 'vercelImageGeneration'
     | 'transpilePackages'
-    | 'skipMiddlewareUrlNormalize'
+    | 'skipProxyUrlNormalize'
     | 'skipTrailingSlashRedirect'
     | 'modularizeImports'
     | 'esmExternals'
     | 'webpackPlugins'
     | UseCacheTrackerKey
-    | 'turbopackPersistentCaching'
+    | 'turbopackFileSystemCache'
     | 'runAfterProductionCompile'
   invocationCount: number
 }
@@ -226,6 +246,34 @@ export function eventPackageUsedInGetServerSideProps(
     eventName: EVENT_NAME_PACKAGE_USED_IN_GET_SERVER_SIDE_PROPS,
     payload: {
       package: packageName,
+    },
+  }))
+}
+
+export const EVENT_MCP_TOOL_USAGE = 'NEXT_MCP_TOOL_USAGE'
+
+export type McpToolName =
+  | 'mcp/get_errors'
+  | 'mcp/get_logs'
+  | 'mcp/get_page_metadata'
+  | 'mcp/get_project_metadata'
+  | 'mcp/get_routes'
+  | 'mcp/get_server_action_by_id'
+  | 'mcp/get_compilation_issues'
+
+export type EventMcpToolUsage = {
+  toolName: McpToolName
+  invocationCount: number
+}
+
+export function eventMcpToolUsage(
+  usages: Array<{ featureName: McpToolName; invocationCount: number }>
+): Array<{ eventName: string; payload: EventMcpToolUsage }> {
+  return usages.map(({ featureName, invocationCount }) => ({
+    eventName: EVENT_MCP_TOOL_USAGE,
+    payload: {
+      toolName: featureName,
+      invocationCount,
     },
   }))
 }

@@ -6,7 +6,7 @@
     "prebuild": "npm run i18n:compile",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "i18n:extract": "formatjs extract 'pages/**/*.ts*' 'components/**/*.ts*' --out-file lang/en.json",
     "i18n:compile": "formatjs compile-folder lang compiled-lang"
   },

@@ -8,10 +8,14 @@ import {
   fetchViaHTTP,
   File,
   findPort,
+  getDeploymentId,
+  getDistDir,
   killApp,
   launchApp,
+  listClientChunks,
   nextBuild,
   nextStart,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
@@ -20,7 +24,6 @@ import type { NextConfig } from 'next'
 
 type SetupTestsCtx = {
   appDir: string
-  imagesDir: string
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
   isDev?: boolean
@@ -29,12 +32,14 @@ type SetupTestsCtx = {
 type RunTestsCtx = SetupTestsCtx & {
   w: number
   q: number
+  imagesDir: string
   app?: import('child_process').ChildProcess
   appDir?: string
   appPort?: number
   nextOutput?: string
 }
 
+let infiniteRedirect = 0
 const largeSize = 1080 // defaults defined in server/config.ts
 const animatedWarnText =
   'is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.'
@@ -43,15 +48,32 @@ export async function serveSlowImage() {
   const port = await findPort()
   const server = http.createServer(async (req, res) => {
     const parsedUrl = new URL(req.url, 'http://localhost')
-    const delay = Number(parsedUrl.searchParams.get('delay')) || 500
+    const delay = Number(parsedUrl.searchParams.get('delay')) || 0
     const status = Number(parsedUrl.searchParams.get('status')) || 200
+    const location = parsedUrl.searchParams.get('location')
 
     console.log('delaying image for', delay)
     await waitFor(delay)
 
     res.statusCode = status
 
-    if (status === 308) {
+    if (infiniteRedirect > 0 && infiniteRedirect < 1000) {
+      infiniteRedirect++
+      res.statusCode = 308
+      console.log('infinite redirect', location)
+      res.setHeader('location', '/')
+      res.end()
+      return
+    }
+
+    if (status === 301 && location) {
+      console.log('redirecting to location', location)
+      res.setHeader('location', location)
+      res.end()
+      return
+    }
+
+    if (status === 399) {
       res.end('invalid status')
       return
     }
@@ -98,9 +120,25 @@ export async function expectWidth(res, w, { expectAnimated = false } = {}) {
   expect(isAnimated(buffer)).toBe(expectAnimated)
 }
 
-export const cleanImagesDir = async (ctx: { imagesDir: string }) => {
-  console.warn('Cleaning', ctx.imagesDir)
-  await fs.remove(ctx.imagesDir)
+export const cleanImagesDir = async (imagesDir) => {
+  console.warn('Cleaning', imagesDir)
+  await fs.remove(imagesDir)
+}
+
+async function getDirSize(dir: string): Promise<number> {
+  let totalSize = 0
+  const entries = await fs.readdir(dir).catch(() => [] as string[])
+  for (const entry of entries) {
+    const entryPath = join(dir, entry)
+    const stat = await fs.stat(entryPath).catch(() => null)
+    if (!stat) continue
+    if (stat.isDirectory()) {
+      totalSize += await getDirSize(entryPath)
+    } else {
+      totalSize += stat.size
+    }
+  }
+  return totalSize
 }
 
 async function expectAvifSmallerThanWebp(
@@ -156,12 +194,14 @@ async function fetchWithDuration(
 }
 
 export function runTests(ctx: RunTestsCtx) {
-  const { isDev, nextConfigImages } = ctx
+  const { isDev, nextConfigImages, imagesDir } = ctx
   const {
     contentDispositionType = 'attachment',
     domains = [],
     formats = [],
     minimumCacheTTL = 14400,
+    maximumRedirects = 3,
+    dangerouslyAllowLocalIP,
   } = nextConfigImages || {}
   const avifEnabled = formats[0] === 'image/avif'
   let slowImageServer: Awaited<ReturnType<typeof serveSlowImage>>
@@ -172,9 +212,9 @@ export function runTests(ctx: RunTestsCtx) {
     slowImageServer.stop()
   })
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should normalize invalid status codes', async () => {
-      const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${1}&status=308`
+      const url = `http://localhost:${slowImageServer.port}/slow.png?status=399`
       const query = { url, w: ctx.w, q: ctx.q }
       const opts: RequestInit = {
         headers: { accept: 'image/webp' },
@@ -190,6 +230,35 @@ export function runTests(ctx: RunTestsCtx) {
       const query = { url, w: ctx.w, q: ctx.q }
       const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
       expect(res.status).toBe(504)
+    })
+  }
+
+  if (domains.length > 0) {
+    it('should follow redirect from http to https when maximumRedirects > 0', async () => {
+      const url = `http://image-optimization-test.vercel.app/frog.png`
+      const query = { url, w: ctx.w, q: ctx.q }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(maximumRedirects > 0 ? 200 : 508)
+    })
+
+    it('should follow redirect when dangerouslyAllowLocalIP enabled', async () => {
+      const url = `http://localhost:${slowImageServer.port}?status=301&location=%2Fslow.png`
+      const query = { url, w: ctx.w, q: ctx.q }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      let expectedStatus = dangerouslyAllowLocalIP ? 200 : 400
+      if (maximumRedirects === 0) {
+        expectedStatus = 508
+      }
+      expect(res.status).toBe(expectedStatus)
+    })
+
+    it('should return 508 after redirecting too many times', async () => {
+      infiniteRedirect = 1
+      const url = `http://localhost:${slowImageServer.port}`
+      const query = { url, w: ctx.w, q: ctx.q }
+      const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
+      expect(res.status).toBe(508)
+      infiniteRedirect = 0
     })
   }
 
@@ -886,7 +955,7 @@ export function runTests(ctx: RunTestsCtx) {
     })
   }
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should resize absolute url from localhost', async () => {
       const url = `http://localhost:${ctx.appPort}/test.png`
       const query = { url, w: ctx.w, q: ctx.q }
@@ -929,10 +998,13 @@ export function runTests(ctx: RunTestsCtx) {
     })
 
     it('should use cache and stale-while-revalidate when query is the same for external image', async () => {
-      if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+      if (
+        ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+        ctx.nextConfigImages?.maximumDiskCacheSize === 0
+      ) {
         return // this test is not applicable when we don't write the cache
       }
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       const delay = 500
 
       const url = `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`
@@ -1042,7 +1114,7 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should fail when url has file protocol', async () => {
-    const url = `file://localhost:${ctx.appPort}/test.png`
+    const url = `file://example.vercel.sh:${ctx.appPort}/test.png`
     const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
@@ -1051,7 +1123,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when url has ftp protocol', async () => {
-    const url = `ftp://localhost:${ctx.appPort}/test.png`
+    const url = `ftp://example.vercel.sh:${ctx.appPort}/test.png`
     const query = { url, w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
@@ -1067,7 +1139,7 @@ export function runTests(ctx: RunTestsCtx) {
   })
 
   it('should fail when url is protocol relative', async () => {
-    const query = { url: `//example.com`, w: ctx.w, q: ctx.q }
+    const query = { url: `//example.vercel.sh`, w: ctx.w, q: ctx.q }
     const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, {})
     expect(res.status).toBe(400)
     expect(await res.text()).toBe(
@@ -1138,7 +1210,7 @@ export function runTests(ctx: RunTestsCtx) {
     )
   })
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should fail when url fails to load an image', async () => {
       const url = `http://localhost:${ctx.appPort}/not-an-image`
       const query = { w: ctx.w, url, q: ctx.q }
@@ -1151,10 +1223,13 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should use cache and stale-while-revalidate when query is the same for internal image', async () => {
-    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+    if (
+      ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
+    ) {
       return // this test is not applicable when we don't write the cache
     }
-    await cleanImagesDir(ctx)
+    await cleanImagesDir(imagesDir)
 
     const query = {
       url: '/api/stateful/test.png',
@@ -1261,7 +1336,7 @@ export function runTests(ctx: RunTestsCtx) {
 
   if (ctx.nextConfigImages?.dangerouslyAllowSVG) {
     it('should use cached image file when parameters are the same for svg', async () => {
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
 
       const query = { url: '/test.svg', w: ctx.w, q: ctx.q }
       const opts = { headers: { accept: 'image/webp' } }
@@ -1298,10 +1373,13 @@ export function runTests(ctx: RunTestsCtx) {
   }
 
   it('should use cached image file when parameters are the same for animated gif', async () => {
-    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+    if (
+      ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
+    ) {
       return // this test is not applicable when we don't write the cache
     }
-    await cleanImagesDir(ctx)
+    await cleanImagesDir(imagesDir)
 
     const query = { url: '/animated.gif', w: ctx.w, q: ctx.q }
     const opts = { headers: { accept: 'image/webp' } }
@@ -1405,7 +1483,10 @@ export function runTests(ctx: RunTestsCtx) {
       `${contentDispositionType}; filename="test.bmp"`
     )
 
-    if (ctx.nextConfigExperimental?.isrFlushToDisk === false) {
+    if (
+      ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+      ctx.nextConfigImages?.maximumDiskCacheSize === 0
+    ) {
       expect(json1).toEqual({})
       expect(await fsToJson(ctx.imagesDir)).toEqual({})
     } else {
@@ -1439,11 +1520,18 @@ export function runTests(ctx: RunTestsCtx) {
 
   it('should set cache-control to immutable for static images', async () => {
     if (!ctx.isDev) {
-      const filename = 'test'
-      const query = {
-        url: `/_next/static/media/${filename}.fab2915d.jpg`,
-        w: ctx.w,
-        q: ctx.q,
+      const file = (await listClientChunks(join(ctx.appDir, '.next'))).find(
+        (f) => /\/test\.[0-9a-z_-]+\.jpg$/.test(f)
+      )
+      expect(file).toBeString()
+      const query: Record<string, string> = {
+        url: `/_next/${file}`,
+        w: String(ctx.w),
+        q: String(ctx.q),
+      }
+      const assetToken = getDeploymentId(ctx.appDir, false).assetToken
+      if (assetToken) {
+        query.dpl = assetToken
       }
       const opts = { headers: { accept: 'image/webp' } }
 
@@ -1454,7 +1542,7 @@ export function runTests(ctx: RunTestsCtx) {
       )
       expect(res1.headers.get('Vary')).toBe('Accept')
       expect(res1.headers.get('Content-Disposition')).toBe(
-        `${contentDispositionType}; filename="${filename}.webp"`
+        `${contentDispositionType}; filename="test.webp"`
       )
       await expectWidth(res1, ctx.w)
 
@@ -1466,7 +1554,7 @@ export function runTests(ctx: RunTestsCtx) {
       )
       expect(res2.headers.get('Vary')).toBe('Accept')
       expect(res2.headers.get('Content-Disposition')).toBe(
-        `${contentDispositionType}; filename="${filename}.webp"`
+        `${contentDispositionType}; filename="test.webp"`
       )
       await expectWidth(res2, ctx.w)
     }
@@ -1488,9 +1576,9 @@ export function runTests(ctx: RunTestsCtx) {
     expect(await res.text()).toBe("The requested resource isn't a valid image.")
   })
 
-  if (domains.length > 0) {
+  if (domains.length > 0 && dangerouslyAllowLocalIP) {
     it('should handle concurrent requests', async () => {
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(ctx.imagesDir)
       const delay = 500
       const query = {
         url: `http://localhost:${slowImageServer.port}/slow.png?delay=${delay}`,
@@ -1530,7 +1618,10 @@ export function runTests(ctx: RunTestsCtx) {
       await expectWidth(res3, ctx.w)
 
       const length =
-        ctx.nextConfigExperimental?.isrFlushToDisk === false ? 0 : 1
+        ctx.nextConfigExperimental?.isrFlushToDisk === false ||
+        ctx.nextConfigImages?.maximumDiskCacheSize === 0
+          ? 0
+          : 1
 
       await check(async () => {
         const json1 = await fsToJson(ctx.imagesDir)
@@ -1547,22 +1638,95 @@ export function runTests(ctx: RunTestsCtx) {
       expect(xCache).toEqual(['MISS', 'MISS', 'MISS'])
     })
   }
+
+  if (typeof ctx.nextConfigImages?.maximumDiskCacheSize !== 'undefined') {
+    const { maximumDiskCacheSize } = ctx.nextConfigImages
+    it(`should handle maximumDiskCacheSize ${maximumDiskCacheSize}`, async () => {
+      const opts = { headers: { accept: 'image/webp' } }
+      const requests = [
+        { url: '/test.png', w: largeSize },
+        { url: '/test.jpg', w: largeSize },
+        { url: '/test.gif', w: largeSize },
+        { url: '/test.bmp', w: largeSize },
+        { url: '/test.webp', w: largeSize },
+        { url: '/test.avif', w: largeSize },
+        { url: '/test.tiff', w: largeSize },
+        { url: '/test.ico', w: largeSize },
+        { url: '/animated.gif', w: largeSize },
+        { url: '/animated.png', w: largeSize },
+        { url: '/animated2.png', w: largeSize },
+      ]
+      await cleanImagesDir(imagesDir)
+      const json1 = await fsToJson(ctx.imagesDir)
+      expect(Object.keys(json1).length).toEqual(0)
+      for (const { url, w } of requests) {
+        const query = { url, w, q: ctx.q }
+        const res = await fetchViaHTTP(ctx.appPort, '/_next/image', query, opts)
+        expect(res.status).toBe(200)
+        await res.buffer() // consume response body
+        await retry(async () => {
+          const size = await getDirSize(imagesDir)
+          expect(size).toBeLessThanOrEqual(maximumDiskCacheSize)
+        })
+      }
+
+      const json2 = await fsToJson(ctx.imagesDir)
+      const json2Length = Object.keys(json2).length
+      if (maximumDiskCacheSize === 0) {
+        expect(json2Length).toEqual(0)
+      } else {
+        expect(json2Length).toBeGreaterThan(0)
+      }
+
+      const res = await fetchViaHTTP(
+        ctx.appPort,
+        '/_next/image',
+        { url: '/mountains.jpg', w: ctx.w, q: ctx.q },
+        opts
+      )
+      expect(res.status).toBe(200)
+
+      await retry(async () => {
+        const json3 = await fsToJson(ctx.imagesDir)
+        const json3Length = Object.keys(json3).length
+        if (maximumDiskCacheSize === 0) {
+          expect(json3Length).toEqual(0)
+        } else {
+          expect(json3Length).toBeGreaterThan(0)
+          expect(json3).not.toStrictEqual(json2)
+        }
+        const size = await getDirSize(imagesDir)
+        expect(size).toBeLessThanOrEqual(maximumDiskCacheSize)
+      })
+    })
+  }
 }
 
 export const setupTests = (ctx: SetupTestsCtx) => {
   const nextConfig = new File(join(ctx.appDir, 'next.config.js'))
+
+  const originalIsNextDev = (global as any).isNextDev
+  afterAll(() => {
+    ;(global as any).isNextDev = originalIsNextDev
+  })
 
   describe('dev support w/o next.config.js', () => {
     if (ctx.nextConfigImages) {
       // skip this test because it requires next.config.js
       return
     }
+
+    const isDev = true
+    // Set global.isNextDev for getDistDir()
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 75,
-      isDev: true,
+      isDev,
+      imagesDir,
     }
 
     beforeAll(async () => {
@@ -1580,7 +1744,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         },
         cwd: curCtx.appDir,
       })
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
     })
     afterAll(async () => {
       nextConfig.restore()
@@ -1591,13 +1755,18 @@ export const setupTests = (ctx: SetupTestsCtx) => {
   })
 
   describe('dev support with next.config.js', () => {
+    const isDev = true
+    // Set global.isNextDev for getDistDir()
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 400
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 100,
-      isDev: true,
+      isDev,
       nextConfigImages: {
+        dangerouslyAllowLocalIP: true,
         domains: [
           'localhost',
           '127.0.0.1',
@@ -1611,6 +1780,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         qualities: [50, 75, 100],
         ...ctx.nextConfigImages,
       },
+      imagesDir,
     }
     beforeAll(async () => {
       const json = JSON.stringify({
@@ -1621,7 +1791,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       } satisfies NextConfig)
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       curCtx.appPort = await findPort()
       curCtx.app = await launchApp(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1644,12 +1814,16 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       // skip this test because it requires next.config.js
       return
     }
+    const isDev = false
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 384 // defaults defined in server/config.ts
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 75,
-      isDev: false,
+      isDev,
+      imagesDir,
     }
     beforeAll(async () => {
       const json = JSON.stringify({
@@ -1660,7 +1834,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       nextConfig.replace('{ /* replaceme */ }', json)
       curCtx.nextOutput = ''
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {
@@ -1679,13 +1853,17 @@ export const setupTests = (ctx: SetupTestsCtx) => {
   ;(process.env.TURBOPACK_DEV || process.env.TURBOPACK_BUILD
     ? describe.skip
     : describe)('Production Mode Server support with next.config.js', () => {
+    const isDev = false
+    ;(global as any).isNextDev = isDev
+    const imagesDir = join(ctx.appDir, getDistDir(), 'cache', 'images')
     const size = 399
     const curCtx: RunTestsCtx = {
       ...ctx,
       w: size,
       q: 100,
-      isDev: false,
+      isDev,
       nextConfigImages: {
+        dangerouslyAllowLocalIP: true,
         domains: [
           'localhost',
           '127.0.0.1',
@@ -1698,6 +1876,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
         qualities: [50, 75, 100],
         ...ctx.nextConfigImages,
       },
+      imagesDir,
     }
     beforeAll(async () => {
       const json = JSON.stringify({
@@ -1709,7 +1888,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       curCtx.nextOutput = ''
       nextConfig.replace('{ /* replaceme */ }', json)
       await nextBuild(curCtx.appDir)
-      await cleanImagesDir(ctx)
+      await cleanImagesDir(imagesDir)
       curCtx.appPort = await findPort()
       curCtx.app = await nextStart(curCtx.appDir, curCtx.appPort, {
         onStderr(msg) {

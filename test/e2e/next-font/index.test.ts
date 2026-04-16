@@ -17,10 +17,12 @@ function hrefMatchesFontWithSizeAdjust(href: string) {
   if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
-      /\/_next\/static\/media\/(.*)-s\.p\.(.*)\.woff2/
+      /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.(.*)\.woff2/
     )
   } else {
-    expect(href).toMatch(/\/_next\/static\/media\/(.*)-s\.p\.woff2/)
+    expect(href).toMatch(
+      /\/_next\/static\/(immutable\/)?media\/(.*)-s\.p\.woff2/
+    )
   }
 }
 
@@ -28,10 +30,10 @@ function hrefMatchesFontWithoutSizeAdjust(href: string) {
   if (process.env.IS_TURBOPACK_TEST) {
     expect(href).toMatch(
       // Turbopack includes the file hash
-      /\/_next\/static\/media\/(.*)\.p\.(.*)\.woff2/
+      /\/_next\/static\/(immutable\/)?media\/(.*)\.p\.(.*)\.woff2/
     )
   } else {
-    expect(href).toMatch(/\/_next\/static\/media\/(.*)\.p\.woff2/)
+    expect(href).toMatch(/\/_next\/static\/(immutable\/)?media\/(.*)\.p\.woff2/)
   }
 }
 
@@ -640,6 +642,35 @@ describe('next/font', () => {
         )
         expect(sizeAdjust).toBe('115.45%')
       })
+    })
+  })
+
+  describe('custom declarations', () => {
+    test('local font with custom declarations', async () => {
+      const browser = await webdriver(next.url, '/with-local-fonts')
+
+      // Get all stylesheets
+      const stylesheets = await browser.eval(`
+        Array.from(document.styleSheets)
+          .flatMap(sheet => {
+            try {
+              return Array.from(sheet.cssRules || sheet.rules || [])
+                .map(rule => rule.cssText)
+            } catch (e) {
+              return ''
+            }
+          })
+      `)
+
+      // Check that the custom declaration is included in the CSS
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('ascent-override: 90%;')
+      )
+
+      // Check that the custom declaration is included in the CSS and overrides the default family
+      expect(stylesheets).toContainEqual(
+        expect.stringContaining('font-family: foobar;')
+      )
     })
   })
 })

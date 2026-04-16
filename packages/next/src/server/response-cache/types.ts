@@ -105,6 +105,7 @@ export interface CachedImageValue {
   upstreamEtag: string
   buffer: Buffer
   extension: string
+  revalidate?: number
   isMiss?: boolean
   isStale?: boolean
 }
@@ -142,6 +143,7 @@ export interface IncrementalResponseCacheEntry {
    */
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
   value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
 }
 
@@ -177,6 +179,7 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
 }
 
 /**
@@ -228,11 +231,6 @@ export interface GetIncrementalResponseCacheContext {
    * True if this is a fallback request.
    */
   isFallback: boolean
-
-  /**
-   * True if stale data is allowed to be returned.
-   */
-  allowStale?: boolean
 }
 
 export interface SetIncrementalFetchCacheContext {
@@ -288,5 +286,9 @@ export interface IncrementalCache extends IncrementalResponseCache {
     key: string,
     data: Exclude<IncrementalCacheValue, CachedFetchValue> | null,
     ctx: SetIncrementalResponseCacheContext
+  ): Promise<void>
+  revalidateTag(
+    tags: string | string[],
+    durations?: { expire?: number }
   ): Promise<void>
 }

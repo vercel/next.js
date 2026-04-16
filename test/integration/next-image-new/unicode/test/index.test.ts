@@ -22,7 +22,7 @@ function runTests(mode: 'server' | 'dev') {
   it('should load static unicode image', async () => {
     const src = await browser.elementById('static').getAttribute('src')
     expect(src).toMatch(
-      /_next%2Fstatic%2Fmedia%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD(.+)png/
+      /_next%2Fstatic%2F(immutable%2F)?media%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD(.+)png/
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)
@@ -75,12 +75,13 @@ function runTests(mode: 'server' | 'dev') {
           contentDispositionType: 'attachment',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
           disableStaticImages: false,
           domains: [],
           formats: ['image/webp'],
-          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
           loader: 'default',
           loaderFile: '',
           remotePatterns: [
@@ -94,14 +95,24 @@ function runTests(mode: 'server' | 'dev') {
               search: '',
             },
           ],
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
+          maximumResponseBody: 50000000,
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],
           sizes: [
-            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
-            128, 256, 384,
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
           ],
           unoptimized: false,
+          customCacheHandler: false,
         },
       })
     })

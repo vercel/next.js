@@ -21,8 +21,11 @@ import {
   ACTION_DEVTOOLS_CONFIG,
   type OverlayState,
   type DispatcherEvent,
+  ACTION_CACHE_INDICATOR,
+  ACTION_INSTANT_NAVS_TOGGLE,
 } from './dev-overlay/shared'
 
+import type { FlightRouterState } from '../shared/lib/app-router-types'
 import {
   createContext,
   startTransition,
@@ -33,6 +36,7 @@ import {
   type ActionDispatch,
 } from 'react'
 import { createRoot } from 'react-dom/client'
+import type { CacheIndicatorState } from './dev-overlay/cache-indicator'
 import { FontStyles } from './dev-overlay/font/font-styles'
 import type { HydrationErrorState } from './shared/hydration-error'
 import type { DebugInfo } from './shared/types'
@@ -55,7 +59,8 @@ export interface Dispatcher {
   onDebugInfo(debugInfo: DebugInfo): void
   onBeforeRefresh(): void
   onRefresh(): void
-  onStaticIndicator(status: boolean): void
+  onCacheIndicator(status: CacheIndicatorState): void
+  onStaticIndicator(status: 'pending' | 'static' | 'dynamic' | 'disabled'): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onDevToolsConfig(config: DevToolsConfig): void
   onUnhandledError(reason: Error): void
@@ -69,7 +74,11 @@ export interface Dispatcher {
   renderingIndicatorShow(): void
   segmentExplorerNodeAdd(nodeState: SegmentNodeState): void
   segmentExplorerNodeRemove(nodeState: SegmentNodeState): void
-  segmentExplorerUpdateRouteState(page: string): void
+  segmentExplorerUpdateRouteState(
+    page: string,
+    tree: FlightRouterState | null
+  ): void
+  instantNavsToggle(): void
 }
 
 type Dispatch = ReturnType<typeof useErrorOverlayReducer>[1]
@@ -147,9 +156,19 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_VERSION_INFO, versionInfo })
     }
   ),
-  onStaticIndicator: createQueuable((dispatch: Dispatch, status: boolean) => {
-    dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
-  }),
+  onCacheIndicator: createQueuable(
+    (dispatch: Dispatch, status: CacheIndicatorState) => {
+      dispatch({ type: ACTION_CACHE_INDICATOR, cacheIndicator: status })
+    }
+  ),
+  onStaticIndicator: createQueuable(
+    (
+      dispatch: Dispatch,
+      status: 'pending' | 'static' | 'dynamic' | 'disabled'
+    ) => {
+      dispatch({ type: ACTION_STATIC_INDICATOR, staticIndicator: status })
+    }
+  ),
   onDebugInfo: createQueuable((dispatch: Dispatch, debugInfo: DebugInfo) => {
     dispatch({ type: ACTION_DEBUG_INFO, debugInfo })
   }),
@@ -207,10 +226,13 @@ export const dispatcher: Dispatcher = {
     }
   ),
   segmentExplorerUpdateRouteState: createQueuable(
-    (dispatch: Dispatch, page: string) => {
-      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page })
+    (dispatch: Dispatch, page: string, tree: FlightRouterState | null) => {
+      dispatch({ type: ACTION_DEVTOOL_UPDATE_ROUTE_STATE, page, tree })
     }
   ),
+  instantNavsToggle: createQueuable((dispatch: Dispatch) => {
+    dispatch({ type: ACTION_INSTANT_NAVS_TOGGLE })
+  }),
 }
 
 function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
@@ -225,12 +247,14 @@ function replayQueuedEvents(dispatch: NonNullable<typeof maybeDispatch>) {
 }
 
 function DevOverlayRoot({
+  enableCacheIndicator,
   getOwnerStack,
   getSquashedHydrationErrorDetails,
   isRecoverableError,
   routerType,
   shadowRoot,
 }: {
+  enableCacheIndicator: boolean
   getOwnerStack: (error: Error) => string | null | undefined
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   isRecoverableError: (error: Error) => boolean
@@ -240,7 +264,8 @@ function DevOverlayRoot({
   const [state, dispatch] = useErrorOverlayReducer(
     routerType,
     getOwnerStack,
-    isRecoverableError
+    isRecoverableError,
+    enableCacheIndicator
   )
 
   useEffect(() => {
@@ -314,7 +339,8 @@ function getSquashedHydrationErrorDetailsApp() {
 
 export function renderAppDevOverlay(
   getOwnerStack: (error: Error) => string | null | undefined,
-  isRecoverableError: (error: Error) => boolean
+  isRecoverableError: (error: Error) => boolean,
+  enableCacheIndicator: boolean
 ): void {
   if (isPagesMounted) {
     // Switching between App and Pages Router is always a hard navigation
@@ -356,6 +382,7 @@ export function renderAppDevOverlay(
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
+          enableCacheIndicator={enableCacheIndicator}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetailsApp}
           isRecoverableError={isRecoverableError}
@@ -421,6 +448,8 @@ export function renderPagesDevOverlay(
       // At least it won't unmount any user code if it errors.
       root.render(
         <DevOverlayRoot
+          // Pages Router does not support Cache Components
+          enableCacheIndicator={false}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
           isRecoverableError={isRecoverableError}

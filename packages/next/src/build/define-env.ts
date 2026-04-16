@@ -3,7 +3,7 @@ import type {
   I18NDomains,
   NextConfigComplete,
 } from '../server/config-shared'
-import type { MiddlewareMatcher } from './analysis/get-page-static-info'
+import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
@@ -32,7 +32,7 @@ export interface DefineEnvOptions {
   isClient: boolean
   isEdgeServer: boolean
   isNodeServer: boolean
-  middlewareMatchers: MiddlewareMatcher[] | undefined
+  middlewareMatchers: ProxyMatcher[] | undefined
   omitNonDeterministic?: boolean
   rewrites: {
     beforeFiles: Rewrite[]
@@ -41,12 +41,16 @@ export interface DefineEnvOptions {
   }
 }
 
+const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
+
 interface DefineEnv {
   [key: string]:
     | string
+    | number
     | string[]
     | boolean
-    | MiddlewareMatcher[]
+    | { [DEFINE_ENV_EXPRESSION]: string }
+    | ProxyMatcher[]
     | BloomFilter
     | Partial<NextConfigComplete['images']>
     | I18NDomains
@@ -61,12 +65,14 @@ interface SerializedDefineEnv {
  * Serializes the DefineEnv config so that it can be inserted into the code by Webpack/Turbopack, JSON stringifies each value.
  */
 function serializeDefineEnv(defineEnv: DefineEnv): SerializedDefineEnv {
-  const defineEnvStringified: SerializedDefineEnv = {}
-  for (const key in defineEnv) {
-    const value = defineEnv[key]
-    defineEnvStringified[key] = JSON.stringify(value)
-  }
-
+  const defineEnvStringified: SerializedDefineEnv = Object.fromEntries(
+    Object.entries(defineEnv).map(([key, value]) => [
+      key,
+      typeof value === 'object' && DEFINE_ENV_EXPRESSION in value
+        ? value[DEFINE_ENV_EXPRESSION]
+        : JSON.stringify(value),
+    ])
+  )
   return defineEnvStringified
 }
 
@@ -116,8 +122,9 @@ export function getDefineEnv({
   const nextConfigEnv = getNextConfigEnv(config)
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
-  const isCacheComponentsEnabled = !!config.experimental.cacheComponents
+  const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
+  const isUseNodeStreamsEnabled = !!config.experimental.useNodeStreams
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -152,6 +159,7 @@ export function getDefineEnv({
       dev || config.experimental.allowDevelopmentBuild
         ? 'development'
         : 'production',
+    'process.env.__NEXT_DEV_SERVER': dev ? '1' : '',
     'process.env.NEXT_RUNTIME': isEdgeServer
       ? 'edge'
       : isNodeServer
@@ -161,13 +169,49 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
+    'process.env.__NEXT_APP_NEW_SCROLL_HANDLER': Boolean(
+      config.experimental.appNewScrollHandler
+    ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
+    'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
+      config.experimental.cachedNavigations
+    ),
+    'process.env.__NEXT_INSTANT_NAV_TOGGLE':
+      !!config.experimental.instantNavigationDevToolsToggle,
     'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
-
-    'process.env.NEXT_DEPLOYMENT_ID': config.experimental?.useSkewCookie
+    'process.env.__NEXT_USE_NODE_STREAMS': isEdgeServer
       ? false
-      : config.deploymentId || false,
+      : isUseNodeStreamsEnabled,
+
+    'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
+      config.experimental.supportsImmutableAssets || false,
+
+    ...(config.experimental?.useSkewCookie || !config.deploymentId
+      ? {
+          'process.env.NEXT_DEPLOYMENT_ID': false,
+        }
+      : isClient
+        ? isTurbopack
+          ? {
+              // This is set at runtime by packages/next/src/client/register-deployment-id-global.ts
+              'process.env.NEXT_DEPLOYMENT_ID': {
+                [DEFINE_ENV_EXPRESSION]: 'globalThis.NEXT_DEPLOYMENT_ID',
+              },
+            }
+          : {
+              // For Webpack, we currently don't use the non-inlining globalThis.NEXT_DEPLOYMENT_ID
+              // approach because we cannot forward this global variable to web workers easily.
+              'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+            }
+        : config.experimental?.runtimeServerDeploymentId
+          ? {
+              // Don't inline at all, keep process.env.NEXT_DEPLOYMENT_ID as is
+            }
+          : {
+              'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
+            }),
+
     // Propagates the `__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING` environment
     // variable to the client.
     'process.env.__NEXT_EXPERIMENTAL_STATIC_SHELL_DEBUGGING':
@@ -196,25 +240,21 @@ export function getDefineEnv({
       clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
       clientRouterFilters?.dynamicFilter ?? false,
-    'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
-      config.experimental.clientSegmentCache
-    ),
-    'process.env.__NEXT_CLIENT_PARAM_PARSING': Boolean(
-      config.experimental.clientParamParsing
-    ),
     'process.env.__NEXT_CLIENT_VALIDATE_RSC_REQUEST_HEADERS': Boolean(
       config.experimental.validateRSCRequestHeaders
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
-    'process.env.__NEXT_ROUTER_BF_CACHE': Boolean(
-      config.experimental.routerBFCache
+    'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
+    'process.env.__NEXT_UNSTABLE_IO': Boolean(config.experimental.unstableIO),
+    'process.env.__NEXT_PREFETCH_INLINING': Boolean(
+      config.experimental.prefetchInlining
     ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
-      config.experimental.middlewarePrefetch ?? 'flexible',
+      config.experimental.proxyPrefetch ?? 'flexible',
     'process.env.__NEXT_CROSS_ORIGIN': config.crossOrigin,
     'process.browser': isClient,
     'process.env.__NEXT_TEST_MODE': process.env.__NEXT_TEST_MODE ?? false,
@@ -263,9 +303,9 @@ export function getDefineEnv({
     'process.env.__NEXT_I18N_DOMAINS': config.i18n?.domains ?? false,
     'process.env.__NEXT_I18N_CONFIG': config.i18n || '',
     'process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE':
-      config.skipMiddlewareUrlNormalize,
+      config.skipProxyUrlNormalize,
     'process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE':
-      config.experimental.externalMiddlewareRewritesResolve ?? false,
+      config.experimental.externalProxyRewritesResolve ?? false,
     'process.env.__NEXT_MANUAL_TRAILING_SLASH':
       config.skipTrailingSlashRedirect,
     'process.env.__NEXT_HAS_WEB_VITALS_ATTRIBUTION':
@@ -303,7 +343,7 @@ export function getDefineEnv({
       config.experimental.trustHostHeader ?? false,
     'process.env.__NEXT_ALLOWED_REVALIDATE_HEADERS':
       config.experimental.allowedRevalidateHeaderKeys ?? [],
-    ...(isNodeServer
+    ...(isNodeServer || isEdgeServer
       ? {
           'process.env.__NEXT_RELATIVE_DIST_DIR': config.distDir,
           'process.env.__NEXT_RELATIVE_PROJECT_DIR': path.relative(
@@ -314,26 +354,39 @@ export function getDefineEnv({
       : {}),
 
     'process.env.__NEXT_BROWSER_DEBUG_INFO_IN_TERMINAL': JSON.stringify(
-      config.experimental.browserDebugInfoInTerminal || false
+      (config.logging && config.logging.browserToTerminal) || false
     ),
     'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's
-    // persistent cache feature is more stable.
+    // filesystem cache feature is more stable.
     //
     // This environment value is currently best-effort:
     // - It's possible to disable the webpack filesystem cache, but it's
     //   unlikely for a user to do that.
-    // - Rspack's persistent cache is unstable and requires a different
+    // - Rspack's filesystem cache is unstable and requires a different
     //   configuration than webpack to enable (which we don't do).
     //
     // In the worst case we'll show an option to clear the cache, but it'll be a
     // no-op that just restarts the development server.
     'process.env.__NEXT_BUNDLER_HAS_PERSISTENT_CACHE':
-      !isTurbopack || (config.experimental.turbopackPersistentCaching ?? false),
+      !isTurbopack ||
+      (config.experimental.turbopackFileSystemCacheForDev ?? false),
     'process.env.__NEXT_REACT_DEBUG_CHANNEL':
       config.experimental.reactDebugChannel ?? false,
+    'process.env.__NEXT_TRANSITION_INDICATOR':
+      config.experimental.transitionIndicator ?? false,
+    'process.env.__NEXT_GESTURE_TRANSITION':
+      config.experimental.gestureTransition ?? false,
+    'process.env.__NEXT_OPTIMISTIC_ROUTING':
+      config.experimental.optimisticRouting ?? false,
+    'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,
+    'process.env.__NEXT_EXPOSE_TESTING_API':
+      dev || config.experimental.exposeTestingApiInProductionBuild === true,
+    'process.env.__NEXT_CACHE_LIFE': config.cacheLife,
+    'process.env.__NEXT_CLIENT_PARAM_PARSING_ORIGINS':
+      config.experimental.clientParamParsingOrigins || [],
   }
 
   const userDefines = config.compiler?.define ?? {}
@@ -376,8 +429,10 @@ export function getDefineEnv({
     for (const key in nextConfigEnv) {
       serializedDefineEnv[key] = safeKey(key)
     }
-    for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
-      serializedDefineEnv[key] = safeKey(key)
+    if (!config.experimental.runtimeServerDeploymentId) {
+      for (const key of ['process.env.NEXT_DEPLOYMENT_ID']) {
+        serializedDefineEnv[key] = safeKey(key)
+      }
     }
   }
 

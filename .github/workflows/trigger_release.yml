@@ -6,13 +6,14 @@ on:
   workflow_dispatch:
     inputs:
       releaseType:
-        description: stable, canary, or release candidate?
+        description: stable, canary, beta, or release candidate?
         required: true
         type: choice
         options:
           - canary
           - stable
           - release-candidate
+          - beta
 
       semverType:
         description: semver type?
@@ -27,15 +28,11 @@ on:
         default: false
         type: boolean
 
-    secrets:
-      RELEASE_BOT_GITHUB_TOKEN:
-        required: true
-
 name: Trigger Release
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -61,6 +58,9 @@ jobs:
 
       - name: Check token
         run: gh auth status
+        # This sometimes fails for unknown reasons.
+        # Ignoring failures for now to check if a failure truly implies a failed publish.
+        continue-on-error: true
         env:
           GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
 
@@ -96,15 +96,13 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install
 
-      - run: pnpm run build
-
-      - run: node ./scripts/start-release.js --release-type ${{ github.event.inputs.releaseType || 'canary' }} --semver-type ${{ github.event.inputs.semverType }}
+      - run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          INPUT_RELEASETYPE: ${{ github.event.inputs.releaseType || 'canary' }}
+          INPUT_SEMVERTYPE: ${{ github.event.inputs.semverType }}

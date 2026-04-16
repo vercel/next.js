@@ -10,6 +10,7 @@ import { waitForFile } from '@vercel/devlow-bench/file'
 const REPO_ROOT = fileURLToPath(new URL('..', import.meta.url))
 const START_SERVER_REGEXP = /Ready in \d+/
 const URL_REGEXP = /Local:\s+(?<url>.+)\n/
+const STARTUP_WAIT_TIMEOUT_MS = 5 * 60 * 1000
 
 const GIT_SHA =
   process.env.GITHUB_SHA ??
@@ -53,7 +54,7 @@ const nextBuildWorkflow =
 
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
-      // cleanup .next directory to remove persistent cache
+      // cleanup .next directory to remove filesystem cache
       await retry(() =>
         rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
       )
@@ -105,10 +106,14 @@ const nextBuildWorkflow =
       // wait for server to be ready
       const {
         groups: { url },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
 
       // wait for server to be ready
-      await shell.waitForOutput(START_SERVER_REGEXP)
+      await shell.waitForOutput(START_SERVER_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -192,7 +197,9 @@ const nextBuildWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -211,7 +218,6 @@ const nextBuildWorkflow =
       throw e
     } finally {
       // This must run in order
-      // eslint-disable-next-line no-await-in-loop
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -226,7 +232,7 @@ const nextDevWorkflow =
     try {
       const benchmarkDir = resolve(REPO_ROOT, 'bench', benchDir)
 
-      // cleanup .next directory to remove persistent cache
+      // cleanup .next directory to remove filesystem cache
       await retry(() =>
         rm(join(benchmarkDir, '.next'), { recursive: true, force: true })
       )
@@ -285,10 +291,14 @@ const nextDevWorkflow =
       // wait for server to be ready
       const {
         groups: { url },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
 
       // wait for server to be ready
-      await shell.waitForOutput(START_SERVER_REGEXP)
+      await shell.waitForOutput(START_SERVER_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await measureTime('server startup', { props: { turbopack, page } })
       await shell.reportMemUsage('mem usage after startup', {
         props: { turbopack, page },
@@ -353,7 +363,6 @@ const nextDevWorkflow =
           await writeFile(path, content, 'utf8')
         })
         let currentContent = content
-        /* eslint-disable no-await-in-loop */
         for (let hmrAttempt = 0; hmrAttempt < 10; hmrAttempt++) {
           if (hmrAttempt > 0) {
             await new Promise((resolve) => {
@@ -467,7 +476,6 @@ const nextDevWorkflow =
 
           if (!success) break
         }
-        /* eslint-enable no-await-in-loop */
       }
 
       if (turbopack) {
@@ -475,13 +483,14 @@ const nextDevWorkflow =
         await killShell()
         await closeSession()
       } else {
-        // wait for persistent cache to be written
+        // wait for filesystem cache to be written
         const waitPromise = new Promise((resolve) => {
           setTimeout(resolve, 5000)
         })
         const cacheLocation = join(
           benchmarkDir,
           '.next',
+          'dev',
           'cache',
           'webpack',
           'client-development'
@@ -514,7 +523,9 @@ const nextDevWorkflow =
       // wait for server to be ready
       const {
         groups: { url: url2 },
-      } = await shell.waitForOutput(URL_REGEXP)
+      } = await shell.waitForOutput(URL_REGEXP, {
+        timeoutMs: STARTUP_WAIT_TIMEOUT_MS,
+      })
       await shell.reportMemUsage('mem usage after startup with cache')
 
       // open page
@@ -531,7 +542,6 @@ const nextDevWorkflow =
       await shell.reportMemUsage('mem usage after open page with cache')
     } finally {
       // This must run in order
-      // eslint-disable-next-line no-await-in-loop
       for (const task of cleanupTasks.reverse()) await task()
       await measureTime('shutdown')
     }
@@ -586,12 +596,10 @@ async function retry(fn) {
   let lastError
   for (let i = 100; i < 2000; i += 100) {
     try {
-      // eslint-disable-next-line no-await-in-loop
       await fn()
       return
     } catch (e) {
       lastError = e
-      // eslint-disable-next-line no-await-in-loop
       await new Promise((resolve) => {
         setTimeout(resolve, i)
       })

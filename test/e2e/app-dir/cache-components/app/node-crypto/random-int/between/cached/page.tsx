@@ -25,8 +25,8 @@ async function getRandomIntBetween(nonce: number) {
   if (nonce === 2) {
     // We want to exercise the case where the function arguments are length 3
     // but the third arg is still not a callback so it runs sync
-    return crypto.randomInt(128, 256, undefined) as undefined as number
+    return crypto.randomInt(0, 2 ** 48 - 1, undefined) as undefined as number
   } else {
-    return crypto.randomInt(128, 256)
+    return crypto.randomInt(0, 2 ** 48 - 1)
   }
 }

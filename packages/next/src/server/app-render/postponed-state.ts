@@ -116,8 +116,8 @@ export async function getDynamicDataPostponedState(
 
 export function parsePostponedState(
   state: string,
-  pagePath: string,
-  params: Params | undefined
+  interpolatedParams: Params,
+  maxPostponedStateSizeBytes: number | undefined
 ): PostponedState {
   try {
     const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
@@ -135,7 +135,10 @@ export function parsePostponedState(
     )
 
     const renderResumeDataCache = createRenderResumeDataCache(
-      state.slice(postponedStringLengthMatch.length + postponedStringLength + 1)
+      state.slice(
+        postponedStringLengthMatch.length + postponedStringLength + 1
+      ),
+      maxPostponedStateSizeBytes
     )
 
     try {
@@ -162,7 +165,10 @@ export function parsePostponedState(
         ) as OpaqueFallbackRouteParamEntries
 
         let postponed = postponedString.slice(match.length + length)
-        for (const [key, [searchValue, dynamicParamType]] of replacements) {
+        for (const [
+          segmentKey,
+          [searchValue, dynamicParamType],
+        ] of replacements) {
           const {
             treeSegment: [
               ,
@@ -172,11 +178,11 @@ export function parsePostponedState(
               value,
             ],
           } = getDynamicParam(
-            params ?? {},
-            key,
+            interpolatedParams,
+            segmentKey,
             dynamicParamType,
-            pagePath,
-            null
+            null,
+            null // staticSiblings not needed for postponed state
           )
 
           postponed = postponed.replaceAll(searchValue, value)

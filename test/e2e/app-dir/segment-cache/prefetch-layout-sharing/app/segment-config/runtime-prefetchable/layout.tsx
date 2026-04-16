@@ -2,8 +2,11 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../shared'
 
-export const unstable_prefetch = 'unstable_runtime'
-
+export const unstable_instant = {
+  prefetch: 'runtime',
+  samples: [{ cookies: [] }],
+}
+export const unstable_prefetch = 'runtime'
 export default async function Layout({ children }) {
   return (
     <main>

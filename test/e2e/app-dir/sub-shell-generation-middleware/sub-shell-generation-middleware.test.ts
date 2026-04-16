@@ -1,11 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 import * as cheerio from 'cheerio'
-import { retry } from 'next-test-utils'
+import { getCacheHeader, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
+
+const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
 
 describe('middleware-static-rewrite', () => {
   const { next, isNextDeploy, isNextDev } = nextTestSetup({
     files: __dirname,
+    // The latest changes to support this behavior on deployed infra are available in the adapter,
+    // and are not being backported to the CLI
+    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {
@@ -13,10 +18,7 @@ describe('middleware-static-rewrite', () => {
     return
   }
 
-  if (
-    process.env.__NEXT_EXPERIMENTAL_CACHE_COMPONENTS === 'true' ||
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-  ) {
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
     // Here we're validating that the correct fallback shell was used for
     // rendering.
     it('should use the correct fallback route', async () => {
@@ -88,7 +90,8 @@ describe('middleware-static-rewrite', () => {
       expect(res.status).toBe(200)
 
       if (isNextDeploy) {
-        expect(res.headers.get('x-vercel-cache')).toMatch(/MISS|HIT|PRERENDER/)
+        // We produced a partial fallback shell for rewrite/[slug], so we shouldn't see a cache HIT.
+        expect(getCacheHeader(res)).toMatch(/MISS|PRERENDER/)
       } else {
         expect(res.headers.get('x-nextjs-cache')).toBe(null)
       }
@@ -107,29 +110,34 @@ describe('middleware-static-rewrite', () => {
 
         expect(res.status).toBe(200)
         if (isNextDeploy) {
-          expect(res.headers.get('x-vercel-cache')).toBe('HIT')
+          expect(getCacheHeader(res)).toBe('HIT')
         } else {
-          expect(res.headers.get('x-nextjs-cache')).toBe(null)
+          expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
         }
+
+        html = await res.text()
+        $ = cheerio.load(html)
+
+        expect($('[data-rewrite-slug]').data('rewrite-slug')).toBe('not-broken')
+
+        // With partial fallback upgrading, the cached entry upgrades from a
+        // fallback shell to a full route render.
+        // These assertions are part of the outer retry block because the fallback->route shell upgrade
+        // happens in the background. It's possible to see a cache HIT for the fallback shell before it
+        // switches to the full route shell.
+        expect($('[data-layout="/"]').data('sentinel')).toBe('runtime')
+        expect($('[data-layout="/rewrite"]').data('sentinel')).toBe('runtime')
+        expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe(
+          'runtime'
+        )
       })
-
-      html = await res.text()
-      $ = cheerio.load(html)
-
-      expect($('[data-rewrite-slug]').data('rewrite-slug')).toBe('not-broken')
-
-      expect($('[data-layout="/"]').data('sentinel')).toBe('buildtime')
-      expect($('[data-layout="/rewrite"]').data('sentinel')).toBe('buildtime')
-      expect($('[data-layout="/rewrite/[slug]"]').data('sentinel')).toBe(
-        'runtime'
-      )
     })
 
     it('should revalidate the overview page without replacing it with a 404', async () => {
       const url = new URL('/my-team', 'http://localhost')
       const rsc = computeCacheBustingSearchParam(
         '1',
-        '/_tree',
+        '/_head',
         undefined,
         undefined
       )
@@ -141,7 +149,7 @@ describe('middleware-static-rewrite', () => {
           Cookie: 'overview-param=grid',
           RSC: '1',
           'Next-Router-Prefetch': '1',
-          'Next-Router-Segment-Prefetch': '/_tree',
+          'Next-Router-Segment-Prefetch': '/_head',
         },
       })
 
@@ -177,7 +185,7 @@ describe('middleware-static-rewrite', () => {
             Cookie: 'overview-param=grid',
             RSC: '1',
             'Next-Router-Prefetch': '1',
-            'Next-Router-Segment-Prefetch': '/_tree',
+            'Next-Router-Segment-Prefetch': '/_head',
           },
         })
 
@@ -216,9 +224,7 @@ describe('middleware-static-rewrite', () => {
       let res = await next.fetch('/not-broken')
 
       expect(res.status).toBe(200)
-      expect(
-        res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')
-      ).toMatch(/MISS|HIT|PRERENDER/)
+      expect(getCacheHeader(res)).toMatch(/MISS|HIT|PRERENDER/)
 
       let html = await res.text()
       let $ = cheerio.load(html)
@@ -233,9 +239,7 @@ describe('middleware-static-rewrite', () => {
         res = await next.fetch('/not-broken')
 
         expect(res.status).toBe(200)
-        expect(
-          res.headers.get(isNextDeploy ? 'x-vercel-cache' : 'x-nextjs-cache')
-        ).toBe('HIT')
+        expect(getCacheHeader(res)).toBe('HIT')
       })
 
       html = await res.text()

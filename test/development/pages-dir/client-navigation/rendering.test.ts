@@ -2,22 +2,20 @@
 
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
-import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
+import { fetchViaHTTP, getDistDir, renderViaHTTP } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
-import url from 'url'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Client Navigation rendering', () => {
-  const { isTurbopack, next } = nextTestSetup({
+  const { isTurbopack, next, isRspack } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
     env: {
       TEST_STRICT_NEXT_HEAD: String(true),
     },
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   function render(
     pathname: Parameters<typeof renderViaHTTP>[1],
@@ -48,7 +46,7 @@ describe('Client Navigation rendering', () => {
     it('should should not contain scripts that are not js', async () => {
       const $ = await get$('/')
       $('script[src]').each((_index, element) => {
-        const parsedUrl = url.parse($(element).attr('src'))
+        const parsedUrl = new URL($(element).attr('src'), next.url)
         if (!parsedUrl.pathname.endsWith('.js')) {
           throw new Error(
             `Page includes script that is not a javascript file ${parsedUrl.pathname}`
@@ -132,6 +130,7 @@ describe('Client Navigation rendering', () => {
       if (isReact18 && isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -144,6 +143,7 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "Circular structure in "getInitialProps" result of page "/circular-json-error". https://nextjs.org/docs/messages/circular-structure",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -162,6 +162,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": ""InstanceInitialPropsPage.getInitialProps()" is defined as an instance method - visit https://nextjs.org/docs/messages/get-initial-props-as-an-instance-method for more information.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -176,6 +177,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -219,6 +221,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "The default export is not a React Component in page: "/no-default-export"",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -234,6 +237,7 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -245,9 +249,25 @@ describe('Client Navigation rendering', () => {
            ],
          }
         `)
+      } else if (isRspack) {
+        await expect(browser).toDisplayRedbox(`
+         {
+           "code": "E394",
+           "description": "This is an expected error",
+           "environmentLabel": null,
+           "label": "Runtime Error",
+           "source": "pages/error-inside-page.js (2:9) @ __rspack_default_export
+         > 2 |   throw new Error('This is an expected error')
+             |         ^",
+           "stack": [
+             "__rspack_default_export pages/error-inside-page.js (2:9)",
+           ],
+         }
+        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "This is an expected error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -271,14 +291,15 @@ describe('Client Navigation rendering', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
-           "source": "pages/error-in-the-global-scope.js (1:1) @ {module evaluation}
+           "source": "pages/error-in-the-global-scope.js (1:1) @ module evaluation
          > 1 | aa = 10 //eslint-disable-line
              | ^",
            "stack": [
-             "{module evaluation} pages/error-in-the-global-scope.js (1:1)",
+             "module evaluation pages/error-in-the-global-scope.js (1:1)",
              "<FIXME-next-dist-dir>",
            ],
          }
@@ -286,6 +307,7 @@ describe('Client Navigation rendering', () => {
       } else if (isRspack) {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -309,6 +331,7 @@ describe('Client Navigation rendering', () => {
       } else {
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "aa is not defined",
            "environmentLabel": null,
            "label": "Runtime ReferenceError",
@@ -333,11 +356,13 @@ describe('Client Navigation rendering', () => {
       // build dynamic page
       await fetch('/dynamic/ssr')
 
-      const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
+      const buildManifest = await next.readJSON(
+        `${getDistDir()}/${BUILD_MANIFEST}`
+      )
       const reactLoadableManifest = await next.readJSON(
         process.env.IS_TURBOPACK_TEST
-          ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
-          : `.next/${REACT_LOADABLE_MANIFEST}`
+          ? `${getDistDir()}/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
+          : `${getDistDir()}/${REACT_LOADABLE_MANIFEST}`
       )
       const resources = []
 
@@ -371,7 +396,7 @@ describe('Client Navigation rendering', () => {
       responses.forEach((res) => {
         try {
           expect(res.headers.get('Cache-Control')).toBe(
-            'no-store, must-revalidate'
+            'no-cache, must-revalidate'
           )
         } catch (err) {
           err.message = res.url + ' ' + err.message
@@ -433,6 +458,7 @@ describe('Client Navigation rendering', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E394",
          "description": "An undefined error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",

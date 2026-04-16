@@ -1,8 +1,8 @@
 use anyhow::Error;
 use rustc_hash::FxHashSet;
-use swc_core::ecma::{
-    ast::{Module, ModuleDecl, ModuleItem},
-    atoms::Atom,
+use swc_core::{
+    atoms::Wtf8Atom,
+    ecma::ast::{Module, ModuleDecl, ModuleItem},
 };
 
 use super::{PartId, graph::find_turbopack_part_id_in_asserts};
@@ -10,7 +10,7 @@ use super::{PartId, graph::find_turbopack_part_id_in_asserts};
 /// A loader used to merge module items after splitting.
 pub trait Load {
     /// Loads a module while returning [None] if the module is already loaded.
-    fn load(&mut self, uri: &str, part_id: u32) -> Result<Option<Module>, Error>;
+    fn load(&mut self, uri: &Wtf8Atom, part_id: u32) -> Result<Option<Module>, Error>;
 }
 
 /// A module merger.
@@ -22,7 +22,7 @@ where
 {
     loader: L,
 
-    done: FxHashSet<(Atom, u32)>,
+    done: FxHashSet<(Wtf8Atom, u32)>,
 }
 
 impl<L> Merger<L>

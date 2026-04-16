@@ -1,4 +1,3 @@
-/* eslint-disable camelcase */
 import App from 'next/app'
 
 if (typeof navigator !== 'undefined') {

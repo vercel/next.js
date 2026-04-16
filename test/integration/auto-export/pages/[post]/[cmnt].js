@@ -19,6 +19,5 @@ export default function Page() {
   if (typeof window !== 'undefined') {
     window.pathnames.push(window.location.pathname)
   }
-  // eslint-disable-next-line
   return <p>{useRouter().asPath}</p>
 }

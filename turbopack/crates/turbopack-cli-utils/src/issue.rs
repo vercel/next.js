@@ -15,8 +15,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{RawVc, TransientInstance, TransientValue, Vc};
 use turbo_tasks_fs::{FileLinesContent, source_context::get_source_context};
 use turbopack_core::issue::{
-    CapturedIssues, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource, PlainTraceItem,
-    StyledString,
+    CollectibleIssuesExt, IssueFilter, IssueReporter, IssueSeverity, PlainIssue, PlainIssueSource,
+    PlainTraceItem, StyledString,
 };
 
 use crate::source_context::format_source_context_lines;
@@ -93,6 +93,30 @@ pub fn format_issue(
             writeln!(styled_issue, "{path}").unwrap();
         }
     }
+
+    // Render additional sources (e.g., generated code from a loader)
+    for additional in &plain_issue.additional_sources {
+        let desc = &additional.description;
+        let source = &additional.source;
+        match source.range {
+            Some((start, _)) => {
+                writeln!(
+                    styled_issue,
+                    "\n{}:\n{}:{}:{}",
+                    desc,
+                    source.asset.ident,
+                    start.line + 1,
+                    start.column + 1
+                )
+                .unwrap();
+            }
+            None => {
+                writeln!(styled_issue, "\n{}:\n{}", desc, source.asset.ident).unwrap();
+            }
+        }
+        format_source_content(source, &mut styled_issue);
+    }
+
     let traces = &*plain_issue.import_traces;
     if !traces.is_empty() {
         /// Returns the leaf layer name, which is the first present layer name in the trace
@@ -357,11 +381,10 @@ impl IssueReporter for ConsoleUi {
     #[turbo_tasks::function]
     async fn report_issues(
         &self,
-        issues: TransientInstance<CapturedIssues>,
         source: TransientValue<RawVc>,
         min_failing_severity: IssueSeverity,
     ) -> Result<Vc<bool>> {
-        let issues = &*issues;
+        let issues = source.peek_issues();
         let LogOptions {
             ref current_dir,
             ref project_dir,
@@ -372,7 +395,7 @@ impl IssueReporter for ConsoleUi {
         } = self.options;
         let mut grouped_issues: GroupedIssues = FxHashMap::default();
 
-        let plain_issues = issues.get_plain_issues().await?;
+        let plain_issues = issues.get_plain_issues(IssueFilter::everything()).await?;
         let issues = plain_issues
             .iter()
             .map(|plain_issue| {

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks::{OptionVcExt, ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath, FileSystemPathOption,
 };
@@ -209,7 +209,6 @@ async fn get_pages_structure_for_root_directory(
                                 get_pages_structure_for_directory(
                                     dir_project_path.clone(),
                                     next_router_path.join(name)?,
-                                    1,
                                     page_extensions,
                                 )
                                 .to_resolved()
@@ -222,7 +221,6 @@ async fn get_pages_structure_for_root_directory(
                                 get_pages_structure_for_directory(
                                     dir_project_path.clone(),
                                     next_router_path.join(name)?,
-                                    1,
                                     page_extensions,
                                 ),
                             ));
@@ -300,7 +298,7 @@ async fn get_pages_structure_for_root_directory(
         PagesStructureItem::new(
             pages_path.join("_error")?,
             page_extensions,
-            Some(next_package.join("error.js")?),
+            Some(next_package.join("dist/pages/_error.js")?),
             error_router_path.clone(),
             error_router_path,
         )
@@ -325,12 +323,11 @@ async fn get_pages_structure_for_root_directory(
 async fn get_pages_structure_for_directory(
     project_path: FileSystemPath,
     next_router_path: FileSystemPath,
-    position: u32,
     page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<Vc<PagesDirectoryStructure>> {
     let span = tracing::info_span!(
         "analyze pages structure",
-        name = display(project_path.value_to_string().await?)
+        name = display(project_path.to_string_ref().await?)
     );
     async move {
         let page_extensions_raw = &*page_extensions.await?;
@@ -368,7 +365,6 @@ async fn get_pages_structure_for_directory(
                             get_pages_structure_for_directory(
                                 dir_project_path.clone(),
                                 next_router_path.join(name)?,
-                                position + 1,
                                 page_extensions,
                             ),
                         ));

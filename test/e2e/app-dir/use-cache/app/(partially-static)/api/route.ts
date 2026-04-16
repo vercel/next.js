@@ -1,15 +1,8 @@
-import { unstable_cacheTag } from 'next/cache'
-
-async function getCachedRandom() {
-  'use cache'
-  unstable_cacheTag('api')
-
-  return Math.random()
-}
+import { getCachedRandomWithTag } from 'my-pkg'
 
 export async function GET() {
-  const rand1 = await getCachedRandom()
-  const rand2 = await getCachedRandom()
+  const rand1 = await getCachedRandomWithTag('api')
+  const rand2 = await getCachedRandomWithTag('api')
 
   return Response.json({ rand1, rand2 })
 }

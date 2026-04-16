@@ -6,8 +6,10 @@ use std::{
 
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
+use qfilter::Filter;
+use zerocopy::IntoBytes;
 
-use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
+use crate::{meta_file::EntryHeader, static_sorted_file_builder::StaticSortedFileBuilderMeta};
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
@@ -15,6 +17,8 @@ pub struct MetaFileBuilder<'a> {
     entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
     /// Obsolete SST files, represented by their sequence numbers
     obsolete_sst_files: Vec<u32>,
+    /// Optional AMQF for used key hashes
+    used_key_hashes_amqf: Option<Filter>,
 }
 
 impl<'a> MetaFileBuilder<'a> {
@@ -23,6 +27,7 @@ impl<'a> MetaFileBuilder<'a> {
             family,
             entries: Vec::new(),
             obsolete_sst_files: Vec::new(),
+            used_key_hashes_amqf: None,
         }
     }
 
@@ -32,6 +37,10 @@ impl<'a> MetaFileBuilder<'a> {
 
     pub fn add_obsolete_sst_file(&mut self, sequence_number: u32) {
         self.obsolete_sst_files.push(sequence_number);
+    }
+
+    pub fn set_used_key_hashes_amqf(&mut self, amqf: Filter) {
+        self.used_key_hashes_amqf = Some(amqf);
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
@@ -56,18 +65,33 @@ impl<'a> MetaFileBuilder<'a> {
 
         let mut amqf_offset = 0;
         for (sequence_number, sst) in &self.entries {
-            file.write_u32::<BE>(*sequence_number)?;
-            file.write_u16::<BE>(sst.key_compression_dictionary_length)?;
-            file.write_u16::<BE>(sst.block_count)?;
-            file.write_u64::<BE>(sst.min_hash)?;
-            file.write_u64::<BE>(sst.max_hash)?;
-            file.write_u64::<BE>(sst.size)?;
             amqf_offset += sst.amqf.len();
-            file.write_u32::<BE>(amqf_offset as u32)?;
+            let header = EntryHeader::new(
+                *sequence_number,
+                sst.block_count,
+                sst.min_hash,
+                sst.max_hash,
+                sst.size,
+                sst.flags,
+                amqf_offset as u32,
+            );
+            file.write_all(header.as_bytes())?;
         }
+        let serialized_used_key_hashes = self
+            .used_key_hashes_amqf
+            .as_ref()
+            .map(|f| postcard::to_allocvec(f).expect("AMQF serialization failed"));
+        amqf_offset += serialized_used_key_hashes
+            .as_ref()
+            .map(|bytes| bytes.len())
+            .unwrap_or(0);
+        file.write_u32::<BE>(amqf_offset as u32)?;
 
         for (_, sst) in &self.entries {
             file.write_all(&sst.amqf)?;
+        }
+        if let Some(bytes) = &serialized_used_key_hashes {
+            file.write_all(bytes)?;
         }
         Ok(file.into_inner()?)
     }

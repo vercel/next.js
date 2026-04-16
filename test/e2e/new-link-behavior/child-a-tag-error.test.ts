@@ -27,11 +27,12 @@ describe('New Link Behavior with <a> child', () => {
 
     if (isNextDev) {
       expect(next.cliOutput).toContain(
-        'Error: Invalid <Link> with <a> child. Please remove <a>'
+        'Error: Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>'
       )
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Invalid <Link> with <a> child. Please remove <a>.
+         "code": "E394",
+         "description": "Invalid <Link> with <a> child. Please remove <a> or use <Link legacyBehavior>.
        Learn more: https://nextjs.org/docs/messages/invalid-new-link-with-extra-anchor",
          "environmentLabel": null,
          "label": "Runtime Error",

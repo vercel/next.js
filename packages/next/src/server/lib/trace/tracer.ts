@@ -13,6 +13,8 @@ import type {
 } from 'next/dist/compiled/@opentelemetry/api'
 import { isThenable } from '../../../shared/lib/is-thenable'
 
+const NEXT_OTEL_PERFORMANCE_PREFIX = process.env.NEXT_OTEL_PERFORMANCE_PREFIX
+
 let api: typeof import('next/dist/compiled/@opentelemetry/api')
 
 // we want to allow users to use their own version of @opentelemetry/api if they
@@ -155,6 +157,12 @@ interface NextTracer {
    * through the OpenTelemetry propagator API.
    */
   getTracePropagationData(): ClientTraceDataEntry[]
+
+  /**
+   * Executes a function with the given span set as the active span in the context.
+   * This allows child spans created within the function to automatically parent to this span.
+   */
+  withSpan<T>(span: Span, fn: () => T): T
 }
 
 type NextAttributeNames =
@@ -201,6 +209,24 @@ class NextTracerImpl implements NextTracer {
     return trace.getTracer('next.js', '0.0.1')
   }
 
+  private isTracingEnabled(): boolean {
+    if (this.getActiveScopeSpan()?.isRecording()) {
+      return true
+    }
+
+    const tracerProvider = trace.getTracerProvider() as {
+      getDelegate?: () => { constructor?: { name?: string } } | undefined
+    }
+
+    if (!('getDelegate' in tracerProvider)) {
+      return true
+    }
+
+    return (
+      tracerProvider.getDelegate?.()?.constructor?.name !== 'NoopTracerProvider'
+    )
+  }
+
   public getContext(): ContextAPI {
     return context
   }
@@ -219,13 +245,29 @@ class NextTracerImpl implements NextTracer {
   public withPropagatedContext<T, C>(
     carrier: C,
     fn: () => T,
-    getter?: TextMapGetter<C>
+    getter?: TextMapGetter<C>,
+    force = false
   ): T {
     const activeContext = context.active()
+
+    if (force) {
+      const remoteContext = propagation.extract(ROOT_CONTEXT, carrier, getter)
+
+      if (trace.getSpanContext(remoteContext)) {
+        return context.with(remoteContext, fn)
+      }
+
+      // Preserve the current active span while still merging any extracted
+      // baggage/context values from the carrier.
+      const mergedContext = propagation.extract(activeContext, carrier, getter)
+      return context.with(mergedContext, fn)
+    }
+
     if (trace.getSpanContext(activeContext)) {
       // Active span is already set, too late to propagate.
       return fn()
     }
+
     const remoteContext = propagation.extract(activeContext, carrier, getter)
     return context.with(remoteContext, fn)
   }
@@ -253,6 +295,10 @@ class NextTracerImpl implements NextTracer {
   public trace<T>(...args: Array<any>) {
     const [type, fnOrOptions, fnOrEmpty] = args
 
+    if (!NEXT_OTEL_PERFORMANCE_PREFIX && !this.isTracingEnabled()) {
+      return typeof fnOrOptions === 'function' ? fnOrOptions() : fnOrEmpty()
+    }
+
     // coerce options form overload
     const {
       fn,
@@ -274,7 +320,7 @@ class NextTracerImpl implements NextTracer {
     const spanName = options.spanName ?? type
 
     if (
-      (!NextVanillaSpanAllowlist.includes(type) &&
+      (!NextVanillaSpanAllowlist.has(type) &&
         process.env.NEXT_OTEL_VERBOSE !== '1') ||
       options.hideSpan
     ) {
@@ -285,14 +331,18 @@ class NextTracerImpl implements NextTracer {
     let spanContext = this.getSpanContext(
       options?.parentSpan ?? this.getActiveScopeSpan()
     )
-    let isRootSpan = false
 
     if (!spanContext) {
       spanContext = context?.active() ?? ROOT_CONTEXT
-      isRootSpan = true
-    } else if (trace.getSpanContext(spanContext)?.isRemote) {
-      isRootSpan = true
     }
+    // Check if there's already a root span in the store for this trace
+    // We are intentionally not checking whether there is an active context
+    // from outside of nextjs to ensure that we can provide the same level
+    // of telemetry when using a custom server
+    const existingRootSpanId = spanContext.getValue(rootSpanIdKey)
+    const isRootSpan =
+      typeof existingRootSpanId !== 'number' ||
+      !rootSpanAttributesStore.has(existingRootSpanId)
 
     const spanId = getSpanId()
 
@@ -307,20 +357,26 @@ class NextTracerImpl implements NextTracer {
         spanName,
         options,
         (span: Span) => {
-          const startTime =
-            'performance' in globalThis && 'measure' in performance
-              ? globalThis.performance.now()
-              : undefined
+          let startTime: number | undefined
+          if (
+            NEXT_OTEL_PERFORMANCE_PREFIX &&
+            type &&
+            LogSpanAllowList.has(type)
+          ) {
+            startTime =
+              'performance' in globalThis && 'measure' in performance
+                ? globalThis.performance.now()
+                : undefined
+          }
 
+          let cleanedUp = false
           const onCleanup = () => {
+            if (cleanedUp) return
+            cleanedUp = true
             rootSpanAttributesStore.delete(spanId)
-            if (
-              startTime &&
-              process.env.NEXT_OTEL_PERFORMANCE_PREFIX &&
-              LogSpanAllowList.includes(type || ('' as any))
-            ) {
+            if (startTime) {
               performance.measure(
-                `${process.env.NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
+                `${NEXT_OTEL_PERFORMANCE_PREFIX}:next-${(
                   type.split('.').pop() || ''
                 ).replace(
                   /[A-Z]/g,
@@ -345,11 +401,18 @@ class NextTracerImpl implements NextTracer {
               )
             )
           }
-          try {
-            if (fn.length > 1) {
+          if (fn.length > 1) {
+            try {
               return fn(span, (err) => closeSpanWithError(span, err))
+            } catch (err: any) {
+              closeSpanWithError(span, err)
+              throw err
+            } finally {
+              onCleanup()
             }
+          }
 
+          try {
             const result = fn(span)
             if (isThenable(result)) {
               // If there's error make sure it throws
@@ -398,7 +461,7 @@ class NextTracerImpl implements NextTracer {
       args.length === 3 ? args : [args[0], {}, args[1]]
 
     if (
-      !NextVanillaSpanAllowlist.includes(name) &&
+      !NextVanillaSpanAllowlist.has(name) &&
       process.env.NEXT_OTEL_VERBOSE !== '1'
     ) {
       return fn
@@ -459,6 +522,11 @@ class NextTracerImpl implements NextTracer {
     if (attributes && !attributes.has(key)) {
       attributes.set(key, value)
     }
+  }
+
+  public withSpan<T>(span: Span, fn: () => T): T {
+    const spanContext = trace.setSpan(context.active(), span)
+    return context.with(spanContext, fn)
   }
 }
 

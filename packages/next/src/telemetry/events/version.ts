@@ -40,6 +40,7 @@ type EventCliSessionStarted = {
   reactCompiler: boolean
   reactCompilerCompilationMode: string | null
   reactCompilerPanicThreshold: string | null
+  adapterPath: boolean
 }
 
 export function eventCliSession(
@@ -75,6 +76,7 @@ export function eventCliSession(
     | 'reactCompilerCompilationMode'
     | 'reactCompilerPanicThreshold'
     | 'isRspack'
+    | 'adapterPath'
   >
 ): { eventName: string; payload: EventCliSessionStarted }[] {
   // This should be an invariant, if it fails our build tooling is broken.
@@ -123,15 +125,16 @@ export function eventCliSession(
     pagesDir: event.pagesDir,
     staticStaleTime: nextConfig.experimental.staleTimes?.static ?? null,
     dynamicStaleTime: nextConfig.experimental.staleTimes?.dynamic ?? null,
-    reactCompiler: Boolean(nextConfig.experimental.reactCompiler),
+    reactCompiler: Boolean(nextConfig.reactCompiler),
     reactCompilerCompilationMode:
-      typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? (nextConfig.experimental.reactCompiler?.compilationMode ?? null)
+      typeof nextConfig.reactCompiler !== 'boolean'
+        ? (nextConfig.reactCompiler?.compilationMode ?? null)
         : null,
     reactCompilerPanicThreshold:
-      typeof nextConfig.experimental.reactCompiler !== 'boolean'
-        ? (nextConfig.experimental.reactCompiler?.panicThreshold ?? null)
+      typeof nextConfig.reactCompiler !== 'boolean'
+        ? (nextConfig.reactCompiler?.panicThreshold ?? null)
         : null,
+    adapterPath: !!nextConfig?.adapterPath,
   }
   return [{ eventName: EVENT_VERSION, payload }]
 }

@@ -1,7 +1,9 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
-import { assertHasRedbox, retry } from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
+
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 function normalizeCodeLocInfo(str) {
   return (
@@ -33,6 +35,7 @@ describe.each(['default', 'babelrc'] as const)(
           ? __dirname
           : {
               app: new FileRef(join(__dirname, 'app')),
+              pages: new FileRef(join(__dirname, 'pages')),
               'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
               'reference-library': new FileRef(
                 join(__dirname, 'reference-library')
@@ -42,19 +45,33 @@ describe.each(['default', 'babelrc'] as const)(
       buildArgs: ['--profile'],
       dependencies: {
         'babel-plugin-react-compiler': '0.0.0-experimental-3fde738-20250918',
+        // For React versions below 19, need to install react-compiler-runtime.
+        // https://react.dev/reference/react-compiler/target#targeting-react-17-or-18
+        ...(isReact18 ? { 'react-compiler-runtime': 'latest' } : {}),
         ...dependencies,
       },
     })
 
-    it('should show an experimental warning', async () => {
-      await retry(() => {
-        expect(next.cliOutput).toContain('Experiments (use with caution)')
-        expect(stripAnsi(next.cliOutput)).toContain('✓ reactCompiler')
-      })
-    })
-
     it('should memoize Components', async () => {
       const browser = await next.browser('/')
+
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 1')
+
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
+      await browser.elementByCss('button').click()
+
+      expect(await browser.eval('window.staticChildRenders')).toEqual(1)
+      expect(
+        await browser.elementByCss('[data-testid="parent-commits"]').text()
+      ).toEqual('Parent commits: 4')
+    })
+
+    it('should memoize Pages Router Components', async () => {
+      const browser = await next.browser('/pages-router')
 
       expect(await browser.eval('window.staticChildRenders')).toEqual(1)
       expect(
@@ -106,21 +123,7 @@ describe.each(['default', 'babelrc'] as const)(
             // Just make sure this is the heuristic from the React Compiler not something else.
             'Page[useEffect()]'
       if (isNextDev) {
-        if (isTurbopack) {
-          // FIXME: https://linear.app/vercel/issue/NAR-351
-          await expect(browser).toDisplayCollapsedRedbox(`
-         {
-           "description": "test-top-frame",
-           "environmentLabel": null,
-           "label": "Console Error",
-           "source": null,
-           "stack": [
-             "<FIXME-file-protocol>",
-           ],
-         }
-        `)
-        } else {
-          await expect(browser).toDisplayCollapsedRedbox(`
+        await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "test-top-frame",
            "environmentLabel": null,
@@ -133,7 +136,6 @@ describe.each(['default', 'babelrc'] as const)(
            ],
          }
         `)
-        }
         // We care more about the sourcemapped frame in the Redbox.
         // This assertion is only here to show that the negative assertion below is valid.
         expect(normalizeCodeLocInfo(callFrame)).toEqual(
@@ -157,8 +159,7 @@ describe.each(['default', 'babelrc'] as const)(
         // TODO(NDX-663): Unhelpful error message.
         // Should say that the library should have a react-server entrypoint that doesn't use the React Compiler.
         expect(cliOutput).toContain(
-          '' +
-            "\n ⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
+          "⨯ TypeError: Cannot read properties of undefined (reading 'H')" +
             // location not important. Just that this is the only frame.
             // TODO: Stack should start at product code. Possible React limitation.
             '\n    at Container (**)' +
@@ -166,7 +167,7 @@ describe.each(['default', 'babelrc'] as const)(
             '\n  2 |'
         )
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
       }
     })
   }

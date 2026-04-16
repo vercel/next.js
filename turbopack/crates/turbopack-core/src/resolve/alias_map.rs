@@ -5,23 +5,19 @@ use std::{
 };
 
 use anyhow::Result;
+use bincode::{Decode, Encode};
 use patricia_tree::PatriciaMap;
-use serde::{
-    Deserialize, Deserializer, Serialize, Serializer,
-    de::{MapAccess, Visitor},
-    ser::SerializeMap,
-};
-use serde_bytes::{ByteBuf, Bytes};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue,
-    debug::{ValueDebugFormat, ValueDebugFormatString, internal::PassthroughDebug},
+    debug::ValueDebugFormat,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 
-use super::pattern::Pattern;
+use crate::resolve::pattern::Pattern;
 
-/// A map of [`AliasPattern`]s to the [`Template`]s they resolve to.
+/// A map of [`AliasPattern`]s as keys implemented using [`PatriciaMap`].
 ///
 /// If a pattern has a wildcard character (*) within it, it will capture any
 /// number of characters, including path separators. The result of the capture
@@ -29,8 +25,14 @@ use super::pattern::Pattern;
 ///
 /// If the pattern does not have a wildcard character, it will only match the
 /// exact string, and return the template as-is.
-#[derive(Clone)]
+#[derive(Clone, Encode, Decode)]
+#[bincode(
+    encode_bounds = "T: Serialize",
+    decode_bounds = "T: DeserializeOwned",
+    borrow_decode_bounds = "T: Deserialize<'__de>"
+)]
 pub struct AliasMap<T> {
+    #[bincode(with_serde)]
     map: PatriciaMap<BTreeMap<AliasKey, T>>,
 }
 
@@ -55,63 +57,6 @@ where
 
 impl<T> Eq for AliasMap<T> where T: Eq {}
 
-impl<T> Serialize for AliasMap<T>
-where
-    T: Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(self.map.len()))?;
-        for (prefix, value) in self.map.iter() {
-            let key = ByteBuf::from(prefix);
-            map.serialize_entry(&key, value)?;
-        }
-        map.end()
-    }
-}
-
-struct AliasMapVisitor<T> {
-    marker: std::marker::PhantomData<T>,
-}
-
-impl<'de, T> Visitor<'de> for AliasMapVisitor<T>
-where
-    T: Deserialize<'de>,
-{
-    type Value = AliasMap<T>;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("a map of alias patterns to templates")
-    }
-
-    fn visit_map<M>(self, mut access: M) -> Result<Self::Value, M::Error>
-    where
-        M: MapAccess<'de>,
-    {
-        let mut map = AliasMap::new();
-        while let Some((key, value)) = access.next_entry::<&Bytes, _>()? {
-            map.map.insert(key, value);
-        }
-        Ok(map)
-    }
-}
-
-impl<'a, T> Deserialize<'a> for AliasMap<T>
-where
-    T: Deserialize<'a>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_map(AliasMapVisitor {
-            marker: std::marker::PhantomData,
-        })
-    }
-}
-
 impl<T> TraceRawVcs for AliasMap<T>
 where
     T: TraceRawVcs,
@@ -127,11 +72,13 @@ where
 
 unsafe impl<T: NonLocalValue> NonLocalValue for AliasMap<T> {}
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for AliasMap<T>
 where
     T: ValueDebugFormat,
 {
-    fn value_debug_format(&self, depth: usize) -> ValueDebugFormatString<'_> {
+    fn value_debug_format(&self, depth: usize) -> turbo_tasks::debug::ValueDebugFormatString<'_> {
+        use turbo_tasks::debug::{ValueDebugFormatString, internal::PassthroughDebug};
         if depth == 0 {
             return ValueDebugFormatString::Sync(std::any::type_name::<Self>().to_string());
         }
@@ -170,6 +117,9 @@ where
         }))
     }
 }
+
+#[cfg(not(debug_assertions))]
+impl<T> ValueDebugFormat for AliasMap<T> {}
 
 impl<T> Debug for AliasMap<T>
 where
@@ -392,7 +342,7 @@ impl<'a, T> IntoIterator for &'a AliasMap<T> {
 ///
 /// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
 pub struct AliasMapIntoIter<T> {
-    iter: patricia_tree::map::IntoIter<BTreeMap<AliasKey, T>>,
+    iter: patricia_tree::map::IntoIter<Vec<u8>, BTreeMap<AliasKey, T>>,
     current_prefix_iterator: Option<AliasMapIntoIterItem<T>>,
 }
 
@@ -457,7 +407,7 @@ impl<T> Iterator for AliasMapIntoIter<T> {
 ///
 /// [PATTERN_KEY_COMPARE]: https://nodejs.org/api/esm.html#resolver-algorithm-specification
 pub struct AliasMapIter<'a, T> {
-    iter: patricia_tree::map::Iter<'a, BTreeMap<AliasKey, T>>,
+    iter: patricia_tree::map::Iter<'a, Vec<u8>, BTreeMap<AliasKey, T>>,
     current_prefix_iterator: Option<AliasMapIterItem<'a, T>>,
 }
 
@@ -610,7 +560,9 @@ where
 
                         if is_match {
                             let mut remaining = self.request.clone();
-                            remaining.strip_prefix_len(prefix.len());
+                            if let Err(e) = remaining.strip_prefix_len(prefix.len()) {
+                                return Some(Err(e.context(self.request.describe_as_string())));
+                            }
                             remaining.strip_suffix_len(suffix.len());
 
                             let output = template.replace(&remaining);
@@ -631,7 +583,10 @@ where
     }
 }
 
-/// An alias pattern.
+/// An alias pattern commonly used for import paths. This should support [the functionality used in
+/// Typescript's tsconfig file][tsconfig].
+///
+/// [tsconfig]: https://www.typescriptlang.org/tsconfig/#paths
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum AliasPattern {
     /// Will match an exact string.
@@ -747,7 +702,7 @@ pub trait AliasTemplate {
 
 #[cfg(test)]
 mod test {
-    use std::assert_matches::assert_matches;
+    use core::assert_matches;
 
     use anyhow::Result;
     use turbo_rcstr::rcstr;

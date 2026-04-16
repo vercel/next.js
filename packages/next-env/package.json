@@ -1,6 +1,6 @@
 {
   "name": "@next/env",
-  "version": "15.6.0-canary.33",
+  "version": "16.2.1-canary.45",
   "keywords": [
     "react",
     "next",
@@ -22,11 +22,12 @@
   ],
   "scripts": {
     "dev": "ncc build ./index.ts -w -o dist/",
-    "prerelease": "node ../../scripts/rm.mjs dist",
+    "prebuild:source": "node ../../scripts/rm.mjs dist",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
-    "release": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
-    "build": "pnpm release && pnpm types",
-    "prepublishOnly": "cd ../../ && turbo run build"
+    "build:source": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
+    "build": "pnpm build:source && pnpm types",
+    "prepublishOnly": "cd ../../ && turbo run build",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "devDependencies": {
     "@vercel/ncc": "0.34.0",

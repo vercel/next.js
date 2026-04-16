@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
 
@@ -63,6 +62,20 @@ describe('cache-components', () => {
       expect(await browser.elementById('layout').text()).toBe('at buildtime')
       expect(await browser.elementById('page').text()).toBe('at buildtime')
     }
+  })
+
+  it('should render not-found with Suspense in layout without connection errors', async () => {
+    const browser = await next.browser('/cases/not-found-suspense')
+
+    // The custom not-found component should render
+    expect(await browser.elementById('not-found-text').text()).toBe(
+      'Custom 404 - Not Found'
+    )
+
+    // The async Suspense content in the layout should also render
+    expect(await browser.elementById('async-data').text()).toBe(
+      'Async Data Loaded'
+    )
   })
 
   it('should prerender pages that render in a microtask', async () => {
@@ -260,7 +273,11 @@ describe('cache-components', () => {
       // The second component renders before the first one aborts so we end up
       // capturing the static value during buildtime
       expect($('#inner').text()).toBe('at buildtime')
-      expect($('#value').text()).toBe('my sentinel')
+      // Since there was no dynamic data access on this page, the search params
+      // are completely ommitted from the HTML document and filled in by
+      // the client
+      expect($('#value').text()).toBe('')
+      expect($('#fallback-component-one-').text()).toBe('loading...')
     }
   })
 

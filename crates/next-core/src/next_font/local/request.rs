@@ -1,3 +1,4 @@
+use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
@@ -10,6 +11,26 @@ use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 pub(super) struct NextFontLocalRequest {
     pub arguments: (NextFontLocalRequestArguments,),
     pub variable_name: RcStr,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    TaskInput,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    Encode,
+    Decode,
+)]
+pub(super) struct NextFontLocalDeclaration {
+    pub prop: RcStr,
+    pub value: RcStr,
 }
 
 #[derive(Debug, Deserialize)]
@@ -29,6 +50,7 @@ pub(super) struct NextFontLocalRequestArguments {
     )]
     pub adjust_font_fallback: AdjustFontFallback,
     pub variable: Option<RcStr>,
+    pub declarations: Option<Vec<NextFontLocalDeclaration>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -59,6 +81,8 @@ pub(super) struct SrcDescriptor {
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub(super) enum AdjustFontFallback {
     Arial,

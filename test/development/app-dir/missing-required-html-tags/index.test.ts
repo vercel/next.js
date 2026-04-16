@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   getToastErrorCount,
   hasErrorToast,
   retry,
@@ -10,9 +10,16 @@ import {
 describe('app-dir - missing required html tags', () => {
   const { next } = nextTestSetup({ files: __dirname })
 
+  if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+    // TODO(restart-on-cache-miss): reenable once the bug is fixed in:
+    // https://github.com/vercel/next.js/pull/85818
+    it.skip('currently broken in Cache Components', () => {})
+    return
+  }
+
   it('should display correct error count in dev indicator', async () => {
     const browser = await next.browser('/')
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     retry(async () => {
       expect(await hasErrorToast(browser)).toBe(true)
     })
@@ -22,9 +29,10 @@ describe('app-dir - missing required html tags', () => {
   it('should show error overlay', async () => {
     const browser = await next.browser('/')
 
-    await assertHasRedbox(browser)
+    await waitForRedbox(browser)
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
@@ -50,6 +58,7 @@ describe('app-dir - missing required html tags', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
+       "code": "E394",
        "description": "Missing <html> and <body> tags in the root layout.
      Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
        "environmentLabel": null,
@@ -70,15 +79,16 @@ describe('app-dir - missing required html tags', () => {
 
     await retry(() =>
       expect(browser).toDisplayRedbox(`
-     {
-       "description": "Missing <html> tags in the root layout.
-     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
-       "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
-       "stack": [],
-     }
-    `)
+       {
+         "code": "E394",
+         "description": "Missing <html> tags in the root layout.
+       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     )
 
     reloaded = false
@@ -93,7 +103,7 @@ describe('app-dir - missing required html tags', () => {
       retry(() => expect(reloaded).toBe(true), 10_000),
     ])
 
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
     expect(await browser.elementByCss('p').text()).toBe('hello world')
 
     // Reintroduce the bug, but only missing html tag
@@ -105,6 +115,6 @@ describe('app-dir - missing required html tags', () => {
     )
 
     // TODO(NDX-768): Should show "missing tags" error
-    await assertNoRedbox(browser)
+    await waitForNoRedbox(browser)
   })
 })

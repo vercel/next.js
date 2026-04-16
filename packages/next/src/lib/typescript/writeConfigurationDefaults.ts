@@ -4,6 +4,7 @@ import * as CommentJson from 'next/dist/compiled/comment-json'
 import semver from 'next/dist/compiled/semver'
 import os from 'os'
 import type { CompilerOptions } from 'typescript'
+import { getTypeDefinitionGlobPatterns } from './type-paths'
 import * as Log from '../../build/output/log'
 
 type DesiredCompilerOptionsShape = {
@@ -32,9 +33,18 @@ function getDesiredCompilerOptions(
 
   // ModuleResolutionKind
   const moduleResolutionKindBundler = 'bundler'
-  const moduleResolutionKindNode10 = 'node10'
+  const moduleResolutionKindNode16 = 'node16'
+  const moduleResolutionKindNodeNext = 'nodenext'
   const moduleResolutionKindNode12 = 'node12'
-  const moduleResolutionKindNodeJs = 'node'
+  const moduleResolutionKindNode = 'node'
+  const configuredModule =
+    typeof userTsConfig?.compilerOptions?.module === 'string'
+      ? userTsConfig.compilerOptions.module.toLowerCase()
+      : undefined
+  const preferBundlerResolution =
+    semver.gte(typescriptVersion, '5.0.0') &&
+    configuredModule !== moduleKindCommonJS &&
+    configuredModule !== moduleKindAMD
 
   // Jsx
   const jsxEmitReactJSX = 'react-jsx'
@@ -51,13 +61,8 @@ function getDesiredCompilerOptions(
     allowJs: { suggested: true },
     skipLibCheck: { suggested: true },
     strict: { suggested: false },
-    ...(semver.lt(typescriptVersion, '5.0.0')
-      ? { forceConsistentCasingInFileNames: { suggested: true } }
-      : undefined),
     noEmit: { suggested: true },
-    ...(semver.gte(typescriptVersion, '4.4.2')
-      ? { incremental: { suggested: true } }
-      : undefined),
+    incremental: { suggested: true },
 
     // These values are required and cannot be changed by the user
     // Keep this in sync with the webpack config
@@ -93,21 +98,29 @@ function getDesiredCompilerOptions(
             reason: 'requirement for SWC / babel',
           },
           moduleResolution: {
-            // In TypeScript 5.0, `NodeJs` has renamed to `Node10`
-            parsedValue: moduleResolutionKindBundler,
+            parsedValue: preferBundlerResolution
+              ? moduleResolutionKindBundler
+              : moduleResolutionKindNode,
             // All of these values work:
-            parsedValues: [
-              moduleResolutionKindNode10,
-              moduleResolutionKindNodeJs,
-              // only newer TypeScript versions have this field, it
-              // will be filtered for new versions of TypeScript
-              moduleResolutionKindNode12,
-              moduleKindNode16,
-              moduleKindNodeNext,
-              moduleResolutionKindBundler,
-            ].filter((val) => typeof val !== 'undefined'),
-            value: 'node',
-            reason: 'to match webpack resolution',
+            parsedValues: preferBundlerResolution
+              ? [
+                  moduleResolutionKindNode16,
+                  moduleResolutionKindNodeNext,
+                  moduleResolutionKindBundler,
+                ]
+              : [
+                  moduleResolutionKindNode,
+                  // only older TypeScript versions have this field
+                  moduleResolutionKindNode12,
+                  moduleResolutionKindNode16,
+                  moduleResolutionKindNodeNext,
+                ],
+            value: preferBundlerResolution
+              ? moduleResolutionKindBundler
+              : moduleResolutionKindNode,
+            reason: preferBundlerResolution
+              ? 'to match modern bundler resolution'
+              : 'to match webpack resolution',
           },
           resolveJsonModule: {
             value: true,
@@ -165,9 +178,12 @@ export function getRequiredConfiguration(
         import('typescript').ModuleResolutionKind
       > = {
         bundler: typescript.ModuleResolutionKind.Bundler,
-        node10: typescript.ModuleResolutionKind.Node10,
+        node16: typescript.ModuleResolutionKind.Node16,
+        nodenext: typescript.ModuleResolutionKind.NodeNext,
         node12: (typescript.ModuleResolutionKind as any).Node12,
-        node: typescript.ModuleResolutionKind.NodeJs,
+        node:
+          (typescript.ModuleResolutionKind as any).Node10 ??
+          typescript.ModuleResolutionKind.NodeJs,
       }
       res[optionKey] = moduleResolutionMap[value.toLowerCase()] ?? value
     } else if (optionKey === 'jsx' && typeof value === 'string') {
@@ -192,15 +208,14 @@ export async function writeConfigurationDefaults(
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
   distDir: string,
-  hasPagesDir: boolean
+  hasPagesDir: boolean,
+  strictRouteTypes: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     writeFileSync(tsConfigPath, '{}' + os.EOL)
   }
 
-  const userTsConfigContent = readFileSync(tsConfigPath, {
-    encoding: 'utf8',
-  })
+  const userTsConfigContent = readFileSync(tsConfigPath, 'utf8')
   const userTsConfig = CommentJson.parse(userTsConfigContent)
 
   // Bail automatic setup when the user has extended or referenced another config
@@ -267,30 +282,33 @@ export async function writeConfigurationDefaults(
         )
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const _: never = check
     }
   }
 
-  const nextAppTypes = `${distDir}/types/**/*.ts`
+  // Get type definition glob patterns using shared utility to ensure consistency
+  // with other TypeScript infrastructure (e.g., runTypeCheck.ts)
+  const nextTypes = getTypeDefinitionGlobPatterns(distDir)
 
   if (!('include' in userTsConfig)) {
-    userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+    const defaultInclude =
+      hasAppDir && !strictRouteTypes
+        ? ['next-env.d.ts', ...nextTypes, '**/*.mts', '**/*.ts', '**/*.tsx']
+        : ['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']
+
+    userTsConfig.include = defaultInclude
     suggestedActions.push(
       cyan('include') +
-        ' was set to ' +
-        bold(
-          hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.mts', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.mts', '**/*.ts', '**/*.tsx']`
-        )
+        ' was set to [' +
+        bold(defaultInclude.map((type) => `'${type}'`).join(', ')) +
+        ']'
     )
-  } else if (hasAppDir) {
+  } else if (hasAppDir && !strictRouteTypes) {
     const missingFromResolved = []
-    if (!userTsConfig.include.includes(nextAppTypes)) {
-      missingFromResolved.push(nextAppTypes)
+    for (const type of nextTypes) {
+      if (!userTsConfig.include.includes(type)) {
+        missingFromResolved.push(type)
+      }
     }
 
     if (missingFromResolved.length > 0) {

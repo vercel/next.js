@@ -337,6 +337,14 @@ describe('app dir - metadata', () => {
         'https://outerspace.com/huozhi.png'
       )
     })
+
+    it('should handle metadataBase as url string', async () => {
+      const url$ = await next.render$('/metadata-base/url-string')
+
+      expect(url$('link[rel="canonical"]').attr('href')).toBe(
+        'https://example.com/case/metadata-base/url-string'
+      )
+    })
   })
 
   describe('opengraph', () => {
@@ -409,7 +417,7 @@ describe('app dir - metadata', () => {
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
-                  isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  isNextDeploy ? '[^/]+' : 'example\\.com'
                 })\\/opengraph\\/static\\/opengraph-image`
               )
             ),
@@ -423,7 +431,7 @@ describe('app dir - metadata', () => {
           : expect.stringMatching(
               new RegExp(
                 `https:\\/\\/(${
-                  isNextDeploy ? '.*?\\.vercel\\.app' : 'example\\.com'
+                  isNextDeploy ? '[^/]+' : 'example\\.com'
                 })\\/opengraph\\/static\\/twitter-image`
               )
             ),
@@ -589,8 +597,10 @@ describe('app dir - metadata', () => {
       const $dynamic = await next.render$('/icons/static/dynamic-routes/123')
       const $dynamicIcon = $dynamic('link[rel="icon"][type!="image/x-icon"]')
       const dynamicIconHref = $dynamicIcon.attr('href')
+      // Static icon files under dynamic routes use "-" as placeholder
+      // since the file content is the same regardless of params
       expect(dynamicIconHref).toMatch(
-        /\/icons\/static\/dynamic-routes\/123\/icon/
+        /\/icons\/static\/dynamic-routes\/-\/icon/
       )
       const dynamicIconRes = await next.fetch(dynamicIconHref)
       expect(dynamicIconRes.status).toBe(200)
@@ -681,7 +691,7 @@ describe('app dir - metadata', () => {
       expect(res.headers.get('content-type')).toBe('image/x-icon')
       expect(res.headers.get('cache-control')).toBe(
         isNextDev
-          ? 'no-store, must-revalidate'
+          ? 'no-cache, must-revalidate'
           : 'public, max-age=0, must-revalidate'
       )
     })
@@ -696,14 +706,14 @@ describe('app dir - metadata', () => {
       expect(resAppleIcon.headers.get('content-type')).toBe('image/png')
       expect(resAppleIcon.headers.get('cache-control')).toBe(
         isNextDev
-          ? 'no-store, must-revalidate'
+          ? 'no-cache, must-revalidate'
           : 'public, max-age=0, must-revalidate'
       )
       expect(resIcon.status).toBe(200)
       expect(resIcon.headers.get('content-type')).toBe('image/png')
       expect(resIcon.headers.get('cache-control')).toBe(
         isNextDev
-          ? 'no-store, must-revalidate'
+          ? 'no-cache, must-revalidate'
           : 'public, max-age=0, must-revalidate'
       )
     })

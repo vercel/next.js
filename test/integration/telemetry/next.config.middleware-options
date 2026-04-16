@@ -1,4 +1,4 @@
 module.exports = {
-  skipMiddlewareUrlNormalize: true,
+  skipProxyUrlNormalize: true,
   skipTrailingSlashRedirect: true,
 }

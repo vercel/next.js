@@ -7,14 +7,21 @@ use std::{
     ops::Deref,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode_with_context,
+};
 use serde::{Deserialize, Serialize};
 use turbo_tasks_hash::DeterministicHash;
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebugFormat, ValueDebugFormatString};
 use crate::{
-    SharedReference, Vc, VcRead, VcValueType,
-    debug::{ValueDebugFormat, ValueDebugFormatString},
+    ResolvedVc, SharedReference, Vc, VcRead, VcValueType,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    triomphe_utils::unchecked_sidecast_triomphe_arc,
     vc::VcCellMode,
 };
 
@@ -25,7 +32,7 @@ type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
 /// certain point in time.
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
-pub struct ReadRef<T>(triomphe::Arc<T>);
+pub struct ReadRef<T>(pub(crate) triomphe::Arc<T>);
 
 impl<T> Clone for ReadRef<T> {
     fn clone(&self) -> Self {
@@ -72,6 +79,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ReadRef<T>
 where
     T: VcValueType,
@@ -85,10 +93,11 @@ where
 
 impl<T> PartialEq for ReadRef<T>
 where
-    T: PartialEq,
+    T: Eq,
 {
     fn eq(&self, other: &Self) -> bool {
-        Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
+        // Fast path: if both point to the same allocation, they're equal.
+        Self::ptr_eq(self, other) || Self::as_raw_ref(self).eq(Self::as_raw_ref(other))
     }
 }
 
@@ -96,7 +105,7 @@ impl<T> Eq for ReadRef<T> where T: Eq {}
 
 impl<T> PartialOrd for ReadRef<T>
 where
-    T: PartialOrd,
+    T: PartialOrd + Eq,
 {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Self::as_raw_ref(self).partial_cmp(Self::as_raw_ref(other))
@@ -105,7 +114,7 @@ where
 
 impl<T> Ord for ReadRef<T>
 where
-    T: Ord,
+    T: Ord + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
         Self::as_raw_ref(self).cmp(Self::as_raw_ref(other))
@@ -212,6 +221,27 @@ where
     }
 }
 
+impl<T> Encode for ReadRef<T>
+where
+    T: Encode,
+{
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        Self::as_raw_ref(self).encode(encoder)
+    }
+}
+
+impl<Context, T> Decode<Context> for ReadRef<T>
+where
+    T: Decode<Context>,
+{
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let value = T::decode(decoder)?;
+        Ok(Self(triomphe::Arc::new(value)))
+    }
+}
+
+impl_borrow_decode_with_context!(ReadRef<T>, Context, Context, T: Decode<Context>);
+
 impl<T> ReadRef<T> {
     pub fn new_owned(value: T) -> Self {
         Self(triomphe::Arc::new(value))
@@ -227,6 +257,11 @@ impl<T> ReadRef<T> {
         &this.0
     }
 
+    /// Returns the inner `Arc<T>`.
+    pub fn into_raw_arc(self) -> triomphe::Arc<T> {
+        self.0
+    }
+
     pub fn ptr_eq(&self, other: &ReadRef<T>) -> bool {
         triomphe::Arc::ptr_eq(&self.0, &other.0)
     }
@@ -240,20 +275,21 @@ impl<T> ReadRef<T>
 where
     T: VcValueType,
 {
-    /// Returns a new cell that points to the same value as the given
-    /// reference.
+    /// Returns a new [`Vc`] that points to the same value as the given reference.
     pub fn cell(read_ref: ReadRef<T>) -> Vc<T> {
         let type_id = T::get_value_type_id();
-        // SAFETY: `T` and `T::Read::Repr` must have equivalent memory representations,
-        // guaranteed by the unsafe implementation of `VcValueType`.
-        let value = unsafe {
-            unchecked_sidecast_triomphe_arc::<T, <T::Read as VcRead<T>>::Repr>(read_ref.0)
-        };
         Vc {
             node: <T::CellMode as VcCellMode<T>>::raw_cell(
-                SharedReference::new(value).into_typed(type_id),
+                SharedReference::new(read_ref.0).into_typed(type_id),
             ),
             _t: PhantomData,
+        }
+    }
+
+    /// Returns a new [`ResolvedVc`] that points to the same value as the given reference.
+    pub fn resolved_cell(read_ref: ReadRef<T>) -> ResolvedVc<T> {
+        ResolvedVc {
+            node: ReadRef::cell(read_ref),
         }
     }
 }

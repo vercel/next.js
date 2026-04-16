@@ -1,36 +1,37 @@
 use std::io::Write;
 
 use anyhow::{Result, bail};
-use either::Either;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::{FileContent, glob::Glob, rope::Rope};
+use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
-    asset::{Asset, AssetContent},
-    chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    asset::Asset,
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     code_builder::CodeBuilder,
     compile_time_info::{
-        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegment, FreeVarReference,
+        CompileTimeDefineValue, CompileTimeInfo, DefinableNameSegmentRef, DefinableNameSegmentRefs,
+        FreeVarReference,
     },
     context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
-    resolve::ModulePart,
-    source::Source,
+    reference_type::ReferenceType,
+    source::{OptionSource, Source},
     source_map::GenerateSourceMap,
 };
 use turbopack_ecmascript::{
     EcmascriptInputTransforms,
     chunk::{
-        EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
-        EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, ecmascript_chunk_item,
     },
-    source_map::parse_source_map_comment,
+    source_map::{extract_source_mapping_url_from_content, parse_source_map_comment},
     utils::StringifyJs,
 };
 
@@ -44,7 +45,7 @@ impl CustomModuleType for RawEcmascriptModuleType {
         &self,
         source: Vc<Box<dyn Source>>,
         module_asset_context: Vc<ModuleAssetContext>,
-        _part: Option<ModulePart>,
+        _reference_type: ReferenceType,
     ) -> Vc<Box<dyn Module>> {
         Vc::upcast(RawEcmascriptModule::new(
             source,
@@ -91,13 +92,15 @@ impl Module for RawEcmascriptModule {
     fn ident(&self) -> Vc<AssetIdent> {
         self.source.ident().with_modifier(rcstr!("raw"))
     }
-}
 
-#[turbo_tasks::value_impl]
-impl Asset for RawEcmascriptModule {
     #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
+    fn source(&self) -> Vc<OptionSource> {
+        Vc::cell(Some(self.source))
+    }
+
+    #[turbo_tasks::function]
+    fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 
@@ -106,16 +109,10 @@ impl ChunkableModule for RawEcmascriptModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
-        _module_graph: Vc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
-        Vc::upcast(
-            RawEcmascriptChunkItem {
-                module: self,
-                chunking_context,
-            }
-            .cell(),
-        )
+        ecmascript_chunk_item(ResolvedVc::upcast(self), module_graph, chunking_context)
     }
 }
 
@@ -127,53 +124,20 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
     }
 
     #[turbo_tasks::function]
-    fn is_marked_as_side_effect_free(&self, _side_effect_free_packages: Vc<Glob>) -> Vc<bool> {
-        Vc::cell(false)
-    }
-}
-
-#[turbo_tasks::value]
-struct RawEcmascriptChunkItem {
-    module: ResolvedVc<RawEcmascriptModule>,
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkItem for RawEcmascriptChunkItem {
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        *self.chunking_context
-    }
-
-    #[turbo_tasks::function]
-    async fn ty(&self) -> Result<Vc<Box<dyn ChunkType>>> {
-        Ok(Vc::upcast(
-            Vc::<EcmascriptChunkType>::default().resolve().await?,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for RawEcmascriptChunkItem {
-    #[turbo_tasks::function]
-    async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
+    async fn chunk_item_content(
+        self: Vc<Self>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _async_module_info: Option<Vc<AsyncModuleInfo>>,
+        _estimated: bool,
+    ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let span = tracing::info_span!(
             "code generation raw module",
-            name = display(self.module.ident().to_string().await?)
+            name = display(self.ident().to_string().await?)
         );
 
         async {
-            let module = self.module.await?;
+            let module = self.await?;
             let source = module.source;
             let content = source.content().file_content().await?;
             let content = match &*content {
@@ -193,12 +157,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
 
             let mut code = CodeBuilder::default();
             if !env_vars.is_empty() {
-                let replacements = module
-                    .compile_time_info
-                    .await?
-                    .free_var_references
-                    .individual()
-                    .await?;
+                let replacements = module.compile_time_info.await?.free_var_references;
                 code += "var process = {env:\n";
                 writeln!(
                     code,
@@ -209,19 +168,14 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                             .map(async |name| {
                                 Ok((
                                     name,
-                                    if let Some(value) =
-                                        replacements.get(&DefinableNameSegment::Name(name.into()))
-                                        && let Some((_, value)) = value.iter().find(|(path, _)| {
-                                            matches!(
-                                                path.as_slice(),
-                                                [
-                                                    DefinableNameSegment::Name(a),
-                                                    DefinableNameSegment::Name(b)
-                                                ] if a == "process" && b == "env"
-                                            )
-                                        })
+                                    if let Some(value) = replacements
+                                        .get(&DefinableNameSegmentRefs(smallvec![
+                                            DefinableNameSegmentRef::Name("process"),
+                                            DefinableNameSegmentRef::Name("env"),
+                                            DefinableNameSegmentRef::Name(name),
+                                        ]))
+                                        .await?
                                     {
-                                        let value = value.await?;
                                         let value = match &*value {
                                             FreeVarReference::Value(
                                                 CompileTimeDefineValue::String(value),
@@ -253,14 +207,13 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
             }
 
             code += "(function(){\n";
-            let source_map = if let Some((source_map, _)) = parse_source_map_comment(
-                source,
-                Either::Right(&content_str),
-                &*self.module.ident().path().await?,
-            )
-            .await?
+            let source_mapping_url = extract_source_mapping_url_from_content(&content_str);
+            let source_map = if let Some((source_map, _)) =
+                parse_source_map_comment(source, source_mapping_url, &*self.ident().path().await?)
+                    .await?
             {
-                source_map.generate_source_map().owned().await?
+                let source_map = source_map.generate_source_map().await?;
+                source_map.as_content().map(|f| f.content().clone())
             } else {
                 None
             };
@@ -271,7 +224,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
 
             let code = code.build();
             let source_map = if code.has_source_map() {
-                let source_map = code.generate_source_map_ref()?;
+                let source_map = code.generate_source_map_ref(None);
 
                 static SECTIONS_REGEX: Lazy<Regex> =
                     Lazy::new(|| Regex::new(r#"sections"[\s\n]*:"#).unwrap());
@@ -309,7 +262,7 @@ impl EcmascriptChunkItem for RawEcmascriptChunkItem {
                 },
                 ..Default::default()
             }
-            .into())
+            .cell())
         }
         .instrument(span)
         .await

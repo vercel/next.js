@@ -10,26 +10,32 @@ import {
   LayoutRouterContext,
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
-import type {
-  CacheNode,
-  FlightRouterState,
-} from '../../shared/lib/app-router-types'
+import type { CacheNode } from '../../shared/lib/app-router-types'
 import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
-import type { AppRouterState } from './router-reducer/router-reducer-types'
+import type {
+  AppHistoryState,
+  AppRouterState,
+} from './router-reducer/router-reducer-types'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import {
   SearchParamsContext,
   PathnameContext,
   PathParamsContext,
+  NavigationPromisesContext,
+  type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
+import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
 import { findHeadInCache } from './router-reducer/reducers/find-head-in-cache'
 import { unresolvedThenable } from './unresolved-thenable'
 import { removeBasePath } from '../remove-base-path'
 import { hasBasePath } from '../has-base-path'
-import { getSelectedParams } from './router-reducer/compute-changed-path'
+import {
+  extractSourcePageFromFlightRouterState,
+  getSelectedParams,
+} from './router-reducer/compute-changed-path'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
   dispatchTraverseAction,
@@ -38,12 +44,13 @@ import {
   type GlobalErrorState,
 } from './app-router-instance'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
-import { isRedirectError, RedirectType } from './redirect-error'
+import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
 import RootErrorBoundary from './errors/root-error-boundary'
 import DefaultGlobalError from './builtin/global-error'
 import { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 import type { StaticIndicatorState } from '../dev/hot-reloader/app/hot-reloader-app'
+import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -61,14 +68,21 @@ function HistoryUpdater({
       window.next.__pendingUrl = undefined
     }
 
-    const { tree, pushRef, canonicalUrl } = appRouterState
+    const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
+
+    const appHistoryState: AppHistoryState = {
+      tree,
+      renderedSearch,
+    }
+
+    // TODO: Use Navigation API if available
     const historyState = {
       ...(pushRef.preserveCustomHistoryState ? window.history.state : {}),
       // Identifier is shortened intentionally.
       // __NA is used to identify if the history entry can be handled by the app-router.
       // __N is used to identify if the history entry can be handled by the old router.
       __NA: true,
-      __PRIVATE_NEXTJS_INTERNALS_TREE: tree,
+      __PRIVATE_NEXTJS_INTERNALS_TREE: appHistoryState,
     }
     if (
       pushRef.pendingPush &&
@@ -82,6 +96,8 @@ function HistoryUpdater({
     } else {
       window.history.replaceState(historyState, '', canonicalUrl)
     }
+
+    setLastCommittedTree(tree)
   }, [appRouterState])
 
   useEffect(() => {
@@ -89,25 +105,10 @@ function HistoryUpdater({
     // task. Re-prefetch all visible links with the updated values. In most
     // cases, this will not result in any new network requests, only if
     // the prefetch result actually varies on one of these inputs.
-    if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
-      pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
-    }
+    pingVisibleLinks(appRouterState.nextUrl, appRouterState.tree)
   }, [appRouterState.nextUrl, appRouterState.tree])
 
   return null
-}
-
-export function createEmptyCacheNode(): CacheNode {
-  return {
-    lazyData: null,
-    rsc: null,
-    prefetchRsc: null,
-    head: null,
-    prefetchHead: null,
-    parallelRoutes: new Map(),
-    loading: null,
-    navigatedAt: -1,
-  }
 }
 
 function copyNextJsInternalHistoryState(data: any) {
@@ -180,8 +181,7 @@ function Router({
   }, [canonicalUrl])
 
   if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { cache, prefetchCache, tree } = state
+    const { cache, tree } = state
 
     // This hook is in a conditional but that is ok because `process.env.NODE_ENV` never changes
     // eslint-disable-next-line react-hooks/rules-of-hooks
@@ -192,11 +192,20 @@ function Router({
       window.nd = {
         router: publicAppRouterInstance,
         cache,
-        prefetchCache,
         tree,
       }
-    }, [cache, prefetchCache, tree])
+    }, [cache, tree])
   }
+
+  useEffect(() => {
+    const sourcePage = extractSourcePageFromFlightRouterState(state.tree)
+
+    if (sourcePage !== undefined) {
+      window.next.__internal_src_page = sourcePage
+    } else {
+      delete window.next.__internal_src_page
+    }
+  }, [state.tree])
 
   useEffect(() => {
     // If the app is restored from bfcache, it's possible that
@@ -219,7 +228,7 @@ function Router({
       dispatchAppRouterAction({
         type: ACTION_RESTORE,
         url: new URL(window.location.href),
-        tree: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
+        historyState: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
       })
     }
 
@@ -243,7 +252,7 @@ function Router({
         const redirectType = getRedirectTypeFromError(error)
         // TODO: This should access the router methods directly, rather than
         // go through the public interface.
-        if (redirectType === RedirectType.push) {
+        if (redirectType === 'push') {
           publicAppRouterInstance.push(url, {})
         } else {
           publicAppRouterInstance.replace(url, {})
@@ -302,14 +311,14 @@ function Router({
       url: string | URL | null | undefined
     ) => {
       const href = window.location.href
-      const tree: FlightRouterState | undefined =
+      const appHistoryState: AppHistoryState | undefined =
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
       startTransition(() => {
         dispatchAppRouterAction({
           type: ACTION_RESTORE,
           url: new URL(url ?? href, href),
-          tree,
+          historyState: appHistoryState,
         })
       })
     }
@@ -324,6 +333,7 @@ function Router({
       _unused: string,
       url?: string | URL | null
     ): void {
+      // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
       if (data?.__NA || data?._N) {
         return originalPushState(data, _unused, url)
@@ -348,6 +358,7 @@ function Router({
       _unused: string,
       url?: string | URL | null
     ): void {
+      // TODO: Warn when Navigation API is available (navigation.navigate() should be used)
       // Avoid a loop when Next.js internals trigger pushState/replaceState
       if (data?.__NA || data?._N) {
         return originalReplaceState(data, _unused, url)
@@ -396,7 +407,7 @@ function Router({
     }
   }, [])
 
-  const { cache, tree, nextUrl, focusAndScrollRef } = state
+  const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -407,14 +418,37 @@ function Router({
     return getSelectedParams(tree)
   }, [tree])
 
+  // Create instrumented promises for navigation hooks (dev-only)
+  // These are specially instrumented promises to show in the Suspense DevTools
+  // Promises are cached outside of render to survive suspense retries.
+  let instrumentedNavigationPromises: NavigationPromises | null = null
+  if (process.env.NODE_ENV !== 'production') {
+    const { createRootNavigationPromises } =
+      require('./navigation-devtools') as typeof import('./navigation-devtools')
+
+    instrumentedNavigationPromises = createRootNavigationPromises(
+      tree,
+      pathname,
+      searchParams,
+      pathParams
+    )
+  }
+
   const layoutRouterContext = useMemo(() => {
     return {
       parentTree: tree,
       parentCacheNode: cache,
       parentSegmentPath: null,
+      parentParams: {},
+      parentLoadingData: null,
+      // This is the <Activity> "name" that shows up in the Suspense DevTools.
+      // It represents the root of the app.
+      debugNameContext: '/',
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
+      // Root segment is always active
+      isActive: true,
     }
   }, [tree, cache, canonicalUrl])
 
@@ -423,8 +457,9 @@ function Router({
       tree,
       focusAndScrollRef,
       nextUrl,
+      previousNextUrl,
     }
-  }, [tree, focusAndScrollRef, nextUrl])
+  }, [tree, focusAndScrollRef, nextUrl, previousNextUrl])
 
   let head
   if (matchingHead !== null) {
@@ -460,7 +495,7 @@ function Router({
     </RedirectBoundary>
   )
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     // In development, we apply few error boundaries and hot-reloader:
     // - DevRootHTTPAccessFallbackBoundary: avoid using navigation API like notFound() in root layout
     // - HotReloader:
@@ -501,30 +536,40 @@ function Router({
     )
   }
 
+  if (process.env.__NEXT_USE_OFFLINE) {
+    const { OfflineProvider } =
+      require('./use-offline') as typeof import('./use-offline')
+    content = <OfflineProvider>{content}</OfflineProvider>
+  }
+
   return (
     <>
       <HistoryUpdater appRouterState={state} />
-      <RuntimeStyles />
-      <PathParamsContext.Provider value={pathParams}>
-        <PathnameContext.Provider value={pathname}>
-          <SearchParamsContext.Provider value={searchParams}>
-            <GlobalLayoutRouterContext.Provider
-              value={globalLayoutRouterContext}
-            >
-              {/* TODO: We should be able to remove this context. useRouter
-                  should import from app-router-instance instead. It's only
-                  necessary because useRouter is shared between Pages and
-                  App Router. We should fork that module, then remove this
-                  context provider. */}
-              <AppRouterContext.Provider value={publicAppRouterInstance}>
-                <LayoutRouterContext.Provider value={layoutRouterContext}>
-                  {content}
-                </LayoutRouterContext.Provider>
-              </AppRouterContext.Provider>
-            </GlobalLayoutRouterContext.Provider>
-          </SearchParamsContext.Provider>
-        </PathnameContext.Provider>
-      </PathParamsContext.Provider>
+      {process.env.TURBOPACK ? null : <RuntimeStylesForWebpack />}
+      <NavigationPromisesContext.Provider
+        value={instrumentedNavigationPromises}
+      >
+        <PathParamsContext.Provider value={pathParams}>
+          <PathnameContext.Provider value={pathname}>
+            <SearchParamsContext.Provider value={searchParams}>
+              <GlobalLayoutRouterContext.Provider
+                value={globalLayoutRouterContext}
+              >
+                {/* TODO: We should be able to remove this context. useRouter
+                    should import from app-router-instance instead. It's only
+                    necessary because useRouter is shared between Pages and
+                    App Router. We should fork that module, then remove this
+                    context provider. */}
+                <AppRouterContext.Provider value={publicAppRouterInstance}>
+                  <LayoutRouterContext.Provider value={layoutRouterContext}>
+                    {content}
+                  </LayoutRouterContext.Provider>
+                </AppRouterContext.Provider>
+              </GlobalLayoutRouterContext.Provider>
+            </SearchParamsContext.Provider>
+          </PathnameContext.Provider>
+        </PathParamsContext.Provider>
+      </NavigationPromisesContext.Provider>
     </>
   )
 }
@@ -560,24 +605,30 @@ export default function AppRouter({
   )
 }
 
-const runtimeStyles = new Set<string>()
-let runtimeStyleChanged = new Set<() => void>()
+let runtimeStyles: Set<string> | undefined
+let runtimeStyleChanged: Set<() => void> | undefined
+if (!process.env.TURBOPACK && typeof window !== 'undefined') {
+  runtimeStyles = new Set<string>()
+  runtimeStyleChanged = new Set<() => void>()
 
-globalThis._N_E_STYLE_LOAD = function (href: string) {
-  let len = runtimeStyles.size
-  runtimeStyles.add(href)
-  if (runtimeStyles.size !== len) {
-    runtimeStyleChanged.forEach((cb) => cb())
+  globalThis._N_E_STYLE_LOAD = function (href: string) {
+    if (!runtimeStyles || !runtimeStyleChanged) return Promise.resolve()
+    let len = runtimeStyles.size
+    runtimeStyles.add(href)
+    if (runtimeStyles.size !== len) {
+      runtimeStyleChanged.forEach((cb) => cb())
+    }
+    // TODO figure out how to get a promise here
+    // But maybe it's not necessary as react would block rendering until it's loaded
+    return Promise.resolve()
   }
-  // TODO figure out how to get a promise here
-  // But maybe it's not necessary as react would block rendering until it's loaded
-  return Promise.resolve()
 }
 
-function RuntimeStyles() {
+function RuntimeStylesForWebpack() {
   const [, forceUpdate] = React.useState(0)
-  const renderedStylesSize = runtimeStyles.size
+  const renderedStylesSize = runtimeStyles?.size ?? 0
   useEffect(() => {
+    if (!runtimeStyles || !runtimeStyleChanged) return
     const changed = () => forceUpdate((c) => c + 1)
     runtimeStyleChanged.add(changed)
     if (renderedStylesSize !== runtimeStyles.size) {
@@ -588,14 +639,12 @@ function RuntimeStyles() {
     }
   }, [renderedStylesSize, forceUpdate])
 
-  const dplId = process.env.NEXT_DEPLOYMENT_ID
-    ? `?dpl=${process.env.NEXT_DEPLOYMENT_ID}`
-    : ''
-  return [...runtimeStyles].map((href, i) => (
+  const query = getAssetTokenQuery()
+  return [...(runtimeStyles || [])].map((href, i) => (
     <link
       key={i}
       rel="stylesheet"
-      href={`${href}${dplId}`}
+      href={`${href}${query}`}
       // @ts-ignore
       precedence="next"
       // TODO figure out crossOrigin and nonce

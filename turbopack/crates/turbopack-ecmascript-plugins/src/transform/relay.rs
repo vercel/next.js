@@ -2,7 +2,8 @@ use std::{path::PathBuf, sync::Arc};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
+use serde::Deserialize;
 use swc_core::{common::FileName, ecma::ast::Program};
 use swc_relay::RelayLanguageConfig;
 use turbo_tasks::{NonLocalValue, OperationValue, trace::TraceRawVcs};
@@ -10,7 +11,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RelayConfig {
@@ -20,7 +21,7 @@ pub struct RelayConfig {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue, OperationValue,
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum RelayLanguage {

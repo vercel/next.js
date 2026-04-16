@@ -23,18 +23,20 @@ export function getOrCreateDebugChannelReadableWriterPair(
   return pair
 }
 
-export function createDebugChannel(responseHeaders: Headers | undefined): {
+export function createDebugChannel(
+  requestHeaders: Record<string, string> | undefined
+): {
   writable?: WritableStream
   readable?: ReadableStream
 } {
   let requestId: string | undefined
 
-  if (responseHeaders) {
-    requestId = responseHeaders.get(NEXT_REQUEST_ID_HEADER) ?? undefined
+  if (requestHeaders) {
+    requestId = requestHeaders[NEXT_REQUEST_ID_HEADER] ?? undefined
 
     if (!requestId) {
       throw new InvariantError(
-        `Expected a ${JSON.stringify(NEXT_REQUEST_ID_HEADER)} response header.`
+        `Expected a ${JSON.stringify(NEXT_REQUEST_ID_HEADER)} request header.`
       )
     }
   } else {

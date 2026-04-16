@@ -58,10 +58,7 @@ impl NextMode {
     }
 
     pub fn is_production(&self) -> bool {
-        match self {
-            NextMode::Development => false,
-            NextMode::Build => true,
-        }
+        !self.is_development()
     }
 
     pub fn runtime_type(&self) -> RuntimeType {

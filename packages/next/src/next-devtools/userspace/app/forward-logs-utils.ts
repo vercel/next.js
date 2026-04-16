@@ -16,7 +16,7 @@ const maximumBreadth =
     ? terminalLoggingConfig.edgeLimit
     : 100
 
-const stringify = configure({
+export const safeStringifyWithDepth = configure({
   maximumDepth,
   maximumBreadth,
 })
@@ -80,7 +80,7 @@ export function preLogSerializationClone<T>(
 // only safe if passed safeClone data
 export const logStringify = (data: unknown): string => {
   try {
-    const result = stringify(data)
+    const result = safeStringifyWithDepth(data)
     return result ?? `"${UNAVAILABLE_MARKER}"`
   } catch {
     return `"${UNAVAILABLE_MARKER}"`

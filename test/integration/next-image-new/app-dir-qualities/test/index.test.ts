@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import {
-  assertNoRedbox,
+  waitForNoRedbox,
   fetchViaHTTP,
   findPort,
   getImagesManifest,
@@ -33,7 +33,7 @@ function runTests(mode: 'dev' | 'server') {
   it('should load img when quality is undefined', async () => {
     const browser = await webdriver(appPort, '/')
     if (mode === 'dev') {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
     const url = await getSrc(browser, 'q-undefined')
     const res = await fetchViaHTTP(appPort, url)
@@ -44,7 +44,7 @@ function runTests(mode: 'dev' | 'server') {
   it('should load img when quality 42', async () => {
     const browser = await webdriver(appPort, '/')
     if (mode === 'dev') {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
     const url = await getSrc(browser, 'q-42')
     const res = await fetchViaHTTP(appPort, url)
@@ -54,7 +54,7 @@ function runTests(mode: 'dev' | 'server') {
   it('should load img when quality 69', async () => {
     const browser = await webdriver(appPort, '/')
     if (mode === 'dev') {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
     const url = await getSrc(browser, 'q-69')
     const res = await fetchViaHTTP(appPort, url)
@@ -64,7 +64,7 @@ function runTests(mode: 'dev' | 'server') {
   it('should load img when quality 88', async () => {
     const browser = await webdriver(appPort, '/')
     if (mode === 'dev') {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
     const url = await getSrc(browser, 'q-88')
     const res = await fetchViaHTTP(appPort, url)
@@ -75,7 +75,7 @@ function runTests(mode: 'dev' | 'server') {
     const page = '/invalid-quality'
     const browser = await webdriver(appPort, page)
     if (mode === 'dev') {
-      await assertNoRedbox(browser)
+      await waitForNoRedbox(browser)
     }
     const url = await getSrc(browser, 'q-100')
     expect(url).toContain('&q=88') // coerced to closest matching of 88
@@ -92,24 +92,34 @@ function runTests(mode: 'dev' | 'server') {
           contentDispositionType: 'attachment',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowLocalIP: false,
           dangerouslyAllowSVG: false,
           deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
           disableStaticImages: false,
           domains: [],
           formats: ['image/webp'],
-          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          imageSizes: [32, 48, 64, 96, 128, 256, 384],
           loader: 'default',
           loaderFile: '',
           remotePatterns: [],
-          localPatterns: undefined,
+          localPatterns: [
+            {
+              pathname:
+                '^(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)\\/?)$',
+              search: '',
+            },
+          ],
+          maximumRedirects: 3,
+          maximumResponseBody: 50000000,
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [42, 69, 88],
           sizes: [
-            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
-            128, 256, 384,
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 32, 48, 64, 96, 128,
+            256, 384,
           ],
           unoptimized: false,
+          customCacheHandler: false,
         },
       })
     })

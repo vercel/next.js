@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-expressions, no-undef */
 let renderCount = 0
 
 export default function Error() {

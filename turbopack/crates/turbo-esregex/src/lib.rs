@@ -3,13 +3,19 @@
 use std::vec;
 
 use anyhow::{Result, bail};
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 
 /// A simple regular expression implementation following ecmascript semantics
 ///
 /// Delegates to the `regex` crate when possible and `regress` otherwise.
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(eq = "manual", shared)]
-#[serde(into = "RegexForm", try_from = "RegexForm")]
+#[turbo_tasks::value(eq = "manual", shared, serialization = "custom")]
 pub struct EsRegex {
     #[turbo_tasks(trace_ignore)]
     delegate: EsRegexImpl,
@@ -36,29 +42,24 @@ impl PartialEq for EsRegex {
 }
 impl Eq for EsRegex {}
 
-impl TryFrom<RegexForm> for EsRegex {
-    type Error = anyhow::Error;
-
-    fn try_from(value: RegexForm) -> std::result::Result<Self, Self::Error> {
-        EsRegex::new(&value.pattern, &value.flags)
+impl Encode for EsRegex {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        self.pattern.encode(encoder)?;
+        self.flags.encode(encoder)?;
+        Ok(())
     }
 }
 
-/// This is the serializable form for the `EsRegex` struct
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
-struct RegexForm {
-    pattern: String,
-    flags: String,
-}
-
-impl From<EsRegex> for RegexForm {
-    fn from(value: EsRegex) -> Self {
-        Self {
-            pattern: value.pattern,
-            flags: value.flags,
-        }
+impl<Context> Decode<Context> for EsRegex {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        let pattern: String = Decode::decode(decoder)?;
+        let flags: String = Decode::decode(decoder)?;
+        // TODO: perf: there's cloning happening here, we should be able to just move the `String`
+        EsRegex::new(&pattern, &flags).map_err(|err| DecodeError::OtherString(err.to_string()))
     }
 }
+
+impl_borrow_decode!(EsRegex);
 
 impl EsRegex {
     /// Support ecmascript style regular expressions by selecting the `regex` crate when possible
@@ -208,11 +209,13 @@ mod tests {
     use super::{EsRegex, EsRegexImpl};
 
     #[test]
-    fn round_trip_serialize() {
+    fn round_trip_bincode() {
         let regex = EsRegex::new("[a-z]", "i").unwrap();
-        let serialized = serde_json::to_string(&regex).unwrap();
-        let parsed = serde_json::from_str::<EsRegex>(&serialized).unwrap();
-        assert_eq!(regex, parsed);
+        let config = bincode::config::standard();
+        let encoded = bincode::encode_to_vec(&regex, config).unwrap();
+        let (decoded, len) = bincode::decode_from_slice::<EsRegex, _>(&encoded, config).unwrap();
+        assert_eq!(regex, decoded);
+        assert_eq!(len, encoded.len());
     }
 
     #[test]

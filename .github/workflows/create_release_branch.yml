@@ -19,7 +19,7 @@ name: Create Release Branch
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -65,13 +65,13 @@ jobs:
         id: cache-pnpm-store
         with:
           path: ${{ steps.get-store-path.outputs.STORE_PATH }}
-          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
-          restore-keys: |
-            pnpm-store-
-            pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          key: pnpm-store-v2-${{ hashFiles('pnpm-lock.yaml') }}
+          # Do not use restore-keys since it leads to indefinite growth of the cache.
 
       - run: pnpm install
 
-      - run: node ./scripts/create-release-branch.js --branch-name ${{ github.event.inputs.branchName }} --tag-name ${{ github.event.inputs.tagName }}
+      - run: node ./scripts/create-release-branch.js --branch-name "${INPUT_BRANCHNAME}" --tag-name "${INPUT_TAGNAME}"
         env:
           RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          INPUT_BRANCHNAME: ${{ github.event.inputs.branchName }}
+          INPUT_TAGNAME: ${{ github.event.inputs.tagName }}

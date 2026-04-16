@@ -1,20 +1,20 @@
 use std::pin::Pin;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use futures::prelude::*;
 use tokio::sync::mpsc::Sender;
 use tokio_stream::wrappers::ReceiverStream;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    IntoTraitRef, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TransientInstance, Vc,
+    NonLocalValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc, TransientInstance, Vc,
     trace::{TraceRawVcs, TraceRawVcsContext},
 };
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
-    error::PrettyPrintError,
     issue::{
-        CollectibleIssuesExt, Issue, IssueSeverity, IssueStage, OptionStyledString, PlainIssue,
+        CollectibleIssuesExt, Issue, IssueFilter, IssueSeverity, IssueStage, PlainIssue,
         StyledString,
     },
     server_fs::ServerFileSystem,
@@ -90,7 +90,7 @@ impl GetContentFn {
 async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues();
 
-    captured.get_plain_issues().await
+    captured.get_plain_issues(IssueFilter::everything()).await
 }
 
 fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<PlainIssue>>) {
@@ -187,7 +187,8 @@ async fn get_update_stream_item_operation(
             extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
-            if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await?
+            if let Some(from) =
+                ResolvedVc::try_downcast_type::<ProxyResult>(from.to_resolved().await?)
                 && from.await? == proxy_result_value
             {
                 return Ok(UpdateStreamItem::Found {
@@ -253,15 +254,13 @@ async fn compute_update_stream(
     from: ResolvedVc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
     sender: TransientInstance<ComputeUpdateStreamSender>,
-) -> Vc<()> {
+) -> () {
     let item = get_update_stream_item_operation(resource, from, get_content)
         .read_strongly_consistent()
         .await;
 
     // Send update. Ignore channel closed error.
     let _ = sender.0.send(item).await;
-
-    Default::default()
 }
 
 pub(super) struct UpdateStream(
@@ -376,34 +375,29 @@ struct FatalStreamIssue {
     resource: RcStr,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for FatalStreamIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Fatal
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Other(rcstr!("websocket")).cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Other(rcstr!("websocket"))
     }
 
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(ServerFileSystem::new()
-            .root()
-            .await?
-            .join(&self.resource)?
-            .cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        ServerFileSystem::new().root().await?.join(&self.resource)
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Fatal error while getting content to stream")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Fatal error while getting content to stream"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.description.await?).clone()))
     }
 }
 

@@ -12,48 +12,68 @@ use crate::{
     },
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphModuleNode,
-        chunk_group_info::RoaringBitmapWrapper,
+        GraphTraversalAction, ModuleGraph, RefData, chunk_group_info::RoaringBitmapWrapper,
     },
     resolve::ExportUsage,
 };
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[allow(clippy::type_complexity)]
+pub struct MergedModulesReplacements(
+    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[allow(clippy::type_complexity)]
+pub struct MergedModulesOriginalModules(
+    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
+);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+#[allow(clippy::type_complexity)]
+pub struct MergedModulesIncluded(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value]
 pub struct MergedModuleInfo {
     /// A map of modules to the merged module containing the module plus additional modules.
-    #[allow(clippy::type_complexity)]
-    pub replacements: FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub replacements: ResolvedVc<MergedModulesReplacements>,
     /// A map of replacement modules to their corresponding chunk group info (which is the same as
     /// the chunk group info of the original module it replaced).
-    #[allow(clippy::type_complexity)]
-    pub replacements_to_original:
-        FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn Module>>>,
+    pub replacements_to_original: ResolvedVc<MergedModulesOriginalModules>,
     /// A map of modules that are already contained as values in replacements.
-    pub included: FxHashSet<ResolvedVc<Box<dyn Module>>>,
+    pub included: ResolvedVc<MergedModulesIncluded>,
 }
 
 impl MergedModuleInfo {
     /// Whether the given module should be replaced with a merged module.
-    pub fn should_replace_module(
+    pub async fn should_replace_module(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Option<ResolvedVc<Box<dyn ChunkableModule>>> {
-        self.replacements.get(&module).copied()
+    ) -> Result<Option<ResolvedVc<Box<dyn ChunkableModule>>>> {
+        Ok(self.replacements.get(&module).await?.as_deref().copied())
     }
 
     /// Returns the original module for the given replacement module (useful for retrieving the
     /// chunk group info).
-    pub fn get_original_module(
+    pub async fn get_original_module(
         &self,
         module: ResolvedVc<Box<dyn Module>>,
-    ) -> Option<ResolvedVc<Box<dyn Module>>> {
-        self.replacements_to_original.get(&module).copied()
+    ) -> Result<Option<ResolvedVc<Box<dyn Module>>>> {
+        Ok(self
+            .replacements_to_original
+            .get(&module)
+            .await?
+            .as_deref()
+            .copied())
     }
 
     // Whether the given module should be skipped during chunking, as it is already included in a
     // module returned by some `should_replace_module` call.
-    pub fn should_create_chunk_item_for(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
-        !self.included.contains(&module)
+    pub async fn should_create_chunk_item_for(
+        &self,
+        module: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<bool> {
+        Ok(!self.included.contains_key(&module).await?)
     }
 }
 
@@ -73,9 +93,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
     let span = span_outer.clone();
     async move {
-        let async_module_info = module_graph.async_module_info().await?;
+        let async_module_info = module_graph.async_module_info();
         let chunk_group_info = module_graph.chunk_group_info().await?;
-        let module_graph = module_graph.read_graphs().await?;
+        let module_graph = module_graph.await?;
 
         let graphs = &module_graph.graphs;
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
@@ -94,21 +114,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
             let mut module_depth =
                 FxHashMap::with_capacity_and_hasher(module_count, Default::default());
-            module_graph.traverse_edges_from_entries_bfs(
-                entries.iter().copied(),
-                |parent, node| {
-                    if let Some((parent, _)) = parent {
-                        let parent_depth = *module_depth
-                            .get(&parent.module)
-                            .context("Module depth not found")?;
-                        module_depth.entry(node.module).or_insert(parent_depth + 1);
-                    } else {
-                        module_depth.insert(node.module, 0);
-                    };
+            module_graph.traverse_edges_bfs(entries.iter().copied(), |parent, node| {
+                if let Some((parent, _)) = parent {
+                    let parent_depth = *module_depth
+                        .get(&parent)
+                        .context("Module depth not found")?;
+                    module_depth.entry(node).or_insert(parent_depth + 1);
+                } else {
+                    module_depth.insert(node, 0);
+                };
 
-                    Ok(GraphTraversalAction::Continue)
-                },
-            )?;
+                Ok(GraphTraversalAction::Continue)
+            })?;
             module_depth
         };
 
@@ -125,8 +142,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mergeable = graphs
             .iter()
             .flat_map(|g| g.iter_nodes())
-            .map(async |n| {
-                let module = n.module;
+            .map(async |module| {
                 if let Some(mergeable) =
                     ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
                     && *mergeable.is_mergeable().await?
@@ -141,6 +157,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             .into_iter()
             .collect::<FxHashSet<_>>();
 
+        // Pre-fetch async status for all mergeable modules using keyed access to avoid
+        // reading the full AsyncModulesInfo set during the synchronous traversal below.
+        let inner_span = tracing::info_span!("pre-fetch async module status");
+        let async_modules: FxHashSet<_> = mergeable
+            .iter()
+            .map(async |&module| Ok(async_module_info.is_async(module).await?.then_some(module)))
+            .try_flat_join()
+            .instrument(inner_span)
+            .await?
+            .into_iter()
+            .collect();
+
         let inner_span = tracing::info_span!("fixed point traversal").entered();
 
         let mut next_index = 0u32;
@@ -150,22 +178,23 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 .map(|e| Ok((*e, -*module_depth.get(e).context("Module depth not found")?)))
                 .collect::<Result<Vec<_>>>()?,
             &mut (),
-            |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ RefData)>,
-             node: &'_ SingleModuleGraphModuleNode,
+            |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
+             node: ResolvedVc<Box<dyn Module>>,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list
                 // indices.
-                let (parent_module, hoisted) = parent_info.map_or((None, false), |(node, ty)| {
-                    (
-                        Some(node.module),
-                        match &ty.chunking_type {
-                            ChunkingType::Parallel { hoisted, .. } => *hoisted,
-                            _ => false,
-                        },
-                    )
-                });
-                let module = node.module;
+                let (parent_module, hoisted) =
+                    parent_info.map_or((None, false), |(node, ty, _)| {
+                        (
+                            Some(node),
+                            match &ty.chunking_type {
+                                ChunkingType::Parallel { hoisted, .. } => *hoisted,
+                                _ => false,
+                            },
+                        )
+                    });
+                let module = node;
 
                 Ok(if parent_module.is_some_and(|p| p == module) {
                     // A self-reference
@@ -174,16 +203,16 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     && let Some(parent_module) = parent_module
                     && mergeable.contains(&parent_module)
                     && mergeable.contains(&module)
-                    && !async_module_info.contains(&parent_module)
-                    && !async_module_info.contains(&module)
+                    && !async_modules.contains(&parent_module)
+                    && !async_modules.contains(&module)
                 {
                     // ^ TODO technically we could merge a sync child into an async parent
 
                     // A hoisted reference from a mergeable module to a non-async mergeable
                     // module, inherit bitmaps from parent.
-                    module_merged_groups.entry(node.module).or_default();
+                    module_merged_groups.entry(node).or_default();
                     let [Some(parent_merged_groups), Some(current_merged_groups)] =
-                        module_merged_groups.get_disjoint_mut([&parent_module, &node.module])
+                        module_merged_groups.get_disjoint_mut([&parent_module, &node])
                     else {
                         // All modules are inserted in the previous iteration
                         bail!("unreachable except for eventual consistency");
@@ -227,7 +256,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 // Invert the ordering here. High priority values get visited first, and we want to
                 // visit the low-depth nodes first, as we are propagating bitmaps downwards.
                 Ok(-*module_depth
-                    .get(&successor.module)
+                    .get(&successor)
                     .context("Module depth not found")?)
             },
         )?;
@@ -279,8 +308,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         {
             struct ChunkGroupResult {
-                chunk_group_idx: usize,
-                lists: Vec<Vec<ResolvedVc<Box<dyn MergeableModule>>>>,
+                first_chunk_group_idx: usize,
+                #[allow(clippy::type_complexity)]
+                list_lists: Vec<Vec<Vec<ResolvedVc<Box<dyn MergeableModule>>>>>,
                 lists_reverse_indices:
                     FxIndexMap<ResolvedVc<Box<dyn MergeableModule>>, FxIndexSet<ListOccurrence>>,
                 #[allow(clippy::type_complexity)]
@@ -289,26 +319,13 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                     FxIndexSet<ResolvedVc<Box<dyn Module>>>,
                 >,
             }
+            let span = tracing::info_span!("map chunk groups").entered();
 
-            let result = turbo_tasks::parallel::map_collect_owned::<_, _, Result<Vec<_>>>(
+            let result = turbo_tasks::parallel::map_collect_chunked_owned::<_, _, Result<Vec<_>>>(
                 // TODO without collect
                 chunk_group_info.chunk_groups.iter().enumerate().collect(),
-                |(chunk_group_idx, chunk_group)| {
-                    // A partition of all modules in the chunk into several execution traces
-                    // (orderings), stored in the top-level lists and referenced here by
-                    // index.
-                    let mut chunk_lists: FxHashMap<&RoaringBitmapWrapper, usize> =
-                        FxHashMap::with_capacity_and_hasher(
-                            module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
-                            Default::default(),
-                        );
-
-                    // This is necessary to have the correct order with cycles: a `a -> b -> a`
-                    // graph would otherwise be visited as `b->a`, `a->b`,
-                    // leading to the list `a, b` which is not execution order.
-                    let mut visited = FxHashSet::default();
-
-                    let mut lists = vec![];
+                |chunk| {
+                    let mut list_lists = vec![];
                     let mut lists_reverse_indices: FxIndexMap<
                         ResolvedVc<Box<dyn MergeableModule>>,
                         FxIndexSet<ListOccurrence>,
@@ -319,92 +336,138 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                         FxIndexSet<ResolvedVc<Box<dyn Module>>>,
                     > = FxIndexMap::default();
 
-                    module_graph.traverse_edges_from_entries_dfs(
-                        chunk_group.entries(),
-                        &mut (),
-                        |parent_info, node, _| {
-                            if parent_info.is_none_or(|(_, r)| r.chunking_type.is_parallel())
-                                && visited.insert(node.module)
-                            {
-                                Ok(GraphTraversalAction::Continue)
-                            } else {
-                                Ok(GraphTraversalAction::Exclude)
-                            }
-                        },
-                        |parent_info, node, _| {
-                            let module = node.module;
-                            let bitmap = module_merged_groups
-                                .get(&module)
-                                .context("every module should have a bitmap at this point")?;
+                    let mut chunk = chunk.peekable();
+                    let first_chunk_group_idx = chunk.peek().unwrap().0;
 
-                            if mergeable.contains(&module) {
-                                let mergeable_module =
-                                    ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
-                                        .unwrap();
-                                match chunk_lists.entry(bitmap) {
-                                    Entry::Vacant(e) => {
-                                        // New list, insert the module
-                                        let idx = lists.len();
-                                        e.insert(idx);
-                                        lists.push(vec![mergeable_module]);
-                                        lists_reverse_indices
-                                            .entry(mergeable_module)
-                                            .or_default()
-                                            .insert(ListOccurrence {
-                                                chunk_group: chunk_group_idx,
-                                                list: idx,
-                                                entry: 0,
-                                            });
-                                    }
-                                    Entry::Occupied(e) => {
-                                        let list_idx = *e.get();
-                                        let list = &mut lists[list_idx];
-                                        list.push(mergeable_module);
-                                        lists_reverse_indices
-                                            .entry(mergeable_module)
-                                            .or_default()
-                                            .insert(ListOccurrence {
-                                                chunk_group: chunk_group_idx,
-                                                list: list_idx,
-                                                entry: list.len() - 1,
-                                            });
+                    for (chunk_group_idx, chunk_group) in chunk {
+                        let mut lists = vec![];
+
+                        // A partition of all modules in the chunk into several execution traces
+                        // (orderings), stored in the top-level lists and referenced here by
+                        // index.
+                        let mut chunk_lists: FxHashMap<&RoaringBitmapWrapper, usize> =
+                            FxHashMap::with_capacity_and_hasher(
+                                module_merged_groups.len() / chunk_group_info.chunk_groups.len(),
+                                Default::default(),
+                            );
+
+                        // This is necessary to have the correct order with cycles: a `a -> b -> a`
+                        // graph would otherwise be visited as `b->a`, `a->b`,
+                        // leading to the list `a, b` which is not execution order.
+                        let mut visited = FxHashSet::default();
+
+                        module_graph.traverse_edges_dfs(
+                            chunk_group.entries(),
+                            &mut (),
+                            |parent_info, node, _| {
+                                if parent_info.is_none_or(|(_, r)| r.chunking_type.is_parallel())
+                                    && visited.insert(node)
+                                {
+                                    Ok(GraphTraversalAction::Continue)
+                                } else {
+                                    Ok(GraphTraversalAction::Exclude)
+                                }
+                            },
+                            |parent_info, node, _| {
+                                let module = node;
+                                let bitmap = module_merged_groups
+                                    .get(&module)
+                                    .context("every module should have a bitmap")?;
+
+                                if mergeable.contains(&module) {
+                                    let mergeable_module =
+                                        ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(
+                                            module,
+                                        )
+                                        .context(
+                                            "found mergeable module which is not a MergeableModule",
+                                        )?;
+                                    match chunk_lists.entry(bitmap) {
+                                        Entry::Vacant(e) => {
+                                            // New list, insert the module
+                                            let idx = lists.len();
+                                            e.insert(idx);
+                                            lists.push(vec![mergeable_module]);
+                                            lists_reverse_indices
+                                                .entry(mergeable_module)
+                                                .or_default()
+                                                .insert(ListOccurrence {
+                                                    chunk_group: chunk_group_idx,
+                                                    list: idx,
+                                                    entry: 0,
+                                                });
+                                        }
+                                        Entry::Occupied(e) => {
+                                            let list_idx = *e.get();
+                                            let list = &mut lists[list_idx];
+                                            list.push(mergeable_module);
+                                            lists_reverse_indices
+                                                .entry(mergeable_module)
+                                                .or_default()
+                                                .insert(ListOccurrence {
+                                                    chunk_group: chunk_group_idx,
+                                                    list: list_idx,
+                                                    entry: list.len() - 1,
+                                                });
+                                        }
                                     }
                                 }
-                            }
 
-                            if let Some((parent, _)) = parent_info {
-                                let same_bitmap = module_merged_groups.get(&parent.module).unwrap()
-                                    == module_merged_groups.get(&module).unwrap();
+                                if let Some((parent, _)) = parent_info {
+                                    let same_bitmap = module_merged_groups
+                                        .get(&parent)
+                                        .context("every module should have a bitmap")?
+                                        == module_merged_groups
+                                            .get(&module)
+                                            .context("every module should have a bitmap")?;
 
-                                if same_bitmap {
-                                    intra_group_references_rev
-                                        .entry(module)
-                                        .or_default()
-                                        .insert(parent.module);
+                                    if same_bitmap {
+                                        intra_group_references_rev
+                                            .entry(module)
+                                            .or_default()
+                                            .insert(parent);
+                                    }
                                 }
-                            }
-                            Ok(())
-                        },
-                    )?;
+                                Ok(())
+                            },
+                        )?;
+
+                        list_lists.push(lists);
+                    }
                     Ok(ChunkGroupResult {
-                        chunk_group_idx,
-                        lists,
+                        first_chunk_group_idx,
+                        list_lists,
                         lists_reverse_indices,
                         intra_group_references_rev,
                     })
                 },
             )?;
 
-            lists = vec![Default::default(); result.len() + 1];
+            drop(span);
+            let _span = tracing::info_span!("merging chunk group lists").entered();
+
+            lists_reverse_indices
+                .reserve_exact(result.iter().map(|r| r.lists_reverse_indices.len()).sum());
+            intra_group_references_rev.reserve_exact(
+                result
+                    .iter()
+                    .map(|r| r.intra_group_references_rev.len())
+                    .sum(),
+            );
+
+            lists = vec![Default::default(); chunk_group_info.chunk_groups.len() + 1];
             LISTS_COMMON_IDX = result.len();
             for ChunkGroupResult {
-                chunk_group_idx,
-                lists: result_lists,
+                first_chunk_group_idx,
+                list_lists: result_lists,
                 lists_reverse_indices: result_lists_reverse_indices,
                 intra_group_references_rev: result_intra_group_references_rev,
             } in result
             {
-                lists[chunk_group_idx] = result_lists;
+                lists.splice(
+                    first_chunk_group_idx..(first_chunk_group_idx + result_lists.len()),
+                    result_lists,
+                );
                 for (module, occurrences) in result_lists_reverse_indices {
                     lists_reverse_indices
                         .entry(module)
@@ -435,36 +498,52 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         let mut exposed_modules_namespace: FxHashSet<ResolvedVc<Box<dyn Module>>> =
             FxHashSet::with_capacity_and_hasher(module_merged_groups.len(), Default::default());
 
-        module_graph.traverse_edges_from_entries_dfs(
+        module_graph.traverse_edges_dfs(
             entries,
             &mut (),
             |_, _, _| Ok(GraphTraversalAction::Continue),
             |parent_info, node, _| {
-                let module = node.module;
+                let module = node;
 
                 if let Some((parent, _)) = parent_info {
-                    let same_bitmap = module_merged_groups.get(&parent.module).unwrap()
-                        == module_merged_groups.get(&module).unwrap();
+                    let same_bitmap = module_merged_groups
+                        .get(&parent)
+                        .context("every module should have a bitmap")?
+                        == module_merged_groups
+                            .get(&module)
+                            .context("every module should have a bitmap")?;
 
                     if same_bitmap {
                         intra_group_references
-                            .entry(parent.module)
+                            .entry(parent)
                             .or_default()
                             .insert(module);
                     }
                 }
 
-                if parent_info.is_none_or(|(parent, _)| {
-                    module_merged_groups.get(&parent.module).unwrap()
-                        != module_merged_groups.get(&module).unwrap()
-                }) {
+                if match parent_info {
+                    None => true,
+                    Some((parent, _)) => {
+                        module_merged_groups
+                            .get(&parent)
+                            .context("every module should have a bitmap")?
+                            != module_merged_groups
+                                .get(&module)
+                                .context("every module should have a bitmap")?
+                    }
+                } {
                     // This module needs to be exposed:
                     // - referenced from another group or
                     // - an entry module (TODO assume it will be required for Node/Edge, but not
                     // necessarily needed for browser),
                     exposed_modules_imported.insert(module);
                 }
-                if parent_info.is_some_and(|(_, r)| matches!(r.export, ExportUsage::All)) {
+                if parent_info.is_some_and(|(_, r)| {
+                    matches!(
+                        r.binding_usage.export,
+                        ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
+                    )
+                }) {
                     // This module needs to be exposed:
                     // - namespace import from another group
                     exposed_modules_namespace.insert(module);
@@ -524,7 +603,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             // Insert occurrences for the "common" list, skip the first because that is now
             // guaranteed to exist only once
             for (i, &m) in common_list.iter().enumerate().skip(1) {
-                let occurrences = lists_reverse_indices.get_mut(&m).unwrap();
+                let occurrences = lists_reverse_indices
+                    .get_mut(&m)
+                    .context("every module should have occurrences")?;
                 for common_occurrence in &common_occurrences {
                     let removed = occurrences.swap_remove(&ListOccurrence {
                         chunk_group: common_occurrence.chunk_group,
@@ -713,9 +794,9 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         span.record("included_modules", included.len());
 
         Ok(MergedModuleInfo {
-            replacements,
-            replacements_to_original,
-            included,
+            replacements: ResolvedVc::cell(replacements),
+            replacements_to_original: ResolvedVc::cell(replacements_to_original),
+            included: ResolvedVc::cell(included),
         }
         .cell())
     }

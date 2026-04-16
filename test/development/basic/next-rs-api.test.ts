@@ -1,7 +1,7 @@
 import { NextInstance, createNext } from 'e2e-utils'
 import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
+import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
   Diagnostics,
   Issue,
@@ -229,13 +229,16 @@ async function main() {
     },
     browserslistQuery: 'last 2 versions',
     noMangling: false,
+    writeRoutesHashesManifest: false,
     currentNodeJsVersion: '18.0.0',
+    isPersistentCachingEnabled: false,
+    nextVersion: '0.0.0',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
   const entrypoints = (await entrypointsSubscription.next()).value;
 
-  const RUNS = 10000;
+  const RUNS = 1000;
   async function compileRoute(route) {
     const endpoint = route.endpoint ?? route.htmlEndpoint ?? route.pages[0].htmlEndpoint;
     if (!endpoint) {
@@ -386,7 +389,10 @@ describe('next.rs api', () => {
       },
       browserslistQuery: 'last 2 versions',
       noMangling: false,
+      writeRoutesHashesManifest: false,
       currentNodeJsVersion: '18.0.0',
+      isPersistentCachingEnabled: false,
+      nextVersion: '0.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -398,6 +404,10 @@ describe('next.rs api', () => {
     const entrypointsSubscription = project.entrypointsSubscribe()
     const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
+    if (!('routes' in entrypoints.value)) {
+      throw new Error('Entrypoints not available due to compilation errors')
+    }
+
     expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
       '/',
       '/_not-found',
@@ -487,9 +497,13 @@ describe('next.rs api', () => {
     // eslint-disable-next-line no-loop-func
     it(`should allow to write ${name} to disk`, async () => {
       const entrypointsSubscribtion = project.entrypointsSubscribe()
-      const entrypoints: TurbopackResult<RawEntrypoints> = (
+      const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
         await entrypointsSubscribtion.next()
       ).value
+      if (!('routes' in entrypoints)) {
+        throw new Error('Entrypoints not available due to compilation errors')
+      }
+
       const route = entrypoints.routes.get(path)
       entrypointsSubscribtion.return()
 
@@ -546,7 +560,6 @@ describe('next.rs api', () => {
         }
         default: {
           throw new Error('unknown route type')
-          break
         }
       }
     })
@@ -623,9 +636,13 @@ describe('next.rs api', () => {
         console.log('start')
         await new Promise((r) => setTimeout(r, 1000))
         const entrypointsSubscribtion = project.entrypointsSubscribe()
-        const entrypoints: TurbopackResult<RawEntrypoints> = (
+        const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
           await entrypointsSubscribtion.next()
         ).value
+        if (!('routes' in entrypoints)) {
+          throw new Error('Entrypoints not available due to compilation errors')
+        }
+
         const route = entrypoints.routes.get(path)
         entrypointsSubscribtion.return()
 
@@ -652,12 +669,15 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project.hmrIdentifiersSubscribe().next()
+        const result = await project
+          .hmrChunkNamesSubscribe(HmrTarget.Client)
+          .next()
         expect(result.done).toBe(false)
-        const identifiers = result.value.identifiers
-        expect(identifiers).toHaveProperty('length', expect.toBePositive())
-        const subscriptions = identifiers.map((identifier) =>
-          project.hmrEvents(identifier)
+        const chunkNames = result.value.chunkNames
+        expect(chunkNames).toHaveProperty('length', expect.toBePositive())
+
+        const subscriptions = chunkNames.map((chunkName) =>
+          project.hmrEvents(chunkName, HmrTarget.Client)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -766,21 +786,25 @@ describe('next.rs api', () => {
     console.log('start')
     await new Promise((r) => setTimeout(r, 1000))
     const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints: TurbopackResult<RawEntrypoints> = (
+    const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
       await entrypointsSubscribtion.next()
     ).value
+    if (!('routes' in entrypoints)) {
+      throw new Error('Entrypoints not available due to compilation errors')
+    }
+
     const route = entrypoints.routes.get('/')
     entrypointsSubscribtion.return()
 
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrIdentifiersSubscribe().next()
+    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
     expect(result.done).toBe(false)
-    const identifiers = result.value.identifiers
+    const chunkNames = result.value.chunkNames
 
-    const subscriptions = identifiers.map((identifier) =>
-      project.hmrEvents(identifier)
+    const subscriptions = chunkNames.map((chunkName) =>
+      project.hmrEvents(chunkName, HmrTarget.Client)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {

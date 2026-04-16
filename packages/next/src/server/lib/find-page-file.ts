@@ -6,6 +6,7 @@ import { promises as fsPromises } from 'fs'
 import { warn } from '../../build/output/log'
 import { cyan } from '../../lib/picocolors'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 import type { PageExtensions } from '../../build/page-extensions-type'
 
 async function isTrueCasePagePath(pagePath: string, pagesDir: string) {
@@ -72,37 +73,37 @@ export async function findPageFile(
  *
  * createValidFileMatcher receives configured page extensions and return helpers to determine:
  * `isLayoutsLeafPage`: if a file is a valid page file or routes file under app directory
- * `isTrackedFiles`: if it's a tracked file for webpack watcher
+ * `isTrackedFiles`: if it's a tracked file for our file watcher
  *
  */
 export function createValidFileMatcher(
   pageExtensions: PageExtensions,
   appDirPath: string | undefined
 ) {
-  const getExtensionRegexString = (extensions: string[]) =>
-    `(?:${extensions.join('|')})`
+  // Helper to create extension regex pattern
+  const extPattern = `(?:${pageExtensions
+    .map((extension) => escapeStringRegexp(extension))
+    .join('|')})`
 
-  const validExtensionFileRegex = new RegExp(
-    '\\.' + getExtensionRegexString(pageExtensions) + '$'
-  )
-  const leafOnlyPageFileRegex = new RegExp(
-    `(^(page|route)|[\\\\/](page|route))\\.${getExtensionRegexString(
-      pageExtensions
-    )}$`
-  )
+  // Pattern factory for "leaf" files that can appear at start of path or after separator
+  // e.g., 'page.tsx', '/path/page.tsx', '\\path\\route.js'
+  const createLeafPattern = (fileNames: string[]): RegExp => {
+    const names =
+      fileNames.length === 1 ? fileNames[0] : `(${fileNames.join('|')})`
+    return new RegExp(`(^${names}|[\\\\/]${names})\\.${extPattern}$`)
+  }
 
-  const leafOnlyRouteFileRegex = new RegExp(
-    `(^route|[\\\\/]route)\\.${getExtensionRegexString(pageExtensions)}$`
-  )
-  const leafOnlyLayoutFileRegex = new RegExp(
-    `(^(layout)|[\\\\/](layout))\\.${getExtensionRegexString(pageExtensions)}$`
-  )
-  const rootNotFoundFileRegex = new RegExp(
-    `^not-found\\.${getExtensionRegexString(pageExtensions)}$`
-  )
-  const leafOnlyDefaultFileRegex = new RegExp(
-    `(^(default)|[\\\\/](default))\\.${getExtensionRegexString(pageExtensions)}$`
-  )
+  // Pattern factory for root-only files (no path separator allowed)
+  const createRootOnlyPattern = (fileName: string): RegExp =>
+    new RegExp(`^${fileName}\\.${extPattern}$`)
+
+  // All file matching patterns
+  const validExtensionFileRegex = new RegExp(`\\.${extPattern}$`)
+  const leafOnlyPageFileRegex = createLeafPattern(['page', 'route'])
+  const leafOnlyRouteFileRegex = createLeafPattern(['route'])
+  const leafOnlyLayoutFileRegex = createLeafPattern(['layout'])
+  const leafOnlyDefaultFileRegex = createLeafPattern(['default'])
+  const rootNotFoundFileRegex = createRootOnlyPattern('not-found')
   /** TODO-METADATA: support other metadata routes
    *  regex for:
    *

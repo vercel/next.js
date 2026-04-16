@@ -1,4 +1,3 @@
-/* eslint-disable jest/no-standalone-expect */
 import * as path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import stripAnsi from 'strip-ansi'
@@ -9,7 +8,6 @@ function normalizeCliOutput(output: string) {
     stripAnsi(output)
       // TODO(veil): Should not appear in sourcemapped stackframes.
       .replaceAll('webpack:///', 'bundler:///')
-      .replaceAll('turbopack:///[project]/', 'bundler:///')
       .replaceAll(/at [a-zA-Z] \(/g, 'at <mangled> (')
   )
 }
@@ -20,14 +18,13 @@ describe('app-dir - server source maps', () => {
     'internal-pkg': `link:./internal-pkg`,
     'external-pkg': `file:./external-pkg`,
   }
-  const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
+  const { skipped, next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
     // Deploy tests don't have access to runtime logs.
     // Manually verify that the runtime logs match.
     skipDeployment: true,
   })
-  const isRspack = !!process.env.NEXT_RSPACK
 
   if (skipped) return
 
@@ -42,7 +39,7 @@ describe('app-dir - server source maps', () => {
         )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: rsc-error-log' +
+        'Error: rsc-error-log' +
           '\n    at logError (app/rsc-error-log/page.js:4:17)' +
           '\n    at Page (app/rsc-error-log/page.js:9:3)' +
           '\n  2 |' +
@@ -57,9 +54,9 @@ describe('app-dir - server source maps', () => {
     } else {
       if (isTurbopack) {
         // TODO(veil): Sourcemap names
-        // TODO(veil): relative paths
+        // TODO(veil): relative paths in webpack
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/rsc-error-log/page.js:4:17)'
+          '(app/rsc-error-log/page.js:4:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -83,7 +80,7 @@ describe('app-dir - server source maps', () => {
         )
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
-        '\nError: rsc-error-log-cause' +
+        'Error: rsc-error-log-cause' +
           '\n    at logError (app/rsc-error-log-cause/page.js:2:17)' +
           '\n    at Page (app/rsc-error-log-cause/page.js:8:3)' +
           '\n  1 | function logError(cause) {' +
@@ -108,10 +105,10 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/rsc-error-log-cause/page.js:2:17)'
+          '(app/rsc-error-log-cause/page.js:2:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/rsc-error-log-cause/page.js:7:17)'
+          '(app/rsc-error-log-cause/page.js:7:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -122,6 +119,193 @@ describe('app-dir - server source maps', () => {
           '' +
             "\n  >  7 |   const error = new Error('Boom')" +
             '\n       |                 ^'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
+  it('logged errors collapse deeply nested causes at depth 2', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-nested')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-nested'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: rsc-error-log-nested' +
+          '\n    at logError (app/rsc-error-log-nested/page.js:6:18)' +
+          '\n    at Page (app/rsc-error-log-nested/page.js:11:3)' +
+          "\n  4 |   const depth2 = new Error('Depth 2 error', { cause: depth3 })" +
+          "\n  5 |   const depth1 = new Error('Depth 1 error', { cause: depth2 })" +
+          "\n> 6 |   const depth0 = new Error('rsc-error-log-nested', { cause: depth1 })" +
+          '\n    |                  ^' +
+          '\n  7 |   console.error(depth0)' +
+          '\n  8 | }' +
+          '\n  9 | {' +
+          '\n  [cause]: Error: Depth 1 error' +
+          '\n      at logError (app/rsc-error-log-nested/page.js:5:18)' +
+          '\n      at Page (app/rsc-error-log-nested/page.js:11:3)' +
+          "\n    3 |   const depth3 = new Error('Depth 3 error', { cause: depth4 })" +
+          "\n    4 |   const depth2 = new Error('Depth 2 error', { cause: depth3 })" +
+          "\n  > 5 |   const depth1 = new Error('Depth 1 error', { cause: depth2 })" +
+          '\n      |                  ^' +
+          "\n    6 |   const depth0 = new Error('rsc-error-log-nested', { cause: depth1 })" +
+          '\n    7 |   console.error(depth0)' +
+          '\n    8 | } {' +
+          '\n    [cause]: Error: Depth 2 error' +
+          '\n        at logError (app/rsc-error-log-nested/page.js:4:18)' +
+          '\n        at Page (app/rsc-error-log-nested/page.js:11:3)' +
+          "\n      2 |   const depth4 = new Error('Depth 4 error')" +
+          "\n      3 |   const depth3 = new Error('Depth 3 error', { cause: depth4 })" +
+          "\n    > 4 |   const depth2 = new Error('Depth 2 error', { cause: depth3 })" +
+          '\n        |                  ^' +
+          "\n      5 |   const depth1 = new Error('Depth 1 error', { cause: depth2 })" +
+          "\n      6 |   const depth0 = new Error('rsc-error-log-nested', { cause: depth1 })" +
+          '\n      7 |   console.error(depth0) {' +
+          '\n      [cause]: [Error]' +
+          '\n    }' +
+          '\n  }' +
+          '\n}'
+      )
+      // Verify depth 3+ are NOT shown (truncated to [Error])
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('Error: Depth 3 error')
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('Error: Depth 4 error')
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-nested/page.js:6:18)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[cause]: [Error]')
+        expect(normalizeCliOutput(next.cliOutput)).not.toContain(
+          'Error: Depth 3 error'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).not.toContain(
+          'Error: Depth 4 error'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
+  it('logged errors include `[errors]` for AggregateError', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-aggregate')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'AggregateError: rsc-error-log-aggregate'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'AggregateError: rsc-error-log-aggregate' +
+          '\n    at logError (app/rsc-error-log-aggregate/page.js:6:26)' +
+          '\n    at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          "\n  4 |   const error2 = new TypeError('Error 2')" +
+          "\n  5 |   const rootError = new Error('Root error')" +
+          '\n> 6 |   const aggregateError = new AggregateError(' +
+          '\n    |                          ^' +
+          '\n  7 |     [error1, error2],' +
+          "\n  8 |     'rsc-error-log-aggregate'," +
+          '\n  9 |     { cause: rootError } {' +
+          '\n  [cause]: Error: Root error' +
+          '\n      at logError (app/rsc-error-log-aggregate/page.js:5:21)' +
+          '\n      at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          "\n    3 |   const error1 = new Error('Error 1')" +
+          "\n    4 |   const error2 = new TypeError('Error 2')" +
+          "\n  > 5 |   const rootError = new Error('Root error')" +
+          '\n      |                     ^' +
+          '\n    6 |   const aggregateError = new AggregateError(' +
+          '\n    7 |     [error1, error2],' +
+          "\n    8 |     'rsc-error-log-aggregate',," +
+          '\n  [errors]: [' +
+          '\n    Error: Error 1' +
+          '\n        at logError (app/rsc-error-log-aggregate/page.js:3:18)' +
+          '\n        at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          '\n      1 | /* global AggregateError */' +
+          '\n      2 | function logError() {' +
+          "\n    > 3 |   const error1 = new Error('Error 1')" +
+          '\n        |                  ^' +
+          "\n      4 |   const error2 = new TypeError('Error 2')" +
+          "\n      5 |   const rootError = new Error('Root error')" +
+          '\n      6 |   const aggregateError = new AggregateError(,' +
+          '\n    TypeError: Error 2' +
+          '\n        at logError (app/rsc-error-log-aggregate/page.js:4:18)' +
+          '\n        at Page (app/rsc-error-log-aggregate/page.js:15:3)' +
+          '\n      2 | function logError() {' +
+          "\n      3 |   const error1 = new Error('Error 1')" +
+          "\n    > 4 |   const error2 = new TypeError('Error 2')" +
+          '\n        |                  ^' +
+          "\n      5 |   const rootError = new Error('Root error')" +
+          '\n      6 |   const aggregateError = new AggregateError(' +
+          '\n      7 |     [error1, error2],' +
+          '\n  ]' +
+          '\n}'
+      )
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-aggregate/page.js:6:26)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[errors]:')
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[cause]:')
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
+  it('logged errors in client components during ssr have a sourcemapped stack with a codeframe', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/ssr-error-log')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: ssr-error-log'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: ssr-error-log' +
+          '\n    at logError (app/ssr-error-log/page.js:4:17)' +
+          '\n    at Page (app/ssr-error-log/page.js:9:3)' +
+          '\n  2 |' +
+          '\n  3 | function logError() {' +
+          "\n> 4 |   const error = new Error('ssr-error-log')" +
+          '\n    |                 ^' +
+          '\n  5 |   console.error(error)' +
+          '\n  6 | }' +
+          '\n  7 |' +
+          '\n'
+      )
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          'Error: ssr-error-log' +
+            '\n    at <unknown> (app/ssr-error-log/page.js:4:17)' +
+            '\n  2 |' +
+            '\n  3 | function logError() {' +
+            "\n> 4 |   const error = new Error('ssr-error-log')" +
+            '\n    |                 ^' +
+            '\n  5 |   console.error(error)' +
+            '\n  6 | }' +
+            '\n  7 |' +
+            '\n'
         )
       } else {
         // TODO(veil): line/column numbers are flaky in Webpack
@@ -141,22 +325,21 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
-          ? '\nError: ssr-error-log-ignore-listed' +
+          ? 'Error: ssr-error-log-ignore-listed' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:17)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:13)' +
               '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:18:29)' +
               '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:17:32)' +
               '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:16:18)' +
               // Realpath does not point into node_modules so we don't ignore it.
-              // TODO(veil): Should be internal-pkg/sourcemapped.ts
-              '\n    at runInternalSourceMapped (sourcemapped.ts:5:10)' +
+              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:10)' +
               '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:15:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:10)' +
               '\n    at Page (app/ssr-error-log-ignore-listed/page.js:14:14)' +
               '\n   7 |' +
               '\n'
-          : '\nError: ssr-error-log-ignore-listed' +
+          : 'Error: ssr-error-log-ignore-listed' +
               '\n    at logError (app/ssr-error-log-ignore-listed/page.js:9:17)' +
               '\n    at runWithInternalIgnored (app/ssr-error-log-ignore-listed/page.js:19:13)' +
               // TODO(veil-NDX-910): Webpacks's sourcemap loader drops `ignoreList`
@@ -179,7 +362,6 @@ describe('app-dir - server source maps', () => {
       )
       if (isTurbopack) {
         // TODO(veil): Turbopack errors because it thinks the sources are not part of the project.
-        // TODO(veil-NDX-910): Turbopack's sourcemap loader drops `ignoreList` in browser sourcemaps.
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "ssr-error-log-ignore-listed",
@@ -191,12 +373,10 @@ describe('app-dir - server source maps', () => {
            "stack": [
              "logError app/ssr-error-log-ignore-listed/page.js (9:17)",
              "runWithInternalIgnored app/ssr-error-log-ignore-listed/page.js (19:13)",
-             "<FIXME-file-protocol>",
              "runWithExternalSourceMapped app/ssr-error-log-ignore-listed/page.js (18:29)",
-             "<FIXME-file-protocol>",
              "runWithExternal app/ssr-error-log-ignore-listed/page.js (17:32)",
              "runWithInternalSourceMapped app/ssr-error-log-ignore-listed/page.js (16:18)",
-             "<FIXME-file-protocol>",
+             "runInternalSourceMapped internal-pkg/sourcemapped.ts (5:10)",
              "runWithInternal app/ssr-error-log-ignore-listed/page.js (15:28)",
              "runInternal internal-pkg/index.js (2:10)",
              "Page app/ssr-error-log-ignore-listed/page.js (14:14)",
@@ -234,7 +414,7 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          '(bundler:///app/ssr-error-log-ignore-listed/page.js:9:17)'
+          '(app/ssr-error-log-ignore-listed/page.js:9:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '\n' +
@@ -259,22 +439,21 @@ describe('app-dir - server source maps', () => {
       })
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         isTurbopack
-          ? '\nError: rsc-error-log-ignore-listed' +
+          ? 'Error: rsc-error-log-ignore-listed' +
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:17)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:18:13)' +
               '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:17:29)' +
               '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:16:32)' +
               '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:15:18)' +
               // Realpath does not point into node_modules so we don't ignore it.
-              // TODO(veil): Should be internal-pkg/sourcemapped.ts
-              '\n    at runInternalSourceMapped (sourcemapped.ts:5:10)' +
+              '\n    at runInternalSourceMapped (internal-pkg/sourcemapped.ts:5:10)' +
               '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:14:28)' +
               // Realpath does not point into node_modules so we don't ignore it.
               '\n    at runInternal (internal-pkg/index.js:2:10)' +
               '\n    at Page (app/rsc-error-log-ignore-listed/page.js:13:14)' +
               '\n   6 |' +
               '\n'
-          : '\nError: rsc-error-log-ignore-listed' +
+          : 'Error: rsc-error-log-ignore-listed' +
               '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:17)' +
               '\n    at runWithInternalIgnored (app/rsc-error-log-ignore-listed/page.js:18:13)' +
               // TODO(veil): Webpacks's sourcemap loader drops `ignoreList`
@@ -300,7 +479,7 @@ describe('app-dir - server source maps', () => {
         // TODO(veil): Sourcemap names
         // TODO(veil): relative paths
         expect(normalizeCliOutput(next.cliOutput)).toContain(
-          'at <unknown> (bundler:///app/rsc-error-log-ignore-listed/page.js:8:17)'
+          'at <unknown> (app/rsc-error-log-ignore-listed/page.js:8:17)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -324,7 +503,7 @@ describe('app-dir - server source maps', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        '\n ⨯ Error: ssr-throw' +
+        '⨯ Error: ssr-throw' +
           '\n    at throwError (app/ssr-throw/Thrower.js:4:9)' +
           '\n    at Thrower (app/ssr-throw/Thrower.js:8:3)' +
           '\n  2 |' +
@@ -397,10 +576,9 @@ describe('app-dir - server source maps', () => {
         expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
           // Node.js is fine with invalid URLs in index maps apparently.
           '' +
-            '\nError: bad-sourcemap' +
-            '\n    at logError (custom://[badhost]/app/bad-sourcemap/page.js:6:17)' +
-            '\n    at Page (custom://[badhost]/app/bad-sourcemap/page.js:10:3)' +
-            // TODO: Remove blank line
+            'Error: bad-sourcemap' +
+            '\n    at logError (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:6:17)' +
+            '\n    at Page (app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:10:3)' +
             '\n'
         )
       } else {
@@ -422,7 +600,7 @@ describe('app-dir - server source maps', () => {
           normalizeCliOutput(next.cliOutput.slice(outputIndex)).split(
             'Invalid source map.'
           ).length - 1
-        ).toEqual(5)
+        ).toEqual(3)
       }
     } else {
       // Bundlers silently drop invalid sourcemaps.
@@ -446,18 +624,16 @@ describe('app-dir - server source maps', () => {
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       if (isTurbopack) {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/module.js:1:22)' +
+            '\n    at module evaluation (app/module-evaluation/module.js:1:22)' +
             // TODO(veil): Added frames from bundler should be sourcemapped (https://linear.app/vercel/issue/NDX-509/)
-            '\n    at __TURBOPACK__module__evaluation__ (app/module-evaluation/page.js:1:1)' +
-            '\n    at __TURBOPACK__module__evaluation__ (.next'
+            '\n    at module evaluation (app/module-evaluation/page.js:1:1)' +
+            '\n    at module evaluation (.next'
         )
       } else {
         expect(cliOutput).toContain(
-          '' +
-            '\nError: module-evaluation' +
+          'Error: module-evaluation' +
             // TODO(veil): Should map to no name like you'd get with native stacks without a bundler.
             // TODO(veil): Location should be sourcemapped
             '\n    at eval (app/module-evaluation/module.js:1:22)' +
@@ -478,15 +654,13 @@ describe('app-dir - server source maps', () => {
            "description": "module-evaluation",
            "environmentLabel": "Prerender",
            "label": "Console Error",
-           "source": "app/module-evaluation/module.js (1:22) @ {module evaluation}
+           "source": "app/module-evaluation/module.js (1:22) @ module evaluation
          > 1 | export const error = new Error('module-evaluation')
              |                      ^",
            "stack": [
-             "{module evaluation} app/module-evaluation/module.js (1:22)",
-             "{module evaluation} app/module-evaluation/page.js (1:1)",
-             "{module evaluation} app/module-evaluation/page.js (6:1)",
-             "Array.map <anonymous>",
-             "Function.all <anonymous>",
+             "module evaluation app/module-evaluation/module.js (1:22)",
+             "module evaluation app/module-evaluation/page.js (1:1)",
+             "module evaluation app/module-evaluation/page.js (6:1)",
              "Page <anonymous>",
            ],
          }
@@ -527,8 +701,6 @@ describe('app-dir - server source maps', () => {
              "<FIXME-file-protocol>",
              "eval about:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:65)",
              "<FIXME-file-protocol>",
-             "Function.all <anonymous>",
-             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }
@@ -540,7 +712,7 @@ describe('app-dir - server source maps', () => {
           '' +
             '\nError: module-evaluation' +
             // TODO(veil): Turbopack internals. Feel free to update. Tracked in https://linear.app/vercel/issue/NEXT-4362
-            '\n    at __TURBOPACK__module__evaluation__ (bundler:///app/module-evaluation/module.js:1:22)'
+            '\n    at module evaluation (app/module-evaluation/module.js:1:22)'
         )
         expect(normalizeCliOutput(next.cliOutput)).toContain(
           '' +
@@ -684,7 +856,7 @@ describe('app-dir - server source maps', () => {
 
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '' +
-          '\nError: rsc-anonymous-stack-frame-sandwich: external' +
+          'Error: rsc-anonymous-stack-frame-sandwich: external' +
           '\n    at Page (app/rsc-anonymous-stack-frame-sandwich/page.js:5:29)' +
           '\n  3 |' +
           '\n  4 | export default function Page() {' +
@@ -704,7 +876,6 @@ describe('app-dir - server source maps', () => {
       const browser = await next.browser('/ssr-anonymous-stack-frame-sandwich')
 
       if (isTurbopack) {
-        // TODO(veil): https://linear.app/vercel/issue/NEXT-4410/
         await expect(browser).toDisplayCollapsedRedbox(`
          [
            {
@@ -715,13 +886,6 @@ describe('app-dir - server source maps', () => {
          > 6 |   runHiddenSetOfSetsExternal('ssr-anonymous-stack-frame-sandwich: external')
              |                             ^",
              "stack": [
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
-               "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
-               "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
                "Page app/ssr-anonymous-stack-frame-sandwich/page.js (6:29)",
              ],
            },
@@ -733,13 +897,13 @@ describe('app-dir - server source maps', () => {
          >  7 |   runHiddenSetOfSetsInternal('ssr-anonymous-stack-frame-sandwich: internal')
               |                             ^",
              "stack": [
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
+               "<unknown> internal-pkg/sourcemapped.ts (18:43)",
+               "<unknown> internal-pkg/sourcemapped.ts (11:7)",
                "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
+               "<unknown> internal-pkg/sourcemapped.ts (10:9)",
                "Set.forEach <anonymous>",
-               "<FIXME-file-protocol>",
-               "<FIXME-file-protocol>",
+               "runSetOfSets internal-pkg/sourcemapped.ts (9:13)",
+               "runHiddenSetOfSets internal-pkg/sourcemapped.ts (17:3)",
                "Page app/ssr-anonymous-stack-frame-sandwich/page.js (7:29)",
              ],
            },
@@ -784,7 +948,7 @@ describe('app-dir - server source maps', () => {
 
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '' +
-          '\nError: ssr-anonymous-stack-frame-sandwich: external' +
+          'Error: ssr-anonymous-stack-frame-sandwich: external' +
           '\n    at Page (app/ssr-anonymous-stack-frame-sandwich/page.js:6:29)' +
           '\n  4 |' +
           '\n  5 | export default function Page() {' +

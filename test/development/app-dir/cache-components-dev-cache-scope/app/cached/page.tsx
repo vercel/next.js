@@ -1,8 +1,4 @@
-import {
-  unstable_expireTag,
-  unstable_cacheLife as cacheLife,
-  unstable_cacheTag,
-} from 'next/cache'
+import { revalidateTag, cacheLife, cacheTag } from 'next/cache'
 import { fetchData } from '../api/data'
 // import { Suspense } from 'react'
 // import { cookies, headers } from 'next/headers'
@@ -13,7 +9,7 @@ function InnerComponent({ children }) {
 
 async function refresh() {
   'use server'
-  unstable_expireTag('hello')
+  revalidateTag('hello')
 }
 
 async function reload() {
@@ -23,7 +19,7 @@ async function reload() {
 async function Component() {
   'use cache'
   cacheLife({ revalidate: 30 })
-  unstable_cacheTag('hello')
+  cacheTag('hello')
   return <InnerComponent>{await fetchData()}</InnerComponent>
 }
 

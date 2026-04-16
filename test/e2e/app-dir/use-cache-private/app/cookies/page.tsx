@@ -1,4 +1,4 @@
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
@@ -13,7 +13,7 @@ export default function Page() {
 async function Private() {
   'use cache: private'
 
-  unstable_cacheLife({ stale: 420 })
+  cacheLife({ stale: 420 })
   const cookie = (await cookies()).get('test-cookie')
 
   const { headers } = await fetch(

@@ -21,7 +21,6 @@ import {
 const DIGEST = `${HTTP_ERROR_FALLBACK_ERROR_CODE};404`
 
 export function notFound(): never {
-  // eslint-disable-next-line no-throw-literal
   const error = new Error(DIGEST) as HTTPAccessFallbackError
   ;(error as HTTPAccessFallbackError).digest = DIGEST
 

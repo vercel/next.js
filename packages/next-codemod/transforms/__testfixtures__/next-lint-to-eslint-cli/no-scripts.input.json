@@ -1,7 +1,0 @@
-{
-  "name": "app-without-scripts",
-  "version": "1.0.0",
-  "dependencies": {
-    "next": "15.0.0"
-  }
-}

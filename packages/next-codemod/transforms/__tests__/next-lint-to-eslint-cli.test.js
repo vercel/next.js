@@ -1,491 +1,601 @@
-/* global jest */
-jest.autoMockOff()
 const fs = require('fs')
 const path = require('path')
-const { tmpdir } = require('os')
-const transformer = require('../next-lint-to-eslint-cli').default
+const os = require('os')
 
 describe('next-lint-to-eslint-cli', () => {
-  let tempDir
+  let isolatedDir
+  let transformer
+  let fixturesDir
 
-  beforeEach(() => {
-    // Create a unique temp directory for each test
-    tempDir = fs.mkdtempSync(path.join(tmpdir(), 'codemod-test-'))
-  })
-
-  afterEach(() => {
-    // Clean up temp directory
-    if (tempDir && fs.existsSync(tempDir)) {
-      fs.rmSync(tempDir, { recursive: true, force: true })
-    }
-  })
-
-  test('transforms correctly using basic data', () => {
-    // Read input fixture
-    const inputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/basic.input.json')
-    const expectedOutputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/basic.output.json')
-    
-    const inputContent = fs.readFileSync(inputPath, 'utf8')
-    const expectedOutput = fs.readFileSync(expectedOutputPath, 'utf8')
-
-    // Set up test project
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    const tsConfigPath = path.join(tempDir, 'tsconfig.json')
-    
-    fs.writeFileSync(packageJsonPath, inputContent)
-    fs.writeFileSync(tsConfigPath, '{}') // Create tsconfig.json to indicate TypeScript project
-
-    // Run transformer
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    // Check package.json was updated correctly
-    const actualPackageJson = fs.readFileSync(packageJsonPath, 'utf8')
-    expect(JSON.parse(actualPackageJson)).toEqual(JSON.parse(expectedOutput))
-
-    // Check eslint.config.mjs was created
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.mjs')
-    expect(fs.existsSync(eslintConfigPath)).toBe(true)
-    
-    const eslintConfig = fs.readFileSync(eslintConfigPath, 'utf8')
-    expect(eslintConfig).toContain('next/core-web-vitals')
-    expect(eslintConfig).toContain('next/typescript')
-    expect(eslintConfig).toContain('ignores:')
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('transforms correctly using existing-eslint data', () => {
-    // Read input fixture
-    const inputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/existing-eslint.input.json')
-    const expectedOutputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/existing-eslint.output.json')
-    
-    const inputContent = fs.readFileSync(inputPath, 'utf8')
-    const expectedOutput = fs.readFileSync(expectedOutputPath, 'utf8')
-
-    // Set up test project
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    const existingEslintPath = path.join(tempDir, '.eslintrc.json')
-    
-    fs.writeFileSync(packageJsonPath, inputContent)
-    fs.writeFileSync(existingEslintPath, '{"extends": ["next"]}') // Create existing ESLint config
-
-    // Run transformer
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    // Check package.json was updated correctly
-    const actualPackageJson = fs.readFileSync(packageJsonPath, 'utf8')
-    expect(JSON.parse(actualPackageJson)).toEqual(JSON.parse(expectedOutput))
-
-    // Check that no new eslint.config.mjs was created (existing config should be preserved)
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.mjs')
-    expect(fs.existsSync(eslintConfigPath)).toBe(false)
-
-    // Check that existing config still exists
-    expect(fs.existsSync(existingEslintPath)).toBe(true)
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('handles complex script patterns correctly', () => {
-    const inputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/complex-scripts.input.json')
-    const expectedOutputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/complex-scripts.output.json')
-    
-    const inputContent = fs.readFileSync(inputPath, 'utf8')
-    const expectedOutput = fs.readFileSync(expectedOutputPath, 'utf8')
-
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    fs.writeFileSync(packageJsonPath, inputContent)
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    const actualPackageJson = fs.readFileSync(packageJsonPath, 'utf8')
-    expect(JSON.parse(actualPackageJson)).toEqual(JSON.parse(expectedOutput))
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('updates existing ES module flat config with AST manipulation', () => {
-    const inputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/existing-flat-config.input.json')
-    const expectedOutputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/existing-flat-config.output.json')
-    const eslintConfigFixture = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/existing-flat-config.eslint.js')
-    
-    const inputContent = fs.readFileSync(inputPath, 'utf8')
-    const expectedOutput = fs.readFileSync(expectedOutputPath, 'utf8')
-    const eslintConfigContent = fs.readFileSync(eslintConfigFixture, 'utf8')
-
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.js')
-    
-    fs.writeFileSync(packageJsonPath, inputContent)
-    fs.writeFileSync(eslintConfigPath, eslintConfigContent)
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    // Check package.json was updated
-    const actualPackageJson = fs.readFileSync(packageJsonPath, 'utf8')
-    expect(JSON.parse(actualPackageJson)).toEqual(JSON.parse(expectedOutput))
-
-    // Check that existing config was updated with Next.js configs
-    const updatedConfig = fs.readFileSync(eslintConfigPath, 'utf8')
-    expect(updatedConfig).toContain('FlatCompat')
-    expect(updatedConfig).toContain('next/core-web-vitals')
-    expect(updatedConfig).toContain('no-console') // Original rule should be preserved
-    expect(updatedConfig).toContain('semi') // Original rule should be preserved
-    expect(updatedConfig).toContain('ignores') // Should add ignores section
-    expect(updatedConfig).toContain('.next/**') // Should include Next.js build directory
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('updates existing CommonJS flat config with AST manipulation', () => {
-    const inputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/existing-flat-config.input.json')
-    const expectedOutputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/existing-flat-config.output.json')
-    const eslintConfigFixture = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/cjs-flat-config.eslint.cjs')
-    
-    const inputContent = fs.readFileSync(inputPath, 'utf8')
-    const expectedOutput = fs.readFileSync(expectedOutputPath, 'utf8')
-    const eslintConfigContent = fs.readFileSync(eslintConfigFixture, 'utf8')
-
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.cjs')
-    
-    fs.writeFileSync(packageJsonPath, inputContent)
-    fs.writeFileSync(eslintConfigPath, eslintConfigContent)
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    // Check package.json was updated
-    const actualPackageJson = fs.readFileSync(packageJsonPath, 'utf8')
-    expect(JSON.parse(actualPackageJson)).toEqual(JSON.parse(expectedOutput))
-
-    // Check that existing config was updated with Next.js configs
-    const updatedConfig = fs.readFileSync(eslintConfigPath, 'utf8')
-    expect(updatedConfig).toContain('FlatCompat')
-    expect(updatedConfig).toContain('require')
-    expect(updatedConfig).toContain('next/core-web-vitals')
-    expect(updatedConfig).toContain('quotes') // Original rule should be preserved
-    expect(updatedConfig).toContain('indent') // Original rule should be preserved
-    expect(updatedConfig).toContain('ignores') // Should add ignores section
-    expect(updatedConfig).toContain('node_modules/**') // Should include common ignores
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('handles package.json without scripts section', () => {
-    const inputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/no-scripts.input.json')
-    const expectedOutputPath = path.join(__dirname, '../__testfixtures__/next-lint-to-eslint-cli/no-scripts.output.json')
-    
-    const inputContent = fs.readFileSync(inputPath, 'utf8')
-    const expectedOutput = fs.readFileSync(expectedOutputPath, 'utf8')
-
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    fs.writeFileSync(packageJsonPath, inputContent)
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    // Check package.json was updated with dependencies only
-    const actualPackageJson = fs.readFileSync(packageJsonPath, 'utf8')
-    expect(JSON.parse(actualPackageJson)).toEqual(JSON.parse(expectedOutput))
-
-    // Check that eslint.config.mjs was created
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.mjs')
-    expect(fs.existsSync(eslintConfigPath)).toBe(true)
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('preserves existing eslint dependencies', () => {
-    const packageJson = {
-      name: 'app-with-eslint',
-      scripts: {
-        lint: 'next lint'
-      },
-      dependencies: {
-        next: '15.0.0'
-      },
-      devDependencies: {
-        eslint: '^8.57.0',
-        'eslint-config-next': '14.2.0'
-      }
-    }
-
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    const actualPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-    
-    // Should preserve existing eslint versions
-    expect(actualPackageJson.devDependencies.eslint).toBe('^8.57.0')
-    expect(actualPackageJson.devDependencies['eslint-config-next']).toBe('14.2.0')
-    // Should add missing @eslint/eslintrc
-    expect(actualPackageJson.devDependencies['@eslint/eslintrc']).toBe('^3')
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('handles TypeScript config files', () => {
-    const packageJson = {
-      name: 'app-with-ts-config',
-      scripts: {
-        lint: 'next lint'
-      },
-      dependencies: {
-        next: '15.0.0'
-      }
-    }
-
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.ts')
-    
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-    fs.writeFileSync(eslintConfigPath, 'export default []')
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    // Should log that TypeScript configs require manual migration
-    expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.stringContaining('TypeScript config files require manual migration')
+  beforeAll(() => {
+    // Create isolated directory ONCE
+    const tmpBase = process.env.NEXT_TEST_DIR || os.tmpdir()
+    isolatedDir = path.join(
+      tmpBase,
+      `next-lint-to-eslint-cli-test-${Date.now()}-${(Math.random() * 1000) | 0}`
     )
+    fs.mkdirSync(isolatedDir, { recursive: true })
 
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-    consoleWarnSpy.mockRestore()
+    // Copy all fixtures ONCE
+    fixturesDir = path.join(isolatedDir, 'fixtures')
+    const fixturesSrc = path.join(
+      __dirname,
+      '../__testfixtures__/next-lint-to-eslint-cli'
+    )
+    fs.cpSync(fixturesSrc, fixturesDir, { recursive: true })
+
+    // Load transformer from original location (has all dependencies)
+    transformer = require('../next-lint-to-eslint-cli.js').default
   })
 
-  test('handles missing package.json gracefully', () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error: package.json not found in the specified directory')
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('handles missing directory argument', () => {
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([], { skipInstall: true })
-
-    expect(consoleErrorSpy).toHaveBeenCalledWith('Error: Please specify a directory path')
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
-  })
-
-  test('creates JavaScript config for non-TypeScript projects', () => {
-    const packageJson = {
-      name: 'js-app',
-      scripts: {
-        lint: 'next lint'
-      },
-      dependencies: {
-        next: '15.0.0',
-        react: '^18.0.0'
-      }
+  afterAll(() => {
+    // Clean up ONCE after all tests
+    if (isolatedDir && fs.existsSync(isolatedDir)) {
+      fs.rmSync(isolatedDir, { recursive: true, force: true })
     }
-
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
-
-    // Check that eslint.config.mjs was created without TypeScript config
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.mjs')
-    const eslintConfig = fs.readFileSync(eslintConfigPath, 'utf8')
-    
-    expect(eslintConfig).toContain('next/core-web-vitals')
-    expect(eslintConfig).not.toContain('next/typescript')
-
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
   })
 
-  test('adds ignores even when Next.js configs are already present', () => {
-    const existingConfig = `
-import { FlatCompat } from "@eslint/eslintrc"
-const compat = new FlatCompat({ baseDirectory: __dirname })
-export default [
-  ...compat.extends("next/core-web-vitals"),
-  { rules: { "no-console": "warn" } }
-]`
+  describe('flat-config', () => {
+    it('should keep config unchanged and transform package.json', () => {
+      const testDir = path.join(fixturesDir, 'flat-config')
+      // Check BEFORE state
+      const beforeConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      const beforePackage = fs.readFileSync(
+        path.join(testDir, 'package.json'),
+        'utf8'
+      )
 
-    const packageJson = {
-      name: 'app-with-next-config',
-      scripts: {
-        lint: 'next lint'
-      },
-      dependencies: {
-        next: '15.0.0'
-      }
-    }
+      expect(beforeConfig).toMatchInlineSnapshot(`
+       "import { defineConfig } from 'eslint/config'
+       import foo from 'foo'
+       import bar from 'bar'
 
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.js')
-    
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-    fs.writeFileSync(eslintConfigPath, existingConfig)
+       const eslintConfig = defineConfig([
+         foo,
+         bar,
+         {
+           ignores: [
+             'node_modules/**',
+             '.next/**',
+             'out/**',
+             'build/**',
+             'next-env.d.ts',
+           ],
+         },
+       ])
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
+       export default eslintConfig
+       "
+      `)
 
-    // Should still add ignores even though Next.js configs are present
-    const updatedConfig = fs.readFileSync(eslintConfigPath, 'utf8')
-    expect(updatedConfig).toContain('ignores')
-    expect(updatedConfig).toContain('.next/**')
-    expect(updatedConfig).toContain('node_modules/**')
+      expect(beforePackage).toMatchInlineSnapshot(`
+        "{
+          "scripts": {
+            "lint": "next lint --fix --dir src --dir pages",
+            "lint:strict": "next lint --strict",
+            "lint:ci": "next lint --quiet --output-file lint-results.json",
+            "precommit": "next lint --fix && npm test",
+            "test": "jest && next lint",
+            "complex": "npm run build && next lint --dir . --ext .js,.jsx,.ts,.tsx 2>/dev/null",
+            "pipe": "next lint | tee lint.log",
+            "redirect": "next lint > output.txt 2>&1",
+            "multi": "next lint; next build; next lint --fix"
+          },
+          "dependencies": {
+            "react": "^19",
+            "react-dom": "^19",
+            "next": "^16"
+          },
+          "devDependencies": {
+            "typescript": "^5",
+            "@types/node": "^20",
+            "@types/react": "^19",
+            "@types/react-dom": "^19",
+            "eslint": "^8",
+            "eslint-config-next": "^16"
+          }
+        }
+        "
+      `)
 
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
+      // Run transformer
+      transformer([testDir], { skipInstall: true })
+
+      // Check AFTER state
+      const actualConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      expect(actualConfig).toMatchInlineSnapshot(`
+       "import next from "eslint-config-next";
+       import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
+       import { defineConfig } from 'eslint/config'
+       import foo from 'foo'
+       import bar from 'bar'
+
+       const eslintConfig = defineConfig([...next, ...nextCoreWebVitals, ...nextTypescript, foo, bar, {
+         ignores: [
+           'node_modules/**',
+           '.next/**',
+           'out/**',
+           'build/**',
+           'next-env.d.ts',
+         ],
+       }])
+
+       export default eslintConfig
+       "
+      `)
+
+      // Check package.json transformed
+      const actualPackage = fs.readFileSync(
+        path.join(testDir, 'package.json'),
+        'utf8'
+      )
+      expect(actualPackage).toMatchInlineSnapshot(`
+       "{
+         "scripts": {
+           "lint": "eslint --fix src pages",
+           "lint:strict": "eslint --max-warnings 0 .",
+           "lint:ci": "eslint --quiet --output-file lint-results.json .",
+           "precommit": "eslint --fix . && npm test",
+           "test": "jest && eslint .",
+           "complex": "npm run build && eslint . 2>/dev/null",
+           "pipe": "eslint . | tee lint.log",
+           "redirect": "eslint . > output.txt 2>&1",
+           "multi": "eslint .; next build; eslint --fix ."
+         },
+         "dependencies": {
+           "react": "^19",
+           "react-dom": "^19",
+           "next": "^16"
+         },
+         "devDependencies": {
+           "typescript": "^5",
+           "@types/node": "^20",
+           "@types/react": "^19",
+           "@types/react-dom": "^19",
+           "eslint": "^9",
+           "eslint-config-next": "^16"
+         }
+       }
+       "
+      `)
+    })
   })
 
-  test('handles scripts with paths containing spaces', () => {
-    const packageJson = {
-      name: 'app-with-spaces',
-      scripts: {
-        lint: 'next lint --dir "src/my components" --file "test file.js"'
-      },
-      dependencies: {
-        next: '15.0.0'
-      }
-    }
+  describe('flat-config-flat-compat', () => {
+    it('should replace FlatCompat with direct imports and transform package.json', () => {
+      const testDir = path.join(fixturesDir, 'flat-config-flat-compat')
+      // Check BEFORE state
+      const beforeConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      const beforePackage = fs.readFileSync(
+        path.join(testDir, 'package.json'),
+        'utf8'
+      )
 
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+      expect(beforeConfig).toMatchInlineSnapshot(`
+       "import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+       import { FlatCompat } from '@eslint/eslintrc'
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
 
-    const actualPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-    expect(actualPackageJson.scripts.lint).toBe('eslint "src/my components" "test file.js"')
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       })
 
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
+       const eslintConfig = [
+         ...compat.extends('next/core-web-vitals', 'next/typescript'),
+         {
+           ignores: [
+             'node_modules/**',
+             '.next/**',
+             'out/**',
+             'build/**',
+             'next-env.d.ts',
+           ],
+         },
+       ]
+
+       export default eslintConfig
+       "
+      `)
+
+      expect(beforePackage).toMatchInlineSnapshot(`
+        "{
+          "scripts": {
+            "lint": "next lint --fix --dir src --dir pages",
+            "lint:strict": "next lint --strict",
+            "lint:ci": "next lint --quiet --output-file lint-results.json",
+            "precommit": "next lint --fix && npm test",
+            "test": "jest && next lint",
+            "complex": "npm run build && next lint --dir . --ext .js,.jsx,.ts,.tsx 2>/dev/null",
+            "pipe": "next lint | tee lint.log",
+            "redirect": "next lint > output.txt 2>&1",
+            "multi": "next lint; next build; next lint --fix"
+          },
+          "dependencies": {
+            "react": "^19",
+            "react-dom": "^19",
+            "next": "^16"
+          },
+          "devDependencies": {
+            "typescript": "^5",
+            "@types/node": "^20",
+            "@types/react": "^19",
+            "@types/react-dom": "^19",
+            "eslint": "^8",
+            "eslint-config-next": "^16"
+          }
+        }
+        "
+      `)
+
+      // Run transformer
+      transformer([testDir], { skipInstall: true })
+
+      // Check AFTER state
+      const actualConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      expect(actualConfig).toMatchInlineSnapshot(`
+       "import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
+       import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
+
+       const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
+         ignores: [
+           'node_modules/**',
+           '.next/**',
+           'out/**',
+           'build/**',
+           'next-env.d.ts',
+         ],
+       }]
+
+       export default eslintConfig
+       "
+      `)
+
+      // Check package.json transformed
+      const actualPackage = fs.readFileSync(
+        path.join(testDir, 'package.json'),
+        'utf8'
+      )
+      expect(actualPackage).toMatchInlineSnapshot(`
+       "{
+         "scripts": {
+           "lint": "eslint --fix src pages",
+           "lint:strict": "eslint --max-warnings 0 .",
+           "lint:ci": "eslint --quiet --output-file lint-results.json .",
+           "precommit": "eslint --fix . && npm test",
+           "test": "jest && eslint .",
+           "complex": "npm run build && eslint . 2>/dev/null",
+           "pipe": "eslint . | tee lint.log",
+           "redirect": "eslint . > output.txt 2>&1",
+           "multi": "eslint .; next build; eslint --fix ."
+         },
+         "dependencies": {
+           "react": "^19",
+           "react-dom": "^19",
+           "next": "^16"
+         },
+         "devDependencies": {
+           "typescript": "^5",
+           "@types/node": "^20",
+           "@types/react": "^19",
+           "@types/react-dom": "^19",
+           "eslint": "^9",
+           "eslint-config-next": "^16"
+         }
+       }
+       "
+      `)
+    })
   })
 
-  test('does not duplicate ignores if already present', () => {
-    const packageJson = {
-      name: 'app-with-existing-ignores',
-      scripts: {
-        lint: 'next lint'
-      },
-      dependencies: {
-        next: '15.0.0'
-      }
-    }
+  describe('flat-config-flat-compat-with-other-compat', () => {
+    it('should replace FlatCompat config with direct imports while preserving other configs', () => {
+      const testDir = path.join(
+        fixturesDir,
+        'flat-config-flat-compat-with-other-compat'
+      )
+      // Check BEFORE state
+      const beforeConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
 
-    const existingConfig = `export default [
-  {
-    ignores: ["dist/**", "coverage/**"]
-  },
-  {
-    rules: {
-      "no-unused-vars": "warn"
-    }
-  }
-]`
+      expect(beforeConfig).toMatchInlineSnapshot(`
+       "import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+       import { FlatCompat } from '@eslint/eslintrc'
 
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    const eslintConfigPath = path.join(tempDir, 'eslint.config.js')
-    
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-    fs.writeFileSync(eslintConfigPath, existingConfig)
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       })
 
-    const updatedConfig = fs.readFileSync(eslintConfigPath, 'utf8')
-    
-    // Should add Next.js extends
-    expect(updatedConfig).toContain('next/core-web-vitals')
-    
-    // Should preserve existing ignores
-    expect(updatedConfig).toContain('dist/**')
-    expect(updatedConfig).toContain('coverage/**')
-    
-    // Check that Next.js ignores are added to existing ignores
-    expect(updatedConfig).toContain('.next/**') // Next.js build dir added
-    expect(updatedConfig).toContain('node_modules/**') // Common ignore added
-    
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
+       const eslintConfig = [
+         ...compat.config({
+           extends: ['next/core-web-vitals', 'next/typescript'],
+         }),
+         ...compat.config({
+           extends: ['foo', 'bar'],
+         }),
+         {
+           ignores: [
+             'node_modules/**',
+             '.next/**',
+             'out/**',
+             'build/**',
+             'next-env.d.ts',
+           ],
+         },
+       ]
+
+       export default eslintConfig
+       "
+      `)
+
+      // Run transformer
+      transformer([testDir], { skipInstall: true })
+
+      // Check AFTER state
+      const actualConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      expect(actualConfig).toMatchInlineSnapshot(`
+       "import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
+       import { dirname } from 'path'
+       import { fileURLToPath } from 'url'
+       import { FlatCompat } from '@eslint/eslintrc'
+
+       const __filename = fileURLToPath(import.meta.url)
+       const __dirname = dirname(__filename)
+
+       const compat = new FlatCompat({
+         baseDirectory: __dirname,
+       })
+
+       const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, ...compat.config({
+         extends: ['foo', 'bar']
+       }), {
+         ignores: [
+           'node_modules/**',
+           '.next/**',
+           'out/**',
+           'build/**',
+           'next-env.d.ts',
+         ],
+       }]
+
+       export default eslintConfig
+       "
+      `)
+    })
   })
 
-  test('handles unsupported flags with warnings', () => {
-    const packageJson = {
-      name: 'app-with-unsupported-flags',
-      scripts: {
-        lint: 'next lint --rulesdir ./custom-rules --ext .js,.jsx'
-      },
-      dependencies: {
-        next: '15.0.0'
-      }
-    }
+  describe('legacy-config', () => {
+    it('should migrate legacy config to flat config and transform package.json', async () => {
+      const testDir = path.join(fixturesDir, 'legacy-config')
+      // Check BEFORE state
+      const beforeEslintrc = fs.readFileSync(
+        path.join(testDir, '.eslintrc.json'),
+        'utf8'
+      )
+      const beforeEslintignore = fs.readFileSync(
+        path.join(testDir, '.eslintignore'),
+        'utf8'
+      )
+      const beforePackage = fs.readFileSync(
+        path.join(testDir, 'package.json'),
+        'utf8'
+      )
 
-    const packageJsonPath = path.join(tempDir, 'package.json')
-    fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+      expect(beforeEslintrc).toMatchInlineSnapshot(`
+       "{
+         "$schema": "https://json.schemastore.org/eslintrc",
+         "root": true,
+         "extends": [
+           "next/core-web-vitals",
+           "next",
+           "next/typescript",
+           "turbo",
+           "prettier",
+           "plugin:tailwindcss/recommended"
+         ],
+         "plugins": ["tailwindcss"],
+         "ignorePatterns": ["**/fixtures/**"],
+         "rules": {
+           "@next/next/no-html-link-for-pages": "off",
+           "tailwindcss/no-custom-classname": "off",
+           "tailwindcss/classnames-order": "error"
+         },
+         "settings": {
+           "tailwindcss": {
+             "callees": ["cn", "cva"],
+             "config": "tailwind.config.cjs"
+           },
+           "next": {
+             "rootDir": ["apps/*/"]
+           }
+         },
+         "overrides": [
+           {
+             "files": ["*.ts", "*.tsx"],
+             "parser": "@typescript-eslint/parser"
+           }
+         ]
+       }"
+      `)
 
-    const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {})
-    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {})
-    
-    transformer([tempDir], { skipInstall: true })
+      expect(beforeEslintignore).toMatchInlineSnapshot(`
+        "node_modules/**
+        .next/**
+        out/**
+        build/**
+        next-env.d.ts
+        **/*.md"
+      `)
 
-    // Should show warnings about unsupported flags
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('--rulesdir is not supported in ESLint v9'))
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('--ext is not needed in ESLint v9'))
+      expect(beforePackage).toMatchInlineSnapshot(`
+        "{
+          "scripts": {
+            "lint": "next lint --fix --dir src --dir pages",
+            "lint:strict": "next lint --strict",
+            "lint:ci": "next lint --quiet --output-file lint-results.json",
+            "precommit": "next lint --fix && npm test",
+            "test": "jest && next lint",
+            "complex": "npm run build && next lint --dir . --ext .js,.jsx,.ts,.tsx 2>/dev/null",
+            "pipe": "next lint | tee lint.log",
+            "redirect": "next lint > output.txt 2>&1",
+            "multi": "next lint; next build; next lint --fix"
+          },
+          "dependencies": {
+            "react": "^19",
+            "react-dom": "^19",
+            "next": "^16"
+          },
+          "devDependencies": {
+            "typescript": "^5",
+            "@types/node": "^20",
+            "@types/react": "^19",
+            "@types/react-dom": "^19",
+            "eslint": "^8",
+            "eslint-config-next": "^16"
+          }
+        }
+        "
+      `)
 
-    // Script should be updated without the unsupported flags
-    const actualPackageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
-    expect(actualPackageJson.scripts.lint).toBe('eslint .')
+      // Run transformer (now async)
+      await transformer([testDir], { skipInstall: true })
 
-    consoleSpy.mockRestore()
-    consoleErrorSpy.mockRestore()
+      // Check AFTER state - eslint.config.mjs was created and transformed
+      const actualConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.mjs'),
+        'utf8'
+      )
+      expect(actualConfig).toMatchInlineSnapshot(`
+       "import { defineConfig, globalIgnores } from "eslint/config";
+       import next from "eslint-config-next";
+       import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
+       import nextTypescript from "eslint-config-next/typescript";
+       import tailwindcss from "eslint-plugin-tailwindcss";
+       import tsParser from "@typescript-eslint/parser";
+       import path from "node:path";
+       import { fileURLToPath } from "node:url";
+       import js from "@eslint/js";
+       import { FlatCompat } from "@eslint/eslintrc";
+
+       const __filename = fileURLToPath(import.meta.url);
+       const __dirname = path.dirname(__filename);
+       const compat = new FlatCompat({
+           baseDirectory: __dirname,
+           recommendedConfig: js.configs.recommended,
+           allConfig: js.configs.all
+       });
+
+       export default defineConfig([globalIgnores([
+           "**/fixtures/**/*",
+           "node_modules/**/*",
+           ".next/**/*",
+           "out/**/*",
+           "build/**/*",
+           "**/next-env.d.ts",
+           "**/*.md",
+       ]), {
+           extends: [
+               ...nextCoreWebVitals,
+               ...next,
+               ...nextTypescript,
+               ...compat.extends("turbo"),
+               ...compat.extends("prettier"),
+               ...compat.extends("plugin:tailwindcss/recommended")
+           ],
+
+           plugins: {
+               tailwindcss,
+           },
+
+           settings: {
+               tailwindcss: {
+                   callees: ["cn", "cva"],
+                   config: "tailwind.config.cjs",
+               },
+
+               next: {
+                   rootDir: ["apps/*/"],
+               },
+           },
+
+           rules: {
+               "@next/next/no-html-link-for-pages": "off",
+               "tailwindcss/no-custom-classname": "off",
+               "tailwindcss/classnames-order": "error",
+           },
+       }, {
+           files: ["**/*.ts", "**/*.tsx"],
+
+           languageOptions: {
+               parser: tsParser,
+           },
+       }]);"
+      `)
+
+      // Check package.json transformed
+      const actualPackage = fs.readFileSync(
+        path.join(testDir, 'package.json'),
+        'utf8'
+      )
+      expect(actualPackage).toMatchInlineSnapshot(`
+        "{
+          "scripts": {
+            "lint": "eslint --fix src pages",
+            "lint:strict": "eslint --max-warnings 0 .",
+            "lint:ci": "eslint --quiet --output-file lint-results.json .",
+            "precommit": "eslint --fix . && npm test",
+            "test": "jest && eslint .",
+            "complex": "npm run build && eslint . 2>/dev/null",
+            "pipe": "eslint . | tee lint.log",
+            "redirect": "eslint . > output.txt 2>&1",
+            "multi": "eslint .; next build; eslint --fix ."
+          },
+          "dependencies": {
+            "react": "^19",
+            "react-dom": "^19",
+            "next": "^16"
+          },
+          "devDependencies": {
+            "typescript": "^5",
+            "@types/node": "^20",
+            "@types/react": "^19",
+            "@types/react-dom": "^19",
+            "eslint": "^9",
+            "eslint-config-next": "^16"
+          }
+        }
+        "
+      `)
+    })
   })
 })

@@ -13,7 +13,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc, turbobail};
 use turbopack_core::{ident::AssetIdent, resolve::ModulePart, source::Source};
 
 use self::graph::{DepGraph, ItemData, ItemId, ItemIdGroupKind, Mode, SplitModuleResult};
@@ -24,12 +24,11 @@ use crate::{
     EcmascriptModuleAsset, EcmascriptParsable, analyzer::graph::EvalContext, parse::ParseResult,
 };
 
-pub mod asset;
-pub mod chunk_item;
 mod graph;
 pub mod merge;
 mod optimizations;
-pub mod side_effect_module;
+pub mod part;
+pub mod side_effects;
 #[cfg(test)]
 mod tests;
 mod util;
@@ -493,7 +492,6 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
     }
 
     let parse_result = parsed.await?;
-    let source = asset.source().to_resolved().await?;
 
     match &*parse_result {
         ParseResult::Ok {
@@ -571,7 +569,6 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
                         None,
-                        Some(source),
                     );
 
                     ParseResult::resolved_cell(ParseResult::Ok {
@@ -580,6 +577,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                         comments: comments.clone(),
                         source_map: source_map.clone(),
                         eval_context,
+                        source_mapping_url: None,
                     })
                 })
                 .collect();
@@ -696,7 +694,6 @@ pub(crate) async fn part_of_module(
                         eval_context.top_level_mark,
                         eval_context.force_free_values.clone(),
                         None,
-                        None,
                     );
 
                     return Ok(ParseResult::Ok {
@@ -705,6 +702,7 @@ pub(crate) async fn part_of_module(
                         eval_context,
                         globals: globals.clone(),
                         source_map: source_map.clone(),
+                        source_mapping_url: None,
                     }
                     .cell());
                 } else {
@@ -715,11 +713,11 @@ pub(crate) async fn part_of_module(
             let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
-                bail!(
+                turbobail!(
                     "part_id is out of range: {part_id} >= {}; asset = {}; entrypoints = \
                      {entrypoints:?}: part_deps = {deps:?}",
-                    asset_ident.to_string().await?,
                     modules.len(),
+                    *asset_ident
                 );
             }
 

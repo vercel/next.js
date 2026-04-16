@@ -35,10 +35,6 @@ export function runTests(
       delete packageJson.dependencies['react']
       delete packageJson.dependencies['react-dom']
 
-      if (process.env.NEXT_RSPACK) {
-        packageJson.dependencies['@rspack/core'] = 'latest'
-      }
-
       next = await createNext({
         files: srcFiles.reduce(
           (prev, file) => {
@@ -62,7 +58,7 @@ export function runTests(
             ' '
           )}`
         },
-        buildCommand: `yarn next build --no-lint`,
+        buildCommand: `yarn next build`,
         startCommand: (global as any).isNextDev
           ? `yarn next`
           : `yarn next start`,

@@ -12,30 +12,28 @@ Next.js automatically attempts to detect the smooth scrolling configuration to e
 
 Add `data-scroll-behavior="smooth"` to your `<html>` element if you want to disable smooth scrolling when routing via Next.js.
 
-```html filename="app/layout.tsx"
-export default function RootLayout({ children, }: { children: React.ReactNode })
-{ return (
-<html lang="en" data-scroll-behavior="smooth">
-  <body>
-    {children}
-  </body>
-</html>
-) }
+```tsx filename="app/layout.tsx" switcher
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return (
+    <html lang="en" data-scroll-behavior="smooth">
+      <body>{children}</body>
+    </html>
+  )
+}
 ```
 
-Or if you're using the Pages Router:
-
-```html filename="pages/_document.tsx"
-import { Html, Head, Main, NextScript } from 'next/document' export default
-function Document() { return (
-<html lang="en" data-scroll-behavior="smooth">
-  <head />
-  <body>
-    <main />
-    <NextScript />
-  </body>
-</html>
-) }
+```jsx filename="app/layout.js" switcher
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en" data-scroll-behavior="smooth">
+      <body>{children}</body>
+    </html>
+  )
+}
 ```
 
 ## Why This Optimization Matters

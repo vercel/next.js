@@ -40,7 +40,6 @@ function minDistance(a, b) {
   return previousRow[previousRow.length - 1]
 }
 
-/* eslint-disable eslint-plugin/require-meta-docs-url */
 export default defineRule({
   meta: {
     docs: {

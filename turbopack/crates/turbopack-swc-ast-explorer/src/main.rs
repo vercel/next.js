@@ -35,10 +35,7 @@ fn main() -> Result<()> {
     let target = EsVersion::latest();
     let syntax = Syntax::Typescript(TsSyntax {
         tsx: true,
-        decorators: false,
-        dts: false,
-        no_early_errors: true,
-        disallow_ambiguous_jsx_like: false,
+        ..Default::default()
     });
 
     let compiler = Compiler::new(sm.clone());

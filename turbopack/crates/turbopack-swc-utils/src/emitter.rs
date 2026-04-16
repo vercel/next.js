@@ -20,7 +20,7 @@ pub struct IssueCollector {
 }
 
 impl IssueCollector {
-    pub async fn emit(self) -> Result<()> {
+    pub async fn emit(self, loose_errors: bool) -> Result<()> {
         let issues = {
             let mut inner = self.inner.lock();
             take(&mut inner.emitted_issues)
@@ -28,7 +28,11 @@ impl IssueCollector {
 
         for issue in issues {
             AnalyzeIssue::new(
-                issue.severity,
+                if loose_errors && issue.severity <= IssueSeverity::Error {
+                    IssueSeverity::Warning
+                } else {
+                    issue.severity
+                },
                 issue.source.ident(),
                 Vc::cell(issue.title),
                 issue.message.cell(),
@@ -107,14 +111,15 @@ impl Emitter for IssueEmitter {
             .map(|s| s.0.as_ref())
             .collect::<Vec<_>>()
             .join("");
-        let code = db.code.as_ref().map(|d| match d {
-            DiagnosticId::Error(s) => format!("error {s}").into(),
-            DiagnosticId::Lint(s) => format!("lint {s}").into(),
-        });
         let is_lint = db
             .code
             .as_ref()
             .is_some_and(|d| matches!(d, DiagnosticId::Lint(_)));
+
+        let code = db.code.map(|d| match d {
+            DiagnosticId::Error(s) => s.into(),
+            DiagnosticId::Lint(s) => format!("lint {s}").into(),
+        });
 
         let severity = if is_lint {
             IssueSeverity::Suggestion
@@ -131,13 +136,19 @@ impl Emitter for IssueEmitter {
             }
         };
 
+        // When self.title is set (e.g. "Parsing ecmascript source code failed"),
+        // use the SWC diagnostic as the title for a more specific error message,
+        // and demote the generic title to the description.
+        // When self.title is not set, use the first line of the message as title
+        // and the rest as description.
         let title;
         if let Some(t) = self.title.as_ref() {
-            title = t.clone();
+            title = message.trim().into();
+            message = t.to_string();
         } else {
             let mut message_split = message.split('\n');
-            title = message_split.next().unwrap().to_string().into();
-            message = message_split.remainder().unwrap_or("").to_string();
+            title = message_split.next().unwrap().trim().to_string().into();
+            message = message_split.remainder().unwrap_or("").trim().to_string();
         }
 
         let source = db.span.primary_span().map(|span| {

@@ -33,7 +33,10 @@ use super::{
         Vars, collect_top_level_decls, ids_captured_by, ids_used_by, ids_used_by_ignoring_nested,
     },
 };
-use crate::{magic_identifier, tree_shake::optimizations::GraphOptimizer};
+use crate::{
+    magic_identifier::{self, MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM},
+    tree_shake::optimizations::GraphOptimizer,
+};
 
 /// The id of an item
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -954,7 +957,7 @@ impl DepGraph {
                                 local = local.into_private();
                             }
 
-                            exports.push((local.to_id(), exported.atom().clone()));
+                            exports.push((local.to_id(), exported.atom().into_owned()));
 
                             if let Some(src) = &item.src {
                                 let id = ItemId::Item {
@@ -1012,7 +1015,7 @@ impl DepGraph {
                         // bindings if the class/function has an identifier.
                         let default_var = id.unwrap_or_else(|| {
                             Ident::new(
-                                magic_identifier::mangle("default export").into(),
+                                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                                 DUMMY_SP,
                                 Default::default(),
                             )
@@ -1083,7 +1086,7 @@ impl DepGraph {
                         // Mirror what `EsmModuleItem::code_generation` does, these are live
                         // bindings if the class/function has an identifier.
                         let default_var = Ident::new(
-                            magic_identifier::mangle("default export").into(),
+                            MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone(),
                             DUMMY_SP,
                             Default::default(),
                         );
@@ -1688,16 +1691,18 @@ pub(crate) fn find_turbopack_part_id_in_asserts(asserts: &ObjectLit) -> Option<P
         PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
             key: PropName::Ident(key),
             value: box Expr::Lit(Lit::Str(s)),
-        })) if &*key.sym == ASSERT_CHUNK_KEY => match &*s.value {
+        })) if &*key.sym == ASSERT_CHUNK_KEY => match s.value.as_str()? {
             "module evaluation" => Some(PartId::ModuleEvaluation),
             "exports" => Some(PartId::Exports),
-            _ if s.value.starts_with("export ") => Some(PartId::Export(s.value[7..].into())),
+            _ if s.value.starts_with("export ") => {
+                Some(PartId::Export(s.value.as_str()?[7..].into()))
+            }
             _ => None,
         },
         _ => None,
     })
 }
-/// givin a number, return a base54 encoded string
+/// given a number, return a base54 encoded string
 /// `usize -> [a-zA-Z$_][a-zA-Z$_0-9]*`
 pub(crate) fn encode_base54(init: &mut usize, skip_reserved: bool) -> Atom {
     static BASE54_CHARS: &[u8; 64] =

@@ -1,8 +1,8 @@
 import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
-  assertHasRedbox,
-  assertNoRedbox,
+  waitForRedbox,
+  waitForNoRedbox,
   check,
   renderViaHTTP,
   getRedboxSource,
@@ -17,12 +17,20 @@ describe('tsconfig-path-reloading', () => {
   const tsConfigFile = 'tsconfig.json'
   const indexPage = 'pages/index.tsx'
 
-  function runTests({ addAfterStart }: { addAfterStart?: boolean }) {
+  function runTests({
+    addAfterStart,
+    testBaseUrl,
+  }: {
+    addAfterStart?: boolean
+    testBaseUrl: boolean
+  }) {
     beforeAll(async () => {
       let tsConfigContent = await fs.readFile(
         join(__dirname, 'app/tsconfig.json'),
         'utf8'
       )
+
+      const typescriptVersion = testBaseUrl ? '5.9.3' : 'latest'
 
       next = await createNext({
         files: {
@@ -36,7 +44,7 @@ describe('tsconfig-path-reloading', () => {
               }),
         },
         dependencies: {
-          typescript: 'latest',
+          typescript: typescriptVersion,
           '@types/react': 'latest',
           '@types/node': 'latest',
         },
@@ -82,7 +90,7 @@ describe('tsconfig-path-reloading', () => {
           )}`
         )
 
-        await assertHasRedbox(browser)
+        await waitForRedbox(browser)
         expect(await getRedboxSource(browser)).toContain("'@lib/second-data'")
 
         await next.patchFile(
@@ -103,7 +111,7 @@ describe('tsconfig-path-reloading', () => {
           )
         )
 
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         const html2 = await browser.eval('document.documentElement.innerHTML')
         expect(html2).toContain('first button')
@@ -158,7 +166,7 @@ describe('tsconfig-path-reloading', () => {
           indexContent.replace('@mybutton', '@myotherbutton')
         )
 
-        await assertNoRedbox(browser)
+        await waitForNoRedbox(browser)
 
         await check(async () => {
           const html2 = await browser.eval('document.documentElement.innerHTML')
@@ -183,10 +191,18 @@ describe('tsconfig-path-reloading', () => {
   }
 
   describe('tsconfig', () => {
-    runTests({})
+    runTests({ testBaseUrl: true })
+  })
+
+  describe('tsconfig without baseUrl', () => {
+    runTests({ testBaseUrl: false })
   })
 
   describe('tsconfig added after starting dev', () => {
-    runTests({ addAfterStart: true })
+    runTests({ testBaseUrl: true, addAfterStart: true })
+  })
+
+  describe('tsconfig without baseUrl added after starting dev', () => {
+    runTests({ testBaseUrl: false, addAfterStart: true })
   })
 })

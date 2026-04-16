@@ -1,13 +1,13 @@
 use std::{fmt::Display, str::FromStr};
 
 use anyhow::{Context, Result};
-use serde::{Deserialize, Serialize};
+use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, TaskInput, Vc, trace::TraceRawVcs};
 
-use super::request::{
-    AdjustFontFallback, NextFontLocalRequest, NextFontLocalRequestArguments, SrcDescriptor,
-    SrcRequest,
+use crate::next_font::local::request::{
+    AdjustFontFallback, NextFontLocalDeclaration, NextFontLocalRequest,
+    NextFontLocalRequestArguments, SrcDescriptor, SrcRequest,
 };
 
 /// A normalized, Vc-friendly struct derived from validating and transforming
@@ -32,6 +32,8 @@ pub(super) struct NextFontLocalOptions {
     /// The name of the variable assigned to the results of calling the
     /// `localFont` function. This is used as the font family's base name.
     pub variable_name: RcStr,
+    /// A list of custom properties to be included in the @font-face declaration.
+    pub declarations: Option<Vec<NextFontLocalDeclaration>>,
 }
 
 impl NextFontLocalOptions {
@@ -53,16 +55,16 @@ impl NextFontLocalOptions {
 #[derive(
     Clone,
     Debug,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
     Ord,
     Hash,
-    Serialize,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub(super) struct FontDescriptor {
     pub weight: Option<FontWeight>,
@@ -95,16 +97,16 @@ impl FontDescriptor {
 #[derive(
     Clone,
     Debug,
-    Deserialize,
     PartialEq,
     Eq,
     PartialOrd,
     Ord,
     Hash,
-    Serialize,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub(super) enum FontDescriptors {
     /// `One` is a special case when the user did not provide a `src` field and
@@ -122,12 +124,12 @@ pub(super) enum FontDescriptors {
     Eq,
     PartialOrd,
     Ord,
-    Deserialize,
-    Serialize,
     Hash,
     TraceRawVcs,
     NonLocalValue,
     TaskInput,
+    Encode,
+    Decode,
 )]
 pub(super) enum FontWeight {
     Variable(RcStr, RcStr),
@@ -138,7 +140,7 @@ pub struct ParseFontWeightErr;
 impl FromStr for FontWeight {
     type Err = ParseFontWeightErr;
 
-    fn from_str(weight_str: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(weight_str: &str) -> Result<Self, Self::Err> {
         if let Some((start, end)) = weight_str.split_once(' ') {
             Ok(FontWeight::Variable(start.into(), end.into()))
         } else {
@@ -174,6 +176,7 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
         src,
         adjust_font_fallback,
         variable,
+        declarations,
     } = &request.arguments.0;
 
     let fonts = match src {
@@ -202,6 +205,15 @@ pub(super) fn options_from_request(request: &NextFontLocalRequest) -> Result<Nex
         variable_name: request.variable_name.to_owned(),
         default_weight: weight.as_ref().and_then(|s| s.parse().ok()),
         default_style: style.to_owned(),
+        declarations: declarations.as_ref().map(|decls| {
+            decls
+                .iter()
+                .map(|decl| NextFontLocalDeclaration {
+                    prop: decl.prop.clone(),
+                    value: decl.value.clone(),
+                })
+                .collect()
+        }),
     })
 }
 
@@ -248,7 +260,8 @@ mod tests {
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: rcstr!("myFont")
+                variable_name: rcstr!("myFont"),
+                declarations: None,
             },
         );
 
@@ -303,7 +316,8 @@ mod tests {
                 fallback: None,
                 adjust_font_fallback: AdjustFontFallback::Arial,
                 variable: None,
-                variable_name: rcstr!("myFont")
+                variable_name: rcstr!("myFont"),
+                declarations: None,
             },
         );
 
@@ -377,7 +391,8 @@ mod tests {
                 fallback: Some(vec![rcstr!("Fallback")]),
                 adjust_font_fallback: AdjustFontFallback::TimesNewRoman,
                 variable: Some(rcstr!("myvar")),
-                variable_name: rcstr!("myFont")
+                variable_name: rcstr!("myFont"),
+                declarations: None,
             },
         );
 

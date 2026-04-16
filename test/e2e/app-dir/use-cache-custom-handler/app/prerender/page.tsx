@@ -1,5 +1,5 @@
 import { Suspense } from 'react'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 // The id prop is just used to assert on the logged cache key in tests.
 async function DynamicCache({ id }: { id: string }) {

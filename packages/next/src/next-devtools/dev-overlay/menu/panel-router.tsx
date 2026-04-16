@@ -6,7 +6,6 @@ import {
   RouteInfoBody,
 } from '../components/errors/dev-tools-indicator/dev-tools-info/route-info'
 import { PageSegmentTree } from '../components/overview/segment-explorer'
-import { TurbopackInfoBody } from '../components/errors/dev-tools-indicator/dev-tools-info/turbopack-info'
 import { DevToolsHeader } from '../components/errors/dev-tools-indicator/dev-tools-info/dev-tools-header'
 import { useDelayedRender } from '../hooks/use-delayed-render'
 import {
@@ -24,10 +23,12 @@ import {
   ACTION_ERROR_OVERLAY_OPEN,
 } from '../shared'
 import GearIcon from '../icons/gear-icon'
+import { LoadingIcon } from '../icons/loading-icon'
 import { UserPreferencesBody } from '../components/errors/dev-tools-indicator/dev-tools-info/user-preferences'
 import { useShortcuts } from '../hooks/use-shortcuts'
 import { useUpdateAllPanelPositions } from '../components/devtools-indicator/devtools-indicator'
 import { saveDevToolsConfig } from '../utils/save-devtools-config'
+import { InstantNavsPanel } from '../components/instant-navs/instant-navs-panel'
 import './panel-router.css'
 
 const MenuPanel = () => {
@@ -60,30 +61,62 @@ const MenuPanel = () => {
             }
           },
         },
-        {
-          title: `Current route is ${state.staticIndicator ? 'static' : 'dynamic'}.`,
-          label: 'Route',
-          value: state.staticIndicator ? 'Static' : 'Dynamic',
-          onClick: () => setPanel('route-type'),
-          attributes: {
-            'data-nextjs-route-type': state.staticIndicator
-              ? 'static'
-              : 'dynamic',
-          },
-        },
+        state.staticIndicator === 'disabled'
+          ? undefined
+          : state.staticIndicator === 'pending'
+            ? {
+                title: 'Loading...',
+                label: 'Route',
+                value: <LoadingIcon />,
+              }
+            : {
+                title: `Current route is ${state.staticIndicator}.`,
+                label: 'Route',
+                value:
+                  state.staticIndicator === 'static' ? 'Static' : 'Dynamic',
+                onClick: () => setPanel('route-type'),
+                attributes: {
+                  'data-nextjs-route-type': state.staticIndicator,
+                },
+              },
         !!process.env.TURBOPACK
           ? {
               title: 'Turbopack is enabled.',
-              label: 'Turbopack',
-              value: 'Enabled',
+              label: 'Bundler',
+              value: 'Turbopack',
             }
           : {
               title:
                 'Learn about Turbopack and how to enable it in your application.',
-              label: 'Try Turbopack',
-              value: <ChevronRight />,
-              onClick: () => setPanel('turbo-info'),
+              label: 'Bundler',
+              value: (
+                <a
+                  href="https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack"
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="turbopack-upgrade-link"
+                >
+                  {process.env.__NEXT_BUNDLER || 'Turbopack'}
+                </a>
+              ),
             },
+        !!process.env.__NEXT_CACHE_COMPONENTS && {
+          title: 'Cache Components is enabled.',
+          label: 'Cache Components',
+          value: 'Enabled',
+        },
+        isAppRouter &&
+          !!process.env.__NEXT_INSTANT_NAV_TOGGLE && {
+            title: 'Test instant navigation behavior.',
+            label: 'Instant Navs',
+            value: <ChevronRight />,
+            onClick: () => {
+              setPanel('instant-navs')
+            },
+            attributes: {
+              'data-instant-nav': true,
+            },
+          },
         isAppRouter && {
           label: 'Route Info',
           value: <ChevronRight />,
@@ -166,39 +199,39 @@ export const PanelRouter = () => {
         </DynamicPanel>
       </PanelRoute>
 
-      <PanelRoute name="route-type">
-        <DynamicPanel
-          key={state.staticIndicator ? 'static' : 'dynamic'}
-          sharePanelSizeGlobally={false}
-          sizeConfig={{
-            kind: 'fixed',
-            height: state.staticIndicator
-              ? 300 / state.scale
-              : 325 / state.scale,
-            width: 400 / state.scale,
-          }}
-          closeOnClickOutside
-          header={
-            <DevToolsHeader
-              title={`${state.staticIndicator ? 'Static' : 'Dynamic'} Route`}
-            />
-          }
-        >
-          <div className="panel-content">
-            <RouteInfoBody
-              routerType={state.routerType}
-              isStaticRoute={state.staticIndicator}
-            />
-            <InfoFooter
-              href={
-                learnMoreLink[state.routerType][
-                  state.staticIndicator ? 'static' : 'dynamic'
-                ]
+      {state.staticIndicator !== 'disabled' &&
+        state.staticIndicator !== 'pending' && (
+          <PanelRoute name="route-type">
+            <DynamicPanel
+              key={state.staticIndicator}
+              sharePanelSizeGlobally={false}
+              sizeConfig={{
+                kind: 'fixed',
+                height:
+                  state.staticIndicator === 'static'
+                    ? 300 / state.scale
+                    : 325 / state.scale,
+                width: 400 / state.scale,
+              }}
+              closeOnClickOutside
+              header={
+                <DevToolsHeader
+                  title={`${state.staticIndicator === 'static' ? 'Static' : 'Dynamic'} Route`}
+                />
               }
-            />
-          </div>
-        </DynamicPanel>
-      </PanelRoute>
+            >
+              <div className="panel-content">
+                <RouteInfoBody
+                  routerType={state.routerType}
+                  isStaticRoute={state.staticIndicator === 'static'}
+                />
+                <InfoFooter
+                  href={learnMoreLink[state.routerType][state.staticIndicator]}
+                />
+              </div>
+            </DynamicPanel>
+          </PanelRoute>
+        )}
 
       {isAppRouter && (
         <PanelRoute name="segment-explorer">
@@ -224,23 +257,23 @@ export const PanelRouter = () => {
         </PanelRoute>
       )}
 
-      <PanelRoute name="turbo-info">
-        <DynamicPanel
-          sharePanelSizeGlobally={false}
-          sizeConfig={{
-            kind: 'fixed',
-            height: 470 / state.scale,
-            width: 400 / state.scale,
-          }}
-          closeOnClickOutside
-          header={<DevToolsHeader title="Try Turbopack" />}
-        >
-          <div className="panel-content">
-            <TurbopackInfoBody />
-            <InfoFooter href="https://nextjs.org/docs/app/api-reference/turbopack" />
-          </div>
-        </DynamicPanel>
-      </PanelRoute>
+      {isAppRouter && !!process.env.__NEXT_INSTANT_NAV_TOGGLE && (
+        <PanelRoute name="instant-navs">
+          <DynamicPanel
+            sharePanelSizeGlobally={false}
+            sharePanelPositionGlobally={false}
+            draggable
+            sizeConfig={{
+              kind: 'fixed',
+              height: 300 / state.scale,
+              width: 480 / state.scale,
+            }}
+            header={<DevToolsHeader title="Instant Navs" />}
+          >
+            <InstantNavsPanel />
+          </DynamicPanel>
+        </PanelRoute>
+      )}
     </>
   )
 }

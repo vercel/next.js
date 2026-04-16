@@ -1,27 +1,29 @@
 use std::collections::BTreeSet;
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     trace::TraceRawVcs,
 };
-use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, File, FileSystemPath, glob::Glob};
+use turbo_tasks_fs::{
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
+};
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
     file_source::FileSource,
-    output::{OutputAsset, OutputAssets},
+    output::{OutputAsset, OutputAssets, OutputAssetsReference},
     reference_type::{CommonJsReferenceSubType, ReferenceType},
-    resolve::{ExternalType, origin::PlainResolveOrigin, parse::Request},
+    resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request},
     traced_asset::TracedAsset,
 };
-use turbopack_ecmascript::resolve::cjs_resolve;
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     nft_json::{all_assets_from_entries_filtered, relativize_glob},
@@ -29,7 +31,7 @@ use crate::{
 };
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, NonLocalValue, Deserialize, Serialize, Debug, Clone, Hash, TaskInput,
+    PartialEq, Eq, TraceRawVcs, NonLocalValue, Debug, Clone, Hash, TaskInput, Encode, Decode,
 )]
 enum ServerNftType {
     Minimal,
@@ -75,6 +77,9 @@ impl ServerNftJsonAsset {
         ServerNftJsonAsset { project, ty }.cell()
     }
 }
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for ServerNftJsonAsset {}
 
 #[turbo_tasks::value_impl]
 impl OutputAsset for ServerNftJsonAsset {
@@ -137,7 +142,7 @@ impl Asset for ServerNftJsonAsset {
                 let DirectoryEntry::File(file) = entry else {
                     continue;
                 };
-                if file.extension() == "js" {
+                if file.extension() == Some("js") {
                     server_output_assets.push(
                         base_dir
                             .get_relative_path_to(file)
@@ -158,7 +163,9 @@ impl Asset for ServerNftJsonAsset {
           "files": server_output_assets
         });
 
-        Ok(AssetContent::file(File::from(json.to_string()).into()))
+        Ok(AssetContent::file(
+            FileContent::Content(File::from(json.to_string())).cell(),
+        ))
     }
 }
 
@@ -169,8 +176,8 @@ impl ServerNftJsonAsset {
         let is_standalone = *self.project.next_config().is_standalone().await?;
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
-            ExternalType::CommonJs,
             get_tracing_compile_time_info(),
+            false,
         ));
 
         let project_path = self.project.project_path().owned().await?;
@@ -188,23 +195,20 @@ impl ServerNftJsonAsset {
         let cache_handlers = self
             .project
             .next_config()
-            .experimental_cache_handlers(project_path.clone())
+            .cache_handlers(project_path.clone())
             .await?;
 
         // These are used by packages/next/src/server/require-hook.ts
         let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
 
-        let cache_handler_entries = cache_handler
-            .into_iter()
-            .chain(cache_handlers.into_iter())
-            .map(|f| {
-                asset_context
-                    .process(
-                        Vc::upcast(FileSource::new(f.clone())),
-                        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-                    )
-                    .module()
-            });
+        let cache_handler_entries = cache_handler.into_iter().chain(cache_handlers).map(|f| {
+            asset_context
+                .process(
+                    Vc::upcast(FileSource::new(f.clone())),
+                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                )
+                .module()
+        });
 
         let entries = match self.ty {
             ServerNftType::Full => Either::Left(
@@ -239,7 +243,7 @@ impl ServerNftJsonAsset {
                                 Request::parse_string(path.into()),
                                 CommonJsReferenceSubType::Undefined,
                                 None,
-                                false,
+                                ResolveErrorMode::Error,
                             )
                             .primary_modules()
                             .await?
@@ -303,8 +307,6 @@ impl ServerNftJsonAsset {
             "**/next/dist/server/lib/route-resolver*",
             "**/next/dist/compiled/semver/semver/**/*.js",
             "**/next/dist/compiled/jest-worker/**/*",
-            // Turbopack doesn't support AMP
-            "**/next/dist/compiled/@ampproject/toolbox-optimizer/**/*",
             // -- The following were added for Turbopack specifically --
             // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
             "**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js",

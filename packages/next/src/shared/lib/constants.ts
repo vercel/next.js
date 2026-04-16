@@ -68,6 +68,7 @@ export enum AdapterOutputType {
 }
 
 export const PHASE_EXPORT = 'phase-export'
+export const PHASE_ANALYZE = 'phase-analyze'
 export const PHASE_PRODUCTION_BUILD = 'phase-production-build'
 export const PHASE_PRODUCTION_SERVER = 'phase-production-server'
 export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
@@ -78,12 +79,12 @@ export type PHASE_TYPE =
   | typeof PHASE_INFO
   | typeof PHASE_TEST
   | typeof PHASE_EXPORT
+  | typeof PHASE_ANALYZE
   | typeof PHASE_PRODUCTION_BUILD
   | typeof PHASE_PRODUCTION_SERVER
   | typeof PHASE_DEVELOPMENT_SERVER
 
 export const PAGES_MANIFEST = 'pages-manifest.json'
-export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
@@ -93,13 +94,14 @@ export const NEXT_FONT_MANIFEST = 'next-font-manifest'
 export const EXPORT_MARKER = 'export-marker.json'
 export const EXPORT_DETAIL = 'export-detail.json'
 export const PRERENDER_MANIFEST = 'prerender-manifest.json'
+export const PREFETCH_HINTS = 'prefetch-hints.json'
 export const ROUTES_MANIFEST = 'routes-manifest.json'
 export const IMAGES_MANIFEST = 'images-manifest.json'
-export const SERVER_FILES_MANIFEST = 'required-server-files.json'
+export const SERVER_FILES_MANIFEST = 'required-server-files'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
 export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
-  '_clientMiddlewareManifest.json'
+  '_clientMiddlewareManifest.js'
 export const TURBOPACK_CLIENT_BUILD_MANIFEST = 'client-build-manifest.json'
 export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
@@ -142,8 +144,6 @@ export const CLIENT_STATIC_FILES_RUNTIME_MAIN_APP = `${CLIENT_STATIC_FILES_RUNTI
 export const APP_CLIENT_INTERNALS = 'app-pages-internals'
 // static/runtime/react-refresh.js
 export const CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH = `react-refresh`
-// static/runtime/amp.js
-export const CLIENT_STATIC_FILES_RUNTIME_AMP = `amp`
 // static/runtime/webpack.js
 export const CLIENT_STATIC_FILES_RUNTIME_WEBPACK = `webpack`
 // static/runtime/polyfills.js
@@ -203,6 +203,5 @@ export const EDGE_UNSUPPORTED_NODE_APIS = [
 export const SYSTEM_ENTRYPOINTS = new Set<string>([
   CLIENT_STATIC_FILES_RUNTIME_MAIN,
   CLIENT_STATIC_FILES_RUNTIME_REACT_REFRESH,
-  CLIENT_STATIC_FILES_RUNTIME_AMP,
   CLIENT_STATIC_FILES_RUNTIME_MAIN_APP,
 ])

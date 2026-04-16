@@ -1,14 +1,17 @@
-use std::{borrow::Cow, future::Future};
+use std::borrow::Cow;
 
 use anyhow::{Result, bail};
-use serde::{Deserialize, Serialize};
+use async_trait::async_trait;
+use bincode::{Decode, Encode};
+use serde::Deserialize;
 use serde_json::Value;
 use swc_core::{
     common::{DUMMY_SP, GLOBALS, Span, Spanned, source_map::SmallPos},
     ecma::{
         ast::{
             ClassExpr, Decl, ExportSpecifier, Expr, ExprStmt, FnExpr, Lit, ModuleDecl,
-            ModuleExportName, ModuleItem, Program, Stmt, Str, TsSatisfiesExpr,
+            ModuleExportName, ModuleItem, Program, Stmt, Str, TsAsExpr, TsConstAssertion,
+            TsSatisfiesExpr, TsTypeAssertion,
         },
         utils::IsDirective,
     },
@@ -22,10 +25,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -37,12 +37,22 @@ use turbopack_ecmascript::{
 use crate::{
     app_structure::AppPageLoaderTree,
     next_config::RouteHas,
-    next_manifests::MiddlewareMatcher,
+    next_manifests::ProxyMatcher,
     util::{MiddlewareMatcherKind, NextRuntime},
 };
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
@@ -54,7 +64,17 @@ pub enum NextSegmentDynamic {
 }
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    TraceRawVcs,
+    Deserialize,
+    NonLocalValue,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
@@ -69,7 +89,7 @@ pub enum NextSegmentFetchCache {
 }
 
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, NonLocalValue, Encode, Decode,
 )]
 pub enum NextRevalidate {
     #[default]
@@ -89,14 +109,20 @@ pub struct NextSegmentConfig {
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
-    pub experimental_ppr: Option<bool>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
 
     /// Whether these exports are defined in the source file.
     pub generate_image_metadata: bool,
     pub generate_sitemaps: bool,
     #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
     pub generate_static_params: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub unstable_instant: Option<Span>,
+    #[turbo_tasks(trace_ignore)]
+    #[bincode(with_serde)]
+    pub unstable_prefetch: Option<Span>,
 }
 
 #[turbo_tasks::value_impl]
@@ -118,7 +144,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         *dynamic = dynamic.or(parent.dynamic);
@@ -127,7 +152,6 @@ impl NextSegmentConfig {
         *fetch_cache = fetch_cache.or(parent.fetch_cache);
         *runtime = runtime.or(parent.runtime);
         *preferred_region = preferred_region.take().or(parent.preferred_region.clone());
-        *experimental_ppr = experimental_ppr.or(parent.experimental_ppr);
     }
 
     /// Applies a config from a parallel route to this config, returning an
@@ -139,13 +163,11 @@ impl NextSegmentConfig {
             name: &str,
         ) -> Result<()> {
             match (a.as_ref(), b) {
-                (Some(a), Some(b)) => {
-                    if *a != *b {
-                        bail!(
-                            "Sibling segment configs have conflicting values for {}",
-                            name
-                        )
-                    }
+                (Some(a), Some(b)) if *a != *b => {
+                    bail!(
+                        "Sibling segment configs have conflicting values for {}",
+                        name
+                    )
                 }
                 (None, Some(b)) => {
                     *a = Some(b.clone());
@@ -161,7 +183,6 @@ impl NextSegmentConfig {
             fetch_cache,
             runtime,
             preferred_region,
-            experimental_ppr,
             ..
         } = self;
         merge_parallel(dynamic, &parallel_config.dynamic, "dynamic")?;
@@ -177,11 +198,6 @@ impl NextSegmentConfig {
             preferred_region,
             &parallel_config.preferred_region,
             "preferredRegion",
-        )?;
-        merge_parallel(
-            experimental_ppr,
-            &parallel_config.experimental_ppr,
-            "experimental_ppr",
         )?;
         Ok(())
     }
@@ -221,14 +237,14 @@ impl NextSegmentConfigParsingIssue {
     }
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
+    async fn title(&self) -> Result<StyledString> {
         Ok(StyledString::Line(vec![
             StyledString::Text(
                 format!(
@@ -238,66 +254,49 @@ impl Issue for NextSegmentConfigParsingIssue {
                 .into(),
             ),
             StyledString::Text(self.error.clone()),
-        ])
-        .cell())
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.into()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.ident.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.ident.path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(
-            StyledString::Text(rcstr!(
-                "The exported configuration object in a source file needs to have a very specific \
-                 format from which some properties can be statically parsed at compiled-time."
-            ))
-            .resolved_cell(),
-        ))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(rcstr!(
+            "The exported configuration object in a source file needs to have a very specific \
+             format from which some properties can be statically parsed at compiled-time."
+        ))))
     }
 
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.detail)
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        match self.detail {
+            Some(d) => Ok(Some((*d.await?).clone())),
+            None => Ok(None),
+        }
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!(
-            "https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config"
-        ))
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config")
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
 #[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    Serialize,
-    Deserialize,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, NonLocalValue, TraceRawVcs, Encode, Decode,
 )]
 pub enum ParseSegmentMode {
     Base,
     // Disallows "use client + generateStatic" and ignores/warns about `export const config`
     App,
+    // Disallows config = { runtime: "edge" }
+    Proxy,
 }
 
 /// Parse the raw source code of a file to get the segment config local to that file.
@@ -395,6 +394,11 @@ pub async fn parse_segment_config_from_source(
             EcmascriptModuleAssetType::Ecmascript
         },
         EcmascriptInputTransforms::empty(),
+        // node_env is not used here: EcmascriptInputTransforms::empty() means no
+        // transforms are applied, so TransformContext::node_env is never accessed.
+        rcstr!("development"),
+        false,
+        false,
     )
     .await?;
 
@@ -422,7 +426,7 @@ pub async fn parse_segment_config_from_source(
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(decl)) => match &decl.decl {
                         Decl::Class(decl) => {
                             parse(
-                                &decl.ident.sym,
+                                Cow::Borrowed(decl.ident.sym.as_str()),
                                 Some(Cow::Owned(Expr::Class(ClassExpr {
                                     ident: None,
                                     class: decl.class.clone(),
@@ -433,7 +437,7 @@ pub async fn parse_segment_config_from_source(
                         }
                         Decl::Fn(decl) => {
                             parse(
-                                &decl.ident.sym,
+                                Cow::Borrowed(decl.ident.sym.as_str()),
                                 Some(Cow::Owned(Expr::Fn(FnExpr {
                                     ident: None,
                                     function: decl.function.clone(),
@@ -451,7 +455,7 @@ pub async fn parse_segment_config_from_source(
                                 let key = &ident.id.sym;
 
                                 parse(
-                                    key,
+                                    Cow::Borrowed(key.as_str()),
                                     Some(
                                         decl.init.as_deref().map(Cow::Borrowed).unwrap_or_else(
                                             || Cow::Owned(*Expr::undefined(DUMMY_SP)),
@@ -475,8 +479,10 @@ pub async fn parse_segment_config_from_source(
                             if let ExportSpecifier::Named(named) = specifier {
                                 parse(
                                     match named.exported.as_ref().unwrap_or(&named.orig) {
-                                        ModuleExportName::Ident(ident) => &ident.sym,
-                                        ModuleExportName::Str(s) => &*s.value,
+                                        ModuleExportName::Ident(ident) => {
+                                            Cow::Borrowed(ident.sym.as_str())
+                                        }
+                                        ModuleExportName::Str(s) => s.value.to_string_lossy(),
                                     },
                                     None,
                                     specifier.span(),
@@ -496,36 +502,69 @@ pub async fn parse_segment_config_from_source(
     )
     .await?;
 
-    if mode == ParseSegmentMode::App
-        && let Some(span) = config.generate_static_params
-        && module_ast
-            .body
-            .iter()
-            .take_while(|i| match i {
-                ModuleItem::Stmt(stmt) => stmt.directive_continue(),
-                ModuleItem::ModuleDecl(_) => false,
-            })
-            .filter_map(|i| i.as_stmt())
-            .any(|f| match f {
-                Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
-                    Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
-                    _ => false,
-                },
+    let is_client_entry = module_ast
+        .body
+        .iter()
+        .take_while(|i| match i {
+            ModuleItem::Stmt(stmt) => stmt.directive_continue(),
+            ModuleItem::ModuleDecl(_) => false,
+        })
+        .filter_map(|i| i.as_stmt())
+        .any(|f| match f {
+            Stmt::Expr(ExprStmt { expr, .. }) => match &**expr {
+                Expr::Lit(Lit::Str(Str { value, .. })) => value == "use client",
                 _ => false,
-            })
-    {
-        invalid_config(
-            source,
-            "generateStaticParams",
-            span,
-            rcstr!(
-                "App pages cannot use both \"use client\" and export function \
-                 \"generateStaticParams()\"."
-            ),
-            None,
-            IssueSeverity::Error,
-        )
-        .await?;
+            },
+            _ => false,
+        });
+
+    if mode == ParseSegmentMode::App && is_client_entry {
+        if let Some(span) = config.generate_static_params {
+            invalid_config(
+                source,
+                "generateStaticParams",
+                span,
+                rcstr!(
+                    "App pages cannot use both \"use client\" and export function \
+                     \"generateStaticParams()\"."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
+
+        if let Some(span) = config.unstable_instant {
+            invalid_config(
+                source,
+                "unstable_instant",
+                span,
+                rcstr!(
+                    "\"unstable_instant\" is a route segment config and can only be used when the \
+                     segment is a Server Component module. Remove the \"use client\" directive to \
+                     use this API."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
+
+        if let Some(span) = config.unstable_prefetch {
+            invalid_config(
+                source,
+                "unstable_prefetch",
+                span,
+                rcstr!(
+                    "\"unstable_prefetch\" is a route segment config and can only be used when \
+                     the segment is a Server Component module. Remove the \"use client\" \
+                     directive to use this API."
+                ),
+                None,
+                IssueSeverity::Error,
+            )
+            .await?;
+        }
     }
 
     Ok(config.cell())
@@ -565,18 +604,20 @@ async fn parse_config_value(
     mode: ParseSegmentMode,
     config: &mut NextSegmentConfig,
     eval_context: &EvalContext,
-    key: &str,
+    key: Cow<'_, str>,
     init: Option<Cow<'_, Expr>>,
     span: Span,
 ) -> Result<()> {
     let get_value = || {
         let init = init.as_deref();
-        // Unwrap `export const config = { .. } satisfies MiddlewareConfig`, usually this is already
-        // transpiled away, but we are looking at the original source here.
-        let init = if let Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) = init {
-            Some(&**expr)
-        } else {
-            init
+        // Unwrap typecasts such as `export const config = { .. } satisfies ProxyConfig`, usually
+        // this is already transpiled away, but we are looking at the original source here.
+        let init = match init {
+            Some(Expr::TsAs(TsAsExpr { expr, .. }))
+            | Some(Expr::TsTypeAssertion(TsTypeAssertion { expr, .. }))
+            | Some(Expr::TsConstAssertion(TsConstAssertion { expr, .. }))
+            | Some(Expr::TsSatisfies(TsSatisfiesExpr { expr, .. })) => Some(&**expr),
+            _ => init,
         };
         init.map(|init| eval_context.eval(init)).map(|v| {
             // Special case, as we don't call `link` here: assume that `undefined` is a free
@@ -591,7 +632,7 @@ async fn parse_config_value(
         })
     };
 
-    match key {
+    match &*key {
         "config" => {
             let Some(value) = get_value() else {
                 return invalid_config(
@@ -674,21 +715,35 @@ async fn parse_config_value(
                             .await;
                         };
 
-                        config.runtime =
-                            match serde_json::from_value(Value::String(val.to_string())) {
-                                Ok(runtime) => Some(runtime),
-                                Err(err) => {
-                                    return invalid_config(
-                                        source,
-                                        "config",
-                                        span,
-                                        format!("`runtime` has an invalid value: {err}.").into(),
-                                        Some(value),
-                                        IssueSeverity::Error,
-                                    )
-                                    .await;
-                                }
-                            };
+                        let runtime = match serde_json::from_value(Value::String(val.to_string())) {
+                            Ok(runtime) => Some(runtime),
+                            Err(err) => {
+                                return invalid_config(
+                                    source,
+                                    "config",
+                                    span,
+                                    format!("`runtime` has an invalid value: {err}.").into(),
+                                    Some(value),
+                                    IssueSeverity::Error,
+                                )
+                                .await;
+                            }
+                        };
+
+                        if mode == ParseSegmentMode::Proxy && runtime == Some(NextRuntime::Edge) {
+                            invalid_config(
+                                source,
+                                "config",
+                                span,
+                                rcstr!("Proxy does not support Edge runtime."),
+                                Some(value),
+                                IssueSeverity::Error,
+                            )
+                            .await?;
+                            continue;
+                        }
+
+                        config.runtime = runtime
                     }
                     "matcher" => {
                         config.middleware_matcher =
@@ -791,9 +846,9 @@ async fn parse_config_value(
             };
 
             match value {
-                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if val >= 0.0 => {
+                JsValue::Constant(ConstantValue::Num(ConstantNumber(val))) if *val >= 0.0 => {
                     config.revalidate = Some(NextRevalidate::Frequency {
-                        seconds: val as u32,
+                        seconds: *val as u32,
                     });
                 }
                 JsValue::Constant(ConstantValue::False) => {
@@ -929,34 +984,11 @@ async fn parse_config_value(
         "generateStaticParams" => {
             config.generate_static_params = Some(span);
         }
-        "experimental_ppr" => {
-            let Some(value) = get_value() else {
-                return invalid_config(
-                    source,
-                    "experimental_ppr",
-                    span,
-                    rcstr!("It mustn't be reexported."),
-                    None,
-                    IssueSeverity::Error,
-                )
-                .await;
-            };
-            if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
-                return Ok(());
-            }
-            let Some(val) = value.as_bool() else {
-                return invalid_config(
-                    source,
-                    "experimental_ppr",
-                    span,
-                    rcstr!("`experimental_ppr` needs to be a static boolean."),
-                    Some(&value),
-                    IssueSeverity::Error,
-                )
-                .await;
-            };
-
-            config.experimental_ppr = Some(val);
+        "unstable_instant" => {
+            config.unstable_instant = Some(span);
+        }
+        "unstable_prefetch" => {
+            config.unstable_prefetch = Some(span);
         }
         _ => {}
     }
@@ -1157,7 +1189,7 @@ async fn parse_route_matcher_from_js_value(
                 if let Some(matcher) = item.as_str() {
                     matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
                 } else if let JsValue::Object { parts, .. } = item {
-                    let mut matcher = MiddlewareMatcher::default();
+                    let mut matcher = ProxyMatcher::default();
                     let mut had_source = false;
                     for matcher_part in parts {
                         if let ObjectPart::KeyValue(key, value) = matcher_part {

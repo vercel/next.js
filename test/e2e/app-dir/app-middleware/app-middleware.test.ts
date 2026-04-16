@@ -9,6 +9,14 @@ describe('app-dir with middleware', () => {
     files: __dirname,
   })
 
+  it('should warn when deprecated middleware file is used', async () => {
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        'The "middleware" file convention is deprecated. Please use "proxy" instead.'
+      )
+    })
+  })
+
   it('should filter correctly after middleware rewrite', async () => {
     const browser = await next.browser('/start')
 
@@ -127,6 +135,14 @@ describe('app-dir with middleware', () => {
     expect(res.headers.get('link')).toContain(
       '<https://example.com/page>; rel="alternate"; hreflang="en"'
     )
+  })
+
+  it('should support unstable_cache in middleware', async () => {
+    const res = await next.fetch('/unstable-cache')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      value: expect.any(String),
+    })
   })
 
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {

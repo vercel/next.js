@@ -5,7 +5,6 @@ import { retry } from 'next-test-utils'
 describe('get-logs MCP tool', () => {
   const { next, skipped } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'log-file-app'),
-    skipDeployment: true,
   })
 
   if (skipped) {
@@ -41,12 +40,12 @@ describe('get-logs MCP tool', () => {
 
     await retry(async () => {
       const sessionId = 'test-mcp-logs-' + Date.now()
-      const response = await callGetLogs(sessionId)
+      const responseText = await callGetLogs(sessionId)
+      const response = JSON.parse(responseText)
 
-      // Should return the log file path
-      expect(response).toContain('Next.js log file path:')
-      expect(response).toContain('logs/next-development.log')
-      expect(response).not.toContain('Log file not found at')
+      expect(response).toMatchObject({
+        logFilePath: expect.stringContaining('logs/next-development.log'),
+      })
     })
   })
 })

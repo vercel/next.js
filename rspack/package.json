@@ -1,6 +1,6 @@
 {
   "name": "@next/rspack-core",
-  "version": "0.0.1-canary.2",
+  "version": "1.0.2",
   "homepage": "https://nextjs.org",
   "bugs": {
     "url": "https://github.com/vercel/next.js/issues"
@@ -9,7 +9,7 @@
     "type": "git",
     "url": "git+https://github.com/vercel/next.js.git"
   },
-  "packageManager": "pnpm@10.13.1",
+  "packageManager": "pnpm@10.33.0",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "exports": {
@@ -24,10 +24,11 @@
   ],
   "scripts": {
     "build": "pnpm run --filter @next/rspack-binding build",
-    "build:debug": "pnpm run --filter @next/rspack-binding build:debug"
+    "build:debug": "pnpm run --filter @next/rspack-binding build:debug",
+    "change-npm-name": "node ./change-npm-name.js"
   },
   "dependencies": {
-    "@rspack/core": "1.4.10",
+    "@rspack/core": "1.6.7",
     "@next/rspack-binding": "workspace:*"
   }
 }

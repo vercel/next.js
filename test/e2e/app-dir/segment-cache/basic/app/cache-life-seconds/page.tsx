@@ -1,8 +1,8 @@
-import { unstable_cacheLife } from 'next/cache'
+import { cacheLife } from 'next/cache'
 
 export default async function CacheLifeSecondsPage() {
   'use cache'
-  unstable_cacheLife({ stale: 0, revalidate: 1, expire: 60 })
+  cacheLife({ stale: 0, revalidate: 1, expire: 60 })
 
   const randomNumber = Math.random()
 

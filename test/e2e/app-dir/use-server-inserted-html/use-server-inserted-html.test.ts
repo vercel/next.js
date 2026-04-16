@@ -15,7 +15,9 @@ describe('use-server-inserted-html', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      'styled-components': 'latest',
+      // TODO: Temporarily pinned due to https://github.com/styled-components/styled-components/issues/5667
+      // which is breaking deployment tests
+      'styled-components': '6.3.9',
       'server-only': 'latest',
     },
   })

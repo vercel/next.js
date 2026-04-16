@@ -4280,7 +4280,7 @@ module.exports = /******/ (function (modules) {
       font-weight: normal;
       scrollbar-width: thin;
       scrollbar-color: #E1DDEC var(--color-light);
-      
+
       &::-webkit-scrollbar {
         width: 9px;
       }

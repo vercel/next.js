@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { createRouterAct } from '../router-act'
+import { createRouterAct } from 'router-act'
 import { waitFor } from 'next-test-utils'
 
 describe('segment cache (basic tests)', () => {
@@ -93,7 +93,11 @@ describe('segment cache (basic tests)', () => {
     )
   })
 
-  it('navigate to page with lazily-generated (not at build time) static param', async () => {
+  // TODO(cache-components): With `cacheComponents` enabled, this test is outdated, because
+  // we no longer put the param values in the prefetched RSC response. You'd have to opt into runtime
+  // prefetching for this test to pass until we ship the optimization that would mark this as fully static
+  // if you don't reference any dynamic params in the server components.
+  it.skip('navigate to page with lazily-generated (not at build time) static param', async () => {
     let act: ReturnType<typeof createRouterAct>
     const browser = await next.browser('/lazily-generated-params', {
       beforePageLoad(page) {
@@ -407,5 +411,40 @@ describe('segment cache (basic tests)', () => {
     const page = await browser.elementById('cache-life-seconds-page')
     const content = await page.textContent()
     expect(content).toContain('Cache Life Seconds Page')
+  })
+
+  it('can handle circular references in client component props', async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/', {
+      beforePageLoad(page) {
+        act = createRouterAct(page)
+      },
+    })
+
+    // Reveal the link to trigger a prefetch.
+    const link = await act(
+      async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/cycle"]')
+          .click()
+        return browser.elementByCss('a[href="/cycle"]')
+      },
+      { includes: 'testProp' }
+    )
+
+    await act(
+      async () => {
+        await link.click()
+
+        // The page should render immediately because it was prefetched, and it
+        // should show the resolved cycle text.
+        expect(await browser.elementById('cycle-check').text()).toBe(
+          'Cycle resolved'
+        )
+      },
+      // No additional requests were required, because everything was
+      // prefetched.
+      'no-requests'
+    )
   })
 })

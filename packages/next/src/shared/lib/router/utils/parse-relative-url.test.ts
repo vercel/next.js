@@ -4,11 +4,12 @@ describe('relative urls', () => {
   it('should return valid pathname', () => {
     expect(parseRelativeUrl('/').pathname).toBe('/')
     expect(parseRelativeUrl('/abc').pathname).toBe('/abc')
+    expect(parseRelativeUrl('//**y/\\').pathname).toBe('//**y//')
+    expect(parseRelativeUrl('//google.com').pathname).toBe('//google.com')
   })
 
   it('should throw for invalid pathname', () => {
-    expect(() => parseRelativeUrl('//**y/\\')).toThrow()
-    expect(() => parseRelativeUrl('//google.com')).toThrow()
+    expect(() => parseRelativeUrl('http://example.com/abc')).toThrow()
   })
 })
 

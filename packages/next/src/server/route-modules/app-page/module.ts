@@ -1,7 +1,7 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
-import type { NextParsedUrlQuery } from '../../request-meta'
+import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
 
@@ -28,6 +28,14 @@ import {
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 import { isInterceptionRouteAppPath } from '../../../shared/lib/router/utils/interception-routes'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { SegmentPrefixRSCPathnameNormalizer } from '../../normalizers/request/segment-prefix-rsc'
+import type { UrlWithParsedQuery } from 'url'
+import type { IncomingMessage } from 'http'
+import {
+  applyAppPageRscRequestMetaFromHeaders,
+  normalizeAppPageRequestUrl,
+} from './normalize-request-url'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -38,6 +46,13 @@ if (process.env.NEXT_RUNTIME !== 'edge') {
     require('./vendored/rsc/entrypoints') as typeof import('./vendored/rsc/entrypoints')
   vendoredReactSSR =
     require('./vendored/ssr/entrypoints') as typeof import('./vendored/ssr/entrypoints')
+
+  // In Node environments we need to access the correct React instance from external modules such
+  // as global patches. We register the loaded React instances here.
+  const { registerServerReact, registerClientReact } =
+    require('../../runtime-reacts.external') as typeof import('../../runtime-reacts.external')
+  registerServerReact(vendoredReactRSC.React)
+  registerClientReact(vendoredReactSSR.React)
 }
 
 /**
@@ -93,6 +108,50 @@ export class AppPageRouteModule extends RouteModule<
     return matcher.match(pathname)
   }
 
+  private normalizers = {
+    rsc: new RSCPathnameNormalizer(),
+    segmentPrefetchRSC: new SegmentPrefixRSCPathnameNormalizer(),
+  }
+
+  public normalizeUrl(
+    req: IncomingMessage | BaseNextRequest,
+    parsedUrl: UrlWithParsedQuery
+  ) {
+    if (this.normalizers.segmentPrefetchRSC.match(parsedUrl.pathname || '/')) {
+      const result = this.normalizers.segmentPrefetchRSC.extract(
+        parsedUrl.pathname || '/'
+      )
+      if (!result) return false
+
+      const { originalPathname, segmentPath } = result
+      parsedUrl.pathname = originalPathname
+
+      // Mark the request as a router prefetch request.
+      req.headers[RSC_HEADER] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] = segmentPath
+
+      addRequestMeta(req, 'isRSCRequest', true)
+      addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
+    } else if (this.normalizers.rsc.match(parsedUrl.pathname || '/')) {
+      parsedUrl.pathname = this.normalizers.rsc.normalize(
+        parsedUrl.pathname || '/',
+        true
+      )
+
+      // Mark the request as a RSC request.
+      req.headers[RSC_HEADER] = '1'
+    } else {
+      super.normalizeUrl(req, parsedUrl)
+    }
+
+    // Minimal adapters can bypass base-server request normalization and invoke
+    // route modules directly, so derive RSC/prefetch metadata from headers.
+    applyAppPageRscRequestMetaFromHeaders(req)
+    normalizeAppPageRequestUrl(req, parsedUrl.pathname || '/')
+  }
+
   public render(
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -106,25 +165,6 @@ export class AppPageRouteModule extends RouteModule<
       context.fallbackRouteParams,
       context.renderOpts,
       context.serverComponentsHmrCache,
-      false,
-      context.sharedContext
-    )
-  }
-
-  public warmup(
-    req: BaseNextRequest,
-    res: BaseNextResponse,
-    context: AppPageRouteHandlerContext
-  ): Promise<RenderResult> {
-    return renderToHTMLOrFlight(
-      req,
-      res,
-      context.page,
-      context.query,
-      context.fallbackRouteParams,
-      context.renderOpts,
-      context.serverComponentsHmrCache,
-      true,
       context.sharedContext
     )
   }

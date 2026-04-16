@@ -35,6 +35,7 @@ import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { getBuiltinRequestContext } from '../after/builtin-request-context'
 import { getImplicitTags } from '../lib/implicit-tags'
+import { setRequestMeta } from '../request-meta'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
@@ -75,6 +76,12 @@ export type AdapterOptions = {
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
 }
+
+// This has to be compatible with what the Vercel builder does as well:
+// https://github.com/vercel/vercel/blob/0e0a6eb9f12216202ae2f5ee37e4ada1796361fd/packages/next/src/edge-function-source/get-edge-function.ts#L112-L136
+export type EdgeHandler = (opts: {
+  request: AdapterOptions['request']
+}) => Promise<FetchEventResult>
 
 let propagator: <T>(request: NextRequestHint, fn: () => T) => T = (
   request,
@@ -152,7 +159,7 @@ export async function adapter(
   const flightHeaders = new Map()
 
   // Headers should only be stripped for middleware
-  if (!isEdgeRendering) {
+  if (!isEdgeRendering && !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
     for (const header of FLIGHT_HEADERS) {
       const value = requestHeaders.get(header)
       if (value !== null) {
@@ -171,7 +178,9 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeURL).toString(),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? normalizeURL.toString()
+      : stripInternalSearchParams(normalizeURL).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -180,6 +189,10 @@ export async function adapter(
       signal: params.request.signal,
     },
   })
+
+  if (params.request.requestMeta) {
+    setRequestMeta(request, params.request.requestMeta)
+  }
 
   /**
    * This allows to identify the request as a data request. The user doesn't
@@ -239,7 +252,10 @@ export async function adapter(
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
     const isMiddleware =
-      params.page === '/middleware' || params.page === '/src/middleware'
+      params.page === '/middleware' ||
+      params.page === '/src/middleware' ||
+      params.page === '/proxy' ||
+      params.page === '/src/proxy'
 
     if (isMiddleware) {
       // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
@@ -252,7 +268,7 @@ export async function adapter(
       return getTracer().trace(
         MiddlewareSpan.execute,
         {
-          spanName: `middleware ${request.method} ${request.nextUrl.pathname}`,
+          spanName: `middleware ${request.method}`,
           attributes: {
             'http.target': request.nextUrl.pathname,
             'http.method': request.method,
@@ -269,7 +285,7 @@ export async function adapter(
 
             const implicitTags = await getImplicitTags(
               page,
-              request.nextUrl,
+              request.nextUrl.pathname,
               fallbackRouteParams
             )
 
@@ -286,9 +302,9 @@ export async function adapter(
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
+                cacheComponents: false,
                 experimental: {
                   isRoutePPREnabled: false,
-                  cacheComponents: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
@@ -446,7 +462,10 @@ export async function adapter(
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
       if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
-        response.headers.set('Location', redirectURL.toString())
+        response.headers.set(
+          'Location',
+          getRelativeURL(redirectURL, requestURL)
+        )
       }
     }
 

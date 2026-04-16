@@ -9,6 +9,7 @@ use swc_core::{
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
+    compile_time_info::CompileTimeInfo,
     reference::{ModuleReference, ModuleReferences},
     source::Source,
 };
@@ -25,8 +26,24 @@ pub async fn module_references(
     source: ResolvedVc<Box<dyn Source>>,
     runtime: ResolvedVc<WebpackRuntime>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleReferences>> {
-    let parsed = parse(*source, EcmascriptModuleAssetType::Ecmascript, *transforms).await?;
+    let node_env = compile_time_info
+        .await?
+        .defines
+        .read_process_env(rcstr!("NODE_ENV"))
+        .owned()
+        .await?
+        .unwrap_or_else(|| rcstr!("development"));
+    let parsed = parse(
+        *source,
+        EcmascriptModuleAssetType::Ecmascript,
+        *transforms,
+        node_env,
+        false,
+        false,
+    )
+    .await?;
     match &*parsed {
         ParseResult::Ok {
             program,
@@ -38,6 +55,7 @@ pub async fn module_references(
                 references: &mut references,
                 runtime,
                 transforms,
+                compile_time_info,
             };
             let (emitter, collector) = IssueEmitter::new(
                 source,
@@ -48,7 +66,7 @@ pub async fn module_references(
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);
             });
-            collector.emit().await?;
+            collector.emit(false).await?;
             Ok(Vc::cell(references))
         }
         ParseResult::Unparsable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),
@@ -59,6 +77,7 @@ struct ModuleReferencesVisitor<'a> {
     runtime: ResolvedVc<WebpackRuntime>,
     references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
 }
 
 impl Visit for ModuleReferencesVisitor<'_> {
@@ -75,6 +94,7 @@ impl Visit for ModuleReferencesVisitor<'_> {
                     chunk_id: lit.clone(),
                     runtime: self.runtime,
                     transforms: self.transforms,
+                    compile_time_info: self.compile_time_info,
                 }
                 .resolved_cell(),
             ));

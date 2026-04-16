@@ -1,0 +1,34 @@
+[
+    (
+        "X",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "bound_this_ctor",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "bound_this_static",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "free_this_root",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+]

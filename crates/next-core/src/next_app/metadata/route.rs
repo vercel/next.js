@@ -2,17 +2,18 @@
 //!
 //! See `next/src/build/webpack/loaders/next-metadata-route-loader`
 
-use anyhow::{Ok, Result, bail};
+use anyhow::{Ok, Result};
+use async_trait::async_trait;
 use base64::{display::Base64Display, engine::general_purpose::STANDARD};
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::Vc;
+use turbo_tasks::{Vc, turbobail, turbofmt};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack::ModuleAssetContext;
 use turbopack_core::{
     asset::AssetContent,
     file_source::FileSource,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     source::Source,
     virtual_source::VirtualSource,
 };
@@ -83,19 +84,18 @@ pub async fn get_app_metadata_route_entry(
     // Map dynamic sitemap and image routes based on the exports.
     // if there's generator export: add /[__metadata_id__] to the route;
     // otherwise keep the original route.
-    // For sitemap, if the last segment is sitemap, appending .xml suffix.
     if is_dynamic_metadata {
         // remove the last /route segment of page
         page.0.pop();
 
         if is_multi_dynamic {
-            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
-        } else {
-            // if page last segment is sitemap, change to sitemap.xml
-            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap"))) {
+            // For sitemap.xml routes with generateSitemaps, revert to sitemap
+            // since multi-dynamic sitemaps use /sitemap/[__metadata_id__]
+            if page.last() == Some(&PageSegment::Static(rcstr!("sitemap.xml"))) {
                 page.0.pop();
-                page.push(PageSegment::Static(rcstr!("sitemap.xml")))?
+                page.push(PageSegment::Static(rcstr!("sitemap")))?;
             }
+            page.push(PageSegment::Dynamic(rcstr!("__metadata_id__")))?;
         };
         // Push /route back
         page.push(PageSegment::PageType(PageType::Route))?;
@@ -124,10 +124,7 @@ async fn get_base64_file_content(path: FileSystemPath) -> Result<String> {
             Base64Display::new(&content, &STANDARD).to_string()
         }
         FileContent::NotFound => {
-            bail!(
-                "metadata file not found: {}",
-                &path.value_to_string().await?
-            );
+            turbobail!("metadata file not found: {path}")
         }
     })
 }
@@ -202,10 +199,14 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
         original_file_content_b64 = StringifyJs(&original_file_content_b64),
     };
 
+    // Use full filename (stem + extension) to avoid conflicts when multiple icon
+    // formats exist (e.g., icon.png and icon.svg)
+    let filename = path.file_name();
+
     let file = File::from(code);
     let source = VirtualSource::new(
-        path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        path.parent().join(&format!("{filename}--route-entry.js"))?,
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -215,7 +216,6 @@ async fn static_route_source(mode: NextMode, path: FileSystemPath) -> Result<Vc<
 async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let content_type = get_content_type(path.clone()).await?;
 
@@ -250,7 +250,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -259,7 +259,7 @@ async fn dynamic_text_route_source(path: FileSystemPath) -> Result<Vc<Box<dyn So
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -270,7 +270,6 @@ async fn dynamic_sitemap_route_with_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -291,25 +290,23 @@ async fn dynamic_sitemap_route_with_generate_source(
                 const paramsPromise = ctx.params
                 const idPromise = paramsPromise.then(params => params?.__metadata_id__)
 
-                if (process.env.NODE_ENV !== 'production') {{
-                    const id = await idPromise
-                    const hasXmlExtension = id ? id.endsWith('.xml') : false
-                    const sitemaps = await generateSitemaps()
-                    let foundId
-                    for (const item of sitemaps) {{
-                        if (item?.id == null) {{
-                            throw new Error('id property is required for every item returned from generateSitemaps')
-                        }}
-                        const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
-                        if (item.id.toString() === baseId) {{
-                            foundId = item.id
-                        }}
+                const id = await idPromise
+                const hasXmlExtension = id ? id.endsWith('.xml') : false
+                const sitemaps = await generateSitemaps()
+                let foundId
+                for (const item of sitemaps) {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateSitemaps')
                     }}
-                    if (foundId == null) {{
-                        return new NextResponse('Not Found', {{
-                            status: 404,
-                        }})
+                    const baseId = id && hasXmlExtension ? id.slice(0, -4) : undefined
+                    if (item.id.toString() === baseId) {{
+                        foundId = item.id
                     }}
+                }}
+                if (foundId == null) {{
+                    return new NextResponse('Not Found', {{
+                        status: 404,
+                    }})
                 }}
                 
                 const targetIdPromise = idPromise.then(id => {{
@@ -329,7 +326,6 @@ async fn dynamic_sitemap_route_with_generate_source(
 
             export * from {resource_path}
 
-            export const dynamicParams = false
             export async function generateStaticParams() {{
                 const sitemaps = await generateSitemaps()
                 const params = []
@@ -343,7 +339,7 @@ async fn dynamic_sitemap_route_with_generate_source(
                 return params
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -352,7 +348,7 @@ async fn dynamic_sitemap_route_with_generate_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -363,7 +359,6 @@ async fn dynamic_sitemap_route_without_generate_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
     let content_type = get_content_type(path.clone()).await?;
 
     let code = formatdoc! {
@@ -394,7 +389,7 @@ async fn dynamic_sitemap_route_without_generate_source(
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         content_type = StringifyJs(&content_type),
         file_type = StringifyJs(&stem),
         cache_control = StringifyJs(CACHE_HEADER_REVALIDATE),
@@ -403,7 +398,7 @@ async fn dynamic_sitemap_route_without_generate_source(
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -426,7 +421,6 @@ async fn dynamic_image_route_with_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let code = formatdoc! {
         r#"
@@ -445,24 +439,22 @@ async fn dynamic_image_route_with_metadata_source(
                     const {{ __metadata_id__, ...rest }} = params
                     return rest
                 }})
-                
-                if (process.env.NODE_ENV !== 'production') {{
-                    const restParams = await restParamsPromise
-                    const __metadata_id__ = await idPromise
-                    const imageMetadata = await generateImageMetadata({{ params: restParams }})
-                    const id = imageMetadata.find((item) => {{
-                        if (item?.id == null) {{
-                            throw new Error('id property is required for every item returned from generateImageMetadata')
-                        }}
 
-                        return item.id.toString() === __metadata_id__
-                    }})?.id
-
-                    if (id == null) {{
-                        return new NextResponse('Not Found', {{
-                            status: 404,
-                        }})
+                const restParams = await restParamsPromise
+                const __metadata_id__ = await idPromise
+                const imageMetadata = await generateImageMetadata({{ params: restParams }})
+                const id = imageMetadata.find((item) => {{
+                    if (item?.id == null) {{
+                        throw new Error('id property is required for every item returned from generateImageMetadata')
                     }}
+
+                    return item.id.toString() === __metadata_id__
+                }})?.id
+
+                if (id == null) {{
+                    return new NextResponse('Not Found', {{
+                        status: 404,
+                    }})
                 }}
 
                 return handler({{ params: restParamsPromise, id: idPromise }})
@@ -470,7 +462,6 @@ async fn dynamic_image_route_with_metadata_source(
 
             export * from {resource_path}
 
-            export const dynamicParams = false
             export async function generateStaticParams({{ params }}) {{
                 const imageMetadata = await generateImageMetadata({{ params }})
                 const staticParams = []
@@ -484,13 +475,13 @@ async fn dynamic_image_route_with_metadata_source(
                 return staticParams
             }}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
     };
 
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -501,7 +492,6 @@ async fn dynamic_image_route_without_metadata_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
     let code = formatdoc! {
         r#"
@@ -518,13 +508,13 @@ async fn dynamic_image_route_without_metadata_source(
 
             export * from {resource_path}
         "#,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
     };
 
     let file = File::from(code);
     let source = VirtualSource::new(
         path.parent().join(&format!("{stem}--route-entry.js"))?,
-        AssetContent::file(file.into()),
+        AssetContent::file(FileContent::Content(file).cell()),
     );
 
     Ok(Vc::upcast(source))
@@ -550,48 +540,41 @@ struct StaticMetadataFileSizeIssue {
     file_size_limit_mb: usize,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for StaticMetadataFileSizeIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Static metadata file size exceeded")).cell()
-    }
-
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::ProcessModule.into()
-    }
-
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(
-                format!(
-                    "File size for {} image \"{}\" exceeds {}MB. (Current: {:.1}MB)",
-                    self.img_name,
-                    self.path.value_to_string().await?,
-                    self.file_size_limit_mb,
-                    (self.file_size as f32) / 1024.0 / 1024.0
-                )
-                .into(),
-            )
-            .resolved_cell(),
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Static metadata file size exceeded"
         )))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!(
-            "https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif"
-        ))
+    fn stage(&self) -> IssueStage {
+        IssueStage::ProcessModule
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let current_size = (self.file_size as f32) / 1024.0 / 1024.0;
+        Ok(Some(StyledString::Text(
+            turbofmt!(
+                "File size for {} image \"{}\" exceeds {}MB. (Current: {current_size:.1}MB)",
+                self.img_name,
+                self.path,
+                self.file_size_limit_mb,
+            )
+            .await?,
+        )))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        rcstr!("https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif")
     }
 }

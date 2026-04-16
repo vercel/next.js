@@ -1,8 +1,16 @@
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../../../../shared'
-import { workUnitAsyncStorage } from 'next/dist/server/app-render/work-unit-async-storage.external'
 
 type Params = { id: string }
+
+export const unstable_instant = {
+  prefetch: 'runtime',
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  samples: [{ cookies: [] }],
+}
+export const unstable_prefetch = 'runtime'
 
 export default async function Page({ params }: { params: Promise<Params> }) {
   return (
@@ -20,11 +28,6 @@ export default async function Page({ params }: { params: Promise<Params> }) {
 }
 
 async function RuntimePrefetchable({ params }: { params: Promise<Params> }) {
-  const res = await params
-  console.log(
-    'RuntimePrefetchable :: awaited params',
-    res,
-    workUnitAsyncStorage.getStore()
-  )
+  await params
   return <div id="timestamp">Timestamp: {Date.now()}</div>
 }

@@ -10,7 +10,7 @@ use std::fmt::Write;
 
 use anyhow::Result;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem, ChunkItems, ChunkingContext, ModuleIds},
@@ -19,7 +19,7 @@ use turbopack_core::{
         Introspectable, IntrospectableChildren, module::IntrospectableModule,
         utils::children_from_output_assets,
     },
-    output::OutputAssets,
+    output::{OutputAssetsReference, OutputAssetsWithReferenced},
     server_fs::ServerFileSystem,
 };
 
@@ -34,7 +34,7 @@ pub use self::{
     data::EcmascriptChunkData,
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
-        EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo, ecmascript_chunk_item,
     },
     placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
@@ -63,6 +63,48 @@ impl EcmascriptChunk {
     pub fn entry_ids(self: Vc<Self>) -> Vc<ModuleIds> {
         // TODO return something useful
         Vc::cell(Default::default())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl OutputAssetsReference for EcmascriptChunk {
+    #[turbo_tasks::function]
+    async fn references(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
+        let content = self.content.await?;
+        let references = content
+            .chunk_items
+            .iter()
+            .map(async |with_info| {
+                let r = with_info.references().await?;
+                Ok((
+                    r.assets.await?,
+                    r.referenced_assets.await?,
+                    r.references.await?,
+                ))
+            })
+            .try_join()
+            .await?;
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(assets, _, _)| assets.into_iter().copied())
+                    .collect(),
+            ),
+            referenced_assets: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(_, referenced_assets, _)| referenced_assets.into_iter().copied())
+                    .collect(),
+            ),
+            references: ResolvedVc::cell(
+                references
+                    .iter()
+                    .flat_map(|(_, _, references)| references.into_iter().copied())
+                    .collect(),
+            ),
+        }
+        .cell())
     }
 }
 
@@ -128,30 +170,8 @@ impl Chunk for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let content = self.content.await?;
-        let referenced_output_assets = content
-            .chunk_items
-            .iter()
-            .map(async |with_info| Ok(with_info.references().await?.into_iter().copied()))
-            .try_flat_join()
-            .await?;
-        Ok(Vc::cell(referenced_output_assets))
-    }
-
-    #[turbo_tasks::function]
     fn chunk_items(&self) -> Vc<ChunkItems> {
         self.content.included_chunk_items()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptChunk {
-    #[turbo_tasks::function]
-    async fn to_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("chunk {}", self.ident().to_string().await?).into(),
-        ))
     }
 }
 
@@ -176,11 +196,10 @@ impl Introspectable for EcmascriptChunk {
     }
 
     #[turbo_tasks::function]
-    async fn details(self: Vc<Self>) -> Result<Vc<RcStr>> {
+    async fn details(&self) -> Result<Vc<RcStr>> {
         let mut details = String::new();
-        let this = self.await?;
         details += "Chunk items:\n\n";
-        for chunk_item in this.content.included_chunk_items().await? {
+        for chunk_item in self.content.included_chunk_items().await? {
             writeln!(details, "- {}", chunk_item.asset_ident().to_string().await?)?;
         }
         Ok(Vc::cell(details.into()))

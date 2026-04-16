@@ -1,16 +1,16 @@
+import { setTimeout } from 'node:timers/promises'
 import React from 'react'
 
-// ensure this page is dynamically rendered so we always trigger a loading state
-export const dynamic = 'force-dynamic'
-
-export default function Page() {
+export default async function Page() {
+  // Ensure we trigger the loading state.
+  // `connection` isn't sufficient since a parent might've already suspended
+  // on connection.
+  await setTimeout(50)
   return <div id="page-content">Content</div>
 }
 
 async function getTitle() {
-  return await new Promise((resolve) =>
-    setTimeout(() => resolve('Async Title'), 5000)
-  )
+  return setTimeout(5000, 'Async Title')
 }
 
 export async function generateMetadata() {

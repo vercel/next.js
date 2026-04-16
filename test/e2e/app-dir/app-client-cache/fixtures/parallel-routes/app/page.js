@@ -1,11 +1,11 @@
-import Link from 'next/link'
+import { LinkAccordion } from './components/link-accordion'
 
 export default function Page() {
   return (
-    <div>
-      <Link href="/0" prefetch={true}>
+    <div id="home-page">
+      <LinkAccordion href="/0" prefetch={true}>
         To Dynamic Page
-      </Link>
+      </LinkAccordion>
     </div>
   )
 }

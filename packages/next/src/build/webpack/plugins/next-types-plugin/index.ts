@@ -1,3 +1,7 @@
+// DO NOT ADD NEW FEATURES TO THIS PLUGIN
+// DOING SO PREVENTS THEM FROM WORKING FOR TURBOPACK USERS.
+// FOLLOW THE PATTERN OF TYPED-ROUTES AND CACHE-LIFE GENERATION
+
 import type { Rewrite, Redirect } from '../../../../lib/load-custom-routes'
 
 import fs from 'fs/promises'
@@ -11,10 +15,9 @@ import { normalizePathSep } from '../../../../shared/lib/page-path/normalize-pat
 import { HTTP_METHODS } from '../../../../server/web/http'
 import { isDynamicRoute } from '../../../../shared/lib/router/utils'
 import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
-import { getPageFromPath } from '../../../entries'
+import { getPageFromPath } from '../../../route-discovery'
 import type { PageExtensions } from '../../../page-extensions-type'
 import { getProxiedPluginState } from '../../../build-context'
-import type { CacheLife } from '../../../../server/use-cache/cache-life'
 
 const PLUGIN_NAME = 'NextTypesPlugin'
 
@@ -31,7 +34,6 @@ interface Options {
   dev: boolean
   isEdgeServer: boolean
   pageExtensions: PageExtensions
-  cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   originalRewrites: Rewrites | undefined
   originalRedirects: Redirect[] | undefined
 }
@@ -52,6 +54,8 @@ ${
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
+import type { InstantConfigForTypeCheckInternal, Prefetch } from 'next/dist/build/segment-config/app/app-segment-config.js'
+
 type TEntry = typeof import('${relativePath}.js')
 
 type SegmentParams<T extends Object = any> = T extends Record<string, any>
@@ -67,7 +71,9 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
-  unstable_prefetch?: 'unstable_static' | 'unstable_runtime'
+  unstable_instant?: InstantConfigForTypeCheckInternal
+  unstable_prefetch?: Prefetch
+  unstable_dynamicStaleTime?: number
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
   dynamicParams?: boolean
@@ -83,7 +89,6 @@ checkFields<Diff<{
   generateMetadata?: Function
   viewport?: any
   generateViewport?: Function
-  experimental_ppr?: boolean
   `
   }
 }, TEntry, ''>>()
@@ -282,63 +287,6 @@ function formatRouteToRouteType(route: string) {
   }
 }
 
-function formatTimespan(seconds: number): string {
-  if (seconds > 0) {
-    if (seconds === 18748800) {
-      return '1 month'
-    }
-    if (seconds === 18144000) {
-      return '1 month'
-    }
-    if (seconds === 604800) {
-      return '1 week'
-    }
-    if (seconds === 86400) {
-      return '1 day'
-    }
-    if (seconds === 3600) {
-      return '1 hour'
-    }
-    if (seconds === 60) {
-      return '1 minute'
-    }
-    if (seconds % 18748800 === 0) {
-      return seconds / 18748800 + ' months'
-    }
-    if (seconds % 18144000 === 0) {
-      return seconds / 18144000 + ' months'
-    }
-    if (seconds % 604800 === 0) {
-      return seconds / 604800 + ' weeks'
-    }
-    if (seconds % 86400 === 0) {
-      return seconds / 86400 + ' days'
-    }
-    if (seconds % 3600 === 0) {
-      return seconds / 3600 + ' hours'
-    }
-    if (seconds % 60 === 0) {
-      return seconds / 60 + ' minutes'
-    }
-  }
-  return seconds + ' seconds'
-}
-
-function formatTimespanWithSeconds(seconds: undefined | number): string {
-  if (seconds === undefined) {
-    return 'default'
-  }
-  if (seconds >= 0xfffffffe) {
-    return 'never'
-  }
-  const text = seconds + ' seconds'
-  const descriptive = formatTimespan(seconds)
-  if (descriptive === text) {
-    return text
-  }
-  return text + ' (' + descriptive + ')'
-}
-
 function getRootParamsFromLayouts(layouts: Record<string, string[]>) {
   // Sort layouts by depth (descending)
   const sortedLayouts = Object.entries(layouts).sort(
@@ -402,9 +350,7 @@ function isSubpath(parentLayoutPath: string, potentialChildLayoutPath: string) {
   )
 }
 
-function createServerDefinitions(
-  rootParams: { param: string; optional: boolean }[]
-) {
+function createServerDefinitions() {
   return `
   declare module 'next/server' {
 
@@ -415,7 +361,7 @@ function createServerDefinitions(
     export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
     export { NextRequest } from 'next/dist/server/web/spec-extension/request'
     export { NextResponse } from 'next/dist/server/web/spec-extension/response'
-    export { NextMiddleware, MiddlewareConfig } from 'next/dist/server/web/types'
+    export { NextMiddleware, MiddlewareConfig, NextProxy, ProxyConfig } from 'next/dist/server/web/types'
     export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
     export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
     export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
@@ -423,132 +369,8 @@ function createServerDefinitions(
     export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
     export { after } from 'next/dist/server/after'
     export { connection } from 'next/dist/server/request/connection'
-    export function unstable_rootParams(): Promise<{ ${rootParams
-      .map(
-        ({ param, optional }) =>
-          // ensure params with dashes are valid keys
-          `${param.includes('-') ? `'${param}'` : param}${optional ? '?' : ''}: string`
-      )
-      .join(', ')} }>
   }
   `
-}
-
-function createCustomCacheLifeDefinitions(cacheLife: {
-  [profile: string]: CacheLife
-}) {
-  let overloads = ''
-
-  const profileNames = Object.keys(cacheLife)
-  for (let i = 0; i < profileNames.length; i++) {
-    const profileName = profileNames[i]
-    const profile = cacheLife[profileName]
-    if (typeof profile !== 'object' || profile === null) {
-      continue
-    }
-
-    let description = ''
-
-    if (profile.stale === undefined) {
-      description += `
-     * This cache may be stale on clients for the default stale time of the scope before checking with the server.`
-    } else if (profile.stale >= 0xfffffffe) {
-      description += `
-     * This cache may be stale on clients indefinitely before checking with the server.`
-    } else {
-      description += `
-     * This cache may be stale on clients for ${formatTimespan(profile.stale)} before checking with the server.`
-    }
-    if (
-      profile.revalidate !== undefined &&
-      profile.expire !== undefined &&
-      profile.revalidate >= profile.expire
-    ) {
-      description += `
-     * This cache will expire after ${formatTimespan(profile.expire)}. The next request will recompute it.`
-    } else {
-      if (profile.revalidate === undefined) {
-        description += `
-     * It will inherit the default revalidate time of its scope since it does not define its own.`
-      } else if (profile.revalidate >= 0xfffffffe) {
-        // Nothing to mention.
-      } else {
-        description += `
-     * If the server receives a new request after ${formatTimespan(profile.revalidate)}, start revalidating new values in the background.`
-      }
-      if (profile.expire === undefined) {
-        description += `
-     * It will inherit the default expiration time of its scope since it does not define its own.`
-      } else if (profile.expire >= 0xfffffffe) {
-        description += `
-     * It lives for the maximum age of the server cache. If this entry has no traffic for a while, it may serve an old value the next request.`
-      } else {
-        description += `
-     * If this entry has no traffic for ${formatTimespan(profile.expire)} it will expire. The next request will recompute it.`
-      }
-    }
-
-    overloads += `
-    /**
-     * Cache this \`"use cache"\` for a timespan defined by the \`${JSON.stringify(profileName)}\` profile.
-     * \`\`\`
-     *   stale:      ${formatTimespanWithSeconds(profile.stale)}
-     *   revalidate: ${formatTimespanWithSeconds(profile.revalidate)}
-     *   expire:     ${formatTimespanWithSeconds(profile.expire)}
-     * \`\`\`
-     * ${description}
-     */
-    export function unstable_cacheLife(profile: ${JSON.stringify(profileName)}): void
-    `
-  }
-
-  overloads += `
-    /**
-     * Cache this \`"use cache"\` using a custom timespan.
-     * \`\`\`
-     *   stale: ... // seconds
-     *   revalidate: ... // seconds
-     *   expire: ... // seconds
-     * \`\`\`
-     *
-     * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-     *
-     * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-     */
-    export function unstable_cacheLife(profile: {
-      /**
-       * This cache may be stale on clients for ... seconds before checking with the server.
-       */
-      stale?: number,
-      /**
-       * If the server receives a new request after ... seconds, start revalidating new values in the background.
-       */
-      revalidate?: number,
-      /**
-       * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-       */
-      expire?: number
-    }): void
-  `
-
-  // Redefine the cacheLife() accepted arguments.
-  return `// Type definitions for Next.js cacheLife configs
-
-declare module 'next/cache' {
-  export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-  export {
-    revalidateTag,
-    revalidatePath,
-    unstable_expireTag,
-    unstable_expirePath,
-  } from 'next/dist/server/web/spec-extension/revalidate'
-  export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-
-  ${overloads}
-
-  export { cacheTag as unstable_cacheTag } from 'next/dist/server/use-cache/cache-tag'
-}
-`
 }
 
 const appTypesBasePath = path.join('types', 'app')
@@ -561,7 +383,6 @@ export class NextTypesPlugin {
   isEdgeServer: boolean
   pageExtensions: string[]
   pagesDir: string
-  cacheLifeConfig: undefined | { [profile: string]: CacheLife }
   distDirAbsolutePath: string
 
   constructor(options: Options) {
@@ -572,7 +393,6 @@ export class NextTypesPlugin {
     this.isEdgeServer = options.isEdgeServer
     this.pageExtensions = options.pageExtensions
     this.pagesDir = path.join(this.appDir, '..', 'pages')
-    this.cacheLifeConfig = options.cacheLifeConfig
     this.distDirAbsolutePath = path.join(this.dir, this.distDir)
   }
 
@@ -814,7 +634,7 @@ export class NextTypesPlugin {
             compilation.emitAsset(
               serverTypesPath,
               new sources.RawSource(
-                createServerDefinitions(rootParams)
+                createServerDefinitions()
               ) as unknown as webpack.sources.RawSource
             )
           }
@@ -832,20 +652,6 @@ export class NextTypesPlugin {
               '{"type": "module"}'
             ) as unknown as webpack.sources.RawSource
           )
-
-          if (this.cacheLifeConfig) {
-            const cacheLifeAssetPath = path.join(
-              assetDirRelative,
-              'types/cache-life.d.ts'
-            )
-
-            compilation.emitAsset(
-              cacheLifeAssetPath,
-              new sources.RawSource(
-                createCustomCacheLifeDefinitions(this.cacheLifeConfig)
-              ) as unknown as webpack.sources.RawSource
-            )
-          }
 
           callback()
         }
