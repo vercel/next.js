@@ -295,7 +295,7 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
             } else {
                 format!("{prefix}/{segment}")
             };
-            if let DirectoryEntry::File(path) = entry {
+            if let DirectoryEntry::File(path) | DirectoryEntry::Symlink(path) = entry {
                 files.push((full_path.into(), path.clone()));
             }
         }

@@ -85,18 +85,33 @@ async fn read_glob_internal(
                         handle_dir(&mut result, entry_path, segment, path).await?;
                     }
                     DirectoryEntry::Symlink(path) => {
-                        if let LinkContent::Link { link_type, .. } = &*path.read_link().await? {
-                            if link_type.contains(LinkType::DIRECTORY) {
-                                // Ensure that there are no infinite link loops, but don't resolve
-                                resolve_symlink_safely(entry.clone()).await?;
-
-                                // Add the directory to `results` if it is a whole match of the glob
-                                handle_file(&mut result, &entry_path, segment, entry);
-                                // Recursively handle the directory
-                                handle_dir(&mut result, entry_path, segment, path).await?;
-                            } else {
-                                handle_file(&mut result, &entry_path, segment, entry);
+                        let is_dir = match &*path.read_link().await? {
+                            LinkContent::Link { link_type, .. } => {
+                                link_type.contains(LinkType::DIRECTORY)
                             }
+                            // Cross-root symlink (target is outside the filesystem
+                            // root): fall back to OS-level metadata to determine
+                            // the target type.
+                            LinkContent::Invalid => {
+                                matches!(
+                                    crate::classify_cross_root_symlink(path.clone()).await?,
+                                    Some(crate::FileSystemEntryType::Directory)
+                                )
+                            }
+                            LinkContent::NotFound => {
+                                continue;
+                            }
+                        };
+                        if is_dir {
+                            // Ensure that there are no infinite link loops, but don't resolve
+                            resolve_symlink_safely(entry.clone()).await?;
+
+                            // Add the directory to `results` if it is a whole match of the glob
+                            handle_file(&mut result, &entry_path, segment, entry);
+                            // Recursively handle the directory
+                            handle_dir(&mut result, entry_path, segment, path).await?;
+                        } else {
+                            handle_file(&mut result, &entry_path, segment, entry);
                         }
                     }
                     DirectoryEntry::Other(_) | DirectoryEntry::Error(_) => continue,

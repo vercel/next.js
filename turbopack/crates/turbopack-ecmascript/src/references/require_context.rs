@@ -88,7 +88,8 @@ impl DirList {
         };
 
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
-            match entry {
+            let entry = entry.clone().resolve_symlink().await?;
+            match &entry {
                 DirectoryEntry::File(path) => {
                     if let Some(relative_path) = root_val.get_relative_path_to(path)
                         && regex.is_match(&relative_path)

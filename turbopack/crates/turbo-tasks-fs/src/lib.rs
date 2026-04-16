@@ -1886,6 +1886,13 @@ impl FileSystemPath {
 pub struct RealPathResult {
     pub path_result: Result<FileSystemPath, RealPathResultError>,
     pub symlinks: Vec<FileSystemPath>,
+    /// When `true`, the returned `path_result` is a symlink whose target lives outside the
+    /// filesystem root (e.g., build systems that assemble source trees via symlinks). The path is
+    /// still usable for reads (the OS follows
+    /// the symlink), but it is *not* the canonical location — two different symlinks to the same
+    /// external target will produce different "realpaths". Callers that need deduplication by
+    /// canonical identity should be aware of this.
+    pub cross_root: bool,
 }
 
 /// Errors that can occur when resolving a path with symlinks.
@@ -2751,6 +2758,43 @@ pub async fn to_sys_path(mut path: FileSystemPath) -> Result<Option<PathBuf>> {
     }
 }
 
+/// Classifies a cross-root symlink by falling back to OS-level metadata.
+///
+/// When a symlink target resolves outside the filesystem root (e.g., build systems that assemble
+/// source trees via symlinks pointing outside the project root), `read_link()` returns
+/// `LinkContent::Invalid`.
+/// This helper checks whether the OS can still resolve the symlink chain and, if so, returns
+/// the appropriate `FileSystemEntryType`.
+///
+/// Returns `None` if the path cannot be mapped to a system path (e.g., `VirtualFileSystem`) or
+/// if the OS-level metadata call fails (broken symlink, permission denied, etc.).
+///
+/// **Invalidation note:** This call is intentionally untracked by turbo-tasks. Changes to the
+/// external symlink *target* (outside the fs root) will not trigger re-evaluation. This is
+/// acceptable for build systems where the source tree is rebuilt atomically, but callers
+/// should be aware of this limitation.
+pub async fn classify_cross_root_symlink(
+    path: FileSystemPath,
+) -> Result<Option<FileSystemEntryType>> {
+    let Some(sys_path) = to_sys_path(path).await? else {
+        return Ok(None);
+    };
+    // Use retry_blocking to be consistent with other filesystem operations (handles transient
+    // errors like EINTR on retries, and blocks the current thread rather than spawning).
+    match retry_blocking(|| std::fs::metadata(&sys_path)).await {
+        Ok(meta) => {
+            if meta.is_dir() {
+                Ok(Some(FileSystemEntryType::Directory))
+            } else if meta.is_file() {
+                Ok(Some(FileSystemEntryType::File))
+            } else {
+                Ok(Some(FileSystemEntryType::Other))
+            }
+        }
+        Err(_) => Ok(None),
+    }
+}
+
 #[turbo_tasks::function]
 async fn read_dir(path: FileSystemPath) -> Result<Vc<DirectoryContent>> {
     let fs = path.fs().to_resolved().await?;
@@ -2797,18 +2841,13 @@ async fn get_type(path: FileSystemPath) -> Result<Vc<FileSystemEntryType>> {
             if let Some(entry) = entries.get(file_name) {
                 let ty = FileSystemEntryType::from(entry);
                 // For symlinks pointing outside the filesystem root (e.g.,
-                // Bazel builds), read_link() returns Invalid. Fall back to
+                // build systems that assemble source trees via symlinks),
+                // read_link() returns Invalid. Fall back to
                 // OS-level metadata so callers see File/Directory, not Symlink.
                 if matches!(ty, FileSystemEntryType::Symlink) {
                     if let LinkContent::Invalid = &*path.read_link().await? {
-                        if let Some(sys_path) = to_sys_path(path).await? {
-                            if let Ok(meta) = std::fs::metadata(&sys_path) {
-                                return Ok(if meta.is_dir() {
-                                    FileSystemEntryType::Directory.cell()
-                                } else {
-                                    FileSystemEntryType::File.cell()
-                                });
-                            }
+                        if let Some(resolved_ty) = classify_cross_root_symlink(path).await? {
+                            return Ok(resolved_ty.cell());
                         }
                     }
                 }
@@ -2834,6 +2873,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             return Ok(RealPathResult {
                 path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(),
+                cross_root: false,
             }
             .cell());
         }
@@ -2873,6 +2913,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             return Ok(RealPathResult {
                 path_result: Ok(current_path),
                 symlinks: symlinks.into_iter().collect(), // convert set to vec
+                cross_root: false,
             }
             .cell());
         }
@@ -2893,17 +2934,26 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
             }
             LinkContent::Invalid => {
                 // The symlink target resolves outside the filesystem root.
-                // This is valid in build systems like Bazel where the source
-                // tree is assembled via symlinks pointing to external artifact
-                // caches. Check if the OS can resolve the symlink; if so,
+                // This is valid in build systems that assemble source trees
+                // via symlinks pointing outside the filesystem root. Check
+                // if the OS can resolve the symlink; if so,
                 // treat the symlink path itself as the realpath so callers can
                 // read the file normally (std::fs::read follows OS symlinks).
-                if let Some(sys_path) = to_sys_path(current_path.clone()).await? {
-                    if std::fs::metadata(&sys_path).is_ok() {
+                //
+                // Defense-in-depth: in practice, `get_type()` (called above)
+                // already resolves cross-root symlinks to File/Directory via
+                // the same helper, so the loop exits early before reaching
+                // this branch. This fallback covers the edge case where
+                // `get_type`'s own fallback fails (e.g., `to_sys_path`
+                // returns `None` for a non-disk filesystem).
+                if let Some(resolved_ty) = classify_cross_root_symlink(current_path.clone()).await?
+                {
+                    if !matches!(resolved_ty, FileSystemEntryType::NotFound) {
                         symlinks.insert(current_path.clone());
                         return Ok(RealPathResult {
                             path_result: Ok(current_path),
                             symlinks: symlinks.into_iter().collect(),
+                            cross_root: true,
                         }
                         .cell());
                     }
@@ -2924,6 +2974,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
     Ok(RealPathResult {
         path_result: Err(error),
         symlinks: symlinks.into_iter().collect(),
+        cross_root: false,
     }
     .cell())
 }
@@ -3466,6 +3517,82 @@ mod tests {
                     result.path_result.as_ref().unwrap().path.as_str(),
                     "package.json",
                     "realpath should be the symlink path itself"
+                );
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+
+            tt.stop_and_wait().await;
+        }
+
+        /// Same as `test_cross_root_symlink` but uses an **absolute** symlink
+        /// pointing outside the fs root, which is the actual Bazel scenario:
+        /// `rules_js` creates absolute symlinks from the sandbox to the real
+        /// execroot.
+        #[cfg(unix)]
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_cross_root_symlink_absolute() {
+            use std::os::unix::fs::symlink;
+
+            use crate::FileSystemEntryType;
+
+            let scratch = tempfile::tempdir().unwrap();
+            let root_dir = scratch.path().join("root");
+            let external_dir = scratch.path().join("external");
+
+            create_dir_all(&root_dir).unwrap();
+
+            // Create a file OUTSIDE the root
+            create_dir_all(&external_dir).unwrap();
+            std::fs::File::create_new(external_dir.join("index.js"))
+                .unwrap()
+                .write_all(b"module.exports = {}")
+                .unwrap();
+
+            // Create an ABSOLUTE symlink inside the root pointing to the
+            // external file — this is what Bazel `rules_js` actually produces.
+            symlink(external_dir.join("index.js"), root_dir.join("index.js")).unwrap();
+
+            let root = RcStr::from(root_dir.to_str().unwrap());
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+
+            tt.run_once(async move {
+                let fs = disk_file_system_operation(root)
+                    .resolve()
+                    .strongly_consistent()
+                    .await?;
+                let root_path = disk_file_system_root(fs);
+                let symlink_path = root_path.join("index.js")?;
+
+                let ty = *symlink_path.get_type().strongly_consistent().await?;
+                assert_eq!(
+                    ty,
+                    FileSystemEntryType::File,
+                    "get_type should return File for absolute cross-root symlink"
+                );
+
+                let result = symlink_path
+                    .realpath_with_links()
+                    .strongly_consistent()
+                    .await?;
+                assert!(
+                    result.path_result.is_ok(),
+                    "realpath_with_links should succeed for absolute cross-root symlink, got: {:?}",
+                    result.path_result
+                );
+                assert_eq!(
+                    result.path_result.as_ref().unwrap().path.as_str(),
+                    "index.js",
+                    "realpath should be the symlink path itself"
+                );
+                assert!(
+                    result.cross_root,
+                    "cross_root flag should be set for cross-root symlink"
                 );
 
                 anyhow::Ok(())

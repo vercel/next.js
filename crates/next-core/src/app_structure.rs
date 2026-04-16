@@ -2004,7 +2004,8 @@ pub async fn get_global_metadata(
     let mut metadata = GlobalMetadata::default();
 
     for (basename, entry) in entries {
-        let DirectoryEntry::File(file) = entry else {
+        let entry = entry.clone().resolve_symlink().await?;
+        let DirectoryEntry::File(file) = &entry else {
             continue;
         };
 
@@ -2028,7 +2029,6 @@ pub async fn get_global_metadata(
         } else {
             *entry = Some(MetadataItem::Static { path: file.clone() });
         }
-        // TODO(WEB-952) handle symlinks in app dir
     }
 
     Ok(metadata.cell())
