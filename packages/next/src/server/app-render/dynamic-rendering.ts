@@ -50,6 +50,7 @@ import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import {
   runtimeBodyMessage,
   dynamicBodyMessage,
+  dynamicOrRuntimeBodyMessage,
   runtimeMetadataMessage,
   dynamicMetadataMessage,
   runtimeViewportMessage,
@@ -826,7 +827,7 @@ export function trackAllowedDynamicAccess(
     )
     return
   } else {
-    const message = dynamicBodyMessage(workStore.route)
+    const message = dynamicOrRuntimeBodyMessage(workStore.route)
     const error = addErrorContext(new Error(message), componentStack, null)
     dynamicValidation.dynamicErrors.push(error)
     return

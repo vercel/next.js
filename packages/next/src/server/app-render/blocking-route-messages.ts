@@ -13,6 +13,24 @@ export function runtimeBodyMessage(route: string): string {
 
 export function dynamicBodyMessage(route: string): string {
   return (
+    `Route "${route}": Next.js encountered uncached data during the initial render.\n\n` +
+    `Accessing \`fetch()\` or \`connection()\` blocks this page from streaming, ` +
+    `resulting in a slower user experience.\n\n` +
+    `Possible fixes:\n` +
+    `  - Cache the data access with \`"use cache"\`\n` +
+    `  - Move the data access into a child component within a <Suspense> boundary\n` +
+    `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
+    `Learn more: https://nextjs.org/docs/messages/blocking-route`
+  )
+}
+
+/**
+ * NOTE: Prefer `runtimeBodyMessage` or `dynamicBodyMessage`.
+ * Only use this in situations like build-time static validation, where
+ * we can't pinpoint a more specific reason.
+ */
+export function dynamicOrRuntimeBodyMessage(route: string): string {
+  return (
     `Route "${route}": Next.js encountered uncached or runtime data during the initial render.\n\n` +
     `Accessing \`fetch()\`, \`cookies()\`, \`headers()\`, \`params\`, ` +
     `\`searchParams\`, or \`connection()\` blocks this page from streaming, ` +
