@@ -1496,8 +1496,11 @@ describe('WorkerPool', () => {
         timeout: 1000,
       })
 
-      pool.dispatch('hung', [])
-      pool.dispatch('queued', []) // waiting in queue
+      const p1 = pool.dispatch('hung', [])
+      const p2 = pool.dispatch('queued', []) // waiting in queue
+      // Suppress unhandled rejections from shutdownNow()
+      p1.catch(() => {})
+      p2.catch(() => {})
       const proc1 = latestProcess()
       replyReady(proc1)
 
@@ -1526,6 +1529,174 @@ describe('WorkerPool', () => {
 
       // Advancing timers should not cause issues
       jest.advanceTimersByTime(5000)
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Spawn error rejects queued tasks
+  // -----------------------------------------------------------------------
+  describe('spawn error rejects queued tasks', () => {
+    it('rejects both in-flight and queued tasks on spawn error', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        concurrencyPerWorker: 1,
+      })
+      const p1 = pool.dispatch('first', [])
+      const p2 = pool.dispatch('second', []) // queued — only 1 worker, at capacity
+
+      const proc = latestProcess()
+
+      // Simulate a spawn error (e.g. ENOMEM)
+      proc.emit('error', new Error('spawn ENOMEM'))
+
+      await expect(p1).rejects.toThrow('spawn ENOMEM')
+      await expect(p2).rejects.toThrow('spawn ENOMEM')
+      pool.shutdownNow()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // Booting worker timeout
+  // -----------------------------------------------------------------------
+  describe('booting worker timeout', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+    })
+
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
+    it('kills a booting worker that never sends READY within timeout', async () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        timeout: 1000,
+      })
+
+      const promise = pool.dispatch('test', [])
+      const proc1 = latestProcess()
+
+      // Do NOT call replyReady — worker stays in BOOTING state
+      // Advance past timeout
+      jest.advanceTimersByTime(1500)
+
+      // The booting worker should be killed
+      expect(proc1.killed).toBe(true)
+
+      // A replacement worker should be spawned for the queued task
+      expect(spawnedProcesses).toHaveLength(2)
+      const proc2 = latestProcess()
+
+      // The replacement worker completes the task
+      replyReady(proc2)
+      const calls = proc2.sent.filter((m) => m[0] === CHILD_MESSAGE_CALL)
+      expect(calls).toHaveLength(1)
+      replyOk(proc2, calls[0][1] as number, 'done')
+      await expect(promise).resolves.toBe('done')
+
+      pool.shutdownNow()
+    })
+
+    it('spawns replacement for queued tasks after booting worker times out', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 2,
+        maxBootingWorkers: 1,
+        timeout: 1000,
+      })
+
+      pool.dispatch('a', [])
+      pool.dispatch('b', [])
+      expect(spawnedProcesses).toHaveLength(1)
+
+      const proc1 = spawnedProcesses[0]
+
+      // Worker 1 stays booting — timeout fires
+      jest.advanceTimersByTime(1500)
+
+      expect(proc1.killed).toBe(true)
+      // A replacement should be spawned for the remaining queued task
+      expect(spawnedProcesses.length).toBeGreaterThanOrEqual(2)
+
+      pool.shutdownNow()
+    })
+
+    it('does not kill a booting worker before timeout elapses', () => {
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        timeout: 2000,
+      })
+
+      pool.dispatch('test', [])
+      const proc = latestProcess()
+
+      // Advance less than timeout
+      jest.advanceTimersByTime(1000)
+
+      expect(proc.killed).toBe(false)
+
+      // Now make it ready — should work fine
+      replyReady(proc)
+      expect(proc.killed).toBe(false)
+
+      pool.shutdownNow()
+    })
+  })
+
+  // -----------------------------------------------------------------------
+  // onWorkerExit called on timeout
+  // -----------------------------------------------------------------------
+  describe('onWorkerExit on timeout', () => {
+    beforeEach(() => {
+      jest.useFakeTimers()
+    })
+
+    afterEach(() => {
+      jest.useRealTimers()
+    })
+
+    it('calls onWorkerExit when a running worker times out', async () => {
+      const onWorkerExit = jest.fn()
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        timeout: 1000,
+        onWorkerExit,
+      })
+
+      const promise = pool.dispatch('slow', [])
+      const proc = latestProcess()
+      replyReady(proc)
+
+      // Advance past timeout
+      jest.advanceTimersByTime(1500)
+
+      await expect(promise).rejects.toThrow('Worker timed out')
+      expect(onWorkerExit).toHaveBeenCalledWith(null, 'SIGKILL')
+
+      pool.shutdownNow()
+    })
+
+    it('calls onWorkerExit when a booting worker times out', () => {
+      const onWorkerExit = jest.fn()
+      const pool = new WorkerPool({
+        workerPath: '/fake/worker.js',
+        maxWorkers: 1,
+        timeout: 1000,
+        onWorkerExit,
+      })
+
+      pool.dispatch('test', [])
+
+      // Worker stays booting — timeout fires
+      jest.advanceTimersByTime(1500)
+
+      expect(onWorkerExit).toHaveBeenCalledWith(null, 'SIGKILL')
+
+      pool.shutdownNow()
     })
   })
 })

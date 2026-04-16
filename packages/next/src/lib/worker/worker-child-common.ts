@@ -205,7 +205,10 @@ export function createMessageHandler(
       main,
       [],
       () => transport.disconnect(),
-      () => transport.disconnect()
+      (error) => {
+        console.error('Worker teardown() threw:', error)
+        transport.disconnect()
+      }
     )
   }
 

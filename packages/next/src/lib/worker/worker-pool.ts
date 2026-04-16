@@ -369,13 +369,6 @@ export class WorkerPool {
         await exitPromise
         clearTimeout(timeout)
 
-        // Reject any requests that were still in-flight when the worker
-        // exited. This prevents Promises from hanging forever (issue #11).
-        this._rejectActiveRequests(
-          worker,
-          new Error('Worker pool ended while requests were in-flight')
-        )
-
         return forceExited
       })
     )
@@ -391,7 +384,6 @@ export class WorkerPool {
   /**
    * Force-kill all workers immediately.
    * All in-flight requests and queued tasks are rejected.
-   * Sends an END message first to allow graceful cleanup, then force-kills.
    */
   shutdownNow(): void {
     this._ending = true
@@ -404,8 +396,6 @@ export class WorkerPool {
     for (const worker of this._allWorkers) {
       worker.state = WorkerState.SHUTTING_DOWN
       this._rejectActiveRequests(worker, new Error('Worker pool closed'))
-      // Send END message to allow the child to clean up, then force-kill
-      worker.handle.send([CHILD_MESSAGE_END])
       worker.handle.forceKill()
     }
     this._allWorkers.clear()
@@ -786,10 +776,12 @@ export class WorkerPool {
   }
 
   /**
-   * Periodic check for workers that have timed out. A worker is considered
-   * timed out when it has in-flight requests and hasn't reported activity
-   * within the configured timeout window. Only the hung worker is killed
-   * and replaced — other workers are unaffected.
+   * Periodic check for workers that have timed out. A RUNNING worker is
+   * considered timed out when it has in-flight requests and hasn't reported
+   * activity within the configured timeout window. A BOOTING worker is
+   * considered timed out when it hasn't sent PARENT_MESSAGE_READY within
+   * the same window (e.g. a hung setup()). Only the affected worker is
+   * killed and replaced — other workers are unaffected.
    */
   private _checkTimeouts(): void {
     const { timeout } = this._options
@@ -797,11 +789,14 @@ export class WorkerPool {
 
     const now = Date.now()
     for (const worker of this._allWorkers) {
+      if (now - worker.lastActivity < timeout) continue
+
       if (
         worker.state === WorkerState.RUNNING &&
-        worker.activeRequests.size > 0 &&
-        now - worker.lastActivity >= timeout
+        worker.activeRequests.size > 0
       ) {
+        this._handleWorkerTimeout(worker)
+      } else if (worker.state === WorkerState.BOOTING) {
         this._handleWorkerTimeout(worker)
       }
     }
@@ -812,13 +807,17 @@ export class WorkerPool {
    * removes it from the pool, and spawns replacements for any queued tasks.
    */
   private _handleWorkerTimeout(worker: PoolWorker): void {
+    if (worker.state === WorkerState.BOOTING) {
+      this._bootingCount--
+    }
     worker.state = WorkerState.SHUTTING_DOWN
     this._rejectActiveRequests(worker, new Error('Worker timed out'))
     this._availableWorkers.delete(worker)
     this._allWorkers.delete(worker)
 
-    // Send END to allow cleanup, then force-kill
-    worker.handle.send([CHILD_MESSAGE_END])
+    // Notify the caller about the timeout-induced kill
+    this._options.onWorkerExit?.(null, 'SIGKILL')
+
     worker.handle.forceKill()
 
     // Spawn replacement workers for any queued tasks

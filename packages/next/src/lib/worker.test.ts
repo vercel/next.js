@@ -52,9 +52,9 @@ class WorkerPoolMock {
 class WorkerExitErrorMock extends Error {
   code: number | null
   signal: string | null
-  constructor(code: number | null, signal: string | null) {
+  constructor(code: number | null, signal: string | null, workerName?: string) {
     super(
-      `Worker exited unexpectedly with code ${code}${signal ? `, signal ${signal}` : ''}`
+      `${workerName ?? 'Worker'} exited with code: ${code} and signal: ${signal}`
     )
     this.name = 'WorkerExitError'
     this.code = code
@@ -691,7 +691,7 @@ describe('lib/worker maxRetries', () => {
     }
 
     await expect(worker.compute()).rejects.toThrow(
-      'Worker exited unexpectedly with code 1'
+      'Worker exited with code: 1 and signal: null'
     )
 
     worker.shutdownNow()
@@ -761,7 +761,7 @@ describe('lib/worker maxRetries', () => {
     }
 
     await expect(worker.compute()).rejects.toThrow(
-      'Worker exited unexpectedly with code 1'
+      'Worker exited with code: 1 and signal: null'
     )
 
     worker.shutdownNow()
@@ -841,5 +841,169 @@ describe('lib/worker exit handler cleanup', () => {
     const listenersEnd = process.listeners('exit').slice()
     const remaining = listenersEnd.filter((l) => !listenersBefore.includes(l))
     expect(remaining).toHaveLength(0)
+  })
+})
+
+describe('lib/worker onActivityAbort', () => {
+  afterEach(() => {
+    jest.resetModules()
+    latestPoolOptions = undefined
+    latestPoolInstance = undefined
+  })
+
+  it('calls onActivityAbort when worker stdout produces output', async () => {
+    const onActivityAbort = jest.fn()
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      onActivityAbort,
+    })
+
+    // Write to pool stdout — the Worker pipes it through an abort transform
+    latestPoolInstance!._stdout.write('some output')
+
+    // Wait for the piped data to propagate
+    await new Promise((r) => setImmediate(r))
+
+    expect(onActivityAbort).toHaveBeenCalledTimes(1)
+    worker.shutdownNow()
+  })
+
+  it('calls onActivityAbort when worker stderr produces output', async () => {
+    const onActivityAbort = jest.fn()
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      onActivityAbort,
+    })
+
+    latestPoolInstance!._stderr.write('error output')
+
+    await new Promise((r) => setImmediate(r))
+
+    expect(onActivityAbort).toHaveBeenCalledTimes(1)
+    worker.shutdownNow()
+  })
+
+  it('fires onActivityAbort only once per registration', async () => {
+    const onActivityAbort = jest.fn()
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      onActivityAbort,
+    })
+
+    latestPoolInstance!._stdout.write('first')
+    latestPoolInstance!._stdout.write('second')
+
+    await new Promise((r) => setImmediate(r))
+
+    expect(onActivityAbort).toHaveBeenCalledTimes(1)
+    worker.shutdownNow()
+  })
+
+  it('resets the guard when setOnActivityAbort is called', async () => {
+    const onActivityAbort1 = jest.fn()
+    const onActivityAbort2 = jest.fn()
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      onActivityAbort: onActivityAbort1,
+    })
+
+    latestPoolInstance!._stdout.write('first')
+    await new Promise((r) => setImmediate(r))
+    expect(onActivityAbort1).toHaveBeenCalledTimes(1)
+
+    // Re-register with new callback — resets the dedup guard
+    worker.setOnActivityAbort(onActivityAbort2)
+
+    latestPoolInstance!._stdout.write('second')
+    await new Promise((r) => setImmediate(r))
+
+    expect(onActivityAbort2).toHaveBeenCalledTimes(1)
+    // Original callback should not fire again
+    expect(onActivityAbort1).toHaveBeenCalledTimes(1)
+
+    worker.shutdownNow()
+  })
+
+  it('does not fire after setOnActivityAbort(undefined)', async () => {
+    const onActivityAbort = jest.fn()
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      onActivityAbort,
+    })
+
+    worker.setOnActivityAbort(undefined)
+
+    latestPoolInstance!._stdout.write('output')
+    await new Promise((r) => setImmediate(r))
+
+    expect(onActivityAbort).not.toHaveBeenCalled()
+    worker.shutdownNow()
+  })
+})
+
+describe('lib/worker workerName in error messages', () => {
+  afterEach(() => {
+    jest.resetModules()
+    latestPoolOptions = undefined
+    latestPoolInstance = undefined
+  })
+
+  it('includes workerName in WorkerExitError after exhausting retries', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      workerName: 'Next.js export worker',
+      maxRetries: 1,
+      exposedMethods: ['render'],
+    }) as any
+
+    latestPoolInstance!.dispatch = () => {
+      return Promise.reject(new WorkerExitErrorMock(1, null))
+    }
+
+    try {
+      await worker.render()
+      throw new Error('should have thrown')
+    } catch (err: any) {
+      expect(err.message).toBe(
+        'Next.js export worker exited with code: 1 and signal: null'
+      )
+    }
+
+    worker.shutdownNow()
+  })
+
+  it('uses default "Worker" when workerName is not set', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+
+    const worker = new Worker(__filename, {
+      ...noopOptions,
+      maxRetries: 0,
+      exposedMethods: ['render'],
+    }) as any
+
+    latestPoolInstance!.dispatch = () => {
+      return Promise.reject(new WorkerExitErrorMock(1, null))
+    }
+
+    try {
+      await worker.render()
+      throw new Error('should have thrown')
+    } catch (err: any) {
+      expect(err.message).toBe('Worker exited with code: 1 and signal: null')
+    }
+
+    worker.shutdownNow()
   })
 })
