@@ -211,9 +211,11 @@ export const CODE_FRAME_STYLES = `
     margin-left: auto;
   }
 
-  [data-nextjs-codeframe] div > pre {
-    overflow: hidden;
-    display: inline-block;
+  .code-frame-pre {
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: block;
+    max-width: 100%;
   }
 
   [data-nextjs-codeframe] svg {

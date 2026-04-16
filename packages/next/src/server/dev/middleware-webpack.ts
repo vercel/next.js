@@ -12,6 +12,7 @@ import {
 } from '../lib/source-maps'
 import { openFileInEditor } from '../../next-devtools/server/launch-editor'
 import {
+  DEVTOOLS_CODE_FRAME_MAX_WIDTH,
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
   type StackFrame,
@@ -261,7 +262,11 @@ export async function createOriginalStackFrame({
     originalStackFrame: traced,
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
-        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent)
+        originalCodeFrame = getOriginalCodeFrame(traced, sourceContent, {
+          // The overlay renders in a browser with horizontal scrolling,
+          // so don't truncate lines to the server's terminal width.
+          maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+        })
       }
       return originalCodeFrame
     },

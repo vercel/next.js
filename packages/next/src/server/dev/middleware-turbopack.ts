@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
+  DEVTOOLS_CODE_FRAME_MAX_WIDTH,
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
   type IgnorableStackFrame,
@@ -322,7 +323,11 @@ async function createOriginalStackFrame(
     },
     get originalCodeFrame() {
       if (originalCodeFrame === undefined) {
-        originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source)
+        originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source, {
+          // The overlay renders in a browser with horizontal scrolling,
+          // so don't truncate lines to the server's terminal width.
+          maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+        })
       }
       return originalCodeFrame
     },
