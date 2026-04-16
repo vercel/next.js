@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
@@ -264,6 +265,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
 
             // Still restoring; drop the lock and block until notified, then loop to re-check.
             drop(task);
+            let _span = info_span!("blocking").entered();
             listener.wait();
         }
     }

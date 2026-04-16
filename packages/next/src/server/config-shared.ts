@@ -1843,7 +1843,7 @@ export const defaultConfig = Object.freeze({
     useOffline: false,
     unstableIO: false,
     varyParams: false,
-    prefetchInlining: false,
+    prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
