@@ -79,7 +79,7 @@ impl ModuleReference for FileSourceReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced)
+        Some(ChunkingType::Traced { is_entry: true })
     }
 }
 
@@ -207,6 +207,6 @@ impl ModuleReference for DirAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Traced)
+        Some(ChunkingType::Traced { is_entry: true })
     }
 }

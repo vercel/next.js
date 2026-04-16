@@ -146,9 +146,10 @@ async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferenc
             .into_iter()
             .map(async |p| {
                 Ok(ResolvedVc::upcast(
-                    TracedModuleReference::new(Vc::upcast(RawModule::new(Vc::upcast(
-                        FileSource::new(p),
-                    ))))
+                    TracedModuleReference::new(
+                        Vc::upcast(RawModule::new(Vc::upcast(FileSource::new(p)))),
+                        true,
+                    )
                     .to_resolved()
                     .await?,
                 ))

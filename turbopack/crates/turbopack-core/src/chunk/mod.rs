@@ -324,8 +324,15 @@ pub enum ChunkingType {
         inherit_async: bool,
         merge_tag: Option<RcStr>,
     },
-    // Module not placed in chunk group, but its references are still followed.
-    Traced,
+    /// The module not placed in chunk group, but its references are still followed. This is used
+    /// for NFT, to list all unbundled files that are still needed at runtime (some static assets,
+    /// or externals and their transitive dependencies).
+    Traced {
+        /// Whether this reference is an entry point for a traced subgraph.
+        /// is_entry=true: e.g. for the first external dependency, or for readFile static assets
+        /// is_entry=false: e.g. for package.json needed by externals (sort of affecting_sources)
+        is_entry: bool,
+    },
 }
 
 impl Display for ChunkingType {
@@ -368,7 +375,7 @@ impl Display for ChunkingType {
             } => {
                 write!(f, "Shared(inherit_async: {inherit_async})")
             }
-            ChunkingType::Traced => write!(f, "Traced"),
+            ChunkingType::Traced { is_entry } => write!(f, "Traced(is_entry: {is_entry})"),
         }
     }
 }
@@ -389,6 +396,10 @@ impl ChunkingType {
 
     pub fn is_parallel(&self) -> bool {
         matches!(self, ChunkingType::Parallel { .. })
+    }
+
+    pub fn is_traced(&self) -> bool {
+        matches!(self, ChunkingType::Traced { .. })
     }
 
     pub fn is_merged(&self) -> bool {
@@ -422,7 +433,9 @@ impl ChunkingType {
                 inherit_async: false,
                 merge_tag: merge_tag.clone(),
             },
-            ChunkingType::Traced => ChunkingType::Traced,
+            ChunkingType::Traced { is_entry } => ChunkingType::Traced {
+                is_entry: *is_entry,
+            },
         }
     }
 }
@@ -433,8 +446,6 @@ pub struct ChunkGroupContentInner {
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
     #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
-    #[bincode(with = "turbo_bincode::indexset")]
-    pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     pub available_modules: ResolvedVc<AvailableModulesSet>,
 }
 

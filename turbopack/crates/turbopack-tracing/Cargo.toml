@@ -21,6 +21,7 @@ turbopack = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }
+rustc-hash = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

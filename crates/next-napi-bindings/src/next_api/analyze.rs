@@ -110,8 +110,6 @@ async fn get_analyze_data_operation(
         .try_join()
         .await?;
 
-    whole_app_module_graphs.as_side_effect().await?;
-
     let modules_data = ResolvedVc::upcast(
         ModulesDataOutputAsset::new(
             analyze_output_root.join("modules.data")?,
