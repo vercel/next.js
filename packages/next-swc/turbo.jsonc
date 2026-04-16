@@ -46,16 +46,6 @@
       "inputs": ["../../target/.rust-fingerprint"],
       "outputs": ["native/*.node", "native/index.d.ts"],
     },
-    "build-native-no-plugin": {
-      "dependsOn": ["rust-fingerprint"],
-      "inputs": ["../../target/.rust-fingerprint"],
-      "outputs": ["native/*.node", "native/index.d.ts"],
-    },
-    "build-native-no-plugin-release": {
-      "dependsOn": ["rust-fingerprint"],
-      "inputs": ["../../target/.rust-fingerprint"],
-      "outputs": ["native/*.node", "native/index.d.ts"],
-    },
     "build-wasm": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],

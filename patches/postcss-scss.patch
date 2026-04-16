@@ -1,0 +1,12 @@
+diff --git a/package.json b/package.json
+index 826e347ec40c413f99289c8069810702d79d2573..4419e5f77483599d2e6d4975415ac3b98e77215c 100644
+--- a/package.json
++++ b/package.json
+@@ -20,6 +20,7 @@
+   "types": "lib/scss-syntax.d.ts",
+   "exports": {
+     ".": {
++      "types": "./lib/scss-syntax.d.ts",
+       "require": "./lib/scss-syntax.js",
+       "import": "./lib/scss-syntax.mjs"
+     },

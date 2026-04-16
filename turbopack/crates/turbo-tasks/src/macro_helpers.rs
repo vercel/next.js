@@ -9,9 +9,11 @@ use rustc_hash::FxHashMap;
 pub use shrink_to_fit;
 pub use tracing;
 
+#[cfg(debug_assertions)]
+use crate::debug::ValueDebugFormatString;
 use crate::{
     FxDashMap, NonLocalValue, RawVc, TaskInput, TaskPersistence, TraitType, TraitTypeId, ValueType,
-    ValueTypeId, debug::ValueDebugFormatString,
+    ValueTypeId,
 };
 pub use crate::{
     global_name_for_method, global_name_for_scope, global_name_for_trait_method,
@@ -27,6 +29,7 @@ pub use crate::{
     value_type::{TraitVtablePrototype, build_trait_vtable},
 };
 
+#[cfg(debug_assertions)]
 #[inline(never)]
 pub async fn value_debug_format_field(value: ValueDebugFormatString<'_>) -> String {
     match value.try_to_string().await {
