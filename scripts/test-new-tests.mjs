@@ -180,6 +180,7 @@ async function main() {
           NEXT_TEST_MODE: testMode,
           NEXT_TEST_VERSION: nextTestVersion,
           IS_WEBPACK_TEST: '1',
+          NEXT_TEST_SKIP_RESULT_CACHE: '1',
         },
       })
     }
