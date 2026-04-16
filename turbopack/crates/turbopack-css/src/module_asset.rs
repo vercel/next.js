@@ -177,7 +177,7 @@ enum ModuleCssClass {
 #[turbo_tasks::value(transparent)]
 #[derive(Debug, Clone)]
 struct ModuleCssClasses(
-    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<String, Vec<ModuleCssClass>>,
+    #[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, Vec<ModuleCssClass>>,
 );
 
 #[turbo_tasks::value_impl]
@@ -234,7 +234,7 @@ impl EcmascriptCssModule {
                     })
                 }
 
-                classes.insert(class_name.to_string(), export);
+                classes.insert(RcStr::from(&**class_name), export);
             }
         }
 
@@ -289,9 +289,18 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
         let classes = self.classes().await?;
 
+        let export_usage = chunking_context
+            .module_export_usage(Vc::upcast(self))
+            .await?;
+        let export_usage_info = export_usage.export_usage.await?;
+
         let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
         for (export_name, class_names) in &*classes {
             let mut exported_class_names = Vec::with_capacity(class_names.len());
+
+            if !export_usage_info.is_export_used(export_name) {
+                continue;
+            }
 
             for class_name in class_names {
                 match class_name {
