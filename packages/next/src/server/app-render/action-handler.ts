@@ -4,7 +4,6 @@ import type { RequestStore } from '../app-render/work-unit-async-storage.externa
 import type { AppRenderContext, GenerateFlight } from './app-render'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
-
 import {
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
@@ -336,6 +335,124 @@ function getAppRelativeRedirectUrl(
     : null
 }
 
+function copyActionResponseHeaders(response: Response, res: BaseNextResponse) {
+  for (const [key, value] of response.headers) {
+    if (!actionsForbiddenHeaders.includes(key)) {
+      res.setHeader(key, value)
+    }
+  }
+}
+
+async function fetchActionRSCResponse(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  originalHost: Host,
+  workStore: WorkStore,
+  pathname: string,
+  search: string
+) {
+  if (!originalHost) {
+    throw new Error(
+      'Invariant: Missing `host` header from a forwarded Server Actions request.'
+    )
+  }
+
+  const forwardedHeaders = getForwardedHeaders(req, res)
+  forwardedHeaders.set(RSC_HEADER, '1')
+
+  const proto =
+    getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
+
+  // For standalone or the serverful mode, use the internal origin directly
+  // other than the host headers from the request.
+  const origin =
+    process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
+
+  const fetchUrl = new URL(`${origin}${pathname}${search}`)
+
+  if (workStore.pendingRevalidatedTags) {
+    forwardedHeaders.set(
+      NEXT_CACHE_REVALIDATED_TAGS_HEADER,
+      workStore.pendingRevalidatedTags.map((item) => item.tag).join(',')
+    )
+    forwardedHeaders.set(
+      NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
+      workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
+        ''
+    )
+  }
+
+  // Route resolution can change after actions mutate cookies or revalidate a
+  // path, so fetch a full Flight response instead of trying to patch the old
+  // tree.
+  forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE_HEADER)
+  // This internal GET is no longer handling an action.
+  forwardedHeaders.delete(ACTION_HEADER)
+
+  setCacheBustingSearchParam(fetchUrl, {
+    [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(
+      NEXT_ROUTER_PREFETCH_HEADER
+    )
+      ? ('1' as const)
+      : undefined,
+    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
+      forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ?? undefined,
+    [NEXT_ROUTER_STATE_TREE_HEADER]:
+      forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
+    [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
+  })
+
+  const response = await fetch(fetchUrl, {
+    method: 'GET',
+    headers: forwardedHeaders,
+    next: {
+      // @ts-ignore
+      internal: 1,
+    },
+  })
+
+  if (
+    response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
+  ) {
+    return response
+  }
+
+  // Since we aren't consuming the response body, we cancel it to avoid memory leaks
+  response.body?.cancel()
+  return null
+}
+
+async function createRefetchedActionRenderResult(
+  req: BaseNextRequest,
+  res: BaseNextResponse,
+  originalHost: Host,
+  workStore: WorkStore,
+  currentUrl: {
+    pathname: string
+    search: string
+  }
+) {
+  const response = await fetchActionRSCResponse(
+    req,
+    res,
+    originalHost,
+    workStore,
+    currentUrl.pathname,
+    currentUrl.search
+  )
+
+  if (!response?.body) {
+    return null
+  }
+
+  res.setHeader(
+    'x-action-redirect',
+    `${currentUrl.pathname}${currentUrl.search};replace`
+  )
+  copyActionResponseHeaders(response, res)
+  return new FlightRenderResult(response.body)
+}
+
 async function createRedirectRenderResult(
   req: BaseNextRequest,
   res: BaseNextResponse,
@@ -361,85 +478,21 @@ async function createRedirectRenderResult(
   )
 
   if (appRelativeRedirectUrl) {
-    if (!originalHost) {
-      throw new Error(
-        'Invariant: Missing `host` header from a forwarded Server Actions request.'
-      )
-    }
-
-    const forwardedHeaders = getForwardedHeaders(req, res)
-    forwardedHeaders.set(RSC_HEADER, '1')
-
-    const proto =
-      getRequestMeta(req, 'initProtocol')?.replace(/:+$/, '') || 'https'
-
-    // For standalone or the serverful mode, use the internal origin directly
-    // other than the host headers from the request.
-    const origin =
-      process.env.__NEXT_PRIVATE_ORIGIN || `${proto}://${originalHost.value}`
-
-    const fetchUrl = new URL(
-      `${origin}${appRelativeRedirectUrl.pathname}${appRelativeRedirectUrl.search}`
-    )
-
-    if (workStore.pendingRevalidatedTags) {
-      forwardedHeaders.set(
-        NEXT_CACHE_REVALIDATED_TAGS_HEADER,
-        workStore.pendingRevalidatedTags.map((item) => item.tag).join(',')
-      )
-      forwardedHeaders.set(
-        NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
-        workStore.incrementalCache?.prerenderManifest?.preview?.previewModeId ||
-          ''
-      )
-    }
-
-    // Ensures that when the path was revalidated we don't return a partial response on redirects
-    forwardedHeaders.delete(NEXT_ROUTER_STATE_TREE_HEADER)
-    // When an action follows a redirect, it's no longer handling an action: it's just a normal RSC request
-    // to the requested URL. We should remove the `next-action` header so that it's not treated as an action
-    forwardedHeaders.delete(ACTION_HEADER)
-
     try {
-      setCacheBustingSearchParam(fetchUrl, {
-        [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(
-          NEXT_ROUTER_PREFETCH_HEADER
-        )
-          ? ('1' as const)
-          : undefined,
-        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ??
-          undefined,
-        [NEXT_ROUTER_STATE_TREE_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
-        [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
-      })
+      const response = await fetchActionRSCResponse(
+        req,
+        res,
+        originalHost,
+        workStore,
+        appRelativeRedirectUrl.pathname,
+        appRelativeRedirectUrl.search
+      )
 
-      const response = await fetch(fetchUrl, {
-        method: 'GET',
-        headers: forwardedHeaders,
-        next: {
-          // @ts-ignore
-          internal: 1,
-        },
-      })
-
-      if (
-        response.headers
-          .get('content-type')
-          ?.startsWith(RSC_CONTENT_TYPE_HEADER)
-      ) {
+      if (response?.body) {
         // copy the headers from the redirect response to the response we're sending
-        for (const [key, value] of response.headers) {
-          if (!actionsForbiddenHeaders.includes(key)) {
-            res.setHeader(key, value)
-          }
-        }
+        copyActionResponseHeaders(response, res)
 
-        return new FlightRenderResult(response.body!)
-      } else {
-        // Since we aren't consuming the response body, we cancel it to avoid memory leaks
-        response.body?.cancel()
+        return new FlightRenderResult(response.body)
       }
     } catch (err) {
       // we couldn't stream the redirect response, so we'll just do a normal redirect
@@ -1129,7 +1182,7 @@ export async function handleAction({
         }
 
         const startTime = performance.now()
-        const { actionResult, skipPageRendering } =
+        const { actionResult, didModifyCookies, skipPageRendering } =
           await executeActionAndPrepareForRender(
             actionHandler,
             boundActionArguments,
@@ -1152,6 +1205,29 @@ export async function handleAction({
 
         // For form actions, we need to continue rendering the page.
         if (isFetchAction) {
+          const actionResultPromise = Promise.resolve(actionResult)
+
+          const refetchedActionResult =
+            didModifyCookies && actionResult === undefined && !skipPageRendering
+              ? // Reuse the redirect fast-path when cookies can change route
+                // resolution for the current URL and there is no action result to
+                // preserve in the Flight payload.
+                await createRefetchedActionRenderResult(
+                  req,
+                  res,
+                  host,
+                  workStore,
+                  requestStore.url
+                )
+              : null
+
+          if (refetchedActionResult) {
+            return {
+              type: 'done',
+              result: refetchedActionResult,
+            }
+          }
+
           // If we skip page rendering, we need to ensure pending revalidates
           // are awaited before closing the response. Otherwise, this will be
           // done after rendering the page.
@@ -1162,7 +1238,7 @@ export async function handleAction({
           return {
             type: 'done',
             result: await generateFlight(req, ctx, requestStore, {
-              actionResult: Promise.resolve(actionResult),
+              actionResult: actionResultPromise,
               skipPageRendering,
               temporaryReferences,
               waitUntil:
@@ -1297,6 +1373,7 @@ async function executeActionAndPrepareForRender<
   actionWasForwarded: boolean
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
+  didModifyCookies: boolean
   skipPageRendering: boolean
 }> {
   requestStore.phase = 'action'
@@ -1312,6 +1389,8 @@ async function executeActionAndPrepareForRender<
     const actionResult = await workUnitAsyncStorage.run(requestStore, () =>
       action.apply(null, args)
     )
+    const didModifyCookies =
+      getModifiedCookieValues(requestStore.mutableCookies).length > 0
 
     // If the page was not revalidated, or if the action was forwarded from
     // another worker, we can skip rendering the page.
@@ -1319,7 +1398,7 @@ async function executeActionAndPrepareForRender<
       workStore.pathWasRevalidated === undefined ||
       workStore.pathWasRevalidated === ActionDidNotRevalidate
 
-    return { actionResult, skipPageRendering }
+    return { actionResult, didModifyCookies, skipPageRendering }
   } finally {
     if (!skipPageRendering) {
       requestStore.phase = 'render'
