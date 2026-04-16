@@ -2869,14 +2869,12 @@ function getNextRootParamsRules({
   appDir: string | undefined
   pageExtensions: string[]
 }): webpack.RuleSetRule[] {
-  // Match resolved import of 'next/root-params'.
-  // Use a regex (not an absolute path) so it works in isolated CI environments
-  // where the resolved path differs from the local build.
-  const nextRootParamsModuleTest = /[\\/]next[\\/]root-params\.js$/
+  // Match resolved import of 'next/root-params'
+  const nextRootParamsModule = path.join(NEXT_PROJECT_ROOT, 'root-params.js')
 
   const createInvalidImportRule = (message: string) => {
     return {
-      test: nextRootParamsModuleTest,
+      resource: nextRootParamsModule,
       loader: 'next-invalid-import-error-loader',
       options: {
         message,
@@ -2909,7 +2907,7 @@ function getNextRootParamsRules({
     "'next/root-params' cannot be imported from a Client Component module. It should only be used from a Server Component."
   )
   const invalidNonAppServerImportRule = {
-    test: nextRootParamsModuleTest,
+    resource: nextRootParamsModule,
     loader: 'next-invalid-import-error-loader',
     issuerLayer: {
       or: [WEBPACK_LAYERS.instrument, WEBPACK_LAYERS.middleware],
@@ -2929,7 +2927,7 @@ function getNextRootParamsRules({
       oneOf: [
         invalidNonAppServerImportRule,
         {
-          test: nextRootParamsModuleTest,
+          resource: nextRootParamsModule,
           issuerLayer: shouldUseReactServerCondition as (
             layer: string
           ) => boolean,
