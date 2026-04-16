@@ -31,6 +31,7 @@ const { values: flags } = parseArgs({
 const REPO_ROOT = path.resolve(__dirname, '..')
 const NATIVE_DIR = path.join(REPO_ROOT, 'packages/next-swc/native')
 const FINGERPRINT = path.join(REPO_ROOT, 'target/.rust-fingerprint')
+const DOCKERFILE = path.join(REPO_ROOT, 'scripts/native-builder.Dockerfile')
 
 function computeCacheKey() {
   if (!fs.existsSync(FINGERPRINT)) {
@@ -40,13 +41,18 @@ function computeCacheKey() {
     process.exit(1)
   }
   const turboHash = fs.readFileSync(FINGERPRINT, 'utf-8').trim()
-  // Combine turbo's input hash with the target triple for a unique key.
-  // Must be hex-only (turbo cache API requirement).
+  const dockerfileHash = fs.existsSync(DOCKERFILE)
+    ? createHash('sha256')
+        .update(fs.readFileSync(DOCKERFILE))
+        .digest('hex')
+        .slice(0, 16)
+    : ''
   const hash = createHash('sha256')
-  hash.update(`native-cache-v2\0`)
+  hash.update(`native-cache-v3\0`)
   hash.update(`turbo=${turboHash}\0`)
   hash.update(`target=${flags.target}\0`)
   hash.update(`profile=${flags.profile}\0`)
+  hash.update(`dockerfile=${dockerfileHash}\0`)
   return hash.digest('hex')
 }
 
