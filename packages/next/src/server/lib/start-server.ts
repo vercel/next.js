@@ -27,7 +27,7 @@ import {
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
 import {
-  ensureAgentRulesForDev,
+  checkAgentRulesForDev,
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
@@ -374,29 +374,20 @@ export async function startServer(
       // Get env info first (fast, doesn't require config)
       const envInfo = isDev ? getEnvInfo(dir) : undefined
 
-      // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
-      // is detected but the managed agent-rules block is missing.
+      // Agent-rules gate: hard-fail dev startup when an AI coding
+      // agent is driving but the managed block isn't installed in
+      // AGENTS.md/CLAUDE.md. Fires BEFORE the banner and Ready line so
+      // we never print a success signal the agent could latch onto —
+      // a non-zero exit is the only signal empirically strong enough
+      // to override agents' "Ready + exit 0 = succeeded" pattern
+      // match. The error message itself explains the rationale at
+      // length and surfaces a last-resort `NEXT_DISABLE_AGENT_RULE_CHECK`
+      // env var for locked-down environments.
       if (isDev) {
-        const agentFilesResult = ensureAgentRulesForDev(dir)
-        if (agentFilesResult) {
-          const generated: string[] = []
-          if (
-            agentFilesResult.agentsMd === 'created' ||
-            agentFilesResult.agentsMd === 'updated'
-          ) {
-            generated.push('AGENTS.md')
-          }
-          if (
-            agentFilesResult.claudeMd === 'created' ||
-            agentFilesResult.claudeMd === 'updated'
-          ) {
-            generated.push('CLAUDE.md')
-          }
-          if (generated.length > 0) {
-            Log.info(
-              `Generated ${generated.join(' and ')} with Next.js agent rules`
-            )
-          }
+        const agentRulesError = checkAgentRulesForDev(dir)
+        if (agentRulesError !== null) {
+          Log.error(agentRulesError)
+          process.exit(1)
         }
       }
 
