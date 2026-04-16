@@ -1,0 +1,20 @@
+.green {
+  color: green;
+}
+
+.unused {
+  color: red;
+
+  animation-name: unused-slide-in;
+  animation-duration: 2s;
+}
+
+@keyframes unused-slide-in {
+  from {
+    transform: translateX(0%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
