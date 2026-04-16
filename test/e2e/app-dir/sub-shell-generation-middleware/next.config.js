@@ -3,6 +3,7 @@
  */
 const nextConfig = {
   experimental: {
+    prefetchInlining: false,
     useCache: true,
   },
   rewrites: async () => {
