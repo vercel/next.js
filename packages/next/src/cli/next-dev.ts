@@ -11,6 +11,7 @@ import {
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
+  getNodeOptionsWithoutInspectAndWatch,
   getParsedNodeOptions,
   type DebugAddress,
 } from '../server/lib/utils'
@@ -332,7 +333,9 @@ const nextDev = async (
       let resolved = false
       const defaultEnv = (initialEnv || process.env) as typeof process.env
 
-      const nodeOptions = getParsedNodeOptions()
+      const originalNodeOptions = getParsedNodeOptions()
+      const nodeOptions =
+        getNodeOptionsWithoutInspectAndWatch(originalNodeOptions)
 
       let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
@@ -352,12 +355,11 @@ const nextDev = async (
         nodeOptions['enable-source-maps'] = true
       }
 
-      const nodeDebugType = getNodeDebugType(nodeOptions)
+      const nodeDebugType = getNodeDebugType(originalNodeOptions)
       const originalAddress =
-        nodeDebugType === undefined ? undefined : nodeOptions[nodeDebugType]
-      delete nodeOptions.inspect
-      delete nodeOptions['inspect-brk']
-      delete nodeOptions['inspect_brk']
+        nodeDebugType === undefined
+          ? undefined
+          : originalNodeOptions[nodeDebugType]
       if (nodeDebugType !== undefined) {
         const address = getParsedDebugAddress(originalAddress)
         address.port = address.port === 0 ? 0 : address.port + 1

@@ -1,5 +1,6 @@
 import {
   getFormattedNodeOptionsWithoutInspect,
+  getNodeOptionsWithoutInspectAndWatch,
   getParsedDebugAddress,
   formatNodeOptions,
   tokenizeArgs,
@@ -91,6 +92,28 @@ describe('getParsedDebugAddress', () => {
     const nodeOptions = getParsedNodeOptions()
     const result = getParsedDebugAddress(nodeOptions.inspect)
     expect(result).toEqual({ host: undefined, port: 1234 })
+  })
+})
+
+describe('getNodeOptionsWithoutInspectAndWatch', () => {
+  it('removes debug and watch options', () => {
+    const result = getNodeOptionsWithoutInspectAndWatch({
+      inspect: '9229',
+      'inspect-brk': true,
+      inspect_brk: true,
+      watch: true,
+      'watch-path': 'app',
+      watch_path: 'pages',
+      'watch-preserve-output': true,
+      watch_preserve_output: true,
+      require: './register.js',
+      'enable-source-maps': true,
+    })
+
+    expect(result).toEqual({
+      require: './register.js',
+      'enable-source-maps': true,
+    })
   })
 })
 

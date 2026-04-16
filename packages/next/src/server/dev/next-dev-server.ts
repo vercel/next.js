@@ -48,7 +48,10 @@ import {
 } from '../../trace'
 import { traceGlobals } from '../../trace/shared'
 import { findPageFile } from '../lib/find-page-file'
-import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
+import {
+  formatNodeOptions,
+  getParsedNodeOptionsWithoutInspectAndWatch,
+} from '../lib/utils'
 import { withCoalescedInvoke } from '../../lib/coalesced-function'
 import {
   loadDefaultErrorComponents,
@@ -150,6 +153,10 @@ export default class DevServer extends Server {
   private getStaticPathsWorker(): { [key: string]: any } & {
     loadStaticPaths: typeof import('./static-paths-worker').loadStaticPaths
   } {
+    const { nodeOptions: formattedNodeOptions, execArgv } = formatNodeOptions(
+      getParsedNodeOptionsWithoutInspectAndWatch()
+    )
+
     const worker = new Worker(require.resolve('./static-paths-worker'), {
       maxRetries: 1,
       // For dev server, it's not necessary to spin up too many workers as long as you are not doing a load test.
@@ -157,13 +164,13 @@ export default class DevServer extends Server {
       numWorkers: 1,
       enableWorkerThreads: this.nextConfig.experimental.workerThreads,
       forkOptions: {
+        execArgv,
         env: {
           ...process.env,
-          // discard --inspect/--inspect-brk flags from process.env.NODE_OPTIONS. Otherwise multiple Node.js debuggers
-          // would be started if user launch Next.js in debugging mode. The number of debuggers is linked to
-          // the number of workers Next.js tries to launch. The only worker users are interested in debugging
-          // is the main Next.js one
-          NODE_OPTIONS: getFormattedNodeOptionsWithoutInspect(),
+          // Discard --inspect/--inspect-brk and --watch* flags. Debug flags
+          // would start duplicate debuggers, and watch flags make managed
+          // workers emit Node watch messages that jest-worker cannot handle.
+          NODE_OPTIONS: formattedNodeOptions,
         },
       },
     }) as Worker & {

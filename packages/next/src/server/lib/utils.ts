@@ -13,6 +13,16 @@ export function printAndExit(message: string, code = 1) {
 
 export type NodeOptions = Record<string, string | boolean | undefined>
 
+const NODE_INSPECT_OPTIONS = ['inspect', 'inspect-brk', 'inspect_brk'] as const
+
+const NODE_WATCH_OPTIONS = [
+  'watch',
+  'watch-path',
+  'watch_path',
+  'watch-preserve-output',
+  'watch_preserve_output',
+] as const
+
 const parseNodeArgs = (args: string[]): NodeOptions => {
   const { values, tokens } = parseArgs({ args, strict: false, tokens: true })
 
@@ -240,6 +250,26 @@ export function getParsedNodeOptions(): Record<
   return parseNodeArgs(args)
 }
 
+export function getNodeOptionsWithoutInspectAndWatch(
+  nodeOptions: NodeOptions
+): NodeOptions {
+  const result = { ...nodeOptions }
+
+  for (const key of NODE_INSPECT_OPTIONS) {
+    delete result[key]
+  }
+
+  for (const key of NODE_WATCH_OPTIONS) {
+    delete result[key]
+  }
+
+  return result
+}
+
+export function getParsedNodeOptionsWithoutInspectAndWatch(): NodeOptions {
+  return getNodeOptionsWithoutInspectAndWatch(getParsedNodeOptions())
+}
+
 /**
  * Get the node options from the `NODE_OPTIONS` environment variable and parse
  * them into an object without the inspect options.
@@ -253,9 +283,9 @@ export function getParsedNodeOptionsWithoutInspect() {
   const parsed = parseNodeArgs(args)
 
   // Remove inspect options.
-  delete parsed.inspect
-  delete parsed['inspect-brk']
-  delete parsed['inspect_brk']
+  for (const key of NODE_INSPECT_OPTIONS) {
+    delete parsed[key]
+  }
 
   return parsed
 }
