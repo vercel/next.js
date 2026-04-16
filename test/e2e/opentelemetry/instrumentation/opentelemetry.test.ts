@@ -13,6 +13,45 @@ const EXTERNAL = {
 const COLLECTOR_PORT = 9001
 const isStartMode = process.env.NEXT_TEST_MODE === 'start'
 
+function getNodeHtmlCompletionSpans(): SpanMatch[] {
+  return [
+    {
+      name: 'NextNodeServer.htmlAllReady',
+      attributes: {
+        'next.span_name': 'NextNodeServer.htmlAllReady',
+        'next.span_type': 'NextNodeServer.htmlAllReady',
+      },
+      kind: 0,
+      status: { code: 0 },
+    },
+    {
+      name: 'NextNodeServer.htmlShellWarmup',
+      attributes: {
+        'next.span_name': 'NextNodeServer.htmlShellWarmup',
+        'next.span_type': 'NextNodeServer.htmlShellWarmup',
+      },
+      kind: 0,
+      status: { code: 0 },
+    },
+  ]
+}
+
+function getNodeErrorHtmlShellWarmupSpan(message: string): SpanMatch {
+  return {
+    name: 'NextNodeServer.htmlShellWarmup',
+    attributes: {
+      'error.type': 'Error',
+      'next.span_name': 'NextNodeServer.htmlShellWarmup',
+      'next.span_type': 'NextNodeServer.htmlShellWarmup',
+    },
+    kind: 0,
+    status: {
+      code: 2,
+      message,
+    },
+  }
+}
+
 describe('opentelemetry', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
@@ -181,6 +220,7 @@ describe('opentelemetry', () => {
                           code: 0,
                         },
                       },
+                      ...getNodeHtmlCompletionSpans(),
                       {
                         name: 'start response',
                         attributes: {
@@ -328,6 +368,7 @@ describe('opentelemetry', () => {
                           },
                           status: { code: 0 },
                         },
+                        ...getNodeHtmlCompletionSpans(),
                       ],
                     },
                   ],
@@ -589,6 +630,9 @@ describe('opentelemetry', () => {
                           code: 0,
                         },
                       },
+                      getNodeErrorHtmlShellWarmupSpan(
+                        'Error from Server Component'
+                      ),
                       {
                         name: 'start response',
                         attributes: {
@@ -712,6 +756,7 @@ describe('opentelemetry', () => {
                           code: 0,
                         },
                       },
+                      ...getNodeHtmlCompletionSpans(),
                       {
                         name: 'start response',
                         attributes: {
@@ -1225,6 +1270,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
                     {
                       name: 'NextNodeServer.clientComponentLoading',
                     },
+                    ...getNodeHtmlCompletionSpans(),
                     {
                       name: 'start response',
                     },
@@ -1390,6 +1436,7 @@ describe('opentelemetry with custom server', () => {
                       code: 0,
                     },
                   },
+                  ...getNodeHtmlCompletionSpans(),
                   {
                     name: 'start response',
                     attributes: {
