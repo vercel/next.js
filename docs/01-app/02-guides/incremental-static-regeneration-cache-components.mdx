@@ -1,23 +1,22 @@
 ---
 title: Incremental Static Regeneration with Cache Components
-description: Learn how to use partialFallbacks to serve instant fallback shells for uncached dynamic routes and upgrade them after the first visit.
+description: Learn how to prerender a subset of dynamic routes, serve fallback shells for the rest, and upgrade them after the first visit.
 nav_title: ISR with Cache Components
 version: experimental
 related:
   links:
-    - app/api-reference/config/next-config-js/partialFallbacks
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/functions/generate-static-params
     - app/api-reference/file-conventions/loading
     - app/getting-started/caching
+    - app/api-reference/config/next-config-js/partialFallbacks
 ---
 
-[Incremental Static Regeneration (ISR)](/docs/app/glossary#incremental-static-regeneration-isr) with [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [`partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) lets you:
+[Incremental Static Regeneration (ISR)](/docs/app/glossary#incremental-static-regeneration-isr) with [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) lets you:
 
-- Prerender a subset of your dynamic routes at build time and serve fallback shells for the rest
-- Upgrade fallback shells to fully static pages after the first visit, without rebuilding
-- Serve partial shells at multiple route levels, so visitors see prerendered layouts instantly while only the unknown parts stream in
-- Cache data with [`'use cache'`](/docs/app/api-reference/directives/use-cache) and control revalidation with [`cacheLife`](/docs/app/api-reference/functions/cacheLife)
+- Prerender a subset of your dynamic routes at build time
+- Serve the most specific prerendered shell available for routes that were not prerendered, instead of blocking until the server finishes rendering
+- Progressively improve what visitors see for a given route as param values become known from real traffic
 
 If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router, this is the Cache Components equivalent.
 
@@ -25,24 +24,17 @@ If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fa
 
 We'll build a product catalog with category layouts and product detail pages using the [Recipe API](https://next-recipe-api.vercel.dev/).
 
-### Step 1: Enable partialFallbacks
+### Step 1: Enable Cache Components
 
-Enable `partialFallbacks` alongside `cacheComponents` in your `next.config.ts`:
-
-```ts filename="next.config.ts" highlight={4-6}
+```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    partialFallbacks: true,
-  },
 }
 
 export default nextConfig
 ```
-
-> **Good to know**: `partialFallbacks` has no effect unless `cacheComponents` is also enabled.
 
 ### Step 2: Prerender a subset with generateStaticParams
 
@@ -99,7 +91,7 @@ export async function getPopularProducts(category: string) {
 
 The category layout reads `params` and wraps the header in a `<Suspense>` boundary. `generateStaticParams` fetches the subset of categories to prerender:
 
-```tsx filename="app/[category]/layout.tsx" highlight={28-30,37-40}
+```tsx filename="app/[category]/layout.tsx" highlight={25-27,34-37}
 import Link from 'next/link'
 import { type ReactNode, Suspense } from 'react'
 import { getCategory, getTopCategories } from '../lib/data'
@@ -135,7 +127,6 @@ export default async function CategoryLayout({
   )
 }
 
-// Prerender the top categories. The rest use fallback shells.
 export async function generateStaticParams() {
   const categories = await getTopCategories()
   return categories.map((c) => ({ category: c.slug }))
@@ -185,31 +176,13 @@ For a fallback shell to be generated, there must be a `<Suspense>` fallback abov
 
 ```tsx filename="app/[category]/loading.tsx"
 export default function Loading() {
-  return (
-    <ul className="grid gap-4">
-      {Array.from({ length: 4 }).map((_, i) => (
-        <li key={i}>
-          <div className="h-5 w-40 animate-pulse rounded bg-zinc-100" />
-          <div className="mt-1 h-4 w-12 animate-pulse rounded bg-zinc-100" />
-        </li>
-      ))}
-    </ul>
-  )
+  return <p>Loading products...</p>
 }
 ```
 
 ```tsx filename="app/[category]/[product]/loading.tsx"
 export default function Loading() {
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="h-4 w-36 animate-pulse rounded bg-zinc-100" />
-      <div className="rounded-lg border p-6">
-        <div className="h-7 w-48 animate-pulse rounded bg-zinc-100" />
-        <div className="mt-1 h-5 w-16 animate-pulse rounded bg-zinc-100" />
-        <div className="mt-4 h-4 w-full animate-pulse rounded bg-zinc-100" />
-      </div>
-    </div>
-  )
+  return <p>Loading product...</p>
 }
 ```
 
@@ -221,44 +194,44 @@ At build time, this produces three tiers of output:
 
 ### Step 3: What visitors see for uncached routes
 
-**Scenario A: `/tops/overshirt`** (known category, unknown product)
+**Known category, unknown product** (`/tops/overshirt`)
 
-The category `tops` was prerendered, so the intermediate shell `/tops/[product]` exists. The visitor immediately sees the category header ("Tops") fully rendered. The product area shows the `loading.tsx` skeleton from `app/[category]/[product]/loading.tsx`. In the background, Next.js fetches product data for "overshirt" and streams it in, replacing the skeleton.
+The category `tops` was prerendered, so the intermediate shell `/tops/[product]` exists. The visitor immediately sees the category header ("Tops") fully rendered. The product area shows the `loading.tsx` skeleton. Product data streams in as it resolves.
 
-**Scenario B: `/shorts/joggers`** (unknown category, any product)
+**Unknown category, any product** (`/shoes/basketball-shoes` if `shoes` was not prerendered)
 
-Neither `shorts` nor `joggers` was prerendered. Next.js falls back to the generic `/[category]/[product]` shell. Both the category header and the product area show skeleton UI. The category data and product data stream in as they resolve.
+No intermediate shell exists for this category. Next.js falls back to the generic `/[category]/[product]` shell. Both the category header and the product area show skeleton UI. Both stream in as they resolve.
 
-**Scenario C: After the first visit (upgrades)**
+**After the first visit**
 
-After scenario A, `/tops/overshirt` gets upgraded. The next visitor gets a fully static page because `getProduct` uses `'use cache'`, so the fetched data is now cached.
+Next.js tries to push the static boundary further down the component tree in the background. Because the data functions in this example use `'use cache'`, the upgrade produces a fully static page. The next visitor gets it without any streaming.
 
-After scenario B, `/shorts/joggers` also gets upgraded to a fully static page since all data functions use `'use cache'` and both params are now known.
+### Step 4: What determines the upgrade result
 
-### Step 4: When upgrades produce partial vs full results
+How far Next.js can push the static boundary determines the result:
 
-When an upgrade happens, Next.js tries to push the static boundary further down the component tree. How far it gets determines the result:
-
-- If every data access in the page is cached (with [`'use cache'`](/docs/app/api-reference/directives/use-cache)) and all params are resolved, the upgrade produces a **fully static page**. No server work needed for subsequent visitors.
-- If some data is uncached or runtime APIs (`cookies`, `headers`) are accessed behind `<Suspense>` fallbacks, the upgrade produces a **more specific shell**. The params are resolved, but the dynamic parts still stream at request time.
+- If every data access is cached and all params are resolved, the upgrade produces a **fully static page**.
+- If some data is uncached or runtime APIs (`cookies`, `headers`) are accessed behind `<Suspense>` fallbacks, the upgrade produces a **more specific shell** with the params resolved but the dynamic parts still streaming.
 - If a param does not have `generateStaticParams`, it cannot trigger an upgrade. Params are resolved in route order, so a param without `generateStaticParams` also blocks all subsequent params from upgrading.
 
-> **Good to know**: Client-side prefetches (via [`<Link>`](/docs/app/api-reference/components/link) or [`router.prefetch`](/docs/app/api-reference/functions/use-router#routerprefetch)) do not trigger upgrades. Only a full page visit does.
+> **Good to know**: Client-side prefetches (via [`<Link>`](/docs/app/api-reference/components/link) or [`router.prefetch`](/docs/app/api-reference/functions/use-router)) do not trigger upgrades. Only a full page visit does.
+
+To disable fallback shells and upgrades entirely (reverting to blocking behavior for uncached routes), set [`experimental.partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) to `false`.
 
 ### Step 5: Coming from the Pages Router
 
-If you are migrating from the Pages Router, here is how the concepts map:
+If you are migrating from the Pages Router:
 
-- `fallback: true` in `getStaticPaths` → `partialFallbacks: true` with a `<Suspense>` fallback (skeleton shows instantly, content streams in)
-- `fallback: 'blocking'` in `getStaticPaths` → the default behavior without `partialFallbacks` (server blocks until render completes)
-- `router.isFallback` → not needed; `<Suspense>` boundaries handle the loading state automatically
-- `getStaticProps` with `revalidate` → `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife)
-- `getStaticPaths` → [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
+- `fallback: true` in `getStaticPaths` is now the default behavior with `cacheComponents`. Visitors get a `<Suspense>` fallback instantly and content streams in.
+- `fallback: 'blocking'` in `getStaticPaths` can be restored by setting `experimental.partialFallbacks: false`.
+- `router.isFallback` is not needed. The prerendering step generates a static shell, and you can grow it further with `'use cache'`.
+- `getStaticProps` with `revalidate` maps to `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+- `getStaticPaths` maps to [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
 
 ## Next steps
 
-- [`partialFallbacks` API reference](/docs/app/api-reference/config/next-config-js/partialFallbacks) for configuration details and the full upgrade algorithm
-- [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) to understand the caching layer that powers fallback shells
+- [Caching with Cache Components](/docs/app/getting-started/caching) for the full caching model
 - [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) for controlling which param combinations are prerendered
 - [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) for providing skeleton UI in fallback shells
-- [Streaming](/docs/app/guides/streaming) for a deeper look at how `<Suspense>` boundaries and progressive rendering work
+- [Streaming](/docs/app/guides/streaming) to learn how to progressively render UI as data becomes available
+- [`partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) API reference for opt-out and implementation details
