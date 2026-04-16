@@ -413,7 +413,7 @@ jobs:
           echo "Rustc binary: $(file $(which rustc) || echo 'not found')"
           rustc --version --verbose || true
           node -v
-          npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+          pnpm install --frozen-lockfile --filter @next/swc
           TURBO_CACHE_FLAG="${NEXT_SKIP_BUILD_CACHE:+--force}"
           pnpm dlx turbo@${TURBO_VERSION} run ${{ matrix.build_task }} ${TURBO_ARGS} ${TURBO_CACHE_FLAG} -- --target ${{ matrix.target }}
           if [ "${{ matrix.os }}" != "windows" ]; then
