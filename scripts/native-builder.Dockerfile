@@ -20,16 +20,20 @@ FROM ubuntu:20.04 AS builder
 # Avoid interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
+# If the host provides an apt mirror URL (e.g. Hetzner), use it for the
+# native architecture. The suite names come from the container's own OS.
+ARG APT_MIRROR=
+
 # Enable multiarch for cross-compilation sysroots.
 # Write sources.list from scratch with explicit [arch=...] tags.
 # On arm64 hosts: native packages from ports, foreign amd64 from archive.
 # On amd64 hosts: native packages from archive, foreign arm64 from ports.
 RUN HOST_ARCH=$(dpkg --print-architecture) && \
     if [ "$HOST_ARCH" = "arm64" ]; then \
-      NATIVE_MIRROR="http://ports.ubuntu.com/ubuntu-ports"; FOREIGN_ARCH=amd64; \
+      NATIVE_MIRROR="${APT_MIRROR:-http://ports.ubuntu.com/ubuntu-ports}"; FOREIGN_ARCH=amd64; \
       FOREIGN_MIRROR="http://archive.ubuntu.com/ubuntu"; \
     else \
-      NATIVE_MIRROR="http://archive.ubuntu.com/ubuntu"; FOREIGN_ARCH=arm64; \
+      NATIVE_MIRROR="${APT_MIRROR:-http://archive.ubuntu.com/ubuntu}"; FOREIGN_ARCH=arm64; \
       FOREIGN_MIRROR="http://ports.ubuntu.com/ubuntu-ports"; \
     fi && \
     dpkg --add-architecture "$FOREIGN_ARCH" && \
