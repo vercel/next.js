@@ -143,7 +143,10 @@ impl Asset for AssetHashesManifestAsset {
                 Ok((
                     path,
                     asset
-                        .content_hash(self.project.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+                        .content_hash(
+                            self.project.next_config().output_hash_salt(),
+                            HashAlgorithm::Xxh3Hash128Base38,
+                        )
                         .await?,
                 ))
             })
