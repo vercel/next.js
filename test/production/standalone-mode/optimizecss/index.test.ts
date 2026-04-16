@@ -17,17 +17,15 @@ describe('standalone mode and optimizeCss', () => {
         }
       `,
     },
+    dependencies: {
+      beasties: '0.4.2',
+    },
     nextConfig: {
       experimental: {
         optimizeCss: true,
       },
       output: 'standalone',
     },
-    dependencies: {
-      critters: '0.0.16',
-    },
-    // TODO optimizeCss is broken when ?dpl is added to CSS URLs
-    disableAutoSkewProtection: true,
   })
 
   it('should work', async () => {

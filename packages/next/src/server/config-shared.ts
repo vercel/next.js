@@ -513,9 +513,13 @@ export interface ExperimentalConfig {
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
-  // optimizeCss can be boolean or critters' option object
-  // Use Record<string, unknown> as critters doesn't export its Option type
-  // https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts
+  /**
+   * optimizeCss can be boolean or beasties' option object.
+   * Uses Record<string, unknown> because Beasties Options includes non-JSON-serializable types
+   * (RegExp in allowRules, Logger functions) which get stripped during JSON serialization to Rust.
+   * Only JSON-serializable options are passed through.
+   * @see https://github.com/danielroe/beasties
+   */
   optimizeCss?: boolean | Record<string, unknown>
   nextScriptWorkers?: boolean
   scrollRestoration?: boolean

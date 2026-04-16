@@ -275,7 +275,12 @@ export const experimentalSchema = {
   multiZoneDraftMode: z.boolean().optional(),
   cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
   nextScriptWorkers: z.boolean().optional(),
-  // The critter option is unknown, use z.any() here
+  /**
+   * optimizeCss can be boolean or beasties' option object.
+   * Uses z.any() because Beasties Options includes non-JSON-serializable types
+   * (RegExp in allowRules, Logger functions) which get stripped during serialization.
+   * Only JSON-serializable options are passed through to Rust.
+   */
   optimizeCss: z.union([z.boolean(), z.any()]).optional(),
   optimisticClientCache: z.boolean().optional(),
   parallelServerCompiles: z.boolean().optional(),

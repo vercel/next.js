@@ -1074,8 +1074,11 @@ pub struct ExperimentalConfig {
     manual_client_base_path: Option<bool>,
     optimistic_client_cache: Option<bool>,
     middleware_prefetch: Option<MiddlewarePrefetchType>,
-    /// optimizeCss can be boolean or critters' option object
-    /// Use Record<string, unknown> as critters doesn't export its Option type ([link](https://github.com/GoogleChromeLabs/critters/blob/a590c05f9197b656d2aeaae9369df2483c26b072/packages/critters/src/index.d.ts))
+    /// optimizeCss can be boolean or beasties' option object.
+    /// Uses serde_json::Value because Beasties Options includes non-JSON-serializable types
+    /// (RegExp in allowRules, Logger functions) which get stripped during JSON serialization.
+    /// Only JSON-serializable options are passed through.
+    /// See <https://github.com/danielroe/beasties> for the Options type.
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     optimize_css: Option<serde_json::Value>,
     next_script_workers: Option<bool>,
