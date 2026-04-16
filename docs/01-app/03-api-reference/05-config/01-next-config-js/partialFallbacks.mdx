@@ -10,7 +10,7 @@ related:
     - app/getting-started/caching
 ---
 
-> **Good to know**: `partialFallbacks` has no effect unless [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is also enabled.
+> **Good to know**: `partialFallbacks` is enabled by default when [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled. It has no effect without `cacheComponents`.
 
 [Dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each combination returned. Without `partialFallbacks`, you face a tradeoff:
 
@@ -23,16 +23,13 @@ In the background, Next.js uses the param values from the incoming request to tr
 
 ## Usage
 
-Enable `partialFallbacks` alongside [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents):
+`partialFallbacks` is enabled by default with [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents). No additional configuration is needed:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   cacheComponents: true,
-  experimental: {
-    partialFallbacks: true,
-  },
 }
 
 export default nextConfig
@@ -42,15 +39,21 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    partialFallbacks: true,
-  },
 }
 
 module.exports = nextConfig
 ```
 
-The default value is `false`.
+To opt out, set `experimental.partialFallbacks` to `false`:
+
+```ts filename="next.config.ts"
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  experimental: {
+    partialFallbacks: false,
+  },
+}
+```
 
 ## How it works
 
