@@ -2,7 +2,7 @@ use std::mem::take;
 
 use crate::timestamp::Timestamp;
 
-const SPLIT_COUNT: usize = 128;
+const SPLIT_COUNT: usize = 1024 * 128;
 /// Start balancing the tree when there are N times more items on one side. Must be at least 3.
 const BALANCE_THRESHOLD: usize = 3;
 
@@ -69,6 +69,17 @@ impl<T> SelfTimeTree<T> {
                 self.split();
             }
         }
+    }
+
+    pub fn optimize(&mut self) {
+        if self.children.is_none() {
+            return;
+        }
+        self.distribute_entries();
+        self.rebalance();
+        let children = self.children.as_mut().unwrap();
+        children.left.optimize();
+        children.right.optimize();
     }
 
     fn split(&mut self) {
@@ -187,7 +198,7 @@ impl<T> SelfTimeTree<T> {
                     self.entries.append(right_entries);
                     *right = take(right_right);
                     *spanning_entries = 0;
-                    self.check_for_split();
+                    self.distribute_entries();
                 }
             }
         }
@@ -281,6 +292,40 @@ impl<T> SelfTimeTree<T> {
             }
             if end > children.split_point {
                 children.right.for_each_in_range_ref(start, end, f);
+            }
+        }
+    }
+
+    pub fn for_each_in_range_optimize(
+        &mut self,
+        start: Timestamp,
+        end: Timestamp,
+        mut f: impl FnMut(Timestamp, Timestamp, &T),
+    ) {
+        self.for_each_in_range_optimize_ref(start, end, &mut f);
+    }
+
+    fn for_each_in_range_optimize_ref(
+        &mut self,
+        start: Timestamp,
+        end: Timestamp,
+        f: &mut impl FnMut(Timestamp, Timestamp, &T),
+    ) {
+        if self.children.is_some() {
+            self.distribute_entries();
+            self.rebalance();
+        }
+        for entry in &self.entries {
+            if entry.start <= end && entry.end >= start {
+                f(entry.start, entry.end, &entry.item);
+            }
+        }
+        if let Some(children) = &mut self.children {
+            if start <= children.split_point {
+                children.left.for_each_in_range_optimize_ref(start, end, f);
+            }
+            if end >= children.split_point {
+                children.right.for_each_in_range_optimize_ref(start, end, f);
             }
         }
     }
