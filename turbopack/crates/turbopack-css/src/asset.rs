@@ -23,7 +23,7 @@ use crate::{
     code_gen::CodeGenerateable,
     process::{
         CssWithPlaceholderResult, FinalCssResult, ParseCss, ParseCssResult, ProcessCss,
-        finalize_css, finalize_css_module, parse_css, process_css_with_placeholder,
+        finalize_css, parse_css, process_css_with_placeholder,
     },
     references::{
         compose::CssModuleComposeReference, import::ImportAssetReference, url::ReferencedAsset,
@@ -135,6 +135,7 @@ impl ProcessCss for CssModule {
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         minify_type: MinifyType,
+        ecmascript_module: Option<Vc<Box<dyn Module>>>,
     ) -> Result<Vc<FinalCssResult>> {
         let process_result = self.get_css_with_placeholder();
 
@@ -145,31 +146,6 @@ impl ProcessCss for CssModule {
                 None => FileContent::NotFound.cell(),
             };
         Ok(finalize_css(
-            process_result,
-            chunking_context,
-            minify_type,
-            origin_source_map,
-            this.environment.as_deref().copied(),
-            this.lightningcss_features,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn finalize_css_module(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        minify_type: MinifyType,
-        ecmascript_module: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<FinalCssResult>> {
-        let process_result = self.get_css_with_placeholder();
-
-        let this = self.await?;
-        let origin_source_map =
-            match ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(this.source) {
-                Some(gsm) => gsm.generate_source_map(),
-                None => FileContent::NotFound.cell(),
-            };
-        Ok(finalize_css_module(
             process_result,
             chunking_context,
             minify_type,
@@ -405,15 +381,14 @@ impl CssChunkItem for CssModuleChunkItem {
         }
 
         let minify_type = *chunking_context.minify_type().await?;
-        let result = if let Some(ecmascript_module) = self.ecmascript_module {
-            self.module
-                .finalize_css_module(*chunking_context, minify_type, *ecmascript_module)
-                .await?
-        } else {
-            self.module
-                .finalize_css(*chunking_context, minify_type)
-                .await?
-        };
+        let result = self
+            .module
+            .finalize_css(
+                *chunking_context,
+                minify_type,
+                self.ecmascript_module.map(|m| *m),
+            )
+            .await?;
 
         if let FinalCssResult::Ok {
             output_code,
