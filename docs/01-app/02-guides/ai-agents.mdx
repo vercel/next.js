@@ -59,7 +59,13 @@ npx create-next-app@canary --no-agents-md
 
 ### Existing projects
 
-On Next.js `v16.2.0-canary.37` or later, just run `next dev` from your Next.js app directory (in a monorepo, the sub-package that declares `next`). When an AI coding agent is detected in the environment and the managed block is missing, Next.js auto-generates `AGENTS.md` and `CLAUDE.md` at the project root. It upserts into an existing `AGENTS.md` or `CLAUDE.md`, or creates both if neither exists:
+On Next.js `v16.2.0-canary.37` or later, run the codemod from your Next.js app directory (in a monorepo, the sub-package that declares `next`):
+
+```bash
+npx @next/codemod@canary upgrade agents-md
+```
+
+`codemod upgrade` also runs this scaffold as a post-upgrade step. The codemod upserts into an existing `AGENTS.md` or `CLAUDE.md`, or creates both if neither exists:
 
 ```md filename="AGENTS.md"
 <!-- BEGIN:nextjs-agent-rules -->
