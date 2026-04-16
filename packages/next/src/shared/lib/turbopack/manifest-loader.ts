@@ -21,6 +21,7 @@ import {
   TURBOPACK_CLIENT_BUILD_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
 } from '../constants'
+import { buildClientMiddlewareManifestJs } from './utils'
 import { join, posix } from 'path'
 import { readFileSync } from 'fs'
 import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundler'
@@ -793,11 +794,10 @@ export class TurbopackManifestLoader {
     // writes the mainfest again for builds.
     const matchers = middlewareManifest?.middleware['/']?.matchers || []
 
-    const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+    const clientMiddlewareManifestJs = buildClientMiddlewareManifestJs(
       matchers,
-      null,
       2
-    )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+    )
 
     this.pendingCacheDeletes.push(clientMiddlewareManifestPath)
     writeFileAtomic(

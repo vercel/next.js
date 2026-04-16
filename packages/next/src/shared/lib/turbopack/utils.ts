@@ -4,6 +4,7 @@ import type {
   StyledString,
   TurbopackResult,
 } from '../../../build/swc/types'
+import type { ProxyMatcher } from '../../../build/analysis/get-page-static-info'
 
 import { bold, green, magenta, red } from '../../../lib/picocolors'
 import { deobfuscateText } from '../magic-identifier'
@@ -307,4 +308,11 @@ export function isFileSystemCacheEnabledForDev(
   config: NextConfigComplete
 ): boolean {
   return config.experimental?.turbopackFileSystemCacheForDev || false
+}
+
+export function buildClientMiddlewareManifestJs(
+  matchers: ProxyMatcher[],
+  space?: number
+): string {
+  return `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(matchers, null, space)};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
 }

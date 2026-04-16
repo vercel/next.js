@@ -200,6 +200,7 @@ import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 import { turbopackBuild } from './turbopack-build'
+import { buildClientMiddlewareManifestJs } from '../shared/lib/turbopack/utils'
 import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
@@ -2622,11 +2623,10 @@ export default async function build(
           }
 
           if (bundler === Bundler.Turbopack) {
-            const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(
+            const clientMiddlewareManifestJs = buildClientMiddlewareManifestJs(
               functionsConfigManifest.functions['/_middleware'].matchers || [],
-              null,
               2
-            )};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+            )
 
             let clientMiddlewareManifestPath = path.join(
               CLIENT_STATIC_FILES_PATH,

@@ -71,6 +71,7 @@ import {
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
 import {
+  buildClientMiddlewareManifestJs,
   isFileSystemCacheEnabledForDev,
   ModuleBuildError,
 } from '../../../shared/lib/turbopack/utils'
@@ -1224,7 +1225,9 @@ async function startWatcher(
     const parsedUrl = parseUrl(req.url || '/')
     const pathname = parsedUrl !== undefined ? parsedUrl.pathname : null
 
-    if (pathname !== null && pathname.includes(clientPagesManifestPath)) {
+    if (pathname === null) return { finished: false }
+
+    if (pathname.includes(clientPagesManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(
@@ -1237,22 +1240,18 @@ async function startWatcher(
       return { finished: true }
     }
 
-    if (pathname !== null && pathname.includes(devMiddlewareManifestPath)) {
+    if (pathname.includes(devMiddlewareManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(JSON.stringify(serverFields.middleware?.matchers || []))
       return { finished: true }
     }
 
-    if (
-      pathname !== null &&
-      pathname.includes(devTurbopackMiddlewareManifestPath)
-    ) {
+    if (pathname.includes(devTurbopackMiddlewareManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JAVASCRIPT_CONTENT_TYPE_HEADER)
-      const matchers = serverFields.middleware?.matchers || []
       res.end(
-        `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(matchers)};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+        buildClientMiddlewareManifestJs(serverFields.middleware?.matchers || [])
       )
       return { finished: true }
     }
