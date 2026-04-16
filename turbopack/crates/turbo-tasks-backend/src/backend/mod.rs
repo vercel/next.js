@@ -450,6 +450,7 @@ struct TaskExecutionCompletePrepareResult {
     pub no_output_set: bool,
     pub new_output: Option<OutputValue>,
     pub output_dependent_tasks: SmallVec<[TaskId; 4]>,
+    pub is_recomputation: bool,
 }
 
 // Operations
@@ -988,7 +989,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent_span: Option<tracing::Id>,
         reason: &str,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> Option<(Instant, bool)> {
+    ) -> Result<(Instant, bool), anyhow::Error> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
                 .entered();
@@ -1035,7 +1036,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
-            return Some((start, false));
+            return Ok((start, false));
         }
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1297,19 +1298,17 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // This should be impossible — if we got here, modified_count was nonzero, and every
             // modification that increments the count also failed during encoding.
             std::hint::cold_path();
-            return Some((snapshot_time, false));
+            return Ok((snapshot_time, false));
         }
 
         let persist_start = Instant::now();
         let _span = tracing::info_span!(parent: parent_span, "persist", reason = reason).entered();
         {
-            if let Err(err) = self
-                .backing_storage
-                .save_snapshot(suspended_operations, task_snapshots)
-            {
-                eprintln!("Persisting failed: {err:?}");
-                return None;
-            }
+            // Tasks were already consumed by take_snapshot, so a future snapshot
+            // would not re-persist them — returning an error signals to the caller
+            // that further persist attempts would corrupt the task graph in storage.
+            self.backing_storage
+                .save_snapshot(suspended_operations, task_snapshots)?;
             #[cfg(feature = "print_cache_item_size")]
             {
                 let mut task_cache_stats = task_cache_stats
@@ -1420,7 +1419,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ],
         )));
 
-        Some((snapshot_time, true))
+        Ok((snapshot_time, true))
     }
 
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
@@ -1462,8 +1461,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
-        if self.should_persist() {
-            self.snapshot_and_persist(Span::current().into(), "stop", turbo_tasks);
+        if self.should_persist()
+            && let Err(err) = self.snapshot_and_persist(Span::current().into(), "stop", turbo_tasks)
+        {
+            eprintln!("Persisting failed during shutdown: {err:?}");
         }
         drop_contents(&self.task_cache);
         self.storage.drop_contents();
@@ -2056,6 +2057,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             no_output_set,
             new_output,
             output_dependent_tasks,
+            is_recomputation,
         }) = self.task_execution_completed_prepare(
             &mut ctx,
             #[cfg(feature = "trace_task_details")]
@@ -2122,8 +2124,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             return true;
         }
 
-        let removed_data =
-            self.task_execution_completed_cleanup(&mut ctx, task_id, cell_counters, is_error);
+        let removed_data = self.task_execution_completed_cleanup(
+            &mut ctx,
+            task_id,
+            cell_counters,
+            is_error,
+            is_recomputation,
+        );
 
         // Drop data outside of critical sections
         drop(removed_data);
@@ -2143,6 +2150,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         has_invalidator: bool,
     ) -> Option<TaskExecutionCompletePrepareResult> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let is_recomputation = task.is_dirty().is_none();
         let Some(in_progress) = task.get_in_progress_mut() else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
@@ -2154,6 +2162,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 no_output_set: false,
                 new_output: None,
                 output_dependent_tasks: Default::default(),
+                is_recomputation,
             });
         }
         let &mut InProgressState::InProgress(box InProgressStateInner {
@@ -2224,7 +2233,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // that data is correct.
         // NOTE: This must stay in sync with task_execution_completed_cleanup, which similarly
         // skips cell data removal on error.
-        if result.is_ok() {
+        if result.is_ok() || is_recomputation {
             let old_counters: FxHashMap<_, _> = task
                 .iter_cell_type_max_index()
                 .map(|(&k, &v)| (k, v))
@@ -2386,6 +2395,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             no_output_set,
             new_output,
             output_dependent_tasks,
+            is_recomputation,
         })
     }
 
@@ -2694,6 +2704,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task_id: TaskId,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         is_error: bool,
+        is_recomputation: bool,
     ) -> Vec<SharedReference> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let mut removed_cell_data = Vec::new();
@@ -2702,7 +2713,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // clean to avoid re-executions.
         // NOTE: This must stay in sync with task_execution_completed_prepare, which similarly
         // skips cell_type_max_index updates on error.
-        if !is_error {
+        if !is_error || is_recomputation {
             // Remove no longer existing cells and
             // find all outdated data items (removed cells, outdated edges)
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
@@ -2766,6 +2777,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         removed_cell_data
     }
 
+    /// Prints the standard message emitted when the background persisting process stops due to an
+    /// unrecoverable write error. The caller is responsible for returning from the background job.
+    fn log_unrecoverable_persist_error() {
+        eprintln!(
+            "Persisting is disabled for this session due to an unrecoverable error. Stopping the \
+             background persisting process."
+        );
+    }
+
     fn run_backend_job<'a>(
         self: &'a Arc<Self>,
         job: TurboTasksBackendJob,
@@ -2809,7 +2829,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         return;
                                     },
                                     _ = &mut idle_start_listener => {
-                                        fresh_idle = true;
                                         idle_time = Instant::now() + idle_timeout;
                                         idle_start_listener = self.idle_start_event.listen()
                                     },
@@ -2836,62 +2855,74 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         // grouped together in trace viewers.
                         let background_span =
                             tracing::info_span!(parent: None, "background snapshot");
-                        let snapshot =
-                            this.snapshot_and_persist(background_span.id(), reason, turbo_tasks);
-                        if let Some((snapshot_start, new_data)) = snapshot {
-                            last_snapshot = snapshot_start;
+                        match this.snapshot_and_persist(background_span.id(), reason, turbo_tasks) {
+                            Err(err) => {
+                                // save_snapshot consumed persisted_task_cache_log entries;
+                                // further snapshots would corrupt the task graph.
+                                eprintln!("Persisting failed: {err:?}");
+                                Self::log_unrecoverable_persist_error();
+                                return;
+                            }
+                            Ok((snapshot_start, new_data)) => {
+                                last_snapshot = snapshot_start;
 
-                            // Compact while idle (up to limit), regardless of
-                            // whether the snapshot had new data.
-                            // `background_span` is not entered here because
-                            // `EnteredSpan` is `!Send` and would prevent the
-                            // future from being sent across threads when it
-                            // suspends at the `select!` await below.
-                            const MAX_IDLE_COMPACTION_PASSES: usize = 10;
-                            for _ in 0..MAX_IDLE_COMPACTION_PASSES {
-                                let idle_ended = tokio::select! {
-                                    biased;
-                                    _ = &mut idle_end_listener => {
-                                        idle_end_listener = self.idle_end_event.listen();
-                                        true
-                                    },
-                                    _ = std::future::ready(()) => false,
-                                };
-                                if idle_ended {
-                                    break;
-                                }
-                                // Enter the span only around the synchronous
-                                // compact() call so we never hold an
-                                // `EnteredSpan` across an await point.
-                                let _compact_span = tracing::info_span!(
-                                    parent: background_span.id(),
-                                    "compact database"
-                                )
-                                .entered();
-                                match self.backing_storage.compact() {
-                                    Ok(true) => {}
-                                    Ok(false) => break,
-                                    Err(err) => {
-                                        eprintln!("Compaction failed: {err:?}");
+                                // Compact while idle (up to limit), regardless of
+                                // whether the snapshot had new data.
+                                // `background_span` is not entered here because
+                                // `EnteredSpan` is `!Send` and would prevent the
+                                // future from being sent across threads when it
+                                // suspends at the `select!` await below.
+                                const MAX_IDLE_COMPACTION_PASSES: usize = 10;
+                                for _ in 0..MAX_IDLE_COMPACTION_PASSES {
+                                    let idle_ended = tokio::select! {
+                                        biased;
+                                        _ = &mut idle_end_listener => {
+                                            idle_end_listener = self.idle_end_event.listen();
+                                            true
+                                        },
+                                        _ = std::future::ready(()) => false,
+                                    };
+                                    if idle_ended {
                                         break;
                                     }
+                                    // Enter the span only around the synchronous
+                                    // compact() call so we never hold an
+                                    // `EnteredSpan` across an await point.
+                                    let _compact_span = tracing::info_span!(
+                                        parent: background_span.id(),
+                                        "compact database"
+                                    )
+                                    .entered();
+                                    match self.backing_storage.compact() {
+                                        Ok(true) => {}
+                                        Ok(false) => break,
+                                        Err(err) => {
+                                            eprintln!("Compaction failed: {err:?}");
+                                            if self.backing_storage.has_unrecoverable_write_error()
+                                            {
+                                                Self::log_unrecoverable_persist_error();
+                                                return;
+                                            }
+                                            break;
+                                        }
+                                    }
                                 }
-                            }
 
-                            if !new_data {
-                                fresh_idle = false;
-                                continue;
-                            }
-                            let last_snapshot = last_snapshot.duration_since(self.start_time);
-                            self.last_snapshot.store(
-                                last_snapshot.as_millis().try_into().unwrap(),
-                                Ordering::Relaxed,
-                            );
+                                if !new_data {
+                                    fresh_idle = false;
+                                    continue;
+                                }
+                                let last_snapshot = last_snapshot.duration_since(self.start_time);
+                                self.last_snapshot.store(
+                                    last_snapshot.as_millis().try_into().unwrap(),
+                                    Ordering::Relaxed,
+                                );
 
-                            turbo_tasks.schedule_backend_background_job(
-                                TurboTasksBackendJob::FollowUpSnapshot,
-                            );
-                            return;
+                                turbo_tasks.schedule_backend_background_job(
+                                    TurboTasksBackendJob::FollowUpSnapshot,
+                                );
+                                return;
+                            }
                         }
                     }
                 }

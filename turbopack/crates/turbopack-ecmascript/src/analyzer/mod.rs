@@ -1918,6 +1918,10 @@ impl JsValue {
                       "module.hot.decline".to_string(),
                       "The module.hot.decline HMR API: https://webpack.js.org/api/hot-module-replacement/#decline"
                     ),
+                    WellKnownFunctionKind::ImportMetaGlob => (
+                      "import.meta.glob".to_string(),
+                      "The import.meta.glob() function from Vite: https://vite.dev/guide/features.html#glob-import"
+                    ),
                 };
                 if depth > 0 {
                     let i = hints.len();
@@ -3520,6 +3524,8 @@ pub enum WellKnownFunctionKind {
     ModuleHotAccept,
     /// `module.hot.decline(deps)` — decline HMR updates for dependencies.
     ModuleHotDecline,
+    /// `import.meta.glob(patterns, options?)` — Vite-compatible glob import.
+    ImportMetaGlob,
 }
 
 impl WellKnownFunctionKind {
@@ -3616,6 +3622,11 @@ pub mod test_utils {
                 JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
                 _ => v.into_unknown(true, "require.resolve non constant"),
             },
+            JsValue::Call(
+                _,
+                box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
+                _,
+            ) => v.into_unknown(false, "import.meta.glob()"),
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
@@ -3745,10 +3756,7 @@ mod tests {
     };
     use crate::{
         AnalyzeMode,
-        analyzer::{
-            graph::{AssignmentScopes, VarMeta},
-            imports::ImportAttributes,
-        },
+        analyzer::{graph::AssignmentScopes, imports::ImportAttributes},
     };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
@@ -3787,11 +3795,14 @@ mod tests {
                     top_level_mark,
                     Default::default(),
                     Some(&comments),
-                    None,
                 );
 
-                let mut var_graph =
-                    create_graph(&m, &eval_context, AnalyzeMode::CodeGenerationAndTracing);
+                let mut var_graph = create_graph(
+                    &m,
+                    &eval_context,
+                    AnalyzeMode::CodeGenerationAndTracing,
+                    true,
+                );
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph
@@ -3840,23 +3851,20 @@ mod tests {
                             "{:#?}",
                             named_values
                                 .iter()
-                                .map(|(name, (_, VarMeta { value, .. }))| (name, value))
+                                .map(|(name, (_, value))| (name, value))
                                 .collect::<Vec<_>>()
                         ))
                         .compare_to_file(&graph_snapshot_path)
                         .unwrap();
                     }
                     NormalizedOutput::from(explain_all(named_values.iter().map(
-                        |(
-                            name,
+                        |(name, (id, value))| {
                             (
-                                _,
-                                VarMeta {
-                                    value,
-                                    assignment_scopes,
-                                },
-                            ),
-                        )| (name, value, Some(*assignment_scopes)),
+                                name,
+                                value,
+                                eval_context.imports.assignment_scopes.get(id).copied(),
+                            )
+                        },
                     )))
                     .compare_to_file(&graph_explained_snapshot_path)
                     .unwrap();
