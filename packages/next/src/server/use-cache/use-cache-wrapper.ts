@@ -135,7 +135,10 @@ interface CacheResultMetadata {
   readonly revalidate: number
   readonly expire: number
   readonly stale: number
+  readonly timestamp: number
   readonly readRootParamNames: ReadonlySet<string> | undefined
+  readonly hasExplicitRevalidate: boolean | undefined
+  readonly hasExplicitExpire: boolean | undefined
 }
 
 /**
@@ -326,6 +329,53 @@ function saveToResumeDataCache(
   debug?.('Resume Data Cache entry saved', serializedCacheKey)
 
   return savedCacheResult
+}
+
+/**
+ * A joiner's RDC context may differ from the leader's:
+ *
+ * - Intra-request: the leader was nested inside another cache (no accessible
+ *   RDC) while this joiner is top-level and has one.
+ * - Cross-request: the leader belongs to a different request entirely — this
+ *   request's RDC has never seen the entry.
+ *
+ * In both cases the joiner must save to its own RDC so its final prerender can
+ * resume from the entry. Constructs a `CollectedCacheResult` from a forked
+ * stream branch of the shared entry and the awaited metadata.
+ *
+ * The `cache.has()` guard avoids redundant saves when the intra-request leader
+ * already saved to the same RDC. Without it, this would needlessly tee the
+ * stream and overwrite an equivalent RDC entry.
+ */
+function saveSharedCacheEntryToResumeDataCache(
+  serializedCacheKey: string,
+  sharedCacheEntry: SharedCacheEntry,
+  prerenderResumeDataCache: PrerenderResumeDataCache | null
+): void {
+  if (
+    !prerenderResumeDataCache ||
+    prerenderResumeDataCache.cache.has(serializedCacheKey)
+  ) {
+    return
+  }
+
+  const rdcResult: Promise<CollectedCacheResult> =
+    sharedCacheEntry.pendingMetadata.then((metadata) => ({
+      entry: {
+        value: sharedCacheEntry.fork(),
+        tags: metadata.tags,
+        revalidate: metadata.revalidate,
+        expire: metadata.expire,
+        stale: metadata.stale,
+        timestamp: metadata.timestamp,
+      },
+      readRootParamNames: metadata.readRootParamNames,
+      hasExplicitRevalidate: metadata.hasExplicitRevalidate,
+      hasExplicitExpire: metadata.hasExplicitExpire,
+    }))
+
+  prerenderResumeDataCache.cache.set(serializedCacheKey, rdcResult)
+  debug?.('Resume Data Cache entry saved by joiner', serializedCacheKey)
 }
 
 function saveToCacheHandler(
@@ -762,19 +812,6 @@ function maybePropagateCacheEntryMetadata(
   }
 }
 
-function createCacheResultMetadata(
-  entry: CacheEntry,
-  readRootParamNames: ReadonlySet<string> | undefined
-): CacheResultMetadata {
-  return {
-    tags: entry.tags,
-    revalidate: entry.revalidate,
-    expire: entry.expire,
-    stale: entry.stale,
-    readRootParamNames,
-  }
-}
-
 export interface CollectedCacheResult {
   entry: CacheEntry
   /**
@@ -876,24 +913,7 @@ async function collectResult(
     tags: collectedTags === null ? [] : collectedTags,
   }
 
-  if (!cacheContext.skipPropagation) {
-    maybePropagateCacheEntryMetadata(
-      cacheContext,
-      createCacheResultMetadata(
-        entry,
-        innerCacheStore.type === 'cache'
-          ? innerCacheStore.readRootParamNames
-          : undefined
-      )
-    )
-
-    const cacheSignal = getCacheSignal(cacheContext.outerWorkUnitStore)
-    if (cacheSignal) {
-      cacheSignal.endRead()
-    }
-  }
-
-  return {
+  const collected: CollectedCacheResult = {
     entry,
     hasExplicitRevalidate: innerCacheStore.explicitRevalidate !== undefined,
     hasExplicitExpire: innerCacheStore.explicitExpire !== undefined,
@@ -902,6 +922,26 @@ async function collectResult(
         ? innerCacheStore.readRootParamNames
         : undefined,
   }
+
+  if (!cacheContext.skipPropagation) {
+    maybePropagateCacheEntryMetadata(cacheContext, {
+      tags: collected.entry.tags,
+      revalidate: collected.entry.revalidate,
+      expire: collected.entry.expire,
+      stale: collected.entry.stale,
+      timestamp: collected.entry.timestamp,
+      hasExplicitRevalidate: collected.hasExplicitRevalidate,
+      hasExplicitExpire: collected.hasExplicitExpire,
+      readRootParamNames: collected.readRootParamNames,
+    })
+
+    const cacheSignal = getCacheSignal(cacheContext.outerWorkUnitStore)
+    if (cacheSignal) {
+      cacheSignal.endRead()
+    }
+  }
+
+  return collected
 }
 
 type GenerateCacheEntryResult =
@@ -1906,13 +1946,16 @@ export async function cache(
         // We want to make sure we only propagate cache life & tags if the
         // entry was *not* omitted from the prerender. So we only do this
         // after the above early returns.
-        propagateCacheEntryMetadata(
-          cacheContext,
-          createCacheResultMetadata(
-            rdcResult.entry,
-            rdcResult.readRootParamNames
-          )
-        )
+        propagateCacheEntryMetadata(cacheContext, {
+          tags: rdcResult.entry.tags,
+          revalidate: rdcResult.entry.revalidate,
+          expire: rdcResult.entry.expire,
+          stale: rdcResult.entry.stale,
+          timestamp: rdcResult.entry.timestamp,
+          hasExplicitRevalidate: rdcResult.hasExplicitRevalidate,
+          hasExplicitExpire: rdcResult.hasExplicitExpire,
+          readRootParamNames: rdcResult.readRootParamNames,
+        })
 
         const [streamA, streamB] = rdcResult.entry.value.tee()
         rdcResult.entry.value = streamB
@@ -2032,6 +2075,16 @@ export async function cache(
 
       stream = sharedCacheResult.entry.fork()
 
+      // If the leader was nested inside another cache (no accessible RDC), it
+      // couldn't save to the RDC. This joiner may be top-level with an RDC, in
+      // which case it must save here; otherwise the RDC lookup during the
+      // final prerender will miss.
+      saveSharedCacheEntryToResumeDataCache(
+        serializedCacheKey,
+        sharedCacheResult.entry,
+        prerenderResumeDataCache
+      )
+
       // End the cache signal read when the result is fully collected, not when
       // the stream is available. Fire-and-forget propagation runs in the same
       // .then() callback. .catch() prevents unhandled rejection if collection
@@ -2127,6 +2180,15 @@ export async function cache(
             cacheSignal?.endRead()
             stream = sharedCacheResult.entry.fork()
             maybePropagateCacheEntryMetadata(cacheContext, metadata)
+
+            // The cross-request leader belongs to a different request with its
+            // own RDC. Save to this request's RDC so its final prerender can
+            // resume from the entry.
+            saveSharedCacheEntryToResumeDataCache(
+              serializedCacheKey,
+              sharedCacheResult.entry,
+              prerenderResumeDataCache
+            )
 
             // Resolve for intra-request joiners in this request. They get
             // a fork from the same SharedCacheEntry.
@@ -2413,12 +2475,17 @@ export async function cache(
 
           debug?.('leader resolved with generated entry', cacheHandlerKey)
 
-          const pendingMetadata = pendingCacheResult.then((collected) =>
-            createCacheResultMetadata(
-              collected.entry,
-              collected.readRootParamNames
-            )
-          )
+          const pendingMetadata: Promise<CacheResultMetadata> =
+            pendingCacheResult.then((collected) => ({
+              tags: collected.entry.tags,
+              revalidate: collected.entry.revalidate,
+              expire: collected.entry.expire,
+              stale: collected.entry.stale,
+              timestamp: collected.entry.timestamp,
+              hasExplicitRevalidate: collected.hasExplicitRevalidate,
+              hasExplicitExpire: collected.hasExplicitExpire,
+              readRootParamNames: collected.readRootParamNames,
+            }))
 
           const sharedCacheEntry = new SharedCacheEntry(
             newStream,
@@ -2438,13 +2505,24 @@ export async function cache(
             )
           }
 
-          maybePropagateCacheEntryMetadata(
-            cacheContext,
-            createCacheResultMetadata(
-              entry,
-              knownRootParamsByFunctionId.get(id)
-            )
-          )
+          const entryMetadata: CacheResultMetadata = {
+            tags: entry.tags,
+            revalidate: entry.revalidate,
+            expire: entry.expire,
+            stale: entry.stale,
+            timestamp: entry.timestamp,
+            readRootParamNames: knownRootParamsByFunctionId.get(id),
+            // For pre-existing entries from cache handlers we don't know
+            // whether they had explicit cache life values or not. But we only
+            // need this information during prerendering when we produce new
+            // entries, where the cache life of an inner cache may be propagated
+            // to the outer one. In that case we use the RDC. So it's safe to
+            // set this to undefined here.
+            hasExplicitRevalidate: undefined,
+            hasExplicitExpire: undefined,
+          }
+
+          maybePropagateCacheEntryMetadata(cacheContext, entryMetadata)
 
           // We want to return this stream, even if it's stale.
           stream = entry.value
@@ -2465,15 +2543,9 @@ export async function cache(
               serializedCacheKey,
               Promise.resolve({
                 entry: entryRight,
-                // For pre-existing entries from cache handlers we don't know
-                // whether they had explicit cache life values or not. But we
-                // only need this information during prerendering when we
-                // produce new entries, where the cache life of an inner cache
-                // may be propagated to the outer one. In that case we use the
-                // RDC. So it's safe to set this to undefined here.
-                hasExplicitRevalidate: undefined,
-                hasExplicitExpire: undefined,
-                readRootParamNames: knownRootParamNames,
+                hasExplicitRevalidate: entryMetadata.hasExplicitRevalidate,
+                hasExplicitExpire: entryMetadata.hasExplicitExpire,
+                readRootParamNames: entryMetadata.readRootParamNames,
               })
             )
           } else {
@@ -2484,10 +2556,6 @@ export async function cache(
           }
 
           debug?.('leader resolved with cache handler hit', cacheHandlerKey)
-          const entryMetadata = createCacheResultMetadata(
-            entry,
-            knownRootParamsByFunctionId.get(id)
-          )
 
           const sharedCacheEntry = new SharedCacheEntry(
             stream,
