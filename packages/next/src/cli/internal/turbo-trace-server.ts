@@ -9,7 +9,6 @@ const { StreamableHTTPServerTransport } =
   require('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp') as typeof import('next/dist/compiled/@modelcontextprotocol/sdk/server/streamableHttp')
 
 const DEFAULT_WS_PORT = 5747
-const DEFAULT_MCP_PORT = 5748 // Keep in sync with query-trace.ts
 
 /** 100 internal ticks = 1 µs */
 const TICKS_PER_US = 100
@@ -85,7 +84,7 @@ export async function startTurboTraceServerCli(
   mcpPort: number | undefined
 ) {
   const wsPort = port ?? DEFAULT_WS_PORT
-  const httpPort = mcpPort ?? DEFAULT_MCP_PORT
+  const httpPort = mcpPort ?? wsPort + 1
 
   let bindings
   try {

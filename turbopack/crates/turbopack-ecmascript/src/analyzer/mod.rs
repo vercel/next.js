@@ -3756,10 +3756,7 @@ mod tests {
     };
     use crate::{
         AnalyzeMode,
-        analyzer::{
-            graph::{AssignmentScopes, VarMeta},
-            imports::ImportAttributes,
-        },
+        analyzer::{graph::AssignmentScopes, imports::ImportAttributes},
     };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
@@ -3798,11 +3795,14 @@ mod tests {
                     top_level_mark,
                     Default::default(),
                     Some(&comments),
-                    None,
                 );
 
-                let mut var_graph =
-                    create_graph(&m, &eval_context, AnalyzeMode::CodeGenerationAndTracing);
+                let mut var_graph = create_graph(
+                    &m,
+                    &eval_context,
+                    AnalyzeMode::CodeGenerationAndTracing,
+                    true,
+                );
                 let var_cache = Default::default();
 
                 let mut named_values = var_graph
@@ -3851,23 +3851,20 @@ mod tests {
                             "{:#?}",
                             named_values
                                 .iter()
-                                .map(|(name, (_, VarMeta { value, .. }))| (name, value))
+                                .map(|(name, (_, value))| (name, value))
                                 .collect::<Vec<_>>()
                         ))
                         .compare_to_file(&graph_snapshot_path)
                         .unwrap();
                     }
                     NormalizedOutput::from(explain_all(named_values.iter().map(
-                        |(
-                            name,
+                        |(name, (id, value))| {
                             (
-                                _,
-                                VarMeta {
-                                    value,
-                                    assignment_scopes,
-                                },
-                            ),
-                        )| (name, value, Some(*assignment_scopes)),
+                                name,
+                                value,
+                                eval_context.imports.assignment_scopes.get(id).copied(),
+                            )
+                        },
                     )))
                     .compare_to_file(&graph_explained_snapshot_path)
                     .unwrap();

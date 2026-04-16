@@ -75,6 +75,7 @@ import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-st
 import type { CacheLife } from './cache-life'
 import { RenderStage } from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
+import { getServerReact, getClientReact } from '../runtime-reacts.external'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -83,6 +84,7 @@ interface PrivateCacheContext {
     | PrivateUseCacheStore
     | PrerenderStoreModernRuntime
   readonly skipPropagation: boolean
+  readonly outerOwnerStack: string | undefined
 }
 
 interface PublicCacheContext {
@@ -93,6 +95,7 @@ interface PublicCacheContext {
     PrerenderStoreModernClient | ValidationStoreClient
   >
   readonly skipPropagation: boolean
+  readonly outerOwnerStack: string | undefined
 }
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
@@ -360,6 +363,7 @@ function createUseCacheStore(
       rootParams: outerWorkUnitStore.rootParams,
       headers: outerWorkUnitStore.headers,
       cookies: outerWorkUnitStore.cookies,
+      outerOwnerStack: cacheContext.outerOwnerStack,
     }
   } else {
     let useCacheOrRequestStore: RequestStore | UseCacheStore | undefined
@@ -404,8 +408,46 @@ function createUseCacheStore(
       ),
       rootParams: outerWorkUnitStore.rootParams,
       readRootParamNames: new Set<string>(),
+      outerOwnerStack: cacheContext.outerOwnerStack,
     }
   }
+}
+
+/**
+ * Captures the owner stack from the outer component tree before entering a
+ * cache boundary. When nested inside another cache scope, the parent's
+ * outerOwnerStack is concatenated so that the full component tree is preserved
+ * across multiple cache boundaries.
+ */
+function captureOuterOwnerStack(
+  workUnitStore: WorkUnitStore
+): string | undefined {
+  const capturedOwnerStack =
+    (getClientReact()?.captureOwnerStack?.() ??
+      getServerReact()?.captureOwnerStack?.()) ||
+    ''
+
+  let parentOuterOwnerStack: string | undefined
+  switch (workUnitStore.type) {
+    case 'cache':
+    case 'private-cache':
+      parentOuterOwnerStack = workUnitStore.outerOwnerStack
+      break
+    case 'unstable-cache':
+    case 'request':
+    case 'prerender':
+    case 'prerender-ppr':
+    case 'prerender-legacy':
+    case 'prerender-runtime':
+    case 'prerender-client':
+    case 'validation-client':
+    case 'generate-static-params':
+      break
+    default:
+      workUnitStore satisfies never
+  }
+
+  return capturedOwnerStack + (parentOuterOwnerStack || '') || undefined
 }
 
 function assertDefaultCacheLife(
@@ -1125,6 +1167,11 @@ export async function cache(
     )
   }
 
+  const outerOwnerStack =
+    process.env.NODE_ENV !== 'production'
+      ? captureOuterOwnerStack(workUnitStore)
+      : undefined
+
   const name = originalFn.name
   let fn = originalFn
   let cacheContext: CacheContext
@@ -1182,6 +1229,7 @@ export async function cache(
           kind: 'private',
           outerWorkUnitStore: workUnitStore,
           skipPropagation: false,
+          outerOwnerStack,
         }
         break
       case 'generate-static-params':
@@ -1221,6 +1269,7 @@ export async function cache(
           kind: 'public',
           outerWorkUnitStore: workUnitStore,
           skipPropagation: false,
+          outerOwnerStack,
         }
         break
       default:
@@ -1501,6 +1550,32 @@ export async function cache(
   const implicitTags = workUnitStore.implicitTags?.tags ?? []
 
   if (renderResumeDataCache) {
+    // If this cache key was already determined to be dynamic during the
+    // prospective prerender (e.g. because it accessed fallback params), we
+    // return a hanging promise early to avoid trying to regenerate the entry,
+    // which would be aborted anyway.
+    if (renderResumeDataCache.dynamicCacheKeys?.has(serializedCacheKey)) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-runtime':
+          return makeHangingPromise(
+            workUnitStore.renderSignal,
+            workStore.route,
+            'dynamic "use cache"'
+          )
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'request':
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+        case 'generate-static-params':
+          break
+        default:
+          workUnitStore satisfies never
+      }
+    }
+
     const cacheSignal = getCacheSignal(workUnitStore)
 
     if (cacheSignal) {
@@ -1753,6 +1828,31 @@ export async function cache(
           // an async function, before being passed into the "use cache"
           // function, which escapes the instrumentation.
           if (workUnitStore.allowEmptyStaticShell) {
+            if (prerenderResumeDataCache) {
+              prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+            }
+            return makeHangingPromise(
+              workUnitStore.renderSignal,
+              workStore.route,
+              'dynamic "use cache"'
+            )
+          }
+        // fallthrough
+        case 'prerender-runtime':
+          if (!cacheSignal) {
+            // This is the final prerender (cacheSignal is null), which means
+            // all caches should have been warmed during the prospective
+            // prerender. A cache miss here indicates that the cache key is
+            // non-deterministic (e.g. due to unstable array order in the
+            // arguments). Known dynamic keys (e.g. from fallback params) are
+            // already handled by the early return above. We return a hanging
+            // promise so this becomes a dynamic hole rather than generating a
+            // broken cache entry that gets aborted.
+            console.warn(
+              new Error(
+                `Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.`
+              )
+            )
             return makeHangingPromise(
               workUnitStore.renderSignal,
               workStore.route,
@@ -1760,7 +1860,6 @@ export async function cache(
             )
           }
           break
-        case 'prerender-runtime':
         case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
@@ -1957,6 +2056,9 @@ export async function cache(
       )
 
       if (result.type === 'prerender-dynamic') {
+        if (prerenderResumeDataCache) {
+          prerenderResumeDataCache.dynamicCacheKeys.add(serializedCacheKey)
+        }
         return result.hangingPromise
       }
 
@@ -2048,6 +2150,7 @@ export async function cache(
             kind: cacheContext.kind,
             outerWorkUnitStore: cacheContext.outerWorkUnitStore,
             skipPropagation: true,
+            outerOwnerStack: cacheContext.outerOwnerStack,
           },
           clientReferenceManifest,
           encodedCacheKeyParts,

@@ -384,7 +384,7 @@ export class Head extends React.Component<HeadProps> {
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
       assetPrefix,
-      assetQueryString,
+      cssAssetQueryString,
       dynamicImports,
       dynamicCssManifest,
       crossOrigin,
@@ -422,7 +422,7 @@ export class Head extends React.Component<HeadProps> {
             rel="preload"
             href={`${assetPrefix}/_next/${encodeURIPath(
               file
-            )}${assetQueryString}`}
+            )}${cssAssetQueryString}`}
             as="style"
             crossOrigin={this.props.crossOrigin || crossOrigin}
           />
@@ -436,7 +436,7 @@ export class Head extends React.Component<HeadProps> {
           rel="stylesheet"
           href={`${assetPrefix}/_next/${encodeURIPath(
             file
-          )}${assetQueryString}`}
+          )}${cssAssetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={
@@ -589,7 +589,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       assetPrefix,
       nextFontManifest,
-      assetQueryString,
+      cssAssetQueryString,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -659,7 +659,7 @@ export class Head extends React.Component<HeadProps> {
       nextFontManifest,
       dangerousAsPath,
       assetPrefix,
-      assetQueryString
+      cssAssetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(

@@ -88,7 +88,7 @@ jobs:
 
       - name: Build next-swc
         run: |
-          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --features plugin --release'
+          hyperfine --min-runs 1 --show-output 'pnpm run --filter=@next/swc build-native --release'
           echo "Successfully built next-swc with published turbopack"
 
       - name: Build next.js
