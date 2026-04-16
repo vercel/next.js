@@ -8,7 +8,7 @@ use std::{
 use hashbrown::HashMap;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     FxIndexMap,
@@ -91,10 +91,10 @@ impl<'a> SpanRef<'a> {
                 .args
                 .iter()
                 .find(|&(k, _)| k == "name")
-                .map(|(_, v)| v.as_str())
+                .map(|(_, v)| v)
             {
                 if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                    (self.span.name.clone(), RcStr::from(name))
+                    (self.span.name.clone(), name.clone())
                 } else if matches!(
                     self.span.name.as_str(),
                     "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
@@ -121,7 +121,7 @@ impl<'a> SpanRef<'a> {
                     .args
                     .iter()
                     .find(|&(k, _)| k == "name")
-                    .map(|(_, v)| RcStr::from(v.as_str()))
+                    .map(|(_, v)| v.clone())
                     .unwrap_or_else(|| self.span.name.clone());
                 (self.span.name.clone(), name)
             } else if matches!(
@@ -492,7 +492,7 @@ impl<'a> SpanRef<'a> {
                     push_to_index(
                         index,
                         "incomplete_span",
-                        || RcStr::from("incomplete_span"),
+                        || rcstr!("incomplete_span"),
                         span.index(),
                     );
                 }

@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use rustc_demangle::demangle;
 use rustc_hash::{FxHashMap, FxHashSet};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 
 use super::TraceFormat;
 use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
@@ -275,7 +275,7 @@ impl TraceFormat for HeaptrackFormat {
                                             Some(parent.span_index),
                                             self.last_timestamp,
                                             RcStr::default(),
-                                            RcStr::from("recursion"),
+                                            rcstr!("recursion"),
                                             Vec::new(),
                                             &mut outdated_spans,
                                         );
@@ -334,7 +334,7 @@ impl TraceFormat for HeaptrackFormat {
                             .get(*function_index)
                             .context("function not found")?;
                         args.push((
-                            RcStr::from("location"),
+                            rcstr!("location"),
                             RcStr::from(format!("{function} @ {file}:{line}")),
                         ));
                     }

@@ -31,13 +31,6 @@ type FxIndexSet<T> = IndexSet<T, BuildHasherDefault<FxHasher>>;
 type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
 fn main() {
-    // Wire mimalloc thread_stop for rayon worker threads so each worker returns
-    // its thread-local heap to the global pool on exit.
-    rayon::ThreadPoolBuilder::new()
-        .exit_handler(|_| turbo_tasks_malloc::TurboMalloc::thread_stop())
-        .build_global()
-        .expect("failed to initialize rayon thread pool");
-
     let args: FxIndexSet<String> = std::env::args().skip(1).collect();
 
     let mut iter = args.iter();

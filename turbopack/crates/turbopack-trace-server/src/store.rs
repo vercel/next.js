@@ -6,7 +6,7 @@ use std::{
 };
 
 use rustc_hash::FxHashSet;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     self_time_tree::SelfTimeTree,
@@ -44,7 +44,7 @@ fn new_root_span() -> Span {
         depth: 0,
         start: Timestamp::MAX,
         category: RcStr::default(),
-        name: RcStr::from("(root)"),
+        name: rcstr!("(root)"),
         args: vec![],
         events: vec![],
         is_complete: true,

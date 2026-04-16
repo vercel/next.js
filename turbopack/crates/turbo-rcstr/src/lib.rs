@@ -680,10 +680,7 @@ impl RcStrInterning {
 
     /// Intern the [`Display`](std::fmt::Display) output of a value.
     pub fn intern_display(&mut self, v: &impl std::fmt::Display) -> RcStr {
-        use std::fmt::Write;
-        let mut buf = String::new();
-        write!(buf, "{v}").unwrap();
-        self.intern_owned(buf)
+        self.intern_owned(v.to_string())
     }
 }
 
@@ -845,24 +842,28 @@ mod tests {
         let b = interner.intern("hi");
         assert_eq!(a, b);
 
-        // Long strings should be deduplicated
+        // Long strings should be deduplicated to the same allocation.
         let long = "this is a long string that exceeds inline threshold";
         let c = interner.intern(long);
         let d = interner.intern(long);
         assert_eq!(c, d);
-        // They should point to the same allocation (same TaggedValue)
-        assert_eq!(c.as_str(), d.as_str());
+        assert!(std::ptr::eq(c.as_str().as_ptr(), d.as_str().as_ptr()));
 
-        // intern_cow with borrowed
+        // intern_cow with borrowed — same allocation as c
         let e = interner.intern_cow(std::borrow::Cow::Borrowed(long));
         assert_eq!(e, c);
+        assert!(std::ptr::eq(e.as_str().as_ptr(), c.as_str().as_ptr()));
 
-        // intern_cow with owned
+        // intern_cow with owned — same allocation as c (no new alloc)
         let f = interner.intern_cow(std::borrow::Cow::Owned(long.to_string()));
         assert_eq!(f, c);
+        assert!(std::ptr::eq(f.as_str().as_ptr(), c.as_str().as_ptr()));
 
-        // intern_display
-        let g = interner.intern_display(&42u64);
-        assert_eq!(g.as_str(), "42");
+        // intern_display — a fresh long string, verify it is interned too
+        let long2 = "another long string that exceeds the inline threshold here";
+        let g = interner.intern_display(&long2);
+        let h = interner.intern_display(&long2);
+        assert_eq!(g, h);
+        assert!(std::ptr::eq(g.as_str().as_ptr(), h.as_str().as_ptr()));
     }
 }
