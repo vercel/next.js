@@ -23,6 +23,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 import { InstantGuidance } from '../components/instant/instant-guidance'
 import { CodeFrame } from '../components/code-frame/code-frame'
 import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
+import { ErrorCause } from './runtime-error/error-cause'
 import { useFrames } from '../utils/get-error-by-type'
 
 interface ErrorsProps extends ErrorBaseProps {
@@ -591,18 +592,19 @@ function InstantRuntimeError({
           frames={frames}
         />
       )}
+
+      {error.cause && (
+        <ErrorCause cause={error.cause} dialogResizerRef={dialogResizerRef} />
+      )}
     </>
   )
 }
 
 function isRuntimeVariant(message: string): boolean {
-  if (
-    message.includes('Runtime data such as') &&
-    !message.includes('Dynamic or runtime data')
-  ) {
-    return true
-  }
-  return false
+  return (
+    message.includes('encountered runtime data') &&
+    !message.includes('uncached or runtime data')
+  )
 }
 
 function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {

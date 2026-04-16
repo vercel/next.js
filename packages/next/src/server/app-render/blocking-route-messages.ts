@@ -49,3 +49,17 @@ export function disallowedDynamicViewportMessage(route: string): string {
 export function disallowedDynamicMetadataMessage(route: string): string {
   return `Route "${route}" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
 }
+
+export function logBuildDebugHint(route: string): void {
+  if (process.env.NODE_ENV !== 'development') {
+    console.error(
+      `To get a more detailed stack trace and pinpoint the issue, try one of the following:\n` +
+        `  - Start the app in development mode by running \`next dev\`, then open "${route}" in your browser to investigate the error.\n` +
+        `  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`
+    )
+  } else if (!process.env.__NEXT_DEV_SERVER) {
+    console.error(
+      `To debug the issue, start the app in development mode by running \`next dev\`, then open "${route}" in your browser to investigate the error.`
+    )
+  }
+}

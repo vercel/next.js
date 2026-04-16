@@ -56,6 +56,7 @@ import {
   dynamicViewportMessage,
   disallowedDynamicViewportMessage,
   disallowedDynamicMetadataMessage,
+  logBuildDebugHint,
 } from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
@@ -1189,16 +1190,7 @@ export function logDisallowedDynamicError(
   error: Error
 ): void {
   console.error(error)
-
-  if (process.env.NODE_ENV !== 'development') {
-    console.error(`To get a more detailed stack trace and pinpoint the issue, try one of the following:
-  - Start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.
-  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`)
-  } else if (!process.env.__NEXT_DEV_SERVER) {
-    console.error(
-      `To debug the issue, start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.`
-    )
-  }
+  logBuildDebugHint(workStore.route)
 }
 
 export function throwIfDisallowedDynamic(
