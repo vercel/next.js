@@ -26,17 +26,21 @@ describe('env-config', () => {
     didReload = false
   ) => {
     expect(data.ENV_FILE_KEY).toBe('env')
-    expect(data.LOCAL_ENV_FILE_KEY).toBe(undefined)
+    expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
     expect(data.DEVELOPMENT_ENV_FILE_KEY).toBe(
       isNextDev ? 'development' : undefined
     )
-    expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(undefined)
+    expect(data.LOCAL_DEVELOPMENT_ENV_FILE_KEY).toBe(
+      isNextDev ? 'localdevelopment' : undefined
+    )
     expect(data.TEST_ENV_FILE_KEY).toBe(undefined)
     expect(data.LOCAL_TEST_ENV_FILE_KEY).toBe(undefined)
     expect(data.PRODUCTION_ENV_FILE_KEY).toBe(
       isNextDev ? undefined : 'production'
     )
-    expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(undefined)
+    expect(data.LOCAL_PRODUCTION_ENV_FILE_KEY).toBe(
+      isNextDev ? undefined : 'localproduction'
+    )
     expect(data.ENV_FILE_EXPANDED).toBe('env')
     expect(data.ENV_FILE_EXPANDED_CONCAT).toBe('hello-env')
     expect(data.ENV_FILE_EXPANDED_ESCAPED).toBe('$ENV_FILE_KEY')
@@ -46,6 +50,7 @@ describe('env-config', () => {
 
     if (didReload) {
       expect(data.NEW_ENV_KEY).toBe('true')
+      expect(data.NEW_ENV_LOCAL_KEY).toBe('hello')
       expect(data.NEW_ENV_DEV_KEY).toBe('from-dev')
       expect(data.NEXT_PUBLIC_HELLO_WORLD).toBe('again')
     }
@@ -96,16 +101,16 @@ describe('env-config', () => {
       isNextDev ? 'development' : 'env'
     )
     expect(data.ENV_FILE_DEVELOPMENT_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
-      isNextDev ? 'development' : 'env'
+      isNextDev ? 'localdevelopment' : 'env'
     )
     expect(data.ENV_FILE_TEST_OVERRIDE_TEST).toEqual('env')
     expect(data.ENV_FILE_TEST_LOCAL_OVERRIDEOVERRIDE_TEST).toBe('env')
-    expect(data.LOCAL_ENV_FILE_KEY).toBe(undefined)
+    expect(data.LOCAL_ENV_FILE_KEY).toBe('localenv')
     expect(data.ENV_FILE_PRODUCTION_OVERRIDEOVERRIDE_TEST).toEqual(
       isNextDev ? 'env' : 'production'
     )
     expect(data.ENV_FILE_PRODUCTION_LOCAL_OVERRIDEOVERRIDE_TEST).toEqual(
-      isNextDev ? 'env' : 'production'
+      isNextDev ? 'env' : 'localproduction'
     )
     expect(data.NEXT_PUBLIC_EMPTY_ENV_VAR).toEqual('')
 
@@ -120,12 +125,17 @@ describe('env-config', () => {
       it('should have updated runtime values after change', async () => {
         const envContent = await next.readFile('.env')
         const envDevContent = await next.readFile('.env.development')
+        const envLocalContent = await next.readFile('.env.local')
 
         try {
           const initialData = await getEnvFromHtml('/')
           expect(initialData.ENV_FILE_KEY).toBe('env')
 
           await next.patchFile('.env', envContent + '\nNEW_ENV_KEY=true')
+          await next.patchFile(
+            '.env.local',
+            envLocalContent + '\nNEW_ENV_LOCAL_KEY=hello'
+          )
           await next.patchFile(
             '.env.development',
             envDevContent +
@@ -139,9 +149,18 @@ describe('env-config', () => {
           await retry(async () => {
             const data = await getEnvFromHtml('/')
             expect(data.NEW_ENV_KEY).toBe('true')
+            expect(data.NEW_ENV_LOCAL_KEY).toBe('hello')
             expect(data.NEW_ENV_DEV_KEY).toBe('from-dev')
             expect(data.NEXT_PUBLIC_HELLO_WORLD).toBe('again')
           })
+
+          // Re-verify base env data with didReload=true
+          const ssgData = await getEnvFromHtml('/some-ssg')
+          checkEnvData(ssgData, true)
+          const sspData = await getEnvFromHtml('/some-ssp')
+          checkEnvData(sspData, true)
+          const apiData = JSON.parse(await next.render('/api/all'))
+          checkEnvData(apiData, true)
 
           const outputBefore = next.cliOutput.length
           await next.patchFile(
@@ -163,14 +182,40 @@ describe('env-config', () => {
             expect(data.ENV_FILE_KEY).toBe('env-updated')
             expect(data.NEW_ENV_KEY).toBe('true')
           })
+
+          // Now modify .env.local and verify it's detected
+          const outputBefore2 = next.cliOutput.length
+          await next.patchFile(
+            '.env.local',
+            envLocalContent.replace(
+              'ENV_FILE_LOCAL_OVERRIDE_TEST=localenv',
+              'ENV_FILE_LOCAL_OVERRIDE_TEST=localenv-updated'
+            )
+          )
+
+          await retry(async () => {
+            const recentOutput2 = next.cliOutput.substring(outputBefore2)
+            expect(recentOutput2).toContain('Reload env:')
+          })
+          expect(next.cliOutput.substring(outputBefore2)).toContain(
+            '.env.local'
+          )
+
+          await retry(async () => {
+            const data = await getEnvFromHtml('/')
+            expect(data.ENV_FILE_KEY).toBe('env-updated')
+            expect(data.ENV_FILE_LOCAL_OVERRIDE_TEST).toBe('localenv-updated')
+          })
         } finally {
           await next.patchFile('.env', envContent)
           await next.patchFile('.env.development', envDevContent)
+          await next.patchFile('.env.local', envLocalContent)
         }
       })
 
       it('should trigger HMR correctly when NEXT_PUBLIC_ env is changed', async () => {
         const envContent = await next.readFile('.env')
+        const envLocalContent = await next.readFile('.env.local')
 
         try {
           const browser = await next.browser('/global')
@@ -178,7 +223,7 @@ describe('env-config', () => {
             await browser.waitForElementByCss('#global-value').text()
           ).toBe('another')
 
-          const outputBefore = next.cliOutput.length
+          let outputBefore = next.cliOutput.length
           await next.patchFile(
             '.env',
             envContent.replace(
@@ -191,7 +236,7 @@ describe('env-config', () => {
             const recentOutput = next.cliOutput.substring(outputBefore)
             expect(recentOutput).toContain('Reload env:')
           })
-          const recentOutput = next.cliOutput.substring(outputBefore)
+          let recentOutput = next.cliOutput.substring(outputBefore)
           expect([...recentOutput.matchAll(/Reload env:/g)].length).toBe(1)
           expect(recentOutput).not.toContain('.env.local')
 
@@ -201,6 +246,46 @@ describe('env-config', () => {
             ).toBe('replaced')
           })
 
+          // Override via .env.local
+          outputBefore = next.cliOutput.length
+          await next.patchFile(
+            '.env.local',
+            envLocalContent + '\nNEXT_PUBLIC_TEST_DEST=overridden'
+          )
+
+          await retry(async () => {
+            recentOutput = next.cliOutput.substring(outputBefore)
+            expect(recentOutput).toContain('Reload env:')
+          })
+          recentOutput = next.cliOutput.substring(outputBefore)
+          expect([...recentOutput.matchAll(/Reload env:/g)].length).toBe(1)
+          expect(recentOutput).toContain('.env.local')
+
+          await retry(async () => {
+            expect(
+              await browser.waitForElementByCss('#global-value').text()
+            ).toBe('overridden')
+          })
+
+          // Restore .env.local
+          outputBefore = next.cliOutput.length
+          await next.patchFile('.env.local', envLocalContent)
+
+          await retry(async () => {
+            recentOutput = next.cliOutput.substring(outputBefore)
+            expect(recentOutput).toContain('Reload env:')
+          })
+          recentOutput = next.cliOutput.substring(outputBefore)
+          expect([...recentOutput.matchAll(/Reload env:/g)].length).toBe(1)
+          expect(recentOutput).toContain('.env.local')
+
+          await retry(async () => {
+            expect(
+              await browser.waitForElementByCss('#global-value').text()
+            ).toBe('replaced')
+          })
+
+          // Restore .env to original
           const outputBefore2 = next.cliOutput.length
           await next.patchFile('.env', envContent)
 
@@ -216,6 +301,7 @@ describe('env-config', () => {
           })
         } finally {
           await next.patchFile('.env', envContent)
+          await next.patchFile('.env.local', envLocalContent)
         }
       })
     })

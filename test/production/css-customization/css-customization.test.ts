@@ -9,16 +9,6 @@ describe('CSS Customization', () => {
   ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'production mode',
     () => {
-      const { isNextStart } = nextTestSetup({
-        files: path.join(__dirname, 'css-fixtures/custom-configuration'),
-        skipStart: true,
-      })
-
-      if (!isNextStart) {
-        it('skipped for non-start mode', () => {})
-        return
-      }
-
       describe('Basic CSS', () => {
         const { next } = nextTestSetup({
           files: path.join(__dirname, 'css-fixtures/custom-configuration'),

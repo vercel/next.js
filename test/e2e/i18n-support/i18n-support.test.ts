@@ -20,6 +20,7 @@ describe('i18n Support', () => {
 
   let externalServer: http.Server
   let externalPort: number
+  let origConfigContent: string
 
   beforeAll(async () => {
     externalPort = await findPort()
@@ -36,6 +37,7 @@ describe('i18n Support', () => {
     await next.patchFile('next.config.js', (content) =>
       content.replace(/__EXTERNAL_PORT__/g, String(externalPort))
     )
+    origConfigContent = await next.readFile('next.config.js')
 
     if (!isNextDev) {
       await next.build()
@@ -79,6 +81,14 @@ describe('i18n Support', () => {
         await next.patchFile('next.config.js', (content) =>
           content.replace('// localeDetection', 'localeDetection')
         )
+        await next.build()
+        await next.start()
+        ctx.appPort = new URL(next.url).port
+      })
+
+      afterAll(async () => {
+        await next.stop()
+        await next.patchFile('next.config.js', origConfigContent)
         await next.build()
         await next.start()
         ctx.appPort = new URL(next.url).port
@@ -418,6 +428,11 @@ describe('i18n Support', () => {
       ctx.appPort = new URL(next.url).port
     })
 
+    afterAll(async () => {
+      await next.stop()
+      await next.patchFile('next.config.js', origConfigContent)
+    })
+
     runSlashTests(ctx)
   })
 
@@ -457,6 +472,11 @@ describe('i18n Support', () => {
       }
       await next.start()
       ctx.appPort = new URL(next.url).port
+    })
+
+    afterAll(async () => {
+      await next.stop()
+      await next.patchFile('next.config.js', origConfigContent)
     })
 
     runSlashTests(ctx)

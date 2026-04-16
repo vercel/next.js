@@ -318,15 +318,14 @@ function runTests({
     ]
 
     for (const href of invalidHrefs) {
-      await retry(() =>
-        browser.eval(
+      await retry(async () => {
+        const errors = await browser.eval(
           'window.caughtErrors.map(err => typeof err !== "string" ? err.message : err).join(", ")'
         )
-      )
-      const errors = await browser.eval(
-        'window.caughtErrors.map(err => typeof err !== "string" ? err.message : err).join(", ")'
-      )
-      expect(errors).toMatch(new RegExp(escapeRegex(`Invalid href '${href}'`)))
+        expect(errors).toMatch(
+          new RegExp(escapeRegex(`Invalid href '${href}'`))
+        )
+      })
     }
   })
 

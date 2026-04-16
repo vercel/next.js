@@ -1,0 +1,50 @@
+# trailing-slashes-rewrite: PASS
+
+Faithful conversion preserving all 5 tests, uses proxy server setup via `initNextServerScript` with env var injection in place of `File.replace`.
+
+## Criteria
+
+| #   | Criterion           | Verdict | Note                                                                                                                                                                                                                           |
+| --- | ------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1a  | Test count          | pass    | original: 5 (×2 describes), converted: 5 (nextTestSetup handles dev+prod matrix)                                                                                                                                               |
+| 1b  | Assertions          | pass    | original: 5 unique, converted: 5                                                                                                                                                                                               |
+| 1c  | Test titles         | pass    | All 5 titles preserved verbatim                                                                                                                                                                                                |
+| 1d  | Describe blocks     | pass    | Two mode-specific describes correctly collapsed; nextTestSetup provides mode matrix                                                                                                                                            |
+| 2a  | URL paths           | pass    | `/`, `/products`, `/products/first`, `/catch-all/hello`, `/non-existent` all preserved                                                                                                                                         |
+| 2b  | Response checks     | pass    | `toContain`/`toBe` assertions preserved                                                                                                                                                                                        |
+| 2c  | FS checks           | na      |                                                                                                                                                                                                                                |
+| 2d  | Browser checks      | na      |                                                                                                                                                                                                                                |
+| 2e  | Build output        | na      |                                                                                                                                                                                                                                |
+| 2f  | Dynamic logic       | pass    | `isNextDev` guard skips build; `next.start()` unified                                                                                                                                                                          |
+| 3a  | nextTestSetup       | pass    | uses `nextTestSetup` with `skipStart: true`                                                                                                                                                                                    |
+| 3b  | files param         | pass    | `files: __dirname`                                                                                                                                                                                                             |
+| 3c  | skipStart           | pass    | Required because external proxy must start first, then config env set, then build/start                                                                                                                                        |
+| 3d  | No manual lifecycle | pass    | `findPort`/`initNextServerScript`/`killApp` allowed for external proxy server                                                                                                                                                  |
+| 3e  | Cleanup             | pass    | `afterAll` kills proxy; next cleanup handled by nextTestSetup                                                                                                                                                                  |
+| 4a  | Directory placement | pass    | `test/e2e/` runs both dev+prod as original                                                                                                                                                                                     |
+| 4b  | Mode guards         | pass    | `isNextDev` used for conditional build                                                                                                                                                                                         |
+| 4c  | Turbopack guards    | pass    | Original used `TURBOPACK_DEV`/`TURBOPACK_BUILD` dedup guards; nextTestSetup's standard matrix handles this (both dev and prod work now)                                                                                        |
+| 4d  | Dedup guards        | warn    | Original had `TURBOPACK_DEV ? describe.skip` for prod and `TURBOPACK_BUILD ? describe.skip` for dev — these are dedup guards that prevent duplicate CI runs. Not preserved in conversion, but this is the standard e2e pattern |
+| 4e  | No incorrect env    | pass    |                                                                                                                                                                                                                                |
+| 5a  | render              | pass    | `renderViaHTTP(appPort, path)` → `next.render(path)`                                                                                                                                                                           |
+| 5b  | fetch               | na      |                                                                                                                                                                                                                                |
+| 5c  | browser             | na      |                                                                                                                                                                                                                                |
+| 5d  | check→retry         | na      |                                                                                                                                                                                                                                |
+| 5e  | File class          | pass    | Replaced `File.replace('__EXTERNAL_PORT__', …)` with `next.env.EXTERNAL_PORT`; next.config.js updated accordingly                                                                                                              |
+| 5f  | waitFor             | na      |                                                                                                                                                                                                                                |
+| 5g  | fs operations       | na      |                                                                                                                                                                                                                                |
+| 6a  | Fixtures exist      | pass    | pages/index.js, pages/products/index.js, pages/products/[product].js, pages/catch-all/[...slug].js, server.js, next.config.js all present                                                                                      |
+| 6b  | next.config.js      | pass    | Present; uses `process.env.EXTERNAL_PORT` instead of placeholder                                                                                                                                                               |
+| 6c  | Overrides           | pass    | `next.env.EXTERNAL_PORT` injection equivalent to original `replace`                                                                                                                                                            |
+| 7a  | No dead code        | pass    |                                                                                                                                                                                                                                |
+| 7b  | retry over timeout  | na      |                                                                                                                                                                                                                                |
+| 7c  | async/await         | pass    |                                                                                                                                                                                                                                |
+| 7d  | eslint              | pass    |                                                                                                                                                                                                                                |
+
+## Issues
+
+None
+
+## Warnings
+
+- 4d: Original contained Turbopack dedup guards (`TURBOPACK_DEV`/`TURBOPACK_BUILD`) to prevent duplicate runs in CI. Converted test relies on the standard nextTestSetup mode matrix, which is the idiomatic e2e pattern — acceptable but worth noting if CI runtime becomes a concern.
