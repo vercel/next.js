@@ -118,7 +118,12 @@ describe('getDynamicHTMLPostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: [1, { [value]: value }],
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
 
     // The replacements have been replaced.
@@ -148,7 +153,12 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
 
     // Ensure that the replacement worked and removed all the placeholders.
@@ -164,7 +174,12 @@ describe('parsePostponedState', () => {
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: expect.any(Object),
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
   })
 
@@ -175,7 +190,12 @@ describe('parsePostponedState', () => {
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.DATA,
-      renderResumeDataCache: createPrerenderResumeDataCache(),
+      renderResumeDataCache: {
+        cache: new Map(),
+        fetch: new Map(),
+        encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
+      },
     })
   })
 })

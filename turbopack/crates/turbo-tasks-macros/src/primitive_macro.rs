@@ -23,6 +23,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
     };
 
     let value_debug_impl = quote! {
+        #[cfg(debug_assertions)]
         #[turbo_tasks::value_impl]
         impl turbo_tasks::debug::ValueDebug for #ty {
             fn dbg_depth<'a>(
@@ -42,6 +43,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
                 })
             }
         }
+
     };
 
     let name = global_name_for_type(&ty);

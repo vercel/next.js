@@ -5460,12 +5460,22 @@ async function logMessagesAndSendErrorsToBrowser(
 
     const { clientModules } = getClientReferenceManifest()
 
-    const errorsFlightStream = renderToWebFlightStream(
-      ctx.componentMod,
-      { errors, errorCodes },
-      clientModules,
-      { filterStackFrame }
-    )
+    let errorsFlightStream: AnyStream
+    if (process.env.__NEXT_USE_NODE_STREAMS) {
+      errorsFlightStream = renderToNodeFlightStream(
+        ctx.componentMod,
+        { errors, errorCodes },
+        clientModules,
+        { filterStackFrame }
+      )
+    } else {
+      errorsFlightStream = renderToWebFlightStream(
+        ctx.componentMod,
+        { errors, errorCodes },
+        clientModules,
+        { filterStackFrame }
+      )
+    }
 
     sendErrorsToBrowser(errorsFlightStream, htmlRequestId)
   }
@@ -6038,13 +6048,20 @@ async function validateInstantConfigs(
 
   const clientReferenceManifest = getClientReferenceManifest()
 
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
+  const createDebugChannel = process.env.__NEXT_USE_NODE_STREAMS
+    ? createNodeDebugChannel
+    : createWebDebugChannel
+
   const {
     cache,
     payload: initialRscPayload,
     stageEndTimes,
   } = await collectStagedSegmentData(
     ctx.componentMod,
-    renderToWebFlightStream,
+    renderFlightStream,
     {
       [RenderStage.Static]: accumulatedChunks.staticChunks,
       [RenderStage.Runtime]: accumulatedChunks.runtimeChunks,
@@ -6053,7 +6070,8 @@ async function validateInstantConfigs(
     debugChunks,
     startTime,
     hasRuntimePrefetch,
-    clientReferenceManifest
+    clientReferenceManifest,
+    createDebugChannel
   )
 
   const { implicitTags, nonce, workStore } = ctx
@@ -6121,13 +6139,14 @@ async function validateInstantConfigs(
     const { stream: serverStream, debugStream } =
       await createCombinedPayloadStream(
         ctx.componentMod,
-        renderToWebFlightStream,
+        renderFlightStream,
         payloadResult.payload,
         extraChunksController,
         reactController.signal,
         clientReferenceManifest,
         startTime,
-        isDebugChannelEnabled
+        isDebugChannelEnabled,
+        createDebugChannel
       )
 
     const instantValidationState = createInstantValidationState(
@@ -6371,6 +6390,9 @@ async function renderWithRestartOnCacheMissInValidation(
 }> {
   const { componentMod: ComponentMod } = ctx
   const { clientModules } = getClientReferenceManifest()
+  const renderFlightStream = process.env.__NEXT_USE_NODE_STREAMS
+    ? renderToNodeFlightStream
+    : renderToWebFlightStream
 
   let startTime = -Infinity
   let requestStore: RequestStore = initialRequestStore
@@ -6435,7 +6457,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
       const stream = workUnitAsyncStorage.run(
         requestStore,
-        renderToWebFlightStream,
+        renderFlightStream,
         ComponentMod,
         initialRscPayload,
         clientModules,
@@ -6536,7 +6558,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
       const stream = workUnitAsyncStorage.run(
         requestStore,
-        renderToWebFlightStream,
+        renderFlightStream,
         ComponentMod,
         finalRscPayload,
         clientModules,

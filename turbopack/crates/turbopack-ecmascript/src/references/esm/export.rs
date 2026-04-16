@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
+use std::{collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
@@ -11,6 +11,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs, turbofmt,
@@ -30,7 +31,7 @@ use crate::{
     analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
-    magic_identifier,
+    magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
     references::esm::base::ReferencedAsset,
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
     tree_shake::part::module::EcmascriptModulePartAsset,
@@ -529,7 +530,7 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     /// Explicit exports
-    pub exports: BTreeMap<RcStr, EsmExport>,
+    pub exports: FrozenMap<RcStr, EsmExport>,
     /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
@@ -541,7 +542,7 @@ pub struct EsmExports {
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct ExpandedExports {
-    pub exports: BTreeMap<RcStr, EsmExport>,
+    pub exports: FrozenMap<RcStr, EsmExport>,
     /// Modules we couldn't analyze all exports of.
     pub dynamic_exports: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
@@ -559,16 +560,16 @@ impl EsmExports {
         module_reference: Vc<Box<dyn ModuleReference>>,
     ) -> Result<Vc<EcmascriptExports>> {
         let module_reference = module_reference.to_resolved().await?;
-        let mut exports = BTreeMap::new();
+        let mut exports = Vec::new();
         let default = rcstr!("default");
-        exports.insert(
+        exports.push((
             default.clone(),
             EsmExport::ImportedBinding(module_reference, default, false),
-        );
+        ));
 
         Ok(EcmascriptExports::EsmExports(
             EsmExports {
-                exports,
+                exports: FrozenMap::from(exports),
                 star_exports: vec![module_reference],
             }
             .resolved_cell(),
@@ -581,7 +582,11 @@ impl EsmExports {
         &self,
         export_usage_info: Vc<ModuleExportUsageInfo>,
     ) -> Result<Vc<ExpandedExports>> {
-        let mut exports: BTreeMap<RcStr, EsmExport> = self.exports.clone();
+        let mut exports: BTreeMap<_, _> = self
+            .exports
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
         let mut dynamic_exports = vec![];
         let export_usage_info = export_usage_info.await?;
 
@@ -608,12 +613,10 @@ impl EsmExports {
                     continue;
                 }
 
-                if !exports.contains_key(export) {
-                    exports.insert(
-                        export.clone(),
-                        EsmExport::ImportedBinding(esm_ref, export.clone(), false),
-                    );
-                }
+                // the spec indicates first-one-wins: https://tc39.es/ecma262/#_ref_9060
+                exports
+                    .entry(export.clone())
+                    .or_insert_with(|| EsmExport::ImportedBinding(esm_ref, export.clone(), false));
             }
 
             if !export_info.dynamic_exporting_modules.is_empty() {
@@ -622,7 +625,7 @@ impl EsmExports {
         }
 
         Ok(ExpandedExports {
-            exports,
+            exports: FrozenMap::from(exports),
             dynamic_exports,
         }
         .cell())
@@ -703,29 +706,30 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding =
-                        if let Some((local, ctxt)) = eval_context.imports.exports.get(exported) {
-                            Some((Cow::Borrowed(local.as_str()), *ctxt))
-                        } else {
-                            bail!(
-                                "Expected export to be in eval context {:?} {:?}",
-                                exported,
-                                eval_context.imports,
-                            )
-                        };
+                    let binding = if let Some((local, ctxt)) =
+                        eval_context.imports.exports_ids.get(exported)
+                    {
+                        Some((local.clone(), *ctxt))
+                    } else {
+                        bail!(
+                            "Expected export to be in eval context {:?} {:?}",
+                            exported,
+                            eval_context.imports,
+                        )
+                    };
                     let (local, ctxt) = binding.unwrap_or_else(|| {
                         // Fallback, shouldn't happen in practice
                         (
                             if name == "default" {
-                                Cow::Owned(magic_identifier::mangle("default export"))
+                                MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM.clone()
                             } else {
-                                Cow::Borrowed(name.as_str())
+                                name.as_str().into()
                             },
                             SyntaxContext::empty(),
                         )
                     });
 
-                    let local = Ident::new(local.into(), DUMMY_SP, ctxt);
+                    let local = Ident::new(local, DUMMY_SP, ctxt);
                     match (liveness, export_usage_info.is_circuit_breaker) {
                         (Liveness::Constant, false) => ExportBinding::Value(Expr::Ident(local)),
                         // If the value might change or we are a circuit breaker we must bind a
