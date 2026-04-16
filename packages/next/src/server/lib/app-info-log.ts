@@ -125,10 +125,6 @@ export function logExperimentalInfo({
  * auto-generate the files so the agent has access to version-matched
  * docs. Returns the write result when files were generated, or `null`
  * when no action was needed.
- *
- * Callers gate this on `config.agentRules !== false` — disabling is
- * done via `agentRules: false` in next.config, not inside this
- * function, so the check point stays declarative at the config level.
  */
 export function ensureAgentRulesForDev(dir: string): AgentFilesResult | null {
   if (detectAgent() === null) return null
