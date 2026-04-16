@@ -550,10 +550,9 @@ impl ImportMap {
         self.attributes.get(&span.lo).unwrap_or_default()
     }
 
-    // TODO this could return &str instead of String to avoid cloning
-    pub fn get_binding(&self, id: &Id) -> Option<(usize, Option<RcStr>)> {
+    pub fn get_binding(&self, id: &Id) -> Option<(usize, Option<&Atom>)> {
         if let Some((i, i_sym)) = self.imports.get(id) {
-            return Some((*i, Some(i_sym.as_str().into())));
+            return Some((*i, Some(i_sym)));
         }
         if let Some(i) = self.namespace_imports.get(id) {
             return Some((*i, None));
@@ -983,7 +982,11 @@ impl Visit for Analyzer<'_> {
                                 // This is a export of an imported binding. Rewrite to a true
                                 // reexport.
                                 if let Some(export) = export {
-                                    Export::ImportedBinding(index, export, is_fake_esm)
+                                    Export::ImportedBinding(
+                                        index,
+                                        RcStr::from(export.as_str()),
+                                        is_fake_esm,
+                                    )
                                 } else {
                                     Export::ImportedNamespace(index)
                                 }

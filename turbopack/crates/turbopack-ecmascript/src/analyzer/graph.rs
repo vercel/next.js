@@ -2572,7 +2572,7 @@ impl VisitAstPath for Analyzer<'_> {
             } else {
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
-                    export,
+                    export: export.map(|e| RcStr::from(e.as_str())),
                     ast_path: as_parent_path(ast_path),
                     span: ident.span(),
                 })
