@@ -50,6 +50,8 @@ pub trait StackMagicAny {
     fn as_ref(&self) -> &dyn MagicAny;
     /// Move the argument out into a heap-allocated Box (panics if already taken).
     fn take_box(&mut self) -> Box<dyn MagicAny>;
+    /// Downcast to `&mut dyn Any` for concrete type recovery without boxing.
+    fn as_any_mut(&mut self) -> &mut dyn Any;
 }
 
 /// Stack-resident slot wrapping a concrete typed value.
@@ -65,6 +67,13 @@ impl<T> StackMagicAnySlot<T> {
     #[inline]
     pub fn new(value: T) -> Self {
         Self { slot: Some(value) }
+    }
+
+    #[inline]
+    pub fn take(&mut self) -> T {
+        self.slot
+            .take()
+            .expect("StackMagicAnySlot::take called after value was already taken")
     }
 }
 
@@ -83,6 +92,11 @@ impl<T: MagicAny> StackMagicAny for StackMagicAnySlot<T> {
                 .take()
                 .expect("StackMagicAnySlot::take_box called twice"),
         )
+    }
+
+    #[inline]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }
 
@@ -112,5 +126,10 @@ impl StackMagicAny for OwnedMagicAny {
         self.slot
             .take()
             .expect("OwnedMagicAny::take_box called twice")
+    }
+
+    #[inline]
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
     }
 }

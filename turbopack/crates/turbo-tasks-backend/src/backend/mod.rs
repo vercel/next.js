@@ -1582,16 +1582,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             task_id
         } else {
-            // Task doesn't exist in memory cache or backing storage.
-            // Only now do we box the arg and construct CachedTaskType.
-            let task_type = CachedTaskType {
-                native_fn,
-                this,
-                arg: arg.take_box(),
-            };
-            // Double-check under write lock using the pre-located shard.
             match raw_entry_in_shard(shard, self.task_cache.hasher(), hash, |k| {
-                k.eq_components(native_fn, this, task_type.arg.as_ref())
+                k.eq_components(native_fn, this, arg_ref)
             }) {
                 RawEntry::Occupied(e) => {
                     // Another thread beat us to creating this task — use their task_id.
@@ -1602,7 +1594,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     task_id
                 }
                 RawEntry::Vacant(e) => {
-                    let task_type = Arc::new(task_type);
+                    // Only now do we force the allocation.
+                    // NOTE: if our caller had to perform resolution, then this will have already
+                    // been boxed and take_box just takes it.
+                    let task_type = Arc::new(CachedTaskType {
+                        native_fn,
+                        this,
+                        arg: arg.take_box(),
+                    });
                     let task_id = if transient {
                         self.transient_task_id_factory.get()
                     } else {

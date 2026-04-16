@@ -95,13 +95,7 @@ impl CachedTaskType {
     /// This uses the same encoding logic as [`TurboBincodeEncode`] but writes
     /// directly to a [`DeterministicHasher`] instead of a buffer.
     pub fn hash_encode<H: DeterministicHasher>(&self, hasher: &mut H) {
-        let fn_id = registry::get_function_id(self.native_fn);
-        {
-            let mut encoder = new_hash_encoder(hasher);
-            Encode::encode(&fn_id, &mut encoder).expect("fn_id encoding should not fail");
-            Encode::encode(&self.this, &mut encoder).expect("this encoding should not fail");
-        }
-        (self.native_fn.arg_meta.hash_encode)(&*self.arg, hasher);
+        Self::hash_encode_components(self.native_fn, self.this, &*self.arg, hasher);
     }
 }
 
@@ -709,10 +703,7 @@ pub trait Backend: Sync + Send {
 
 #[cfg(test)]
 mod cached_task_type_tests {
-    use std::{
-        collections::hash_map::RandomState,
-        hash::{BuildHasher, Hash, Hasher},
-    };
+    use std::{collections::hash_map::RandomState, hash::BuildHasher};
 
     use crate::{
         RawVc, TaskId,
@@ -746,9 +737,7 @@ mod cached_task_type_tests {
 
     /// Build a `u64` hash for a `CachedTaskType` using its `Hash` impl and a `RandomState`.
     fn hash_task(rs: &RandomState, task: &CachedTaskType) -> u64 {
-        let mut h = rs.build_hasher();
-        task.hash(&mut h);
-        h.finish()
+        rs.hash_one(task)
     }
 
     /// Build an arg `Box<dyn MagicAny>` for `(i32,)`.

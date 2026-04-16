@@ -839,8 +839,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
         if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
             match registry::get_value_type(type_id).get_trait_method(trait_method) {
                 Some(native_fn) => {
-                    let mut arg = native_fn.arg_meta.filter_owned(arg);
-                    return self.dynamic_call(native_fn, Some(this), &mut arg, persistence);
+                    if let Some(filter) = native_fn.arg_meta.filter_owned {
+                        let mut arg = (filter)(arg);
+                        return self.dynamic_call(native_fn, Some(this), &mut arg, persistence);
+                    } else {
+                        return self.dynamic_call(native_fn, Some(this), arg, persistence);
+                    }
                 }
                 None => {
                     // We are destined to fail at this point, but we just retry resolution in the

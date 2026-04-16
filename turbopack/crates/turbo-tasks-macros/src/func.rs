@@ -452,10 +452,10 @@ impl TurboFn<'_> {
                 let exposed_input_types: Vec<_> = self.exposed_input_types().collect();
                 return Some(FilterTraitCallArgsTokens {
                     filter_owned: quote! {
-                        |arg| {
+                        |arg: &mut dyn turbo_tasks::StackMagicAny| {
                             let (#(#exposed_input_idents,)*) =
-                                *turbo_tasks::macro_helpers
-                                    ::downcast_args_owned::<(#(#exposed_input_types,)*)>(arg.take_box());
+                                turbo_tasks::macro_helpers
+                                    ::downcast_stack_args_owned::<(#(#exposed_input_types,)*)>(arg);
                             turbo_tasks::OwnedMagicAny::new(
                                 ::std::boxed::Box::new((#(#inline_input_idents,)*))
                             )
@@ -1123,8 +1123,8 @@ impl NativeFn {
             quote! {
                 turbo_tasks::macro_helpers::ArgMeta::with_filter_trait_call_from(
                     &#task_fn,
-                    #filter_owned,
-                    #filter_and_resolve,
+                    Some(#filter_owned),
+                    Some(#filter_and_resolve),
                 )
             }
         } else {
