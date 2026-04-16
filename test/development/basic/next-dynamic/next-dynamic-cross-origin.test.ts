@@ -57,7 +57,9 @@ describe('next/dynamic-cross-origin', () => {
     await createNextWithCrossOriginConfig('anonymous')
     const $ = await get$(basePath + '/dynamic/no-chunk')
 
-    $('script').each((_, el) => expect($(el).attr('anonymous')).toBe(undefined))
+    $('script').each((_, el) =>
+      expect($(el).attr('crossorigin')).toBe('anonymous')
+    )
   })
 
   it('should not include crossorigin attribute if not set', async () => {
