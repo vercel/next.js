@@ -2,6 +2,8 @@
 
 const p = Promise.resolve()
 
+let result = ''
+
 if (typeof window !== 'undefined') {
   console.log('promises start')
   for (let chunk = 0; chunk < 2 ** 4; chunk++) {
@@ -10,12 +12,10 @@ if (typeof window !== 'undefined') {
       await p
     }
   }
+  result = 'done'
   console.log('promises end')
 }
 
-// Always 'done' on both SSR and client to avoid hydration mismatch
-const result = 'done'
-
 export default function Page() {
-  return <p>{result}</p>
+  return <p suppressHydrationWarning>{result}</p>
 }
