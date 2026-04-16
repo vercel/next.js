@@ -3290,7 +3290,7 @@ describe('instant validation', () => {
           )
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
-           "Error [InvariantError]: Invariant: An unexpected error occured during instant validation. This is a bug in Next.js.
+           "Error [InvariantError]: Invariant: An unexpected error occurred during instant validation. This is a bug in Next.js.
                at ignore-listed frames {
              [cause]: Error [InvariantError]: Invariant: Missing value for segment key: "catchall" with dynamic param type: c. This is a bug in Next.js.
                  at ignore-listed frames
@@ -3362,8 +3362,8 @@ describe('instant validation', () => {
            \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
 
            Ways to fix this:
+             - Cache the data access with \`"use cache"\`
              - Move the data access into a child component within a <Suspense> boundary
-             - Use \`generateStaticParams\` to make route params static
              - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/blocking-route
