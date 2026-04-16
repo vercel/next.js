@@ -3,7 +3,7 @@ import { listClientChunks } from 'next-test-utils'
 import path from 'path'
 
 describe('CSS modules ordering — build output (unresolved-css-url)', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'unresolved-css-url'),
     skipStart: true,
   })
@@ -26,7 +26,7 @@ describe('CSS modules ordering — build output (unresolved-css-url)', () => {
       const svgCount = content.match(/\(\/vercel\.svg/g)?.length ?? 0
       expect(svgCount === 1 || svgCount === 2).toBe(true)
 
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         const mediaCount = content.match(/\(\.\.\/media/g)?.length ?? 0
         expect(mediaCount === 1 || mediaCount === 2).toBe(true)
       } else {

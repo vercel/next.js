@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 // This test only applies to Turbopack
-;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
+;(!process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'turbopack unsupported features log',
   () => {
     describe('no config', () => {

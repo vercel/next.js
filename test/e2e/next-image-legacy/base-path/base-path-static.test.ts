@@ -31,7 +31,7 @@ describe('Build Error Tests for basePath', () => {
 })
 
 describe('Static Image Component Tests for basePath', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -96,7 +96,7 @@ describe('Static Image Component Tests for basePath', () => {
   })
 
   it('Should add a blur placeholder to statically imported jpg', async () => {
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(html).toContain(
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;data:image/jpeg;base64`
       )
@@ -112,7 +112,7 @@ describe('Static Image Component Tests for basePath', () => {
   })
 
   it('Should add a blur placeholder to statically imported png', async () => {
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(html).toContain(
         `style="position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url(&quot;data:image/png;base64`
       )

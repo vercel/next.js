@@ -22,7 +22,7 @@ import { join } from 'path'
 )
 
 describe('Custom Properties: Fail for global element in CSS Modules', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'cp-el-modules'),
     skipStart: true,
   })
@@ -30,7 +30,7 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).not.toBe(0)
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(cliOutput).toContain('pages/styles.module.css')
       expect(cliOutput).toContain('Selector "h1" is not pure')
     } else {
@@ -42,7 +42,7 @@ describe('Custom Properties: Fail for global element in CSS Modules', () => {
 })
 
 describe('CSS Modules: Import Global CSS', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'module-import-global'),
   })
 
@@ -57,7 +57,7 @@ describe('CSS Modules: Import Global CSS', () => {
       .replace(/\/\*.*?\*\//g, '')
       .trim()
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(`"a .foo{all:initial}"`)

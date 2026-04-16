@@ -1,10 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app type checking - production mode', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
+
+  if (!isNextStart) {
+    it('skipped for non-start mode', () => {})
+    return
+  }
 
   let errors: string | undefined
 
@@ -77,7 +82,7 @@ describe('app type checking - production mode', () => {
     )
   })
 
-  if (!process.env.IS_TURBOPACK_TEST && !process.env.TURBOPACK_DEV) {
+  if (!isTurbopack) {
     it('should type check invalid entry exports', () => {
       expect(errors).toContain(`"foo" is not a valid Page export field.`)
 

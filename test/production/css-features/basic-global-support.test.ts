@@ -3,7 +3,7 @@ import { join } from 'path'
 
 describe('Basic Global Support', () => {
   describe('without lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'single-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -11,12 +11,12 @@ describe('Basic Global Support', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertSingleGlobalCss(next, false)
+      await assertSingleGlobalCss(next, false, isTurbopack)
     })
   })
 
   describe('with lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'single-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -27,14 +27,14 @@ describe('Basic Global Support', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertSingleGlobalCss(next, true)
+      await assertSingleGlobalCss(next, true, isTurbopack)
     })
   })
 })
 
 describe('Basic Global Support with special characters in path', () => {
   describe('without lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(
         __dirname,
         'fixtures',
@@ -47,12 +47,12 @@ describe('Basic Global Support with special characters in path', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertSingleGlobalCss(next, false)
+      await assertSingleGlobalCss(next, false, isTurbopack)
     })
   })
 
   describe('with lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(
         __dirname,
         'fixtures',
@@ -68,14 +68,14 @@ describe('Basic Global Support with special characters in path', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertSingleGlobalCss(next, true)
+      await assertSingleGlobalCss(next, true, isTurbopack)
     })
   })
 })
 
 describe('Basic Global Support with src/ dir', () => {
   describe('without lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'single-global-src'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -83,12 +83,12 @@ describe('Basic Global Support with src/ dir', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertSingleGlobalCss(next, false)
+      await assertSingleGlobalCss(next, false, isTurbopack)
     })
   })
 
   describe('with lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'single-global-src'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -99,14 +99,14 @@ describe('Basic Global Support with src/ dir', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertSingleGlobalCss(next, true)
+      await assertSingleGlobalCss(next, true, isTurbopack)
     })
   })
 })
 
 describe('Multi Global Support', () => {
   describe('without lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'multi-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -114,12 +114,12 @@ describe('Multi Global Support', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertMultiGlobalCss(next, false)
+      await assertMultiGlobalCss(next, false, isTurbopack)
     })
   })
 
   describe('with lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'multi-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -130,14 +130,14 @@ describe('Multi Global Support', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertMultiGlobalCss(next, true)
+      await assertMultiGlobalCss(next, true, isTurbopack)
     })
   })
 })
 
 describe('Nested @import() Global Support', () => {
   describe('without lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'nested-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -145,12 +145,12 @@ describe('Nested @import() Global Support', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertNestedGlobalCss(next, false)
+      await assertNestedGlobalCss(next, false, isTurbopack)
     })
   })
 
   describe('with lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'nested-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -161,14 +161,14 @@ describe('Nested @import() Global Support', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertNestedGlobalCss(next, true)
+      await assertNestedGlobalCss(next, true, isTurbopack)
     })
   })
 })
 
 describe('Multi Global Support (reversed)', () => {
   describe('without lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'multi-global-reversed'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -176,12 +176,12 @@ describe('Multi Global Support (reversed)', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertMultiGlobalReversedCss(next, false)
+      await assertMultiGlobalReversedCss(next, false, isTurbopack)
     })
   })
 
   describe('with lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'multi-global-reversed'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -192,14 +192,14 @@ describe('Multi Global Support (reversed)', () => {
     })
 
     it(`should've emitted a single CSS file`, async () => {
-      await assertMultiGlobalReversedCss(next, true)
+      await assertMultiGlobalReversedCss(next, true, isTurbopack)
     })
   })
 })
 
 describe('CSS URL via `file-loader`', () => {
   describe('without lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'url-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -207,12 +207,12 @@ describe('CSS URL via `file-loader`', () => {
     })
 
     it(`should've emitted expected files`, async () => {
-      await assertUrlGlobalCss(next, false)
+      await assertUrlGlobalCss(next, false, isTurbopack)
     })
   })
 
   describe('with lightningcss', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'url-global'),
       nextConfig: {
         productionBrowserSourceMaps: true,
@@ -223,13 +223,13 @@ describe('CSS URL via `file-loader`', () => {
     })
 
     it(`should've emitted expected files`, async () => {
-      await assertUrlGlobalCss(next, true)
+      await assertUrlGlobalCss(next, true, isTurbopack)
     })
   })
 })
 
 describe('CSS URL via `file-loader` and asset prefix (1)', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'url-global-asset-prefix-1'),
   })
 
@@ -239,7 +239,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
     const cssSheet = $('link[rel="stylesheet"]')
     const cssContent = await getStylesheetContents(next, cssSheet)
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(cssContent).toMatchInlineSnapshot(`
        [
          "/_next/static/immutable/chunks/HASH.css:
@@ -260,7 +260,7 @@ describe('CSS URL via `file-loader` and asset prefix (1)', () => {
 })
 
 describe('CSS URL via `file-loader` and asset prefix (2)', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'url-global-asset-prefix-2'),
   })
 
@@ -270,7 +270,7 @@ describe('CSS URL via `file-loader` and asset prefix (2)', () => {
     const cssSheet = $('link[rel="stylesheet"]')
     const cssContent = await getStylesheetContents(next, cssSheet)
 
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       expect(cssContent).toMatchInlineSnapshot(`
        [
          "/_next/static/immutable/chunks/HASH.css:
@@ -318,21 +318,22 @@ async function getStylesheetContents(
 
 async function assertSingleGlobalCss(
   next: NextInstance,
-  useLightningcss: boolean
+  useLightningcss: boolean,
+  isTurbopack: boolean
 ) {
   const $ = await next.render$('/')
 
   const cssSheet = $('link[rel="stylesheet"]')
   const cssContent = await getStylesheetContents(next, cssSheet)
 
-  if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+  if (isTurbopack && useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
      .red-text{color:red}",
      ]
     `)
-  } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+  } else if (isTurbopack && !useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -358,14 +359,15 @@ async function assertSingleGlobalCss(
 
 async function assertMultiGlobalCss(
   next: NextInstance,
-  useLightningcss: boolean
+  useLightningcss: boolean,
+  isTurbopack: boolean
 ) {
   const $ = await next.render$('/')
 
   const cssSheet = $('link[rel="stylesheet"]')
   const cssContent = await getStylesheetContents(next, cssSheet)
 
-  if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+  if (isTurbopack && useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -373,7 +375,7 @@ async function assertMultiGlobalCss(
      .blue-text{color:#00f}",
      ]
     `)
-  } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+  } else if (isTurbopack && !useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -400,14 +402,15 @@ async function assertMultiGlobalCss(
 
 async function assertNestedGlobalCss(
   next: NextInstance,
-  useLightningcss: boolean
+  useLightningcss: boolean,
+  isTurbopack: boolean
 ) {
   const $ = await next.render$('/')
 
   const cssSheet = $('link[rel="stylesheet"]')
   const cssContent = await getStylesheetContents(next, cssSheet)
 
-  if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+  if (isTurbopack && useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -417,7 +420,7 @@ async function assertNestedGlobalCss(
      .blue-text{color:#00f}",
      ]
     `)
-  } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+  } else if (isTurbopack && !useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -453,14 +456,15 @@ async function assertNestedGlobalCss(
 
 async function assertMultiGlobalReversedCss(
   next: NextInstance,
-  useLightningcss: boolean
+  useLightningcss: boolean,
+  isTurbopack: boolean
 ) {
   const $ = await next.render$('/')
 
   const cssSheet = $('link[rel="stylesheet"]')
   const cssContent = await getStylesheetContents(next, cssSheet)
 
-  if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+  if (isTurbopack && useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -468,7 +472,7 @@ async function assertMultiGlobalReversedCss(
      .red-text{color:red}",
      ]
     `)
-  } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+  } else if (isTurbopack && !useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -495,14 +499,15 @@ async function assertMultiGlobalReversedCss(
 
 async function assertUrlGlobalCss(
   next: NextInstance,
-  useLightningcss: boolean
+  useLightningcss: boolean,
+  isTurbopack: boolean
 ) {
   const $ = await next.render$('/')
 
   const cssSheet = $('link[rel="stylesheet"]')
   const cssContent = await getStylesheetContents(next, cssSheet)
 
-  if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
+  if (isTurbopack && useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:
@@ -511,7 +516,7 @@ async function assertUrlGlobalCss(
      .blue-text{color:#00f}",
      ]
     `)
-  } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
+  } else if (isTurbopack && !useLightningcss) {
     expect(cssContent).toMatchInlineSnapshot(`
      [
        "/_next/static/immutable/chunks/HASH.css:

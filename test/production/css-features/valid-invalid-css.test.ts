@@ -27,7 +27,7 @@ import { join } from 'path'
 )
 
 describe('Invalid Global CSS', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'invalid-global'),
     skipStart: true,
   })
@@ -35,7 +35,7 @@ describe('Invalid Global CSS', () => {
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).not.toBe(0)
-    if (!process.env.IS_TURBOPACK_TEST) {
+    if (!isTurbopack) {
       expect(cliOutput).toContain('Failed to compile')
     }
     expect(cliOutput).toContain('styles/global.css')
@@ -70,7 +70,7 @@ describe('Valid Global CSS from npm', () => {
 })
 
 describe('Invalid Global CSS with Custom App', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'invalid-global-with-app'),
     skipStart: true,
   })
@@ -78,7 +78,7 @@ describe('Invalid Global CSS with Custom App', () => {
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).not.toBe(0)
-    if (!process.env.IS_TURBOPACK_TEST) {
+    if (!isTurbopack) {
       expect(cliOutput).toContain('Failed to compile')
     }
     expect(cliOutput).toContain('styles/global.css')
@@ -93,7 +93,7 @@ describe('Invalid Global CSS with Custom App', () => {
 })
 
 describe('Valid and Invalid Global CSS with Custom App', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'valid-and-invalid-global'),
     skipStart: true,
   })
@@ -101,7 +101,7 @@ describe('Valid and Invalid Global CSS with Custom App', () => {
   it('should fail to build', async () => {
     const { exitCode, cliOutput } = await next.build()
     expect(exitCode).not.toBe(0)
-    if (!process.env.IS_TURBOPACK_TEST) {
+    if (!isTurbopack) {
       expect(cliOutput).toContain('Failed to compile')
     }
     expect(cliOutput).toContain('styles/global.css')

@@ -1,30 +1,32 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('hydrate/render ordering', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      const { next } = nextTestSetup({
-        files: __dirname,
-      })
+  describe('production mode', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: __dirname,
+    })
 
-      it('correctly measures hydrate followed by render', async () => {
-        const browser = await next.browser('/')
-        await browser.waitForElementByCss('#to-other')
-        await browser.elementByCss('#to-other').click()
-        await browser.waitForElementByCss('#on-other', { state: 'attached' })
-
-        const beacons = (await browser.eval('window.__BEACONS'))
-          .map(([, value]) => Object.fromEntries(new URLSearchParams(value)))
-          .filter((p) => p.label === 'custom')
-        expect(beacons).toMatchObject([
-          { name: 'Next.js-hydration' },
-          { name: 'Next.js-render' },
-          { name: 'Next.js-route-change-to-render' },
-        ])
-
-        await browser.close()
-      })
+    if (!isNextStart) {
+      it('skipped for non-start mode', () => {})
+      return
     }
-  )
+
+    it('correctly measures hydrate followed by render', async () => {
+      const browser = await next.browser('/')
+      await browser.waitForElementByCss('#to-other')
+      await browser.elementByCss('#to-other').click()
+      await browser.waitForElementByCss('#on-other', { state: 'attached' })
+
+      const beacons = (await browser.eval('window.__BEACONS'))
+        .map(([, value]) => Object.fromEntries(new URLSearchParams(value)))
+        .filter((p) => p.label === 'custom')
+      expect(beacons).toMatchObject([
+        { name: 'Next.js-hydration' },
+        { name: 'Next.js-render' },
+        { name: 'Next.js-route-change-to-render' },
+      ])
+
+      await browser.close()
+    })
+  })
 })

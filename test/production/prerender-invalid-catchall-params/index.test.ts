@@ -1,12 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
-const describeProd = process.env.TURBOPACK_DEV ? describe.skip : describe
-
-describeProd('Invalid Prerender Catchall Params', () => {
-  const { next } = nextTestSetup({
+describe('Invalid Prerender Catchall Params', () => {
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
+
+  if (!isNextStart) {
+    it('skipped for non-start mode', () => {})
+    return
+  }
 
   describe('production mode', () => {
     it('should fail the build', async () => {

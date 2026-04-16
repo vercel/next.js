@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { getRedboxHeader, retry } from 'next-test-utils'
 
 describe('TypeScript HMR', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -16,7 +16,7 @@ describe('TypeScript HMR', () => {
       const originalContent = await next.readFile('pages/hello.tsx')
       const editedContent = originalContent.replace('Hello', 'COOL page')
 
-      if (process.env.IS_TURBOPACK_TEST) {
+      if (isTurbopack) {
         await new Promise((resolve) => setTimeout(resolve, 500))
       }
 
@@ -63,7 +63,7 @@ describe('TypeScript HMR', () => {
       '() => <p>Hello world</p>',
       '(): boolean => <p>hello with error</p>'
     )
-    if (process.env.IS_TURBOPACK_TEST) {
+    if (isTurbopack) {
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
     try {

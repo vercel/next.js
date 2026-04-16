@@ -1,22 +1,25 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Conflicting SSG paths', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      const { next } = nextTestSetup({
-        files: __dirname,
-        skipStart: true,
-      })
+  describe('production mode', () => {
+    const { next, isNextStart } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+    })
 
-      afterEach(async () => {
-        await next.deleteFile('pages')
-      })
+    if (!isNextStart) {
+      it('skipped for non-start mode', () => {})
+      return
+    }
 
-      it('should show proper error when two dynamic SSG routes have conflicting paths', async () => {
-        await next.patchFile(
-          'pages/blog/[slug].js',
-          `
+    afterEach(async () => {
+      await next.deleteFile('pages')
+    })
+
+    it('should show proper error when two dynamic SSG routes have conflicting paths', async () => {
+      await next.patchFile(
+        'pages/blog/[slug].js',
+        `
       export const getStaticProps = () => {
         return {
           props: {}
@@ -37,11 +40,11 @@ describe('Conflicting SSG paths', () => {
         return '/blog/[slug]'
       }
     `
-        )
+      )
 
-        await next.patchFile(
-          'pages/[...catchAll].js',
-          `
+      await next.patchFile(
+        'pages/[...catchAll].js',
+        `
       export const getStaticProps = () => {
         return {
           props: {}
@@ -62,36 +65,36 @@ describe('Conflicting SSG paths', () => {
         return '/[catchAll]'
       }
     `
-        )
+      )
 
-        await next.build()
-        expect(next.cliOutput).toContain(
-          'Conflicting paths returned from getStaticPaths, paths must be unique per page'
-        )
-        expect(next.cliOutput).toContain(
-          'https://nextjs.org/docs/messages/conflicting-ssg-paths'
-        )
-        expect(next.cliOutput).toContain(
-          `path: "/blog/conflicting" from page: "/[...catchAll]"`
-        )
-        expect(next.cliOutput).toContain(
-          `conflicts with path: "/blog/conflicting"`
-        )
-      })
+      await next.build()
+      expect(next.cliOutput).toContain(
+        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
+      )
+      expect(next.cliOutput).toContain(
+        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+      )
+      expect(next.cliOutput).toContain(
+        `path: "/blog/conflicting" from page: "/[...catchAll]"`
+      )
+      expect(next.cliOutput).toContain(
+        `conflicts with path: "/blog/conflicting"`
+      )
+    })
 
-      it('should show proper error when a dynamic SSG route conflicts with normal route', async () => {
-        await next.patchFile(
-          'pages/hello/world.js',
-          `
+    it('should show proper error when a dynamic SSG route conflicts with normal route', async () => {
+      await next.patchFile(
+        'pages/hello/world.js',
+        `
       export default function Page() {
         return '/hello/world'
       }
     `
-        )
+      )
 
-        await next.patchFile(
-          'pages/[...catchAll].js',
-          `
+      await next.patchFile(
+        'pages/[...catchAll].js',
+        `
       export const getStaticProps = () => {
         return {
           props: {}
@@ -112,35 +115,35 @@ describe('Conflicting SSG paths', () => {
         return '/[catchAll]'
       }
     `
-        )
+      )
 
-        await next.build()
-        expect(next.cliOutput).toContain(
-          'Conflicting paths returned from getStaticPaths, paths must be unique per page'
-        )
-        expect(next.cliOutput).toContain(
-          'https://nextjs.org/docs/messages/conflicting-ssg-paths'
-        )
-        expect(next.cliOutput).toContain(
-          `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
-        )
-      })
+      await next.build()
+      expect(next.cliOutput).toContain(
+        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
+      )
+      expect(next.cliOutput).toContain(
+        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+      )
+      expect(next.cliOutput).toContain(
+        `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
+      )
+    })
 
-      it('should show proper error when a dynamic SSG route conflicts with SSR route', async () => {
-        await next.patchFile(
-          'pages/hello/world.js',
-          `
+    it('should show proper error when a dynamic SSG route conflicts with SSR route', async () => {
+      await next.patchFile(
+        'pages/hello/world.js',
+        `
       export const getServerSideProps = () => ({ props: {} })
 
       export default function Page() {
         return '/hello/world'
       }
     `
-        )
+      )
 
-        await next.patchFile(
-          'pages/[...catchAll].js',
-          `
+      await next.patchFile(
+        'pages/[...catchAll].js',
+        `
       export const getStaticProps = () => {
         return {
           props: {}
@@ -161,19 +164,18 @@ describe('Conflicting SSG paths', () => {
         return '/[catchAll]'
       }
     `
-        )
+      )
 
-        await next.build()
-        expect(next.cliOutput).toContain(
-          'Conflicting paths returned from getStaticPaths, paths must be unique per page'
-        )
-        expect(next.cliOutput).toContain(
-          'https://nextjs.org/docs/messages/conflicting-ssg-paths'
-        )
-        expect(next.cliOutput).toContain(
-          `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
-        )
-      })
-    }
-  )
+      await next.build()
+      expect(next.cliOutput).toContain(
+        'Conflicting paths returned from getStaticPaths, paths must be unique per page'
+      )
+      expect(next.cliOutput).toContain(
+        'https://nextjs.org/docs/messages/conflicting-ssg-paths'
+      )
+      expect(next.cliOutput).toContain(
+        `path: "/hellO/world" from page: "/[...catchAll]" conflicts with path: "/hello/world"`
+      )
+    })
+  })
 })

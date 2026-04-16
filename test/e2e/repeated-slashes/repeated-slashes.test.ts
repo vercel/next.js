@@ -8,7 +8,7 @@ import {
   fetchViaHTTP,
   retry,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 function runTests({
   next,
@@ -445,48 +445,45 @@ describe('404 handling', () => {
 
       runTests({ next, isDev: isNextDev, isPages404: false })
     })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'export mode',
-      () => {
-        const { next } = nextTestSetup({
-          files: path.join(__dirname, 'app'),
-          skipStart: true,
-        })
+    ;(isNextStart ? describe : describe.skip)('export mode', () => {
+      const { next } = nextTestSetup({
+        files: path.join(__dirname, 'app'),
+        skipStart: true,
+      })
 
-        let staticServer: any
-        let staticPort: number
+      let staticServer: any
+      let staticPort: number
 
-        beforeAll(async () => {
-          if (isNextDev) return
+      beforeAll(async () => {
+        if (isNextDev) return
 
-          await next.patchFile(
-            'next.config.js',
-            `module.exports = { output: 'export' }`
-          )
-          await next.build()
-          staticServer = await startStaticServer(
-            path.join(next.testDir, 'out'),
-            path.join(next.testDir, 'out/404.html')
-          )
-          staticPort = staticServer.address().port
-        })
-        afterAll(async () => {
-          if (staticServer) await stopApp(staticServer)
-        })
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = { output: 'export' }`
+        )
+        await next.build()
+        staticServer = await startStaticServer(
+          path.join(next.testDir, 'out'),
+          path.join(next.testDir, 'out/404.html')
+        )
+        staticPort = staticServer.address().port
+      })
+      afterAll(async () => {
+        if (staticServer) await stopApp(staticServer)
+      })
 
-        if (isNextDev) {
-          it('no-op in dev', () => {})
-          return
-        }
-
-        runTests({
-          next,
-          isExport: true,
-          isPages404: false,
-          getPort: () => staticPort,
-        })
+      if (isNextDev) {
+        it('no-op in dev', () => {})
+        return
       }
-    )
+
+      runTests({
+        next,
+        isExport: true,
+        isPages404: false,
+        getPort: () => staticPort,
+      })
+    })
   })
 
   describe('pages/404', () => {
@@ -518,24 +515,22 @@ describe('404 handling', () => {
 
       runTests({ next, isDev: isNextDev, isPages404: true })
     })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-      'pages/404 export mode',
-      () => {
-        const { next } = nextTestSetup({
-          files: path.join(__dirname, 'app'),
-          skipStart: true,
-        })
+    ;(isNextStart ? describe : describe.skip)('pages/404 export mode', () => {
+      const { next } = nextTestSetup({
+        files: path.join(__dirname, 'app'),
+        skipStart: true,
+      })
 
-        let staticServer: any
-        let staticPort: number
+      let staticServer: any
+      let staticPort: number
 
-        beforeAll(async () => {
-          if (isNextDev) return
+      beforeAll(async () => {
+        if (isNextDev) return
 
-          await next.deleteFile('pages/_error.js')
-          await next.patchFile(
-            'pages/404.js',
-            `
+        await next.deleteFile('pages/_error.js')
+        await next.patchFile(
+          'pages/404.js',
+          `
             if (typeof window !== 'undefined') {
               window.errorLoad = true
             }
@@ -543,34 +538,33 @@ describe('404 handling', () => {
               return <p id='error'>custom 404</p>
             }
           `
-          )
-          await next.patchFile(
-            'next.config.js',
-            `module.exports = { output: 'export' }`
-          )
-          await next.build()
-          staticServer = await startStaticServer(
-            path.join(next.testDir, 'out'),
-            path.join(next.testDir, 'out/404.html')
-          )
-          staticPort = staticServer.address().port
-        })
-        afterAll(async () => {
-          if (staticServer) await stopApp(staticServer)
-        })
+        )
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = { output: 'export' }`
+        )
+        await next.build()
+        staticServer = await startStaticServer(
+          path.join(next.testDir, 'out'),
+          path.join(next.testDir, 'out/404.html')
+        )
+        staticPort = staticServer.address().port
+      })
+      afterAll(async () => {
+        if (staticServer) await stopApp(staticServer)
+      })
 
-        if (isNextDev) {
-          it('no-op in dev', () => {})
-          return
-        }
-
-        runTests({
-          next,
-          isExport: true,
-          isPages404: true,
-          getPort: () => staticPort,
-        })
+      if (isNextDev) {
+        it('no-op in dev', () => {})
+        return
       }
-    )
+
+      runTests({
+        next,
+        isExport: true,
+        isPages404: true,
+        getPort: () => staticPort,
+      })
+    })
   })
 })

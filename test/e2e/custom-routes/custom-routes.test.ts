@@ -11,7 +11,7 @@ import {
   normalizeManifest,
   retry,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('Custom routes', () => {
   const { next } = nextTestSetup({
@@ -2446,55 +2446,56 @@ describe('Custom routes', () => {
     })
   }
 })
-;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
-  'Custom routes no-op rewrite',
-  () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-      env: {
-        ADD_NOOP_REWRITE: 'true',
-      },
-    })
-
-    let externalServer: http.Server
-
-    beforeAll(async () => {
-      const port = await findPort()
-      externalServer = http.createServer((req, res) => {
-        res.end('external')
-      })
-      await new Promise<void>((resolve, reject) => {
-        externalServer.listen(port, (error) => {
-          if (error) return reject(error)
-          resolve()
-        })
-      })
-
-      await next.patchFile('next.config.js', (content) =>
-        content.replace(/__EXTERNAL_PORT__/g, String(port))
-      )
-
-      if (!isNextDev) {
-        await next.build()
-      }
-      await next.start()
-    })
-
-    afterAll(() => {
-      externalServer.close()
-    })
-
-    it('should not error for no-op rewrite and auto export dynamic route', async () => {
-      const browser = await next.browser('/auto-export/my-slug')
-      await retry(async () => {
-        expect(
-          await browser.eval(() => document.documentElement.innerHTML)
-        ).toMatch(/auto-export.*?my-slug/)
-      })
-    })
+describe('Custom routes no-op rewrite', () => {
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    env: {
+      ADD_NOOP_REWRITE: 'true',
+    },
+  })
+  if (isTurbopack && isNextStart) {
+    it('skipped - not supported in turbopack build mode', () => {})
+    return
   }
-)
+
+  let externalServer: http.Server
+
+  beforeAll(async () => {
+    const port = await findPort()
+    externalServer = http.createServer((req, res) => {
+      res.end('external')
+    })
+    await new Promise<void>((resolve, reject) => {
+      externalServer.listen(port, (error) => {
+        if (error) return reject(error)
+        resolve()
+      })
+    })
+
+    await next.patchFile('next.config.js', (content) =>
+      content.replace(/__EXTERNAL_PORT__/g, String(port))
+    )
+
+    if (!isNextDev) {
+      await next.build()
+    }
+    await next.start()
+  })
+
+  afterAll(() => {
+    externalServer.close()
+  })
+
+  it('should not error for no-op rewrite and auto export dynamic route', async () => {
+    const browser = await next.browser('/auto-export/my-slug')
+    await retry(async () => {
+      expect(
+        await browser.eval(() => document.documentElement.innerHTML)
+      ).toMatch(/auto-export.*?my-slug/)
+    })
+  })
+})
 
 describe('Custom routes solo types', () => {
   const { next } = nextTestSetup({
@@ -2613,27 +2614,22 @@ describe('Custom routes solo types', () => {
     }
   })
 })
-;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-  'Custom routes export',
-  () => {
-    const { next } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-    })
+;(isNextStart ? describe : describe.skip)('Custom routes export', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+  })
 
-    it('should not show warning for custom routes when not next export', async () => {
-      if (isNextDev) return
+  it('should not show warning for custom routes when not next export', async () => {
+    await next.patchFile('next.config.js', (content) =>
+      content
+        .replace(/__EXTERNAL_PORT__/g, '12345')
+        .replace('// REPLACEME', `output: 'export',`)
+    )
+    const { cliOutput } = await next.build()
 
-      await next.patchFile('next.config.js', (content) =>
-        content
-          .replace(/__EXTERNAL_PORT__/g, '12345')
-          .replace('// REPLACEME', `output: 'export',`)
-      )
-      const { cliOutput } = await next.build()
-
-      expect(cliOutput).not.toContain(
-        `rewrites, redirects, and headers are not applied when exporting your application detected`
-      )
-    })
-  }
-)
+    expect(cliOutput).not.toContain(
+      `rewrites, redirects, and headers are not applied when exporting your application detected`
+    )
+  })
+})
