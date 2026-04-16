@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 1, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/style.module.css"],"sourcesContent":[".green {\n  color: green;\n}\n\n.unused {\n  color: red;\n\n  animation-name: unused-slide-in;\n  animation-duration: 2s;\n}\n\n@keyframes unused-slide-in {\n  from {\n    transform: translateX(0%);\n  }\n\n  to {\n    transform: translateX(100%);\n  }\n}\n"],"names":[],"mappings":"AAAA"}},
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/default.module.css"],"sourcesContent":[".default {\n  color: green;\n}\n\n.used {\n  color: lime;\n}\n"],"names":[],"mappings":"AAAA;;;;AAIA"}}]
+}

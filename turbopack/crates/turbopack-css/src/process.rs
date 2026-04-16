@@ -43,6 +43,7 @@ use turbopack_core::{
 use crate::{
     CssModuleType, LightningCssFeatureFlags,
     lifetime_util::stylesheet_into_static,
+    normalize_module_export_usage_for_css_module,
     references::{
         analyze_references,
         url::{UrlAssetReference, replace_url_references, resolve_url_reference},
@@ -319,9 +320,11 @@ pub async fn finalize_css(
                     .module_export_usage(*ecmascript_module)
                     .await?;
                 let export_usage_info = export_usage.export_usage.await?;
+                let export_usage_info =
+                    normalize_module_export_usage_for_css_module(&export_usage_info);
 
                 let unused_symbols: HashSet<String> = match &*export_usage_info {
-                    // All exports used, or unknown — keep every class.
+                    // All exports used — keep every class.
                     ModuleExportUsageInfo::All => Default::default(),
                     // Some or no exports used — collect hashed names of unused classes.
                     ModuleExportUsageInfo::Evaluation | ModuleExportUsageInfo::Exports(_) => {

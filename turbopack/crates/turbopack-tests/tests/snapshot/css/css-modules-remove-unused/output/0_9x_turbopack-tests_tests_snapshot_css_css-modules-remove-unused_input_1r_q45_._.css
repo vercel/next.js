@@ -1,0 +1,15 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/style.module.css [test] (css) */
+.style-module__o6j6Ba__green {
+  color: green;
+}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules-remove-unused/input/default.module.css [test] (css) */
+.default-module__3W_8-a__default {
+  color: green;
+}
+
+.default-module__3W_8-a__used {
+  color: #0f0;
+}
+
+/*# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_css_css-modules-remove-unused_input_1r_q45_._.css.map*/

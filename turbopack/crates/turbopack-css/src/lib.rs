@@ -11,8 +11,12 @@ mod module_asset;
 pub(crate) mod process;
 pub(crate) mod references;
 
+use std::borrow::Cow;
+
 use bincode::{Decode, Encode};
+use turbo_rcstr::rcstr;
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbopack_core::module_graph::binding_usage_info::ModuleExportUsageInfo;
 
 use crate::references::import::ImportAssetReference;
 pub use crate::{asset::CssModule, module_asset::EcmascriptCssModule, process::*};
@@ -50,4 +54,17 @@ pub enum CssModuleType {
 pub struct LightningCssFeatureFlags {
     pub include: u32,
     pub exclude: u32,
+}
+
+fn normalize_module_export_usage_for_css_module(
+    export_usage_info: &'_ ModuleExportUsageInfo,
+) -> Cow<'_, ModuleExportUsageInfo> {
+    if let ModuleExportUsageInfo::Exports(exports) = export_usage_info
+        && exports.contains(&rcstr!("default"))
+    {
+        // Deopt, some module might have done `import styles from ...`.
+        Cow::Owned(ModuleExportUsageInfo::All)
+    } else {
+        Cow::Borrowed(export_usage_info)
+    }
 }

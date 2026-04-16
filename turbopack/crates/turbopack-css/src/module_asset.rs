@@ -28,7 +28,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
-    CssModule,
+    CssModule, normalize_module_export_usage_for_css_module,
     process::{CssWithPlaceholderResult, ProcessCss},
     references::{compose::CssModuleComposeReference, internal::InternalCssAssetReference},
 };
@@ -293,6 +293,7 @@ impl EcmascriptChunkPlaceable for EcmascriptCssModule {
             .module_export_usage(Vc::upcast(self))
             .await?;
         let export_usage_info = export_usage.export_usage.await?;
+        let export_usage_info = normalize_module_export_usage_for_css_module(&export_usage_info);
 
         let mut code = format!("{TURBOPACK_EXPORT_VALUE}({{\n");
         for (export_name, class_names) in &*classes {
