@@ -9323,6 +9323,7 @@ export declare function Google_Sans_Code<
     | 'syriac'
     | 'vietnamese'
   >
+  axes?: 'MONO'[]
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Google_Sans_Flex<
   T extends CssVariable | undefined = undefined,
