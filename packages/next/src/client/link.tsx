@@ -142,15 +142,7 @@ export interface LinkProps<RouteInferType = any> extends InternalLinkProps {}
 type LinkPropsRequired = RequiredKeys<LinkProps>
 type LinkPropsOptional = OptionalKeys<InternalLinkProps>
 
-const prefetched = new Set<string>()
-
-type PrefetchOptions = RouterPrefetchOptions & {
-  /**
-   * bypassPrefetchedCheck will bypass the check to see if the `href` has
-   * already been fetched.
-   */
-  bypassPrefetchedCheck?: boolean
-}
+type PrefetchOptions = RouterPrefetchOptions
 
 function prefetch(
   router: NextRouter,
@@ -164,29 +156,6 @@ function prefetch(
 
   if (!isLocalURL(href)) {
     return
-  }
-
-  // We should only dedupe requests when experimental.optimisticClientCache is
-  // disabled.
-  if (!options.bypassPrefetchedCheck) {
-    const locale =
-      // Let the link's locale prop override the default router locale.
-      typeof options.locale !== 'undefined'
-        ? options.locale
-        : // Otherwise fallback to the router's locale.
-          'locale' in router
-          ? router.locale
-          : undefined
-
-    const prefetchedKey = href + '%' + as + '%' + locale
-
-    // If we've already fetched the key, then don't prefetch it again!
-    if (prefetched.has(prefetchedKey)) {
-      return
-    }
-
-    // Mark this URL as prefetched.
-    prefetched.add(prefetchedKey)
   }
 
   // Prefetch the JSON page if asked (only in the client)
@@ -648,8 +617,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         prefetch(router, href, as, {
           locale,
           priority: true,
-          // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-          bypassPrefetchedCheck: true,
         })
       },
       onTouchStart: process.env.__NEXT_LINK_NO_TOUCH_START
@@ -674,8 +641,6 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             prefetch(router, href, as, {
               locale,
               priority: true,
-              // @see {https://github.com/vercel/next.js/discussions/40268?sort=top#discussioncomment-3572642}
-              bypassPrefetchedCheck: true,
             })
           },
     }
