@@ -86,7 +86,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1170",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -152,7 +152,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1164",
              "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -319,7 +319,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1170",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -410,7 +410,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1167",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -476,7 +476,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1167",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -562,7 +562,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E394",
+               "code": "E1164",
                "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -576,7 +576,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E394",
+               "code": "E1164",
                "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2011,7 +2011,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1166",
                "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2738,7 +2738,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1166",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -2899,7 +2899,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1166",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3165,7 +3165,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1166",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3326,7 +3326,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E394",
+                 "code": "E1166",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3593,7 +3593,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1166",
                "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -4544,7 +4544,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1166",
                "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6514,7 +6514,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1164",
              "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
