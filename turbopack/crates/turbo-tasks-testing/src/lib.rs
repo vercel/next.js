@@ -17,8 +17,8 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
-    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
-    ReadOutputOptions, StackMagicAny, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi,
+    CellId, DynTaskInputs, ExecutionId, InvalidationReason, LocalTaskId, RawVc, ReadCellOptions,
+    ReadOutputOptions, StackDynTaskInputs, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi,
     TurboTasksCallApi,
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
     event::{Event, EventListener},
@@ -48,7 +48,7 @@ impl VcStorage {
         &self,
         func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this_arg: Option<RawVc>,
-        arg: Box<dyn MagicAny>,
+        arg: Box<dyn DynTaskInputs>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
         let handle = tokio::runtime::Handle::current();
@@ -97,7 +97,7 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
+        arg: &mut dyn StackDynTaskInputs,
         _persistence: TaskPersistence,
     ) -> RawVc {
         self.dynamic_call(func, this, arg.take_box())
@@ -106,7 +106,7 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
+        arg: &mut dyn StackDynTaskInputs,
         _persistence: TaskPersistence,
     ) -> RawVc {
         self.dynamic_call(func, this, arg.take_box())
@@ -116,7 +116,7 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
-        _arg: &mut dyn StackMagicAny,
+        _arg: &mut dyn StackDynTaskInputs,
         _persistence: TaskPersistence,
     ) -> RawVc {
         unreachable!()

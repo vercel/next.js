@@ -18,7 +18,7 @@ use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
-    CellId, FxIndexMap, MagicAny, RawVc, TaskExecutionReason, TaskId, TaskPriority,
+    CellId, DynTaskInputs, FxIndexMap, RawVc, TaskExecutionReason, TaskId, TaskPriority,
     TurboTasksBackendApi, TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
     macro_helpers::NativeFunction,
 };
@@ -110,7 +110,7 @@ pub trait ExecuteContext<'e>: Sized {
         &mut self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
     ) -> Option<(TaskId, Arc<CachedTaskType>)>;
 }
 
@@ -982,7 +982,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         &mut self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
     ) -> Option<(TaskId, Arc<CachedTaskType>)> {
         if !self.backend.should_restore() {
             return None;

@@ -10,24 +10,24 @@ use turbo_dyn_eq_hash::{
 
 use crate::trace::TraceRawVcs;
 
-pub trait MagicAny: Debug + DynEq + DynHash + TraceRawVcs + Send + Sync + 'static {
+pub trait DynTaskInputs: Debug + DynEq + DynHash + TraceRawVcs + Send + Sync + 'static {
     #[cfg(debug_assertions)]
-    fn magic_type_name(&self) -> &'static str;
+    fn dyn_type_name(&self) -> &'static str;
 }
 
-impl<T> MagicAny for T
+impl<T> DynTaskInputs for T
 where
     T: Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static,
 {
     #[cfg(debug_assertions)]
-    fn magic_type_name(&self) -> &'static str {
+    fn dyn_type_name(&self) -> &'static str {
         std::any::type_name::<T>()
     }
 }
 
-impl_partial_eq_for_dyn!(dyn MagicAny);
-impl_eq_for_dyn!(dyn MagicAny);
-impl_hash_for_dyn!(dyn MagicAny);
+impl_partial_eq_for_dyn!(dyn DynTaskInputs);
+impl_eq_for_dyn!(dyn DynTaskInputs);
+impl_hash_for_dyn!(dyn DynTaskInputs);
 
 pub fn any_as_encode<T: Any>(this: &dyn Any) -> &T {
     if let Some(enc) = this.downcast_ref::<T>() {
@@ -42,14 +42,14 @@ pub fn any_as_encode<T: Any>(this: &dyn Any) -> &T {
 /// A trait for task arguments that may reside on the stack.
 ///
 /// This enables deferred boxing: on the cache-hit path (~85%), we only borrow
-/// the argument via [`as_ref`](StackMagicAny::as_ref) for hash/equality lookups,
-/// avoiding any heap allocation. On cache miss, [`take_box`](StackMagicAny::take_box)
+/// the argument via [`as_ref`](StackDynTaskInputs::as_ref) for hash/equality lookups,
+/// avoiding any heap allocation. On cache miss, [`take_box`](StackDynTaskInputs::take_box)
 /// moves the value into a `Box` with zero clones.
-pub trait StackMagicAny {
+pub trait StackDynTaskInputs {
     /// Borrow the argument as a type-erased reference (for cache lookup).
-    fn as_ref(&self) -> &dyn MagicAny;
+    fn as_ref(&self) -> &dyn DynTaskInputs;
     /// Move the argument out into a heap-allocated Box (panics if already taken).
-    fn take_box(&mut self) -> Box<dyn MagicAny>;
+    fn take_box(&mut self) -> Box<dyn DynTaskInputs>;
     /// Downcast to `&mut dyn Any` for concrete type recovery without boxing.
     fn as_any_mut(&mut self) -> &mut dyn Any;
 }
@@ -57,13 +57,13 @@ pub trait StackMagicAny {
 /// Stack-resident slot wrapping a concrete typed value.
 ///
 /// Created by macro-generated callsites. The value starts in `Some` on the
-/// stack; [`take_box`](StackMagicAny::take_box) moves it to the heap on cache miss.
+/// stack; [`take_box`](StackDynTaskInputs::take_box) moves it to the heap on cache miss.
 #[repr(transparent)]
-pub struct StackMagicAnySlot<T> {
+pub struct StackDynTaskInputsSlot<T> {
     slot: Option<T>,
 }
 
-impl<T> StackMagicAnySlot<T> {
+impl<T> StackDynTaskInputsSlot<T> {
     #[inline]
     pub fn new(value: T) -> Self {
         Self { slot: Some(value) }
@@ -73,24 +73,24 @@ impl<T> StackMagicAnySlot<T> {
     pub fn take(&mut self) -> T {
         self.slot
             .take()
-            .expect("StackMagicAnySlot::take called after value was already taken")
+            .expect("StackDynTaskInputsSlot::take called after value was already taken")
     }
 }
 
-impl<T: MagicAny> StackMagicAny for StackMagicAnySlot<T> {
+impl<T: DynTaskInputs> StackDynTaskInputs for StackDynTaskInputsSlot<T> {
     #[inline]
-    fn as_ref(&self) -> &dyn MagicAny {
+    fn as_ref(&self) -> &dyn DynTaskInputs {
         self.slot
             .as_ref()
-            .expect("StackMagicAnySlot::as_ref called after take_box")
+            .expect("StackDynTaskInputsSlot::as_ref called after take_box")
     }
 
     #[inline]
-    fn take_box(&mut self) -> Box<dyn MagicAny> {
+    fn take_box(&mut self) -> Box<dyn DynTaskInputs> {
         Box::new(
             self.slot
                 .take()
-                .expect("StackMagicAnySlot::take_box called twice"),
+                .expect("StackDynTaskInputsSlot::take_box called twice"),
         )
     }
 
@@ -101,31 +101,31 @@ impl<T: MagicAny> StackMagicAny for StackMagicAnySlot<T> {
 }
 
 /// Adapter for an already-boxed value (e.g., from async resolution tasks).
-pub struct OwnedMagicAny {
-    slot: Option<Box<dyn MagicAny>>,
+pub struct OwnedStackDynTaskInputs {
+    slot: Option<Box<dyn DynTaskInputs>>,
 }
 
-impl OwnedMagicAny {
+impl OwnedStackDynTaskInputs {
     #[inline]
-    pub fn new(value: Box<dyn MagicAny>) -> Self {
+    pub fn new(value: Box<dyn DynTaskInputs>) -> Self {
         Self { slot: Some(value) }
     }
 }
 
-impl StackMagicAny for OwnedMagicAny {
+impl StackDynTaskInputs for OwnedStackDynTaskInputs {
     #[inline]
-    fn as_ref(&self) -> &dyn MagicAny {
+    fn as_ref(&self) -> &dyn DynTaskInputs {
         &**self
             .slot
             .as_ref()
-            .expect("OwnedMagicAny::as_ref called after take_box")
+            .expect("OwnedStackDynTaskInputs::as_ref called after take_box")
     }
 
     #[inline]
-    fn take_box(&mut self) -> Box<dyn MagicAny> {
+    fn take_box(&mut self) -> Box<dyn DynTaskInputs> {
         self.slot
             .take()
-            .expect("OwnedMagicAny::take_box called twice")
+            .expect("OwnedStackDynTaskInputs::take_box called twice")
     }
 
     #[inline]

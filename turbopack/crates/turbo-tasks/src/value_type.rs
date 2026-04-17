@@ -11,9 +11,9 @@ use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
 
 use crate::{
     RawVc, SharedReference, TaskPriority, VcValueType,
+    dyn_task_inputs::any_as_encode,
     id::TraitTypeId,
     macro_helpers::{CollectableTraitMethods, NativeFunction},
-    magic_any::any_as_encode,
     registry::{RegistryType, get_trait_type_id, trait_type_count, turbo_registry},
     task::shared_reference::TypedSharedReference,
     vc::VcCellMode,

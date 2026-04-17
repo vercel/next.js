@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_tasks::{
-    MagicAny, RawVc, TaskId,
+    DynTaskInputs, RawVc, TaskId,
     macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
@@ -302,7 +302,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
     ) -> Result<SmallVec<[TaskId; 1]>> {
         let inner = &*self.inner;
         if inner.database.is_empty() {

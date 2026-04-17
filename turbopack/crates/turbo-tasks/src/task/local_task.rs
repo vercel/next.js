@@ -3,8 +3,8 @@ use std::{fmt, sync::Arc};
 use anyhow::{Result, bail};
 
 use crate::{
-    CellId, MagicAny, OutputContent, OwnedMagicAny, RawVc, TaskPersistence, TraitMethod,
-    TurboTasksBackendApi, ValueTypeId, backend::Backend, event::Event,
+    CellId, DynTaskInputs, OutputContent, OwnedStackDynTaskInputs, RawVc, TaskPersistence,
+    TraitMethod, TurboTasksBackendApi, ValueTypeId, backend::Backend, event::Event,
     macro_helpers::NativeFunction, registry,
 };
 
@@ -18,7 +18,7 @@ pub struct LocalTaskSpec {
     /// The self value, will always be present for `ResolveTrait` tasks and is optional otherwise
     pub(crate) this: Option<RawVc>,
     /// Function arguments
-    pub(crate) arg: Box<dyn MagicAny>,
+    pub(crate) arg: Box<dyn DynTaskInputs>,
     pub(crate) task_type: LocalTaskType,
 }
 
@@ -53,7 +53,7 @@ impl LocalTaskType {
     pub(crate) async fn run_resolve_native<B: Backend + 'static>(
         native_fn: &'static NativeFunction,
         mut this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
         persistence: TaskPersistence,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
@@ -61,14 +61,14 @@ impl LocalTaskType {
             *this = this.resolve().await?;
         }
         let arg = native_fn.arg_meta.resolve(arg).await?;
-        let mut arg = OwnedMagicAny::new(arg);
+        let mut arg = OwnedStackDynTaskInputs::new(arg);
         Ok(turbo_tasks.native_call(native_fn, this, &mut arg, persistence))
     }
     /// Implementation of the LocalTaskType::ResolveTrait task.
     pub(crate) async fn run_resolve_trait<B: Backend + 'static>(
         trait_method: &'static TraitMethod,
         this: RawVc,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
         persistence: TaskPersistence,
         turbo_tasks: Arc<dyn TurboTasksBackendApi<B>>,
     ) -> Result<RawVc> {
@@ -79,7 +79,7 @@ impl LocalTaskType {
 
         let native_fn = Self::resolve_trait_method_from_value(trait_method, type_id)?;
         let arg = native_fn.arg_meta.filter_and_resolve(arg).await?;
-        let mut arg = OwnedMagicAny::new(arg);
+        let mut arg = OwnedStackDynTaskInputs::new(arg);
         Ok(turbo_tasks.native_call(native_fn, Some(this), &mut arg, persistence))
     }
 

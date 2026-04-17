@@ -28,7 +28,7 @@ use tracing::{Span, trace_span};
 use turbo_bincode::{TurboBincodeBuffer, new_turbo_bincode_decoder, new_turbo_bincode_encoder};
 use turbo_tasks::{
     CellId, FxDashMap, RawVc, ReadCellOptions, ReadCellTracking, ReadConsistency,
-    ReadOutputOptions, ReadTracking, SharedReference, StackMagicAny, TRANSIENT_TASK_BIT,
+    ReadOutputOptions, ReadTracking, SharedReference, StackDynTaskInputs, TRANSIENT_TASK_BIT,
     TaskExecutionReason, TaskId, TaskPersistence, TaskPriority, TraitTypeId, TurboTasksBackendApi,
     TurboTasksPanic, ValueTypeId,
     backend::{
@@ -1510,7 +1510,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
+        arg: &mut dyn StackDynTaskInputs,
         parent_task: Option<TaskId>,
         persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
@@ -3449,7 +3449,7 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
+        arg: &mut dyn StackDynTaskInputs,
         parent_task: Option<TaskId>,
         persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,

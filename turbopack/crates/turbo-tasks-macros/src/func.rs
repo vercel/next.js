@@ -452,20 +452,20 @@ impl TurboFn<'_> {
                 let exposed_input_types: Vec<_> = self.exposed_input_types().collect();
                 return Some(FilterTraitCallArgsTokens {
                     filter_owned: quote! {
-                        |arg: &mut dyn turbo_tasks::StackMagicAny| {
+                        |arg: &mut dyn turbo_tasks::StackDynTaskInputs| {
                             let (#(#exposed_input_idents,)*) =
                                 turbo_tasks::macro_helpers
                                     ::downcast_stack_args_owned::<(#(#exposed_input_types,)*)>(arg);
-                            turbo_tasks::OwnedMagicAny::new(
+                            turbo_tasks::OwnedStackDynTaskInputs::new(
                                 ::std::boxed::Box::new((#(#inline_input_idents,)*))
                             )
                         }
                     },
                     filter_and_resolve: quote! {
-                        |magic_any| {
+                        |dyn_task_inputs: &dyn turbo_tasks::DynTaskInputs| {
                             Box::pin(async move {
                                 let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
-                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
+                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(dyn_task_inputs);
                                 let resolved = (#(
                                     <_ as turbo_tasks::TaskInput>::resolve_input(
                                         #inline_input_idents
@@ -473,7 +473,7 @@ impl TurboFn<'_> {
                                 )*);
                                 Ok(
                                     ::std::boxed::Box::new(resolved)
-                                    as ::std::boxed::Box<dyn turbo_tasks::MagicAny>
+                                    as ::std::boxed::Box<dyn turbo_tasks::DynTaskInputs>
                                 )
                             })
                         }
@@ -558,7 +558,7 @@ impl TurboFn<'_> {
                 let inputs = (#(#inputs,)*);
                 let this = #converted_this;
                 let persistence = #persistence;
-                let mut arg = turbo_tasks::StackMagicAnySlot::new(inputs);
+                let mut arg = turbo_tasks::StackDynTaskInputsSlot::new(inputs);
                 static TRAIT_METHOD: turbo_tasks::macro_helpers::Lazy<&'static turbo_tasks::TraitMethod> =
                         turbo_tasks::macro_helpers::Lazy::new(|| #trait_type_ident.get(stringify!(#ident)));
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
@@ -588,7 +588,7 @@ impl TurboFn<'_> {
                     let this = #converted_this;
                     let inputs = (#(#inputs,)*);
                     let persistence = #persistence;
-                    let mut arg = turbo_tasks::StackMagicAnySlot::new(inputs);
+                    let mut arg = turbo_tasks::StackDynTaskInputsSlot::new(inputs);
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             &#native_function_ident,
@@ -606,7 +606,7 @@ impl TurboFn<'_> {
                     #assertions
                     let inputs = (#(#inputs,)*);
                     let persistence = #persistence;
-                    let mut arg = turbo_tasks::StackMagicAnySlot::new(inputs);
+                    let mut arg = turbo_tasks::StackDynTaskInputsSlot::new(inputs);
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             &#native_function_ident,

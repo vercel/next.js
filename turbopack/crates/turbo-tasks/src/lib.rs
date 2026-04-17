@@ -19,6 +19,7 @@ pub mod debug;
 #[doc = include_str!("../FORMATTING.md")]
 pub mod display;
 pub mod duration_span;
+mod dyn_task_inputs;
 mod effect;
 mod error;
 pub mod event;
@@ -30,7 +31,6 @@ mod join_iter_ext;
 pub mod keyed;
 #[doc(hidden)]
 pub mod macro_helpers;
-mod magic_any;
 mod manager;
 pub mod mapped_read_ref;
 mod marker_trait;
@@ -75,6 +75,9 @@ pub use crate::{
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
     display::{ValueToString, ValueToStringRef},
+    dyn_task_inputs::{
+        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+    },
     effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
     error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
@@ -83,7 +86,6 @@ pub use crate::{
         get_invalidator,
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
-    magic_any::{MagicAny, OwnedMagicAny, StackMagicAny, StackMagicAnySlot},
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
         TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
