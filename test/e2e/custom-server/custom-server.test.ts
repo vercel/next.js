@@ -2,8 +2,7 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import cheerio from 'cheerio'
-
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+import https from 'https'
 
 const sharedDeps = { 'get-port': '5.1.1' }
 
@@ -11,6 +10,15 @@ describe.each([
   { title: 'HTTP', useHttps: 'false' },
   { title: 'HTTPS', useHttps: 'true' },
 ])('Custom Server $title', ({ title, useHttps }) => {
+  // The HTTPS server presents a self-signed certificate that the test process
+  // does not trust. Pass a custom agent that skips cert verification on every
+  // HTTPS request. Setting `process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'`
+  // does not take effect from inside the Jest VM context.
+  const agent =
+    useHttps === 'true'
+      ? new https.Agent({ rejectUnauthorized: false })
+      : undefined
+
   describe('with dynamic assetPrefix', () => {
     const { next } = nextTestSetup({
       files: __dirname,
@@ -21,33 +29,41 @@ describe.each([
     })
 
     it('should serve internal file from render', async () => {
-      const html = await next.render('/static/hello.txt')
+      const html = await next.render('/static/hello.txt', undefined, { agent })
       expect(html).toMatch(/hello world/)
     })
 
     it('should handle render with undefined query', async () => {
-      const html = await next.render('/no-query')
+      const html = await next.render('/no-query', undefined, { agent })
       expect(html).toMatch(/"query":/)
     })
 
     it('should set the assetPrefix dynamically', async () => {
-      const normalUsage = await next.render('/asset')
+      const normalUsage = await next.render('/asset', undefined, { agent })
       expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
 
-      const dynamicUsage = await next.render('/asset?setAssetPrefix=1')
+      const dynamicUsage = await next.render(
+        '/asset?setAssetPrefix=1',
+        undefined,
+        { agent }
+      )
       expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
     })
 
     it('should handle null assetPrefix accordingly', async () => {
-      const normalUsage = await next.render('/asset?setEmptyAssetPrefix=1')
+      const normalUsage = await next.render(
+        '/asset?setEmptyAssetPrefix=1',
+        undefined,
+        { agent }
+      )
       expect(normalUsage).toMatch(/"\/_next/)
     })
 
     it('should set the assetPrefix to a given request', async () => {
       for (let lc = 0; lc < 10; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
-          next.render('/asset'),
-          next.render('/asset?setAssetPrefix=1'),
+          next.render('/asset', undefined, { agent }),
+          next.render('/asset?setAssetPrefix=1', undefined, { agent }),
         ])
 
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
@@ -56,17 +72,21 @@ describe.each([
     })
 
     it('should render nested index', async () => {
-      const html = await next.render('/dashboard')
+      const html = await next.render('/dashboard', undefined, { agent })
       expect(html).toMatch(/made it to dashboard/)
     })
 
     it('should handle custom urls with requests handler', async () => {
-      const html = await next.render('/custom-url-with-request-handler')
+      const html = await next.render(
+        '/custom-url-with-request-handler',
+        undefined,
+        { agent }
+      )
       expect(html).toMatch(/made it to dashboard/)
     })
 
     it.skip('should contain customServer in NEXT_DATA', async () => {
-      const html = await next.render('/')
+      const html = await next.render('/', undefined, { agent })
       const $ = cheerio.load(html)
       expect(JSON.parse($('#__NEXT_DATA__').text()).customServer).toBe(true)
     })
@@ -74,14 +94,14 @@ describe.each([
     it.each(['/', '/no-query'])(
       'should handle compression for route %s',
       async (route) => {
-        const response = await next.fetch(route)
+        const response = await next.fetch(route, { agent })
         expect(response.headers.get('Content-Encoding')).toBe('gzip')
       }
     )
 
     it('should read the expected url protocol in middleware', async () => {
       const path = '/middleware-augmented'
-      const response = await next.fetch(path)
+      const response = await next.fetch(path, { agent })
       const port = new URL(next.url).port
       expect(response.headers.get('x-original-url')).toBe(
         `${useHttps === 'true' ? 'https' : 'http'}://localhost:${port}${path}`
@@ -98,7 +118,7 @@ describe.each([
     })
 
     it('response includes etag header', async () => {
-      const response = await next.fetch('/')
+      const response = await next.fetch('/', { agent })
       expect(response.headers.get('etag')).toBeTruthy()
     })
   })
@@ -113,7 +133,7 @@ describe.each([
     })
 
     it('response does not include etag header', async () => {
-      const response = await next.fetch('/')
+      const response = await next.fetch('/', { agent })
       expect(response.headers.get('etag')).toBeNull()
     })
   })
@@ -172,7 +192,7 @@ describe.each([
 
     it('should warn in development mode', async () => {
       const cliOutputBefore = next.cliOutput.length
-      const html = await next.render('/no-slash')
+      const html = await next.render('/no-slash', undefined, { agent })
       expect(html).toContain('made it to dashboard')
       await retry(async () => {
         expect(next.cliOutput.slice(cliOutputBefore)).toContain(
@@ -182,7 +202,7 @@ describe.each([
     })
     ;(isNextDev ? it.skip : it)('should warn in production mode', async () => {
       const cliOutputBefore = next.cliOutput.length
-      const html = await next.render('/no-slash')
+      const html = await next.render('/no-slash', undefined, { agent })
       expect(html).toContain('made it to dashboard')
       await retry(async () => {
         expect(next.cliOutput.slice(cliOutputBefore)).toContain(
@@ -202,7 +222,7 @@ describe.each([
     })
 
     it('should serve internal file from render', async () => {
-      const html = await next.render('/static/hello.txt')
+      const html = await next.render('/static/hello.txt', undefined, { agent })
       expect(html).toMatch(/hello world/)
     })
   })
@@ -218,7 +238,7 @@ describe.each([
 
     it('stderr should include error message and stack trace', async () => {
       const cliOutputBefore = next.cliOutput.length
-      await next.fetch('/unhandled-rejection')
+      await next.fetch('/unhandled-rejection', { agent })
       await retry(async () => {
         const newOutput = next.cliOutput.slice(cliOutputBefore)
         expect(newOutput).toContain('unhandledRejection')
@@ -241,7 +261,11 @@ describe.each([
     })
 
     it('NextCustomServer.renderToHTML', async () => {
-      const rawHTML = await next.render('/legacy-methods/render-to-html?q=2')
+      const rawHTML = await next.render(
+        '/legacy-methods/render-to-html?q=2',
+        undefined,
+        { agent }
+      )
       const $ = cheerio.load(rawHTML)
       const text = $('p').text()
       expect(text).toContain('made it to dynamic dashboard')
@@ -249,12 +273,18 @@ describe.each([
     })
 
     it('NextCustomServer.render404', async () => {
-      const html = await next.render('/legacy-methods/render404')
+      const html = await next.render('/legacy-methods/render404', undefined, {
+        agent,
+      })
       expect(html).toContain('made it to 404')
     })
 
     it('NextCustomServer.renderError', async () => {
-      const html = await next.render('/legacy-methods/render-error')
+      const html = await next.render(
+        '/legacy-methods/render-error',
+        undefined,
+        { agent }
+      )
       if (isNextDev) {
         expect(html).toContain('Error: kaboom')
       } else {
@@ -263,7 +293,11 @@ describe.each([
     })
 
     it('NextCustomServer.renderErrorToHTML', async () => {
-      const html = await next.render('/legacy-methods/render-error-to-html')
+      const html = await next.render(
+        '/legacy-methods/render-error-to-html',
+        undefined,
+        { agent }
+      )
       if (isNextDev) {
         expect(html).toContain('Error: kaboom')
       } else {
