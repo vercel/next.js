@@ -1,6 +1,6 @@
 // Children's config via catchall — shallower than @anotherSlot's
 // deep config. Should NOT be preferred as root cause.
-export const unstable_instant = { prefetch: 'static' }
+export const unstable_instant = true
 
 export default function ChildrenCatchallPage() {
   return (

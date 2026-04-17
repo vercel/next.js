@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],

@@ -2,7 +2,6 @@ import type { Instant } from 'next'
 import { ParamsReader } from './params-reader'
 
 export const unstable_instant: Instant = {
-  prefetch: 'static',
   samples: [
     {
       params: {

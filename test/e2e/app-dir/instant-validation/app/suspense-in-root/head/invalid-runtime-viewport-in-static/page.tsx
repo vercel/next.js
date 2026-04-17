@@ -5,10 +5,7 @@ import { cookies } from 'next/headers'
 // This would be valid if it used a runtime prefetch (because then it wouldn't block navigation),
 // but it's static, so it's invalid. As an extra sanity check, we put a runtime prefetch on the
 // layout above, and that should not make this error go away.
-export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ cookies: [] }],
-}
+export const unstable_instant = true
 
 export async function generateViewport(): Promise<Viewport> {
   await cookies()

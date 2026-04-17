@@ -1,10 +1,7 @@
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ cookies: [] }],
-}
+export const unstable_instant = true
 
 export default async function Page() {
   return (

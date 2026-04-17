@@ -1,6 +1,6 @@
 import { ReactNode, Suspense } from 'react'
 
-export const unstable_instant = { prefetch: 'static' }
+export const unstable_instant = true
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (

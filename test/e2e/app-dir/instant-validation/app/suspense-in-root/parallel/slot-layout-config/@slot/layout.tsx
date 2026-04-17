@@ -1,6 +1,6 @@
 import { ReactNode } from 'react'
 
-export const unstable_instant = { prefetch: 'static' }
+export const unstable_instant = true
 
 export default function SlotLayout({ children }: { children: ReactNode }) {
   return (

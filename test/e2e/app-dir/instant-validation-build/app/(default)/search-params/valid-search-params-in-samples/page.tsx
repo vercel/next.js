@@ -4,7 +4,6 @@ import assert from 'node:assert/strict'
 import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       searchParams: {

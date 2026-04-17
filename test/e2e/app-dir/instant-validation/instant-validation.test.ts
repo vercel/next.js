@@ -172,7 +172,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = {
+         > 3 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33)",
@@ -184,11 +184,11 @@ describe('instant validation', () => {
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (9:16) @ Page
-         >  9 |   await cookies()
-              |                ^",
+           "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16) @ Page
+         > 6 |   await cookies()
+             |                ^",
            "stack": [
-             "Page app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (9:16)",
+             "Page app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (6:16)",
            ],
          }
         `)
@@ -232,7 +232,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = { prefetch: 'static' }
+         > 3 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33)",
@@ -292,7 +292,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = {
+         > 4 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33)",
@@ -304,12 +304,12 @@ describe('instant validation', () => {
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (26:19) @ Dynamic
-         > 26 |   await connection()
+           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (23:19) @ Dynamic
+         > 23 |   await connection()
               |                   ^",
            "stack": [
-             "Dynamic app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (26:19)",
-             "Page app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (19:9)",
+             "Dynamic app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (23:19)",
+             "Page app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (16:9)",
            ],
          }
         `)
@@ -355,7 +355,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = {
+         > 4 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
@@ -367,11 +367,11 @@ describe('instant validation', () => {
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (10:16) @ Layout
-         > 10 |   await cookies()
+           "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16) @ Layout
+         >  7 |   await cookies()
               |                ^",
            "stack": [
-             "Layout app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (10:16)",
+             "Layout app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (7:16)",
            ],
          }
         `)
@@ -415,7 +415,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = {
+         > 4 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
@@ -427,11 +427,11 @@ describe('instant validation', () => {
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (11:19) @ Layout
-         > 11 |   await connection()
+           "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (8:19) @ Layout
+         >  8 |   await connection()
               |                   ^",
            "stack": [
-             "Layout app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (11:19)",
+             "Layout app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (8:19)",
            ],
          }
         `)
@@ -478,7 +478,7 @@ describe('instant validation', () => {
            {
              "label": "Caused by: Instant Validation",
              "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:33) @ unstable_instant
-       > 1 | export const unstable_instant = {
+       > 1 | export const unstable_instant = { samples: [{ params: { param: '123' } }] }
            |                                 ^",
              "stack": [
                "unstable_instant app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (1:33)",
@@ -490,12 +490,12 @@ describe('instant validation', () => {
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
-         "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21) @ Runtime
-       > 20 |   const { param } = await params
+         "source": "app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (17:21) @ Runtime
+       > 17 |   const { param } = await params
             |                     ^",
          "stack": [
-           "Runtime app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (20:21)",
-           "Page app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (14:7)",
+           "Runtime app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (17:21)",
+           "Page app/suspense-in-root/static/missing-suspense-around-params/[param]/page.tsx (11:7)",
          ],
        }
       `)
@@ -526,7 +526,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:33) @ unstable_instant
-         > 1 | export const unstable_instant = {
+         > 1 | export const unstable_instant = { samples: [{ searchParams: { foo: 'bar' } }] }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (1:33)",
@@ -538,11 +538,11 @@ describe('instant validation', () => {
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (7:18) @ Page
-         >  7 |   const search = await searchParams
-              |                  ^",
+           "source": "app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (4:18) @ Page
+         > 4 |   const search = await searchParams
+             |                  ^",
            "stack": [
-             "Page app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (7:18)",
+             "Page app/suspense-in-root/static/missing-suspense-around-search-params/page.tsx (4:18)",
            ],
          }
         `)
@@ -621,7 +621,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = {
+         > 3 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/suspense-too-high/page.tsx (3:33)",
@@ -633,11 +633,11 @@ describe('instant validation', () => {
            "description": "Next.js encountered runtime data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (9:16) @ Page
-         >  9 |   await cookies()
-              |                ^",
+           "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (6:16) @ Page
+         > 6 |   await cookies()
+             |                ^",
            "stack": [
-             "Page app/suspense-in-root/static/suspense-too-high/page.tsx (9:16)",
+             "Page app/suspense-in-root/static/suspense-too-high/page.tsx (6:16)",
            ],
          }
         `)
@@ -684,7 +684,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = {
+         > 4 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33)",
@@ -696,12 +696,12 @@ describe('instant validation', () => {
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (27:19) @ Dynamic
-         > 27 |   await connection()
+           "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19) @ Dynamic
+         > 24 |   await connection()
               |                   ^",
            "stack": [
-             "Dynamic app/suspense-in-root/runtime/suspense-too-high/page.tsx (27:19)",
-             "Page app/suspense-in-root/runtime/suspense-too-high/page.tsx (20:9)",
+             "Dynamic app/suspense-in-root/runtime/suspense-too-high/page.tsx (24:19)",
+             "Page app/suspense-in-root/runtime/suspense-too-high/page.tsx (17:9)",
            ],
          }
         `)
@@ -748,11 +748,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (11:20) @ Page
-         > 11 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io/page.tsx (8:20) @ Page
+         >  8 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Page app/suspense-in-root/runtime/invalid-sync-io/page.tsx (11:20)",
+             "Page app/suspense-in-root/runtime/invalid-sync-io/page.tsx (8:20)",
              "Page <anonymous>",
            ],
          }
@@ -764,23 +764,23 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:11:20)
-            9 | export default async function Page() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
+             at a (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
+            6 | export default async function Page() {
+            7 |   await cookies()
+         >  8 |   const now = Date.now()
               |                    ^
-           12 |   return (
-           13 |     <main>
-           14 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
+            9 |   return (
+           10 |     <main>
+           11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:11:20)
-            9 | export default async function Page() {
-           10 |   await cookies()
-         > 11 |   const now = Date.now()
+             at b (app/suspense-in-root/runtime/invalid-sync-io/page.tsx:8:20)
+            6 | export default async function Page() {
+            7 |   await cookies()
+         >  8 |   const now = Date.now()
               |                    ^
-           12 |   return (
-           13 |     <main>
-           14 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
+            9 |   return (
+           10 |     <main>
+           11 |       <p>This page uses sync IO after awaiting cookies(): {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io" in your browser to investigate the error.
@@ -806,11 +806,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (15:20) @ Page
-         > 15 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (12:20) @ Page
+         > 12 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Page app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (15:20)",
+             "Page app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx (12:20)",
              "Page <anonymous>",
            ],
          }
@@ -822,32 +822,32 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:15:20)
-           13 | export default async function Page() {
-           14 |   await cookies()
-         > 15 |   const now = Date.now()
+             at a (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
+           10 | export default async function Page() {
+           11 |   await cookies()
+         > 12 |   const now = Date.now()
               |                    ^
-           16 |   return (
-           17 |     <main>
-           18 |       <p>Runtime page with sync IO after cookies: {now}</p>
+           13 |   return (
+           14 |     <main>
+           15 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:15:20)
-           13 | export default async function Page() {
-           14 |   await cookies()
-         > 15 |   const now = Date.now()
+             at b (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
+           10 | export default async function Page() {
+           11 |   await cookies()
+         > 12 |   const now = Date.now()
               |                    ^
-           16 |   return (
-           17 |     <main>
-           18 |       <p>Runtime page with sync IO after cookies: {now}</p>
+           13 |   return (
+           14 |     <main>
+           15 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:15:20)
-           13 | export default async function Page() {
-           14 |   await cookies()
-         > 15 |   const now = Date.now()
+             at c (app/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent/page.tsx:12:20)
+           10 | export default async function Page() {
+           11 |   await cookies()
+         > 12 |   const now = Date.now()
               |                    ^
-           16 |   return (
-           17 |     <main>
-           18 |       <p>Runtime page with sync IO after cookies: {now}</p>
+           13 |   return (
+           14 |     <main>
+           15 |       <p>Runtime page with sync IO after cookies: {now}</p>
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-in-runtime-with-valid-static-parent" in your browser to investigate the error.
@@ -879,11 +879,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (31:20) @ Page
-         > 31 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (28:20) @ Page
+         > 28 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Page app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (31:20)",
+             "Page app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx (28:20)",
              "Page <anonymous>",
            ],
          }
@@ -895,14 +895,14 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input" accessed cookie "testCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "testCookie", value: null }\` if it should be absent.
-             at <unknown> (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:29:49)
-           27 |
-           28 | export default async function Page() {
-         > 29 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
+             at <unknown> (app/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input/page.tsx:26:49)
+           24 |
+           25 | export default async function Page() {
+         > 26 |   const cookiePromise = cookies().then((c) => c.get('testCookie')?.value ?? '')
               |                                                 ^
-           30 |   await cachedFn(cookiePromise)
-           31 |   const now = Date.now()
-           32 |   return ( {
+           27 |   await cachedFn(cookiePromise)
+           28 |   const now = Date.now()
+           29 |   return ( {
            digest: 'INSTANT_VALIDATION_ERROR'
          }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-after-cache-with-cookie-input".
@@ -947,11 +947,11 @@ describe('instant validation', () => {
            "description": "Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (12:20) @ Module.generateMetadata
-         > 12 |   const now = Date.now()
+           "source": "app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (9:20) @ Module.generateMetadata
+         >  9 |   const now = Date.now()
               |                    ^",
            "stack": [
-             "Module.generateMetadata app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (12:20)",
+             "Module.generateMetadata app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx (9:20)",
              "Next.MetadataOutlet <anonymous>",
            ],
          }
@@ -963,23 +963,23 @@ describe('instant validation', () => {
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
          "Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:12:20)
-           10 | export async function generateMetadata() {
-           11 |   await cookies()
-         > 12 |   const now = Date.now()
+             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
+            7 | export async function generateMetadata() {
+            8 |   await cookies()
+         >  9 |   const now = Date.now()
               |                    ^
-           13 |   return {
-           14 |     title: \`Sync IO in metadata: \${now}\`,
-           15 |   }
+           10 |   return {
+           11 |     title: \`Sync IO in metadata: \${now}\`,
+           12 |   }
          Error: Route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" used \`Date.now()\` before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time
-             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:12:20)
-           10 | export async function generateMetadata() {
-           11 |   await cookies()
-         > 12 |   const now = Date.now()
+             at Module.e [as generateMetadata] (app/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata/page.tsx:9:20)
+            7 | export async function generateMetadata() {
+            8 |   await cookies()
+         >  9 |   const now = Date.now()
               |                    ^
-           13 |   return {
-           14 |     title: \`Sync IO in metadata: \${now}\`,
-           15 |   }
+           10 |   return {
+           11 |     title: \`Sync IO in metadata: \${now}\`,
+           12 |   }
          Build-time instant validation failed for route "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata".
          To get a more detailed stack trace and pinpoint the issue, try one of the following:
            - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/runtime/invalid-sync-io-in-generate-metadata" in your browser to investigate the error.
@@ -1123,7 +1123,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = {
+         > 4 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:33)",
@@ -1135,12 +1135,12 @@ describe('instant validation', () => {
            "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
-           "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (37:19) @ Dynamic
-         > 37 |   await connection()
+           "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (34:19) @ Dynamic
+         > 34 |   await connection()
               |                   ^",
            "stack": [
-             "Dynamic app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (37:19)",
-             "Page app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (25:9)",
+             "Dynamic app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (34:19)",
+             "Page app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (22:9)",
            ],
          }
         `)
@@ -1187,7 +1187,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = { prefetch: 'static' }
+         > 4 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33)",
@@ -1264,7 +1264,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = {
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33)",
@@ -1276,11 +1276,11 @@ describe('instant validation', () => {
              "description": "Next.js encountered runtime data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
-             "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (9:16) @ Page
-           >  9 |   await cookies()
-                |                ^",
+             "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16) @ Page
+           > 6 |   await cookies()
+               |                ^",
              "stack": [
-               "Page app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (9:16)",
+               "Page app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (6:16)",
              ],
            }
           `)
@@ -1352,7 +1352,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { prefetch: 'static' }
+           > 1 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33)",
@@ -1413,7 +1413,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = {
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33)",
@@ -1477,7 +1477,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { prefetch: 'static' }
+           > 1 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33)",
@@ -1539,7 +1539,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { prefetch: 'static' }
+           > 1 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33)",
@@ -1601,7 +1601,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { prefetch: 'static' }
+           > 1 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33)",
@@ -1659,32 +1659,32 @@ describe('instant validation', () => {
             '/suspense-in-root/static/invalid-client-data-blocks-validation'
           )
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33) @ unstable_instant
-             > 1 | export const unstable_instant = {
-                 |                                 ^",
-                   "stack": [
-                     "unstable_instant app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1082",
-               "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
-               "environmentLabel": "Server",
-               "label": "Console Error",
-               "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19) @ FetchesClientData
-             > 12 |   const data = use(promise)
-                  |                   ^",
-               "stack": [
-                 "FetchesClientData app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19)",
-                 "Layout app/suspense-in-root/static/invalid-client-data-blocks-validation/layout.tsx (17:9)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = true
+               |                                 ^",
+                 "stack": [
+                   "unstable_instant app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1082",
+             "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.",
+             "environmentLabel": "Server",
+             "label": "Console Error",
+             "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19) @ FetchesClientData
+           > 12 |   const data = use(promise)
+                |                   ^",
+             "stack": [
+               "FetchesClientData app/suspense-in-root/static/invalid-client-data-blocks-validation/client.tsx (12:19)",
+               "Layout app/suspense-in-root/static/invalid-client-data-blocks-validation/layout.tsx (17:9)",
+             ],
+           }
+          `)
         } else {
           const result = await prerender(
             '/suspense-in-root/static/invalid-client-data-blocks-validation'
@@ -1831,7 +1831,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = {
+           > 1 | export const unstable_instant = true
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33)",
@@ -1937,7 +1937,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = {
+           > 1 | export const unstable_instant = true
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33)",
@@ -2004,7 +2004,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = {
+           > 1 | export const unstable_instant = true
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33)",
@@ -2100,7 +2100,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = {
+           > 1 | export const unstable_instant = true
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33)",
@@ -2254,7 +2254,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33) @ unstable_instant
-           >  8 | export const unstable_instant = {
+           >  8 | export const unstable_instant = true
                 |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33)",
@@ -2280,11 +2280,11 @@ describe('instant validation', () => {
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (14:16) @ Module.generateViewport
-           > 14 |   await cookies()
+             "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
+           > 11 |   await cookies()
                 |                ^",
              "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (14:16)",
+               "Module.generateViewport app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16)",
              ],
            }
           `)
@@ -2319,7 +2319,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33) @ unstable_instant
-           > 6 | export const unstable_instant = {
+           > 6 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33)",
@@ -2343,11 +2343,11 @@ describe('instant validation', () => {
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
              "environmentLabel": "Server",
              "label": "Blocking Route",
-             "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (14:19) @ Module.generateViewport
-           > 14 |   await connection()
+             "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19) @ Module.generateViewport
+           > 11 |   await connection()
                 |                   ^",
              "stack": [
-               "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (14:19)",
+               "Module.generateViewport app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (11:19)",
              ],
            }
           `)
@@ -2420,7 +2420,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33)",
@@ -2483,7 +2483,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:33)",
@@ -2544,7 +2544,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:33)",
@@ -2606,7 +2606,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:33)",
@@ -2668,7 +2668,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:33)",
@@ -2730,7 +2730,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:33)",
@@ -2799,7 +2799,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:33) @ unstable_instant
-           > 6 | export const unstable_instant = { prefetch: 'static' }
+           > 6 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:33)",
@@ -2870,31 +2870,31 @@ describe('instant validation', () => {
             '/suspense-in-root/static/parallel-group-depths-deep-slot-hole'
           )
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33) @ unstable_instant
-             > 1 | export const unstable_instant = { prefetch: 'static' }
-                 |                                 ^",
-                   "stack": [
-                     "unstable_instant app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1166",
-               "description": "Next.js encountered runtime data during the initial render.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16) @ G3Layout
-             >  7 |   await cookies()
-                  |                ^",
-               "stack": [
-                 "G3Layout app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33) @ unstable_instant
+           > 1 | export const unstable_instant = true
+               |                                 ^",
+                 "stack": [
+                   "unstable_instant app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "code": "E1166",
+             "description": "Next.js encountered runtime data during the initial render.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16) @ G3Layout
+           >  7 |   await cookies()
+                |                ^",
+             "stack": [
+               "G3Layout app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/layout.tsx (7:16)",
+             ],
+           }
+          `)
         } else {
           const result = await prerender(
             '/suspense-in-root/static/parallel-group-depths-deep-slot-hole/(b1)/(b2)'
@@ -2945,7 +2945,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = { prefetch: 'static' }
+           > 1 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:33)",
@@ -3016,7 +3016,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:33) @ unstable_instant
-         > 6 | export const unstable_instant = {
+         > 6 | export const unstable_instant = true
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:33)",
@@ -3084,7 +3084,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:33)",
@@ -3135,7 +3135,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = { prefetch: 'static' }
+           > 3 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:33)",
@@ -3199,7 +3199,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/config-children-preferred/page.tsx (4:33) @ unstable_instant
-           > 4 | export const unstable_instant = { prefetch: 'static' }
+           > 4 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/config-children-preferred/page.tsx (4:33)",
@@ -3264,7 +3264,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:33) @ unstable_instant
-           > 5 | export const unstable_instant = { prefetch: 'static' }
+           > 5 | export const unstable_instant = true
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:33)",
@@ -3391,7 +3391,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = {
+           > 3 | export const unstable_instant = { unstable_disableBuildValidation: true }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/disable-validation/disable-build/page.tsx (3:33)",
@@ -3403,11 +3403,11 @@ describe('instant validation', () => {
              "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
-             "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19) @ Page
-           >  9 |   await connection()
-                |                   ^",
+             "source": "app/suspense-in-root/disable-validation/disable-build/page.tsx (6:19) @ Page
+           > 6 |   await connection()
+               |                   ^",
              "stack": [
-               "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (9:19)",
+               "Page app/suspense-in-root/disable-validation/disable-build/page.tsx (6:19)",
              ],
            }
           `)

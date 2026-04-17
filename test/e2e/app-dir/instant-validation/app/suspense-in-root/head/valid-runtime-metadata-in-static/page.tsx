@@ -2,10 +2,7 @@ import { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
-export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ cookies: [] }],
-}
+export const unstable_instant = true
 
 export async function generateMetadata(): Promise<Metadata> {
   await cookies()

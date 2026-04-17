@@ -1,7 +1,7 @@
 import { connection } from 'next/server'
 import { ReactNode } from 'react'
 
-export const unstable_instant = { prefetch: 'static' }
+export const unstable_instant = true
 
 export default async function Layout({ children }: { children: ReactNode }) {
   return (

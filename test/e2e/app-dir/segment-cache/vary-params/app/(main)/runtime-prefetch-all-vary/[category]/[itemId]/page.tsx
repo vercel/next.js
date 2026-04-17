@@ -9,10 +9,8 @@ import { connection } from 'next/server'
  * requires its own prefetch — no cache sharing.
  */
 export const unstable_instant: {
-  prefetch: 'runtime'
   samples: Array<{ params: { category: string; itemId: string } }>
 } = {
-  prefetch: 'runtime',
   samples: [
     { params: { category: 'electronics', itemId: 'phone' } },
     { params: { category: 'clothing', itemId: 'shirt' } },

@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-const unstable_instant = { prefetch: 'static' }
+const unstable_instant = true
 export { unstable_instant }
 
 export default async function Page() {

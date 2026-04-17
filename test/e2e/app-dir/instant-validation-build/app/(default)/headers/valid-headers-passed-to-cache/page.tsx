@@ -3,7 +3,6 @@ import { headers } from 'next/headers'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       headers: [['x-test-header', 'testValue']],

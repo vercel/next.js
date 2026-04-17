@@ -1,7 +1,4 @@
-export const unstable_instant = {
-  prefetch: 'static',
-  samples: [{ params: { param: '123' } }],
-}
+export const unstable_instant = { samples: [{ params: { param: '123' } }] }
 
 export default async function Page({
   params,

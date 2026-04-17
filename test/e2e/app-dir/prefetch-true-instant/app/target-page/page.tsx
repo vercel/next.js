@@ -3,7 +3,6 @@ import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
   samples: [{ cookies: [{ name: 'test', value: null }] }],
 }
 export const unstable_prefetch = 'force-runtime'
