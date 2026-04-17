@@ -198,6 +198,15 @@ const rawFiles = import.meta.glob('./dir/*.txt', { query: '?raw' })
 const urls = import.meta.glob('./dir/*.png', { query: '?url' })
 ```
 
+The `query` option also accepts an object. Keys and values are URL-encoded and joined into a query string:
+
+```js
+const modules = import.meta.glob('./*.ts', {
+  query: { bar: 'foo', raw: true },
+})
+// equivalent to: { query: '?bar=foo&raw=true' }
+```
+
 ### Multiple patterns and negation
 
 Pass an array of glob patterns as the first argument. Prefix a pattern with `!` to exclude matching files:
@@ -210,14 +219,28 @@ const modules = import.meta.glob(['./dir/*.js', './other/*.js'])
 const withoutTests = import.meta.glob(['./src/**/*.js', '!**/*.test.js'])
 ```
 
+### TypeScript
+
+TypeScript types for `import.meta.glob` are included in Next.js. They are available automatically when `"moduleResolution": "bundler"` (or `"node16"` / `"nodenext"`) is set in your `tsconfig.json`, which is the default for new Next.js projects.
+
+The return type differs based on the `eager` option:
+
+```ts
+// Lazy (default) — Record<string, () => Promise<unknown>>
+const lazy = import.meta.glob('./dir/*.ts')
+
+// Eager — Record<string, unknown>
+const eager = import.meta.glob('./dir/*.ts', { eager: true })
+```
+
 ### Options reference
 
-| Option   | Type      | Default     | Description                                                            |
-| -------- | --------- | ----------- | ---------------------------------------------------------------------- |
-| `eager`  | `boolean` | `false`     | Import modules synchronously instead of returning thunks.              |
-| `import` | `string`  | `undefined` | Named export to select from each matched module (e.g. `'default'`).    |
-| `query`  | `string`  | `undefined` | Query string to append to each import (e.g. `'?raw'`, `'?url'`).       |
-| `base`   | `string`  | `undefined` | Override the base path used for resolving patterns and keying results. |
+| Option   | Type                                          | Default     | Description                                                            |
+| -------- | --------------------------------------------- | ----------- | ---------------------------------------------------------------------- |
+| `eager`  | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.              |
+| `import` | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).    |
+| `query`  | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                     |
+| `base`   | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results. |
 
 > **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query: '?raw'` or `query: '?url'` instead. The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 
