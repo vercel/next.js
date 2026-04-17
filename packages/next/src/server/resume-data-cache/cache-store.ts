@@ -11,7 +11,7 @@ import type { CollectedCacheResult } from '../use-cache/use-cache-wrapper'
  */
 type CacheStore<T> = Pick<
   Map<string, T>,
-  'entries' | 'keys' | 'size' | 'get' | 'set' | typeof Symbol.iterator
+  'entries' | 'keys' | 'size' | 'get' | 'set' | 'has' | typeof Symbol.iterator
 >
 
 /**
