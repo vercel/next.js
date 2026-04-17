@@ -1,0 +1,15 @@
+{
+  "file": "test/development/config-devtool-dev/config-devtool-dev.test.ts",
+  "mode": "dev",
+  "verdict": "pass",
+  "exitCode": 0,
+  "durationMs": 5163,
+  "killed": false,
+  "summary": "Tests:       1 skipped, 1 total",
+  "testsPassed": 0,
+  "testsFailed": 0,
+  "testsSkipped": 1,
+  "testsTotal": 1,
+  "failedTests": [],
+  "output": "\n> nextjs-project@0.0.0 test-dev-turbo /Users/timneutkens/projects/next.js-3\n> pnpm run with-turbo pnpm test-dev-inner test/development/config-devtool-dev/config-devtool-dev.test.ts\n\n\n> nextjs-project@0.0.0 with-turbo /Users/timneutkens/projects/next.js-3\n> cross-env IS_TURBOPACK_TEST=1 pnpm test-dev-inner test/development/config-devtool-dev/config-devtool-dev.test.ts\n\n\n> nextjs-project@0.0.0 test-dev-inner /Users/timneutkens/projects/next.js-3\n> cross-env NEXT_TEST_MODE=dev pnpm testheadless test/development/config-devtool-dev/config-devtool-dev.test.ts\n\n\n> nextjs-project@0.0.0 testheadless /Users/timneutkens/projects/next.js-3\n> cross-env HEADLESS=true pnpm testonly test/development/config-devtool-dev/config-devtool-dev.test.ts\n\n\n> nextjs-project@0.0.0 testonly /Users/timneutkens/projects/next.js-3\n> jest --runInBand test/development/config-devtool-dev/config-devtool-dev.test.ts\n\nRunning tests with turbopack because environment variable IS_TURBOPACK_TEST is set\nUsing test mode: dev in test folder development\nTest Suites: 1 skipped, 0 of 1 total\nTests:       1 skipped, 1 total\nSnapshots:   0 total\nTime:        0.517 s\nRan all test suites matching /test\\/development\\/config-devtool-dev\\/config-devtool-dev.test.ts/i.\n"
+}

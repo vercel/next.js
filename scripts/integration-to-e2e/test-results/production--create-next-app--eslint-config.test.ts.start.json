@@ -1,0 +1,18 @@
+{
+  "file": "test/production/create-next-app/eslint-config.test.ts",
+  "mode": "start",
+  "verdict": "fail",
+  "exitCode": 1,
+  "durationMs": 7432,
+  "killed": false,
+  "summary": "Tests:       2 failed, 2 total",
+  "testsPassed": 0,
+  "testsFailed": 2,
+  "testsSkipped": 0,
+  "testsTotal": 2,
+  "failedTests": [
+    "create-next-app ESLint configuration › should generate eslint.config.mjs for TypeScript project with ESLint",
+    "create-next-app ESLint configuration › should generate eslint.config.mjs for JavaScript project with ESLint"
+  ],
+  "output": "\n> nextjs-project@0.0.0 test-start-turbo /Users/timneutkens/projects/next.js-3\n> pnpm run with-turbo pnpm test-start-inner test/production/create-next-app/eslint-config.test.ts\n\n\n> nextjs-project@0.0.0 with-turbo /Users/timneutkens/projects/next.js-3\n> cross-env IS_TURBOPACK_TEST=1 pnpm test-start-inner test/production/create-next-app/eslint-config.test.ts\n\n\n> nextjs-project@0.0.0 test-start-inner /Users/timneutkens/projects/next.js-3\n> cross-env NEXT_TEST_MODE=start pnpm testheadless test/production/create-next-app/eslint-config.test.ts\n\n\n> nextjs-project@0.0.0 testheadless /Users/timneutkens/projects/next.js-3\n> cross-env HEADLESS=true pnpm testonly test/production/create-next-app/eslint-config.test.ts\n\n\n> nextjs-project@0.0.0 testonly /Users/timneutkens/projects/next.js-3\n> jest --runInBand test/production/create-next-app/eslint-config.test.ts\n\nRunning tests with turbopack because environment variable IS_TURBOPACK_TEST is set\nUsing test mode: start in test folder production\nFAIL Turbopack test/production/create-next-app/eslint-config.test.ts\n  create-next-app ESLint configuration\n    ✕ should generate eslint.config.mjs for TypeScript project with ESLint\n    ✕ should generate eslint.config.mjs for JavaScript project with ESLint\n\n  ● create-next-app ESLint configuration › should generate eslint.config.mjs for TypeScript project with ESLint\n\n    This test needs to be run with `node run-tests.js`.\n\n       9 |   beforeAll(() => {\n      10 |     if (!process.env.NEXT_TEST_PKG_PATHS) {\n    > 11 |       throw new Error('This test needs to be run with `node run-tests.js`.')\n         |             ^\n      12 |     }\n      13 |\n      14 |     const pkgPaths = new Map<string, string>(\n\n      at Object.<anonymous> (production/create-next-app/eslint-config.test.ts:11:13)\n\n  ● create-next-app ESLint configuration › should generate eslint.config.mjs for JavaScript project with ESLint\n\n    This test needs to be run with `node run-tests.js`.\n\n       9 |   beforeAll(() => {\n      10 |     if (!process.env.NEXT_TEST_PKG_PATHS) {\n    > 11 |       throw new Error('This test needs to be run with `node run-tests.js`.')\n         |             ^\n      12 |     }\n      13 |\n      14 |     const pkgPaths = new Map<string, string>(\n\n      at Object.<anonymous> (production/create-next-app/eslint-config.test.ts:11:13)\n\nTest Suites: 1 failed, 1 total\nTests:       2 failed, 2 total\nSnapshots:   0 total\nTime:        0.84 s\nRan all test suites matching /test\\/production\\/create-next-app\\/eslint-config.test.ts/i.\n ELIFECYCLE  Command failed with exit code 1.\n ELIFECYCLE  Command failed with exit code 1.\n ELIFECYCLE  Command failed with exit code 1.\n ELIFECYCLE  Command failed with exit code 1.\n ELIFECYCLE  Command failed with exit code 1.\n"
+}

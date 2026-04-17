@@ -1,0 +1,15 @@
+{
+  "file": "test/e2e/link-without-router/link-without-router.test.tsx",
+  "mode": "dev",
+  "verdict": "pass",
+  "exitCode": 0,
+  "durationMs": 10430,
+  "killed": false,
+  "summary": "Tests:       1 passed, 1 total",
+  "testsPassed": 1,
+  "testsFailed": 0,
+  "testsSkipped": 0,
+  "testsTotal": 1,
+  "failedTests": [],
+  "output": "\n> nextjs-project@0.0.0 test-dev-turbo /Users/timneutkens/projects/next.js-3\n> pnpm run with-turbo pnpm test-dev-inner test/e2e/link-without-router/link-without-router.test.tsx\n\n\n> nextjs-project@0.0.0 with-turbo /Users/timneutkens/projects/next.js-3\n> cross-env IS_TURBOPACK_TEST=1 pnpm test-dev-inner test/e2e/link-without-router/link-without-router.test.tsx\n\n\n> nextjs-project@0.0.0 test-dev-inner /Users/timneutkens/projects/next.js-3\n> cross-env NEXT_TEST_MODE=dev pnpm testheadless test/e2e/link-without-router/link-without-router.test.tsx\n\n\n> nextjs-project@0.0.0 testheadless /Users/timneutkens/projects/next.js-3\n> cross-env HEADLESS=true pnpm testonly test/e2e/link-without-router/link-without-router.test.tsx\n\n\n> nextjs-project@0.0.0 testonly /Users/timneutkens/projects/next.js-3\n> jest --runInBand test/e2e/link-without-router/link-without-router.test.tsx\n\nPASS Turbopack test/e2e/link-without-router/link-without-router.test.tsx\n  Link without a router\n    ✓ should not throw when rendered (19 ms)\n\nTest Suites: 1 passed, 1 total\nTests:       1 passed, 1 total\nSnapshots:   0 total\nTime:        2.599 s\nRan all test suites matching /test\\/e2e\\/link-without-router\\/link-without-router.test.tsx/i.\n"
+}
