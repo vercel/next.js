@@ -3,9 +3,7 @@
 
 module.exports = {};
 }),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)", "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/params.js [test] (ecmascript)", 
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/collect-segment-data.js [test] (ecmascript)", 
-((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)
@@ -13,11 +11,9 @@ module.exports = {};
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/params.js [test] (ecmascript)
 ;
-__turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/params.js [test] (ecmascript)");
 ;
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/collect-segment-data.js [test] (ecmascript)
 ;
-__turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/collect-segment-data.js [test] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$source_maps$2f$merged$2d$unicode$2f$input$2f$jsx$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/jsx-runtime.js [test] (ecmascript)");
 ;
 // eslint-disable-next-line import/no-extraneous-dependencies

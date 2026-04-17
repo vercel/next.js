@@ -1,6 +1,5 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_scope-hoisting_split-shared_input_big_index_194gu9x.js",
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)", "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/other.js [test] (ecmascript)", 
-((__turbopack_context__) => {
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)
@@ -11,10 +10,6 @@ __turbopack_context__.s([
 ], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/index.js [test] (ecmascript)");
 // MERGED MODULE: [project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/other.js [test] (ecmascript)
 ;
-__turbopack_context__.s([
-    "default",
-    ()=>__TURBOPACK__default__export__
-], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/scope-hoisting/split-shared/input/big/other.js [test] (ecmascript)");
 const __TURBOPACK__default__export__ = `
 v8XyDjNBXwWR6pNaTwYLp5bfUJ1P8nN4Yigyk9c9S9Xt5JHt28veqF0SRPGEmShfRPTn2LnHWZbPWw5FDmaTfLPdX4NfEzJYzehn
 T6Qw1dW8tnJ3VJUHHE0QUch181CwhbSHbRvzCzwJ66gJ5PWLzpCit6mZ2ZaGuM3kg6Gmmj301bwKWvY0EhFLW26YiDJYyFeb8uR6

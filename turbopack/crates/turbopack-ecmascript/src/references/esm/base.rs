@@ -188,12 +188,13 @@ impl ReferencedAsset {
                             }));
                         }
                         Some(EsmExport::ImportedNamespace(_)) => {
-                            // A namespace re-export (e.g. `export * as X from '...'`) — the
-                            // namespace is always a module object, it cannot be a local binding
-                            // and recursing wouldn't give a more useful identifier. Just refer
-                            // to the outer `asset` directly, so the `namespace_ident` encodes
-                            // the outer asset's chunk item id (which also has to match the id
-                            // used in the runtime `__turbopack_context__.i(...)` lookup).
+                            // A namespace re-export (e.g. `export * as X from '...'`) — always
+                            // use the outer `asset`'s chunk item id for the `namespace_ident`.
+                            // Recursing would derive the ident from the inner module (and in
+                            // particular from a different module when the re-export is mediated
+                            // by a synthesized `EcmascriptModuleRenameModule`), but the callers
+                            // that emit `var <namespace_ident> = __turbopack_context__.i(id)`
+                            // look up `id` on the outer asset. The two ids must match.
                             return Ok(Some(ReferencedAssetIdent::Module {
                                 namespace_ident: Self::get_ident_from_placeable(
                                     asset,
