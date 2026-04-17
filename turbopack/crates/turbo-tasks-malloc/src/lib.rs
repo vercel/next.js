@@ -116,7 +116,8 @@ impl TurboMalloc {
     /// `0` means no memory pressure, `100` means maximum pressure.
     ///
     /// - On Linux this is derived from `/proc/pressure/memory` (the `some` `avg10` stall
-    ///   percentage).
+    ///   percentage), falling back to `(MemTotal - MemAvailable) / MemTotal` from `/proc/meminfo`
+    ///   when PSI is not available (older kernels, no `CONFIG_PSI`, or containers without access).
     /// - On macOS this is derived from the `kern.memorystatus_level` sysctl (`100 -
     ///   free_memory_percentage`).
     /// - On Windows this is `MEMORYSTATUSEX::dwMemoryLoad` (percentage of physical memory in use).
@@ -188,13 +189,29 @@ mod tests {
 
     #[test]
     fn memory_pressure_is_in_range() {
-        // On supported platforms the value must be within 0..=100. On
-        // unsupported platforms we expect `None` and have nothing to assert.
-        if let Some(value) = TurboMalloc::memory_pressure() {
-            assert!(
-                value <= 100,
-                "memory_pressure() returned {value}, expected a value in 0..=100"
-            );
-        }
+        let value = TurboMalloc::memory_pressure();
+
+        // On all supported platforms the value must be reported.
+        #[cfg(any(
+            all(target_os = "linux", not(target_family = "wasm")),
+            target_os = "macos",
+            windows,
+        ))]
+        let value = value.expect("memory_pressure() should return Some on this platform");
+
+        // On unsupported platforms we expect None and have nothing further to assert.
+        #[cfg(not(any(
+            all(target_os = "linux", not(target_family = "wasm")),
+            target_os = "macos",
+            windows,
+        )))]
+        let Some(value) = value else {
+            return;
+        };
+
+        assert!(
+            value <= 100,
+            "memory_pressure() returned {value}, expected a value in 0..=100"
+        );
     }
 }
