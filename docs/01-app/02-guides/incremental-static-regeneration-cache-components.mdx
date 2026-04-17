@@ -76,13 +76,11 @@ export async function getProducts(category?: string): Promise<Product[]> {
   return res.json()
 }
 
-// Prerender the top categories.
 export async function getTopCategories() {
   const categories = await getCategories()
   return categories.slice(0, 2)
 }
 
-// Prerender the most popular products for a given category.
 export async function getPopularProducts(category: string) {
   const products = await getProducts(category)
   return products.slice(0, 1)
@@ -91,10 +89,15 @@ export async function getPopularProducts(category: string) {
 
 The category layout reads `params` and wraps the header in a `<Suspense>` boundary. `generateStaticParams` fetches the subset of categories to prerender:
 
-```tsx filename="app/[category]/layout.tsx" highlight={25-27,34-37}
+```tsx filename="app/[category]/layout.tsx" highlight={4-7}
 import Link from 'next/link'
 import { type ReactNode, Suspense } from 'react'
 import { getCategory, getTopCategories } from '../lib/data'
+
+export async function generateStaticParams() {
+  const categories = await getTopCategories()
+  return categories.map((c) => ({ category: c.slug }))
+}
 
 async function CategoryHeader({ slug }: { slug: string }) {
   const category = await getCategory(slug)
@@ -126,18 +129,22 @@ export default async function CategoryLayout({
     </div>
   )
 }
-
-export async function generateStaticParams() {
-  const categories = await getTopCategories()
-  return categories.map((c) => ({ category: c.slug }))
-}
 ```
 
 The product page receives the parent `category` param and fetches the most popular products for that category:
 
-```tsx filename="app/[category]/[product]/page.tsx" highlight={27-34}
+```tsx filename="app/[category]/[product]/page.tsx" highlight={4-11}
 import Link from 'next/link'
 import { getProduct, getPopularProducts } from '../../lib/data'
+
+export async function generateStaticParams({
+  params,
+}: {
+  params: { category: string }
+}) {
+  const products = await getPopularProducts(params.category)
+  return products.map((p) => ({ product: p.slug }))
+}
 
 export default async function ProductPage({
   params,
@@ -159,16 +166,6 @@ export default async function ProductPage({
       <p>{data.description}</p>
     </div>
   )
-}
-
-// Prerender the most popular products for this category.
-export async function generateStaticParams({
-  params,
-}: {
-  params: { category: string }
-}) {
-  const products = await getPopularProducts(params.category)
-  return products.map((p) => ({ product: p.slug }))
 }
 ```
 
@@ -216,9 +213,9 @@ How far Next.js can push the static boundary determines the result:
 
 > **Good to know**: Client-side prefetches (via [`<Link>`](/docs/app/api-reference/components/link) or [`router.prefetch`](/docs/app/api-reference/functions/use-router)) do not trigger upgrades. Only a full page visit does.
 
-To disable fallback shells and upgrades entirely (reverting to blocking behavior for uncached routes), set [`experimental.partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) to `false`.
+To disable fallback shells and revert to blocking behavior for uncached routes, set [`experimental.partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) to `false`. The page is still cached after the first visit, but visitors wait for the full render instead of seeing a loading state.
 
-### Step 5: Coming from the Pages Router
+## Coming from the Pages Router
 
 If you are migrating from the Pages Router:
 

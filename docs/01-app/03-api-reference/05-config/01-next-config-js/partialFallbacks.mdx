@@ -15,7 +15,7 @@ related:
 [Dynamic routes](/docs/app/api-reference/file-conventions/dynamic-routes) that use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) are prerendered at build time for each combination returned. Without `partialFallbacks`, you face a tradeoff:
 
 - **Prerender every combination** with `generateStaticParams`: this can lead to longer build times and increased cache write costs.
-- **Skip `generateStaticParams`**: the server blocks until the full page is rendered before sending any content to the visitor.
+- **Skip `generateStaticParams`**: every visitor gets a generic fallback shell with no param-specific content prerendered.
 
 [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) with `partialFallbacks` enabled changes this. Instead of blocking until the page is rendered, the visitor gets a **fallback shell** instantly. A fallback shell is prerendered static content where one or more params are unknown at build time.
 
@@ -101,7 +101,7 @@ For the route above, this produces:
 - `/electronics/[slug]`: category resolved, slug shows fallback UI
 - `/[category]/[slug]`: both params show fallback UI
 
-> **Good to know**: If there is no `Suspense` fallback above the param access, no shell can be generated and the page blocks at request time.
+> **Good to know**: If there is no `<Suspense>` fallback above the param access, no shell can be generated and the page blocks at request time, just like it does without `partialFallbacks`.
 
 ### Upgrades
 
@@ -200,7 +200,7 @@ export function generateStaticParams() {
 }
 ```
 
-With this setup:
+At runtime:
 
 1. `/electronics/headphones` (both params prerendered): served as a fully static page.
 2. `/electronics/speakers` (known category, unknown slug): the `/electronics/[slug]` fallback shell is served with the category layout already prerendered. The slug content streams in through `<Suspense>`.
