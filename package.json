@@ -351,7 +351,10 @@
       "minizlib@3.1.0": "patches/minizlib@3.1.0.patch",
       "http-proxy@1.18.1": "patches/http-proxy@1.18.1.patch",
       "web-vitals@4.2.1": "patches/web-vitals@4.2.1.patch",
-      "@rspack/core@1.6.7": "patches/@rspack__core@1.6.7.patch"
+      "@rspack/core@1.6.7": "patches/@rspack__core@1.6.7.patch",
+      "@modelcontextprotocol/sdk": "patches/@modelcontextprotocol__sdk.patch",
+      "@vercel/blob": "patches/@vercel__blob.patch",
+      "postcss-scss": "patches/postcss-scss.patch"
     }
   }
 }
