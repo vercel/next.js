@@ -81,7 +81,7 @@ import type {
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
-import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
+import { fillStaticMetadataSegment } from '../lib/metadata/get-metadata-route'
 import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
 
 // Build a set of static metadata image filenames for quick lookup
@@ -111,10 +111,10 @@ function getTreeViewDisplayPath(pagePath: string): string {
     return pagePath
   }
 
-  // Transform using fillMetadataSegment with isStatic=true
+  // Transform using the static metadata resolver so dynamic segments use "-"
   const segment = pagePath.slice(0, lastSlash)
   const lastSegment = filename
-  return fillMetadataSegment(segment, {}, lastSegment, true)
+  return fillStaticMetadataSegment(segment, lastSegment)
 }
 
 export type ROUTER_TYPE = 'pages' | 'app'

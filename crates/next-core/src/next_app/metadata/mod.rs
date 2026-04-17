@@ -7,7 +7,7 @@ use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks_fs::FileSystemPath;
 
-use crate::next_app::{AppPage, PageSegment, PageType};
+use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
 
 pub mod image;
 pub mod route;
@@ -144,6 +144,16 @@ pub fn match_global_metadata_file<'a>(
     })
 }
 
+/// Regular expression pattern used to match route parameters.
+/// Matches both single parameters and parameter groups.
+/// Examples:
+///   - `[[...slug]]` matches parameter group with key 'slug', repeat: true, optional: true
+///   - `[...slug]` matches parameter group with key 'slug', repeat: true, optional: false
+///   - `[[foo]]` matches parameter with key 'foo', repeat: false, optional: true
+///   - `[bar]` matches parameter with key 'bar', repeat: false, optional: false
+static PARAMETER_PATTERN: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"^([^\[]*)\[((?:\[[^\]]*\])|[^\]]+)\](.*)$").unwrap());
+
 fn split_directory(path: &str) -> (Option<&str>, &str) {
     if let Some((dir, basename)) = path.rsplit_once('/') {
         if dir.is_empty() {
@@ -175,6 +185,42 @@ pub(crate) fn split_extension(path: &str) -> (&str, Option<&str>) {
 
 fn file_stem(path: &str) -> &str {
     split_extension(path).0
+}
+
+fn join_path(dir: &str, basename: &str) -> String {
+    if dir.is_empty() || dir == "/" {
+        format!("/{basename}")
+    } else {
+        format!("{}/{}", dir.trim_end_matches('/'), basename)
+    }
+}
+
+fn normalize_static_metadata_route_segment(segment: &str) -> String {
+    let mut normalized_segment = segment.to_string();
+
+    while let Some(captures) = PARAMETER_PATTERN.captures(&normalized_segment) {
+        let prefix = captures.get(1).map(|m| m.as_str()).unwrap_or_default();
+        let suffix = captures.get(3).map(|m| m.as_str()).unwrap_or_default();
+        normalized_segment = format!("{prefix}-{suffix}");
+    }
+
+    normalized_segment
+}
+
+fn get_static_metadata_route(segment: &str) -> String {
+    let pathname = AppPath::from(AppPage::parse(segment).unwrap_or_default()).to_string();
+    let mut route = String::new();
+
+    for segment in pathname.split('/').filter(|segment| !segment.is_empty()) {
+        route.push('/');
+        route.push_str(&normalize_static_metadata_route_segment(segment));
+    }
+
+    if route.is_empty() {
+        "/".to_string()
+    } else {
+        route
+    }
 }
 
 /// When you only pass the file extension as `[]`, it will only match the static
@@ -319,6 +365,23 @@ fn get_metadata_route_suffix(page: &str) -> Option<String> {
     }
 }
 
+pub fn fill_static_metadata_segment(segment: &str, last_segment: &str) -> String {
+    let route = get_static_metadata_route(segment);
+    let (name, ext) = split_extension(last_segment);
+    let page_path = join_path(segment, name);
+    let route_suffix = get_metadata_route_suffix(&page_path)
+        .map(|suffix| format!("-{suffix}"))
+        .unwrap_or_default();
+    let filename = format!(
+        "{}{}{}",
+        name,
+        route_suffix,
+        ext.map(|ext| format!(".{ext}")).unwrap_or_default()
+    );
+
+    join_path(&route, &filename)
+}
+
 /// Map metadata page key to the corresponding route
 ///
 /// static file page key:    /app/robots.txt -> /robots.txt -> /robots.txt/route
@@ -368,7 +431,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
 
 #[cfg(test)]
 mod test {
-    use super::{djb2_hash, format_radix, normalize_metadata_route};
+    use super::{djb2_hash, fill_static_metadata_segment, format_radix, normalize_metadata_route};
     use crate::next_app::AppPage;
 
     #[test]
@@ -401,5 +464,29 @@ mod test {
     fn test_format_radix_doesnt_panic_with_result_less_than_6_characters() {
         let hash = format_radix(djb2_hash("/lookup/[domain]/(dns)"), 36);
         assert!(hash.len() < 6);
+    }
+
+    #[test]
+    fn test_fill_static_metadata_segment() {
+        assert_eq!(
+            fill_static_metadata_segment("/", "favicon.ico"),
+            "/favicon.ico"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/blog/[slug]", "favicon.ico"),
+            "/blog/-/favicon.ico"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/client/(meme)/more-route", "twitter-image.png"),
+            "/client/more-route/twitter-image-769mad.png"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/(group)/group", "icon.png"),
+            "/group/icon-131tc6.png"
+        );
+        assert_eq!(
+            fill_static_metadata_segment("/parallel/@parallel", "icon.png"),
+            "/parallel/icon-kzjltp.png"
+        );
     }
 }

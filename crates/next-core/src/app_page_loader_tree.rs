@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_rcstr::{RcStr, rcstr};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{ModuleAssetContext, transition::Transition};
@@ -19,7 +19,9 @@ use crate::{
     base_loader_tree::{AppDirModuleType, BaseLoaderTreeBuilder},
     next_app::{
         AppPage,
-        metadata::{get_content_type, image::dynamic_image_metadata_source},
+        metadata::{
+            fill_static_metadata_segment, get_content_type, image::dynamic_image_metadata_source,
+        },
     },
     next_image::module::{BlurPlaceholderMode, StructuredImageModuleType},
 };
@@ -229,13 +231,6 @@ impl AppPageLoaderTreeBuilder {
 
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
-        let helper_import = rcstr!(
-            "import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'"
-        );
-
-        if !self.base.imports.contains(&helper_import) {
-            self.base.imports.push(helper_import);
-        }
 
         // This should use the same importing mechanism as create_module_tuple_code, so that the
         // relative order of items is retained (which isn't the case when mixing ESM imports and
@@ -290,7 +285,7 @@ impl AppPageLoaderTreeBuilder {
         };
 
         let s = "      ";
-        writeln!(self.loader_tree_code, "{s}(async (props) => {{")?;
+        writeln!(self.loader_tree_code, "{s}(async () => {{")?;
         writeln!(
             self.loader_tree_code,
             "{s}  const mod = interopDefault(await {identifier}());"
@@ -302,18 +297,20 @@ impl AppPageLoaderTreeBuilder {
             )?;
         }
         writeln!(self.loader_tree_code, "{s}  return [{{")?;
-        let pathname_prefix = if let Some(base_path) = &self.base_path {
-            format!("{base_path}/{app_page}")
-        } else {
-            app_page.to_string()
+        let pathname_prefix = match &self.base_path {
+            Some(base_path) if !base_path.is_empty() => {
+                format!("{base_path}{app_page}")
+            }
+            _ => app_page.to_string(),
         };
-        let metadata_route = &*get_metadata_route_name(item.clone().into()).await?;
+        let metadata_route = fill_static_metadata_segment(
+            &pathname_prefix,
+            &get_metadata_route_name(item.clone().into()).await?,
+        );
         writeln!(
             self.loader_tree_code,
-            "{s}    url: fillMetadataSegment({}, await props.params, {}, true) + \
-             `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
-            StringifyJs(&pathname_prefix),
-            StringifyJs(metadata_route),
+            "{s}    url: {} + `?${{mod.src.split(\"/\").splice(-1)[0]}}`,",
+            StringifyJs(&metadata_route),
         )?;
 
         let numeric_sizes = name == "twitter" || name == "openGraph";
