@@ -16,7 +16,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 type SearchParams = Record<string, string | string[]>
 

@@ -1163,7 +1163,7 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    const segmentHasRuntimePrefetch = prefetchConfig === 'runtime'
+    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
 
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage

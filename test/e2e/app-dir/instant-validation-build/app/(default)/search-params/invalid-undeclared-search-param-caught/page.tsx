@@ -4,7 +4,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ searchParams: { q: 'test' } }],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({
   searchParams,

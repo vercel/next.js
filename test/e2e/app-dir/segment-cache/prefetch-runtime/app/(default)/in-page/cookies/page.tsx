@@ -7,7 +7,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

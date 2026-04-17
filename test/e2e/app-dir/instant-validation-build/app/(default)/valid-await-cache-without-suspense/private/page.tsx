@@ -2,7 +2,7 @@ export const unstable_instant = {
   prefetch: 'runtime',
   samples: [{}],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   await privateCachedIO()

@@ -88,13 +88,13 @@ async function createFlightRouterStateFromLoaderTreeImpl(
     prefetchHints |= PrefetchHint.IsRootLayout
   }
 
-  if (instantConfig === false) {
-    prefetchHints |= PrefetchHint.PrefetchDisabled
-  } else if (instantConfig && typeof instantConfig === 'object') {
+  if (instantConfig && typeof instantConfig === 'object') {
     prefetchHints |= PrefetchHint.SubtreeHasInstant
   }
 
-  if (prefetchConfig === 'runtime') {
+  if (prefetchConfig === 'force-disabled') {
+    prefetchHints |= PrefetchHint.PrefetchDisabled
+  } else if (prefetchConfig === 'force-runtime') {
     prefetchHints |= PrefetchHint.HasRuntimePrefetch
   }
 

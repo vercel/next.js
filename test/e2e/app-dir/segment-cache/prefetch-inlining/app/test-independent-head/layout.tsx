@@ -15,7 +15,7 @@ export const unstable_instant = {
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 async function LayoutContent({ children }: { children: ReactNode }) {
   const cookieStore = await cookies()

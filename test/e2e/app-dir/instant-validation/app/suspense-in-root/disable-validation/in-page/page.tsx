@@ -5,7 +5,7 @@ export const unstable_instant = {
   samples: [{ cookies: [] }],
   unstable_disableValidation: true,
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   await connection()
