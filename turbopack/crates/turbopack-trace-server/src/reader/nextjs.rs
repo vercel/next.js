@@ -2,6 +2,7 @@ use std::{borrow::Cow, fmt::Display, sync::Arc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
+use turbo_rcstr::{RcStr, rcstr};
 
 use super::TraceFormat;
 use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
@@ -62,13 +63,13 @@ impl TraceFormat for NextJsFormat {
                 let index = store.add_span(
                     parent,
                     timestamp,
-                    "nextjs".to_string(),
-                    name.into_owned(),
+                    rcstr!("nextjs"),
+                    RcStr::from(name.into_owned()),
                     tags.iter()
                         .map(|(k, v)| {
                             (
-                                k.to_string(),
-                                v.as_ref().map(|v| v.to_string()).unwrap_or_default(),
+                                RcStr::from(k.as_ref()),
+                                RcStr::from(v.as_ref().map(|v| v.to_string()).unwrap_or_default()),
                             )
                         })
                         .collect(),

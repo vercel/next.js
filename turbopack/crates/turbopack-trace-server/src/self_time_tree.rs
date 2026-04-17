@@ -77,10 +77,18 @@ impl<T> SelfTimeTree<T> {
             let start = self.entries.iter().min_by_key(|e| e.start).unwrap().start;
             let end = self.entries.iter().max_by_key(|e| e.end).unwrap().end;
             let middle = (start + end) / 2;
+            // Pre-allocate half the split threshold: after distributing, each child
+            // typically receives ~SPLIT_COUNT / 2 entries.
             self.children = Some(Box::new(SelfTimeChildren {
-                left: SelfTimeTree::new(),
+                left: SelfTimeTree {
+                    entries: Vec::with_capacity(SPLIT_COUNT / 2),
+                    ..SelfTimeTree::default()
+                },
                 split_point: middle,
-                right: SelfTimeTree::new(),
+                right: SelfTimeTree {
+                    entries: Vec::with_capacity(SPLIT_COUNT / 2),
+                    ..SelfTimeTree::default()
+                },
                 spanning_entries: 0,
             }));
         }

@@ -1,6 +1,7 @@
 use std::{env, sync::Arc};
 
 use hashbrown::HashMap;
+use turbo_rcstr::RcStr;
 
 use crate::{
     span::{SpanBottomUp, SpanIndex},
@@ -11,7 +12,7 @@ use crate::{
 pub struct SpanBottomUpBuilder {
     // These values won't change after creation:
     pub self_spans: Vec<SpanIndex>,
-    pub children: HashMap<(String, String), SpanBottomUpBuilder>,
+    pub children: HashMap<(RcStr, RcStr), SpanBottomUpBuilder>,
     pub example_span: SpanIndex,
 }
 
@@ -43,7 +44,7 @@ pub fn build_bottom_up_graph<'a>(
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(usize::MAX);
-    let mut roots: HashMap<(String, String), SpanBottomUpBuilder> = HashMap::default();
+    let mut roots: HashMap<(RcStr, RcStr), SpanBottomUpBuilder> = HashMap::default();
 
     // unfortunately there is a rustc bug that fails the typechecking here
     // when using Either<impl Iterator, impl Iterator>. This error appears
@@ -64,7 +65,7 @@ pub fn build_bottom_up_graph<'a>(
                 .from_key(&StringTupleRef(category, name))
                 .or_insert_with(|| {
                     (
-                        (category.to_string(), name.to_string()),
+                        (RcStr::from(category), RcStr::from(name)),
                         SpanBottomUpBuilder::new(child.index()),
                     )
                 });
@@ -80,7 +81,7 @@ pub fn build_bottom_up_graph<'a>(
                     .from_key(&StringTupleRef(category, title))
                     .or_insert_with(|| {
                         (
-                            (category.to_string(), title.to_string()),
+                            (RcStr::from(category), RcStr::from(title)),
                             SpanBottomUpBuilder::new(example_span),
                         )
                     });

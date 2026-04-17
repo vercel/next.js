@@ -1,6 +1,9 @@
 #![feature(box_patterns)]
 #![feature(bufreader_peek)]
 
+#[global_allocator]
+static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
+
 use std::{hash::BuildHasherDefault, sync::Arc};
 
 use indexmap::{IndexMap, IndexSet};

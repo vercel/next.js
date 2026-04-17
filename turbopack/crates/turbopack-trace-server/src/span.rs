@@ -4,6 +4,7 @@ use std::{
 };
 
 use hashbrown::HashMap;
+use turbo_rcstr::RcStr;
 
 use crate::timestamp::Timestamp;
 
@@ -14,9 +15,9 @@ pub struct Span {
     pub parent: Option<SpanIndex>,
     pub depth: u32,
     pub start: Timestamp,
-    pub category: String,
-    pub name: String,
-    pub args: Vec<(String, String)>,
+    pub category: RcStr,
+    pub name: RcStr,
+    pub args: Vec<(RcStr, RcStr)>,
 
     // This might change during writing:
     pub events: Vec<SpanEvent>,
@@ -64,14 +65,14 @@ pub struct SpanTimeData {
 pub struct SpanExtra {
     pub graph: OnceLock<Vec<SpanGraphEvent>>,
     pub bottom_up: OnceLock<Vec<Arc<SpanBottomUp>>>,
-    pub search_index: OnceLock<HashMap<String, Vec<SpanIndex>>>,
+    pub search_index: OnceLock<HashMap<RcStr, Vec<SpanIndex>>>,
 }
 
 #[derive(Default)]
 pub struct SpanNames {
     // These values are computed when accessed (and maybe deleted during writing):
-    pub nice_name: OnceLock<(String, String)>,
-    pub group_name: OnceLock<(String, String)>,
+    pub nice_name: OnceLock<(RcStr, RcStr)>,
+    pub group_name: OnceLock<(RcStr, RcStr)>,
 }
 
 impl Span {

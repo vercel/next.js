@@ -10808,6 +10808,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tungstenite 0.21.0",
+ "turbo-rcstr",
+ "turbo-tasks-malloc",
  "turbopack-trace-utils",
  "zstd",
 ]
