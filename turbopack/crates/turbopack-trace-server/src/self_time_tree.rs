@@ -2,7 +2,7 @@ use std::mem::take;
 
 use crate::timestamp::Timestamp;
 
-const SPLIT_COUNT: usize = 1024 * 128;
+const SPLIT_COUNT: usize = 128;
 /// Start balancing the tree when there are N times more items on one side. Must be at least 3.
 const BALANCE_THRESHOLD: usize = 3;
 
