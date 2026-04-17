@@ -3,9 +3,6 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  experimental: {
-    unstableIO: true,
-  },
 }
 
 module.exports = nextConfig

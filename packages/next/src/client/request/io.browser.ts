@@ -9,11 +9,5 @@ const resolvedIOPromise: Promise<void> = Promise.resolve(undefined)
  * prerender context so we always resolve immediately.
  */
 export function unstable_io(): Promise<void> {
-  if (!process.env.__NEXT_UNSTABLE_IO) {
-    throw new Error(
-      '`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.'
-    )
-  }
-
   return resolvedIOPromise
 }
