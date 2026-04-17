@@ -1,4 +1,5 @@
 mod counter;
+mod memory_pressure;
 
 use std::{
     alloc::{GlobalAlloc, Layout},
@@ -107,6 +108,22 @@ impl TurboMalloc {
     pub fn reset_allocation_counters(start: AllocationCounters) {
         self::counter::reset_allocation_counters(start);
     }
+
+    /// Returns a memory pressure value in the range `0..=100`, or `None` when
+    /// the current platform does not expose a memory pressure signal or a
+    /// query for it failed.
+    ///
+    /// `0` means no memory pressure, `100` means maximum pressure.
+    ///
+    /// - On Linux this is derived from `/proc/pressure/memory` (the `some` `avg10` stall
+    ///   percentage).
+    /// - On macOS this is derived from the `kern.memorystatus_level` sysctl (`100 -
+    ///   free_memory_percentage`).
+    /// - On Windows this is `MEMORYSTATUSEX::dwMemoryLoad` (percentage of physical memory in use).
+    /// - On other platforms this returns `None`.
+    pub fn memory_pressure() -> Option<u8> {
+        memory_pressure::memory_pressure()
+    }
 }
 
 /// Get the allocator for this platform that we should wrap with TurboMalloc.
@@ -162,5 +179,22 @@ unsafe impl GlobalAlloc for TurboMalloc {
             update(old_size, new_size);
         }
         ret
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TurboMalloc;
+
+    #[test]
+    fn memory_pressure_is_in_range() {
+        // On supported platforms the value must be within 0..=100. On
+        // unsupported platforms we expect `None` and have nothing to assert.
+        if let Some(value) = TurboMalloc::memory_pressure() {
+            assert!(
+                value <= 100,
+                "memory_pressure() returned {value}, expected a value in 0..=100"
+            );
+        }
     }
 }
