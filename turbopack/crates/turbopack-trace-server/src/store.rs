@@ -91,6 +91,12 @@ impl Store {
         self.memory_samples.clear();
     }
 
+    pub fn optimize(&mut self) {
+        if let Some(tree) = self.self_time_tree.as_mut() {
+            tree.optimize();
+        }
+    }
+
     pub fn has_time_info(&self) -> bool {
         self.self_time_tree
             .as_ref()
@@ -192,7 +198,7 @@ impl Store {
     ) {
         if let Some(tree) = self.self_time_tree.as_mut() {
             if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
-                tree.for_each_in_range(start, end, |_, _, span| {
+                tree.for_each_in_range_optimize(start, end, &mut |_, _, span| {
                     outdated_spans.insert(*span);
                 });
             }

@@ -210,6 +210,7 @@ impl TraceReader {
             match file.read(&mut chunk) {
                 Ok(bytes_read) => {
                     if bytes_read == 0 {
+                        self.store.write().optimize();
                         if let Some(value) = self.wait_for_more_data(
                             &mut file,
                             &mut initial_read,
@@ -308,6 +309,7 @@ impl TraceReader {
                     if err.kind() == io::ErrorKind::UnexpectedEof
                         || err.kind() == io::ErrorKind::InvalidInput
                     {
+                        self.store.write().optimize();
                         if let Some(value) = self.wait_for_more_data(
                             &mut file,
                             &mut initial_read,
