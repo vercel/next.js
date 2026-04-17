@@ -9,8 +9,8 @@ use anyhow::{Context, Result};
 use smallvec::SmallVec;
 use turbo_bincode::{new_turbo_bincode_decoder, turbo_bincode_decode, turbo_bincode_encode};
 use turbo_tasks::{
-    TaskId,
-    backend::CachedTaskType,
+    DynTaskInputs, RawVc, TaskId,
+    macro_helpers::NativeFunction,
     panic_hooks::{PanicHookGuard, register_panic_hook},
     parallel,
 };
@@ -18,7 +18,9 @@ use turbo_tasks::{
 use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
-    backing_storage::{BackingStorage, BackingStorageSealed, SnapshotItem, compute_task_type_hash},
+    backing_storage::{
+        BackingStorage, BackingStorageSealed, SnapshotItem, compute_task_type_hash_from_components,
+    },
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
         db_versioning::handle_db_versioning,
@@ -296,19 +298,24 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         }
     }
 
-    fn lookup_task_candidates(&self, task_type: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>> {
+    fn lookup_task_candidates(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Result<SmallVec<[TaskId; 1]>> {
         let inner = &*self.inner;
         if inner.database.is_empty() {
             // Checking if the database is empty is a performance optimization
             // to avoid computing the hash.
             return Ok(SmallVec::new());
         }
-        let hash = compute_task_type_hash(task_type);
+        let hash = compute_task_type_hash_from_components(native_fn, this, arg);
         let buffers = inner
             .database
             .get_multiple(KeySpace::TaskCache, &hash)
             .with_context(|| {
-                format!("Looking up task id for {task_type:?} from database failed")
+                format!("Looking up task id for {native_fn:?}(this={this:?}) from database failed")
             })?;
 
         let mut task_ids = SmallVec::with_capacity(buffers.len());

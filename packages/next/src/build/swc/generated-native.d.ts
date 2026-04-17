@@ -616,8 +616,8 @@ export interface TraceQueryOptions {
   parent?: string
   /** When `true` (default), aggregate child spans with the same name. */
   aggregated?: boolean
-  /** When `true`, sort results by corrected duration descending. Default `false`. */
-  sort?: boolean
+  /** Sort mode: `"value"` for duration descending, `"name"` for alphabetical. Omit for execution order. */
+  sort?: 'value' | 'name'
   /** Optional substring search query applied to span name/category. */
   search?: string
   /** 1-based page number. Default `1`. */
