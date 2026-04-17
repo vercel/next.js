@@ -3,7 +3,7 @@ const express = require('express')
 
 const dev = process.env.NODE_ENV !== 'production'
 const dir = __dirname
-const port = process.env.PORT || 3000
+const port = parseInt(process.env.PORT || '3000', 10)
 
 const app = next({ dev, dir })
 const handleNextRequests = app.getRequestHandler()
@@ -18,11 +18,14 @@ app.prepare().then(() => {
     handleNextRequests(req, res)
   })
 
-  server.listen(port, (err) => {
+  const httpServer = server.listen(port, (err) => {
     if (err) {
       throw err
     }
 
-    console.log(`> Ready on http://localhost:${port}`)
+    const address = httpServer.address()
+    const actualPort =
+      typeof address === 'object' && address ? address.port : port
+    console.log(`- Local: http://localhost:${actualPort}`)
   })
 })

@@ -23,7 +23,7 @@ describe('API body parser', () => {
     const { next } = nextTestSetup({
       files: __dirname,
       startCommand: 'node server.js',
-      serverReadyPattern: /Ready on/i,
+      serverReadyPattern: /- Local:/,
       env: { CUSTOM_SERVER: 'true' },
       dependencies: {
         express: '4',
