@@ -16,6 +16,7 @@ describe('i18n Support', () => {
 
   const ctx: Record<string, any> = {
     basePath: '',
+    isDev: isNextDev,
   }
 
   let externalServer: http.Server
@@ -46,7 +47,6 @@ describe('i18n Support', () => {
 
     ctx.appDir = next.testDir
     ctx.appPort = new URL(next.url).port
-    ctx.isDev = isNextDev
     if (!isNextDev) {
       ctx.buildId = (await next.readFile('.next/BUILD_ID')).trim()
       ctx.buildPagesDir = join(next.testDir, '.next/server/pages')

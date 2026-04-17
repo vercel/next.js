@@ -3,6 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 describe('next/dynamic css', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      sass: 'latest',
+    },
   })
 
   it('should load a Pages Router page correctly', async () => {

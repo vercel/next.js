@@ -3,6 +3,9 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 describe('TypeScript Features', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      sass: 'latest',
+    },
   })
 
   it('should render the page', async () => {
@@ -99,6 +102,9 @@ export default function EvilPage(): JSX.Element {
     const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
+      dependencies: {
+        sass: 'latest',
+      },
     })
 
     it('should build the app', async () => {

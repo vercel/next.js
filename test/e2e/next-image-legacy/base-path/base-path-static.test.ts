@@ -20,11 +20,11 @@ describe('Build Error Tests for basePath', () => {
           '../public/foo/test-rect-broken.jpg'
         ),
       async () => {
-        const { stderr } = await next.build()
-        expect(stderr).toContain(
+        const { cliOutput } = await next.build()
+        expect(cliOutput).toContain(
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
-        expect(stderr).toContain('pages/static-img.js')
+        expect(cliOutput).toContain('pages/static-img.js')
       }
     )
   })

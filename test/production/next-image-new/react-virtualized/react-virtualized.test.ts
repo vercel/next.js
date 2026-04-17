@@ -8,6 +8,7 @@ describe('react-virtualized wrapping next/image', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    dependencies: { 'react-virtualized': 'latest' },
   })
 
   let proxyServer: http.Server

@@ -10,14 +10,14 @@ import { nextTestSetup } from 'e2e-utils'
     })
 
     it('Should fail to build when no next.config.js', async () => {
-      const { exitCode, stderr } = await next.build()
+      const { exitCode, cliOutput } = await next.build()
       expect(exitCode).not.toBe(0)
-      expect(stderr).toContain('Failed to compile')
-      expect(stderr).toMatch(
+      expect(cliOutput).toContain('Failed to compile')
+      expect(cliOutput).toMatch(
         /Images.*cannot.*be imported within.*pages[\\/]_document\.js/
       )
       if (!process.env.NEXT_RSPACK) {
-        expect(stderr).toMatch(/Location:.*pages[\\/]_document\.js/)
+        expect(cliOutput).toMatch(/Location:.*pages[\\/]_document\.js/)
       }
     })
 
@@ -32,19 +32,19 @@ import { nextTestSetup } from 'e2e-utils'
         }
       `
       )
-      const { exitCode, stderr } = await next.build()
+      const { exitCode, cliOutput } = await next.build()
       expect(exitCode).not.toBe(0)
       if (process.env.NEXT_RSPACK) {
-        expect(stderr).toContain(
+        expect(cliOutput).toContain(
           'You may need an appropriate loader to handle this file type'
         )
       } else {
-        expect(stderr).toMatch(
+        expect(cliOutput).toMatch(
           /You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file/
         )
       }
       if (!process.env.NEXT_RSPACK) {
-        expect(stderr).not.toMatch(
+        expect(cliOutput).not.toMatch(
           /Images.*cannot.*be imported within.*pages[\\/]_document\.js/
         )
       }

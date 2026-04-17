@@ -1,4 +1,4 @@
-import { run, tryNextDev, useTempDir } from '../utils'
+import { resolveNextTgzFilename, run, tryNextDev, useTempDir } from '../utils'
 
 describe.each(['app', 'pages'] as const)(
   'CNA options matrix - %s',
@@ -6,15 +6,7 @@ describe.each(['app', 'pages'] as const)(
     let nextTgzFilename: string
 
     beforeAll(() => {
-      if (!process.env.NEXT_TEST_PKG_PATHS) {
-        throw new Error('This test needs to be run with `node run-tests.js`.')
-      }
-
-      const pkgPaths = new Map<string, string>(
-        JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-      )
-
-      nextTgzFilename = pkgPaths.get('next')!
+      nextTgzFilename = resolveNextTgzFilename()
     })
 
     const isApp = pagesOrApp === 'app'

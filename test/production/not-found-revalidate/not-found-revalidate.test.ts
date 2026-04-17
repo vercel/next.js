@@ -4,6 +4,7 @@ import { retry } from 'next-test-utils'
 describe('SSG notFound revalidate', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: { 'fs-extra': 'latest' },
   })
 
   it('should revalidate page when notFound returned during build', async () => {

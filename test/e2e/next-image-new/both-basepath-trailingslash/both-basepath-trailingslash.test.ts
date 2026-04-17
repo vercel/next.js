@@ -1,8 +1,16 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { getDeploymentId } from 'next-test-utils'
 
 describe('Image Component basePath + trailingSlash Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+  })
+
+  let dpl: string
+  let assetDpl: string
+  beforeAll(() => {
+    dpl = getDeploymentId(next.testDir, isNextDev).getDeploymentIdQuery(true)
+    assetDpl = getDeploymentId(next.testDir, isNextDev).getAssetQuery(true)
   })
 
   it('should correctly load image src from import', async () => {
@@ -10,7 +18,7 @@ describe('Image Component basePath + trailingSlash Tests', () => {
     const img = await browser.elementById('import-img')
     const src = await img.getAttribute('src')
     expect(normalizeURL(src)).toBe(
-      `/prefix/_next/image/?url=%2Fprefix%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75`
+      `/prefix/_next/image/?url=%2Fprefix%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
     )
     const res = await next.fetch(src)
     expect(res.status).toBe(200)
@@ -21,7 +29,9 @@ describe('Image Component basePath + trailingSlash Tests', () => {
     const browser = await next.browser('/prefix/')
     const img = await browser.elementById('string-img')
     const src = await img.getAttribute('src')
-    expect(src).toBe(`/prefix/_next/image/?url=%2Fprefix%2Ftest.jpg&w=640&q=75`)
+    expect(src).toBe(
+      `/prefix/_next/image/?url=%2Fprefix%2Ftest.jpg&w=640&q=75${dpl}`
+    )
     const res = await next.fetch(src)
     expect(res.status).toBe(200)
     expect(res.headers.get('content-type')).toBe('image/jpeg')

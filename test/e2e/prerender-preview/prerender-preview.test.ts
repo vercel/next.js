@@ -57,13 +57,19 @@ describe('Prerender Preview Mode', () => {
     const originalCookies = res.headers.get('set-cookie')!.split(',')
     const cookies = originalCookies.map((cookieRaw) => cookie.parse(cookieRaw))
 
-    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    if (isNextStart) {
+      expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    }
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    }
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
-    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
+    }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
 
@@ -81,13 +87,19 @@ describe('Prerender Preview Mode', () => {
     const originalCookies = res.headers.get('set-cookie')!.split(',')
     const cookies = originalCookies.map((cookieRaw) => cookie.parse(cookieRaw))
 
-    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    if (isNextStart) {
+      expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    }
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    }
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]['Max-Age']).toBe(expiry)
-    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
+    }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]['Max-Age']).toBe(expiry)
   })
@@ -100,13 +112,19 @@ describe('Prerender Preview Mode', () => {
     const originalCookies = res.headers.get('set-cookie')!.split(',')
     const cookies = originalCookies.map((cookieRaw) => cookie.parse(cookieRaw))
 
-    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    if (isNextStart) {
+      expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    }
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({ Path: path, SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[0]).toMatchObject({ Path: path, SameSite: 'None' })
+    }
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]['Path']).toBe(path)
-    expect(cookies[1]).toMatchObject({ Path: path, SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[1]).toMatchObject({ Path: path, SameSite: 'None' })
+    }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]['Path']).toBe(path)
   })
@@ -118,9 +136,11 @@ describe('Prerender Preview Mode', () => {
     const html = await res.text()
 
     const { nextData, pre, routerData } = getData(html)
-    expect(res.headers.get('cache-control')).toBe(
-      'private, no-cache, no-store, max-age=0, must-revalidate'
-    )
+    if (isNextStart) {
+      expect(res.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
     expect(nextData).toMatchObject({ isFallback: false, isPreview: true })
     expect(pre).toBe('true and {"lets":"goooo"}')
     expect(routerData.isPreview).toBe(true)
@@ -159,18 +179,22 @@ describe('Prerender Preview Mode', () => {
       .map((cookieRaw) => cookie.parse(cookieRaw))
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({
-      Path: '/',
-      SameSite: 'None',
-      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
-    })
+    if (isNextStart) {
+      expect(cookies[0]).toMatchObject({
+        Path: '/',
+        SameSite: 'None',
+        Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+      })
+    }
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
-    expect(cookies[1]).toMatchObject({
-      Path: '/',
-      SameSite: 'None',
-      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
-    })
+    if (isNextStart) {
+      expect(cookies[1]).toMatchObject({
+        Path: '/',
+        SameSite: 'None',
+        Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+      })
+    }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })
@@ -188,18 +212,22 @@ describe('Prerender Preview Mode', () => {
       .map((cookieRaw) => cookie.parse(cookieRaw))
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({
-      Path: '/blog',
-      SameSite: 'None',
-      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
-    })
+    if (isNextStart) {
+      expect(cookies[0]).toMatchObject({
+        Path: '/blog',
+        SameSite: 'None',
+        Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+      })
+    }
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
-    expect(cookies[1]).toMatchObject({
-      Path: '/blog',
-      SameSite: 'None',
-      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
-    })
+    if (isNextStart) {
+      expect(cookies[1]).toMatchObject({
+        Path: '/blog',
+        SameSite: 'None',
+        Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+      })
+    }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })

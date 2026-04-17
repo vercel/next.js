@@ -414,11 +414,12 @@ describe('GS(S)P Redirect with basePath', () => {
         }
       `
       )
-      const { stdout, stderr } = await next.build()
-      const output = stdout + stderr
+      await next.stop()
+      const { cliOutput } = await next.build()
       await next.deleteFile('pages/invalid/[slug].js')
+      await next.start()
 
-      expect(output).toContain(
+      expect(cliOutput).toContain(
         '`redirect` can not be returned from getStaticProps during prerendering'
       )
     })

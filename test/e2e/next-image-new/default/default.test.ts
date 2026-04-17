@@ -6,6 +6,7 @@ import {
   getRedboxHeader,
   retry,
   listClientChunks,
+  getDeploymentId,
 } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { existsSync } from 'fs'
@@ -15,6 +16,13 @@ const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('Image Component Default Tests', () => {
   const { next } = nextTestSetup({ files: __dirname })
+
+  let dpl: string
+  let assetDpl: string
+  beforeAll(() => {
+    dpl = getDeploymentId(next.testDir, isNextDev).getDeploymentIdQuery(true)
+    assetDpl = getDeploymentId(next.testDir, isNextDev).getAssetQuery(true)
+  })
 
   async function getImageUrls(browser) {
     return await Promise.all(
@@ -68,7 +76,7 @@ describe('Image Component Default Tests', () => {
     })
 
     expect(await getImageUrls(browser)).toContain(
-      `${next.url}/_next/image?url=%2Ftest.jpg&w=828&q=75`
+      `${next.url}/_next/image?url=%2Ftest.jpg&w=828&q=75${dpl}`
     )
   })
 
@@ -103,13 +111,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`,
       crossorigin: 'use-credentials',
       referrerpolicy: '',
     })
@@ -118,13 +125,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+          `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '100vw',
-      imagesrcset:
-        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+      imagesrcset: `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`,
       crossorigin: '',
       referrerpolicy: '',
     })
@@ -133,13 +139,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: 'no-referrer',
     })
@@ -148,13 +153,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: '',
     })
@@ -240,13 +244,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`,
       crossorigin: 'use-credentials',
       referrerpolicy: '',
     })
@@ -255,13 +258,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+          `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '100vw',
-      imagesrcset:
-        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+      imagesrcset: `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`,
       crossorigin: '',
       referrerpolicy: '',
     })
@@ -270,13 +272,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: 'no-referrer',
     })
@@ -285,13 +286,12 @@ describe('Image Component Default Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: '',
     })
@@ -707,10 +707,10 @@ describe('Image Component Default Tests', () => {
     const browser = await next.browser('/sizes')
     const id = 'sizes1'
     expect(await getSrc(browser, id)).toBe(
-      '/_next/image?url=%2Fwide.png&w=3840&q=75'
+      `/_next/image?url=%2Fwide.png&w=3840&q=75${dpl}`
     )
     expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-      '/_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      `/_next/image?url=%2Fwide.png&w=32&q=75${dpl} 32w, /_next/image?url=%2Fwide.png&w=48&q=75${dpl} 48w, /_next/image?url=%2Fwide.png&w=64&q=75${dpl} 64w, /_next/image?url=%2Fwide.png&w=96&q=75${dpl} 96w, /_next/image?url=%2Fwide.png&w=128&q=75${dpl} 128w, /_next/image?url=%2Fwide.png&w=256&q=75${dpl} 256w, /_next/image?url=%2Fwide.png&w=384&q=75${dpl} 384w, /_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
     )
     expect(await browser.elementById(id).getAttribute('sizes')).toBe(
       '(max-width: 2048px) 1200px, 3840px'
@@ -735,7 +735,7 @@ describe('Image Component Default Tests', () => {
     expect(await browser.elementById('img1').getAttribute('height')).toBe('700')
     expect(await browser.elementById('img1').getAttribute('width')).toBe('1200')
     expect(await browser.elementById('img1').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2Fwide.png&w=1200&q=75 1x, /_next/image?url=%2Fwide.png&w=3840&q=75 2x'
+      `/_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1x, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 2x`
     )
     expect(await browser.elementById('img1').getAttribute('loading')).toBe(
       'eager'
@@ -747,7 +747,7 @@ describe('Image Component Default Tests', () => {
     expect(await browser.elementById('img2').getAttribute('height')).toBe('700')
     expect(await browser.elementById('img2').getAttribute('width')).toBe('1200')
     expect(await browser.elementById('img2').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2Fwide.png&w=32&q=75 32w, /_next/image?url=%2Fwide.png&w=48&q=75 48w, /_next/image?url=%2Fwide.png&w=64&q=75 64w, /_next/image?url=%2Fwide.png&w=96&q=75 96w, /_next/image?url=%2Fwide.png&w=128&q=75 128w, /_next/image?url=%2Fwide.png&w=256&q=75 256w, /_next/image?url=%2Fwide.png&w=384&q=75 384w, /_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+      `/_next/image?url=%2Fwide.png&w=32&q=75${dpl} 32w, /_next/image?url=%2Fwide.png&w=48&q=75${dpl} 48w, /_next/image?url=%2Fwide.png&w=64&q=75${dpl} 64w, /_next/image?url=%2Fwide.png&w=96&q=75${dpl} 96w, /_next/image?url=%2Fwide.png&w=128&q=75${dpl} 128w, /_next/image?url=%2Fwide.png&w=256&q=75${dpl} 256w, /_next/image?url=%2Fwide.png&w=384&q=75${dpl} 384w, /_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
     )
     expect(await browser.elementById('img2').getAttribute('loading')).toBe(
       'lazy'
@@ -757,7 +757,7 @@ describe('Image Component Default Tests', () => {
       'color:transparent'
     )
     expect(await browser.elementById('img3').getAttribute('srcset')).toBe(
-      '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+      `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
     )
     if (isNextDev) {
       await new Promise((r) => setTimeout(r, 1000))
@@ -780,12 +780,12 @@ describe('Image Component Default Tests', () => {
     expect(
       normalizeURL(await browser.elementById('blur1').getAttribute('src'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
     )
     expect(
       normalizeURL(await browser.elementById('blur1').getAttribute('srcset'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75 2x'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${assetDpl} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl} 2x`
     )
     expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
       'lazy'
@@ -809,12 +809,12 @@ describe('Image Component Default Tests', () => {
     expect(
       normalizeURL(await browser.elementById('blur1').getAttribute('src'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl}`
     )
     expect(
       normalizeURL(await browser.elementById('blur1').getAttribute('srcset'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75 2x'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=640&q=75${assetDpl} 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.jpg&w=828&q=75${assetDpl} 2x`
     )
     expect(await browser.elementById('blur1').getAttribute('loading')).toBe(
       'lazy'
@@ -832,12 +832,12 @@ describe('Image Component Default Tests', () => {
     expect(
       normalizeURL(await browser.elementById('blur2').getAttribute('src'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl}`
     )
     expect(
       normalizeURL(await browser.elementById('blur2').getAttribute('srcset'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75 3840w'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75${assetDpl} 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75${assetDpl} 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75${assetDpl} 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75${assetDpl} 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75${assetDpl} 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75${assetDpl} 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75${assetDpl} 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75${assetDpl} 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl} 3840w`
     )
     expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
       '50vw'
@@ -863,12 +863,12 @@ describe('Image Component Default Tests', () => {
     expect(
       normalizeURL(await browser.elementById('blur2').getAttribute('src'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl}`
     )
     expect(
       normalizeURL(await browser.elementById('blur2').getAttribute('srcset'))
     ).toBe(
-      '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75 3840w'
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=384&q=75${assetDpl} 384w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=640&q=75${assetDpl} 640w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=750&q=75${assetDpl} 750w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=75${assetDpl} 828w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1080&q=75${assetDpl} 1080w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1200&q=75${assetDpl} 1200w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=1920&q=75${assetDpl} 1920w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=2048&q=75${assetDpl} 2048w, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=3840&q=75${assetDpl} 3840w`
     )
     expect(await browser.elementById('blur2').getAttribute('sizes')).toBe(
       '50vw'
@@ -906,10 +906,10 @@ describe('Image Component Default Tests', () => {
     expect(await img.getAttribute('data-nimg')).toBe('fill')
     expect(await img.getAttribute('sizes')).toBe('200px')
     expect(await img.getAttribute('src')).toBe(
-      '/_next/image?url=%2Ftest.jpg&w=3840&q=75'
+      `/_next/image?url=%2Ftest.jpg&w=3840&q=75${dpl}`
     )
     expect(await img.getAttribute('srcset')).toContain(
-      '/_next/image?url=%2Ftest.jpg&w=640&q=75 640w,'
+      `/_next/image?url=%2Ftest.jpg&w=640&q=75${dpl} 640w,`
     )
     expect(await img.getAttribute('style')).toBe(
       'position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;object-fit:cover;object-position:10% 10%;color:transparent'
@@ -938,10 +938,10 @@ describe('Image Component Default Tests', () => {
     expect(await img.getAttribute('sizes')).toBe('100vw')
     expect(await img.getAttribute('data-nimg')).toBe('1')
     expect(await img.getAttribute('src')).toBe(
-      '/_next/image?url=%2Ftest.png&w=3840&q=75'
+      `/_next/image?url=%2Ftest.png&w=3840&q=75${dpl}`
     )
     expect(await img.getAttribute('srcset')).toContain(
-      '/_next/image?url=%2Ftest.png&w=640&q=75 640w,'
+      `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 640w,`
     )
     expect(await img.getAttribute('style')).toBe(
       'color:transparent;width:100%;height:auto'
@@ -974,17 +974,17 @@ describe('Image Component Default Tests', () => {
     expect(await img.getAttribute('fetchPriority')).toBeNull()
     expect(await img.getAttribute('sizes')).toBeNull()
     expect(await img.getAttribute('src')).toBe(
-      '/_next/image?url=%2Ftest_light.png&w=828&q=75'
+      `/_next/image?url=%2Ftest_light.png&w=828&q=75${dpl}`
     )
     expect(await img.getAttribute('srcset')).toBe(null)
     expect(await img.getAttribute('style')).toBe('color:transparent')
     const source1 = await browser.elementByCss('source:first-of-type')
     expect(await source1.getAttribute('srcset')).toBe(
-      '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+      `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
     )
     const source2 = await browser.elementByCss('source:last-of-type')
     expect(await source2.getAttribute('srcset')).toBe(
-      '/_next/image?url=%2Ftest_light.png&w=640&q=75 1x, /_next/image?url=%2Ftest_light.png&w=828&q=75 2x'
+      `/_next/image?url=%2Ftest_light.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest_light.png&w=828&q=75${dpl} 2x`
     )
   })
 

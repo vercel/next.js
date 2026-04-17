@@ -1,8 +1,36 @@
 import execa from 'execa'
-import { join } from 'path'
+import { existsSync } from 'fs'
+import { join, resolve } from 'path'
 import { createNext } from 'e2e-utils'
 
 export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
+
+/**
+ * Resolves the path to the packed `next` tarball. Uses NEXT_TEST_PKG_PATHS
+ * when available (set by run-tests.js), otherwise finds packed.tgz files
+ * directly from the repo packages/ directory.
+ */
+export function resolveNextTgzFilename(): string {
+  if (process.env.NEXT_TEST_PKG_PATHS) {
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+    return pkgPaths.get('next')!
+  }
+
+  const repoRoot = resolve(__dirname, '../../..')
+  const tarballPath = join(repoRoot, 'packages', 'next', 'packed.tgz')
+
+  if (!existsSync(tarballPath)) {
+    throw new Error(
+      `Could not find packed.tgz at ${tarballPath}. ` +
+        `Run "pnpm turbo run pack-for-isolated-tests" first, ` +
+        `or run this test via "node run-tests.js".`
+    )
+  }
+
+  return tarballPath
+}
 export const EXAMPLE_REPO = 'https://github.com/vercel/next.js/tree/canary'
 export const EXAMPLE_PATH = 'examples/basic-css'
 export const FULL_EXAMPLE_PATH = `${EXAMPLE_REPO}/${EXAMPLE_PATH}`

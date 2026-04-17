@@ -21,16 +21,16 @@ describe('Build Error Tests', () => {
           '../public/foo/test-rect-broken.jpg'
         ),
       async () => {
-        const { stderr } = await next.build()
-        expect(stderr).toContain(
+        const { cliOutput } = await next.build()
+        expect(cliOutput).toContain(
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
         if (isTurbopack) {
-          expect(stderr).toContain('/pages/static-img.js')
+          expect(cliOutput).toContain('/pages/static-img.js')
         } else {
-          expect(stderr).toContain('./pages/static-img.js')
+          expect(cliOutput).toContain('./pages/static-img.js')
         }
-        expect(stderr).not.toContain('Import trace for requested module')
+        expect(cliOutput).not.toContain('Import trace for requested module')
       }
     )
   })

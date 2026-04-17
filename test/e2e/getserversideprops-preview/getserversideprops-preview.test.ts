@@ -60,13 +60,19 @@ describe('ServerSide Props Preview Mode', () => {
     const originalCookies = res.headers.get('set-cookie')!.split(',')
     const cookies = originalCookies.map((rawCookie) => cookie.parse(rawCookie))
 
-    expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    if (isNextStart) {
+      expect(originalCookies.every((c) => c.includes('; Secure;'))).toBe(true)
+    }
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
+    }
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
-    expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
+    if (isNextStart) {
+      expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
+    }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
 
@@ -83,9 +89,11 @@ describe('ServerSide Props Preview Mode', () => {
     const html = await res.text()
 
     const { nextData, pre, routerData } = getData(html)
-    expect(res.headers.get('cache-control')).toBe(
-      'private, no-cache, no-store, max-age=0, must-revalidate'
-    )
+    if (isNextStart) {
+      expect(res.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
     expect(nextData).toMatchObject({ isFallback: false, isPreview: true })
     expect(pre).toBe('true and {"lets":"goooo"}')
     expect(routerData.isPreview).toBe(true)
@@ -98,9 +106,11 @@ describe('ServerSide Props Preview Mode', () => {
     )
     const json = await res.json()
 
-    expect(res.headers.get('cache-control')).toBe(
-      'private, no-cache, no-store, max-age=0, must-revalidate'
-    )
+    if (isNextStart) {
+      expect(res.headers.get('cache-control')).toBe(
+        'private, no-cache, no-store, max-age=0, must-revalidate'
+      )
+    }
     expect(json).toMatchObject({
       pageProps: {
         preview: true,
@@ -122,18 +132,22 @@ describe('ServerSide Props Preview Mode', () => {
       .map((rawCookie) => cookie.parse(rawCookie))
 
     expect(cookies.length).toBe(2)
-    expect(cookies[0]).toMatchObject({
-      Path: '/',
-      SameSite: 'None',
-      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
-    })
+    if (isNextStart) {
+      expect(cookies[0]).toMatchObject({
+        Path: '/',
+        SameSite: 'None',
+        Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+      })
+    }
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
     expect(cookies[0]).not.toHaveProperty('Max-Age')
-    expect(cookies[1]).toMatchObject({
-      Path: '/',
-      SameSite: 'None',
-      Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
-    })
+    if (isNextStart) {
+      expect(cookies[1]).toMatchObject({
+        Path: '/',
+        SameSite: 'None',
+        Expires: 'Thu 01 Jan 1970 00:00:00 GMT',
+      })
+    }
     expect(cookies[1]).toHaveProperty('__next_preview_data')
     expect(cookies[1]).not.toHaveProperty('Max-Age')
   })

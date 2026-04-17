@@ -10,6 +10,7 @@ import json from './big.json'
 describe('API routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: { 'http-proxy': 'latest' },
   })
 
   it('should not strip .json from API route', async () => {

@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import {
+  resolveNextTgzFilename,
   run,
   useTempDir,
   projectFilesShouldExist,
@@ -11,15 +12,7 @@ describe('create-next-app', () => {
   let nextTgzFilename: string
 
   beforeAll(() => {
-    if (!process.env.NEXT_TEST_PKG_PATHS) {
-      throw new Error('This test needs to be run with `node run-tests.js`.')
-    }
-
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
-
-    nextTgzFilename = pkgPaths.get('next')
+    nextTgzFilename = resolveNextTgzFilename()
   })
 
   it('should not create if the target directory is not empty', async () => {

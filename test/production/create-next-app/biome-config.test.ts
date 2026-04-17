@@ -1,21 +1,13 @@
 import execa from 'execa'
 import { readFile, writeFile } from 'fs/promises'
 import { join } from 'path'
-import { run, useTempDir } from './utils'
+import { resolveNextTgzFilename, run, useTempDir } from './utils'
 
 describe('create-next-app Biome configuration', () => {
   let nextTgzFilename: string
 
   beforeAll(() => {
-    if (!process.env.NEXT_TEST_PKG_PATHS) {
-      throw new Error('This test needs to be run with `node run-tests.js`.')
-    }
-
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
-
-    nextTgzFilename = pkgPaths.get('next')
+    nextTgzFilename = resolveNextTgzFilename()
   })
 
   it('should match biome.json snapshot', async () => {

@@ -1,5 +1,6 @@
 import {
   projectShouldHaveNoGitChanges,
+  resolveNextTgzFilename,
   tryNextDev,
   run,
   useTempDir,
@@ -46,15 +47,7 @@ describe('create-next-app --api (Headless App)', () => {
   let nextTgzFilename: string
 
   beforeAll(() => {
-    if (!process.env.NEXT_TEST_PKG_PATHS) {
-      throw new Error('This test needs to be run with `node run-tests.js`.')
-    }
-
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
-
-    nextTgzFilename = pkgPaths.get('next')!
+    nextTgzFilename = resolveNextTgzFilename()
   })
 
   it('should create JavaScript project with --js flag', async () => {

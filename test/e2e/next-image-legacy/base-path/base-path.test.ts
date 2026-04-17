@@ -3,12 +3,18 @@ import {
   waitForRedbox,
   waitForNoRedbox,
   getRedboxHeader,
+  getDeploymentId,
   retry,
 } from 'next-test-utils'
 
 describe('Legacy Image Component basePath Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+  })
+
+  let dpl: string
+  beforeAll(() => {
+    dpl = getDeploymentId(next.testDir, isNextDev).getDeploymentIdQuery(true)
   })
 
   async function getImageUrls(browser) {
@@ -57,7 +63,7 @@ describe('Legacy Image Component basePath Tests', () => {
     })
 
     expect(await getImageUrls(browser)).toContain(
-      `${next.url}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
+      `${next.url}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75${dpl}`
     )
   })
 
@@ -98,10 +104,10 @@ describe('Legacy Image Component basePath Tests', () => {
     const delta = 250
     const id = 'fixed1'
     expect(await getSrc(browser, id)).toBe(
-      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+      `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
     )
     expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
+      `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 2x`
     )
     expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
     await browser.setDimensions({
@@ -127,11 +133,11 @@ describe('Legacy Image Component basePath Tests', () => {
 
     await retry(async () => {
       expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
       )
     })
     expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 2x'
+      `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1x, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 2x`
     )
     expect(await browser.elementById(id).getAttribute('sizes')).toBeFalsy()
     await browser.setDimensions({
@@ -163,11 +169,11 @@ describe('Legacy Image Component basePath Tests', () => {
 
     await retry(async () => {
       expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
       )
     })
     expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+      `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
     )
     expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
     await browser.setDimensions({
@@ -199,11 +205,11 @@ describe('Legacy Image Component basePath Tests', () => {
 
     await retry(async () => {
       expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
       )
     })
     expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+      `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
     )
     expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
     await browser.setDimensions({
@@ -235,11 +241,11 @@ describe('Legacy Image Component basePath Tests', () => {
 
     await retry(async () => {
       expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
       )
     })
     expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+      `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
     )
     expect(await browser.elementById(id).getAttribute('sizes')).toBe('100vw')
     expect(await getComputed(browser, id, 'width')).toBe(width)
@@ -281,11 +287,11 @@ describe('Legacy Image Component basePath Tests', () => {
 
     await retry(async () => {
       expect(await getSrc(browser, id)).toBe(
-        '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75'
+        `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl}`
       )
     })
     expect(await browser.elementById(id).getAttribute('srcset')).toBe(
-      '/docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75 3840w'
+      `/docs/_next/image?url=%2Fdocs%2Fwide.png&w=32&q=75${dpl} 32w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=48&q=75${dpl} 48w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=64&q=75${dpl} 64w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=96&q=75${dpl} 96w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=128&q=75${dpl} 128w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=256&q=75${dpl} 256w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=384&q=75${dpl} 384w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=640&q=75${dpl} 640w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=750&q=75${dpl} 750w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=828&q=75${dpl} 828w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1080&q=75${dpl} 1080w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1200&q=75${dpl} 1200w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=1920&q=75${dpl} 1920w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=2048&q=75${dpl} 2048w, /docs/_next/image?url=%2Fdocs%2Fwide.png&w=3840&q=75${dpl} 3840w`
     )
     expect(await browser.elementById(id).getAttribute('sizes')).toBe(
       '(max-width: 2048px) 1200px, 3840px'

@@ -3,6 +3,7 @@ import {
   DEFAULT_FILES,
   FULL_EXAMPLE_PATH,
   projectFilesShouldExist,
+  resolveNextTgzFilename,
   run,
   useTempDir,
 } from '../utils'
@@ -14,15 +15,7 @@ describe('create-next-app with package manager yarn', () => {
   let nextTgzFilename: string
 
   beforeAll(async () => {
-    if (!process.env.NEXT_TEST_PKG_PATHS) {
-      throw new Error('This test needs to be run with `node run-tests.js`.')
-    }
-
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
-
-    nextTgzFilename = pkgPaths.get('next')
+    nextTgzFilename = resolveNextTgzFilename()
 
     await command('yarn', ['--version'])
       // install yarn if not available

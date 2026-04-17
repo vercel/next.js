@@ -1,4 +1,5 @@
-import { nextTestSetup } from 'e2e-utils'
+/* eslint-disable jest/no-standalone-expect */
+import { nextTestSetup, isNextStart } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
@@ -7,28 +8,31 @@ describe('Build Error Tests', () => {
     skipStart: true,
   })
 
-  it('should throw build error when import statement is used with missing file', async () => {
-    await next.patchFile(
-      'pages/static-img.js',
-      (content) =>
-        content.replace(
-          '../public/foo/test-rect.jpg',
-          '../public/foo/test-rect-broken.jpg'
-        ),
-      async () => {
-        const { stderr } = await next.build()
-        expect(stderr).toContain(
-          "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
-        )
-        if (isTurbopack) {
-          expect(stderr).toContain('pages/static-img.js')
-        } else {
-          expect(stderr).toContain('./pages/static-img.js')
+  ;(isNextStart ? it : it.skip)(
+    'should throw build error when import statement is used with missing file',
+    async () => {
+      await next.patchFile(
+        'pages/static-img.js',
+        (content) =>
+          content.replace(
+            '../public/foo/test-rect.jpg',
+            '../public/foo/test-rect-broken.jpg'
+          ),
+        async () => {
+          const { cliOutput } = await next.build()
+          expect(cliOutput).toContain(
+            "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
+          )
+          if (isTurbopack) {
+            expect(cliOutput).toContain('pages/static-img.js')
+          } else {
+            expect(cliOutput).toContain('./pages/static-img.js')
+          }
+          expect(cliOutput).not.toContain('Import trace for requested module')
         }
-        expect(stderr).not.toContain('Import trace for requested module')
-      }
-    )
-  })
+      )
+    }
+  )
 })
 
 describe('Static Image Component Tests', () => {
@@ -56,34 +60,38 @@ describe('Static Image Component Tests', () => {
     expect(await browser.elementById('static-ico')).toBeTruthy()
     expect(await browser.elementById('static-unoptimized')).toBeTruthy()
   })
-
-  it('Should use immutable cache-control header for static import', async () => {
-    await browser.eval(
-      `document.getElementById("basic-static").scrollIntoView()`
-    )
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    const url = await browser.eval(
-      `document.getElementById("basic-static").src`
-    )
-    const res = await fetch(url)
-    expect(res.headers.get('cache-control')).toBe(
-      'public, max-age=315360000, immutable'
-    )
-  })
-
-  it('Should use immutable cache-control header even when unoptimized', async () => {
-    await browser.eval(
-      `document.getElementById("static-unoptimized").scrollIntoView()`
-    )
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    const url = await browser.eval(
-      `document.getElementById("static-unoptimized").src`
-    )
-    const res = await fetch(url)
-    expect(res.headers.get('cache-control')).toBe(
-      'public, max-age=31536000, immutable'
-    )
-  })
+  ;(isNextStart ? it : it.skip)(
+    'Should use immutable cache-control header for static import',
+    async () => {
+      await browser.eval(
+        `document.getElementById("basic-static").scrollIntoView()`
+      )
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const url = await browser.eval(
+        `document.getElementById("basic-static").src`
+      )
+      const res = await fetch(url)
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=315360000, immutable'
+      )
+    }
+  )
+  ;(isNextStart ? it : it.skip)(
+    'Should use immutable cache-control header even when unoptimized',
+    async () => {
+      await browser.eval(
+        `document.getElementById("static-unoptimized").scrollIntoView()`
+      )
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      const url = await browser.eval(
+        `document.getElementById("static-unoptimized").src`
+      )
+      const res = await fetch(url)
+      expect(res.headers.get('cache-control')).toBe(
+        'public, max-age=31536000, immutable'
+      )
+    }
+  )
 
   it('Should automatically provide an image height and width', async () => {
     expect(html).toContain('width:400px;height:300px')

@@ -1,4 +1,5 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('TypeScript Image Component Build Errors', () => {
   if (isNextDev) {
@@ -48,8 +49,10 @@ describe('TypeScript Image Component Dev', () => {
   })
 
   it('should have image types when enabled', async () => {
-    const envTypes = await next.readFile('next-env.d.ts')
-    expect(envTypes).toContain('image-types/global')
+    await retry(async () => {
+      const envTypes = await next.readFile('next-env.d.ts')
+      expect(envTypes).toContain('image-types/global')
+    })
   })
 
   it('should render the valid Image usage and not print error', async () => {

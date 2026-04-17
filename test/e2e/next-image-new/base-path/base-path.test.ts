@@ -3,12 +3,18 @@ import {
   waitForRedbox,
   waitForNoRedbox,
   getRedboxHeader,
+  getDeploymentId,
   retry,
 } from 'next-test-utils'
 
 describe('Image Component basePath Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+  })
+
+  let dpl: string
+  beforeAll(() => {
+    dpl = getDeploymentId(next.testDir, isNextDev).getDeploymentIdQuery(true)
   })
 
   async function getImageUrls(browser) {
@@ -49,7 +55,7 @@ describe('Image Component basePath Tests', () => {
     })
 
     expect(await getImageUrls(browser)).toContain(
-      `${next.url}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75`
+      `${next.url}/docs/_next/image?url=%2Fdocs%2Ftest.jpg&w=828&q=75${dpl}`
     )
   })
 

@@ -3,6 +3,7 @@ import {
   FULL_EXAMPLE_PATH,
   projectFilesShouldExist,
   projectFilesShouldNotExist,
+  resolveNextTgzFilename,
   run,
   useTempDir,
 } from '../utils'
@@ -13,16 +14,8 @@ const files = [...DEFAULT_FILES, lockFile]
 describe('create-next-app with package manager pnpm', () => {
   let nextTgzFilename: string
 
-  beforeAll(async () => {
-    if (!process.env.NEXT_TEST_PKG_PATHS) {
-      throw new Error('This test needs to be run with `node run-tests.js`.')
-    }
-
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
-
-    nextTgzFilename = pkgPaths.get('next')
+  beforeAll(() => {
+    nextTgzFilename = resolveNextTgzFilename()
   })
 
   it('should use pnpm for --use-pnpm flag', async () => {
