@@ -4,20 +4,6 @@ name = "next-custom-transforms"
 version = "0.0.0"
 publish = false
 
-[features]
-plugin = [
-  "swc_core/__plugin_transform_host",
-  "swc_core/__plugin_transform_host_schema_v1",
-  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
-]
-
-[package.metadata.cargo-shear]
-ignored = [
-  # when using the `plugin` feature, we need to set a feature flag on `turbopack-ecmascript-plugins`
-  # so we must list it as a dependency even though we don't directly use it
-  "turbopack-ecmascript-plugins",
-]
-
 [lints]
 workspace = true
 
@@ -64,7 +50,6 @@ styled_components = { workspace = true }
 styled_jsx = { workspace = true }
 swc_emotion = { workspace = true }
 swc_relay = { workspace = true }
-turbopack-ecmascript-plugins = { workspace = true, optional = true }
 turbo-rcstr = { workspace = true }
 urlencoding = { workspace = true }
 next-taskless = { workspace = true }
@@ -75,7 +60,6 @@ preset_env_base = { workspace = true }
 
 [dev-dependencies]
 testing = { workspace = true }
-# effectively enable the "plugin" feature for tests
 swc_core = { workspace = true, features = ["testing_transform", "__plugin_transform_host", "__plugin_transform_host_schema_v1"] }
 swc_plugin_backend_wasmtime = { workspace = true }
-turbopack-ecmascript-plugins = { workspace = true, features = ["swc_ecma_transform_plugin"] }
+turbopack-ecmascript-plugins = { workspace = true }

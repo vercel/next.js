@@ -40,9 +40,6 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
-  // Pre-computed effective hash salt: experimental.outputHashSalt (from config)
-  // concatenated with NEXT_HASH_SALT (from env). Used by both Webpack and Turbopack.
-  hashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -752,6 +749,15 @@ export interface ExperimentalConfig {
    * configuration is enabled by default.
    */
   turbopackUseBuiltinSass?: boolean
+
+  /**
+   * Enable per-directory PostCSS config resolution for Turbopack. When enabled,
+   * Turbopack searches for `postcss.config.js` starting from the CSS file's
+   * parent directory first, then falls back to the project root. When disabled
+   * (default), the project root is checked first, with the CSS file's directory
+   * as a fallback.
+   */
+  turbopackLocalPostcssConfig?: boolean
 
   /**
    * The module ID strategy to use for Turbopack.
@@ -1548,13 +1554,13 @@ export interface NextConfig {
      * Replaces variables in your code during compile time. Each key will be
      * replaced with the respective values.
      */
-    define?: Record<string, string>
+    define?: Record<string, string | number | boolean>
 
     /**
      * Replaces server-only (Node.js and Edge) variables in your code during compile time.
      * Each key will be replaced with the respective values.
      */
-    defineServer?: Record<string, string>
+    defineServer?: Record<string, string | number | boolean>
 
     /**
      * A hook function that executes after production build compilation finishes,
@@ -1832,12 +1838,12 @@ export const defaultConfig = Object.freeze({
     caseSensitiveRoutes: false,
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
-    partialFallbacks: false,
+    partialFallbacks: true,
     dynamicOnHover: false,
     useOffline: false,
     unstableIO: false,
     varyParams: false,
-    prefetchInlining: false,
+    prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,

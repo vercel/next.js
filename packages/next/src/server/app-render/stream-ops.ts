@@ -35,7 +35,8 @@ export const continueStaticPrerender = _m.continueStaticPrerender
 export const continueDynamicPrerender = _m.continueDynamicPrerender
 export const continueStaticFallbackPrerender =
   _m.continueStaticFallbackPrerender
-export const continueDynamicHTMLResume = _m.continueDynamicHTMLResume
+export const continueDynamicHTMLResumeNode = _m.continueDynamicHTMLResumeNode
+export const continueDynamicHTMLResumeWeb = _m.continueDynamicHTMLResumeWeb
 export const streamToBuffer = _m.streamToBuffer
 export const chainStreams = _m.chainStreams
 export const createDocumentClosingStream = _m.createDocumentClosingStream

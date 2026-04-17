@@ -92,11 +92,6 @@ default = ["process_pool"]
 process_pool = ["turbopack-node/process_pool"]
 worker_pool = ["turbopack-node/worker_pool"]
 next-font-local = []
-plugin = [
-  "swc_core/__plugin_transform_host",
-  "swc_core/__plugin_transform_host_schema_v1",
-  "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
-]
 image-webp = ["turbopack-image/webp"]
 image-avif = ["turbopack-image/avif"]
 

@@ -14,10 +14,13 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use tracing::info_span;
+#[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, TurboTasksBackendApi,
-    TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
+    CellId, DynTaskInputs, FxIndexMap, RawVc, TaskExecutionReason, TaskId, TaskPriority,
+    TurboTasksBackendApi, TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
+    macro_helpers::NativeFunction,
 };
 
 use self::aggregation_update::ComputeDirtyAndCleanUpdate;
@@ -99,8 +102,16 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Uses hash-based lookup which may return multiple candidates due to hash collisions,
     /// then verifies each candidate by comparing the stored `persistent_task_type`.
-    /// Returns `Some(task_id)` if a matching task is found, `None` otherwise.
-    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId>;
+    /// Returns `Some((task_id, task_type))` if a matching task is found, where `task_type` is
+    /// the existing `Arc<CachedTaskType>` from storage (avoiding a duplicate allocation).
+    ///
+    /// Accepts exploded components so the caller does not need to box the argument before calling.
+    fn task_by_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Option<(TaskId, Arc<CachedTaskType>)>;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -263,6 +274,7 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
 
             // Still restoring; drop the lock and block until notified, then loop to re-check.
             drop(task);
+            let _span = info_span!("blocking").entered();
             listener.wait();
         }
     }
@@ -295,7 +307,10 @@ impl<'e, B: BackingStorage> ExecuteContextImpl<'e, B> {
             StorageWriteGuard<'e>,
         ),
     ) {
+        #[cfg(feature = "trace_prepare_tasks")]
         let _span = trace_span!("prepare_tasks_with_callback", reason).entered();
+        #[cfg(not(feature = "trace_prepare_tasks"))]
+        let _ = reason;
 
         // Fast path: no backing storage to restore from — all tasks should already
         // have restored flags set at allocation time, so just invoke callbacks directly.
@@ -963,7 +978,12 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         self.turbo_tasks.pin()
     }
 
-    fn task_by_type(&mut self, task_type: &CachedTaskType) -> Option<TaskId> {
+    fn task_by_type(
+        &mut self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Option<(TaskId, Arc<CachedTaskType>)> {
         if !self.backend.should_restore() {
             return None;
         }
@@ -972,7 +992,7 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         let candidates = self
             .backend
             .backing_storage
-            .lookup_task_candidates(task_type)
+            .lookup_task_candidates(native_fn, this, arg)
             .expect("Failed to lookup task ids");
 
         // Verify each candidate by comparing the stored persistent_task_type.
@@ -980,9 +1000,9 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
         for candidate_id in candidates {
             let task = self.task(candidate_id, TaskDataCategory::Data);
             if let Some(stored_type) = task.get_persistent_task_type()
-                && stored_type.as_ref() == task_type
+                && stored_type.eq_components(native_fn, this, arg)
             {
-                return Some(candidate_id);
+                return Some((candidate_id, stored_type.clone()));
             }
         }
         None

@@ -1,6 +1,6 @@
 {
   "name": "eslint-config-next",
-  "version": "16.2.1-canary.31",
+  "version": "16.2.1-canary.46",
   "description": "ESLint configuration used by Next.js.",
   "license": "MIT",
   "repository": {
@@ -12,7 +12,7 @@
     "dist"
   ],
   "dependencies": {
-    "@next/eslint-plugin-next": "16.2.1-canary.31",
+    "@next/eslint-plugin-next": "16.2.1-canary.46",
     "eslint-import-resolver-node": "^0.3.6",
     "eslint-import-resolver-typescript": "^3.5.2",
     "eslint-plugin-import": "^2.32.0",
@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/eslint": "9.6.1",
     "@types/eslint-plugin-jsx-a11y": "6.10.1",
-    "typescript": "5.9.2"
+    "typescript": "6.0.2"
   },
   "scripts": {
     "dev": "pnpm build",

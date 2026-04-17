@@ -53,7 +53,8 @@ use turbopack_core::{
     reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
+    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
+    chunk::EcmascriptChunkType,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -276,7 +277,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
+    let project_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(REPO_ROOT.clone()));
     let project_root = project_fs.root().owned().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
@@ -374,13 +375,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             preprocess: ResolvedVc::cell(vec![]),
             main: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    EmotionTransformer::new(&EmotionTransformConfig::default())
-                        .expect("Should be able to create emotion transformer"),
-                ) as _)),
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
-                ) as _)),
+                EcmascriptInputTransform::Plugin(emotion_transform_plugin().to_resolved().await?),
+                EcmascriptInputTransform::Plugin(
+                    styled_components_transform_plugin().to_resolved().await?,
+                ),
             ]),
             postprocess: ResolvedVc::cell(vec![]),
         }],
@@ -676,4 +674,19 @@ async fn maybe_load_env(
         .await?;
 
     Ok(Some(asset))
+}
+
+#[turbo_tasks::function]
+fn emotion_transform_plugin() -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(
+        EmotionTransformer::new(&EmotionTransformConfig::default())
+            .expect("Should be able to create emotion transformer"),
+    ) as Box<dyn CustomTransformer + Send + Sync>)
+}
+
+#[turbo_tasks::function]
+fn styled_components_transform_plugin() -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(StyledComponentsTransformer::new(
+        &StyledComponentsTransformConfig::default(),
+    )) as Box<dyn CustomTransformer + Send + Sync>)
 }

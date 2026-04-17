@@ -69,6 +69,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
+    hash_xxh3_hash128,
 };
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
@@ -312,10 +313,12 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_read_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_read_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
             self.invalidator_map.insert(path.to_owned(), invalidator);
-            self.watcher.ensure_watched_file(path, self.root_path())?;
+            self.watcher
+                .ensure_watched_file(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
@@ -341,11 +344,13 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
             self.dir_invalidator_map
                 .insert(path.to_owned(), invalidator);
-            self.watcher.ensure_watched_dir(path, self.root_path())?;
+            self.watcher
+                .ensure_watched_dir(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
@@ -489,7 +494,8 @@ impl DiskFileSystemInner {
             .await?;
 
         self.watcher
-            .start_watching(self.clone(), report_invalidation_reason, poll_interval)?;
+            .start_watching(self.clone(), report_invalidation_reason, poll_interval)
+            .await?;
 
         Ok(())
     }
@@ -546,8 +552,8 @@ impl DiskFileSystem {
             .await
     }
 
-    pub fn stop_watching(&self) {
-        self.inner.watcher.stop_watching();
+    pub async fn stop_watching(&self) {
+        self.inner.watcher.stop_watching().await;
     }
 
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
@@ -634,7 +640,7 @@ impl DiskFileSystem {
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
-    pub fn new(name: RcStr, root: RcStr) -> Vc<Self> {
+    pub fn new(name: RcStr, root: Vc<RcStr>) -> Vc<Self> {
         Self::new_internal(name, root, Vec::new())
     }
 
@@ -646,7 +652,11 @@ impl DiskFileSystem {
     ///   [canonicalized][std::fs::canonicalize].
     /// * `denied_paths` - Paths within this filesystem that are not allowed to be accessed or
     ///   navigated into.  These must be normalized, non-empty and relative to the fs root.
-    pub fn new_with_denied_paths(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
+    pub fn new_with_denied_paths(
+        name: RcStr,
+        root: Vc<RcStr>,
+        denied_paths: Vec<RcStr>,
+    ) -> Vc<Self> {
         for denied_path in &denied_paths {
             debug_assert!(!denied_path.is_empty(), "denied_path must not be empty");
             debug_assert!(
@@ -661,7 +671,12 @@ impl DiskFileSystem {
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
     #[turbo_tasks::function]
-    fn new_internal(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
+    async fn new_internal(
+        name: RcStr,
+        root: Vc<RcStr>,
+        denied_paths: Vec<RcStr>,
+    ) -> Result<Vc<Self>> {
+        let root = root.owned().await?;
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,
@@ -680,7 +695,7 @@ impl DiskFileSystem {
             }),
         };
 
-        Self::cell(instance)
+        Ok(Self::cell(instance))
     }
 }
 
@@ -702,7 +717,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
@@ -730,7 +745,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_dir_invalidator(&full_path)?;
+        self.inner.register_dir_invalidator(&full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
@@ -820,7 +835,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
@@ -925,18 +940,19 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<PersistedFileContent>,
+            content_hash: u128,
         }
 
         impl Effect for WriteEffect {
             type Error = AnyhowWrapper;
-            type Value = ReadRef<PersistedFileContent>;
+            type Value = u128;
 
             fn key(&self) -> Vec<u8> {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> &ReadRef<PersistedFileContent> {
-                &self.content
+            fn value(&self) -> &u128 {
+                &self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1068,10 +1084,12 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteEffect {
             full_path,
             inner,
             content,
+            content_hash,
         });
 
         Ok(())
@@ -1098,18 +1116,19 @@ impl FileSystem for DiskFileSystem {
             full_path: PathBuf,
             inner: Arc<DiskFileSystemInner>,
             content: ReadRef<LinkContent>,
+            content_hash: u128,
         }
 
         impl Effect for WriteLinkEffect {
             type Error = AnyhowWrapper;
-            type Value = ReadRef<LinkContent>;
+            type Value = u128;
 
             fn key(&self) -> Vec<u8> {
                 self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            fn value(&self) -> &ReadRef<LinkContent> {
-                &self.content
+            fn value(&self) -> &u128 {
+                &self.content_hash
             }
 
             fn state_storage(&self) -> &EffectStateStorage {
@@ -1347,10 +1366,12 @@ impl FileSystem for DiskFileSystem {
             }
         }
 
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
         emit_effect(WriteLinkEffect {
             full_path,
             inner,
             content,
+            content_hash,
         });
         Ok(())
     }
@@ -1365,7 +1386,7 @@ impl FileSystem for DiskFileSystem {
             turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let meta = retry_blocking(|| std::fs::metadata(&full_path))
@@ -2078,7 +2099,7 @@ bitflags! {
 /// creating a new link, we always create junction points, because symlink creation may fail if
 /// Windows "developer mode" is not enabled and we're running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(Debug, DeterministicHash)]
 pub enum LinkContent {
     /// A valid symbolic link pointing to `target`.
     ///
@@ -2715,14 +2736,10 @@ impl FileSystem for NullFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) -> Vc<()> {
-        Vc::default()
-    }
+    fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) {}
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Vc<()> {
-        Vc::default()
-    }
+    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) {}
 
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Vc<FileMeta> {
@@ -3038,9 +3055,12 @@ mod tests {
     #[turbo_tasks::function(operation)]
     async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
         let sys_root = Path::new(sys_root.as_str());
-        let fs_vc = DiskFileSystem::new(rcstr!("temp"), RcStr::from(sys_root.to_str().unwrap()))
-            .to_resolved()
-            .await?;
+        let fs_vc = DiskFileSystem::new(
+            rcstr!("temp"),
+            Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
+        )
+        .to_resolved()
+        .await?;
         let fs = fs_vc.await?;
         let fs_root_path = fs_vc.root().await?;
 
@@ -3247,7 +3267,7 @@ mod tests {
 
         #[turbo_tasks::function(operation)]
         fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-            DiskFileSystem::new(rcstr!("test"), fs_root)
+            DiskFileSystem::new(rcstr!("test"), Vc::cell(fs_root))
         }
 
         fn disk_file_system_root(fs: ResolvedVc<DiskFileSystem>) -> FileSystemPath {
@@ -3424,8 +3444,11 @@ mod tests {
         async fn test_denied_path_read() {
             #[turbo_tasks::function(operation)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test 1: Reading allowed file should work
@@ -3484,8 +3507,11 @@ mod tests {
         async fn test_denied_path_read_dir() {
             #[turbo_tasks::function(operation)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test: read_dir on root should not include denied_dir
@@ -3543,8 +3569,11 @@ mod tests {
         async fn test_denied_path_read_glob() {
             #[turbo_tasks::function(operation)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test: read_glob with ** should not reveal denied files
@@ -3626,8 +3655,11 @@ mod tests {
                 file_path: RcStr,
                 contents: RcStr,
             ) -> anyhow::Result<Vc<Effects>> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
                 let allowed_file = root_path.join(&file_path)?;
                 let write_op = write_file_operation(allowed_file, contents);
@@ -3642,8 +3674,11 @@ mod tests {
                 denied_file: RcStr,
                 nested_denied_file: RcStr,
             ) -> anyhow::Result<()> {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 let path = root_path.join(&denied_file)?;

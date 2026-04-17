@@ -105,10 +105,7 @@ import { getRestartDevServerMiddleware } from '../../next-devtools/server/restar
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../../build/get-supported-browsers'
 import { printBuildErrors } from '../../build/print-build-errors'
-import {
-  receiveBrowserLogsTurbopack,
-  handleClientFileLogs,
-} from './browser-logs/receive-logs'
+import { receiveBrowserLogsTurbopack } from './browser-logs/receive-logs'
 import { normalizePath } from '../../lib/normalize-path'
 import {
   devToolsConfigMiddleware,
@@ -417,7 +414,6 @@ export async function createHotReloaderTurbopack(
       ),
       nextVersion: process.env.__NEXT_VERSION as string,
       serverHmr: serverFastRefresh,
-      hashSalt: opts.nextConfig.hashSalt,
     },
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
@@ -1263,24 +1259,18 @@ export async function createHotReloaderTurbopack(
               // TODO
               break
             case 'browser-logs': {
-              const browserToTerminalConfig =
-                nextConfig.logging && nextConfig.logging.browserToTerminal
-              if (browserToTerminalConfig) {
-                await receiveBrowserLogsTurbopack({
-                  entries: parsedData.entries,
-                  router: parsedData.router,
-                  sourceType: parsedData.sourceType,
-                  project,
-                  projectPath,
-                  distDir,
-                  config: browserToTerminalConfig,
-                })
-              }
-              break
-            }
-            case 'client-file-logs': {
-              // Always log to file regardless of terminal flag
-              await handleClientFileLogs(parsedData.logs)
+              await receiveBrowserLogsTurbopack({
+                entries: parsedData.entries,
+                router: parsedData.router,
+                sourceType: parsedData.sourceType,
+                project,
+                projectPath,
+                distDir,
+                config:
+                  (nextConfig.logging &&
+                    nextConfig.logging.browserToTerminal) ||
+                  false,
+              })
               break
             }
             case 'ping': {

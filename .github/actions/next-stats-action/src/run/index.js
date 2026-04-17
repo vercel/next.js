@@ -284,15 +284,26 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
 
   if (!pkgData.dependencies && !pkgData.devDependencies) return
 
-  for (const pkg of pkgPaths.keys()) {
-    const pkgPath = pkgPaths.get(pkg)
-
+  const overrides = {}
+  for (const [pkg, pkgPath] of pkgPaths.entries()) {
     if (pkgData.dependencies && pkgData.dependencies[pkg]) {
       pkgData.dependencies[pkg] = pkgPath
     } else if (pkgData.devDependencies && pkgData.devDependencies[pkg]) {
       pkgData.devDependencies[pkg] = pkgPath
+    } else {
+      overrides[pkg] = pkgPath
     }
   }
+
+  if (Object.keys(overrides).length > 0) {
+    pkgData.pnpm = {
+      ...(pkgData.pnpm || {}),
+      overrides: { ...(pkgData.pnpm?.overrides || {}), ...overrides },
+    }
+    pkgData.overrides = { ...(pkgData.overrides || {}), ...overrides }
+    pkgData.resolutions = { ...(pkgData.resolutions || {}), ...overrides }
+  }
+
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
   await exec(
