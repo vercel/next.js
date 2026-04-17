@@ -1,4 +1,4 @@
-import { Data, foo, bar } from './data'
+import { Data, foo, bar, fooViaSelf, barViaSelf, nestedSelfFoo } from './data'
 import * as DataNs from './data'
 import {
   Data as ChainedData,
@@ -14,6 +14,12 @@ it('should re-export own namespace correctly', () => {
 it('should expose named exports alongside the self-namespace', () => {
   expect(foo()).toBe('foo')
   expect(bar()).toBe('bar')
+})
+
+it('should allow using the self-namespace from inside the module', () => {
+  expect(fooViaSelf()).toBe('foo')
+  expect(barViaSelf()).toBe('bar')
+  expect(nestedSelfFoo()).toBe('foo')
 })
 
 it('should let the self-namespace reference itself recursively', () => {
@@ -35,5 +41,7 @@ it('should re-export the self-namespace through a chained module', () => {
 })
 
 it('should enumerate all expected keys on the self-namespace', () => {
-  expect(Object.keys(Data).sort()).toEqual(['Data', 'bar', 'foo'].sort())
+  expect(Object.keys(Data).sort()).toEqual(
+    ['Data', 'bar', 'barViaSelf', 'foo', 'fooViaSelf', 'nestedSelfFoo'].sort()
+  )
 })
