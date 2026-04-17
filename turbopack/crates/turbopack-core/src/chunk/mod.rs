@@ -162,6 +162,17 @@ pub trait MergeableModule: Module {
         Vc::cell(true)
     }
 
+    /// Whether this module must always expose its namespace object into the runtime module cache
+    /// when it is part of a scope hoisting group, regardless of how it is referenced. This is
+    /// needed for synthesized wrapper modules (e.g. `EcmascriptModuleRenameModule`) whose code
+    /// generation always emits a `__turbopack_context__.i(<self id>)` lookup — if any in-group
+    /// module references it, its factory has to be registered in the merged chunk item's
+    /// `additional_ids`.
+    #[turbo_tasks::function]
+    fn requires_namespace_exposure(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     /// Create a new module representing the merged content of the given `modules`.
     ///
     /// Group entry points are not referenced by any other module in the group. This list is needed

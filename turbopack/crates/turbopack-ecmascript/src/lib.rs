@@ -1260,13 +1260,9 @@ impl EcmascriptModuleContent {
                 // is always imported from the same root module).
                 //
                 // Also skip the first entry, which is the name of the chunk item.
-                //
-                // We include both External and Internal exposures: Internal modules can still be
-                // referenced via `__turbopack_context__.i(id)` from other modules in the same
-                // group (e.g. when a module imports its own namespace via a synthesized part like
-                // `<export * as X>`), and the factory has to be available under those ids too.
                 .filter(|m| {
-                    **m != first_entry && *modules.get(*m).unwrap() != MergeableModuleExposure::None
+                    **m != first_entry
+                        && *modules.get(*m).unwrap() == MergeableModuleExposure::External
                 })
                 .map(|m| m.chunk_item_id(*options.chunking_context))
                 .try_join()

@@ -276,6 +276,16 @@ impl EvaluatableAsset for EcmascriptModuleRenameModule {}
 #[turbo_tasks::value_impl]
 impl MergeableModule for EcmascriptModuleRenameModule {
     #[turbo_tasks::function]
+    fn requires_namespace_exposure(self: Vc<Self>) -> Vc<bool> {
+        // A rename module is a synthesized wrapper whose sole purpose is to expose a remapped
+        // namespace. Its emitted code always contains a `__turbopack_context__.i(<self id>)`
+        // lookup (e.g. when the original module does `export * as X from './self'`). Whenever
+        // this module ends up in a merged chunk item, that id has to be present in the module
+        // factories map — so it must be exposed externally, not just internally.
+        Vc::cell(true)
+    }
+
+    #[turbo_tasks::function]
     async fn merge(
         self: Vc<Self>,
         modules: Vc<MergeableModulesExposed>,
