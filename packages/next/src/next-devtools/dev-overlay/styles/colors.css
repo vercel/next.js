@@ -126,6 +126,12 @@
   --color-green-900: #297c3b;
   --color-green-1000: #18311e;
 
+  /* Instant Guidance Cards */
+  --color-instant-border-blue: rgba(0, 112, 243, 0.4);
+  --color-instant-border-purple: rgba(130, 80, 220, 0.4);
+  --color-instant-border-red: rgba(229, 72, 77, 0.45);
+  --color-instant-text-purple: rgb(130, 80, 220);
+
   /* Turbopack Light - Temporary */
   --color-turbopack-text-red: #ff1e56;
   --color-turbopack-text-blue: #0096ff;

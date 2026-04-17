@@ -20,6 +20,11 @@ import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { InstantGuidance } from '../components/instant/instant-guidance'
+import { CodeFrame } from '../components/code-frame/code-frame'
+import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
+import { ErrorCause } from './runtime-error/error-cause'
+import { useFrames } from '../utils/get-error-by-type'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -442,6 +447,9 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
+    if (errorDetails.refinement === '') {
+      return `Instant`
+    }
     return `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
@@ -546,15 +554,70 @@ function getHydrationErrorDetails(
   }
 }
 
+function InstantRuntimeError({
+  error,
+  variant,
+  dialogResizerRef,
+}: {
+  error: ReadyRuntimeError
+  variant: 'runtime' | 'navigation'
+  dialogResizerRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const frames = useFrames(error)
+
+  const firstFrame = useMemo(() => {
+    const idx = frames.findIndex(
+      (entry) =>
+        !entry.ignored &&
+        Boolean(entry.originalCodeFrame) &&
+        Boolean(entry.originalStackFrame)
+    )
+    return frames[idx] ?? null
+  }, [frames])
+
+  return (
+    <>
+      {firstFrame && (
+        <CodeFrame
+          stackFrame={firstFrame.originalStackFrame!}
+          codeFrame={firstFrame.originalCodeFrame!}
+        />
+      )}
+
+      <InstantGuidance variant={variant} />
+
+      {frames.length > 0 && (
+        <ErrorOverlayCallStack
+          dialogResizerRef={dialogResizerRef}
+          frames={frames}
+        />
+      )}
+
+      {/* Instant errors are always single errors, never AggregateError.
+          Each blocking data access is tracked individually via
+          dynamicValidation.dynamicErrors and surfaced one at a time. */}
+      {error.cause && (
+        <ErrorCause cause={error.cause} dialogResizerRef={dialogResizerRef} />
+      )}
+    </>
+  )
+}
+
+function isRuntimeVariant(message: string): boolean {
+  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
+  return (
+    message.includes('encountered runtime data') &&
+    !message.includes('encountered uncached data')
+  )
+}
+
 function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   const isBlockingPageLoadError = error.message.includes('/blocking-route')
 
   if (isBlockingPageLoadError) {
-    const isRuntimeData = error.message.includes('cookies()')
-
     return {
       type: 'blocking-route',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: '',
     }
   }
@@ -563,10 +626,9 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
     '/next-prerender-dynamic-metadata'
   )
   if (isDynamicMetadataError) {
-    const isRuntimeData = error.message.includes('cookies()')
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
     }
   }
 
@@ -574,10 +636,9 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
     '/next-prerender-dynamic-viewport'
   )
   if (isBlockingViewportError) {
-    const isRuntimeData = error.message.includes('cookies()')
     return {
       type: 'blocking-route',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: 'generateViewport',
     }
   }
@@ -751,6 +812,37 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       }
       break
     case 'blocking-route':
+      if (errorDetails.refinement === '') {
+        return (
+          <ErrorOverlayLayout
+            errorCode={errorCode}
+            errorType={errorType}
+            errorMessage={
+              errorDetails.variant === 'runtime'
+                ? 'Next.js encountered runtime data during the initial render.'
+                : 'Next.js encountered uncached data during the initial render.'
+            }
+            onClose={isServerError ? undefined : onClose}
+            debugInfo={debugInfo}
+            error={error}
+            runtimeErrors={runtimeErrors}
+            activeIdx={activeIdx}
+            setActiveIndex={setActiveIndex}
+            dialogResizerRef={dialogResizerRef}
+            generateErrorInfo={generateErrorInfo}
+            {...props}
+          >
+            <Suspense fallback={<div data-nextjs-error-suspended />}>
+              <InstantRuntimeError
+                key={activeError.id.toString()}
+                error={activeError}
+                variant={errorDetails.variant}
+                dialogResizerRef={dialogResizerRef}
+              />
+            </Suspense>
+          </ErrorOverlayLayout>
+        )
+      }
       errorMessage = (
         <BlockingPageLoadErrorDescription
           variant={errorDetails.variant}

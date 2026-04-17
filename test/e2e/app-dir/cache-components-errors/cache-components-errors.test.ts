@@ -86,7 +86,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1080",
+             "code": "E1170",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -152,22 +152,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1084",
-             "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E1164",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/dynamic-metadata-error-route/page.tsx (21:9) @ Dynamic
            > 21 |   await new Promise((r) => setTimeout(r))
                 |         ^",
@@ -195,7 +183,17 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
@@ -213,7 +211,17 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -227,7 +235,17 @@ describe('Cache Components Errors', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Dynamic (webpack:///app/dynamic-metadata-error-route/page.tsx:20:16)
                    at Page (webpack:///app/dynamic-metadata-error-route/page.tsx:15:7)
                  18 | }
@@ -245,7 +263,17 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-metadata-error-route": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-metadata-error-route": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -291,7 +319,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1080",
+             "code": "E1170",
              "description": "Data that blocks navigation was accessed inside generateMetadata() in an otherwise prerenderable page
 
            When Document metadata is the only part of a page that cannot be prerendered Next.js expects you to either make it prerenderable or make some other part of the page non-prerenderable to avoid unintentional partially dynamic pages. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -382,7 +410,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1077",
+             "code": "E1167",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -448,7 +476,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1077",
+             "code": "E1167",
              "description": "Data that blocks navigation was accessed inside generateViewport()
 
            Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
@@ -534,22 +562,10 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1084",
-               "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E1164",
+               "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -560,22 +576,10 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1084",
-               "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E1164",
+               "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/dynamic-root/page.tsx (63:26) @ fetchRandom
            > 63 |   const response = await fetch(
                 |                          ^",
@@ -604,7 +608,17 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
                    at Page (app/dynamic-root/page.tsx:23:9)
@@ -616,7 +630,17 @@ describe('Cache Components Errors', () => {
                  64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
                  65 |   )
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (app/dynamic-root/page.tsx:46:56)
                    at Page (app/dynamic-root/page.tsx:28:7)
@@ -635,7 +659,17 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/dynamic-root/indirection.tsx:7:34)
                    at main (<anonymous>)
                    at body (<anonymous>)
@@ -650,7 +684,17 @@ describe('Cache Components Errors', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at main (<anonymous>)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -664,7 +708,17 @@ describe('Cache Components Errors', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
                    at Page (webpack:///app/dynamic-root/page.tsx:23:9)
@@ -676,7 +730,17 @@ describe('Cache Components Errors', () => {
                  64 |     'https://next-data-api-endpoint.vercel.app/api/random?b=' + entropy
                  65 |   )
                To debug the issue, start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
-               Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at fetchRandom (webpack:///app/dynamic-root/page.tsx:62:16)
                    at FetchingComponent (webpack:///app/dynamic-root/page.tsx:46:56)
                    at Page (webpack:///app/dynamic-root/page.tsx:28:7)
@@ -695,7 +759,17 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
@@ -724,7 +798,17 @@ describe('Cache Components Errors', () => {
                To get a more detailed stack trace and pinpoint the issue, try one of the following:
                  - Start the app in development mode by running \`next dev\`, then open "/dynamic-root" in your browser to investigate the error.
                  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
-               Error: Route "/dynamic-root": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               Error: Route "/dynamic-root": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at w (<next-dist-dir>)
                    at x (<next-dist-dir>)
                    at y (<next-dist-dir>)
@@ -1927,24 +2011,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1083",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-             To fix this:
-
-             Provide a fallback UI using <Suspense> around this component.
-
-             or
-
-             Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-             In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E1166",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx (34:18) @ RequestData
              > 34 |   ;(await cookies()).get('foo')
                   |                  ^",
@@ -1971,7 +2041,17 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
@@ -1989,7 +2069,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
                      at main (<anonymous>)
@@ -2005,7 +2095,17 @@ describe('Cache Components Errors', () => {
             } else {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
                      at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
@@ -2023,7 +2123,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/sync-attribution/unguarded-async-guarded-clientsync": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
                      at b (<next-dist-dir>)
@@ -2628,24 +2738,10 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E1166",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Instant",
                  "source": "app/use-cache-low-expire/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -2671,7 +2767,17 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -2688,7 +2794,17 @@ describe('Cache Components Errors', () => {
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -2705,11 +2821,31 @@ describe('Cache Components Errors', () => {
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    'Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                    `Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
+
+Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-low-expire/fast": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -2763,24 +2899,10 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E1166",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Instant",
                  "source": "app/use-cache-low-expire/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -2806,7 +2928,17 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-low-expire/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -2823,7 +2955,17 @@ describe('Cache Components Errors', () => {
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -2840,11 +2982,31 @@ describe('Cache Components Errors', () => {
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    'Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                    `Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
+
+Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-low-expire/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-low-expire/slow": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -3003,24 +3165,10 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E1166",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Instant",
                  "source": "app/use-cache-revalidate-0/fast/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3046,7 +3194,17 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/fast/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3063,7 +3221,17 @@ describe('Cache Components Errors', () => {
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at main (<anonymous>)
                        at body (<anonymous>)
                        at html (<anonymous>)
@@ -3080,11 +3248,31 @@ describe('Cache Components Errors', () => {
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    'Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                    `Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
+
+Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/fast": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-revalidate-0/fast": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -3138,24 +3326,10 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1083",
-                 "description": "Runtime data was accessed outside of <Suspense>
-
-               This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-               To fix this:
-
-               Provide a fallback UI using <Suspense> around this component.
-
-               or
-
-               Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-               In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-               Learn more: https://nextjs.org/docs/messages/blocking-route",
+                 "code": "E1166",
+                 "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
-                 "label": "Blocking Route",
+                 "label": "Instant",
                  "source": "app/use-cache-revalidate-0/slow/page.tsx (3:16) @ Page
                > 3 | export default async function Page() {
                    |                ^",
@@ -3181,7 +3355,17 @@ describe('Cache Components Errors', () => {
               if (isTurbopack) {
                 if (isDebugPrerender) {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at Page (app/use-cache-revalidate-0/slow/page.tsx:3:16)
                      1 | import { cacheLife } from 'next/cache'
                      2 |
@@ -3198,7 +3382,17 @@ describe('Cache Components Errors', () => {
                   `)
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                    "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                    "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+
+                    \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                    Ways to fix this:
+                      - Cache the data access with \`"use cache"\`
+                      - Move the data access into a child component within a <Suspense> boundary
+                      - Use \`generateStaticParams\` to make route params static
+                      - Set \`export const instant = false\` to allow a blocking route
+
+                    Learn more: https://nextjs.org/docs/messages/blocking-route
                         at main (<anonymous>)
                         at body (<anonymous>)
                         at html (<anonymous>)
@@ -3215,11 +3409,31 @@ describe('Cache Components Errors', () => {
                   // Next.js internals, and is also flaky on resolving the exact
                   // location, so we don't assert on the stack frames here.
                   expect(output).toInclude(
-                    'Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                    `Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
+
+Learn more: https://nextjs.org/docs/messages/blocking-route`
                   )
                 } else {
                   expect(output).toMatchInlineSnapshot(`
-                   "Error: Route "/use-cache-revalidate-0/slow": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                   "Error: Route "/use-cache-revalidate-0/slow": Next.js encountered uncached or runtime data during the initial render.
+
+                   \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                   Ways to fix this:
+                     - Cache the data access with \`"use cache"\`
+                     - Move the data access into a child component within a <Suspense> boundary
+                     - Use \`generateStaticParams\` to make route params static
+                     - Set \`export const instant = false\` to allow a blocking route
+
+                   Learn more: https://nextjs.org/docs/messages/blocking-route
                        at a (<next-dist-dir>)
                        at b (<next-dist-dir>)
                        at c (<next-dist-dir>)
@@ -3379,24 +3593,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1083",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-             To fix this:
-
-             Provide a fallback UI using <Suspense> around this component.
-
-             or
-
-             Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-             In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E1166",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": null,
                "stack": [
                  "Page [Prerender] <anonymous>",
@@ -3420,7 +3620,17 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Page (app/use-cache-params/[slug]/page.tsx:1:16)
                  > 1 | export default async function Page({
                      |                ^
@@ -3435,7 +3645,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
@@ -3452,11 +3672,21 @@ describe('Cache Components Errors', () => {
                 // Next.js internals, and is also flaky on resolving the exact
                 // location, so we don't assert on the stack frames here.
                 expect(output).toInclude(
-                  'Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  `Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.`
                 )
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-params/[slug]": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/use-cache-params/[slug]": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -4314,24 +4544,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1083",
-               "description": "Runtime data was accessed outside of <Suspense>
-
-             This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-             To fix this:
-
-             Provide a fallback UI using <Suspense> around this component.
-
-             or
-
-             Move the Runtime data access into a deeper component wrapped in <Suspense>.
-
-             In either case this allows Next.js to stream its contents to the user when they request the page, while still providing an initial UI that is prerendered and prefetchable for instant navigations.
-
-             Learn more: https://nextjs.org/docs/messages/blocking-route",
+               "code": "E1166",
+               "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
-               "label": "Blocking Route",
+               "label": "Instant",
                "source": "app/use-cache-private-without-suspense/page.tsx (15:1) @ Private
              > 15 | async function Private() {
                   | ^",
@@ -4358,7 +4574,17 @@ describe('Cache Components Errors', () => {
             if (isTurbopack) {
               if (isDebugPrerender) {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at Private (app/use-cache-private-without-suspense/page.tsx:15:1)
                      at Page (app/use-cache-private-without-suspense/page.tsx:10:7)
                    13 | }
@@ -4376,7 +4602,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
@@ -4393,11 +4629,31 @@ describe('Cache Components Errors', () => {
                 // Next.js internals, and is also flaky on resolving the exact
                 // location, so we don't assert on the stack frames here.
                 expect(output).toInclude(
-                  'Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route'
+                  `Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+
+\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+Ways to fix this:
+  - Cache the data access with \`"use cache"\`
+  - Move the data access into a child component within a <Suspense> boundary
+  - Use \`generateStaticParams\` to make route params static
+  - Set \`export const instant = false\` to allow a blocking route
+
+Learn more: https://nextjs.org/docs/messages/blocking-route`
                 )
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/use-cache-private-without-suspense": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+                 "Error: Route "/use-cache-private-without-suspense": Next.js encountered uncached or runtime data during the initial render.
+
+                 \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+                 Ways to fix this:
+                   - Cache the data access with \`"use cache"\`
+                   - Move the data access into a child component within a <Suspense> boundary
+                   - Use \`generateStaticParams\` to make route params static
+                   - Set \`export const instant = false\` to allow a blocking route
+
+                 Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<next-dist-dir>)
                      at b (<next-dist-dir>)
                      at c (<next-dist-dir>)
@@ -6258,22 +6514,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1084",
-             "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-           This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this, you can either:
-
-           Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-           or
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-           Learn more: https://nextjs.org/docs/messages/blocking-route",
+             "code": "E1164",
+             "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/client-awaited-io/client.tsx (6:19) @ Client
            > 6 |   const data = use(io)
                |                   ^",
@@ -6300,7 +6544,17 @@ describe('Cache Components Errors', () => {
           if (isTurbopack) {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (app/client-awaited-io/client.tsx:6:19)
                    at Page (app/client-awaited-io/page.tsx:5:10)
                  4 |
@@ -6318,7 +6572,17 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at <unknown> (app/client-awaited-io/client.tsx:5:26)
                    at body (<anonymous>)
                    at html (<anonymous>)
@@ -6339,7 +6603,17 @@ describe('Cache Components Errors', () => {
           } else {
             if (isDebugPrerender) {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at Client (webpack:///app/client-awaited-io/client.tsx:6:19)
                    at Page (webpack:///app/client-awaited-io/page.tsx:5:10)
                  4 |
@@ -6357,7 +6631,17 @@ describe('Cache Components Errors', () => {
               `)
             } else {
               expect(output).toMatchInlineSnapshot(`
-               "Error: Route "/client-awaited-io": Uncached data was accessed outside of <Suspense>. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+               "Error: Route "/client-awaited-io": Next.js encountered uncached or runtime data during the initial render.
+
+               \`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+               Ways to fix this:
+                 - Cache the data access with \`"use cache"\`
+                 - Move the data access into a child component within a <Suspense> boundary
+                 - Use \`generateStaticParams\` to make route params static
+                 - Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-route
                    at a (<next-dist-dir>)
                    at b (<next-dist-dir>)
                    at c (<next-dist-dir>)
