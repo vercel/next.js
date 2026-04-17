@@ -72,14 +72,14 @@ impl<T> SelfTimeTree<T> {
     }
 
     pub fn optimize(&mut self) {
-        if self.children.is_none() {
-            return;
+        if self.children.is_some() {
+            self.distribute_entries();
+            self.rebalance();
+            let children = self.children.as_mut().unwrap();
+            children.left.optimize();
+            children.right.optimize();
         }
-        self.distribute_entries();
-        self.rebalance();
-        let children = self.children.as_mut().unwrap();
-        children.left.optimize();
-        children.right.optimize();
+        self.entries.shrink_to_fit();
     }
 
     fn split(&mut self) {
