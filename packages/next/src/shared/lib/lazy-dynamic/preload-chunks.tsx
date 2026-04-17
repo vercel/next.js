@@ -58,6 +58,7 @@ export function PreloadChunks({
               rel="stylesheet"
               as="style"
               nonce={workStore.nonce}
+              crossOrigin={process.env.__NEXT_CROSS_ORIGIN}
             />
           )
         } else {
