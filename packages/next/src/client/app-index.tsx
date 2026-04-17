@@ -30,8 +30,8 @@ import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
 import {
   addOutputExportDataSuffix,
-  fetchOutputExportDataResponse,
   fetchOutputExportFallbackResponse,
+  fetchOutputExportNotFoundDataResponse,
 } from './output-export-fallback'
 
 /// <reference types="react-dom/experimental" />
@@ -303,12 +303,9 @@ if (instantTestStaticFetch) {
     }
 
     const response =
-      (await fetchOutputExportDataResponse(
-        new URL('/_not-found', renderedUrl),
-        {
-          credentials: 'same-origin',
-        }
-      )) ??
+      (await fetchOutputExportNotFoundDataResponse(renderedUrl, {
+        credentials: 'same-origin',
+      })) ??
       (await fetch(
         addOutputExportDataSuffix(new URL('/_not-found', renderedUrl)),
         {

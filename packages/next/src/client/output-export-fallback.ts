@@ -26,6 +26,19 @@ type OutputExportCachedResponse = {
   statusText: string
 }
 
+function getOutputExportCandidatePrefixes(pathname: string): string[] {
+  const segments = pathname.split('/').filter(Boolean)
+  const candidates: string[] = []
+
+  for (let i = segments.length; i >= 1; i--) {
+    candidates.push(segments.slice(0, i).join('/'))
+  }
+
+  candidates.push('')
+
+  return candidates
+}
+
 function getOutputExportFallbackCacheStore(): OutputExportFallbackCacheStore {
   const globalWithCache = globalThis as typeof globalThis & {
     __NEXT_OUTPUT_EXPORT_FALLBACK_CACHE_STORE?: OutputExportFallbackCacheStore
@@ -49,17 +62,19 @@ function getOutputExportFallbackCacheStore(): OutputExportFallbackCacheStore {
 }
 
 export function getOutputExportFallbackCandidates(pathname: string): string[] {
-  const segments = pathname.split('/').filter(Boolean)
-  const candidates: string[] = []
+  return getOutputExportCandidatePrefixes(pathname).map((prefix) =>
+    getOutputExportFallbackPath(prefix)
+  )
+}
 
-  for (let i = 1; i <= segments.length; i++) {
-    const prefix = segments.slice(0, i).join('/')
-    candidates.push(getOutputExportFallbackPath(prefix))
-  }
+function getOutputExportNotFoundPath(prefix: string): string {
+  return prefix.length > 0 ? `/${prefix}/_not-found` : '/_not-found'
+}
 
-  candidates.push(getOutputExportFallbackPath(''))
-
-  return candidates
+export function getOutputExportNotFoundCandidates(pathname: string): string[] {
+  return getOutputExportCandidatePrefixes(pathname).map((prefix) =>
+    getOutputExportNotFoundPath(prefix)
+  )
 }
 
 export function addOutputExportDataSuffix(url: URL): URL {
@@ -321,6 +336,25 @@ export async function fetchOutputExportDataResponse(
 ): Promise<Response | null> {
   const result = await fetchOutputExportDataResult(renderedUrl, init)
   return result?.response ?? null
+}
+
+export async function fetchOutputExportNotFoundDataResponse(
+  renderedUrl: URL,
+  init?: RequestInit
+): Promise<Response | null> {
+  for (const candidate of getOutputExportNotFoundCandidates(
+    renderedUrl.pathname
+  )) {
+    const candidateUrl = new URL(renderedUrl)
+    candidateUrl.pathname = candidate
+
+    const response = await fetchOutputExportDataResponse(candidateUrl, init)
+    if (response !== null) {
+      return response
+    }
+  }
+
+  return null
 }
 
 export async function fetchOutputExportFallbackResponse(
