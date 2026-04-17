@@ -1251,22 +1251,25 @@ export default async function build(
       let middlewareFilePath: string | undefined
 
       for (const rootPath of rootPaths) {
-        const { name: fileBaseName, dir: fileDir } = path.parse(rootPath)
+        const { base: fileBase, dir: fileDir } = path.parse(rootPath)
 
         const normalizedFileDir = normalizePathSep(fileDir)
         const isAtConventionLevel =
           normalizedFileDir === '/' || normalizedFileDir === '/src'
 
-        if (isAtConventionLevel && fileBaseName === MIDDLEWARE_FILENAME) {
+        if (!isAtConventionLevel) continue
+
+        // Use the same regexes that filtered `rootPaths` above to assign each
+        // matched file to its convention bucket. Comparing against the bare
+        // `path.parse(...).name` would miss files using a multi-segment
+        // custom `pageExtensions` entry such as `'universal.ts'`, because
+        // `path.parse('/instrumentation.universal.ts').name` is
+        // `'instrumentation.universal'` — not `INSTRUMENTATION_HOOK_FILENAME`.
+        if (middlewareDetectionRegExp.test(fileBase)) {
           middlewareFilePath = rootPath
-        }
-        if (isAtConventionLevel && fileBaseName === PROXY_FILENAME) {
+        } else if (proxyDetectionRegExp.test(fileBase)) {
           proxyFilePath = rootPath
-        }
-        if (
-          isAtConventionLevel &&
-          fileBaseName === INSTRUMENTATION_HOOK_FILENAME
-        ) {
+        } else if (instrumentationHookDetectionRegExp.test(fileBase)) {
           instrumentationHookFilePath = rootPath
         }
       }
