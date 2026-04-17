@@ -13,7 +13,7 @@ use crate::{
     store_container::StoreContainer,
     timestamp::Timestamp,
     u64_string,
-    viewer::{Update, ViewLineUpdate, ViewMode, Viewer},
+    viewer::{SortMode, Update, ViewLineUpdate, ViewMode, Viewer},
 };
 
 #[derive(Serialize, Debug)]
@@ -211,34 +211,39 @@ fn handle_connection(
                         )?;
                     }
                     ClientToServerMessage::ViewMode { id, mode, inherit } => {
-                        let (mode, sorted) = if let Some(mode) = mode.strip_suffix("-sorted") {
-                            (mode, true)
-                        } else {
-                            (mode.as_str(), false)
-                        };
+                        let (mode, sort_mode) =
+                            if let Some(mode) = mode.strip_suffix("-sorted-by-name") {
+                                (mode, SortMode::Name)
+                            } else if let Some(mode) = mode.strip_suffix("-sorted-by-value") {
+                                (mode, SortMode::Value)
+                            } else if let Some(mode) = mode.strip_suffix("-sorted") {
+                                (mode, SortMode::Value)
+                            } else {
+                                (mode.as_str(), SortMode::ExecutionOrder)
+                            };
                         match mode {
                             "raw-spans" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::RawSpans { sorted }, inherit)),
+                                    Some((ViewMode::RawSpans { sort_mode }, inherit)),
                                 );
                             }
                             "aggregated" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::Aggregated { sorted }, inherit)),
+                                    Some((ViewMode::Aggregated { sort_mode }, inherit)),
                                 );
                             }
                             "bottom-up" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::BottomUp { sorted }, inherit)),
+                                    Some((ViewMode::BottomUp { sort_mode }, inherit)),
                                 );
                             }
                             "aggregated-bottom-up" => {
                                 state.viewer.set_view_mode(
                                     id,
-                                    Some((ViewMode::AggregatedBottomUp { sorted }, inherit)),
+                                    Some((ViewMode::AggregatedBottomUp { sort_mode }, inherit)),
                                 );
                             }
                             _ => {

@@ -187,30 +187,39 @@ fn value_over_time(value: u64, time: Timestamp) -> u64 {
     value.checked_div(*time).unwrap_or(0)
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SortMode {
+    ExecutionOrder,
+    Value,
+    Name,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum ViewMode {
-    RawSpans { sorted: bool },
-    Aggregated { sorted: bool },
-    BottomUp { sorted: bool },
-    AggregatedBottomUp { sorted: bool },
+    RawSpans { sort_mode: SortMode },
+    Aggregated { sort_mode: SortMode },
+    BottomUp { sort_mode: SortMode },
+    AggregatedBottomUp { sort_mode: SortMode },
 }
 
 impl ViewMode {
     fn as_spans(self) -> Self {
         match self {
-            ViewMode::RawSpans { sorted } => ViewMode::RawSpans { sorted },
-            ViewMode::Aggregated { sorted } => ViewMode::RawSpans { sorted },
-            ViewMode::BottomUp { sorted } => ViewMode::BottomUp { sorted },
-            ViewMode::AggregatedBottomUp { sorted } => ViewMode::BottomUp { sorted },
+            ViewMode::RawSpans { sort_mode } => ViewMode::RawSpans { sort_mode },
+            ViewMode::Aggregated { sort_mode } => ViewMode::RawSpans { sort_mode },
+            ViewMode::BottomUp { sort_mode } => ViewMode::BottomUp { sort_mode },
+            ViewMode::AggregatedBottomUp { sort_mode } => ViewMode::BottomUp { sort_mode },
         }
     }
 
     fn as_bottom_up(self) -> Self {
         match self {
-            ViewMode::RawSpans { sorted } => ViewMode::BottomUp { sorted },
-            ViewMode::Aggregated { sorted } => ViewMode::AggregatedBottomUp { sorted },
-            ViewMode::BottomUp { sorted } => ViewMode::BottomUp { sorted },
-            ViewMode::AggregatedBottomUp { sorted } => ViewMode::AggregatedBottomUp { sorted },
+            ViewMode::RawSpans { sort_mode } => ViewMode::BottomUp { sort_mode },
+            ViewMode::Aggregated { sort_mode } => ViewMode::AggregatedBottomUp { sort_mode },
+            ViewMode::BottomUp { sort_mode } => ViewMode::BottomUp { sort_mode },
+            ViewMode::AggregatedBottomUp { sort_mode } => {
+                ViewMode::AggregatedBottomUp { sort_mode }
+            }
         }
     }
 
@@ -232,12 +241,12 @@ impl ViewMode {
         }
     }
 
-    fn sort_children(&self) -> bool {
+    fn sort_children(&self) -> SortMode {
         match self {
-            ViewMode::RawSpans { sorted } => *sorted,
-            ViewMode::Aggregated { sorted } => *sorted,
-            ViewMode::BottomUp { sorted } => *sorted,
-            ViewMode::AggregatedBottomUp { sorted } => *sorted,
+            ViewMode::RawSpans { sort_mode } => *sort_mode,
+            ViewMode::Aggregated { sort_mode } => *sort_mode,
+            ViewMode::BottomUp { sort_mode } => *sort_mode,
+            ViewMode::AggregatedBottomUp { sort_mode } => *sort_mode,
         }
     }
 }
@@ -357,49 +366,56 @@ impl Viewer {
         };
 
         let default_view_mode = view_rect.view_mode.as_str();
-        let (default_view_mode, default_sorted) = default_view_mode
-            .strip_suffix("-sorted")
-            .map_or((default_view_mode, false), |s| (s, true));
+        let (default_view_mode, default_sort_mode) =
+            if let Some(s) = default_view_mode.strip_suffix("-sorted-by-name") {
+                (s, SortMode::Name)
+            } else if let Some(s) = default_view_mode.strip_suffix("-sorted-by-value") {
+                (s, SortMode::Value)
+            } else if let Some(s) = default_view_mode.strip_suffix("-sorted") {
+                (s, SortMode::Value)
+            } else {
+                (default_view_mode, SortMode::ExecutionOrder)
+            };
         let (default_view_mode, with_root) = match default_view_mode {
             "aggregated" => (
                 ViewMode::Aggregated {
-                    sorted: default_sorted,
+                    sort_mode: default_sort_mode,
                 },
                 false,
             ),
             "root-aggregated" => (
                 ViewMode::Aggregated {
-                    sorted: default_sorted,
+                    sort_mode: default_sort_mode,
                 },
                 true,
             ),
             "raw-spans" => (
                 ViewMode::RawSpans {
-                    sorted: default_sorted,
+                    sort_mode: default_sort_mode,
                 },
                 false,
             ),
             "bottom-up" => (
                 ViewMode::BottomUp {
-                    sorted: default_sorted,
+                    sort_mode: default_sort_mode,
                 },
                 false,
             ),
             "aggregated-bottom-up" => (
                 ViewMode::AggregatedBottomUp {
-                    sorted: default_sorted,
+                    sort_mode: default_sort_mode,
                 },
                 false,
             ),
             "root-aggregated-bottom-up" => (
                 ViewMode::AggregatedBottomUp {
-                    sorted: default_sorted,
+                    sort_mode: default_sort_mode,
                 },
                 true,
             ),
             _ => (
                 ViewMode::Aggregated {
-                    sorted: default_sorted,
+                    sort_mode: default_sort_mode,
                 },
                 false,
             ),
@@ -616,12 +632,19 @@ impl Viewer {
                     if selected_view_mode.bottom_up() {
                         let bottom_up = span.bottom_up();
                         if selected_view_mode.aggregate_children() {
-                            let bottom_up = if selected_view_mode.sort_children() {
-                                Either::Left(bottom_up.sorted_by_cached_key(|child| {
-                                    Reverse(value_mode.value_from_bottom_up(child))
-                                }))
-                            } else {
-                                Either::Right(bottom_up)
+                            let bottom_up = match selected_view_mode.sort_children() {
+                                SortMode::Value => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        Reverse(value_mode.value_from_bottom_up(child))
+                                    }))
+                                }
+                                SortMode::Name => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        let (cat, title) = child.nice_name();
+                                        (title.to_string(), cat.to_string())
+                                    }))
+                                }
+                                SortMode::ExecutionOrder => Either::Right(bottom_up),
                             };
                             for child in bottom_up {
                                 // TODO search
@@ -639,12 +662,19 @@ impl Viewer {
                         } else {
                             let bottom_up = bottom_up
                                 .flat_map(|bottom_up| bottom_up.spans().collect::<Vec<_>>());
-                            let bottom_up = if selected_view_mode.sort_children() {
-                                Either::Left(bottom_up.sorted_by_cached_key(|child| {
-                                    Reverse(value_mode.value_from_bottom_up_span(child))
-                                }))
-                            } else {
-                                Either::Right(bottom_up)
+                            let bottom_up = match selected_view_mode.sort_children() {
+                                SortMode::Value => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        Reverse(value_mode.value_from_bottom_up_span(child))
+                                    }))
+                                }
+                                SortMode::Name => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        let (cat, title) = child.nice_name();
+                                        (title.to_string(), cat.to_string())
+                                    }))
+                                }
+                                SortMode::ExecutionOrder => Either::Right(bottom_up),
                             };
                             for child in bottom_up {
                                 let filtered = get_filter_mode(child.id());
@@ -661,12 +691,24 @@ impl Viewer {
                             }
                         }
                     } else if !selected_view_mode.aggregate_children() {
-                        let spans = if selected_view_mode.sort_children() {
-                            Either::Left(span.events().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_event(child))
-                            }))
-                        } else {
-                            Either::Right(span.events().sorted_by_key(|child| child.start()))
+                        let spans = match selected_view_mode.sort_children() {
+                            SortMode::Value => {
+                                Either::Left(span.events().sorted_by_cached_key(|child| {
+                                    Reverse(value_mode.value_from_event(child))
+                                }))
+                            }
+                            SortMode::Name => {
+                                Either::Left(span.events().sorted_by_cached_key(|child| {
+                                    let (cat, title) = match child {
+                                        SpanEventRef::Child { span } => span.nice_name(),
+                                        SpanEventRef::SelfTime { .. } => ("", ""),
+                                    };
+                                    (title.to_string(), cat.to_string())
+                                }))
+                            }
+                            SortMode::ExecutionOrder => {
+                                Either::Right(span.events().sorted_by_key(|child| child.start()))
+                            }
                         };
                         for child in spans {
                             match child {
@@ -689,12 +731,22 @@ impl Viewer {
                             }
                         }
                     } else {
-                        let events = if selected_view_mode.sort_children() {
-                            Either::Left(span.graph().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_graph_event(child))
-                            }))
-                        } else {
-                            Either::Right(span.graph())
+                        let events = match selected_view_mode.sort_children() {
+                            SortMode::Value => {
+                                Either::Left(span.graph().sorted_by_cached_key(|child| {
+                                    Reverse(value_mode.value_from_graph_event(child))
+                                }))
+                            }
+                            SortMode::Name => {
+                                Either::Left(span.graph().sorted_by_cached_key(|child| {
+                                    let (cat, title) = match child {
+                                        SpanGraphEventRef::Child { graph } => graph.nice_name(),
+                                        SpanGraphEventRef::SelfTime { .. } => ("", ""),
+                                    };
+                                    (title.to_string(), cat.to_string())
+                                }))
+                            }
+                            SortMode::ExecutionOrder => Either::Right(span.graph()),
                         };
                         for event in events {
                             let filtered = if search_mode {
@@ -735,12 +787,19 @@ impl Viewer {
                     if selected_view_mode.bottom_up() {
                         let bottom_up = span_graph.bottom_up();
                         if selected_view_mode.aggregate_children() {
-                            let bottom_up = if selected_view_mode.sort_children() {
-                                Either::Left(bottom_up.sorted_by_cached_key(|child| {
-                                    Reverse(value_mode.value_from_bottom_up(child))
-                                }))
-                            } else {
-                                Either::Right(bottom_up)
+                            let bottom_up = match selected_view_mode.sort_children() {
+                                SortMode::Value => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        Reverse(value_mode.value_from_bottom_up(child))
+                                    }))
+                                }
+                                SortMode::Name => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        let (cat, title) = child.nice_name();
+                                        (title.to_string(), cat.to_string())
+                                    }))
+                                }
+                                SortMode::ExecutionOrder => Either::Right(bottom_up),
                             };
                             for child in bottom_up {
                                 // TODO search
@@ -758,12 +817,21 @@ impl Viewer {
                         } else {
                             let bottom_up = bottom_up
                                 .flat_map(|bottom_up| bottom_up.spans().collect::<Vec<_>>());
-                            let bottom_up = if selected_view_mode.sort_children() {
-                                Either::Left(bottom_up.sorted_by_cached_key(|child| {
-                                    Reverse(value_mode.value_from_bottom_up_span(child))
-                                }))
-                            } else {
-                                Either::Right(bottom_up.sorted_by_key(|child| child.start()))
+                            let bottom_up = match selected_view_mode.sort_children() {
+                                SortMode::Value => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        Reverse(value_mode.value_from_bottom_up_span(child))
+                                    }))
+                                }
+                                SortMode::Name => {
+                                    Either::Left(bottom_up.sorted_by_cached_key(|child| {
+                                        let (cat, title) = child.nice_name();
+                                        (title.to_string(), cat.to_string())
+                                    }))
+                                }
+                                SortMode::ExecutionOrder => {
+                                    Either::Right(bottom_up.sorted_by_key(|child| child.start()))
+                                }
                             };
                             for child in bottom_up {
                                 let filtered = get_filter_mode(child.id());
@@ -780,14 +848,21 @@ impl Viewer {
                             }
                         }
                     } else if !selected_view_mode.aggregate_children() && span_graph.count() > 1 {
-                        let spans = if selected_view_mode.sort_children() {
-                            Either::Left(span_graph.root_spans().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_span(child))
-                            }))
-                        } else {
-                            Either::Right(
+                        let spans = match selected_view_mode.sort_children() {
+                            SortMode::Value => {
+                                Either::Left(span_graph.root_spans().sorted_by_cached_key(
+                                    |child| Reverse(value_mode.value_from_span(child)),
+                                ))
+                            }
+                            SortMode::Name => Either::Left(
+                                span_graph.root_spans().sorted_by_cached_key(|child| {
+                                    let (cat, title) = child.nice_name();
+                                    (title.to_string(), cat.to_string())
+                                }),
+                            ),
+                            SortMode::ExecutionOrder => Either::Right(
                                 span_graph.root_spans().sorted_by_key(|child| child.start()),
-                            )
+                            ),
                         };
                         for child in spans {
                             let filtered = get_filter_mode(child.id());
@@ -803,12 +878,22 @@ impl Viewer {
                             );
                         }
                     } else {
-                        let events = if selected_view_mode.sort_children() {
-                            Either::Left(span_graph.events().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_graph_event(child))
-                            }))
-                        } else {
-                            Either::Right(span_graph.events())
+                        let events = match selected_view_mode.sort_children() {
+                            SortMode::Value => {
+                                Either::Left(span_graph.events().sorted_by_cached_key(|child| {
+                                    Reverse(value_mode.value_from_graph_event(child))
+                                }))
+                            }
+                            SortMode::Name => {
+                                Either::Left(span_graph.events().sorted_by_cached_key(|child| {
+                                    let (cat, title) = match child {
+                                        SpanGraphEventRef::Child { graph } => graph.nice_name(),
+                                        SpanGraphEventRef::SelfTime { .. } => ("", ""),
+                                    };
+                                    (title.to_string(), cat.to_string())
+                                }))
+                            }
+                            SortMode::ExecutionOrder => Either::Right(span_graph.events()),
                         };
                         for child in events {
                             if let SpanGraphEventRef::Child { graph } = child {
@@ -840,12 +925,19 @@ impl Viewer {
                         .unwrap_or(view_mode);
 
                     if view_mode.aggregate_children() {
-                        let bottom_up = if view_mode.sort_children() {
-                            Either::Left(bottom_up.children().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_bottom_up(child))
-                            }))
-                        } else {
-                            Either::Right(bottom_up.children())
+                        let bottom_up = match view_mode.sort_children() {
+                            SortMode::Value => {
+                                Either::Left(bottom_up.children().sorted_by_cached_key(|child| {
+                                    Reverse(value_mode.value_from_bottom_up(child))
+                                }))
+                            }
+                            SortMode::Name => {
+                                Either::Left(bottom_up.children().sorted_by_cached_key(|child| {
+                                    let (cat, title) = child.nice_name();
+                                    (title.to_string(), cat.to_string())
+                                }))
+                            }
+                            SortMode::ExecutionOrder => Either::Right(bottom_up.children()),
                         };
                         for child in bottom_up {
                             // TODO search
@@ -861,12 +953,21 @@ impl Viewer {
                             );
                         }
                     } else {
-                        let spans = if view_mode.sort_children() {
-                            Either::Left(bottom_up.spans().sorted_by_cached_key(|child| {
-                                Reverse(value_mode.value_from_bottom_up_span(child))
-                            }))
-                        } else {
-                            Either::Right(bottom_up.spans().sorted_by_key(|child| child.start()))
+                        let spans = match view_mode.sort_children() {
+                            SortMode::Value => {
+                                Either::Left(bottom_up.spans().sorted_by_cached_key(|child| {
+                                    Reverse(value_mode.value_from_bottom_up_span(child))
+                                }))
+                            }
+                            SortMode::Name => {
+                                Either::Left(bottom_up.spans().sorted_by_cached_key(|child| {
+                                    let (cat, title) = child.nice_name();
+                                    (title.to_string(), cat.to_string())
+                                }))
+                            }
+                            SortMode::ExecutionOrder => Either::Right(
+                                bottom_up.spans().sorted_by_key(|child| child.start()),
+                            ),
                         };
                         for child in spans {
                             let filtered = get_filter_mode(child.id());

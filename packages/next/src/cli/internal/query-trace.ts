@@ -12,7 +12,7 @@ interface QueryTraceOptions {
   port: number | undefined
   parent: string | undefined
   aggregated: boolean | undefined
-  sort: boolean | undefined
+  sort: string | undefined
   search: string | undefined
   page: number | undefined
   json: boolean | undefined
