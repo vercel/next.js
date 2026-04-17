@@ -2,7 +2,7 @@ import { css } from '../../utils/css'
 
 const DOCS = 'https://nextjs.org/docs/messages/blocking-route'
 
-type CardColor = 'blue' | 'purple' | 'amber' | 'red' | 'gray'
+type CardColor = 'blue' | 'purple' | 'red'
 
 type FixCard = {
   title: string
@@ -215,10 +215,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border-color: var(--color-instant-border-purple);
   }
 
-  [data-card-color='amber'] [data-nextjs-fix-snippet] {
-    border-color: var(--color-amber-400);
-  }
-
   [data-card-color='red'] [data-nextjs-fix-snippet] {
     border-color: var(--color-instant-border-red);
   }
@@ -239,10 +235,6 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-card-color='purple'] [data-snippet-line][data-snippet-highlight] {
     color: var(--color-instant-text-purple);
-  }
-
-  [data-card-color='amber'] [data-snippet-line][data-snippet-highlight] {
-    color: var(--color-amber-900);
   }
 
   [data-card-color='red'] [data-snippet-line][data-snippet-highlight] {
