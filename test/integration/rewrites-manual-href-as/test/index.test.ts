@@ -8,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 
@@ -26,8 +27,10 @@ const runTests = () => {
 
     await browser.elementByCss('#to-modal').click()
 
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
+    })
     expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
     expect(await browser.eval('window.beforeNav')).toBe(1)
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       imageId: '123',
@@ -86,8 +89,10 @@ const runTests = () => {
       .click()
       .waitForElementByCss('#index')
 
+    await retry(async () => {
+      expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
+    })
     expect(await browser.elementByCss('#index').text()).toBe('index page')
-    expect(await browser.hasElementByCssSelector('#modal')).toBeTruthy()
     expect(await browser.eval('window.beforeNav')).toBe(1)
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       imageId: '123',
