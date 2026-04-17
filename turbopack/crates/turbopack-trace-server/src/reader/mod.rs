@@ -15,6 +15,7 @@ use std::{
 
 use anyhow::Result;
 use flate2::bufread::GzDecoder;
+use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
     reader::{heaptrack::HeaptrackFormat, nextjs::NextJsFormat, turbopack::TurbopackFormat},
@@ -343,9 +344,10 @@ impl TraceReader {
             }
             if total > MIN_INITIAL_REPORT_SIZE {
                 println!(
-                    "Initial read completed ({} MB, {}s)",
+                    "Initial read completed ({} MB, {}s, Memory usage: {} GB)",
                     total / (1024 * 1024),
-                    (start.elapsed().as_millis() / 100) as f32 / 10.0
+                    (start.elapsed().as_millis() / 100) as f32 / 10.0,
+                    (TurboMalloc::memory_usage() * 10 / (1024 * 1024 * 1024)) as f32 / 10.0
                 );
             }
         }
