@@ -154,7 +154,7 @@ class UrlNode {
         if (isOptional) {
           if (this.restSlugName != null) {
             throw new Error(
-              `You cannot use both an required and optional catch-all route at the same level ("[...${this.restSlugName}]" and "${urlPaths[0]}" ).`
+              `You cannot use both a required and optional catch-all route at the same level ("[...${this.restSlugName}]" and "${urlPaths[0]}" ).`
             )
           }
 
