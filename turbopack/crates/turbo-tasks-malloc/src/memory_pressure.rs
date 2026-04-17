@@ -21,12 +21,19 @@ fn clamp_percent(value: f64) -> u8 {
 mod platform {
     use super::clamp_percent;
 
-    /// Reads the `some avg10=<value>` field from `/proc/pressure/memory`.
-    /// Returns `None` if the file cannot be read or parsed (for example on
-    /// kernels older than 4.20 or in containers without access to PSI).
+    /// Reads memory pressure on Linux. Prefers `/proc/pressure/memory` (the
+    /// `some avg10` stall percentage) when the kernel exposes PSI, and falls
+    /// back to `MemAvailable`/`MemTotal` from `/proc/meminfo` when it does
+    /// not (older kernels, containers without PSI access, or kernels built
+    /// without `CONFIG_PSI`).
     pub fn memory_pressure() -> Option<u8> {
-        let content = std::fs::read_to_string("/proc/pressure/memory").ok()?;
-        parse_psi(&content)
+        if let Ok(content) = std::fs::read_to_string("/proc/pressure/memory")
+            && let Some(value) = parse_psi(&content)
+        {
+            return Some(value);
+        }
+        let content = std::fs::read_to_string("/proc/meminfo").ok()?;
+        parse_meminfo(&content)
     }
 
     fn parse_psi(content: &str) -> Option<u8> {
@@ -34,7 +41,9 @@ mod platform {
         //   some avg10=0.00 avg60=0.00 avg300=0.00 total=...
         //   full avg10=0.00 avg60=0.00 avg300=0.00 total=...
         for line in content.lines() {
-            let rest = line.strip_prefix("some ")?;
+            let Some(rest) = line.strip_prefix("some ") else {
+                continue;
+            };
             for field in rest.split_ascii_whitespace() {
                 if let Some(val) = field.strip_prefix("avg10=") {
                     let parsed: f64 = val.parse().ok()?;
@@ -45,9 +54,41 @@ mod platform {
         None
     }
 
+    fn parse_meminfo(content: &str) -> Option<u8> {
+        // Returns `(MemTotal - MemAvailable) / MemTotal * 100`, i.e. the
+        // percentage of physical memory currently unavailable — analogous to
+        // Windows' `dwMemoryLoad`.
+        let mut total: Option<u64> = None;
+        let mut available: Option<u64> = None;
+        for line in content.lines() {
+            if let Some(rest) = line.strip_prefix("MemTotal:") {
+                total = parse_kb(rest);
+            } else if let Some(rest) = line.strip_prefix("MemAvailable:") {
+                available = parse_kb(rest);
+            }
+            if total.is_some() && available.is_some() {
+                break;
+            }
+        }
+        let total = total?;
+        let available = available?;
+        if total == 0 {
+            return None;
+        }
+        let used = total.saturating_sub(available);
+        let pct = (used as f64) * 100.0 / (total as f64);
+        Some(clamp_percent(pct))
+    }
+
+    fn parse_kb(rest: &str) -> Option<u64> {
+        // Expected format: "        12345 kB"
+        let mut iter = rest.split_ascii_whitespace();
+        iter.next()?.parse().ok()
+    }
+
     #[cfg(test)]
     mod tests {
-        use super::parse_psi;
+        use super::{parse_meminfo, parse_psi};
 
         #[test]
         fn parses_typical_psi_content() {
@@ -57,15 +98,29 @@ mod platform {
         }
 
         #[test]
-        fn returns_none_on_malformed_content() {
+        fn returns_none_on_malformed_psi() {
             assert_eq!(parse_psi(""), None);
             assert_eq!(parse_psi("garbage"), None);
         }
 
         #[test]
-        fn clamps_to_100() {
+        fn clamps_psi_to_100() {
             let content = "some avg10=150.00 avg60=0.00 avg300=0.00 total=0\n";
             assert_eq!(parse_psi(content), Some(100));
+        }
+
+        #[test]
+        fn parses_meminfo() {
+            let content =
+                "MemTotal:       1000 kB\nMemFree:         500 kB\nMemAvailable:    750 kB\n";
+            // used = 250, 25%
+            assert_eq!(parse_meminfo(content), Some(25));
+        }
+
+        #[test]
+        fn returns_none_on_missing_meminfo_fields() {
+            assert_eq!(parse_meminfo("MemTotal: 1000 kB\n"), None);
+            assert_eq!(parse_meminfo(""), None);
         }
     }
 }
