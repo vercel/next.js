@@ -247,7 +247,7 @@ jobs:
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
-        uses: taiki-e/install-action@3a0adc33ab45d7b9b9da91822dd2b3c0151704be # nextest
+        run: cargo binstall --no-confirm cargo-nextest@0.9.133
 
       - run: rustc --version
         if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}

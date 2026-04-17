@@ -85,15 +85,14 @@ RUN rustup target add \
     x86_64-unknown-linux-musl \
     aarch64-unknown-linux-musl
 
-# Install @napi-rs/cli, cargo-rustflags, and sccache.
-# Use cargo-binstall for sccache (pre-built binary, much faster than compiling).
-RUN npm i -g @napi-rs/cli@2.18.4 && \
-    cargo install cargo-rustflags && \
-    BINSTALL_ARCH=$(uname -m) && \
-    curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-${BINSTALL_ARCH}-unknown-linux-musl.tgz" | tar xz -C /root/.cargo/bin && \
-    cargo binstall sccache@0.14.0 --no-confirm
-
-# Verify installations
-RUN node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null && sccache --version
+# Install cargo-binstall, then use it for Rust tools.
+ARG CARGO_BINSTALL_VERSION=1.18.1
+RUN ARCH=$(uname -m) && \
+    curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v${CARGO_BINSTALL_VERSION}/cargo-binstall-${ARCH}-unknown-linux-musl.tgz" \
+      | tar xz -C /root/.cargo/bin && \
+    npm i -g @napi-rs/cli@2.18.4 && \
+    cargo binstall --no-confirm --targets "${ARCH}-unknown-linux-musl" cargo-rustflags@0.4.0 && \
+    cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache && \
+    node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null && sccache --version
 
 WORKDIR /build
