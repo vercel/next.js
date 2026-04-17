@@ -141,17 +141,19 @@ const handleSessionStop = async (signal: NodeJS.Signals | number | null) => {
         distDir: path.join(dir, distDir || '.next'),
       })
 
-    telemetry.record(
-      eventCliSessionStopped({
-        cliCommand: 'dev',
-        turboFlag: isTurbopack,
-        durationMilliseconds: Date.now() - sessionStarted,
-        pagesDir,
-        appDir,
-      }),
-      true
-    )
-    telemetry.flushDetached('dev', dir)
+    if (telemetry.isEnabled) {
+      telemetry.record(
+        eventCliSessionStopped({
+          cliCommand: 'dev',
+          turboFlag: isTurbopack,
+          durationMilliseconds: Date.now() - sessionStarted,
+          pagesDir,
+          appDir,
+        }),
+        true
+      )
+      telemetry.flushDetached('dev', dir)
+    }
   } catch (_) {
     // errors here aren't actionable so don't add
     // noise to the output

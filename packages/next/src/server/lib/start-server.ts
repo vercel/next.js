@@ -436,7 +436,7 @@ export async function startServer(
                       typeof import('../../telemetry/storage').Telemetry
                     >
                   | undefined
-                if (telemetry) {
+                if (telemetry && telemetry.isEnabled) {
                   // Use flushDetached to avoid blocking process exit
                   // Each process writes to a unique file (_events_${pid}.json)
                   // to avoid race conditions with the parent process
