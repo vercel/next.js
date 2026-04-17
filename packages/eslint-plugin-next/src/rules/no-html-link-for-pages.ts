@@ -32,6 +32,8 @@ const memoize = <T = any>(fn: (...args: any[]) => T) => {
   }
 }
 
+// Default page extensions matching Next.js default configuration
+const defaultPageExtensions = ['tsx', 'ts', 'jsx', 'js']
 const cachedGetUrlFromPagesDirectories = memoize(getUrlFromPagesDirectories)
 const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
@@ -72,6 +74,12 @@ export default defineRule({
     const ruleOptions: (string | string[])[] = context.options
     const [customPagesDirectory] = ruleOptions
 
+    // Get pageExtensions from settings.next or use defaults
+    const nextSettings: { pageExtensions?: string[] } =
+      context.settings.next || {}
+    const pageExtensions: string[] =
+      nextSettings.pageExtensions || defaultPageExtensions
+
     const rootDirs = getRootDirs(context)
 
     const pagesDirs = (
@@ -107,7 +115,11 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
