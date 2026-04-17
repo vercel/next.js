@@ -1263,7 +1263,7 @@ export async function handleBuildComplete({
               config: {
                 ...initialOutput.config,
                 bypassFor: undefined,
-                partialFallback: undefined,
+                partialFallback: initialOutput.config.partialFallback,
               },
 
               fallback: {
