@@ -208,17 +208,11 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   /* ── Card colors (border + highlight text only) ── */
   [data-card-color='blue'] [data-nextjs-fix-snippet] {
-    border-color: var(--color-blue-400);
+    border-color: var(--color-instant-border-blue);
   }
 
   [data-card-color='purple'] [data-nextjs-fix-snippet] {
-    border-color: rgba(130, 80, 220, 0.25);
-  }
-
-  @media (prefers-color-scheme: dark) {
-    [data-card-color='purple'] [data-nextjs-fix-snippet] {
-      border-color: rgba(130, 80, 220, 0.5);
-    }
+    border-color: var(--color-instant-border-purple);
   }
 
   [data-card-color='amber'] [data-nextjs-fix-snippet] {
@@ -226,7 +220,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-card-color='red'] [data-nextjs-fix-snippet] {
-    border-color: var(--color-red-400);
+    border-color: var(--color-instant-border-red);
   }
 
   [data-snippet-line] {
@@ -244,7 +238,7 @@ export const INSTANT_GUIDANCE_STYLES = css`
   }
 
   [data-card-color='purple'] [data-snippet-line][data-snippet-highlight] {
-    color: rgb(130, 80, 220);
+    color: var(--color-instant-text-purple);
   }
 
   [data-card-color='amber'] [data-snippet-line][data-snippet-highlight] {

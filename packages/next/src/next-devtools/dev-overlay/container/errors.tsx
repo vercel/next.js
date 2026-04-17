@@ -593,6 +593,9 @@ function InstantRuntimeError({
         />
       )}
 
+      {/* Instant errors are always single errors, never AggregateError.
+          Each blocking data access is tracked individually via
+          dynamicValidation.dynamicErrors and surfaced one at a time. */}
       {error.cause && (
         <ErrorCause cause={error.cause} dialogResizerRef={dialogResizerRef} />
       )}
@@ -601,7 +604,7 @@ function InstantRuntimeError({
 }
 
 function isRuntimeVariant(message: string): boolean {
-  // Discriminates between `runtimeBodyMessage` and `dynamicBodyMessage`
+  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
   return (
     message.includes('encountered runtime data') &&
     !message.includes('encountered uncached data')
