@@ -21,7 +21,7 @@ describe('Basic CSS Module Support', () => {
     if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".index-module__VJHdSq__redText{color:red}"`)
+      ).toMatchInlineSnapshot(`".index-module__KWKY6G__redText{color:red}"`)
     } else {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -46,7 +46,7 @@ describe('Basic CSS Module Support', () => {
 
     if (isTurbopack) {
       expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
-        `"index-module__VJHdSq__redText"`
+        `"index-module__KWKY6G__redText"`
       )
     } else {
       expect($('#verify-red').attr('class')).toMatchInlineSnapshot(
@@ -73,7 +73,7 @@ describe('3rd Party CSS Module Support', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".index-module__jAE1EW__foo{position:relative}:is(.index-module__jAE1EW__foo .bar,.index-module__jAE1EW__foo .baz){height:100%;overflow:hidden}.index-module__jAE1EW__foo .lol{width:80%}.index-module__jAE1EW__foo>.lel{width:80%}"`
+        `".index-module__KWKY6G__foo{position:relative}:is(.index-module__KWKY6G__foo .bar,.index-module__KWKY6G__foo .baz){height:100%;overflow:hidden}.index-module__KWKY6G__foo .lol{width:80%}.index-module__KWKY6G__foo>.lel{width:80%}"`
       )
     } else {
       expect(
@@ -101,7 +101,7 @@ describe('3rd Party CSS Module Support', () => {
 
     if (isTurbopack) {
       expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
-        `"index-module__jAE1EW__foo"`
+        `"index-module__KWKY6G__foo"`
       )
     } else {
       expect($('#verify-div').attr('class')).toMatchInlineSnapshot(
@@ -137,7 +137,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     const cssPreload = $('#nm-div')
     if (isTurbopack) {
       expect(cssPreload.text()).toMatchInlineSnapshot(
-        `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__kwuKnq__redText","default":{"redText":"index-module__kwuKnq__redText"}}"`
+        `"{"message":"Why hello there","default":{"message":"Why hello there"}} {"redText":"index-module__PIKFPa__redText","default":{"redText":"index-module__PIKFPa__redText"}}"`
       )
     } else {
       expect(cssPreload.text()).toMatchInlineSnapshot(
@@ -158,7 +158,7 @@ describe('Valid CSS Module Usage from within node_modules', () => {
     if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".index-module__kwuKnq__redText{color:red}"`)
+      ).toMatchInlineSnapshot(`".index-module__PIKFPa__redText{color:red}"`)
     } else {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -220,7 +220,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
       ).toMatchInlineSnapshot(
-        `".index-module__QppuLW__className{color:#ff0;background:red}.index-module__QppuLW__subClass{background:#00f;}"`
+        `".index-module__KWKY6G__className{color:#ff0;background:red}.index-module__KWKY6G__subClass{background:#00f;}"`
       )
     } else {
       expect(
@@ -282,7 +282,7 @@ describe('Dynamic Route CSS Module Usage', () => {
     if (isTurbopack) {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`".index-module__Iury9a__home{background:red}"`)
+      ).toMatchInlineSnapshot(`".index-module__9fTRMq__home{background:red}"`)
     } else {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
@@ -320,9 +320,9 @@ describe('Catch-all Route CSS Module Usage', () => {
     if (isTurbopack) {
       expect(cssContent.replace(/\/\*.*?\*\/\n?/g, '').trim())
         .toMatchInlineSnapshot(`
-".index-module___rV4CG__home{background:red}
-.\\35 5css-module__qe774W__home{color:green}"
-`)
+       ".index-module__vy7_gG__home{background:red}
+       .\\35 5css-module__c9Qeqa__home{color:green}"
+      `)
     } else {
       expect(
         cssContent.replace(/\/\*.*?\*\//g, '').trim()
