@@ -235,7 +235,7 @@ impl<T> SelfTimeTree<T> {
         }
         let mut current_count = 0;
         let mut changes = Vec::new();
-        self.for_each_in_range(start, end, |s, e, _| {
+        self.for_each_in_range(start, end, &mut |s, e, _| {
             if s <= start {
                 current_count += 1;
             } else {
@@ -270,15 +270,6 @@ impl<T> SelfTimeTree<T> {
         &self,
         start: Timestamp,
         end: Timestamp,
-        mut f: impl FnMut(Timestamp, Timestamp, &T),
-    ) {
-        self.for_each_in_range_ref(start, end, &mut f);
-    }
-
-    fn for_each_in_range_ref(
-        &self,
-        start: Timestamp,
-        end: Timestamp,
         f: &mut impl FnMut(Timestamp, Timestamp, &T),
     ) {
         for entry in &self.entries {
@@ -288,24 +279,15 @@ impl<T> SelfTimeTree<T> {
         }
         if let Some(children) = &self.children {
             if start <= children.split_point {
-                children.left.for_each_in_range_ref(start, end, f);
+                children.left.for_each_in_range(start, end, f);
             }
             if end >= children.split_point {
-                children.right.for_each_in_range_ref(start, end, f);
+                children.right.for_each_in_range(start, end, f);
             }
         }
     }
 
     pub fn for_each_in_range_optimize(
-        &mut self,
-        start: Timestamp,
-        end: Timestamp,
-        mut f: impl FnMut(Timestamp, Timestamp, &T),
-    ) {
-        self.for_each_in_range_optimize_ref(start, end, &mut f);
-    }
-
-    fn for_each_in_range_optimize_ref(
         &mut self,
         start: Timestamp,
         end: Timestamp,
@@ -322,10 +304,10 @@ impl<T> SelfTimeTree<T> {
         }
         if let Some(children) = &mut self.children {
             if start <= children.split_point {
-                children.left.for_each_in_range_optimize_ref(start, end, f);
+                children.left.for_each_in_range_optimize(start, end, f);
             }
             if end >= children.split_point {
-                children.right.for_each_in_range_optimize_ref(start, end, f);
+                children.right.for_each_in_range_optimize(start, end, f);
             }
         }
     }

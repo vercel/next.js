@@ -193,7 +193,7 @@ impl Store {
     ) {
         if let Some(tree) = self.self_time_tree.as_mut() {
             if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
-                tree.for_each_in_range_optimize(start, end, |_, _, span| {
+                tree.for_each_in_range_optimize(start, end, &mut |_, _, span| {
                     outdated_spans.insert(*span);
                 });
             }
