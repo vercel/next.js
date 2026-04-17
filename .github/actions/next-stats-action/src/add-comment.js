@@ -1016,12 +1016,15 @@ function generateNativeBinarySection(mainStats, diffStats, history) {
     ? `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} | ${sparkline} |`
     : `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} |`
 
-  return `## 🦀 Native Binary
+  return `<details>
+<summary><strong>🦀 Native Binary</strong></summary>
 
 Size of the native SWC binary (\`packages/next-swc/native/*.node\`). The Canary column is the most recent value recorded on the canary branch.
 
 ${header}
 ${row}
+
+</details>
 
 `
 }
