@@ -552,6 +552,18 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             },
         )?;
 
+        // Modules referenced from within the same scope hoisting group also need to have their
+        // factory registered, because intra-group references via `__turbopack_context__.i(id)`
+        // (e.g. from synthesized namespace parts like `<export * as X>` where the importer's
+        // `namespace_ident` encodes a sibling id) still rely on the runtime factory lookup for
+        // the target id. Mark those as at least `Internal` exposure if they are not already
+        // exposed externally.
+        for referenced in intra_group_references.values().flatten() {
+            if !exposed_modules_imported.contains(referenced) {
+                exposed_modules_namespace.insert(*referenced);
+            }
+        }
+
         drop(inner_span);
         let inner_span = tracing::info_span!("reconciliation").entered();
         while let Some((_, common_occurrences)) = lists_reverse_indices.pop() {

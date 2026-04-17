@@ -187,13 +187,25 @@ impl ReferencedAsset {
                                 liveness: *liveness,
                             }));
                         }
-                        Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
-                        | Some(b @ EsmExport::ImportedNamespace(esm_ref)) => {
-                            let imported = if let EsmExport::ImportedBinding(_, export, _) = b {
-                                Some(export.clone())
-                            } else {
-                                None
-                            };
+                        Some(EsmExport::ImportedNamespace(_)) => {
+                            // A namespace re-export (e.g. `export * as X from '...'`) — the
+                            // namespace is always a module object, it cannot be a local binding
+                            // and recursing wouldn't give a more useful identifier. Just refer
+                            // to the outer `asset` directly, so the `namespace_ident` encodes
+                            // the outer asset's chunk item id (which also has to match the id
+                            // used in the runtime `__turbopack_context__.i(...)` lookup).
+                            return Ok(Some(ReferencedAssetIdent::Module {
+                                namespace_ident: Self::get_ident_from_placeable(
+                                    asset,
+                                    chunking_context,
+                                )
+                                .await?,
+                                ctxt: Some(ctxt),
+                                export: Some(export.clone()),
+                            }));
+                        }
+                        Some(EsmExport::ImportedBinding(esm_ref, import_name, _)) => {
+                            let imported = Some(import_name.clone());
 
                             let referenced_asset =
                                 ReferencedAsset::from_resolve_result(esm_ref.resolve_reference())
