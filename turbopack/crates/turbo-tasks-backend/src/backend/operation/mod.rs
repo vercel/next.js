@@ -112,6 +112,7 @@ pub trait ExecuteContext<'e>: Sized {
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
     ) -> Option<(TaskId, Arc<CachedTaskType>)>;
+    fn debug_get_task_description(&self, task_id: TaskId) -> String;
 }
 
 pub trait ChildExecuteContext<'e>: Send + Sized {
@@ -1006,6 +1007,10 @@ impl<'e, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, B> {
             }
         }
         None
+    }
+
+    fn debug_get_task_description(&self, task_id: TaskId) -> String {
+        self.backend.debug_get_task_description(task_id)
     }
 }
 

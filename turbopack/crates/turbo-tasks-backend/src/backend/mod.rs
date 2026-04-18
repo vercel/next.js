@@ -555,7 +555,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 {
                     let _span = tracing::trace_span!(
                         "make root node for strongly consistent read",
-                        %task_id
+                        task = self.debug_get_task_description(task_id)
                     )
                     .entered();
                     AggregationUpdateQueue::run(
