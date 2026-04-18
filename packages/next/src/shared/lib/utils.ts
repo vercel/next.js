@@ -174,7 +174,8 @@ export type AppInitialProps<PageProps = any> = {
 export type AppPropsType<
   Router extends NextRouter = NextRouter,
   PageProps = {},
-> = AppInitialProps<PageProps> & {
+> = PageProps & {
+  pageProps: PageProps
   Component: NextComponentType<NextPageContext, any, any>
   router: Router
   __N_SSG?: boolean
