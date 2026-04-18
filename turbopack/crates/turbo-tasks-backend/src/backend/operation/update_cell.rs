@@ -27,7 +27,6 @@ use crate::{
 #[allow(clippy::large_enum_variant)]
 pub enum UpdateCellOperation {
     InvalidateWhenCellDependency {
-        is_serializable_cell_content: bool,
         cell_ref: CellRef,
         #[bincode(with = "turbo_bincode::indexmap")]
         dependent_tasks: FxIndexMap<TaskId, SmallVec<[Option<u64>; 2]>>,
@@ -37,7 +36,6 @@ pub enum UpdateCellOperation {
         queue: AggregationUpdateQueue,
     },
     FinalCellChange {
-        is_serializable_cell_content: bool,
         cell_ref: CellRef,
         content: Option<TypedSharedReference>,
         queue: AggregationUpdateQueue,
@@ -54,17 +52,19 @@ impl UpdateCellOperation {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
-        is_serializable_cell_content: bool,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
         #[cfg(feature = "verify_determinism")] verification_mode: VerificationMode,
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,
     ) {
-        // content_hash is only meaningful for transient (non-serializable) cells
+        // Serializability is a property of the cell's value type — derive it
+        // from the registry rather than threading a redundant bool.
+        let is_bincodable_cell_content = is_bincodable(cell);
+        // content_hash is only meaningful for non-bincodable cells
         debug_assert!(
-            !is_serializable_cell_content || content_hash.is_none(),
-            "content_hash must be None for serializable cell content"
+            !is_bincodable_cell_content || content_hash.is_none(),
+            "content_hash must be None for bincodable cell content"
         );
 
         let content = if let CellContent(Some(new_content)) = content {
@@ -81,7 +81,7 @@ impl UpdateCellOperation {
         let assume_unchanged = !ctx.should_track_dependencies() || !task.has_dirty();
 
         if assume_unchanged {
-            let has_old_content = task.has_cell_data(is_serializable_cell_content, cell);
+            let has_old_content = task.cell_data_contains(&cell);
             if has_old_content {
                 // Never update cells when recomputing if they already have a value.
                 // It's not expected that content changes during recomputation.
@@ -93,7 +93,11 @@ impl UpdateCellOperation {
                         verification_mode,
                         turbo_tasks::backend::VerificationMode::EqualityCheck
                     )
-                    && content != task.get_cell_data(is_serializable_cell_content, cell)
+                    && content
+                        != task
+                            .get_cell_data(&cell)
+                            .cloned()
+                            .map(|r| r.into_typed(cell.type_id))
                 {
                     let task_description = task.get_task_description();
                     let cell_type = turbo_tasks::registry::get_value_type(cell.type_id)
@@ -116,8 +120,8 @@ impl UpdateCellOperation {
 
             // For transient cells without available content, use hash-based comparison to
             // detect whether the value actually changed—avoiding unnecessary invalidation.
-            let skip_invalidation = !is_serializable_cell_content && {
-                let has_old_content = task.has_cell_data(false, cell);
+            let skip_invalidation = !is_bincodable_cell_content && {
+                let has_old_content = task.cell_data_contains(&cell);
                 if !has_old_content {
                     match (content_hash, task.get_cell_data_hash(&cell)) {
                         (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
@@ -170,10 +174,10 @@ impl UpdateCellOperation {
                 // tasks and after that set the new cell content. When the cell content is unset,
                 // readers will wait for it to be set via InProgressCell.
 
-                let old_content = task.remove_cell_data(is_serializable_cell_content, cell);
+                let old_content = task.remove_cell_data(&cell);
 
                 // Update cell_data_hash before dropping the task lock
-                update_cell_data_hash(&mut task, &cell, is_serializable_cell_content, content_hash);
+                update_cell_data_hash(&mut task, &cell, content_hash);
 
                 drop(task);
                 drop(old_content);
@@ -186,7 +190,6 @@ impl UpdateCellOperation {
                 );
 
                 UpdateCellOperation::InvalidateWhenCellDependency {
-                    is_serializable_cell_content,
                     cell_ref: CellRef {
                         task: task_id,
                         cell,
@@ -206,13 +209,13 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.set_cell_data(is_serializable_cell_content, cell, new_content)
+            task.insert_cell_data(cell, new_content.into_untyped())
         } else {
-            task.remove_cell_data(is_serializable_cell_content, cell)
+            task.remove_cell_data(&cell)
         };
 
-        // Update cell_data_hash for non-serializable cells.
-        update_cell_data_hash(&mut task, &cell, is_serializable_cell_content, content_hash);
+        // Update cell_data_hash for non-bincodable cells.
+        update_cell_data_hash(&mut task, &cell, content_hash);
 
         let in_progress_cell = task.remove_in_progress_cells(&cell);
 
@@ -224,38 +227,43 @@ impl UpdateCellOperation {
         }
     }
 
+    /// Whether this operation's mid-flight state can safely be persisted to
+    /// the operation suspend log. True iff the cell's value type has bincode —
+    /// non-bincodable values cannot be recovered across restart, so we don't
+    /// write a suspend point for them.
     fn is_serializable(&self) -> bool {
         match self {
-            UpdateCellOperation::InvalidateWhenCellDependency {
-                is_serializable_cell_content,
-                ..
-            } => *is_serializable_cell_content,
-            UpdateCellOperation::FinalCellChange {
-                is_serializable_cell_content,
-                ..
-            } => *is_serializable_cell_content,
+            UpdateCellOperation::InvalidateWhenCellDependency { cell_ref, .. }
+            | UpdateCellOperation::FinalCellChange { cell_ref, .. } => is_bincodable(cell_ref.cell),
             UpdateCellOperation::AggregationUpdate { .. } => true,
             UpdateCellOperation::Done => true,
         }
     }
 }
 
-/// Updates the stored cell_data_hash for a non-serializable cell.
+/// Returns `true` if cells of this type go through bincode on persist —
+/// equivalently, the value type is `SerializationMode::Auto` or `Custom`.
+fn is_bincodable(cell: CellId) -> bool {
+    matches!(
+        turbo_tasks::registry::get_value_type(cell.type_id).persistence,
+        turbo_tasks::ValueTypePersistence::Bincodable(_, _),
+    )
+}
+
+/// Updates the stored cell_data_hash for a non-bincodable cell.
 /// Skips the update if the hash hasn't changed to avoid unnecessary writes.
-fn update_cell_data_hash(
-    task: &mut impl TaskGuard,
-    cell: &CellId,
-    is_serializable_cell_content: bool,
-    content_hash: Option<CellHash>,
-) {
-    if !is_serializable_cell_content {
-        let old_hash = task.get_cell_data_hash(cell).copied();
-        if old_hash != content_hash {
-            if let Some(hash) = content_hash {
-                task.insert_cell_data_hash(*cell, hash);
-            } else {
-                task.remove_cell_data_hash(cell);
-            }
+/// Bincodable cells don't need a separate hash — their content is already on
+/// disk for change detection after eviction.
+fn update_cell_data_hash(task: &mut impl TaskGuard, cell: &CellId, content_hash: Option<CellHash>) {
+    if is_bincodable(*cell) {
+        return;
+    }
+    let old_hash = task.get_cell_data_hash(cell).copied();
+    if old_hash != content_hash {
+        if let Some(hash) = content_hash {
+            task.insert_cell_data_hash(*cell, hash);
+        } else {
+            task.remove_cell_data_hash(cell);
         }
     }
 }
@@ -268,7 +276,6 @@ impl Operation for UpdateCellOperation {
             }
             match self {
                 UpdateCellOperation::InvalidateWhenCellDependency {
-                    is_serializable_cell_content,
                     cell_ref,
                     ref mut dependent_tasks,
                     #[cfg(feature = "trace_task_dirty")]
@@ -311,7 +318,6 @@ impl Operation for UpdateCellOperation {
                     }
                     if dependent_tasks.is_empty() {
                         self = UpdateCellOperation::FinalCellChange {
-                            is_serializable_cell_content,
                             cell_ref,
                             content: take(content),
                             queue: take(queue),
@@ -319,7 +325,6 @@ impl Operation for UpdateCellOperation {
                     }
                 }
                 UpdateCellOperation::FinalCellChange {
-                    is_serializable_cell_content,
                     cell_ref: CellRef { task, cell },
                     content,
                     ref mut queue,
@@ -327,7 +332,7 @@ impl Operation for UpdateCellOperation {
                     let mut task = ctx.task(task, TaskDataCategory::Data);
 
                     if let Some(content) = content {
-                        task.add_cell_data(is_serializable_cell_content, cell, content);
+                        task.add_cell_data(cell, content.into_untyped());
                     }
 
                     let in_progress_cell = task.remove_in_progress_cells(&cell);

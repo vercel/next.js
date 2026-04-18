@@ -28,14 +28,36 @@ type Vtable = &'static [&'static NativeFunction];
 // That's also needed in a distributed world, where the function might be only
 // available on a remote instance.
 
+/// Cell-persistence behavior of a [`ValueType`].
+///
+/// The three variants correspond to mutually exclusive storage semantics, so
+/// consumers can rely on a single match instead of checking multiple bits.
+/// Adding a payload to `Derivable` later (e.g. a `DeriveCost` hint an eviction
+/// policy can consult) is forwards-compatible.
+pub enum ValueTypePersistence {
+    /// Bincode round-trips. Cells are evictable and restored from disk on next
+    /// access. Maps to `SerializationMode::Auto | Custom`.
+    Bincodable(AnyEncodeFn, AnyDecodeFn<SharedReference>),
+    /// No bincode, but recomputable — the next reader after eviction triggers
+    /// a recompute from the task's inputs. Maps to
+    /// `SerializationMode::Derivable | Hash`. The hash-based change detection
+    /// for `Hash` is handled by the caller supplying a `content_hash`, not by
+    /// a distinct persistence variant.
+    Derivable,
+    /// No bincode, not recomputable — holds per-session identity (file system
+    /// handles, worker pools, plugin DSOs, transient env). Cells of this type
+    /// must stay in memory across eviction. Maps to `SerializationMode::None`.
+    SessionStateful,
+}
+
 /// A definition of a type of data.
 ///
 /// Contains a list of traits and trait methods that are available on that type.
 pub struct ValueType {
     pub ty: RegistryType,
 
-    /// Functions to convert to write the type to a buffer or read it from a buffer.
-    pub bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
+    /// How cells of this type participate in the persistent cache.
+    pub persistence: ValueTypePersistence,
 
     /// An implementation of
     /// [`VcCellMode::raw_cell`][crate::vc::VcCellMode::raw_cell].
@@ -86,18 +108,38 @@ pub trait ManualDecodeWrapper: Decode<()> {
 }
 
 impl ValueType {
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value].
-    pub const fn new<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(global_name, None)
+    /// Construct a `ValueType` for a value that can be recomputed from its
+    /// task's inputs. Cells are evictable; the next reader after eviction
+    /// triggers a recompute.
+    ///
+    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// `serialization = "derivable"` and `serialization = "hash"`.
+    pub const fn derivable<T: VcValueType>(global_name: &'static str) -> Self {
+        Self::new_inner::<T>(global_name, ValueTypePersistence::Derivable)
     }
 
-    /// This is internally used by [`#[turbo_tasks::value]`][crate::value].
-    pub const fn new_with_bincode<T: VcValueType + Encode + Decode<()>>(
+    /// Construct a `ValueType` whose cells cannot be reconstructed by
+    /// re-executing the task — they hold per-session identity (file system
+    /// handles, worker pools, plugin DSOs). The storage layer must keep them
+    /// in memory across eviction.
+    ///
+    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// `serialization = "none"`.
+    pub const fn session_stateful<T: VcValueType>(global_name: &'static str) -> Self {
+        Self::new_inner::<T>(global_name, ValueTypePersistence::SessionStateful)
+    }
+
+    /// Construct a `ValueType` whose cells bincode-round-trip. Cells are
+    /// evictable and restored from disk on next access.
+    ///
+    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// `serialization = "auto"` and `serialization = "custom"`.
+    pub const fn bincodable<T: VcValueType + Encode + Decode<()>>(
         global_name: &'static str,
     ) -> Self {
         Self::new_inner::<T>(
             global_name,
-            Some((
+            ValueTypePersistence::Bincodable(
                 |this, enc| {
                     T::encode(any_as_encode::<T>(this), enc)?;
                     Ok(())
@@ -106,7 +148,7 @@ impl ValueType {
                     let val = T::decode(dec)?;
                     Ok(SharedReference::new(triomphe::Arc::new(val)))
                 },
-            )),
+            ),
         )
     }
 
@@ -126,7 +168,7 @@ impl ValueType {
     ) -> Self {
         Self::new_inner::<T>(
             global_name,
-            Some((
+            ValueTypePersistence::Bincodable(
                 |this, enc| {
                     E::new(any_as_encode::<T>(this)).encode(enc)?;
                     Ok(())
@@ -135,18 +177,18 @@ impl ValueType {
                     let val = D::inner(D::decode(dec)?);
                     Ok(SharedReference::new(triomphe::Arc::new(val)))
                 },
-            )),
+            ),
         )
     }
 
     // Helper for other constructor functions
     const fn new_inner<T: VcValueType>(
         global_name: &'static str,
-        bincode: Option<(AnyEncodeFn, AnyDecodeFn<SharedReference>)>,
+        persistence: ValueTypePersistence,
     ) -> Self {
         Self {
             ty: RegistryType::new::<T>(std::any::type_name::<T>(), global_name),
-            bincode,
+            persistence,
             raw_cell: <T::CellMode as VcCellMode<T>>::raw_cell,
             traits: SyncUnsafeCell::new(ValueTypeTraits { traits: None }),
         }

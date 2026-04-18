@@ -44,11 +44,21 @@ impl TryFrom<LitStr> for CellMode {
 }
 
 enum SerializationMode {
+    /// No bincode, **sticky** — cells of this type hold session-unique identity
+    /// (file system handles, worker pool handles, plugin DSOs, etc.) and cannot
+    /// be reconstructed by re-executing the producing task. The storage layer
+    /// keeps them in memory across eviction.
     None,
     /// Like `None` (no bincode serialization), but also stores a hash of the cell value so that
     /// changes can be detected even when the transient cell data has been evicted from memory.
     /// Only valid with `cell = "compare"` (or the default).
     Hash,
+    /// No bincode, **not sticky** — cells of this type can be freely dropped on
+    /// eviction because they are derivable: re-executing the producing task
+    /// from persistent inputs reproduces the same value. Use for outputs whose
+    /// in-memory form (SWC ASTs, codegen Ropes, etc.) isn't worth serializing
+    /// but is re-derivable.
+    Derivable,
     Auto,
     Custom,
 }
@@ -67,11 +77,12 @@ impl TryFrom<LitStr> for SerializationMode {
         match lit.value().as_str() {
             "none" => Ok(SerializationMode::None),
             "hash" => Ok(SerializationMode::Hash),
+            "derivable" => Ok(SerializationMode::Derivable),
             "auto" => Ok(SerializationMode::Auto),
             "custom" => Ok(SerializationMode::Custom),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"none\", \"hash\", \"auto\", or \"custom\"",
+                "expected \"none\", \"hash\", \"derivable\", \"auto\", or \"custom\"",
             )),
         }
     }
@@ -363,7 +374,10 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
         }
-        SerializationMode::None | SerializationMode::Hash | SerializationMode::Custom => {}
+        SerializationMode::None
+        | SerializationMode::Hash
+        | SerializationMode::Derivable
+        | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
@@ -394,18 +408,25 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let name = global_name_for_type(ident);
+    // Dispatch to the constructor whose name reflects the persistence mode.
+    // `Hash` and `Derivable` both map to `derivable` — hash-mode change
+    // detection is handled independently by the caller supplying a
+    // `content_hash`, not by a distinct persistence variant.
     let new_value_type = match serialization_mode {
-        SerializationMode::None | SerializationMode::Hash => quote! {
-            turbo_tasks::ValueType::new::<#ident>(#name)
+        SerializationMode::None => quote! {
+            turbo_tasks::ValueType::session_stateful::<#ident>(#name)
         },
-        SerializationMode::Auto | SerializationMode::Custom => {
-            quote! {
-                turbo_tasks::ValueType::new_with_bincode::<#ident>(#name)
-            }
-        }
+        SerializationMode::Hash | SerializationMode::Derivable => quote! {
+            turbo_tasks::ValueType::derivable::<#ident>(#name)
+        },
+        SerializationMode::Auto | SerializationMode::Custom => quote! {
+            turbo_tasks::ValueType::bincodable::<#ident>(#name)
+        },
     };
     let has_serialization = match serialization_mode {
-        SerializationMode::None | SerializationMode::Hash => quote! { false },
+        SerializationMode::None | SerializationMode::Hash | SerializationMode::Derivable => {
+            quote! { false }
+        }
         SerializationMode::Auto | SerializationMode::Custom => quote! { true },
     };
 
