@@ -76,12 +76,8 @@ export function generateStaticParams() {
   return [{ slug: 'headphones' }]
 }
 
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ category: string; slug: string }>
-}) {
-  const { category, slug } = await params
+export default async function Page(props: PageProps<'/[category]/[slug]'>) {
+  const { category, slug } = await props.params
 }
 ```
 
@@ -121,30 +117,30 @@ Upgrades require [`generateStaticParams`](/docs/app/api-reference/functions/gene
 
 A page provides `generateStaticParams` for a subset of product slugs. Products not in the list are served as fallback shells and upgraded after the first visit:
 
-```tsx filename="app/products/[slug]/page.tsx" highlight={20-24}
+```tsx filename="app/products/[slug]/page.tsx" highlight={4-7}
 import { Suspense } from 'react'
+import { getProduct, getProductsByTraffic } from '../lib/data'
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  const { slug } = await params
+export async function generateStaticParams() {
+  const topProducts = await getProductsByTraffic({ limit: 100 })
+  return topProducts.map((product) => ({ slug: product.slug }))
+}
 
+async function ProductDetails(props: PageProps<'/products/[slug]'>) {
+  const { slug } = await props.params
+  const product = await getProduct(slug)
+  return <div>{product.name}</div>
+}
+
+export default function ProductPage(props: PageProps<'/products/[slug]'>) {
   return (
     <div>
       <h1>Product</h1>
       <Suspense fallback={<p>Loading product details...</p>}>
-        <ProductDetails slug={slug} />
+        <ProductDetails {...props} />
       </Suspense>
     </div>
   )
-}
-
-export function generateStaticParams() {
-  // Only prerender the top 100 products at build time.
-  // All other slugs are served as fallback shells.
-  return topProducts.map((product) => ({ slug: product.slug }))
 }
 ```
 
@@ -158,22 +154,18 @@ With this setup:
 
 A layout provides `generateStaticParams` for `[category]`:
 
-```tsx filename="app/[category]/layout.tsx" highlight={20-22}
-import { Suspense, type ReactNode } from 'react'
+```tsx filename="app/[category]/layout.tsx" highlight={16-18}
+import { Suspense } from 'react'
 
-export default async function CategoryLayout({
-  children,
-  params,
-}: {
-  children: ReactNode
-  params: Promise<{ category: string }>
-}) {
-  const { category } = await params
+export default async function CategoryLayout(
+  props: LayoutProps<'/[category]'>
+) {
+  const { category } = await props.params
 
   return (
     <section>
       <h1>{category}</h1>
-      <Suspense fallback={<p>Loading product...</p>}>{children}</Suspense>
+      <Suspense fallback={<p>Loading product...</p>}>{props.children}</Suspense>
     </section>
   )
 }
@@ -185,13 +177,11 @@ export function generateStaticParams() {
 
 The page provides `generateStaticParams` for `[slug]` with a subset of values:
 
-```tsx filename="app/[category]/[slug]/page.tsx" highlight={10-12}
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ category: string; slug: string }>
-}) {
-  const { slug } = await params
+```tsx filename="app/[category]/[slug]/page.tsx" highlight={8-10}
+export default async function ProductPage(
+  props: PageProps<'/[category]/[slug]'>
+) {
+  const { slug } = await props.params
   return <p>{slug}</p>
 }
 
