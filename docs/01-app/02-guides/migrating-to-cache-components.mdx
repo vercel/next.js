@@ -6,6 +6,57 @@ description: Learn how to migrate from route segment configs to Cache Components
 
 When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled, route segment configs like `dynamic`, `revalidate`, and `fetchCache` are replaced by [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
 
+## Quick reference
+
+### Cache directives
+
+| Directive                                                                      | Scope                     | Server-side storage          | Can access `cookies()`/`headers()` | Use case                                                      |
+| ------------------------------------------------------------------------------ | ------------------------- | ---------------------------- | ---------------------------------- | ------------------------------------------------------------- |
+| [`'use cache'`](/docs/app/api-reference/directives/use-cache)                  | Shared (all users)        | In-memory (or cache handler) | No — pass values as arguments      | Default choice for caching data, components, or pages         |
+| [`'use cache: remote'`](/docs/app/api-reference/directives/use-cache-remote)   | Shared (all users)        | Remote cache handler         | No — pass values as arguments      | High-traffic data that must survive across instances          |
+| [`'use cache: private'`](/docs/app/api-reference/directives/use-cache-private) | Per-client (browser only) | None                         | Yes                                | Compliance needs or when runtime data can't be refactored out |
+
+### `cacheLife` profiles
+
+Use [`cacheLife`](/docs/app/api-reference/functions/cacheLife) inside a `use cache` scope to control how long cached output is kept. These are the built-in profiles:
+
+| Profile                                                                        | `stale` (client) | `revalidate` (server) | `expire` | Typical content                            |
+| ------------------------------------------------------------------------------ | ---------------- | --------------------- | -------- | ------------------------------------------ |
+| `default`                                                                      | 5 min            | 15 min                | never    | Standard content                           |
+| [`seconds`](/docs/app/api-reference/functions/cacheLife#using-preset-profiles) | 30 s             | 1 s                   | 1 min    | Real-time data (stock prices, live scores) |
+| [`minutes`](/docs/app/api-reference/functions/cacheLife#using-preset-profiles) | 5 min            | 1 min                 | 1 h      | Social feeds, news                         |
+| [`hours`](/docs/app/api-reference/functions/cacheLife#using-preset-profiles)   | 5 min            | 1 h                   | 1 day    | Product inventory, weather                 |
+| [`days`](/docs/app/api-reference/functions/cacheLife#using-preset-profiles)    | 5 min            | 1 day                 | 1 week   | Blog posts, articles                       |
+| [`weeks`](/docs/app/api-reference/functions/cacheLife#using-preset-profiles)   | 5 min            | 1 week                | 30 days  | Podcasts, newsletters                      |
+| [`max`](/docs/app/api-reference/functions/cacheLife#using-preset-profiles)     | 5 min            | 30 days               | 1 year   | Legal pages, archived content              |
+
+You can also define [custom profiles](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles) in `next.config.ts` or pass an [inline object](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) directly.
+
+### Revalidation and invalidation functions
+
+Use [`cacheTag`](/docs/app/api-reference/functions/cacheTag) to tag cached data, then invalidate it on-demand with one of these functions:
+
+| Function                                                                       | Where it can be called         | Behavior                                                                   | Best for                                                 |
+| ------------------------------------------------------------------------------ | ------------------------------ | -------------------------------------------------------------------------- | -------------------------------------------------------- |
+| [`updateTag(tag)`](/docs/app/api-reference/functions/updateTag)                | Server Actions only            | Expires immediately — next request waits for fresh data                    | Read-your-own-writes (user sees their change right away) |
+| [`revalidateTag(tag, 'max')`](/docs/app/api-reference/functions/revalidateTag) | Server Actions, Route Handlers | Stale-while-revalidate — serves cached data while refreshing in background | Content updates where a brief delay is acceptable        |
+| [`revalidatePath(path)`](/docs/app/api-reference/functions/revalidatePath)     | Server Actions, Route Handlers | Invalidates all cache entries for a specific path                          | Page-level invalidation                                  |
+
+> **Good to know:**
+>
+> - The single-argument form `revalidateTag(tag)` is **deprecated**. Always pass a profile as the second argument (e.g. `'max'`).
+> - Use `updateTag` in Server Actions when the user needs to see their mutation immediately. Use `revalidateTag` when background revalidation is fine or when invalidating from a Route Handler.
+
+### Route segment config migration
+
+| Before (route segment config)             | After (Cache Components)             | Notes                                                                                                                                                                               |
+| ----------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `export const dynamic = 'force-dynamic'`  | Remove it                            | Pages are dynamic by default                                                                                                                                                        |
+| `export const dynamic = 'force-static'`   | `'use cache'` + `cacheLife('max')`   | Add near the data access                                                                                                                                                            |
+| `export const revalidate = 3600`          | `'use cache'` + `cacheLife('hours')` | [Choose a profile](/docs/app/api-reference/functions/cacheLife#using-preset-profiles) or pass an [inline object](/docs/app/api-reference/functions/cacheLife#inline-cache-profiles) |
+| `export const fetchCache = 'force-cache'` | `'use cache'`                        | All fetches inside the scope are cached automatically                                                                                                                               |
+| `export const runtime = 'edge'`           | Remove it                            | Cache Components requires Node.js runtime. Use [Proxy](/docs/app/api-reference/file-conventions/proxy) for edge behavior                                                            |
+
 ## `dynamic = "force-dynamic"`
 
 **Not needed.** All pages are dynamic by default.
