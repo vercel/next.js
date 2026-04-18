@@ -11,6 +11,7 @@ import { Sidebar } from '@/components/sidebar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { TreemapSkeleton } from '@/components/ui/skeleton'
 import {
   Select,
@@ -32,6 +33,7 @@ import {
   FileJson,
   Palette,
   Package,
+  Zap,
 } from 'lucide-react'
 
 enum Environment {
@@ -45,6 +47,7 @@ export default function Home() {
     Environment.Client
   )
   const [typeFilter, setTypeFilter] = useState(['js', 'css', 'json'])
+  const [syncOnly, setSyncOnly] = useState(false)
   const [selectedSourceIndex, setSelectedSourceIndex] = useState<number | null>(
     null
   )
@@ -139,9 +142,32 @@ export default function Home() {
         (typeFilter.includes('json') && flags.json) ||
         (typeFilter.includes('asset') && flags.asset)
 
+      // Check sync-only filter: exclude sources that are only reachable
+      // through an async import() boundary. computeModuleDepthMap adds 1000
+      // per async hop, so any module with depth < 1000 is synchronously
+      // reachable from an entry. A source is kept if at least one of its
+      // module indices is sync-reachable.
+      if (syncOnly && modulesData) {
+        const sourcePath = analyzeData.getFullSourcePath(sourceIndex)
+        const moduleIndices = sourcePath
+          ? modulesData.getModuleIndiciesFromPath(sourcePath)
+          : []
+        const hasSyncModule = moduleIndices.some(
+          (mi) => (moduleDepthMap.get(mi) ?? Infinity) < 1000
+        )
+        if (!hasSyncModule) return false
+      }
+
       return hasEnvironment && hasType
     }
-  }, [analyzeData, environmentFilter, typeFilter])
+  }, [
+    analyzeData,
+    environmentFilter,
+    typeFilter,
+    syncOnly,
+    modulesData,
+    moduleDepthMap,
+  ])
 
   const handleMouseDown = () => {
     setIsResizing(true)
@@ -177,6 +203,8 @@ export default function Home() {
         setFocusedSourceIndex={setFocusedSourceIndex}
         typeFilter={typeFilter}
         setTypeFilter={setTypeFilter}
+        syncOnly={syncOnly}
+        setSyncOnly={setSyncOnly}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
       />
@@ -307,6 +335,8 @@ function TopBar({
   setFocusedSourceIndex,
   typeFilter,
   setTypeFilter,
+  syncOnly,
+  setSyncOnly,
   searchQuery,
   setSearchQuery,
 }: {
@@ -319,6 +349,8 @@ function TopBar({
   setFocusedSourceIndex: (index: number | null) => void
   typeFilter: string[]
   setTypeFilter: (types: string[]) => void
+  syncOnly: boolean
+  setSyncOnly: (value: boolean) => void
   searchQuery: string
   setSearchQuery: (query: string) => void
 }) {
@@ -372,6 +404,17 @@ function TopBar({
               triggerClassName="w-36"
               aria-label="Filter by file type"
             />
+
+            <Button
+              variant={syncOnly ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setSyncOnly(!syncOnly)}
+              aria-pressed={syncOnly}
+              title="Show only modules in the initial synchronous load (exclude modules reached through dynamic import() boundaries)"
+            >
+              <Zap className="h-3.5 w-3.5" />
+              <span className="text-xs">Sync only</span>
+            </Button>
 
             <ControlDivider />
 
