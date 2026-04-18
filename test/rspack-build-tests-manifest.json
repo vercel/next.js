@@ -1078,6 +1078,7 @@
       "app-root-param-getters - cache - at runtime should handle root param reads conditional on another root param value",
       "app-root-param-getters - cache - at runtime should handle root param reads introduced after revalidation",
       "app-root-param-getters - cache - at runtime should resume with the same cached data that was prerendered",
+      "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params",
       "app-root-param-getters - private cache should allow using root params within a \"use cache: private\" - start"
     ],
     "failed": [],
@@ -1869,6 +1870,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts": {
+    "passed": [
+      "bfcache-regression should preserve interactivity after navigating back from an external page"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/binary/rsc-binary.test.ts": {
     "passed": [
       "RSC binary serialization should correctly encode/decode binaries and hydrate"
@@ -2033,9 +2043,14 @@
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 nested should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cacheLife with revalidate: 0 slow cache should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` catching an error at runtime should log an error at runtime",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` connection should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` cookies should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` headers should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` in ignore-listed code connection should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` in ignore-listed code cookies should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` in ignore-listed code draftMode should error the build",
+      "Cache Components Errors Build With --prerender-debug Inside `use cache` in ignore-listed code headers should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` reading fallback params should error the build",
       "Cache Components Errors Build With --prerender-debug Inside `use cache` throwing an error at runtime should log an error at runtime",
       "Cache Components Errors Build With --prerender-debug Static Route should not error the build when all routes are static",
@@ -2082,9 +2097,14 @@
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` cacheLife with revalidate: 0 nested should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` cacheLife with revalidate: 0 slow cache should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` catching an error at runtime should log an error at runtime",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` connection should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` cookies should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` draftMode should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` headers should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` in ignore-listed code connection should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` in ignore-listed code cookies should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` in ignore-listed code draftMode should error the build",
+      "Cache Components Errors Build Without --prerender-debug Inside `use cache` in ignore-listed code headers should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` reading fallback params should error the build",
       "Cache Components Errors Build Without --prerender-debug Inside `use cache` throwing an error at runtime should log an error at runtime",
       "Cache Components Errors Build Without --prerender-debug Static Route should not error the build when all routes are static",
@@ -2411,6 +2431,16 @@
   "test/e2e/app-dir/client-reference-chunking/client-reference-chunking.test.ts": {
     "passed": [
       "client-reference-chunking should use the same chunks for client references across routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/client-reference-side-effects/client-reference-side-effects.test.ts": {
+    "passed": [
+      "client-reference-side-effects side effect behavior when only importing",
+      "client-reference-side-effects side effect behavior when rendering"
     ],
     "failed": [],
     "pending": [],
@@ -5917,6 +5947,7 @@
   },
   "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
     "passed": [
+      "partial-fallback-shell-upgrade should let a segment prefetch trigger the background shell upgrade",
       "partial-fallback-shell-upgrade should not keep upgrading once only fully dynamic params remain",
       "partial-fallback-shell-upgrade should not upgrade a route shell when no params were prerendered",
       "partial-fallback-shell-upgrade should upgrade a generic shell into the most specific prerendered shell",
@@ -7475,6 +7506,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/prefetch-inlining-no-cache-components/prefetch-inlining-no-cache-components.test.ts": {
+    "passed": [],
+    "failed": [
+      "prefetch inlining without cacheComponents dynamic edge page is fully prefetched with prefetch={true}",
+      "prefetch inlining without cacheComponents dynamic page is fully prefetched with prefetch={true}",
+      "prefetch inlining without cacheComponents static page is prefetched with inlining"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
     "passed": [
       "prefetch inlining deep chain: all small segments inline to the leaf",
@@ -7483,8 +7525,10 @@
       "prefetch inlining independent head: metadata is prefetched even when no runtime segment request is needed",
       "prefetch inlining instant false at root: does not prefetch segment data",
       "prefetch inlining instant false passthrough: static parents inline through dynamic layout to static child",
+      "prefetch inlining notFound() during prerender does not crash build",
       "prefetch inlining outlined: large segment breaks the inlining chain",
       "prefetch inlining parallel routes: parent inlines into one slot only",
+      "prefetch inlining preserves prefetch hints after on-demand revalidation",
       "prefetch inlining restart: large segment in the middle creates two inlining groups",
       "prefetch inlining runtime parallel: pass-through only flows into one child slot",
       "prefetch inlining runtime passthrough: static parents inline through runtime layout to static child",
@@ -7700,6 +7744,21 @@
       "segment cache - vary params tracks param access in generateMetadata",
       "segment cache - vary params tracks root param access via rootParams API",
       "segment cache - vary params tracks vary params per-segment with layout/page split (runtime prefetch)"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-config-ts/segment-config-ts.test.ts": {
+    "passed": [
+      "TypeScript type expressions in route segment config app directory should pick up maxDuration declared with `as const` assertion",
+      "TypeScript type expressions in route segment config app directory should pick up maxDuration declared with `as` type assertion",
+      "TypeScript type expressions in route segment config app directory should pick up maxDuration declared with `satisfies`",
+      "TypeScript type expressions in route segment config pages directory should pick up maxDuration from config object declared with `as const`",
+      "TypeScript type expressions in route segment config pages directory should pick up maxDuration from config object declared with `as`",
+      "TypeScript type expressions in route segment config pages directory should pick up maxDuration from config object declared with `satisfies`",
+      "TypeScript type expressions in route segment config should parse the config correctly"
     ],
     "failed": [],
     "pending": [],
@@ -8207,6 +8266,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
+      "use-cache-custom-handler should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -8273,7 +8333,8 @@
   "test/e2e/app-dir/use-cache-route-handler-only/use-cache-route-handler-only.test.ts": {
     "passed": [
       "use-cache-route-handler-only should be able to revalidate prerendered route handlers",
-      "use-cache-route-handler-only should cache results in node route handlers"
+      "use-cache-route-handler-only should cache results in node route handlers",
+      "use-cache-route-handler-only should dedupe concurrent cache invocations in route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -8301,6 +8362,7 @@
   },
   "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
     "passed": [
+      "use-cache-swr should dedupe SWR regens across concurrent requests",
       "use-cache-swr should pass implicit tags to cache handler get() for nested caches during SWR",
       "use-cache-swr should serve stale data and then pre-warmed data on subsequent request"
     ],
@@ -8355,10 +8417,14 @@
       "use-cache should cache results for cached functions imported from client components",
       "use-cache should cache results for cached functions passed to client components",
       "use-cache should cache results in route handlers",
+      "use-cache should dedupe a streaming cache across concurrent requests",
       "use-cache should dedupe cached data in the RSC payload",
+      "use-cache should dedupe private caches within a single request",
+      "use-cache should dedupe shared inner caches across different outer caches",
       "use-cache should dedupe with react cache inside \"use cache\"",
       "use-cache should match the expected revalidate and expire configs on the prerender manifest",
       "use-cache should match the expected stale config in the page header",
+      "use-cache should not dedupe private caches across concurrent requests",
       "use-cache should not have hydration errors when resuming a partial shell with dynamic caches",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled, with cookies",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled, without cookies",
@@ -8370,6 +8436,7 @@
       "use-cache should override fetch with no-store in use cache properly",
       "use-cache should prerender fully cacheable pages as static HTML",
       "use-cache should propagate unstable_cache tags correctly",
+      "use-cache should resolve different children correctly when deduping",
       "use-cache should return the same object reference for multiple invocations",
       "use-cache should revalidate before redirecting in a route handler",
       "use-cache should revalidate caches after redirect",
@@ -8377,6 +8444,7 @@
       "use-cache should revalidate caches nested in unstable_cache",
       "use-cache should send an SWR cache-control header based on the revalidate and expire values",
       "use-cache should store a fetch response without no-store in the incremental cache handler during build",
+      "use-cache should stream the result of a deduped invocation",
       "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
@@ -9035,6 +9103,8 @@
   },
   "test/e2e/define/define.test.ts": {
     "passed": [
+      "compiler.define compiler.define should render a boolean variable on server and client side",
+      "compiler.define compiler.define should render a number variable on server and client side",
       "compiler.define compiler.define should render the magic expression on client side",
       "compiler.define compiler.define should render the magic expression on server side",
       "compiler.define compiler.define should render the magic variable on client side",
@@ -9695,6 +9765,19 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/import-meta-glob/import-meta-glob.test.ts": {
+    "passed": [],
+    "failed": [
+      "import-meta-glob should resolve eager glob modules",
+      "import-meta-glob should resolve lazy glob modules",
+      "import-meta-glob should resolve named import glob modules",
+      "import-meta-glob should support multiple patterns",
+      "import-meta-glob should support negative patterns"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/import-meta/import-meta.test.ts": {
     "passed": [
       "import-meta import.meta.url should work in browser",
@@ -10067,6 +10150,7 @@
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
       "Middleware Runtime with i18n should not run middleware for on-demand revalidate",
+      "Middleware Runtime with i18n should not treat as _next/data request with just header",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime with i18n should rewrite correctly for non-SSG/SSP page",
@@ -10108,6 +10192,7 @@
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
       "Middleware Runtime without i18n should not run middleware for on-demand revalidate",
+      "Middleware Runtime without i18n should not treat as _next/data request with just header",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
       "Middleware Runtime without i18n should rewrite correctly for non-SSG/SSP page",
@@ -10153,6 +10238,7 @@
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
+      "Middleware Runtime with i18n should not treat as _next/data request with just header",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
       "Middleware Runtime with i18n should rewrite correctly for non-SSG/SSP page",
@@ -10192,6 +10278,7 @@
       "Middleware Runtime without i18n should have init header for NextResponse.redirect",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
+      "Middleware Runtime without i18n should not treat as _next/data request with just header",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
       "Middleware Runtime without i18n should rewrite correctly for non-SSG/SSP page",
@@ -11436,6 +11523,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/swc-plugins-env/index.test.ts": {
+    "passed": [
+      "swc-plugins-env should pass correct environment to swc plugins"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/swc-plugins/index.test.ts": {
     "passed": ["swcPlugins supports swcPlugins basic case"],
     "failed": [],
@@ -11705,6 +11801,15 @@
   },
   "test/e2e/turbopack-loader-config/index.test.ts": {
     "passed": ["turbopack-loader-config should only run the test in turbopack"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/turbopack-trace-server-query/turbopack-trace-server.test.ts": {
+    "passed": [
+      "turbopack-trace-server CLI: should show an error when the trace server is not running"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -16703,7 +16808,6 @@
       "i18n Support production mode should have correct initial query values for fallback",
       "i18n Support production mode should have correct values for non-prefixed path",
       "i18n Support production mode should have domainLocales available on useRouter",
-      "i18n Support production mode should have locale-prefixed pages-manifest entries for default 500",
       "i18n Support production mode should have pre-rendered /500 correctly",
       "i18n Support production mode should load dynamic getServerSideProps page correctly SSR",
       "i18n Support production mode should load getServerSideProps page correctly SSR",
@@ -21087,15 +21191,16 @@
     "passed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
-      "server-side dev errors should show server-side error for dynamic gssp page correctly",
-      "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
+    "failed": [
+      "server-side dev errors should show server-side error for dynamic gssp page correctly",
+      "server-side dev errors should show server-side error for gsp page correctly",
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21200,7 +21305,6 @@
       "config telemetry production mode emits telemetry for default React Compiler options",
       "config telemetry production mode emits telemetry for enabled React Compiler",
       "config telemetry production mode emits telemetry for filesystem cache in build mode",
-      "config telemetry production mode emits telemetry for filesystem cache in dev mode",
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
@@ -21214,7 +21318,9 @@
       "config telemetry production mode emits telemetry for usage of swc plugins",
       "config telemetry production mode emits telemetry for useCache directive"
     ],
-    "failed": [],
+    "failed": [
+      "config telemetry production mode emits telemetry for filesystem cache in dev mode"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -21306,29 +21412,6 @@
       "Trailing Slash Rewrite Proxying development mode should resolve a dynamic page correctly",
       "Trailing Slash Rewrite Proxying development mode should resolve index page correctly",
       "Trailing Slash Rewrite Proxying development mode should resolve products page correctly"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/tsconfig-verifier/test/index.test.ts": {
-    "passed": [
-      "tsconfig.json verifier Creates a default tsconfig.json when one is missing",
-      "tsconfig.json verifier Updates an existing tsconfig.json without losing comments",
-      "tsconfig.json verifier Works with an empty tsconfig.json (docs)",
-      "tsconfig.json verifier allows you to extend another configuration file",
-      "tsconfig.json verifier allows you to set bundler moduleResolution mode",
-      "tsconfig.json verifier allows you to set commonjs module mode",
-      "tsconfig.json verifier allows you to set es2020 module mode",
-      "tsconfig.json verifier allows you to set node16 module mode",
-      "tsconfig.json verifier allows you to set node16 moduleResolution mode",
-      "tsconfig.json verifier allows you to set target mode",
-      "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
-      "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
-      "tsconfig.json verifier creates compilerOptions when you extend another config"
-    ],
-    "failed": [],
-    "pending": [
-      "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
     ],
     "flakey": [],
     "runtimeError": false
@@ -22007,9 +22090,10 @@
       "NEXT_HASH_SALT should produce chunk files",
       "NEXT_HASH_SALT should produce css files",
       "NEXT_HASH_SALT should produce image files",
-      "experimental.outputHashSalt combined salt differs from config-only salt",
-      "experimental.outputHashSalt combined salt differs from env-var-only salt",
-      "experimental.outputHashSalt config salt changes filenames compared to no salt"
+      "experimental.outputHashSalt config salt changes filenames compared to no salt",
+      "experimental.outputHashSalt config-and-adapter-env salt differs",
+      "experimental.outputHashSalt config-and-env salt differs",
+      "experimental.outputHashSalt env-and-adapter-env salt differs"
     ],
     "failed": [],
     "pending": [],
@@ -22363,6 +22447,16 @@
     "passed": [
       "upload-trace should fail gracefully when no profiles directory exists",
       "upload-trace should upload profiles and trace to the mock endpoint after build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/app-dir/use-cache-non-deterministic-args/use-cache-non-deterministic-args.test.ts": {
+    "passed": [
+      "use-cache-non-deterministic-args should warn about non-deterministic cache args during on-demand prerender",
+      "use-cache-non-deterministic-args should warn about non-deterministic cache args during runtime prefetch"
     ],
     "failed": [],
     "pending": [],
@@ -23632,6 +23726,29 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/production/tsconfig-verifier/test/index.test.ts": {
+    "passed": [
+      "tsconfig.json verifier 5.x allows you to set commonjs module mode",
+      "tsconfig.json verifier Creates a default tsconfig.json when one is missing",
+      "tsconfig.json verifier Updates an existing tsconfig.json without losing comments",
+      "tsconfig.json verifier Works with an empty tsconfig.json (docs)",
+      "tsconfig.json verifier allows you to extend another configuration file",
+      "tsconfig.json verifier allows you to set bundler moduleResolution mode",
+      "tsconfig.json verifier allows you to set es2020 module mode",
+      "tsconfig.json verifier allows you to set node16 module mode",
+      "tsconfig.json verifier allows you to set node16 moduleResolution mode",
+      "tsconfig.json verifier allows you to set target mode",
+      "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
+      "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
+      "tsconfig.json verifier creates compilerOptions when you extend another config"
+    ],
+    "failed": [],
+    "pending": [
+      "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\""
+    ],
     "flakey": [],
     "runtimeError": false
   },
