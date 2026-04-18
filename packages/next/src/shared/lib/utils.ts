@@ -167,8 +167,8 @@ export type AppContextType<Router extends NextRouter = NextRouter> = {
   router: Router
 }
 
-export type AppInitialProps<PageProps = any> = {
-  pageProps: PageProps
+export type AppInitialProps<PageProps = any> = PageProps & {
+  pageProps: any
 }
 
 export type AppPropsType<
