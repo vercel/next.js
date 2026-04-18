@@ -1,4 +1,5 @@
 /* eslint-disable jest/no-standalone-expect */
+import type { ChildProcess } from 'child_process'
 import fs from 'fs-extra'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
@@ -6,8 +7,6 @@ import {
   findAllTelemetryEvents,
   findPort,
   killApp,
-  launchApp,
-  runNextCommand,
   retry,
 } from 'next-test-utils'
 
@@ -17,6 +16,50 @@ describe('config telemetry', () => {
     skipStart: true,
   })
 
+  async function launchDevServer(
+    port: number,
+    opts: {
+      env?: Record<string, string>
+      onStderr?: (msg: string) => void
+      onStdout?: (msg: string) => void
+    } = {}
+  ): Promise<{ child: ChildProcess; exit: Promise<any> }> {
+    let child!: ChildProcess
+    let ready = false
+    let resolveReady!: () => void
+    const readyPromise = new Promise<void>((r) => {
+      resolveReady = () => {
+        if (!ready) {
+          ready = true
+          r()
+        }
+      }
+    })
+
+    const readyPattern = /- Local:|✓ Ready/i
+    const exit = next
+      .runCommand(['dev', next.testDir, '-p', String(port)], {
+        env: opts.env,
+        onStdout(msg) {
+          opts.onStdout?.(msg)
+          if (readyPattern.test(msg)) resolveReady()
+        },
+        onStderr(msg) {
+          opts.onStderr?.(msg)
+          if (readyPattern.test(msg)) resolveReady()
+        },
+        instance: (p) => {
+          child = p
+        },
+      })
+      .finally(() => {
+        resolveReady()
+      })
+
+    await readyPromise
+    return { child, exit }
+  }
+
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
     it('detects rewrites, headers, and redirects for next build', async () => {
       await fs.rename(
@@ -24,8 +67,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -36,14 +78,14 @@ describe('config telemetry', () => {
 
       try {
         const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
+          .exec(cliOutput)
           .pop()
         expect(event1).toMatch(/"headersCount": 1/)
         expect(event1).toMatch(/"rewritesCount": 2/)
         expect(event1).toMatch(/"redirectsCount": 1/)
         expect(event1).toMatch(/"middlewareCount": 0/)
       } catch (err) {
-        require('console').error('failing stderr', stderr, err)
+        require('console').error('failing cliOutput', cliOutput, err)
         throw err
       }
     })
@@ -54,8 +96,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -66,7 +107,7 @@ describe('config telemetry', () => {
 
       try {
         const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
+          .exec(cliOutput)
           .pop()
 
         expect(event1).toMatch(/"i18nEnabled": true/)
@@ -92,7 +133,7 @@ describe('config telemetry', () => {
         expect(event1).toMatch(/"pagesDir": true/)
         expect(event1).toMatch(/"appDir": true/)
       } catch (err) {
-        require('console').error('failing stderr', stderr, err)
+        require('console').error('failing cliOutput', cliOutput, err)
         throw err
       }
 
@@ -103,7 +144,7 @@ describe('config telemetry', () => {
 
       let stderr2 = ''
 
-      const app = await launchApp(next.testDir, await findPort(), {
+      const { child, exit } = await launchDevServer(await findPort(), {
         onStderr(msg) {
           stderr2 += msg || ''
         },
@@ -114,7 +155,8 @@ describe('config telemetry', () => {
       await retry(async () => {
         expect(stderr2).toMatch(/NEXT_CLI_SESSION_STARTED/)
       })
-      await killApp(app)
+      await killApp(child)
+      await exit.catch(() => {})
 
       await fs.rename(
         path.join(next.testDir, 'next.config.js'),
@@ -149,19 +191,18 @@ describe('config telemetry', () => {
         'module.exports = { output: "export" }'
       )
       try {
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         try {
           const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-            .exec(stderr)
+            .exec(cliOutput)
             .pop()
 
           expect(event1).toContain('"nextConfigOutput": "export"')
         } catch (err) {
-          require('console').error('failing stderr', stderr, err)
+          require('console').error('failing cliOutput', cliOutput, err)
           throw err
         }
       } finally {
@@ -173,12 +214,11 @@ describe('config telemetry', () => {
     ;(isTurbopack ? it.skip : it)(
       'emits telemery for usage of image, script & dynamic',
       async () => {
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
 
@@ -215,8 +255,7 @@ describe('config telemetry', () => {
           path.join(next.testDir, 'jsconfig.swc'),
           path.join(next.testDir, 'jsconfig.json')
         )
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
         await fs.rename(
@@ -228,7 +267,7 @@ describe('config telemetry', () => {
           path.join(next.testDir, 'jsconfig.swc')
         )
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(featureUsageEvents).toEqual(
@@ -272,8 +311,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -282,35 +320,45 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.cache-components')
       )
 
-      const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
+      const events = findAllTelemetryEvents(
+        cliOutput,
+        'NEXT_BUILD_FEATURE_USAGE'
+      )
       expect(events).toContainEqual({
         featureName: 'experimental/cacheComponents',
         invocationCount: 1,
       })
     })
 
-    it('emits telemetry for usage of `optimizeCss`', async () => {
-      await fs.rename(
-        path.join(next.testDir, 'next.config.optimize-css'),
-        path.join(next.testDir, 'next.config.js')
-      )
+    // `experimental.optimizeCss` is a webpack-only feature that relies on
+    // `critters`; Turbopack does not emit this feature usage event.
+    ;(isTurbopack ? it.skip : it)(
+      'emits telemetry for usage of `optimizeCss`',
+      async () => {
+        await fs.rename(
+          path.join(next.testDir, 'next.config.optimize-css'),
+          path.join(next.testDir, 'next.config.js')
+        )
 
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
-        env: { NEXT_TELEMETRY_DEBUG: '1' },
-      })
+        const { cliOutput } = await next.build({
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        })
 
-      await fs.rename(
-        path.join(next.testDir, 'next.config.js'),
-        path.join(next.testDir, 'next.config.optimize-css')
-      )
+        await fs.rename(
+          path.join(next.testDir, 'next.config.js'),
+          path.join(next.testDir, 'next.config.optimize-css')
+        )
 
-      const events = findAllTelemetryEvents(stderr, 'NEXT_BUILD_FEATURE_USAGE')
-      expect(events).toContainEqual({
-        featureName: 'experimental/optimizeCss',
-        invocationCount: 1,
-      })
-    })
+        const events = findAllTelemetryEvents(
+          cliOutput,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(events).toContainEqual({
+          featureName: 'experimental/optimizeCss',
+          invocationCount: 1,
+        })
+      }
+    )
 
     it('emits telemetry for usage of `nextScriptWorkers`', async () => {
       await fs.rename(
@@ -318,8 +366,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -329,7 +376,7 @@ describe('config telemetry', () => {
       )
 
       const featureUsageEvents = findAllTelemetryEvents(
-        stderr,
+        cliOutput,
         'NEXT_BUILD_FEATURE_USAGE'
       )
       expect(featureUsageEvents).toContainEqual({
@@ -344,8 +391,7 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -356,12 +402,12 @@ describe('config telemetry', () => {
 
       try {
         const event1 = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
+          .exec(cliOutput)
           .pop()
 
         expect(event1).toMatch(/"adapterPath": true/)
       } catch (err) {
-        require('console').error('failing stderr', stderr, err)
+        require('console').error('failing cliOutput', cliOutput, err)
         throw err
       }
     })
@@ -372,15 +418,14 @@ describe('config telemetry', () => {
         `export function middleware () { }`
       )
 
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
       await fs.remove(path.join(next.testDir, 'middleware.js'))
 
       const buildOptimizedEvents = findAllTelemetryEvents(
-        stderr,
+        cliOutput,
         'NEXT_BUILD_OPTIMIZED'
       )
       expect(buildOptimizedEvents).toContainEqual(
@@ -391,21 +436,22 @@ describe('config telemetry', () => {
     })
 
     it('emits telemetry for usage of swc plugins', async () => {
-      await fs.remove(path.join(next.testDir, 'next.config.js'))
-      await fs.remove(path.join(next.testDir, 'package.json'))
+      const originalPkg = await fs.readFile(
+        path.join(next.testDir, 'package.json'),
+        'utf8'
+      )
+      const swcPluginsPkg = await fs.readFile(
+        path.join(next.testDir, 'package.swc-plugins'),
+        'utf8'
+      )
 
+      await fs.writeFile(path.join(next.testDir, 'package.json'), swcPluginsPkg)
       await fs.rename(
         path.join(next.testDir, 'next.config.swc-plugins'),
         path.join(next.testDir, 'next.config.js')
       )
 
-      await fs.rename(
-        path.join(next.testDir, 'package.swc-plugins'),
-        path.join(next.testDir, 'package.json')
-      )
-
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
@@ -413,14 +459,10 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js'),
         path.join(next.testDir, 'next.config.swc-plugins')
       )
-
-      await fs.rename(
-        path.join(next.testDir, 'package.json'),
-        path.join(next.testDir, 'package.swc-plugins')
-      )
+      await fs.writeFile(path.join(next.testDir, 'package.json'), originalPkg)
 
       const pluginDetectedEvents = findAllTelemetryEvents(
-        stderr,
+        cliOutput,
         'NEXT_SWC_PLUGIN_DETECTED'
       )
       expect(pluginDetectedEvents).toEqual([
@@ -442,12 +484,11 @@ describe('config telemetry', () => {
     ;(isTurbopack ? it.skip : it)(
       'emits telemetry for usage of next/legacy/image',
       async () => {
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(featureUsageEvents).toContainEqual({
@@ -465,12 +506,11 @@ describe('config telemetry', () => {
     ;(isTurbopack ? it.skip : it)(
       'emits telemetry for usage of @vercel/og',
       async () => {
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(featureUsageEvents).toContainEqual({
@@ -489,8 +529,7 @@ describe('config telemetry', () => {
           path.join(next.testDir, 'next.config.js')
         )
 
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
@@ -500,7 +539,7 @@ describe('config telemetry', () => {
         )
 
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(featureUsageEvents).toContainEqual({
@@ -519,8 +558,7 @@ describe('config telemetry', () => {
           path.join(next.testDir, 'next.config.js')
         )
 
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
@@ -530,7 +568,7 @@ describe('config telemetry', () => {
         )
 
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(featureUsageEvents).toContainEqual({
@@ -545,21 +583,20 @@ describe('config telemetry', () => {
     )
 
     it('emits telemetry for default React Compiler options', async () => {
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
       try {
         const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
+          .exec(cliOutput)
           .pop()
 
         expect(event).toMatch(/"reactCompiler": false/)
         expect(event).toMatch(/"reactCompilerCompilationMode": null/)
         expect(event).toMatch(/"reactCompilerPanicThreshold": null/)
       } catch (err) {
-        require('console').error('failing stderr', stderr, err)
+        require('console').error('failing cliOutput', cliOutput, err)
         throw err
       }
     })
@@ -570,22 +607,21 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      let stderr
+      let cliOutput: string | undefined
       try {
-        const result = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const result = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
-        stderr = result.stderr
+        cliOutput = result.cliOutput
         const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
+          .exec(cliOutput)
           .pop()
 
         expect(event).toMatch(/"reactCompiler": true/)
         expect(event).toMatch(/"reactCompilerCompilationMode": null/)
         expect(event).toMatch(/"reactCompilerPanicThreshold": null/)
       } catch (err) {
-        require('console').error('failing stderr', stderr, err)
+        require('console').error('failing cliOutput', cliOutput, err)
         throw err
       } finally {
         await fs.rename(
@@ -601,15 +637,14 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      let stderr
+      let cliOutput: string | undefined
       try {
-        const result = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const result = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
-        stderr = result.stderr
+        cliOutput = result.cliOutput
         const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-          .exec(stderr)
+          .exec(cliOutput)
           .pop()
 
         expect(event).toMatch(/"reactCompiler": true/)
@@ -618,7 +653,7 @@ describe('config telemetry', () => {
           /"reactCompilerPanicThreshold": "critical_errors"/
         )
       } catch (err) {
-        require('console').error('failing stderr', stderr, err)
+        require('console').error('failing cliOutput', cliOutput, err)
         throw err
       } finally {
         await fs.rename(
@@ -646,8 +681,7 @@ describe('config telemetry', () => {
           path.join(next.testDir, 'app')
         )
 
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
@@ -666,7 +700,7 @@ describe('config telemetry', () => {
         )
 
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
 
@@ -689,14 +723,13 @@ describe('config telemetry', () => {
       )
 
       try {
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         try {
           const featureUsageEvents = findAllTelemetryEvents(
-            stderr,
+            cliOutput,
             'NEXT_BUILD_FEATURE_USAGE'
           )
           expect(featureUsageEvents).toContainEqual({
@@ -704,7 +737,7 @@ describe('config telemetry', () => {
             invocationCount: 1,
           })
         } catch (err) {
-          require('console').error('failing stderr', stderr, err)
+          require('console').error('failing cliOutput', cliOutput, err)
           throw err
         }
       } finally {
@@ -721,16 +754,19 @@ describe('config telemetry', () => {
         path.join(next.testDir, 'next.config.js')
       )
 
-      let app
+      let child: ChildProcess | undefined
+      let exitPromise: Promise<any> | undefined
       let stderr = ''
 
       try {
-        app = await launchApp(next.testDir, await findPort(), {
+        const result = await launchDevServer(await findPort(), {
           env: { NEXT_TELEMETRY_DEBUG: '1' },
           onStderr(msg) {
             stderr += msg || ''
           },
         })
+        child = result.child
+        exitPromise = result.exit
 
         await retry(async () => {
           const featureUsageEvents = findAllTelemetryEvents(
@@ -746,8 +782,11 @@ describe('config telemetry', () => {
         require('console').error('failing stderr', err)
         throw err
       } finally {
-        if (app) {
-          await killApp(app)
+        if (child) {
+          await killApp(child)
+        }
+        if (exitPromise) {
+          await exitPromise.catch(() => {})
         }
         await fs.rename(
           path.join(next.testDir, 'next.config.js'),

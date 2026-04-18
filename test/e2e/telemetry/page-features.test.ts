@@ -1,14 +1,8 @@
+import type { ChildProcess } from 'child_process'
 import path from 'path'
 import fs from 'fs-extra'
 import { nextTestSetup } from 'e2e-utils'
-import {
-  findPort,
-  killApp,
-  launchApp,
-  renderViaHTTP,
-  runNextCommand,
-  retry,
-} from 'next-test-utils'
+import { findPort, killApp, renderViaHTTP, retry } from 'next-test-utils'
 
 describe('page features telemetry', () => {
   const { next, isTurbopack, isNextStart } = nextTestSetup({
@@ -16,29 +10,72 @@ describe('page features telemetry', () => {
     skipStart: true,
   })
 
+  async function launchDevServer(
+    port: number,
+    opts: {
+      env?: Record<string, string>
+      onStderr?: (msg: string) => void
+      onStdout?: (msg: string) => void
+    } = {}
+  ): Promise<{ child: ChildProcess; exit: Promise<any> }> {
+    let child!: ChildProcess
+    let ready = false
+    let resolveReady!: () => void
+    const readyPromise = new Promise<void>((r) => {
+      resolveReady = () => {
+        if (!ready) {
+          ready = true
+          r()
+        }
+      }
+    })
+
+    const readyPattern = /- Local:|✓ Ready/i
+    const exit = next
+      .runCommand(['dev', next.testDir, '-p', String(port)], {
+        env: opts.env,
+        onStdout(msg) {
+          opts.onStdout?.(msg)
+          if (readyPattern.test(msg)) resolveReady()
+        },
+        onStderr(msg) {
+          opts.onStderr?.(msg)
+          if (readyPattern.test(msg)) resolveReady()
+        },
+        instance: (p) => {
+          child = p
+        },
+      })
+      .finally(() => {
+        resolveReady()
+      })
+
+    await readyPromise
+    return { child, exit }
+  }
+
   if (isTurbopack) {
     it('detects --turbo correctly for `next dev`', async () => {
       const port = await findPort()
       let stderr = ''
 
-      const handleStderr = (msg) => {
-        stderr += msg
-      }
-      const app = await launchApp(next.testDir, port, {
-        onStderr: handleStderr,
+      const { child, exit } = await launchDevServer(port, {
+        onStderr(msg) {
+          stderr += msg
+        },
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
-        turbo: true,
       })
       await retry(async () => {
         expect(stderr).toMatch(/NEXT_CLI_SESSION_STARTED/)
       })
       await renderViaHTTP(port, '/hello')
 
-      if (app) {
-        await killApp(app)
+      if (child) {
+        await killApp(child)
       }
+      await exit.catch(() => {})
 
       try {
         expect(stderr).toContain('NEXT_CLI_SESSION_STARTED')
@@ -58,15 +95,13 @@ describe('page features telemetry', () => {
       const port = await findPort()
       let stderr = ''
 
-      const handleStderr = (msg) => {
-        stderr += msg
-      }
-      const app = await launchApp(next.testDir, port, {
-        onStderr: handleStderr,
+      const { child, exit } = await launchDevServer(port, {
+        onStderr(msg) {
+          stderr += msg
+        },
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
-        turbo: true,
       })
 
       await retry(async () => {
@@ -74,9 +109,10 @@ describe('page features telemetry', () => {
       })
       await renderViaHTTP(port, '/hello')
 
-      if (app) {
-        await killApp(app, 'SIGTERM')
+      if (child) {
+        await killApp(child, 'SIGTERM')
       }
+      await exit.catch(() => {})
       await retry(async () => {
         expect(stderr).toMatch(/NEXT_CLI_SESSION_STOPPED/)
       })
@@ -98,11 +134,10 @@ describe('page features telemetry', () => {
       const port = await findPort()
       let stderr = ''
 
-      const handleStderr = (msg) => {
-        stderr += msg
-      }
-      const app = await launchApp(next.testDir, port, {
-        onStderr: handleStderr,
+      const { child, exit } = await launchDevServer(port, {
+        onStderr(msg) {
+          stderr += msg
+        },
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
@@ -113,9 +148,10 @@ describe('page features telemetry', () => {
       })
       await renderViaHTTP(port, '/hello')
 
-      if (app) {
-        await killApp(app, 'SIGTERM')
+      if (child) {
+        await killApp(child, 'SIGTERM')
       }
+      await exit.catch(() => {})
 
       await retry(async () => {
         expect(stderr).toMatch(/NEXT_CLI_SESSION_STOPPED/)
@@ -173,15 +209,14 @@ describe('page features telemetry', () => {
           }
         `
         )
-        const { stderr } = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
         try {
-          expect(stderr).toContain('NEXT_BUILD_OPTIMIZED')
+          expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
           const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-            .exec(stderr)
+            .exec(cliOutput)
             .pop()
           expect(event1).toMatch(/"staticPropsPageCount": 2/)
           expect(event1).toMatch(/"serverPropsPageCount": 2/)
@@ -193,28 +228,26 @@ describe('page features telemetry', () => {
           expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)
           expect(event1).toMatch(/"edgeRuntimePagesCount": 2/)
 
-          expect(stderr).toContain('NEXT_BUILD_COMPLETED')
+          expect(cliOutput).toContain('NEXT_BUILD_COMPLETED')
           const event2 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
-            .exec(stderr)
+            .exec(cliOutput)
             .pop()
 
           expect(event2).toMatch(/"totalAppPagesCount": 6/)
         } catch (err) {
-          require('console').error('failing stderr', stderr, err)
+          require('console').error('failing cliOutput', cliOutput, err)
           throw err
         }
       })
 
       it('detects reportWebVitals with no _app correctly for `next build`', async () => {
-        const build = await runNextCommand(['build', next.testDir], {
-          stderr: 'log',
-          stdout: 'log',
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
-        expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
+        expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
         const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-          .exec(build.stderr)
+          .exec(cliOutput)
           .pop()
         expect(event1).toMatch(/hasReportWebVitals.*?false/)
       })
@@ -230,8 +263,7 @@ describe('page features telemetry', () => {
           path.join(next.testDir, 'pages', '_app.js')
         )
 
-        const build = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
@@ -241,13 +273,13 @@ describe('page features telemetry', () => {
         )
 
         try {
-          expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
+          expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
           const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-            .exec(build.stderr)
+            .exec(cliOutput)
             .pop()
           expect(event1).toMatch(/hasReportWebVitals.*?true/)
         } catch (err) {
-          require('console').error(build.stderr)
+          require('console').error(cliOutput)
           throw err
         }
       })
@@ -263,8 +295,7 @@ describe('page features telemetry', () => {
           path.join(next.testDir, 'pages', '_app.js')
         )
 
-        const build = await runNextCommand(['build', next.testDir], {
-          stderr: true,
+        const { cliOutput } = await next.build({
           env: { NEXT_TELEMETRY_DEBUG: '1' },
         })
 
@@ -274,13 +305,13 @@ describe('page features telemetry', () => {
         )
 
         try {
-          expect(build.stderr).toContain('NEXT_BUILD_OPTIMIZED')
+          expect(cliOutput).toContain('NEXT_BUILD_OPTIMIZED')
           const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-            .exec(build.stderr)
+            .exec(cliOutput)
             .pop()
           expect(event1).toMatch(/hasReportWebVitals.*?false/)
         } catch (err) {
-          require('console').error(build.stderr)
+          require('console').error(cliOutput)
           throw err
         }
       })

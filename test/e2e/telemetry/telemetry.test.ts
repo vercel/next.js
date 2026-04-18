@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs-extra'
 import { nextTestSetup } from 'e2e-utils'
-import { runNextCommand, findAllTelemetryEvents } from 'next-test-utils'
+import { findAllTelemetryEvents } from 'next-test-utils'
 
 describe('Telemetry CLI', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
@@ -10,15 +10,12 @@ describe('Telemetry CLI', () => {
   })
 
   it('can print telemetry status', async () => {
-    const { stdout } = await runNextCommand(['telemetry'], {
-      stdout: true,
-    })
+    const { stdout } = await next.runCommand(['telemetry'])
     expect(stdout).toMatch(/Status: .*/)
   })
 
   it('can enable telemetry with flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', '--enable'], {
-      stdout: true,
+    const { stdout } = await next.runCommand(['telemetry', '--enable'], {
       env: {
         NEXT_TELEMETRY_DISABLED: '',
       },
@@ -28,8 +25,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('can disable telemetry with flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', '--disable'], {
-      stdout: true,
+    const { stdout } = await next.runCommand(['telemetry', '--disable'], {
       env: {
         NEXT_TELEMETRY_DISABLED: '',
       },
@@ -39,8 +35,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('can enable telemetry without flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'enable'], {
-      stdout: true,
+    const { stdout } = await next.runCommand(['telemetry', 'enable'], {
       env: {
         NEXT_TELEMETRY_DISABLED: '',
       },
@@ -50,8 +45,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('can re-enable telemetry', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'enable'], {
-      stdout: true,
+    const { stdout } = await next.runCommand(['telemetry', 'enable'], {
       env: {
         NEXT_TELEMETRY_DISABLED: '',
       },
@@ -61,8 +55,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('can disable telemetry without flag', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'disable'], {
-      stdout: true,
+    const { stdout } = await next.runCommand(['telemetry', 'disable'], {
       env: {
         NEXT_TELEMETRY_DISABLED: '',
       },
@@ -72,8 +65,7 @@ describe('Telemetry CLI', () => {
   })
 
   it('can re-disable telemetry', async () => {
-    const { stdout } = await runNextCommand(['telemetry', 'disable'], {
-      stdout: true,
+    const { stdout } = await next.runCommand(['telemetry', 'disable'], {
       env: {
         NEXT_TELEMETRY_DISABLED: '',
       },
@@ -83,9 +75,8 @@ describe('Telemetry CLI', () => {
   })
 
   it('can disable telemetry with env NEXT_TELEMETRY_DISABLED', async () => {
-    await runNextCommand(['telemetry', 'enable'])
-    const { stdout } = await runNextCommand(['telemetry', 'status'], {
-      stdout: true,
+    await next.runCommand(['telemetry', 'enable'])
+    const { stdout } = await next.runCommand(['telemetry', 'status'], {
       env: {
         NEXT_TELEMETRY_DISABLED: '1',
       },
@@ -95,20 +86,19 @@ describe('Telemetry CLI', () => {
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
     it('emits event when swc fails to load', async () => {
       await fs.remove(path.join(next.testDir, '.next'))
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NODE_OPTIONS: '--no-addons',
           NEXT_TELEMETRY_DEBUG: '1',
         },
       })
-      expect(stderr).toMatch(/NEXT_SWC_LOAD_FAILURE/)
-      expect(stderr).toContain(
+      expect(cliOutput).toMatch(/NEXT_SWC_LOAD_FAILURE/)
+      expect(cliOutput).toContain(
         `"nextVersion": "${require('next/package.json').version}"`
       )
-      expect(stderr).toContain(`"arch": "${process.arch}"`)
-      expect(stderr).toContain(`"platform": "${process.platform}"`)
-      expect(stderr).toContain(`"nodeVersion": "${process.versions.node}"`)
+      expect(cliOutput).toContain(`"arch": "${process.arch}"`)
+      expect(cliOutput).toContain(`"platform": "${process.platform}"`)
+      expect(cliOutput).toContain(`"nodeVersion": "${process.versions.node}"`)
     })
 
     it('logs completed `next build` with warnings', async () => {
@@ -116,8 +106,7 @@ describe('Telemetry CLI', () => {
         path.join(next.testDir, 'pages', 'warning.skip'),
         path.join(next.testDir, 'pages', 'warning.js')
       )
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
@@ -128,9 +117,9 @@ describe('Telemetry CLI', () => {
       )
 
       if (!isTurbopack) {
-        expect(stderr).toMatch(/Compiled with warnings/)
+        expect(cliOutput).toMatch(/Compiled with warnings/)
       }
-      expect(stderr).toMatch(/NEXT_BUILD_COMPLETED/)
+      expect(cliOutput).toMatch(/NEXT_BUILD_COMPLETED/)
     })
 
     it('detects tests correctly for `next build`', async () => {
@@ -138,8 +127,7 @@ describe('Telemetry CLI', () => {
         path.join(next.testDir, 'pages', 'hello.test.skip'),
         path.join(next.testDir, 'pages', 'hello.test.js')
       )
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
@@ -150,28 +138,27 @@ describe('Telemetry CLI', () => {
       )
 
       const event1 = /NEXT_BUILD_COMPLETED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
       expect(event1).toMatch(/hasDunderPages.*?true/)
       expect(event1).toMatch(/hasTestPages.*?true/)
 
       const event2 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
       expect(event2).toMatch(/hasDunderPages.*?true/)
       expect(event2).toMatch(/hasTestPages.*?true/)
     })
 
     it('detects correct cli session defaults', async () => {
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
       })
 
       const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
 
       expect(event).toMatch(/"hasNextConfig": false/)
@@ -185,8 +172,7 @@ describe('Telemetry CLI', () => {
         path.join(next.testDir, '.babelrc.default'),
         path.join(next.testDir, '.babelrc')
       )
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
@@ -197,7 +183,7 @@ describe('Telemetry CLI', () => {
       )
 
       const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
 
       expect(event).toMatch(/"hasNextConfig": false/)
@@ -211,8 +197,7 @@ describe('Telemetry CLI', () => {
         path.join(next.testDir, '.babelrc.plugin'),
         path.join(next.testDir, '.babelrc')
       )
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
@@ -223,7 +208,7 @@ describe('Telemetry CLI', () => {
       )
 
       const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
 
       expect(event).toMatch(/"hasNextConfig": false/)
@@ -233,23 +218,24 @@ describe('Telemetry CLI', () => {
     })
 
     it('cli session: package.json custom babel config (plugin)', async () => {
-      await fs.rename(
-        path.join(next.testDir, 'package.babel'),
-        path.join(next.testDir, 'package.json')
+      const originalPkg = await fs.readFile(
+        path.join(next.testDir, 'package.json'),
+        'utf8'
       )
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const babelPkg = await fs.readFile(
+        path.join(next.testDir, 'package.babel'),
+        'utf8'
+      )
+      await fs.writeFile(path.join(next.testDir, 'package.json'), babelPkg)
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
       })
-      await fs.rename(
-        path.join(next.testDir, 'package.json'),
-        path.join(next.testDir, 'package.babel')
-      )
+      await fs.writeFile(path.join(next.testDir, 'package.json'), originalPkg)
 
       const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
 
       expect(event).toMatch(/"hasNextConfig": false/)
@@ -263,8 +249,7 @@ describe('Telemetry CLI', () => {
         path.join(next.testDir, '.babelrc.preset'),
         path.join(next.testDir, '.babelrc')
       )
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
@@ -275,7 +260,7 @@ describe('Telemetry CLI', () => {
       )
 
       const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
 
       expect(event).toMatch(/"hasNextConfig": false/)
@@ -289,8 +274,7 @@ describe('Telemetry CLI', () => {
         path.join(next.testDir, 'next.config.webpack'),
         path.join(next.testDir, 'next.config.js')
       )
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: {
           NEXT_TELEMETRY_DEBUG: '1',
         },
@@ -301,7 +285,7 @@ describe('Telemetry CLI', () => {
       )
 
       const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
 
       expect(event).toMatch(/"hasNextConfig": true/)
@@ -311,7 +295,7 @@ describe('Telemetry CLI', () => {
 
       if (!isTurbopack) {
         const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
+          cliOutput,
           'NEXT_BUILD_FEATURE_USAGE'
         )
         expect(featureUsageEvents).toContainEqual({
@@ -327,25 +311,23 @@ describe('Telemetry CLI', () => {
     })
 
     it('detect static 404 correctly for `next build`', async () => {
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
       const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
       expect(event1).toMatch(/hasStatic404.*?true/)
     })
 
     it('detect page counts correctly for `next build`', async () => {
-      const { stderr } = await runNextCommand(['build', next.testDir], {
-        stderr: true,
+      const { cliOutput } = await next.build({
         env: { NEXT_TELEMETRY_DEBUG: '1' },
       })
 
       const event1 = /NEXT_BUILD_OPTIMIZED[\s\S]+?{([\s\S]+?)}/
-        .exec(stderr)
+        .exec(cliOutput)
         .pop()
       expect(event1).toMatch(/"staticPropsPageCount": 2/)
       expect(event1).toMatch(/"serverPropsPageCount": 2/)

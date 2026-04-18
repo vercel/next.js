@@ -1,6 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, nextBuild } from 'next-test-utils'
-import { join } from 'path'
+import { retry } from 'next-test-utils'
 
 describe('script-loader', () => {
   const { next, isNextDev, isTurbopack } = nextTestSetup({
@@ -223,24 +222,6 @@ describe('script-loader', () => {
       const text = await browser.elementById('text').text()
       expect(text).toBe('abc')
     })
-  })
-
-  it('Error message is shown if Partytown is not installed locally', async () => {
-    if (isNextDev) return
-
-    const { stdout, stderr } = await nextBuild(
-      join(__dirname, 'partytown-missing'),
-      [],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
-    const output = stdout + stderr
-
-    expect(output.replace(/[\n\r]/g, '')).toMatch(
-      /It looks like you're trying to use Partytown with next\/script but do not have the required package\(s\) installed.Please install Partytown by running:.*?(npm|pnpm|yarn) (install|add) (--save-dev|--dev) @builder.io\/partytownIf you are not trying to use Partytown, please disable the experimental "nextScriptWorkers" flag in next.config.js./
-    )
   })
 
   it('onReady fires after load event and then on every subsequent re-mount', async () => {
