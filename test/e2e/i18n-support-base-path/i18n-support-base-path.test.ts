@@ -13,6 +13,7 @@ describe('i18n Support basePath', () => {
 
   const ctx: Record<string, any> = {
     basePath: '/docs',
+    isDev: isNextDev,
   }
 
   let externalServer: http.Server
@@ -40,8 +41,7 @@ describe('i18n Support basePath', () => {
     await next.start()
 
     ctx.appDir = next.testDir
-    ctx.appPort = new URL(next.url).port
-    ctx.isDev = isNextDev
+    ctx.appPort = Number(new URL(next.url).port)
     if (!isNextDev) {
       ctx.buildId = (await next.readFile('.next/BUILD_ID')).trim()
       ctx.buildPagesDir = join(next.testDir, '.next/server/pages')
@@ -53,8 +53,12 @@ describe('i18n Support basePath', () => {
   afterAll(() => {
     externalServer?.close()
   })
-
-  runTests(ctx)
+  ;(isNextDev ? describe : describe.skip)('development mode', () => {
+    runTests(ctx)
+  })
+  ;(!isNextDev ? describe : describe.skip)('production mode', () => {
+    runTests(ctx)
+  })
 
   describe('with localeDetection disabled', () => {
     if (!isNextDev) {
@@ -65,7 +69,7 @@ describe('i18n Support basePath', () => {
         )
         await next.build()
         await next.start()
-        ctx.appPort = new URL(next.url).port
+        ctx.appPort = Number(new URL(next.url).port)
       })
 
       it('should have localeDetection in routes-manifest', async () => {

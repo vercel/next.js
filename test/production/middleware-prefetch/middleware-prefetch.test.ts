@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import {
+  retry,
+  getClientBuildManifestLoaderChunkUrlPath,
+} from 'next-test-utils'
 
 describe('Middleware Production Prefetch', () => {
   const { next } = nextTestSetup({
@@ -17,7 +20,11 @@ describe('Middleware Production Prefetch', () => {
       const attrs = await Promise.all(
         scripts.map((script) => script.getAttribute('src'))
       )
-      expect(attrs.some((src) => src && src.includes('/ssg-page'))).toBe(true)
+      const chunk = getClientBuildManifestLoaderChunkUrlPath(
+        next.testDir,
+        '/ssg-page'
+      )
+      expect(attrs.some((src) => src && src.includes(chunk))).toBe(true)
     })
   })
 

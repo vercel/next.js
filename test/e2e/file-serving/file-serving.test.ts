@@ -2,11 +2,46 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
+import { fetchViaHTTP } from 'next-test-utils'
 
 describe('file-serving', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
+
+  // Helper to detect malformed URLs that can't be parsed by the URL constructor
+  const isMalformedUrl = (path) => {
+    // These are intentionally malformed URLs used for security testing
+    // They contain backslashes and other characters that make them invalid URLs
+
+    // Check for specific failing patterns
+    if (path.startsWith('////')) return true // ////%2e%2e%2f...
+    if (path.indexOf('/\\\\\\%2e%2e%5c') >= 0) return true // /\\\%2e%2e%5c...
+    if (path.indexOf('/\\..%2f') >= 0) return true // /\..%2f...
+
+    // General patterns
+    return (
+      path.includes('\\') || // literal backslashes
+      path.includes('%5c') || // URL-encoded backslashes (\)
+      path.includes('%5C') || // URL-encoded backslashes (uppercase)
+      path.includes('%2e%2e') || // URL-encoded dots (..)
+      path.includes('%2E%2E') || // URL-encoded dots (uppercase)
+      path.includes('%252f') || // double-encoded forward slash
+      path.includes('%255c') // double-encoded backslash
+    )
+  }
+
+  // Helper to fetch using appropriate method based on URL validity
+  const safeFetch = async (path, opts) => {
+    if (isMalformedUrl(path)) {
+      // Use fetchViaHTTP with numeric port to bypass strict URL validation
+      // (passing a number avoids getFullUrl's string-branch URL parsing)
+      return await fetchViaHTTP(Number(next.appPort), path, undefined, opts)
+    } else {
+      // Use normal next.fetch for valid URLs
+      return await next.fetch(path, opts)
+    }
+  }
 
   const expectStatus = async (path) => {
     const containRegex = /(This page could not be found|Bad Request)/
@@ -26,19 +61,20 @@ describe('file-serving', () => {
         expect(await res.text()).toMatch(containRegex)
       }
     }
-    const res = await next.fetch(path, {
+
+    const res = await safeFetch(path, {
       redirect: 'manual',
     })
     await checkRes(res)
 
     // test `/_next` mount point
-    const res2 = await next.fetch(`/_next/${path}`, {
+    const res2 = await safeFetch(`/_next/${path}`, {
       redirect: 'manual',
     })
     await checkRes(res2)
 
     // test `/static` mount point
-    const res3 = await next.fetch(`/static/${path}`, {
+    const res3 = await safeFetch(`/static/${path}`, {
       redirect: 'manual',
     })
     await checkRes(res3)

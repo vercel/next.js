@@ -9,9 +9,11 @@ describe('server-side dev errors', () => {
 
   function stripInternalHandler(output) {
     return output
-      .replace(/.*at async handler .*next-route-loader.*/, '')
-      .replace(/.*at async handleResponse.*/, '')
-      .replace(/.*at async doRender \(.*/, '')
+      .replace(/Creating turbopack project \{[\s\S]*?\}\s*/g, '')
+      .replace(/WARNING: The git repository is dirty[^\n]*\n?/g, '')
+      .replace(/.*at async handler .*next-route-loader.*/g, '')
+      .replace(/.*at async handleResponse.*/g, '')
+      .replace(/.*at async doRender \(.*/g, '')
       .split(/\n/)
       .filter((item) => !!item.trim())
       .join('\n')
@@ -335,9 +337,9 @@ describe('server-side dev errors', () => {
       expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
     }
     expect(stderrOutput).toContain(
-      '  5 | export async function getServerSideProps() {\n' +
-        '  6 |   setTimeout(() => {\n' +
-        "> 7 |     Promise.reject(new Error('catch this rejection'))"
+      '   5 | export async function getServerSideProps() {\n' +
+        '   6 |   setTimeout(() => {\n' +
+        ">  7 |     Promise.reject(new Error('catch this rejection'))"
     )
     expect(stderrOutput).toContain(
       '⨯ unhandledRejection: Error: catch this rejection'
@@ -367,8 +369,8 @@ describe('server-side dev errors', () => {
       expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
     }
     expect(stderrOutput).toContain(
-      '  5 | export async function getServerSideProps() {\n' +
-        '  6 |   setTimeout(() => {\n' +
+      '   5 | export async function getServerSideProps() {\n' +
+        '   6 |   setTimeout(() => {\n' +
         '>  7 |     Promise.reject(new Error())'
     )
     expect(stderrOutput).toContain('⨯ unhandledRejection: Error:')
@@ -398,9 +400,9 @@ describe('server-side dev errors', () => {
       expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
     }
     expect(stderrOutput).toContain(
-      '  5 | export async function getServerSideProps() {\n' +
-        '  6 |   setTimeout(() => {\n' +
-        "> 7 |     throw new Error('catch this exception')"
+      '   5 | export async function getServerSideProps() {\n' +
+        '   6 |   setTimeout(() => {\n' +
+        ">  7 |     throw new Error('catch this exception')"
     )
     expect(stderrOutput).toContain(
       '⨯ uncaughtException: Error: catch this exception'
@@ -430,8 +432,8 @@ describe('server-side dev errors', () => {
       expect(stderrOutput).toContain('at Timeout.eval [as _onTimeout]')
     }
     expect(stderrOutput).toContain(
-      '  5 | export async function getServerSideProps() {\n' +
-        '  6 |   setTimeout(() => {\n' +
+      '   5 | export async function getServerSideProps() {\n' +
+        '   6 |   setTimeout(() => {\n' +
         '>  7 |     throw new Error()'
     )
     expect(stderrOutput).toContain('⨯ uncaughtException: Error:')

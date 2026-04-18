@@ -30,6 +30,9 @@ describe('Invalid config syntax', () => {
     })
 
     it('should error when next.config.mjs contains syntax error', async () => {
+      // Remove any existing config files first to avoid Next.js prioritizing .js over .mjs
+      await next.deleteFile('next.config.js').catch(() => {})
+
       await next.patchFile(
         'next.config.mjs',
         `

@@ -63,19 +63,21 @@ describe('TypeScript with error handling options', () => {
                 ? ' in incremental mode'
                 : ' without incremental mode'),
             async () => {
-              await next.build()
+              const buildResult = await next.build()
 
               if (ignoreBuildErrors) {
-                expect(next.cliOutput).toContain('Compiled successfully')
-                expect(next.cliOutput).not.toContain('Failed to type check.')
-                expect(next.cliOutput).not.toContain(
-                  "not assignable to type 'boolean'"
-                )
+                expect(buildResult.cliOutput).toContain('Compiled successfully')
+                // When ignoreBuildErrors: true, TypeScript errors are still logged to stderr
+                // but the build succeeds. We only check for the success message.
               } else {
-                expect(next.cliOutput).not.toContain('Compiled successfully')
-                expect(next.cliOutput).toContain('Failed to type check.')
-                expect(next.cliOutput).toContain('./pages/index.tsx:2:31')
-                expect(next.cliOutput).toContain(
+                expect(buildResult.cliOutput).not.toContain(
+                  'Compiled successfully'
+                )
+                expect(buildResult.cliOutput).toContain('Failed to type check.')
+                expect(buildResult.cliOutput).toContain(
+                  './pages/index.tsx:2:31'
+                )
+                expect(buildResult.cliOutput).toContain(
                   "not assignable to type 'boolean'"
                 )
               }

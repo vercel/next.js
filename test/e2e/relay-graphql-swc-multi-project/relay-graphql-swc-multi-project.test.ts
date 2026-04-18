@@ -21,13 +21,12 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       files: __dirname,
       dependencies: {
         'relay-runtime': '13.0.2',
+        '@types/relay-runtime': '14.1.13',
       },
-      buildCommand: 'pnpm --dir project-a exec next build',
+      buildCommand: 'pnpm next build project-a',
       startCommand: isNextDev
-        ? `pnpm --dir project-a exec next dev${
-            shouldUseTurbopack() ? ' --turbopack' : ''
-          }`
-        : 'pnpm --dir project-a exec next start',
+        ? `pnpm next dev project-a${shouldUseTurbopack() ? ' --turbopack' : ''}`
+        : 'pnpm next start project-a',
     })
 
     it('should resolve index page correctly', async () => {
@@ -42,13 +41,12 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       files: __dirname,
       dependencies: {
         'relay-runtime': '13.0.2',
+        '@types/relay-runtime': '14.1.13',
       },
-      buildCommand: 'pnpm --dir project-b exec next build',
+      buildCommand: 'pnpm next build project-b',
       startCommand: isNextDev
-        ? `pnpm --dir project-b exec next dev${
-            shouldUseTurbopack() ? ' --turbopack' : ''
-          }`
-        : 'pnpm --dir project-b exec next start',
+        ? `pnpm next dev project-b${shouldUseTurbopack() ? ' --turbopack' : ''}`
+        : 'pnpm next start project-b',
     })
 
     it('should resolve index page correctly', async () => {

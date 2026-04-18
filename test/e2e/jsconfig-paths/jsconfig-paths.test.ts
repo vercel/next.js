@@ -99,8 +99,13 @@ describe('jsconfig paths without baseurl', () => {
     skipStart: true,
   })
 
+  let originalJsconfigContent: string
+
   beforeAll(async () => {
-    const jsconfig = JSON.parse(await next.readFile('jsconfig.json'))
+    // Store original jsconfig content for restoration
+    originalJsconfigContent = await next.readFile('jsconfig.json')
+
+    const jsconfig = JSON.parse(originalJsconfigContent)
     delete jsconfig.compilerOptions.baseUrl
     jsconfig.compilerOptions.paths = {
       '@c/*': ['./components/*'],
@@ -109,6 +114,13 @@ describe('jsconfig paths without baseurl', () => {
     }
     await next.patchFile('jsconfig.json', JSON.stringify(jsconfig, null, 2))
     await next.start()
+  })
+
+  afterAll(async () => {
+    // Restore original jsconfig content
+    if (originalJsconfigContent) {
+      await next.patchFile('jsconfig.json', originalJsconfigContent)
+    }
   })
 
   it('should alias components', async () => {

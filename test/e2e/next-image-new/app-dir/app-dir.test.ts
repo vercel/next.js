@@ -108,13 +108,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`,
       crossorigin: 'use-credentials',
       referrerpolicy: '',
     })
@@ -123,13 +122,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+          `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '100vw',
-      imagesrcset:
-        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+      imagesrcset: `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`,
       crossorigin: '',
       referrerpolicy: '',
     })
@@ -138,13 +136,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: 'no-referrer',
     })
@@ -153,13 +150,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: '',
     })
@@ -245,13 +241,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.webp&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.webp&w=828&q=75${dpl} 2x`,
       crossorigin: 'use-credentials',
       referrerpolicy: '',
     })
@@ -260,13 +255,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
+          `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '100vw',
-      imagesrcset:
-        '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
+      imagesrcset: `/_next/image?url=%2Fwide.png&w=640&q=75${dpl} 640w, /_next/image?url=%2Fwide.png&w=750&q=75${dpl} 750w, /_next/image?url=%2Fwide.png&w=828&q=75${dpl} 828w, /_next/image?url=%2Fwide.png&w=1080&q=75${dpl} 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75${dpl} 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75${dpl} 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75${dpl} 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75${dpl} 3840w`,
       crossorigin: '',
       referrerpolicy: '',
     })
@@ -275,13 +269,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.png&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.png&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: 'no-referrer',
     })
@@ -290,13 +283,12 @@ describe('Image Component App Dir Tests', () => {
       entries.find(
         (item) =>
           item.imagesrcset ===
-          '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
+          `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`
       )
     ).toEqual({
       fetchpriority: '',
       imagesizes: '',
-      imagesrcset:
-        '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
+      imagesrcset: `/_next/image?url=%2Ftest.tiff&w=640&q=75${dpl} 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75${dpl} 2x`,
       crossorigin: '',
       referrerpolicy: '',
     })

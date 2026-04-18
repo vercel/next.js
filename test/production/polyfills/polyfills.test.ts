@@ -3,6 +3,11 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Polyfills', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      unfetch: '4.2.0',
+      'isomorphic-unfetch': '3.0.0',
+      'whatwg-fetch': '3.0.0',
+    },
   })
 
   it('should alias fetch', async () => {

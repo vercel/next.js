@@ -26,7 +26,7 @@ export default function Index() {
 }
 
 export const config = {
-  runtime: '${runtime}'
+  runtime: ${JSON.stringify(runtime)}
 }
 `
 }
@@ -78,7 +78,7 @@ describe('react-current-version', () => {
             dynamicIds.find((id: string) =>
               isTurbopack
                 ? id.endsWith(
-                    'app/components/foo.js [client] (ecmascript, next/dynamic entry)'
+                    'components/foo.js [client] (ecmascript, next/dynamic entry)'
                   )
                 : id === `pages/${page}.js -> ../components/foo`
             )

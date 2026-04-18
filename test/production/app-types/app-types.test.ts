@@ -4,7 +4,11 @@ describe('app type checking - production mode', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    dependencies: { '@next/mdx': 'latest' },
+    dependencies: {
+      '@next/mdx': 'latest',
+      '@mdx-js/loader': 'latest',
+      '@mdx-js/react': 'latest',
+    },
   })
 
   if (!isNextStart) {

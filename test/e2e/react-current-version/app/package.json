@@ -3,9 +3,5 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
-  },
-  "dependencies": {
-    "react": "*",
-    "react-dom": "*"
   }
 }

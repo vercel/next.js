@@ -5,12 +5,55 @@ import { retry, waitFor } from 'next-test-utils'
 
 describe('typescript-app-type-declarations', () => {
   const { next } = nextTestSetup({
-    files: __dirname,
+    files: {
+      'pages/index.tsx': `
+        export default function Index() {
+          return <div />
+        }
+      `,
+      'tsconfig.json': JSON.stringify({
+        compilerOptions: {
+          esModuleInterop: true,
+          module: 'esnext',
+          jsx: 'react-jsx',
+          target: 'es2017',
+          lib: ['dom', 'dom.iterable', 'esnext'],
+          allowJs: true,
+          skipLibCheck: true,
+          strict: true,
+          forceConsistentCasingInFileNames: true,
+          noEmit: true,
+          incremental: true,
+          moduleResolution: 'bundler',
+          resolveJsonModule: true,
+          isolatedModules: true,
+        },
+        exclude: ['node_modules', '**/*.test.ts', '**/*.test.tsx'],
+        include: ['next-env.d.ts', 'components', 'pages'],
+      }),
+      'next-env.d.ts': `/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.
+`,
+    },
+    dependencies: {
+      typescript: 'latest',
+      '@types/react': 'latest',
+      '@types/node': 'latest',
+    },
   })
 
   it('should write a new next-env.d.ts if none exist', async () => {
     const prevContent = await next.readFile('next-env.d.ts')
     await next.deleteFile('next-env.d.ts')
+    // Next.js writes next-env.d.ts during dev server startup, so restart
+    // the server to trigger regeneration (matching the original integration
+    // test which started a fresh server per test).
+    await next.stop()
+    await next.start()
     await next.render('/')
     await retry(async () => {
       const content = await next.readFile('next-env.d.ts')
@@ -21,6 +64,8 @@ describe('typescript-app-type-declarations', () => {
   it('should overwrite next-env.d.ts if an incorrect one exists', async () => {
     const prevContent = await next.readFile('next-env.d.ts')
     await next.patchFile('next-env.d.ts', prevContent + 'modification')
+    await next.stop()
+    await next.start()
     await next.render('/')
     await retry(async () => {
       const content = await next.readFile('next-env.d.ts')

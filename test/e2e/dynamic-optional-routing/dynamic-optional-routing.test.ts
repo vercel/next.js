@@ -226,6 +226,8 @@ describe('Dynamic Optional Routing - build validation', () => {
     expect(next.cliOutput).toMatch(
       /You cannot define a route with the same specificity as a optional catch-all route/
     )
+    // Clean up for next test
+    await next.deleteFile('pages/index.js')
   })
 
   it('should fail to build when optional route has same page at root', async () => {
@@ -234,12 +236,16 @@ describe('Dynamic Optional Routing - build validation', () => {
     expect(next.cliOutput).toMatch(
       /You cannot define a route with the same specificity as a optional catch-all route/
     )
+    // Clean up for next test
+    await next.deleteFile('pages/nested.js')
   })
 
   it('should fail to build when mixed with regular catch-all', async () => {
     await next.patchFile('pages/nested/[...param].js', DUMMY_PAGE)
     await next.build()
     expect(next.cliOutput).toMatch(/You cannot use both .+ at the same level/)
+    // Clean up for next test
+    await next.deleteFile('pages/nested/[...param].js')
   })
 
   it('should fail to build when optional but no catch-all', async () => {
@@ -248,6 +254,8 @@ describe('Dynamic Optional Routing - build validation', () => {
     expect(next.cliOutput).toMatch(
       /Optional route parameters are not yet supported/
     )
+    // Clean up for next test
+    await next.deleteFile('pages/invalid/[[param]].js')
   })
 
   it('should fail to build when param is not explicitly defined', async () => {
@@ -278,5 +286,7 @@ describe('Dynamic Optional Routing - build validation', () => {
     expect(next.cliOutput).toMatch(
       'A required parameter (slug) was not provided as an array received undefined in getStaticPaths for /invalid/[[...slug]]'
     )
+    // Clean up
+    await next.deleteFile('pages/invalid/[[...slug]].js')
   })
 })

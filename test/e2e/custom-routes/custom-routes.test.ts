@@ -61,10 +61,11 @@ describe('Custom routes', () => {
       const result = await next.build({ args: ['-d'] })
       buildCliOutput = result.cliOutput || ''
       buildId = (await next.readFile('.next/BUILD_ID')).trim()
+      await next.start({ skipBuild: true })
     } else {
       buildId = 'development'
+      await next.start()
     }
-    await next.start()
   })
 
   afterAll(() => {

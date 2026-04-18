@@ -5,6 +5,7 @@ import cheerio from 'cheerio'
 import https from 'https'
 
 const sharedDeps = { 'get-port': '5.1.1' }
+const sharedNodeEnv = isNextDev ? 'development' : 'production'
 
 describe.each([
   { title: 'HTTP', useHttps: 'false' },
@@ -24,7 +25,7 @@ describe.each([
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
-      env: { USE_HTTPS: useHttps },
+      env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
     })
 
@@ -61,10 +62,13 @@ describe.each([
 
     it('should set the assetPrefix to a given request', async () => {
       for (let lc = 0; lc < 10; lc++) {
-        const [normalUsage, dynamicUsage] = await Promise.all([
-          next.render('/asset', undefined, { agent }),
-          next.render('/asset?setAssetPrefix=1', undefined, { agent }),
-        ])
+        // Make requests sequential to avoid race condition with setAssetPrefix
+        const normalUsage = await next.render('/asset', undefined, { agent })
+        const dynamicUsage = await next.render(
+          '/asset?setAssetPrefix=1',
+          undefined,
+          { agent }
+        )
 
         expect(normalUsage).not.toMatch(/127\.0\.0\.1/)
         expect(dynamicUsage).toMatch(/127\.0\.0\.1/)
@@ -113,7 +117,11 @@ describe.each([
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
-      env: { USE_HTTPS: useHttps, GENERATE_ETAGS: 'true' },
+      env: {
+        USE_HTTPS: useHttps,
+        GENERATE_ETAGS: 'true',
+        NODE_ENV: sharedNodeEnv,
+      },
       dependencies: sharedDeps,
     })
 
@@ -128,7 +136,11 @@ describe.each([
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
-      env: { USE_HTTPS: useHttps, GENERATE_ETAGS: 'false' },
+      env: {
+        USE_HTTPS: useHttps,
+        GENERATE_ETAGS: 'false',
+        NODE_ENV: sharedNodeEnv,
+      },
       dependencies: sharedDeps,
     })
 
@@ -144,7 +156,7 @@ describe.each([
         files: __dirname,
         startCommand: 'node server.js',
         serverReadyPattern: /- Local:/,
-        env: { USE_HTTPS: useHttps },
+        env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
         dependencies: sharedDeps,
       })
 
@@ -186,11 +198,11 @@ describe.each([
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
-      env: { USE_HTTPS: useHttps },
+      env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
     })
 
-    it('should warn in development mode', async () => {
+    ;(isNextDev ? it : it.skip)('should warn in development mode', async () => {
       const cliOutputBefore = next.cliOutput.length
       const html = await next.render('/no-slash', undefined, { agent })
       expect(html).toContain('made it to dashboard')
@@ -217,8 +229,12 @@ describe.each([
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
-      env: { USE_HTTPS: useHttps, POLYFILL_FETCH: 'true' },
-      dependencies: sharedDeps,
+      env: {
+        USE_HTTPS: useHttps,
+        POLYFILL_FETCH: 'true',
+        NODE_ENV: sharedNodeEnv,
+      },
+      dependencies: { ...sharedDeps, 'node-fetch': '2.6.7' },
     })
 
     it('should serve internal file from render', async () => {
@@ -232,7 +248,7 @@ describe.each([
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
-      env: { USE_HTTPS: useHttps },
+      env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
     })
 
@@ -247,7 +263,7 @@ describe.each([
       expect(newOutput).toContain(
         'unhandledRejection: Error: unhandled rejection'
       )
-      expect(newOutput).toMatch(/\/server\.js:\d+\d+/)
+      expect(newOutput).toMatch(/server\.js:\d+:\d+/)
     })
   })
 
@@ -256,7 +272,7 @@ describe.each([
       files: __dirname,
       startCommand: 'node server.js',
       serverReadyPattern: /- Local:/,
-      env: { USE_HTTPS: useHttps },
+      env: { USE_HTTPS: useHttps, NODE_ENV: sharedNodeEnv },
       dependencies: sharedDeps,
     })
 

@@ -1,20 +1,16 @@
 import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
+import { shouldUseTurbopack } from 'next-test-utils'
 
 describe('typescript-external-dir', () => {
   const { next } = nextTestSetup({
-    subDir: 'project',
     files: {
-      'next.config.js': new FileRef(join(__dirname, 'project/next.config.js')),
-      'tsconfig.json': new FileRef(join(__dirname, 'project/tsconfig.json')),
-      pages: new FileRef(join(__dirname, 'project/pages')),
-      components: new FileRef(join(__dirname, 'project/components')),
-      '../shared/tsconfig.json': new FileRef(
-        join(__dirname, 'shared/tsconfig.json')
-      ),
-      '../shared/components': new FileRef(join(__dirname, 'shared/components')),
-      '../shared/libs': new FileRef(join(__dirname, 'shared/libs')),
+      project: new FileRef(join(__dirname, 'project')),
+      shared: new FileRef(join(__dirname, 'shared')),
     },
+    startCommand: `pnpm next dev project${
+      shouldUseTurbopack() ? ' --turbopack' : ''
+    }`,
   })
 
   it('should render the page with external TS/TSX dependencies', async () => {

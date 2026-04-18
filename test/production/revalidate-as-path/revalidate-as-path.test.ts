@@ -15,16 +15,12 @@ describe('Revalidate asPath Normalizing', () => {
   it('should render with correct asPath with /_next/data /index requested', async () => {
     const outputIndex = next.cliOutput.length
     const path = `/_next/data/${next.buildId}/index.json`
-    await next.render(path)
 
     await retry(async () => {
       const data = await next.render(path)
       expect(JSON.parse(data).pageProps).toEqual({
         hello: 'world',
       })
-    })
-
-    await retry(async () => {
       const newOutput = next.cliOutput.slice(outputIndex)
       expect(newOutput).toContain('asPath')
     })
@@ -44,16 +40,12 @@ describe('Revalidate asPath Normalizing', () => {
   it('should render with correct asPath with /_next/data /another/index requested', async () => {
     const outputIndex = next.cliOutput.length
     const path = `/_next/data/${next.buildId}/another/index.json`
-    await next.render(path)
 
     await retry(async () => {
       const data = await next.render(path)
       expect(JSON.parse(data).pageProps).toEqual({
         hello: 'world',
       })
-    })
-
-    await retry(async () => {
       const newOutput = next.cliOutput.slice(outputIndex)
       expect(newOutput).toContain('asPath')
     })

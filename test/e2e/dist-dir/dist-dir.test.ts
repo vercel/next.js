@@ -22,8 +22,15 @@ describe('distDir', () => {
   it('should not build the app within the default `.next` directory', async () => {
     expect(await next.hasFile('.next')).toBe(false)
   })
+})
 
-  if (isNextStart) {
+if (isNextStart) {
+  describe('distDir config validation', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+    })
+
     it('should throw error with invalid distDir', async () => {
       const origConfig = await next.readFile('next.config.js')
       await next.patchFile('next.config.js', `module.exports = { distDir: '' }`)
@@ -46,5 +53,5 @@ describe('distDir', () => {
 
       expect(cliOutput).not.toContain('Invalid distDir')
     })
-  }
-})
+  })
+}

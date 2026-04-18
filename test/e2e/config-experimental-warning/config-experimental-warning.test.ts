@@ -60,6 +60,8 @@ describe('Config Experimental Warning', () => {
       })
 
       it('should show warning with config from object with experimental', async () => {
+        // Make a request to trigger experimental warnings display
+        await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
         expect(output).toMatch(experimentalHeader)
         expect(output).toMatch(' ✓ workerThreads')
@@ -81,6 +83,8 @@ describe('Config Experimental Warning', () => {
       })
 
       it('should show warning with config from function with experimental', async () => {
+        // Make a request to trigger experimental warnings display
+        await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
         expect(output).toMatch(experimentalHeader)
         expect(output).toMatch(' ✓ workerThreads')
@@ -121,6 +125,8 @@ describe('Config Experimental Warning', () => {
       })
 
       it('should show warning with a symbol indicating that a default true value is set to false', async () => {
+        // Make a request to trigger experimental warnings display
+        await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
         expect(output).toMatch(experimentalHeader)
         expect(output).toMatch(' ⨯ prerenderEarlyExit')
@@ -138,6 +144,8 @@ describe('Config Experimental Warning', () => {
       })
 
       it('should show the configured value for numerical features', async () => {
+        // Make a request to trigger experimental warnings display
+        await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
         expect(output).toMatch(experimentalHeader)
         expect(output).toMatch(' · cpus: 2')
@@ -174,6 +182,8 @@ describe('Config Experimental Warning', () => {
       })
 
       it('should show warning with config from object with experimental and multiple keys', async () => {
+        // Make a request to trigger experimental warnings display
+        await next.fetch('/')
         const output = stripAnsi(next.cliOutput)
         expect(output).toContain(experimentalHeader)
         expect(output).toContain(' ✓ workerThreads')

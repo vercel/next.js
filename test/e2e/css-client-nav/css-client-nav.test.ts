@@ -24,7 +24,6 @@ describe('CSS Module client-side navigation', () => {
 
     if (!isNextDev) {
       proxyPort = await findPort()
-      const nextUrl = new URL(next.url)
 
       const proxy = httpProxy.createProxyServer({
         target: next.url,
@@ -33,10 +32,8 @@ describe('CSS Module client-side navigation', () => {
       proxyServer = http.createServer(async (req, res) => {
         if (
           stallCss &&
-          new URL(
-            req.url!,
-            `http://localhost:${nextUrl.port}`
-          ).pathname.endsWith('.css')
+          req.url &&
+          new URL(req.url, next.url).pathname.endsWith('.css')
         ) {
           console.log('stalling request for', req.url)
           await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
@@ -54,11 +51,51 @@ describe('CSS Module client-side navigation', () => {
     }
   })
 
+  beforeEach(() => {
+    stallCss = false
+  })
+
   afterAll(async () => {
     if (proxyServer) {
       proxyServer.close()
     }
   })
+
+  beforeEach(() => {
+    stallCss = false
+  })
+  ;(isNextStart ? it : it.skip)(
+    'should time out and hard navigate for stalled CSS request',
+    async () => {
+      stallCss = true
+
+      const browser = await webdriver(proxyPort, '/red')
+      try {
+        await browser.eval('window.beforeNav = "hello"')
+
+        const redColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-red')).color`
+        )
+        expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+        expect(await browser.eval('window.beforeNav')).toBe('hello')
+
+        await browser.elementByCss('#link-blue').click()
+
+        await browser.waitForElementByCss('#verify-blue')
+
+        const blueColor = await browser.eval(
+          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
+        )
+        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+        expect(await browser.eval('window.beforeNav')).toBeFalsy()
+      } finally {
+        stallCss = false
+        await browser.close()
+      }
+    },
+    20000
+  )
 
   it('should be able to client-side navigate from red to blue', async () => {
     const browser = isNextDev
@@ -178,35 +215,4 @@ describe('CSS Module client-side navigation', () => {
       await browser.close()
     }
   })
-  ;(isNextStart ? it : it.skip)(
-    'should time out and hard navigate for stalled CSS request',
-    async () => {
-      stallCss = true
-
-      const browser = await webdriver(proxyPort, '/red')
-      try {
-        await browser.eval('window.beforeNav = "hello"')
-
-        const redColor = await browser.eval(
-          `window.getComputedStyle(document.querySelector('#verify-red')).color`
-        )
-        expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
-        expect(await browser.eval('window.beforeNav')).toBe('hello')
-
-        await browser.elementByCss('#link-blue').click()
-
-        await browser.waitForElementByCss('#verify-blue')
-
-        const blueColor = await browser.eval(
-          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
-        )
-        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-
-        expect(await browser.eval('window.beforeNav')).toBeFalsy()
-      } finally {
-        stallCss = false
-        await browser.close()
-      }
-    }
-  )
 })

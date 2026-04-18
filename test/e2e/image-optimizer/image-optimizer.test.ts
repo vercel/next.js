@@ -263,7 +263,13 @@ describe('Image Optimizer', () => {
   describe('Server support for trailingSlash in next.config.js', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
-      nextConfig: { trailingSlash: true },
+      nextConfig: {
+        trailingSlash: true,
+        images: {
+          imageSizes: [8, 16, 32, 48, 64, 96, 128, 256, 384],
+          qualities: [70, 75],
+        },
+      },
     })
 
     it('should return successful response for original loader', async () => {
@@ -278,21 +284,33 @@ describe('Image Optimizer', () => {
       const size = 96
       const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
-        nextConfig: {
-          async headers() {
-            return [
-              {
-                source: '/test.png',
-                headers: [
-                  {
-                    key: 'Cache-Control',
-                    value: 'public, max-age=14400, must-revalidate',
-                  },
-                ],
-              },
-            ]
-          },
+      })
+
+      beforeAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = {
+        async headers() {
+          return [
+            {
+              source: '/test.png',
+              headers: [
+                {
+                  key: 'Cache-Control',
+                  value: 'public, max-age=14400, must-revalidate',
+                },
+              ],
+            },
+          ]
         },
+      }`
+        )
+      })
+      afterAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          '// prettier-ignore\nmodule.exports = { /* replaceme */ }'
+        )
       })
 
       it('should set max-age header', async () => {
@@ -350,12 +368,24 @@ describe('Image Optimizer', () => {
     () => {
       const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
-        nextConfig: {
-          images: {
-            loader: 'cloudinary',
-            path: 'https://example.com/act123/',
-          },
-        },
+      })
+
+      beforeAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = ${JSON.stringify({
+            images: {
+              loader: 'cloudinary',
+              path: 'https://example.com/act123/',
+            },
+          })}`
+        )
+      })
+      afterAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          '// prettier-ignore\nmodule.exports = { /* replaceme */ }'
+        )
       })
 
       it('should 404 when loader is not default', async () => {
@@ -375,9 +405,21 @@ describe('Image Optimizer', () => {
     () => {
       const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
-        nextConfig: {
-          images: { unoptimized: true },
-        },
+      })
+
+      beforeAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = ${JSON.stringify({
+            images: { unoptimized: true },
+          })}`
+        )
+      })
+      afterAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          '// prettier-ignore\nmodule.exports = { /* replaceme */ }'
+        )
       })
 
       it('should 404 when unoptimized', async () => {
@@ -397,9 +439,21 @@ describe('Image Optimizer', () => {
     () => {
       const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
-        nextConfig: {
-          experimental: { imgOptMaxInputPixels: 100 },
-        },
+      })
+
+      beforeAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = ${JSON.stringify({
+            experimental: { imgOptMaxInputPixels: 100 },
+          })}`
+        )
+      })
+      afterAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          '// prettier-ignore\nmodule.exports = { /* replaceme */ }'
+        )
       })
 
       it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
@@ -477,12 +531,24 @@ describe('Image Optimizer', () => {
     () => {
       const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
-        nextConfig: {
-          images: {
-            deviceSizes: [largeSize],
-            imageSizes: [],
-          },
-        },
+      })
+
+      beforeAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = ${JSON.stringify({
+            images: {
+              deviceSizes: [largeSize],
+              imageSizes: [],
+            },
+          })}`
+        )
+      })
+      afterAll(async () => {
+        await next.patchFile(
+          'next.config.js',
+          '// prettier-ignore\nmodule.exports = { /* replaceme */ }'
+        )
       })
 
       it('should support width 8 per BLUR_IMG_SIZE with next dev', async () => {

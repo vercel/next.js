@@ -10,7 +10,11 @@ import json from './big.json'
 describe('API routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    dependencies: { 'http-proxy': 'latest' },
+    dependencies: {
+      'http-proxy': 'latest',
+      cors: 'latest',
+      'node-fetch': '2.6.7',
+    },
   })
 
   it('should not strip .json from API route', async () => {
@@ -585,25 +589,28 @@ describe('API routes', () => {
       ).toBeTruthy()
     })
   }
+})
 
-  describe('output export error', () => {
-    const { next: nextExport } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-    })
+describe('API routes output export error', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    dependencies: {
+      'http-proxy': 'latest',
+      cors: 'latest',
+      'node-fetch': '2.6.7',
+    },
+    skipStart: true,
+  })
 
-    it('should show error with output export', async () => {
-      if (isNextDev) return
+  it('should show error with output export', async () => {
+    if (isNextDev) return
 
-      await nextExport.patchFile(
-        'next.config.js',
-        `module.exports = { output: 'export' }`
-      )
-      const { exitCode, cliOutput } = await nextExport.build()
-      expect(cliOutput).toContain(
-        'https://nextjs.org/docs/messages/gssp-export'
-      )
-      expect(exitCode).toBe(1)
-    })
+    await next.patchFile(
+      'next.config.js',
+      `module.exports = { output: 'export' }`
+    )
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).toContain('https://nextjs.org/docs/messages/gssp-export')
+    expect(exitCode).toBe(1)
   })
 })

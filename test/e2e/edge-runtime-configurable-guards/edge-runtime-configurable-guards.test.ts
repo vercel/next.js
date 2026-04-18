@@ -3,7 +3,7 @@ import { shouldUseTurbopack } from 'next-test-utils'
 import { retry } from 'next-test-utils'
 
 const TELEMETRY_EVENT_NAME = 'NEXT_EDGE_ALLOW_DYNAMIC_USED'
-const LIB_PATH = 'node_modules/.pnpm/test/node_modules/lib/index.js'
+const LIB_PATH = 'node_modules/lib/index.js'
 
 describe('Edge runtime configurable guards', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
@@ -18,7 +18,13 @@ describe('Edge runtime configurable guards', () => {
     beforeAll(async () => {
       originalApiRoute = await next.readFile('pages/api/route.js')
       originalMiddleware = await next.readFile('middleware.js')
-      originalLib = await next.readFile(LIB_PATH)
+      // Handle lib file which might not exist or be empty
+      try {
+        originalLib = await next.readFile(LIB_PATH)
+      } catch (e) {
+        // File doesn't exist, use default content
+        originalLib = '// populated by tests\n'
+      }
     })
 
     afterEach(async () => {
@@ -61,9 +67,9 @@ describe('Edge runtime configurable guards', () => {
       it('warns in dev for allowed code', async () => {
         await patchMultipleFunctions()
         const outputIndex = next.cliOutput.length
-        const res = await next.fetch('/')
-        expect(res.status).toBe(200)
         await retry(async () => {
+          const res = await next.fetch('/')
+          expect(res.status).toBe(200)
           expect(next.cliOutput.slice(outputIndex)).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
           )
@@ -73,9 +79,9 @@ describe('Edge runtime configurable guards', () => {
       it('warns in dev for unallowed code', async () => {
         await patchMultipleFunctions()
         const outputIndex = next.cliOutput.length
-        const res = await next.fetch('/api/route')
-        expect(res.status).toBe(200)
         await retry(async () => {
+          const res = await next.fetch('/api/route')
+          expect(res.status).toBe(200)
           expect(next.cliOutput.slice(outputIndex)).toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
           )
@@ -177,10 +183,11 @@ describe('Edge runtime configurable guards', () => {
           if (libContent) await next.patchFile(LIB_PATH, libContent)
 
           const outputIndex = next.cliOutput.length
-          const res = await next.fetch(url)
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(res.status).toBe(200)
           await retry(async () => {
+            const res = await next.fetch(url)
+
+            expect(res.status).toBe(200)
+
             expect(next.cliOutput.slice(outputIndex)).toContain(
               `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
             )
@@ -248,10 +255,11 @@ describe('Edge runtime configurable guards', () => {
           if (libContent) await next.patchFile(LIB_PATH, libContent)
 
           const outputIndex = next.cliOutput.length
-          const res = await next.fetch(url)
-          // eslint-disable-next-line jest/no-standalone-expect
-          expect(res.status).toBe(200)
           await retry(async () => {
+            const res = await next.fetch(url)
+
+            expect(res.status).toBe(200)
+
             expect(next.cliOutput.slice(outputIndex)).toContain(
               `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
             )
@@ -294,8 +302,10 @@ describe('Edge runtime configurable guards', () => {
             await next.patchFile('middleware.js', middlewareContent)
 
           const outputIndex = next.cliOutput.length
-          const res = await next.fetch(url)
-          expect(res.status).toBe(200)
+          await retry(async () => {
+            const res = await next.fetch(url)
+            expect(res.status).toBe(200)
+          })
           expect(next.cliOutput.slice(outputIndex)).not.toContain(
             `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
           )
@@ -317,7 +327,13 @@ describe('Edge runtime configurable guards', () => {
     beforeAll(async () => {
       originalApiRoute = await next.readFile('pages/api/route.js')
       originalMiddleware = await next.readFile('middleware.js')
-      originalLib = await next.readFile(LIB_PATH)
+      // Handle lib file which might not exist or be empty
+      try {
+        originalLib = await next.readFile(LIB_PATH)
+      } catch (e) {
+        // File doesn't exist, use default content
+        originalLib = '// populated by tests\n'
+      }
     })
 
     afterEach(async () => {

@@ -3,7 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Production Config Usage', () => {
   describe('production mode', () => {
     describe('with generateBuildId', () => {
-      const { next, isNextStart } = nextTestSetup({ files: __dirname })
+      const { next, isNextStart } = nextTestSetup({
+        files: __dirname + '/fixture-generateBuildId',
+        disableAutoSkewProtection: true,
+      })
 
       if (!isNextStart) {
         it('skipped for non-start mode', () => {})
@@ -33,62 +36,38 @@ describe('Production Config Usage', () => {
       }
 
       it('should fail with leading __ in env key', async () => {
-        await next.patchFile(
-          'next.config.js',
-          `module.exports = {
-  env: { __NEXT_MY_VAR: 'test' },
-  onDemandEntries: { maxInactiveAge: 1000 * 60 * 60 },
-  async generateBuildId() { return 'custom-buildid' },
-}`
-        )
         const start = next.cliOutput.length
-        await next.build().catch(() => {})
+        await next
+          .build({ env: { ENABLE_ENV_FAIL_UNDERSCORE: 'true' } })
+          .catch(() => {})
         expect(next.cliOutput.slice(start)).toMatch(
           /The key "__NEXT_MY_VAR" under/
         )
       })
 
       it('should fail with NODE_ in env key', async () => {
-        await next.patchFile(
-          'next.config.js',
-          `module.exports = {
-  env: { NODE_ENV: 'abc' },
-  onDemandEntries: { maxInactiveAge: 1000 * 60 * 60 },
-  async generateBuildId() { return 'custom-buildid' },
-}`
-        )
         const start = next.cliOutput.length
-        await next.build().catch(() => {})
+        await next
+          .build({ env: { ENABLE_ENV_FAIL_NODE: 'true' } })
+          .catch(() => {})
         expect(next.cliOutput.slice(start)).toMatch(/The key "NODE_ENV" under/)
       })
 
       it('should fail with NEXT_RUNTIME in env key', async () => {
-        await next.patchFile(
-          'next.config.js',
-          `module.exports = {
-  env: { NEXT_RUNTIME: 'nodejs' },
-  onDemandEntries: { maxInactiveAge: 1000 * 60 * 60 },
-  async generateBuildId() { return 'custom-buildid' },
-}`
-        )
         const start = next.cliOutput.length
-        await next.build().catch(() => {})
+        await next
+          .build({ env: { ENABLE_ENV_NEXT_PRESERVED: 'true' } })
+          .catch(() => {})
         expect(next.cliOutput.slice(start)).toMatch(
           /The key "NEXT_RUNTIME" under/
         )
       })
 
       it('should allow __ within env key', async () => {
-        await next.patchFile(
-          'next.config.js',
-          `module.exports = {
-  env: { SOME__ENV__VAR: '123' },
-  onDemandEntries: { maxInactiveAge: 1000 * 60 * 60 },
-  async generateBuildId() { return 'custom-buildid' },
-}`
-        )
         const start = next.cliOutput.length
-        await next.build().catch(() => {})
+        await next
+          .build({ env: { ENABLE_ENV_WITH_UNDERSCORES: 'true' } })
+          .catch(() => {})
         expect(next.cliOutput.slice(start)).not.toMatch(
           /The key "SOME__ENV__VAR" under/
         )

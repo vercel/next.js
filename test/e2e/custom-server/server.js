@@ -34,7 +34,8 @@ process.on('unhandledRejection', (err) => {
 })
 
 async function main() {
-  const port = await getPort()
+  const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 0
+  const port = envPort > 0 ? envPort : await getPort()
   const hostname = 'localhost'
   const protocol = useHttps ? 'https' : 'http'
 
