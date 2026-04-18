@@ -1,9 +1,13 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
-import { retry, nextBuild } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 
 describe('GS(S)P Redirect Support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      react: '19.3.0-canary-fef12a01-20260413',
+      'react-dom': '19.3.0-canary-fef12a01-20260413',
+    },
   })
 
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
@@ -441,14 +445,12 @@ describe('GS(S)P Redirect Support', () => {
         }
       `
       )
-      const { stdout, stderr } = await nextBuild(next.testDir, undefined, {
-        stdout: true,
-        stderr: true,
-      })
-      const output = stdout + stderr
+      await next.stop()
+      const { cliOutput } = await next.build()
       await next.deleteFile('pages/invalid/[slug].js')
+      await next.start()
 
-      expect(output).toContain(
+      expect(cliOutput).toContain(
         '`redirect` can not be returned from getStaticProps during prerendering'
       )
     })

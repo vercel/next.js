@@ -5,7 +5,13 @@ const customErrNo404Match =
   /You have added a custom \/_error page without a custom \/404 page/
 
 describe('Custom _error', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({ files: __dirname })
+  const { next, isNextDev, isNextStart } = nextTestSetup({
+    files: __dirname,
+    dependencies: {
+      react: '19.3.0-canary-fef12a01-20260413',
+      'react-dom': '19.3.0-canary-fef12a01-20260413',
+    },
+  })
 
   if (isNextDev) {
     it('should not warn with /_error and /404 when rendering error first', async () => {

@@ -10,6 +10,10 @@ describe('Fetch polyfill', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    dependencies: {
+      react: '19.3.0-canary-fef12a01-20260413',
+      'react-dom': '19.3.0-canary-fef12a01-20260413',
+    },
   })
 
   beforeAll(async () => {

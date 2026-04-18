@@ -3,6 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 describe('router hash navigation', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      react: '19.3.0-canary-fef12a01-20260413',
+      'react-dom': '19.3.0-canary-fef12a01-20260413',
+    },
   })
 
   it('scrolls to top when href="/" and url already contains a hash', async () => {

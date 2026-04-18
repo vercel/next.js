@@ -22,6 +22,8 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       dependencies: {
         'relay-runtime': '13.0.2',
         '@types/relay-runtime': '14.1.13',
+        react: '19.3.0-canary-fef12a01-20260413',
+        'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
       buildCommand: 'pnpm next build project-a',
       startCommand: isNextDev
@@ -42,6 +44,8 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       dependencies: {
         'relay-runtime': '13.0.2',
         '@types/relay-runtime': '14.1.13',
+        react: '19.3.0-canary-fef12a01-20260413',
+        'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
       buildCommand: 'pnpm next build project-b',
       startCommand: isNextDev

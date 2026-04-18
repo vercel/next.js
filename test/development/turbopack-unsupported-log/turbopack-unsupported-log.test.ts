@@ -1,6 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+const reactDependencies = {
+  react: '19.3.0-canary-fef12a01-20260413',
+  'react-dom': '19.3.0-canary-fef12a01-20260413',
+}
+
 // This test only applies to Turbopack
 ;(!process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
   'turbopack unsupported features log',
@@ -8,6 +13,7 @@ import path from 'path'
     describe('no config', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixtures/no-config'),
+        dependencies: reactDependencies,
       })
 
       it('should not warn by default', async () => {
@@ -23,6 +29,7 @@ import path from 'path'
     describe('empty config', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixtures/empty-config'),
+        dependencies: reactDependencies,
       })
 
       it('should not warn with empty next.config.js', async () => {
@@ -38,6 +45,7 @@ import path from 'path'
     describe('unsupported config', () => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixtures/unsupported-config'),
+        dependencies: reactDependencies,
       })
 
       it('should warn with next.config.js with unsupported field', async () => {

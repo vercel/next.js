@@ -3,6 +3,10 @@ import { nextTestSetup } from 'e2e-utils'
 describe('rewrites persist with browser history actions', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      react: '19.3.0-canary-fef12a01-20260413',
+      'react-dom': '19.3.0-canary-fef12a01-20260413',
+    },
   })
 
   it('back-button should go back to rewritten path successfully', async () => {

@@ -6,6 +6,11 @@ import {
   retry,
 } from 'next-test-utils'
 
+const reactDependencies = {
+  react: '19.3.0-canary-fef12a01-20260413',
+  'react-dom': '19.3.0-canary-fef12a01-20260413',
+}
+
 const blogIsr = `export default function Blog({ posts }) {
         return posts.map(p => (<div key={p}>{p}</div>))
        }
@@ -70,7 +75,10 @@ const postsSlug = (fallback: string) =>
 
 describe('config-output-export', () => {
   describe('static homepage', () => {
-    const { next } = nextTestSetup({ files: __dirname })
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: reactDependencies,
+    })
 
     it('should work with static homepage', async () => {
       const response = await next.fetch('/')
@@ -84,6 +92,7 @@ describe('config-output-export', () => {
   describe('"i18n" config', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'next.config.js': `module.exports = ${JSON.stringify({
           output: 'export',
@@ -105,6 +114,7 @@ describe('config-output-export', () => {
     describe('"rewrites" config', () => {
       const { next } = nextTestSetup({
         files: __dirname,
+        dependencies: reactDependencies,
         overrideFiles: {
           'next.config.js': `module.exports = ${JSON.stringify({
             output: 'export',
@@ -125,6 +135,7 @@ describe('config-output-export', () => {
     describe('"redirects" config', () => {
       const { next } = nextTestSetup({
         files: __dirname,
+        dependencies: reactDependencies,
         overrideFiles: {
           'next.config.js': `module.exports = ${JSON.stringify({
             output: 'export',
@@ -147,6 +158,7 @@ describe('config-output-export', () => {
     describe('"headers" config', () => {
       const { next } = nextTestSetup({
         files: __dirname,
+        dependencies: reactDependencies,
         overrideFiles: {
           'next.config.js': `module.exports = ${JSON.stringify({
             output: 'export',
@@ -173,6 +185,7 @@ describe('config-output-export', () => {
   describe('api routes function', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/api/wow.js': 'export default (_, res) => res.end("wow")',
       },
@@ -192,6 +205,7 @@ describe('config-output-export', () => {
   describe('middleware function', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'middleware.js':
           'export function middleware(req) { console.log("[mw]",request.url) }',
@@ -213,6 +227,7 @@ describe('config-output-export', () => {
   describe('getStaticProps with revalidate 10 (ISR)', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/blog.js': blogIsr,
       },
@@ -233,6 +248,7 @@ describe('config-output-export', () => {
   describe('getStaticProps with revalidate false', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/blog.js': blogGspRevalidateFalse,
       },
@@ -247,6 +263,7 @@ describe('config-output-export', () => {
   describe('getStaticProps without revalidate', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/blog.js': blogGspNoRevalidate,
       },
@@ -261,6 +278,7 @@ describe('config-output-export', () => {
   describe('getServerSideProps', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/blog.js': blogGssp,
       },
@@ -281,6 +299,7 @@ describe('config-output-export', () => {
   describe('getStaticPaths with fallback true', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/posts/[slug].js': postsSlug('true'),
       },
@@ -301,6 +320,7 @@ describe('config-output-export', () => {
   describe('getStaticPaths with fallback blocking', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/posts/[slug].js': postsSlug("'blocking'"),
       },
@@ -321,6 +341,7 @@ describe('config-output-export', () => {
   describe('getStaticPaths with fallback false', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       overrideFiles: {
         'pages/posts/[slug].js': postsSlug('false'),
       },
@@ -339,6 +360,7 @@ describe('config-output-export with hasNextSupport', () => {
   describe('"rewrites" config', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       env: { NOW_BUILDER: '1' },
       overrideFiles: {
         'next.config.js': `module.exports = ${JSON.stringify({
@@ -358,6 +380,7 @@ describe('config-output-export with hasNextSupport', () => {
   describe('"redirects" config', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       env: { NOW_BUILDER: '1' },
       overrideFiles: {
         'next.config.js': `module.exports = ${JSON.stringify({
@@ -377,6 +400,7 @@ describe('config-output-export with hasNextSupport', () => {
   describe('"headers" config', () => {
     const { next } = nextTestSetup({
       files: __dirname,
+      dependencies: reactDependencies,
       env: { NOW_BUILDER: '1' },
       overrideFiles: {
         'next.config.js': `module.exports = ${JSON.stringify({

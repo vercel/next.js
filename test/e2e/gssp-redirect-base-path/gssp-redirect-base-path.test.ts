@@ -6,6 +6,10 @@ const basePath = '/docs'
 describe('GS(S)P Redirect with basePath', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    dependencies: {
+      react: '19.3.0-canary-fef12a01-20260413',
+      'react-dom': '19.3.0-canary-fef12a01-20260413',
+    },
   })
 
   it('should apply temporary redirect when visited directly for GSSP page', async () => {
