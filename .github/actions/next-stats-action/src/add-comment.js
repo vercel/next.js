@@ -56,6 +56,8 @@ const METRIC_LABELS = {
   // General metrics
   nodeModulesSize: 'node_modules Size',
   swcBinarySize: 'SWC Binary Size',
+  swcBinaryStrippedSize: 'SWC Binary Size (stripped)',
+  swcBinaryGzipSize: 'SWC Binary Size (gzip)',
 }
 
 // Group configuration for organizing the comment
@@ -213,6 +215,16 @@ const METRIC_THRESHOLDS = {
   // SWC native binary (~tens of MB): deterministic, but smaller baseline
   // <10KB AND <0.5%, OR <0.05%
   swcBinarySize: { absoluteMin: 10240, percentMin: 0.5, percentOnly: 0.05 },
+  swcBinaryStrippedSize: {
+    absoluteMin: 10240,
+    percentMin: 0.5,
+    percentOnly: 0.05,
+  },
+  swcBinaryGzipSize: {
+    absoluteMin: 10240,
+    percentMin: 0.5,
+    percentOnly: 0.05,
+  },
 
   // Bundle sizes (KB-MB): deterministic
   // <2KB AND <1%, OR <0.1%
@@ -988,33 +1000,51 @@ function getLatestHistoricalValue(history, metricKey) {
   return undefined
 }
 
+// Metric keys reported in the Native Binary section.
+const NATIVE_BINARY_METRICS = [
+  { key: 'swcBinarySize', label: 'Raw' },
+  { key: 'swcBinaryStrippedSize', label: 'Stripped' },
+  { key: 'swcBinaryGzipSize', label: 'Gzipped' },
+]
+
 // Generate the dedicated Native Binary section shown after Bundle Sizes.
 function generateNativeBinarySection(mainStats, diffStats, history) {
   const mainGeneral = mainStats?.General || {}
   const diffGeneral = diffStats?.General || {}
 
-  const mainVal = mainGeneral.swcBinarySize
-  const diffVal = diffGeneral.swcBinarySize
+  const rows = []
+  let hasTrend = false
 
-  // Nothing to show if we don't have any measurement
-  if (typeof mainVal !== 'number' && typeof diffVal !== 'number') return ''
+  for (const { key, label } of NATIVE_BINARY_METRICS) {
+    const mainVal = mainGeneral[key]
+    const diffVal = diffGeneral[key]
+    if (typeof mainVal !== 'number' && typeof diffVal !== 'number') continue
 
-  const mainStr = prettify(mainVal, 'bytes')
-  const diffStr = prettify(diffVal, 'bytes')
-  const change = formatChange(mainVal, diffVal, 'bytes', 'swcBinarySize')
-  const histValues = getHistoricalValues(history, 'swcBinarySize')
-  const sparkline = generateTrendBar(histValues)
+    const mainStr = prettify(mainVal, 'bytes')
+    const diffStr = prettify(diffVal, 'bytes')
+    const change = formatChange(mainVal, diffVal, 'bytes', key)
+    const histValues = getHistoricalValues(history, key)
+    const sparkline = generateTrendBar(histValues)
+    if (sparkline) hasTrend = true
 
-  const hasTrend = Boolean(sparkline)
+    rows.push({ label, mainStr, diffStr, changeText: change.text, sparkline })
+  }
+
+  if (rows.length === 0) return ''
+
   const header = hasTrend
     ? `| Metric | Canary | PR | Change | Trend |
 |:-------|-------:|---:|-------:|:-----:|`
     : `| Metric | Canary | PR | Change |
 |:-------|-------:|---:|-------:|`
 
-  const row = hasTrend
-    ? `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} | ${sparkline} |`
-    : `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} |`
+  const body = rows
+    .map((r) =>
+      hasTrend
+        ? `| ${r.label} | ${r.mainStr} | ${r.diffStr} | ${r.changeText} | ${r.sparkline} |`
+        : `| ${r.label} | ${r.mainStr} | ${r.diffStr} | ${r.changeText} |`
+    )
+    .join('\n')
 
   return `<details>
 <summary><strong>🦀 Native Binary</strong></summary>
@@ -1022,7 +1052,7 @@ function generateNativeBinarySection(mainStats, diffStats, history) {
 Size of the native SWC binary (\`packages/next-swc/native/*.node\`). The Canary column is the most recent value recorded on the canary branch.
 
 ${header}
-${row}
+${body}
 
 </details>
 
@@ -1078,15 +1108,14 @@ module.exports = async function addComment(
     // canary baseline with the last recorded value from KV history so the
     // diff is meaningful. Canary runs skip this and keep the measured value.
     if (!actionInfo.isRelease && result.mainRepoStats?.General) {
-      const historicalSwcSize = getLatestHistoricalValue(
-        history,
-        'swcBinarySize'
-      )
-      if (typeof historicalSwcSize === 'number') {
-        result.mainRepoStats.General.swcBinarySize = historicalSwcSize
-      } else {
-        // No history yet — hide the canary value so the table renders N/A
-        delete result.mainRepoStats.General.swcBinarySize
+      for (const { key } of NATIVE_BINARY_METRICS) {
+        const historical = getLatestHistoricalValue(history, key)
+        if (typeof historical === 'number') {
+          result.mainRepoStats.General[key] = historical
+        } else {
+          // No history yet — hide the canary value so the table renders N/A
+          delete result.mainRepoStats.General[key]
+        }
       }
     }
 

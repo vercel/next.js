@@ -1,5 +1,7 @@
 const path = require('path')
+const os = require('os')
 const fs = require('fs/promises')
+const gzipSize = require('gzip-size')
 const glob = require('../util/glob')
 const exec = require('../util/exec')
 const logger = require('../util/logger')
@@ -13,25 +15,69 @@ const { calcStats } = require('../util/stats')
 // From src/run/index.js → .github/actions/next-stats-action/native
 const nativeBinaryDir = path.join(__dirname, '../../native')
 
-// Sum the size of all *.node files in the action's native/ directory.
-async function getSwcBinarySize() {
+async function listNativeBinaries() {
   try {
     const entries = await fs.readdir(nativeBinaryDir)
-    let total = 0
-    let found = 0
-    for (const entry of entries) {
-      if (!entry.endsWith('.node')) continue
-      const stat = await fs.stat(path.join(nativeBinaryDir, entry))
-      if (stat.isFile()) {
-        total += stat.size
-        found++
-      }
+    return entries
+      .filter((e) => e.endsWith('.node'))
+      .map((e) => path.join(nativeBinaryDir, e))
+  } catch {
+    return []
+  }
+}
+
+// Raw file size on disk (sum across all *.node files).
+async function getSwcBinarySize(files) {
+  let total = 0
+  let found = 0
+  for (const file of files) {
+    const stat = await fs.stat(file)
+    if (stat.isFile()) {
+      total += stat.size
+      found++
     }
-    if (found === 0) return null
+  }
+  return found === 0 ? null : total
+}
+
+// Gzipped size of the binary (sum across all *.node files).
+async function getSwcBinaryGzipSize(files) {
+  if (files.length === 0) return null
+  let total = 0
+  for (const file of files) {
+    total += await gzipSize.file(file)
+  }
+  return total
+}
+
+// Stripped size: copy the binary, run `strip --strip-unneeded`, then stat it.
+// Returns null if `strip` is unavailable or fails.
+async function getSwcBinaryStrippedSize(files) {
+  if (files.length === 0) return null
+  let tmpDir
+  try {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'swc-strip-'))
+    let total = 0
+    for (const file of files) {
+      const dest = path.join(tmpDir, path.basename(file))
+      await fs.copyFile(file, dest)
+      await exec.spawnPromise(
+        `strip --strip-unneeded ${JSON.stringify(dest)}`,
+        {
+          stdio: 'pipe',
+        }
+      )
+      const stat = await fs.stat(dest)
+      total += stat.size
+    }
     return total
   } catch (err) {
-    logger(`Unable to measure SWC binary size: ${err.message}`)
+    logger(`Unable to measure stripped SWC binary size: ${err.message}`)
     return null
+  } finally {
+    if (tmpDir) {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+    }
   }
 }
 
@@ -84,6 +130,8 @@ async function runConfigs(
         General: {
           nodeModulesSize: null,
           swcBinarySize: null,
+          swcBinaryStrippedSize: null,
+          swcBinaryGzipSize: null,
         },
       }
 
@@ -110,7 +158,12 @@ async function runConfigs(
         curStats.General.nodeModulesSize = await getDirSize(
           path.join(statsAppDir, 'node_modules')
         )
-        curStats.General.swcBinarySize = await getSwcBinarySize()
+        const nativeBinaries = await listNativeBinaries()
+        curStats.General.swcBinarySize = await getSwcBinarySize(nativeBinaries)
+        curStats.General.swcBinaryStrippedSize =
+          await getSwcBinaryStrippedSize(nativeBinaries)
+        curStats.General.swcBinaryGzipSize =
+          await getSwcBinaryGzipSize(nativeBinaries)
       }
 
       // Run builds for selected bundler(s) and collect stats separately

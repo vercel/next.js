@@ -35,6 +35,9 @@ const mockResults = [
         buildDurationWebpack: 14000,
         buildDurationCachedWebpack: 13500,
         nodeModulesSize: 250000000,
+        swcBinarySize: 108 * 1024 * 1024, // ~108 MB
+        swcBinaryStrippedSize: 92 * 1024 * 1024, // ~92 MB (debug info removed)
+        swcBinaryGzipSize: 38 * 1024 * 1024, // ~38 MB
       },
     },
     diffRepoStats: {
@@ -53,6 +56,9 @@ const mockResults = [
         buildDurationWebpack: 13800,
         buildDurationCachedWebpack: 13600,
         nodeModulesSize: 251000000,
+        swcBinarySize: 115 * 1024 * 1024, // ~115 MB (+7 MB, significant regression)
+        swcBinaryStrippedSize: 98 * 1024 * 1024, // ~98 MB
+        swcBinaryGzipSize: 40 * 1024 * 1024, // ~40 MB
       },
     },
     diffs: null,
@@ -84,6 +90,16 @@ if (withHistory) {
         nextDevColdReadyDurationTurbo: 400 + Math.random() * 100, // varies 400-500
         nextDevWarmReadyDurationTurbo: 300 + Math.random() * 50,
         buildDurationTurbo: 4000 + Math.random() * 1000,
+        // Slowly-growing binary sizes across recent canary runs
+        swcBinarySize: Math.round(
+          (100 + (9 - i) * 0.9) * 1024 * 1024 + Math.random() * 512 * 1024
+        ),
+        swcBinaryStrippedSize: Math.round(
+          (85 + (9 - i) * 0.8) * 1024 * 1024 + Math.random() * 512 * 1024
+        ),
+        swcBinaryGzipSize: Math.round(
+          (35 + (9 - i) * 0.3) * 1024 * 1024 + Math.random() * 256 * 1024
+        ),
       },
     })
   }
