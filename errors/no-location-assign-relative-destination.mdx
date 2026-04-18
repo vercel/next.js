@@ -12,7 +12,7 @@ title: No location.assign or location.href navigation to relative URLs
 
 ### During the render phase
 
-Use [`redirect()`](https://nextjs.org/docs/app/api-reference/functions/redirect) from `next/navigation`:
+Use [`redirect()`](/docs/app/api-reference/functions/redirect) from `next/navigation`:
 
 ```tsx filename="app/page.tsx"
 import { redirect } from 'next/navigation'
@@ -41,7 +41,7 @@ export default function MyComponent({
 
 ### In Client Components (event handlers)
 
-Use [`useRouter().push()`](https://nextjs.org/docs/app/api-reference/functions/use-router) from `next/navigation`:
+Use [`useRouter().push()`](/docs/app/api-reference/functions/use-router) from `next/navigation`:
 
 ```tsx filename="app/components/my-button.tsx"
 'use client'
@@ -69,7 +69,7 @@ window.location.assign('https://example.org/path')
 
 ## Useful Links
 
-- [Redirecting in Next.js](https://nextjs.org/docs/app/guides/redirecting)
+- [Redirecting in Next.js](/docs/app/guides/redirecting)
 - [Linking and Navigating in Next.js](/docs/app/getting-started/linking-and-navigating)
-- [`redirect` API Reference](https://nextjs.org/docs/app/api-reference/functions/redirect)
-- [`useRouter` API Reference](https://nextjs.org/docs/app/api-reference/functions/use-router)
+- [`redirect` API Reference](/docs/app/api-reference/functions/redirect)
+- [`useRouter` API Reference](/docs/app/api-reference/functions/use-router)
