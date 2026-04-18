@@ -14,17 +14,14 @@ related:
 
 [Incremental Static Regeneration (ISR)](/docs/app/glossary#incremental-static-regeneration-isr) with [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) lets you:
 
-- Prerender a subset of your dynamic routes at build time
-- Serve the most specific prerendered shell available for routes that were not prerendered, instead of blocking until the server finishes rendering
+- Prerender a subset of your dynamic routes at build time with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
+- For routes not included in that subset, prerender a static shell treating unknown params as runtime data
+- Serve something instantly for every route: either the prerendered page or the static shell
 - Progressively improve what visitors see for a given route as param values become known from real traffic
 
 If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router, this is the Cache Components equivalent.
 
-## Example
-
-We'll build a product catalog with category layouts and product detail pages using the [Recipe API](https://next-recipe-api.vercel.dev/).
-
-### Step 1: Enable Cache Components
+Make sure [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) is enabled in your project:
 
 ```ts filename="next.config.ts" highlight={4}
 import type { NextConfig } from 'next'
@@ -36,62 +33,19 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-### Step 2: Prerender a subset with generateStaticParams
+## Example
 
-Start with a data layer. The `'use cache'` directive on each function ensures that fetched data is cached after the first request. `getTopCategories` and `getPopularProducts` fetch from the API and return a subset to prerender at build time.
+We'll build a product catalog with category layouts and product detail pages using the [Recipe API](https://next-recipe-api.vercel.dev/).
 
-```ts filename="app/lib/data.ts" highlight={5,11,17,23,30-33,36-39}
-const API = 'https://next-recipe-api.vercel.dev'
+### Prepare your routes
 
-// ... type definitions ...
+Use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to define which param values to prerender. When rendering these routes, the param values are known at build time. The prerender process builds a static shell until it hits runtime APIs or uncached data. See [how rendering works](/docs/app/getting-started/caching#how-rendering-works) for more details.
 
-export async function getCategories(): Promise<Category[]> {
-  'use cache'
-  const res = await fetch(`${API}/categories`)
-  return res.json()
-}
+The category layout prerenders two categories:
 
-export async function getCategory(
-  slug: string
-): Promise<CategoryWithProducts | null> {
-  'use cache'
-  const res = await fetch(`${API}/categories/${slug}`)
-  if (!res.ok) return null
-  return res.json()
-}
-
-export async function getProduct(slug: string): Promise<Product | null> {
-  'use cache'
-  const res = await fetch(`${API}/products/${slug}`)
-  if (!res.ok) return null
-  return res.json()
-}
-
-export async function getProducts(category?: string): Promise<Product[]> {
-  'use cache'
-  const url = category
-    ? `${API}/products?category=${category}`
-    : `${API}/products`
-  const res = await fetch(url)
-  return res.json()
-}
-
-export async function getTopCategories() {
-  const categories = await getCategories()
-  return categories.slice(0, 2)
-}
-
-export async function getPopularProducts(category: string) {
-  const products = await getProducts(category)
-  return products.slice(0, 1)
-}
-```
-
-The category layout reads `params` and wraps the header in a `<Suspense>` boundary. `generateStaticParams` fetches the subset of categories to prerender:
-
-```tsx filename="app/[category]/layout.tsx" highlight={4-7}
+```tsx filename="app/[category]/layout.tsx" highlight={5-8}
 import Link from 'next/link'
-import { type ReactNode, Suspense } from 'react'
+import { Suspense } from 'react'
 import { getCategory, getTopCategories } from '../lib/data'
 
 export async function generateStaticParams() {
@@ -99,41 +53,39 @@ export async function generateStaticParams() {
   return categories.map((c) => ({ category: c.slug }))
 }
 
-async function CategoryHeader({ slug }: { slug: string }) {
-  const category = await getCategory(slug)
+async function CategoryHeader({
+  params,
+}: Pick<LayoutProps<'/[category]'>, 'params'>) {
+  const { category } = await params
+  const data = await getCategory(category)
 
   return (
     <div>
       <Link href="/">&larr; All categories</Link>
-      <h1>{category?.name ?? 'Category'}</h1>
-      {category?.description && <p>{category.description}</p>}
+      <h1>{data?.name ?? 'Category'}</h1>
+      {data?.description && <p>{data.description}</p>}
     </div>
   )
 }
 
-export default async function CategoryLayout({
-  children,
-  params,
-}: {
-  children: ReactNode
-  params: Promise<{ category: string }>
-}) {
-  const { category } = await params
-
+export default function CategoryLayout(props: LayoutProps<'/[category]'>) {
   return (
     <div>
       <Suspense fallback={<div>Loading...</div>}>
-        <CategoryHeader slug={category} />
+        <CategoryHeader params={props.params} />
       </Suspense>
-      <div>{children}</div>
+      {props.children}
     </div>
   )
 }
 ```
 
-The product page receives the parent `category` param and fetches the most popular products for that category:
+Notice that `CategoryLayout` does not `await props.params` itself. Instead, it passes the `params` promise to `CategoryHeader` inside `<Suspense>`. The `await` happens inside the boundary, so for unknown categories Next.js can still generate a static shell with the fallback UI.
 
-```tsx filename="app/[category]/[product]/page.tsx" highlight={4-11}
+The product page prerenders one product per category. `generateStaticParams` receives the parent `category` param:
+
+```tsx filename="app/[category]/[product]/page.tsx" highlight={5-12}
+import { Suspense } from 'react'
 import Link from 'next/link'
 import { getProduct, getPopularProducts } from '../../lib/data'
 
@@ -146,74 +98,104 @@ export async function generateStaticParams({
   return products.map((p) => ({ product: p.slug }))
 }
 
-export default async function ProductPage({
-  params,
-}: {
-  params: Promise<{ category: string; product: string }>
-}) {
-  const { category, product } = await params
-  const data = await getProduct(product)
+async function ProductDetails(props: PageProps<'/[category]/[product]'>) {
+  const { category, product } = await props.params
+  const data = await getProduct(category, product)
 
   if (!data) {
     return <p>Product not found.</p>
   }
 
   return (
-    <div>
+    <>
       <Link href={`/${category}`}>&larr; Back to products</Link>
       <h2>{data.name}</h2>
       <p>${data.price}</p>
       <p>{data.description}</p>
+    </>
+  )
+}
+
+export default function ProductPage(props: PageProps<'/[category]/[product]'>) {
+  return (
+    <div>
+      <Suspense fallback={<div>Loading product...</div>}>
+        <ProductDetails {...props} />
+      </Suspense>
     </div>
   )
 }
 ```
 
-For a fallback shell to be generated, there must be a `<Suspense>` fallback above any dynamic access (params, uncached data, runtime APIs). Next.js renders as far down the tree as it can statically. A [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) file is the simplest way to provide a fallback, but a `<Suspense>` boundary in the page itself also works:
+> **Good to know:** You can also use [`loading.tsx`](/docs/app/api-reference/file-conventions/loading) files instead of `<Suspense>` in JSX. They are equivalent, but `<Suspense>` gives you more control over where the boundary sits in the component tree.
 
-```tsx filename="app/[category]/loading.tsx"
-export default function Loading() {
-  return <p>Loading products...</p>
+The data helpers use `'use cache'` at the module level so all exported functions are cached. This lets their results be included in the static shell:
+
+```ts filename="app/lib/data.ts" highlight={1}
+'use cache'
+
+const API = 'https://next-recipe-api.vercel.dev'
+
+export async function getCategory(slug: string) {
+  const res = await fetch(`${API}/categories/${slug}`)
+  if (!res.ok) return null
+  return res.json()
+}
+
+export async function getProduct(category: string, slug: string) {
+  const res = await fetch(`${API}/products/${category}/${slug}`)
+  if (!res.ok) return null
+  return res.json()
+}
+
+export async function getTopCategories() {
+  const res = await fetch(`${API}/categories`)
+  const categories = await res.json()
+  return categories.slice(0, 2)
+}
+
+export async function getPopularProducts(category: string) {
+  const res = await fetch(`${API}/products?category=${category}`)
+  const products = await res.json()
+  return products.slice(0, 1)
 }
 ```
 
-```tsx filename="app/[category]/[product]/loading.tsx"
-export default function Loading() {
-  return <p>Loading product...</p>
-}
-```
+If your components access runtime APIs like `cookies` or `headers`, wrap them in `<Suspense>`. Their fallback UI is included in the static shell instead.
 
-At build time, this produces three tiers of output:
+### At build time
 
-1. **Fully static pages** for known combos (one product per prerendered category): `/tops/tee`, `/shorts/joggers`
-2. **Intermediate shells** for known categories with an unknown product: `/tops/[product]`, `/shorts/[product]`
-3. **Generic shell** for everything else: `/[category]/[product]`
+When you run `next build`, Next.js prerenders the layout for each known category (`tops`, `shorts`), plus one render where `await params` suspends, producing the `[category]` shell.
 
-### Step 3: What visitors see for uncached routes
+It also prerenders the page for each known product under each category (`tee` under `tops`, `joggers` under `shorts`), plus one render where `await params` suspends, producing the `[product]` shell.
 
-**Known category, unknown product** (`/tops/overshirt`)
+These are combined into:
 
-The category `tops` was prerendered, so the intermediate shell `/tops/[product]` exists. The visitor immediately sees the category header ("Tops") fully rendered. The product area shows the `loading.tsx` skeleton. Product data streams in as it resolves.
+- `/tops/tee`, `/shorts/joggers`: fully static pages, both params known
+- `/tops/[product]`, `/shorts/[product]`: category header rendered, product shows fallback
+- `/[category]/[product]`: both show fallback
 
-**Unknown category, any product** (`/shoes/basketball-shoes` if `shoes` was not prerendered)
+### At runtime
 
-No intermediate shell exists for this category. Next.js falls back to the generic `/[category]/[product]` shell. Both the category header and the product area show skeleton UI. Both stream in as they resolve.
+A visitor navigates to `/tops/tee`. Both params were prerendered. They get a fully static page.
 
-**After the first visit**
+The first visit to `/tops/overshirt`. The product is unknown, but the category `tops` was prerendered. Next.js serves the `/tops/[product]` shell with the category header already rendered. The product streams in.
 
-Next.js tries to push the static boundary further down the component tree in the background. Because the data functions in this example use `'use cache'`, the upgrade produces a fully static page. The next visitor gets it without any streaming.
+The first visit to `/shoes/basketball-shoes`. The category `shoes` was not prerendered. Next.js serves the generic `/[category]/[product]` shell. Both the category and the product stream in.
 
-### Step 4: What determines the upgrade result
+After the first visit, Next.js renders these routes in the background with the now-known params. The next visitor to the same URLs gets a more specific result.
 
-How far Next.js can push the static boundary determines the result:
+### What the upgrade produces
+
+After the first visit, Next.js renders the page in the background with the known params and tries to push the static boundary as far down the component tree as possible:
 
 - If every data access is cached and all params are resolved, the upgrade produces a **fully static page**.
 - If some data is uncached or runtime APIs (`cookies`, `headers`) are accessed behind `<Suspense>` fallbacks, the upgrade produces a **more specific shell** with the params resolved but the dynamic parts still streaming.
-- If a param does not have `generateStaticParams`, it cannot trigger an upgrade. Params are resolved in route order, so a param without `generateStaticParams` also blocks all subsequent params from upgrading.
+- Params are resolved in route order. A param without `generateStaticParams` blocks all subsequent params from upgrading.
 
-> **Good to know**: Client-side prefetches (via [`<Link>`](/docs/app/api-reference/components/link) or [`router.prefetch`](/docs/app/api-reference/functions/use-router)) do not trigger upgrades. Only a full page visit does.
+> **Good to know**: Client-side prefetches (via [`<Link>`](/docs/app/api-reference/components/link) or [`router.prefetch`](/docs/app/api-reference/functions/use-router)) do not trigger upgrades. Only a navigation into the page visit does.
 
-To disable fallback shells and revert to blocking behavior for uncached routes, set [`experimental.partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) to `false`. The page is still cached after the first visit, but visitors wait for the full render instead of seeing a loading state.
+To disable fallback shells and revert to blocking behavior for routes not in `generateStaticParams`, set [`experimental.partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) to `false`. The page is still generated after the first visit, but visitors wait for the full render instead of seeing a loading state.
 
 ## Coming from the Pages Router
 
