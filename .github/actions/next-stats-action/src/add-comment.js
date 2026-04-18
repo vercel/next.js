@@ -55,6 +55,7 @@ const METRIC_LABELS = {
   buildDurationCachedTurbo: 'Turbo Build Time (cached)',
   // General metrics
   nodeModulesSize: 'node_modules Size',
+  swcBinarySize: 'SWC Binary Size',
 }
 
 // Group configuration for organizing the comment
@@ -208,6 +209,10 @@ const METRIC_THRESHOLDS = {
   // node_modules (~450MB): deterministic, huge baseline
   // <10KB AND <1%, OR <0.01%
   nodeModulesSize: { absoluteMin: 10240, percentMin: 1, percentOnly: 0.01 },
+
+  // SWC native binary (~tens of MB): deterministic, but smaller baseline
+  // <10KB AND <0.5%, OR <0.05%
+  swcBinarySize: { absoluteMin: 10240, percentMin: 0.5, percentOnly: 0.05 },
 
   // Bundle sizes (KB-MB): deterministic
   // <2KB AND <1%, OR <0.1%
@@ -973,6 +978,57 @@ function generateDiffsSection(result) {
   return content
 }
 
+// Find the most recent value for a metric in the KV history.
+function getLatestHistoricalValue(history, metricKey) {
+  if (!history?.entries?.length) return undefined
+  for (let i = history.entries.length - 1; i >= 0; i--) {
+    const val = history.entries[i].metrics?.[metricKey]
+    if (typeof val === 'number') return val
+  }
+  return undefined
+}
+
+// Generate the dedicated Native Binary section shown after Bundle Sizes.
+function generateNativeBinarySection(mainStats, diffStats, history) {
+  const mainGeneral = mainStats?.General || {}
+  const diffGeneral = diffStats?.General || {}
+
+  const mainVal = mainGeneral.swcBinarySize
+  const diffVal = diffGeneral.swcBinarySize
+
+  // Nothing to show if we don't have any measurement
+  if (typeof mainVal !== 'number' && typeof diffVal !== 'number') return ''
+
+  const mainStr = prettify(mainVal, 'bytes')
+  const diffStr = prettify(diffVal, 'bytes')
+  const change = formatChange(mainVal, diffVal, 'bytes', 'swcBinarySize')
+  const histValues = getHistoricalValues(history, 'swcBinarySize')
+  const sparkline = generateTrendBar(histValues)
+
+  const hasTrend = Boolean(sparkline)
+  const header = hasTrend
+    ? `| Metric | Canary | PR | Change | Trend |
+|:-------|-------:|---:|-------:|:-----:|`
+    : `| Metric | Canary | PR | Change |
+|:-------|-------:|---:|-------:|`
+
+  const row = hasTrend
+    ? `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} | ${sparkline} |`
+    : `| SWC Binary Size | ${mainStr} | ${diffStr} | ${change.text} |`
+
+  return `<details>
+<summary><strong>🦀 Native Binary</strong></summary>
+
+Size of the native SWC binary (\`packages/next-swc/native/*.node\`). The Canary column is the most recent value recorded on the canary branch.
+
+${header}
+${row}
+
+</details>
+
+`
+}
+
 function generatePrTarballSection(actionInfo) {
   if (actionInfo.isRelease || !actionInfo.githubHeadSha) return ''
 
@@ -1016,6 +1072,24 @@ module.exports = async function addComment(
     const result = results[i]
     const isLastResult = i === results.length - 1
 
+    // The native SWC binary is shared between the canary and PR checkouts in
+    // a single run (the workflow downloads it once and copies it into both),
+    // so the in-run "canary" value is identical to the PR value. Override the
+    // canary baseline with the last recorded value from KV history so the
+    // diff is meaningful. Canary runs skip this and keep the measured value.
+    if (!actionInfo.isRelease && result.mainRepoStats?.General) {
+      const historicalSwcSize = getLatestHistoricalValue(
+        history,
+        'swcBinarySize'
+      )
+      if (typeof historicalSwcSize === 'number') {
+        result.mainRepoStats.General.swcBinarySize = historicalSwcSize
+      } else {
+        // No history yet — hide the canary value so the table renders N/A
+        delete result.mainRepoStats.General.swcBinarySize
+      }
+    }
+
     // Add summary showing only significant changes (not collapsed)
     if (i === 0) {
       comment += generateChangeSummary(
@@ -1040,6 +1114,13 @@ module.exports = async function addComment(
     if (bundleSection) {
       comment += `<details>\n<summary><strong>📦 Bundle Sizes</strong></summary>\n\n${bundleSection}</details>\n\n`
     }
+
+    // Add native binary size section (not collapsed, small)
+    comment += generateNativeBinarySection(
+      result.mainRepoStats,
+      result.diffRepoStats,
+      history
+    )
 
     // Add diffs (already collapsed)
     comment += generateDiffsSection(result)
