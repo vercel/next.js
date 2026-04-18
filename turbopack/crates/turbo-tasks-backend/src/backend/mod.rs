@@ -2891,7 +2891,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        _options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
@@ -3537,11 +3536,9 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        self.0
-            .try_read_own_task_cell(task_id, cell, options, turbo_tasks)
+        self.0.try_read_own_task_cell(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(

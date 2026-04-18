@@ -603,14 +603,8 @@ pub trait Backend: Sync + Send {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<TypedCellContent> {
-        match self.try_read_task_cell(current_task, index, None, options, turbo_tasks)? {
-            Ok(content) => Ok(content),
-            Err(_) => Ok(TypedCellContent(index.type_id, CellContent(None))),
-        }
-    }
+    ) -> Result<TypedCellContent>;
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.

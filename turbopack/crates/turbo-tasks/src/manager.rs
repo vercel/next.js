@@ -159,15 +159,9 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
     ) -> Result<TypedCellContent>;
 
-    fn read_own_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<TypedCellContent>;
+    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(
         &self,
         task: TaskId,
@@ -1483,10 +1477,9 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
         self.backend
-            .try_read_own_task_cell(current_task, index, options, self)
+            .try_read_own_task_cell(current_task, index, self)
     }
 
     #[track_caller]
@@ -1556,13 +1549,8 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         }
     }
 
-    fn read_own_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<TypedCellContent> {
-        self.try_read_own_task_cell(task, index, options)
+    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
+        self.try_read_own_task_cell(task, index)
     }
 
     fn update_own_task_cell(
@@ -2073,17 +2061,7 @@ impl CurrentCellRef {
         )>,
     ) {
         let tt = turbo_tasks();
-        let cell_content = tt
-            .read_own_task_cell(
-                self.current_task,
-                self.index,
-                ReadCellOptions {
-                    // INVALIDATION: Reading our own cell must be untracked
-                    tracking: ReadCellTracking::Untracked,
-                    final_read_hint: false,
-                },
-            )
-            .ok();
+        let cell_content = tt.read_own_task_cell(self.current_task, self.index).ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
         if let Some((update, updated_key_hashes, content_hash)) = update {
             tt.update_own_task_cell(
@@ -2301,17 +2279,7 @@ impl CurrentCellRef {
     ) {
         let tt = turbo_tasks();
         let update = if matches!(verification_mode, VerificationMode::EqualityCheck) {
-            let content = tt
-                .read_own_task_cell(
-                    self.current_task,
-                    self.index,
-                    ReadCellOptions {
-                        // INVALIDATION: Reading our own cell must be untracked
-                        tracking: ReadCellTracking::Untracked,
-                        final_read_hint: false,
-                    },
-                )
-                .ok();
+            let content = tt.read_own_task_cell(self.current_task, self.index).ok();
             if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
                 // pointer equality (not value equality)
                 shared_ref_exp != shared_ref

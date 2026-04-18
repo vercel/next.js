@@ -68,7 +68,7 @@ impl UpdateCellOperation {
         );
 
         let content = if let CellContent(Some(new_content)) = content {
-            Some(new_content.into_typed(cell.type_id))
+            Some(new_content)
         } else {
             None
         };
@@ -93,11 +93,7 @@ impl UpdateCellOperation {
                         verification_mode,
                         turbo_tasks::backend::VerificationMode::EqualityCheck
                     )
-                    && content
-                        != task
-                            .get_cell_data(&cell)
-                            .cloned()
-                            .map(|r| r.into_typed(cell.type_id))
+                    && content.as_ref() != task.get_cell_data(&cell)
                 {
                     let task_description = task.get_task_description();
                     let cell_type = turbo_tasks::registry::get_value_type(cell.type_id)
@@ -197,7 +193,7 @@ impl UpdateCellOperation {
                     dependent_tasks,
                     #[cfg(feature = "trace_task_dirty")]
                     has_updated_key_hashes,
-                    content,
+                    content: content.map(|r| r.into_typed(cell.type_id)),
                     queue: AggregationUpdateQueue::new(),
                 }
                 .execute(&mut ctx);
@@ -209,7 +205,7 @@ impl UpdateCellOperation {
         // So we can just update the cell content.
 
         let old_content = if let Some(new_content) = content {
-            task.insert_cell_data(cell, new_content.into_untyped())
+            task.insert_cell_data(cell, new_content)
         } else {
             task.remove_cell_data(&cell)
         };
