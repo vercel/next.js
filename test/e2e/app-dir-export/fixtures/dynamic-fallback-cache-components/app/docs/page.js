@@ -6,12 +6,12 @@ export default function DocsIndex() {
       <h1>Docs</h1>
       <ul>
         <li>
+          <Link href="/docs/reference/export">docs reference page</Link>
+        </li>
+        <li>
           <Link href="/docs/guides/export/fallback">
             docs export fallback page
           </Link>
-        </li>
-        <li>
-          <Link href="/docs/reference/export">docs reference page</Link>
         </li>
       </ul>
     </main>

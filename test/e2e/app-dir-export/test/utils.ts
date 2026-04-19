@@ -27,9 +27,11 @@ const glob = promisify(globOrig)
 export async function buildAndStartOutputExportServer(
   next: Pick<NextInstance, 'build' | 'testDir'>,
   {
+    basePath,
     trailingSlash,
     useFallbackDocument,
   }: {
+    basePath?: string
     trailingSlash: boolean
     useFallbackDocument: boolean
   }
@@ -63,6 +65,17 @@ export async function buildAndStartOutputExportServer(
     requests.push(req.url || '/')
     nextHandler()
   })
+
+  if (basePath) {
+    app.use((req, _res, nextHandler) => {
+      if (req.url === basePath) {
+        req.url = '/'
+      } else if (req.url?.startsWith(`${basePath}/`)) {
+        req.url = req.url.slice(basePath.length)
+      }
+      nextHandler()
+    })
+  }
 
   app.use(
     express.static(outDir, {
