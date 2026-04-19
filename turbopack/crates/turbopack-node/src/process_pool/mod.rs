@@ -531,7 +531,12 @@ impl ProcessArgs {
 ///
 /// The worker will *not* use the `env` of the parent process by default. All environment variables
 /// need to be provided to make the execution as pure as possible.
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
+#[turbo_tasks::value(
+    cell = "new",
+    serialization = "session_stateful",
+    eq = "manual",
+    shared
+)]
 pub struct ChildProcessPool {
     cwd: PathBuf,
     entrypoint: PathBuf,

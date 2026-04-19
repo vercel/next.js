@@ -288,12 +288,12 @@ struct TaskStorageSchema {
     /// Cell data for all cells, regardless of serialization mode.
     ///
     /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` whose
-    /// bincode impl filters out entries whose value type has no bincode fn
-    /// (`SerializationMode::None`, `Hash`, or `Derivable`) at encode time.
-    /// Those entries stay in memory but are not persisted — on restore the
-    /// next read triggers the "cell index in range but data missing" recompute
-    /// path. Sticky value types (non-reconstructible — `SerializationMode::None`)
-    /// are identified by `ValueType::sticky` for future eviction handling.
+    /// bincode impl filters out entries whose value type is not
+    /// `ValueTypePersistence::Bincodable` at encode time (i.e. `SkipPersist`
+    /// or `SessionStateful`). Those entries stay in memory but are not
+    /// persisted — on restore the next read triggers the "cell index in range
+    /// but data missing" recompute path. `SessionStateful` value types are
+    /// identified on `ValueType::persistence` for future eviction handling.
     ///
     /// Collapses the previous `persistent_cell_data` / `transient_cell_data`
     /// split — routing every cell through a single map keyed by value type

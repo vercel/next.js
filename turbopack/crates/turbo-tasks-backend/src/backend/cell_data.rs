@@ -69,9 +69,9 @@ impl ShrinkToFit for CellData {
 
 impl TurboBincodeEncode for CellData {
     /// Writes `count-of-bincodable-entries` followed by each bincodable
-    /// `(CellId, encoded-value)`. Entries whose value type is `Derivable` or
-    /// `SessionStateful` (no bincode) are skipped; they will be reconstructed
-    /// on the next task execution after restore.
+    /// `(CellId, encoded-value)`. Entries whose value type is `SkipPersist`
+    /// or `SessionStateful` (no bincode) are skipped; they will be
+    /// reconstructed on the next task execution after restore.
     fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
         // First pass: count bincodable entries. One extra O(N) iteration over
         // the registry — cold path (snapshot time only) and the registry is a

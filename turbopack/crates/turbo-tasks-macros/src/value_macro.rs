@@ -44,21 +44,21 @@ impl TryFrom<LitStr> for CellMode {
 }
 
 enum SerializationMode {
-    /// No bincode, **sticky** — cells of this type hold session-unique identity
-    /// (file system handles, worker pool handles, plugin DSOs, etc.) and cannot
-    /// be reconstructed by re-executing the producing task. The storage layer
-    /// keeps them in memory across eviction.
-    None,
-    /// Like `None` (no bincode serialization), but also stores a hash of the cell value so that
-    /// changes can be detected even when the transient cell data has been evicted from memory.
+    /// No bincode: cells of this type hold session-scoped state
+    /// (file system handles, worker pool handles, plugin DSOs, `State<>`
+    /// interior mutability, etc.) and cannot be reconstructed by re-executing
+    /// the producing task. The storage layer keeps them in memory across
+    /// eviction.
+    SessionStateful,
+    /// Like `SessionStateful` (no bincode serialization), but also stores a hash of the cell value
+    /// so that changes can be detected even when the cell data has been evicted from memory.
     /// Only valid with `cell = "compare"` (or the default).
     Hash,
-    /// No bincode, **not sticky** — cells of this type can be freely dropped on
-    /// eviction because they are derivable: re-executing the producing task
-    /// from persistent inputs reproduces the same value. Use for outputs whose
-    /// in-memory form (SWC ASTs, codegen Ropes, etc.) isn't worth serializing
-    /// but is re-derivable.
-    Derivable,
+    /// No bincode, **but evictable** — skip persisting the cell content because
+    /// re-running the producing task to reproduce it is cheaper/simpler than
+    /// bincoding the in-memory form. Use for outputs whose in-memory form
+    /// (SWC ASTs, codegen Ropes, etc.) isn't worth serializing.
+    Skip,
     Auto,
     Custom,
 }
@@ -75,14 +75,14 @@ impl TryFrom<LitStr> for SerializationMode {
 
     fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
         match lit.value().as_str() {
-            "none" => Ok(SerializationMode::None),
+            "session_stateful" => Ok(SerializationMode::SessionStateful),
             "hash" => Ok(SerializationMode::Hash),
-            "derivable" => Ok(SerializationMode::Derivable),
+            "skip" => Ok(SerializationMode::Skip),
             "auto" => Ok(SerializationMode::Auto),
             "custom" => Ok(SerializationMode::Custom),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"none\", \"hash\", \"derivable\", \"auto\", or \"custom\"",
+                "expected \"session_stateful\", \"hash\", \"skip\", \"auto\", or \"custom\"",
             )),
         }
     }
@@ -374,9 +374,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
         }
-        SerializationMode::None
+        SerializationMode::SessionStateful
         | SerializationMode::Hash
-        | SerializationMode::Derivable
+        | SerializationMode::Skip
         | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
@@ -409,22 +409,22 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let name = global_name_for_type(ident);
     // Dispatch to the constructor whose name reflects the persistence mode.
-    // `Hash` and `Derivable` both map to `derivable` — hash-mode change
-    // detection is handled independently by the caller supplying a
-    // `content_hash`, not by a distinct persistence variant.
+    // `Hash` and `Skip` both map to `skip_persist` — hash-mode change detection
+    // is handled independently by the caller supplying a `content_hash`, not by
+    // a distinct persistence variant.
     let new_value_type = match serialization_mode {
-        SerializationMode::None => quote! {
+        SerializationMode::SessionStateful => quote! {
             turbo_tasks::ValueType::session_stateful::<#ident>(#name)
         },
-        SerializationMode::Hash | SerializationMode::Derivable => quote! {
-            turbo_tasks::ValueType::derivable::<#ident>(#name)
+        SerializationMode::Hash | SerializationMode::Skip => quote! {
+            turbo_tasks::ValueType::skip_persist::<#ident>(#name)
         },
         SerializationMode::Auto | SerializationMode::Custom => quote! {
             turbo_tasks::ValueType::bincodable::<#ident>(#name)
         },
     };
     let has_serialization = match serialization_mode {
-        SerializationMode::None | SerializationMode::Hash | SerializationMode::Derivable => {
+        SerializationMode::SessionStateful | SerializationMode::Hash | SerializationMode::Skip => {
             quote! { false }
         }
         SerializationMode::Auto | SerializationMode::Custom => quote! { true },

@@ -346,7 +346,7 @@ fn bench_against_node_nft_inner(input: CaseInput) {
     });
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "session_stateful")]
 struct NodeFileTraceResult {
     rebased: ResolvedVc<RebasedAsset>,
     effects: Effects,

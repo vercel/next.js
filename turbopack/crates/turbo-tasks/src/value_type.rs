@@ -32,21 +32,24 @@ type Vtable = &'static [&'static NativeFunction];
 ///
 /// The three variants correspond to mutually exclusive storage semantics, so
 /// consumers can rely on a single match instead of checking multiple bits.
-/// Adding a payload to `Derivable` later (e.g. a `DeriveCost` hint an eviction
-/// policy can consult) is forwards-compatible.
+/// Adding a payload to `SkipPersist` later (e.g. a `DeriveCost` hint an
+/// eviction policy can consult) is forwards-compatible.
 pub enum ValueTypePersistence {
     /// Bincode round-trips. Cells are evictable and restored from disk on next
-    /// access. Maps to `SerializationMode::Auto | Custom`.
+    /// access. Maps to `serialization = "auto" | "custom"`.
     Bincodable(AnyEncodeFn, AnyDecodeFn<SharedReference>),
-    /// No bincode, but recomputable — the next reader after eviction triggers
-    /// a recompute from the task's inputs. Maps to
-    /// `SerializationMode::Derivable | Hash`. The hash-based change detection
-    /// for `Hash` is handled by the caller supplying a `content_hash`, not by
-    /// a distinct persistence variant.
-    Derivable,
-    /// No bincode, not recomputable — holds per-session identity (file system
-    /// handles, worker pools, plugin DSOs, transient env). Cells of this type
-    /// must stay in memory across eviction. Maps to `SerializationMode::None`.
+    /// No bincode: the value type opts out of being persisted because
+    /// re-running the producing task to reproduce the cell is cheaper/simpler
+    /// than bincoding the in-memory form. Cells are evictable; the next reader
+    /// after eviction triggers a recompute from the task's inputs. Maps to
+    /// `serialization = "skip" | "hash"`. The hash-based change detection for
+    /// `"hash"` is handled by the caller supplying a `content_hash`, not by a
+    /// distinct persistence variant.
+    SkipPersist,
+    /// No bincode, not reconstructible — holds session-scoped state (file
+    /// system handles, worker pools, plugin DSOs, `State<>` interior
+    /// mutability). Cells of this type must stay in memory across eviction.
+    /// Maps to `serialization = "session_stateful"`.
     SessionStateful,
 }
 
@@ -108,23 +111,23 @@ pub trait ManualDecodeWrapper: Decode<()> {
 }
 
 impl ValueType {
-    /// Construct a `ValueType` for a value that can be recomputed from its
-    /// task's inputs. Cells are evictable; the next reader after eviction
-    /// triggers a recompute.
+    /// Construct a `ValueType` that opts out of being persisted. Cells are
+    /// evictable; the next reader after eviction triggers a recompute from
+    /// the task's inputs.
     ///
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "derivable"` and `serialization = "hash"`.
-    pub const fn derivable<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(global_name, ValueTypePersistence::Derivable)
+    /// `serialization = "skip"` and `serialization = "hash"`.
+    pub const fn skip_persist<T: VcValueType>(global_name: &'static str) -> Self {
+        Self::new_inner::<T>(global_name, ValueTypePersistence::SkipPersist)
     }
 
     /// Construct a `ValueType` whose cells cannot be reconstructed by
-    /// re-executing the task — they hold per-session identity (file system
-    /// handles, worker pools, plugin DSOs). The storage layer must keep them
-    /// in memory across eviction.
+    /// re-executing the task — they hold session-scoped state (file system
+    /// handles, worker pools, plugin DSOs, `State<>` interior mutability).
+    /// The storage layer must keep them in memory across eviction.
     ///
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "none"`.
+    /// `serialization = "session_stateful"`.
     pub const fn session_stateful<T: VcValueType>(global_name: &'static str) -> Self {
         Self::new_inner::<T>(global_name, ValueTypePersistence::SessionStateful)
     }
@@ -386,4 +389,55 @@ pub const fn build_trait_vtable<B: TraitVtablePrototype, const LEN: usize>(
         i += 1;
     }
     methods
+}
+
+#[cfg(test)]
+mod tests {
+    //! Asserts that each `serialization = "..."` annotation lands on the right
+    //! `ValueTypePersistence` variant. These are purely compile-time /
+    //! macro-expansion properties of the value types, so no turbo_tasks runtime
+    //! is needed — we read the registered `ValueType` via `registry::get_value_type`
+    //! and match on `persistence`.
+    use super::ValueTypePersistence;
+    use crate::{self as turbo_tasks, VcValueType, registry};
+
+    #[turbo_tasks::value(serialization = "skip")]
+    struct SkipValue(#[turbo_tasks(trace_ignore)] u32);
+
+    #[turbo_tasks::value(serialization = "session_stateful", cell = "new", eq = "manual")]
+    struct SessionStatefulValue;
+
+    #[turbo_tasks::value]
+    struct BincodableValue(u32);
+
+    #[test]
+    fn skip_maps_to_skip_persist() {
+        let vt = registry::get_value_type(SkipValue::get_value_type_id());
+        assert!(
+            matches!(vt.persistence, ValueTypePersistence::SkipPersist),
+            "`serialization = \"skip\"` must map to ValueTypePersistence::SkipPersist"
+        );
+        assert!(!SkipValue::has_serialization());
+    }
+
+    #[test]
+    fn session_stateful_maps_to_session_stateful() {
+        let vt = registry::get_value_type(SessionStatefulValue::get_value_type_id());
+        assert!(
+            matches!(vt.persistence, ValueTypePersistence::SessionStateful),
+            "`serialization = \"session_stateful\"` must map to \
+             ValueTypePersistence::SessionStateful"
+        );
+        assert!(!SessionStatefulValue::has_serialization());
+    }
+
+    #[test]
+    fn default_maps_to_bincodable() {
+        let vt = registry::get_value_type(BincodableValue::get_value_type_id());
+        assert!(
+            matches!(vt.persistence, ValueTypePersistence::Bincodable(_, _)),
+            "default (auto) serialization must map to ValueTypePersistence::Bincodable"
+        );
+        assert!(BincodableValue::has_serialization());
+    }
 }
