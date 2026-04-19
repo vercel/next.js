@@ -298,7 +298,7 @@ struct TaskStorageSchema {
         storage = "auto_map",
         category = "data",
         shrink_on_completion,
-        inner_type = "AutoMap<CellId, SharedReference>"
+        as_type = "AutoMap<CellId, SharedReference>"
     )]
     cell_data: CellData,
 

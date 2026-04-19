@@ -78,7 +78,7 @@ struct FieldInfo {
     /// accessors (which call `.iter()`, `.insert()`, etc.) keep working.
     ///
     /// When absent, the macro parses the outer field type directly.
-    inner_type: Option<Type>,
+    as_type: Option<Type>,
 }
 
 impl FieldInfo {
@@ -373,7 +373,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut use_default = false;
     let mut shrink_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
-    let mut inner_type: Option<Type> = None;
+    let mut as_type: Option<Type> = None;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -448,16 +448,16 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 });
                             }
                         }
-                        "inner_type" => {
-                            if let Some(lit_str) = expect_string_literal(&nv.value, "inner_type") {
+                        "as_type" => {
+                            if let Some(lit_str) = expect_string_literal(&nv.value, "as_type") {
                                 match syn::parse_str::<Type>(&lit_str.value()) {
-                                    Ok(ty) => inner_type = Some(ty),
+                                    Ok(ty) => as_type = Some(ty),
                                     Err(err) => {
                                         lit_str
                                             .span()
                                             .unwrap()
                                             .error(format!(
-                                                "`inner_type` must parse as a Rust type: {err}"
+                                                "`as_type` must parse as a Rust type: {err}"
                                             ))
                                             .emit();
                                     }
@@ -469,7 +469,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 .unwrap()
                                 .error(format!(
                                     "unknown attribute `{other}`, expected `storage`, `category`, \
-                                     or `inner_type`"
+                                     or `as_type`"
                                 ))
                                 .emit();
                         }
@@ -609,7 +609,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         use_default,
         shrink_on_completion,
         drop_on_completion_if_immutable,
-        inner_type,
+        as_type,
     }
 }
 
@@ -2331,10 +2331,10 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    // If the field uses a newtype wrapper, `inner_type` gives us the actual
+    // If the field uses a newtype wrapper, `as_type` gives us the actual
     // `AutoMap<K, V>` to extract key/value types from. Otherwise parse the
     // declared field type directly.
-    let map_ty = field.inner_type.as_ref().unwrap_or(field_type);
+    let map_ty = field.as_type.as_ref().unwrap_or(field_type);
 
     let Some((key_type, value_type)) = extract_map_types(map_ty, "AutoMap") else {
         return quote! {};
