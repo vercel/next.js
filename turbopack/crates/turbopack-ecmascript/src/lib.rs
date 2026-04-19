@@ -600,18 +600,7 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
             let last_successful_source = LastSuccessfulSource::default().cell().await?;
             if let ParseResult::Ok { program_source, .. } = &*real_result_value {
                 // Store the bytes that `parse()` actually saw as the
-                // last-known-good source. Reading the rope from
-                // `ParseResult::Ok` (rather than re-reading `self.source`)
-                // guarantees the cached bytes correspond to the AST just
-                // produced — under eventual consistency a separate read could
-                // observe a newer file version than `parse()` did.
-                // As long as the file doesn't change, this is _just_ an
-                // Arc::clone. If it does change this will pin the old version
-                // until this task re-runs (at which point the new bytes are
-                // stored or cleared). After a session restore the bytes will
-                // be duplicated in memory until the task re-runs; making the
-                // task session-dependent would avoid that but is too
-                // expensive.
+                // last-known-good source.
                 last_successful_source.set(program_source.clone());
                 Ok(real_result)
             } else {

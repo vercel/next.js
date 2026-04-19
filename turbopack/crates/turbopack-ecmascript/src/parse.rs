@@ -160,11 +160,8 @@ pub enum ParseResult {
         source_map: Arc<swc_core::common::SourceMap>,
         source_mapping_url: Option<RcStr>,
         /// Raw bytes of the source that produced this parse, captured atomically
-        /// with the AST. `failsafe_parse` stores this alongside the parsed
-        /// result so the cached rope is always consistent with the AST it
-        /// produced — even under eventual consistency, where reading the
-        /// source separately could observe a different file version than the
-        /// one `parse()` saw.
+        /// with the AST. `failsafe_parse` uses this to recover good parses in development on
+        /// error.
         #[turbo_tasks(debug_ignore, trace_ignore)]
         program_source: Rope,
     },
