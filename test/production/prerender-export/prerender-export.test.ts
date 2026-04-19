@@ -8,6 +8,9 @@ describe('SSG Prerender export', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    dependencies: {
+      firebase: '7.14.5',
+    },
   })
 
   let server: Server

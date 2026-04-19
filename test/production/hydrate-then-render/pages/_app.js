@@ -1,6 +1,6 @@
 import App from 'next/app'
 
-if (typeof navigator !== 'undefined') {
+if (typeof window !== 'undefined') {
   window.__BEACONS = window.__BEACONS || []
 
   navigator.sendBeacon = async function () {

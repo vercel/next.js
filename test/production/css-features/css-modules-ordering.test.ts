@@ -6,6 +6,9 @@ describe('CSS modules ordering — build output (unresolved-css-url)', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'unresolved-css-url'),
     skipStart: true,
+    dependencies: {
+      sass: '1.54.0',
+    },
   })
 
   it('should build correctly', async () => {
