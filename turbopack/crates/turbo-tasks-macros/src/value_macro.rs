@@ -420,7 +420,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             turbo_tasks::ValueType::skip_persist::<#ident>(#name)
         },
         SerializationMode::Auto | SerializationMode::Custom => quote! {
-            turbo_tasks::ValueType::bincodable::<#ident>(#name)
+            turbo_tasks::ValueType::persistable::<#ident>(#name)
         },
     };
     let has_serialization = match serialization_mode {

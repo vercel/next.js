@@ -289,16 +289,11 @@ struct TaskStorageSchema {
     ///
     /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` whose
     /// bincode impl filters out entries whose value type is not
-    /// `ValueTypePersistence::Bincodable` at encode time (i.e. `SkipPersist`
+    /// `ValueTypePersistence::Persistable` at encode time (i.e. `SkipPersist`
     /// or `SessionStateful`). Those entries stay in memory but are not
     /// persisted — on restore the next read triggers the "cell index in range
     /// but data missing" recompute path. `SessionStateful` value types are
     /// identified on `ValueType::persistence` for future eviction handling.
-    ///
-    /// Collapses the previous `persistent_cell_data` / `transient_cell_data`
-    /// split — routing every cell through a single map keyed by value type
-    /// deletes the `is_serializable_cell_content` bool that used to thread
-    /// through the read/write API.
     #[field(
         storage = "auto_map",
         category = "data",

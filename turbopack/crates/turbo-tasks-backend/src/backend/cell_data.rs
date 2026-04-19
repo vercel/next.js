@@ -68,12 +68,12 @@ impl ShrinkToFit for CellData {
 }
 
 impl TurboBincodeEncode for CellData {
-    /// Writes `count-of-bincodable-entries` followed by each bincodable
+    /// Writes `count-of-persistable-entries` followed by each persistable
     /// `(CellId, encoded-value)`. Entries whose value type is `SkipPersist`
     /// or `SessionStateful` (no bincode) are skipped; they will be
     /// reconstructed on the next task execution after restore.
     fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
-        // First pass: count bincodable entries. One extra O(N) iteration over
+        // First pass: count persistable entries. One extra O(N) iteration over
         // the registry — cold path (snapshot time only) and the registry is a
         // static array indexed by ValueTypeId, so each lookup is cheap.
         let count = self
@@ -82,14 +82,15 @@ impl TurboBincodeEncode for CellData {
             .filter(|(cell, _)| {
                 matches!(
                     registry::get_value_type(cell.type_id).persistence,
-                    ValueTypePersistence::Bincodable(_, _),
+                    ValueTypePersistence::Persistable(_, _),
                 )
             })
             .count();
         count.encode(encoder)?;
+        // TODO: consider sorting by type_id and delta encoding indices to reduce serialized size
         for (cell_id, reference) in self.0.iter() {
             let value_type = registry::get_value_type(cell_id.type_id);
-            let ValueTypePersistence::Bincodable(encode_fn, _) = value_type.persistence else {
+            let ValueTypePersistence::Persistable(encode_fn, _) = value_type.persistence else {
                 continue;
             };
             cell_id.encode(encoder)?;
@@ -104,7 +105,7 @@ impl<Context> TurboBincodeDecode<Context> for CellData {
     /// `(CellId, SharedReference)` entry by looking up the value type's
     /// bincode decode function.
     ///
-    /// Missing cell types — or cells whose value type isn't `Bincodable` —
+    /// Missing cell types — or cells whose value type isn't `Persistable` —
     /// are a decode error: the encoder filters them out, so they should not
     /// appear on the wire.
     fn decode(decoder: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
@@ -113,7 +114,7 @@ impl<Context> TurboBincodeDecode<Context> for CellData {
         for _ in 0..count {
             let cell = CellId::decode(decoder)?;
             let value_type = registry::get_value_type(cell.type_id);
-            let ValueTypePersistence::Bincodable(_, decode_fn) = value_type.persistence else {
+            let ValueTypePersistence::Persistable(_, decode_fn) = value_type.persistence else {
                 return Err(DecodeError::OtherString(format!(
                     "cell of type {} has no bincode decoder",
                     value_type.ty.global_name

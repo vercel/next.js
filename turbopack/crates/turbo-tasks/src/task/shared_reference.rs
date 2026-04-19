@@ -69,7 +69,7 @@ impl TurboBincodeEncode for TypedSharedReference {
     fn encode(&self, encoder: &mut TurboBincodeEncoder) -> Result<(), EncodeError> {
         let Self { type_id, reference } = self;
         let value_type = registry::get_value_type(*type_id);
-        if let ValueTypePersistence::Bincodable(encode_fn, _) = value_type.persistence {
+        if let ValueTypePersistence::Persistable(encode_fn, _) = value_type.persistence {
             type_id.encode(encoder)?;
             encode_fn(&*reference.0, encoder)?;
             Ok(())
@@ -86,7 +86,7 @@ impl<Context> TurboBincodeDecode<Context> for TypedSharedReference {
     fn decode(decoder: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
         let type_id = ValueTypeId::decode(decoder)?;
         let value_type = registry::get_value_type(type_id);
-        if let ValueTypePersistence::Bincodable(_, decode_fn) = value_type.persistence {
+        if let ValueTypePersistence::Persistable(_, decode_fn) = value_type.persistence {
             let reference = decode_fn(decoder)?;
             Ok(Self { type_id, reference })
         } else {

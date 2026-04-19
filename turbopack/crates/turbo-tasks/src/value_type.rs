@@ -30,24 +30,23 @@ type Vtable = &'static [&'static NativeFunction];
 
 /// Cell-persistence behavior of a [`ValueType`].
 ///
-/// The three variants correspond to mutually exclusive storage semantics, so
-/// consumers can rely on a single match instead of checking multiple bits.
-/// Adding a payload to `SkipPersist` later (e.g. a `DeriveCost` hint an
-/// eviction policy can consult) is forwards-compatible.
+/// Carries the serializer/deserializer pair for `Persistable` values — today
+/// that's bincode, but the enum name is neutral so the choice of mechanism can
+/// evolve without a cascade of rename work.
 pub enum ValueTypePersistence {
-    /// Bincode round-trips. Cells are evictable and restored from disk on next
-    /// access. Maps to `serialization = "auto" | "custom"`.
-    Bincodable(AnyEncodeFn, AnyDecodeFn<SharedReference>),
-    /// No bincode: the value type opts out of being persisted because
-    /// re-running the producing task to reproduce the cell is cheaper/simpler
-    /// than bincoding the in-memory form. Cells are evictable; the next reader
+    /// Cells are serialized to the persistent cache and restored on next
+    /// access after eviction. Maps to `serialization = "auto" | "custom"`.
+    Persistable(AnyEncodeFn, AnyDecodeFn<SharedReference>),
+    /// The value type opts out of being persisted because re-running the
+    /// producing task to reproduce the cell is cheaper/simpler than
+    /// serializing the in-memory form. Cells are evictable; the next reader
     /// after eviction triggers a recompute from the task's inputs. Maps to
-    /// `serialization = "skip" | "hash"`. The hash-based change detection for
-    /// `"hash"` is handled by the caller supplying a `content_hash`, not by a
-    /// distinct persistence variant.
+    /// `serialization = "skip" | "hash"`. The hash-based change detection
+    /// for `"hash"` is handled by the caller supplying a `content_hash`, not
+    /// by a distinct persistence variant.
     SkipPersist,
-    /// No bincode, not reconstructible — holds session-scoped state (file
-    /// system handles, worker pools, plugin DSOs, `State<>` interior
+    /// Not persistable, not reconstructible — holds session-scoped state
+    /// (file system handles, worker pools, plugin DSOs, `State<>` interior
     /// mutability). Cells of this type must stay in memory across eviction.
     /// Maps to `serialization = "session_stateful"`.
     SessionStateful,
@@ -132,17 +131,17 @@ impl ValueType {
         Self::new_inner::<T>(global_name, ValueTypePersistence::SessionStateful)
     }
 
-    /// Construct a `ValueType` whose cells bincode-round-trip. Cells are
-    /// evictable and restored from disk on next access.
+    /// Construct a `ValueType` whose cells round-trip through the persistent
+    /// cache. Cells are evictable and restored from disk on next access.
     ///
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
     /// `serialization = "auto"` and `serialization = "custom"`.
-    pub const fn bincodable<T: VcValueType + Encode + Decode<()>>(
+    pub const fn persistable<T: VcValueType + Encode + Decode<()>>(
         global_name: &'static str,
     ) -> Self {
         Self::new_inner::<T>(
             global_name,
-            ValueTypePersistence::Bincodable(
+            ValueTypePersistence::Persistable(
                 |this, enc| {
                     T::encode(any_as_encode::<T>(this), enc)?;
                     Ok(())
@@ -171,7 +170,7 @@ impl ValueType {
     ) -> Self {
         Self::new_inner::<T>(
             global_name,
-            ValueTypePersistence::Bincodable(
+            ValueTypePersistence::Persistable(
                 |this, enc| {
                     E::new(any_as_encode::<T>(this)).encode(enc)?;
                     Ok(())
@@ -408,7 +407,7 @@ mod tests {
     struct SessionStatefulValue;
 
     #[turbo_tasks::value]
-    struct BincodableValue(u32);
+    struct PersistableValue(u32);
 
     #[test]
     fn skip_maps_to_skip_persist() {
@@ -432,12 +431,12 @@ mod tests {
     }
 
     #[test]
-    fn default_maps_to_bincodable() {
-        let vt = registry::get_value_type(BincodableValue::get_value_type_id());
+    fn default_maps_to_persistable() {
+        let vt = registry::get_value_type(PersistableValue::get_value_type_id());
         assert!(
-            matches!(vt.persistence, ValueTypePersistence::Bincodable(_, _)),
-            "default (auto) serialization must map to ValueTypePersistence::Bincodable"
+            matches!(vt.persistence, ValueTypePersistence::Persistable(_, _)),
+            "default (auto) serialization must map to ValueTypePersistence::Persistable"
         );
-        assert!(BincodableValue::has_serialization());
+        assert!(PersistableValue::has_serialization());
     }
 }

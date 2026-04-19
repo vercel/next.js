@@ -5,7 +5,7 @@ use once_cell::unsync::Lazy;
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
-    CellId, FxIndexMap, TaskId, TypedSharedReference,
+    CellId, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
 };
 
@@ -58,13 +58,13 @@ impl UpdateCellOperation {
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,
     ) {
-        // Serializability is a property of the cell's value type — derive it
-        // from the registry rather than threading a redundant bool.
-        let is_bincodable_cell_content = is_bincodable(cell);
-        // content_hash is only meaningful for non-bincodable cells
+        // content_hash is only meaningful for `serialization = "hash"` cells —
+        // other modes pass `None`. This invariant lets the hash-based
+        // invalidation-skip below fall through to `false` for any non-hash
+        // cell without an explicit persistable guard.
         debug_assert!(
-            !is_bincodable_cell_content || content_hash.is_none(),
-            "content_hash must be None for bincodable cell content"
+            !is_persistable(cell) || content_hash.is_none(),
+            "content_hash must be None for persistable cell content"
         );
 
         let content = if let CellContent(Some(new_content)) = content {
@@ -114,9 +114,12 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
-            // For transient cells without available content, use hash-based comparison to
-            // detect whether the value actually changed—avoiding unnecessary invalidation.
-            let skip_invalidation = !is_bincodable_cell_content && {
+            // For cells without available content, use hash-based comparison
+            // to detect whether the value actually changed—avoiding
+            // unnecessary invalidation. Only `serialization = "hash"` cells
+            // supply a `content_hash`; for all other modes `content_hash` is
+            // `None` and this falls through to `false`.
+            let skip_invalidation = {
                 let has_old_content = task.cell_data_contains(&cell);
                 if !has_old_content {
                     match (content_hash, task.get_cell_data_hash(&cell)) {
@@ -210,7 +213,7 @@ impl UpdateCellOperation {
             task.remove_cell_data(&cell)
         };
 
-        // Update cell_data_hash for non-bincodable cells.
+        // Update cell_data_hash for non-persistable cells.
         update_cell_data_hash(&mut task, &cell, content_hash);
 
         let in_progress_cell = task.remove_in_progress_cells(&cell);
@@ -225,33 +228,46 @@ impl UpdateCellOperation {
 
     /// Whether this operation's mid-flight state can safely be persisted to
     /// the operation suspend log. True iff the cell's value type has bincode —
-    /// non-bincodable values cannot be recovered across restart, so we don't
+    /// non-persistable values cannot be recovered across restart, so we don't
     /// write a suspend point for them.
     fn is_serializable(&self) -> bool {
         match self {
             UpdateCellOperation::InvalidateWhenCellDependency { cell_ref, .. }
-            | UpdateCellOperation::FinalCellChange { cell_ref, .. } => is_bincodable(cell_ref.cell),
+            | UpdateCellOperation::FinalCellChange { cell_ref, .. } => {
+                is_persistable(cell_ref.cell)
+            }
             UpdateCellOperation::AggregationUpdate { .. } => true,
             UpdateCellOperation::Done => true,
         }
     }
 }
 
-/// Returns `true` if cells of this type go through bincode on persist —
-/// equivalently, the value type is `SerializationMode::Auto` or `Custom`.
-fn is_bincodable(cell: CellId) -> bool {
-    matches!(
-        turbo_tasks::registry::get_value_type(cell.type_id).persistence,
-        turbo_tasks::ValueTypePersistence::Bincodable(_, _),
-    )
+fn is_persistable(cell: CellId) -> bool {
+    matches!(persistence(cell), ValueTypePersistence::Persistable(_, _),)
 }
 
-/// Updates the stored cell_data_hash for a non-bincodable cell.
-/// Skips the update if the hash hasn't changed to avoid unnecessary writes.
-/// Bincodable cells don't need a separate hash — their content is already on
-/// disk for change detection after eviction.
+/// Returns `true` if cells of this type need a stored `cell_data_hash`.
+fn needs_content_hash(cell: CellId) -> bool {
+    matches!(persistence(cell), ValueTypePersistence::SkipPersist,)
+}
+
+fn persistence(cell: CellId) -> &'static ValueTypePersistence {
+    &turbo_tasks::registry::get_value_type(cell.type_id).persistence
+}
+
+/// Updates the stored cell_data_hash, which only `serialization = "hash"`
+/// cells consult (on eviction + recompute). Skips the update for all other
+/// persistence modes and when the hash hasn't changed.
+///
+/// `Persistable` cells store content directly; `SessionStateful` cells are
+/// pinned in memory. Neither ever reads a hash back, so writing one is waste.
+/// The callers of this function always pass `content_hash = None` for those
+/// modes (the hash-producing `hashed_compare_and_update` API is only emitted
+/// by the `"hash"` macro path), so the function would behave identically
+/// without the gate — keeping it for clarity and to skip a map access on the
+/// hot write path.
 fn update_cell_data_hash(task: &mut impl TaskGuard, cell: &CellId, content_hash: Option<CellHash>) {
-    if is_bincodable(*cell) {
+    if !needs_content_hash(*cell) {
         return;
     }
     let old_hash = task.get_cell_data_hash(cell).copied();

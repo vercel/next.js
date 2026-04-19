@@ -1251,11 +1251,6 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         dirty_count > clean_count
     }
     /// Add new cell data. Panics if the cell already had a value.
-    ///
-    /// The value type's serialization mode (including whether it's
-    /// bincode-able) is determined by `cell.type_id` via the `ValueType`
-    /// registry, not by a threaded bool — the `CellData` encoder filters
-    /// non-bincodable entries at snapshot time.
     fn add_cell_data(&mut self, cell: CellId, value: SharedReference) {
         let old = self.insert_cell_data(cell, value);
         assert!(old.is_none(), "Cell data already exists for {cell:?}");

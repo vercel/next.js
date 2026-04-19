@@ -258,7 +258,7 @@ impl TypedCellContent {
         let Self(type_id, content) = self;
         let value_type = registry::get_value_type(*type_id);
         type_id.encode(enc)?;
-        if let ValueTypePersistence::Bincodable(encode_fn, _) = value_type.persistence {
+        if let ValueTypePersistence::Persistable(encode_fn, _) = value_type.persistence {
             if let Some(reference) = &content.0 {
                 true.encode(enc)?;
                 encode_fn(&*reference.0, enc)?;
@@ -275,7 +275,7 @@ impl TypedCellContent {
     pub fn decode(dec: &mut TurboBincodeDecoder) -> Result<Self, DecodeError> {
         let type_id = ValueTypeId::decode(dec)?;
         let value_type = registry::get_value_type(type_id);
-        if let ValueTypePersistence::Bincodable(_, decode_fn) = value_type.persistence {
+        if let ValueTypePersistence::Persistable(_, decode_fn) = value_type.persistence {
             let is_some = bool::decode(dec)?;
             if is_some {
                 let reference = decode_fn(dec)?;

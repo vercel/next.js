@@ -2689,10 +2689,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
             // anyway and we want to avoid needless re-executions. When the cells become
             // used again, they are invalidated from the update cell operation.
-            // Remove cell data for cells that no longer exist. Both
-            // bincode-able and non-bincode-able cells live in the single
-            // `cell_data` map; identifying stale entries is purely a CellId
-            // index check.
             let to_remove: Vec<_> = task
                 .iter_cell_data()
                 .filter_map(|(cell, _)| {
