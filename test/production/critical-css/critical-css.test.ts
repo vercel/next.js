@@ -9,6 +9,9 @@ describe('CSS optimization for SSR apps', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     disableAutoSkewProtection: true,
+    dependencies: {
+      critters: '0.0.16',
+    },
   })
 
   it('should have all CSS files in manifest', async () => {
