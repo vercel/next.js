@@ -16,6 +16,9 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
 /// compiled, serialized WASM module instead of raw file bytes to reduce the
 /// cost of the compilation.
+///
+/// This is tagged as `session_stateful` to avoid evicting compiled modules from RAM on the theory
+/// that there simply are not very many of them
 #[turbo_tasks::value(
     serialization = "session_stateful",
     eq = "manual",
