@@ -634,8 +634,11 @@ describe('Edge runtime module errors', () => {
           }
           const { cliOutput: buildOutput } = await next.build()
           expect(buildOutput).toContain(getUnsupportedModuleWarning(moduleName))
-          const runtimeIndex = next.cliOutput.length
           await next.start()
+          // NOTE: `next.start()` resets `cliOutput`, so capture the offset
+          // after the server is ready so we only read runtime output from the
+          // request below.
+          const runtimeIndex = next.cliOutput.length
           const res = await next.fetch(url)
           expect(res.status).toBe(500)
           expectUnsupportedModuleProdError(
@@ -717,8 +720,8 @@ describe('Edge runtime module errors', () => {
           expect(buildOutput).not.toContain(
             getUnsupportedModuleWarning(moduleName)
           )
-          const runtimeIndex = next.cliOutput.length
           await next.start()
+          const runtimeIndex = next.cliOutput.length
           const res = await next.fetch(url)
           expect(res.status).toBe(200)
           expect(res.headers.get('x-from-runtime')).toBeDefined()
@@ -757,8 +760,8 @@ describe('Edge runtime module errors', () => {
       it('does not throw in production at runtime', async () => {
         await next.patchFile(file, getContent(importStatement))
         await next.build()
-        const runtimeIndex = next.cliOutput.length
         await next.start()
+        const runtimeIndex = next.cliOutput.length
         const res = await next.fetch(url)
         expect(res.status).toBe(200)
         expect(res.headers.get('x-from-runtime')).toBe('false')
@@ -797,8 +800,8 @@ describe('Edge runtime module errors', () => {
           await next.patchFile(file, getContent(importStatement))
           const { cliOutput: buildOutput } = await next.build()
           expect(buildOutput).toContain(getUnsupportedModuleWarning(moduleName))
-          const runtimeIndex = next.cliOutput.length
           await next.start()
+          const runtimeIndex = next.cliOutput.length
           const res = await next.fetch(url)
           expect(res.status).toBe(500)
           expectUnsupportedModuleProdError(
@@ -909,8 +912,8 @@ describe('Edge runtime module errors', () => {
         await next.patchFile(file, getContent(importStatement))
         const { cliOutput: buildOutput } = await next.build()
         expect(buildOutput).toContain(getUnsupportedModuleWarning(moduleName))
-        const runtimeIndex = next.cliOutput.length
         await next.start()
+        const runtimeIndex = next.cliOutput.length
         const res = await next.fetch(url)
         expect(res.status).toBe(200)
         const runtimeOutput = next.cliOutput.slice(runtimeIndex)

@@ -30,6 +30,24 @@ const unsupportedClasses = [
 describe('Edge runtime with Node.js APIs', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
+    // Turbopack builds fail (non-zero exit) when edge code uses Node.js APIs,
+    // but the CLI output still contains the warnings we're asserting on. Skip
+    // the automatic start so we can run the build manually and ignore the
+    // non-zero exit code.
+    skipStart: true,
+  })
+
+  beforeAll(async () => {
+    if (isNextDev) {
+      await next.start()
+    } else {
+      try {
+        await next.build()
+      } catch {
+        // Build is expected to fail in production when edge code uses
+        // unsupported Node.js APIs under Turbopack.
+      }
+    }
   })
 
   describe.each([

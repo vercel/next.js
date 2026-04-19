@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import path from 'path'
 
 const reactDependencies = {
@@ -49,10 +50,15 @@ const reactDependencies = {
       })
 
       it('should warn with next.config.js with unsupported field', async () => {
-        expect(next.cliOutput).toContain('(Turbopack)')
-        expect(next.cliOutput).toContain(
-          'You are using configuration and/or tools that are not yet'
-        )
+        // Warning is emitted lazily when a request is served, so we need to
+        // hit the server before asserting on the CLI output.
+        await next.render('/')
+        await retry(async () => {
+          expect(next.cliOutput).toContain('(Turbopack)')
+          expect(next.cliOutput).toContain(
+            'You are using configuration and/or tools that are not yet'
+          )
+        })
       })
     })
   }
