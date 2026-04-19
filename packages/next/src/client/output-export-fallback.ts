@@ -3,9 +3,11 @@ import {
   getOutputExportFallbackPath,
   type OutputExportFallbackManifestEntry,
 } from '../lib/output-export-dynamic-fallback'
+import { addPathPrefix } from '../shared/lib/router/utils/add-path-prefix'
 import { RSC_CONTENT_TYPE_HEADER } from './components/app-router-headers'
 import { getRouteMatcher } from '../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
 type OutputExportFallbackManifest = {
   version: 1
@@ -74,6 +76,23 @@ function getOutputExportNotFoundPath(prefix: string): string {
 export function getOutputExportNotFoundCandidates(pathname: string): string[] {
   return getOutputExportCandidatePrefixes(pathname).map((prefix) =>
     getOutputExportNotFoundPath(prefix)
+  )
+}
+
+export function getConfiguredOutputExportNotFoundCandidate(
+  pathname: string
+): string {
+  const configuredPath = normalizeOutputExportRouteDirectory(
+    normalizePathTrailingSlash(
+      addPathPrefix('/_not-found', process.env.__NEXT_ROUTER_BASEPATH || '')
+    )
+  )
+
+  return (
+    getOutputExportNotFoundCandidates(pathname).find(
+      (candidate) =>
+        normalizeOutputExportRouteDirectory(candidate) === configuredPath
+    ) ?? getOutputExportNotFoundPath('')
   )
 }
 
@@ -348,13 +367,39 @@ export async function fetchOutputExportNotFoundDataResponse(
     const candidateUrl = new URL(renderedUrl)
     candidateUrl.pathname = candidate
 
-    const response = await fetchOutputExportDataResponse(candidateUrl, init)
-    if (response !== null) {
-      return response
+    const result = await fetchOutputExportDataResult(candidateUrl, init)
+    if (result !== null) {
+      cacheOutputExportFallbackDataUrl(
+        renderedUrl,
+        candidateUrl,
+        result.dataUrl
+      )
+      return result.response
     }
   }
 
   return null
+}
+
+export async function fetchOutputExportNotFoundResponse(
+  renderedUrl: URL,
+  init?: RequestInit
+): Promise<Response> {
+  // The raw fallback should preserve the configured app root (for example a
+  // basePath) without probing deeper missing prefixes that may be served by an
+  // HTML fallback document instead of the RSC not-found payload.
+  const candidateUrl = new URL(renderedUrl)
+  candidateUrl.pathname = getConfiguredOutputExportNotFoundCandidate(
+    renderedUrl.pathname
+  )
+  const configuredDataUrl = getConfiguredOutputExportDataUrl(
+    candidateUrl,
+    renderedUrl.pathname.endsWith('/')
+  )
+
+  cacheOutputExportFallbackDataUrl(renderedUrl, candidateUrl, configuredDataUrl)
+
+  return fetch(configuredDataUrl, init)
 }
 
 export async function fetchOutputExportFallbackResponse(

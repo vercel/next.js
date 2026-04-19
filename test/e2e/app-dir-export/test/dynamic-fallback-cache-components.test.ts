@@ -249,6 +249,47 @@ if (skipped) {
         }
       })
 
+      it('prefers deeper static-prefix fallback routes over shallower overlaps', async () => {
+        clearRequests()
+        const browser = await webdriver(port, '/docs/reference/export/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'reference:export'
+            )
+          })
+
+          const requests = getRequests()
+          expect(
+            requests.some((requestPath) =>
+              requestPath.startsWith('/docs/__fallback')
+            )
+          ).toBe(false)
+          expect(
+            requests.filter((requestPath) =>
+              requestPath.startsWith('/docs/reference/__fallback/index.txt')
+            )
+          ).toHaveLength(1)
+
+          await browser.elementByCss('a[href="/docs/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Docs')
+          })
+
+          await browser
+            .elementByCss('a[href="/docs/reference/export/"]')
+            .click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'reference:export'
+            )
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('renders optional catch-all fallback routes for empty and nested params', async () => {
         const browser = await webdriver(port, '/optional/')
 

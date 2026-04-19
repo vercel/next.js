@@ -4,6 +4,7 @@ import {
   fetchOutputExportDataResponse,
   fetchOutputExportFallbackResponse,
   fetchOutputExportNotFoundDataResponse,
+  fetchOutputExportNotFoundResponse,
   getCachedOutputExportFallbackDataUrl,
   getCachedOutputExportFallbackRequestUrl,
   getOutputExportFallbackCandidates,
@@ -13,10 +14,12 @@ import {
 
 describe('output export fallback helpers', () => {
   const originalFetch = global.fetch
+  const originalBasePath = process.env.__NEXT_ROUTER_BASEPATH
   const originalTrailingSlash = process.env.__NEXT_TRAILING_SLASH
 
   afterEach(() => {
     global.fetch = originalFetch
+    process.env.__NEXT_ROUTER_BASEPATH = originalBasePath
     process.env.__NEXT_TRAILING_SLASH = originalTrailingSlash
     clearOutputExportFallbackManifestCache()
     jest.restoreAllMocks()
@@ -410,12 +413,45 @@ describe('output export fallback helpers', () => {
     )
 
     expect(response).not.toBeNull()
+    expect(
+      getCachedOutputExportFallbackDataUrl(
+        new URL('https://example.com/docs/missing/route.txt')
+      )?.href
+    ).toBe('https://example.com/docs/_not-found.txt')
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
       'https://example.com/docs/missing/route/_not-found.txt',
       'https://example.com/docs/missing/route/_not-found/index.txt',
       'https://example.com/docs/missing/_not-found.txt',
       'https://example.com/docs/missing/_not-found/index.txt',
       'https://example.com/docs/_not-found.txt',
+    ])
+  })
+
+  it('uses the configured app-root not-found artifact as the raw fallback', async () => {
+    process.env.__NEXT_ROUTER_BASEPATH = '/docs'
+    process.env.__NEXT_TRAILING_SLASH = 'true'
+
+    const fetchMock = jest.fn(async () => {
+      return new Response('payload', {
+        status: 200,
+        headers: { 'content-type': 'application/octet-stream' },
+      })
+    })
+
+    global.fetch = fetchMock as typeof fetch
+
+    const response = await fetchOutputExportNotFoundResponse(
+      new URL('https://example.com/docs/missing/route/')
+    )
+
+    expect(response.ok).toBe(true)
+    expect(
+      getCachedOutputExportFallbackDataUrl(
+        new URL('https://example.com/docs/missing/route/index.txt')
+      )?.href
+    ).toBe('https://example.com/docs/_not-found/index.txt')
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/docs/_not-found/index.txt',
     ])
   })
 })
