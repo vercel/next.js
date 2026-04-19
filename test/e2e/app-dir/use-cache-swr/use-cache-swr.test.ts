@@ -78,4 +78,37 @@ describe('use-cache-swr', () => {
     // cache by its "inner" sentinel argument in the key.
     expect(cliOutput).toMatch(/PersistentCacheHandler::get.*"inner".*_N_T_\//)
   })
+
+  it('should dedupe SWR regens across concurrent requests', async () => {
+    const browser = await next.browser('/')
+    await browser.elementById('outer-data').text()
+
+    // Wait for the outer cache to go stale (revalidate: 5).
+    await new Promise((resolve) => setTimeout(resolve, 6000))
+
+    // Reset output index to capture only the SWR-related logs.
+    outputIndex = next.cliOutput.length
+
+    // Fire multiple concurrent requests that all find the stale entry.
+    // Only one of them should trigger a background regen.
+    await Promise.all([next.fetch('/'), next.fetch('/'), next.fetch('/')])
+
+    // Wait for the background regen to complete.
+    await retry(() => {
+      const regenOutput = next.cliOutput.slice(outputIndex)
+      expect(regenOutput).toInclude('use-cache-swr: generating outer data')
+    })
+
+    const cliOutput = next.cliOutput.slice(outputIndex)
+
+    // The cache function should have been executed only once across all
+    // concurrent requests, not once per request.
+    const generationCalls = cliOutput.split('\n').filter(
+      (line) =>
+        line.includes('use-cache-swr: generating outer data') &&
+        // Ignore replayed logs that have a Cache badge.
+        !line.includes(' Cache ')
+    )
+    expect(generationCalls).toHaveLength(1)
+  })
 })

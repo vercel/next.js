@@ -37,7 +37,6 @@ jobs:
       reason: ${{ steps.evaluate.outputs.reason }}
       current_canary_version: ${{ steps.evaluate.outputs.current_canary_version }}
       released_version: ${{ steps.evaluate.outputs.released_version }}
-      latest_version: ${{ steps.evaluate.outputs.latest_version }}
     steps:
       - name: Check whether head commit is a stable release
         id: precheck
@@ -65,8 +64,25 @@ jobs:
       - uses: actions/checkout@v6
         if: steps.precheck.outputs.should_evaluate == 'true'
         with:
-          ref: canary
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || 'canary' }}
           fetch-depth: 1
+
+      - name: Setup node
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          check-latest: true
+
+      - name: Setup corepack
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        if: steps.precheck.outputs.should_evaluate == 'true'
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       - name: Evaluate backport release
         id: evaluate
@@ -83,7 +99,6 @@ jobs:
           echo "should_dispatch=${{ steps.evaluate.outputs.should_dispatch || steps.precheck.outputs.should_dispatch }}"
           echo "reason=${{ steps.evaluate.outputs.reason || steps.precheck.outputs.reason }}"
           echo "released_version=${{ steps.evaluate.outputs.released_version }}"
-          echo "latest_version=${{ steps.evaluate.outputs.latest_version }}"
           echo "current_canary_version=${{ steps.evaluate.outputs.current_canary_version }}"
           echo "dispatch_input=${{ github.event_name == 'workflow_dispatch' && inputs.dispatch || false }}"
           echo "auto_dispatch_enabled=${{ vars.ENABLE_BACKPORT_CANARY_SYNC || 'false' }}"

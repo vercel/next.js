@@ -9,19 +9,23 @@ use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
     RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    dyn_task_inputs::{
+        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+        any_as_encode,
+    },
     macro_helpers::into_task_fn,
-    magic_any::{MagicAny, OwnedMagicAny, StackMagicAny, StackMagicAnySlot, any_as_encode},
     registry::{RegistryType, turbo_registry},
     task::{TaskFn, TaskFnInputs, function::NativeTaskFuture},
 };
 
-type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn MagicAny>>> + Send + 'a>>;
-type ResolveFunctor = for<'a> fn(&'a dyn MagicAny) -> ResolveFuture<'a>;
+type ResolveFuture<'a> = Pin<Box<dyn Future<Output = Result<Box<dyn DynTaskInputs>>> + Send + 'a>>;
+type ResolveFunctor = for<'a> fn(&'a dyn DynTaskInputs) -> ResolveFuture<'a>;
 
-type IsResolvedFunctor = fn(&dyn MagicAny) -> bool;
+type IsResolvedFunctor = fn(&dyn DynTaskInputs) -> bool;
 
 #[doc(hidden)]
-pub type FilterOwnedArgsFunctor = for<'a> fn(&'a mut dyn StackMagicAny) -> OwnedMagicAny;
+pub type FilterOwnedArgsFunctor =
+    for<'a> fn(&'a mut dyn StackDynTaskInputs) -> OwnedStackDynTaskInputs;
 #[doc(hidden)]
 pub type FilterAndResolveFunctor = ResolveFunctor;
 
@@ -32,7 +36,7 @@ pub type AnyHashEncodeFn = fn(&dyn Any, &mut dyn DeterministicHasher);
 
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
-    pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn MagicAny>>),
+    pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn DynTaskInputs>>),
     /// Encodes the argument directly to a hasher, avoiding buffer allocation.
     /// Uses the same encoding logic as bincode but writes to a [`DeterministicHasher`].
     pub hash_encode: AnyHashEncodeFn,
@@ -45,10 +49,11 @@ pub struct ArgMeta {
     /// resolution in a single operation. `None` when all arguments are used (no filtering needed),
     /// in which case the caller should use [`resolve`](ArgMeta::resolve) directly.
     //
-    // When filtering a `&dyn MagicAny` while running a resolution task, we can't return a filtered
-    // `&dyn MagicAny`, we'd be forced to return a `Box<dyn MagicAny>`. However, the next thing we
-    // do is resolution, which also accepts a `&dyn MagicAny` and returns a `Box<dyn MagicAny>`.
-    // This functor combines the two operations to avoid extra cloning.
+    // When filtering a `&dyn DynTaskInputs` while running a resolution task, we can't return a
+    // filtered `&dyn DynTaskInputs`, we'd be forced to return a `Box<dyn DynTaskInputs>`.
+    // However, the next thing we do is resolution, which also accepts a `&dyn DynTaskInputs`
+    // and returns a `Box<dyn DynTaskInputs>`. This functor combines the two operations to
+    // avoid extra cloning.
     filter_and_resolve: Option<FilterAndResolveFunctor>,
 }
 
@@ -112,15 +117,18 @@ impl ArgMeta {
         }
     }
 
-    pub fn is_resolved(&self, value: &dyn MagicAny) -> bool {
+    pub fn is_resolved(&self, value: &dyn DynTaskInputs) -> bool {
         (self.is_resolved)(value)
     }
 
-    pub async fn resolve(&self, value: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
+    pub async fn resolve(&self, value: &dyn DynTaskInputs) -> Result<Box<dyn DynTaskInputs>> {
         (self.resolve)(value).await
     }
 
-    pub async fn filter_and_resolve(&self, args: &dyn MagicAny) -> Result<Box<dyn MagicAny>> {
+    pub async fn filter_and_resolve(
+        &self,
+        args: &dyn DynTaskInputs,
+    ) -> Result<Box<dyn DynTaskInputs>> {
         if let Some(filter_and_resolve) = self.filter_and_resolve {
             (filter_and_resolve)(args).await
         } else {
@@ -129,11 +137,13 @@ impl ArgMeta {
     }
 }
 
-fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> ResolveFuture<'_> {
+fn resolve_functor_impl<T: DynTaskInputs + TaskInput>(
+    value: &dyn DynTaskInputs,
+) -> ResolveFuture<'_> {
     Box::pin(async move {
         let value = downcast_args_ref::<T>(value);
         let resolved = value.resolve_input().await?;
-        Ok(Box::new(resolved) as Box<dyn MagicAny>)
+        Ok(Box::new(resolved) as Box<dyn DynTaskInputs>)
     })
 }
 
@@ -143,9 +153,9 @@ pub fn debug_downcast_args_error_msg(expected: &str, actual: &str) -> String {
     format!("Invalid argument type, expected {expected} got {actual}")
 }
 
-pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
+pub fn downcast_args_owned<T: DynTaskInputs>(args: Box<dyn DynTaskInputs>) -> Box<T> {
     #[cfg(debug_assertions)]
-    let args_type_name = args.magic_type_name();
+    let args_type_name = args.dyn_type_name();
 
     (args as Box<dyn Any>)
         .downcast::<T>()
@@ -161,14 +171,14 @@ pub fn downcast_args_owned<T: MagicAny>(args: Box<dyn MagicAny>) -> Box<T> {
         .unwrap()
 }
 
-pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
+pub fn downcast_args_ref<T: DynTaskInputs>(args: &dyn DynTaskInputs) -> &T {
     (args as &dyn Any)
         .downcast_ref::<T>()
         .ok_or_else(|| {
             #[cfg(debug_assertions)]
             return anyhow::anyhow!(debug_downcast_args_error_msg(
                 std::any::type_name::<T>(),
-                args.magic_type_name(),
+                args.dyn_type_name(),
             ));
             #[cfg(not(debug_assertions))]
             return anyhow::anyhow!("Invalid argument type");
@@ -176,15 +186,15 @@ pub fn downcast_args_ref<T: MagicAny>(args: &dyn MagicAny) -> &T {
         .unwrap()
 }
 
-/// Downcast a `&mut dyn StackMagicAny` to a concrete [`StackMagicAnySlot<T>`] and take the value
-/// out, avoiding the intermediate heap allocation that `take_box` + `downcast_args_owned` would
-/// require.
-pub fn downcast_stack_args_owned<T: MagicAny>(args: &mut dyn StackMagicAny) -> T {
+/// Downcast a `&mut dyn StackDynTaskInputs` to a concrete [`StackDynTaskInputsSlot<T>`] and
+/// take the value out, avoiding the intermediate heap allocation that `take_box` +
+/// `downcast_args_owned` would require.
+pub fn downcast_stack_args_owned<T: DynTaskInputs>(args: &mut dyn StackDynTaskInputs) -> T {
     args.as_any_mut()
-        .downcast_mut::<StackMagicAnySlot<T>>()
+        .downcast_mut::<StackDynTaskInputsSlot<T>>()
         .unwrap_or_else(|| {
             panic!(
-                "downcast_stack_args_owned::<{}> called with incorrect StackMagicAny type",
+                "downcast_stack_args_owned::<{}> called with incorrect StackDynTaskInputs type",
                 std::any::type_name::<T>(),
             )
         })
@@ -249,7 +259,11 @@ impl NativeFunction {
     }
 
     /// Executed the function
-    pub fn execute(&'static self, this: Option<RawVc>, arg: &dyn MagicAny) -> NativeTaskFuture {
+    pub fn execute(
+        &'static self,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> NativeTaskFuture {
         match (self.implementation).functor(this, arg) {
             Ok(functor) => functor,
             Err(err) => Box::pin(async { Err(err) }),

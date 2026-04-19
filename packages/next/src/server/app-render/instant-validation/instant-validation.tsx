@@ -1155,7 +1155,10 @@ export async function createCombinedPayloadAtDepth(
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
       prefetchConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
-      if (instantConfig && typeof instantConfig === 'object') {
+      if (
+        instantConfig === true ||
+        (typeof instantConfig === 'object' && instantConfig !== null)
+      ) {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
         localCreateInstantStack =
@@ -1163,7 +1166,7 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
-    const segmentHasRuntimePrefetch = prefetchConfig === 'runtime'
+    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
 
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage
@@ -1243,7 +1246,10 @@ export async function createCombinedPayloadAtDepth(
       requiresInstantUI = false
       createInstantStack = null
       configDepth = -1
-    } else if (instantConfig && typeof instantConfig === 'object') {
+    } else if (
+      instantConfig === true ||
+      (typeof instantConfig === 'object' && instantConfig !== null)
+    ) {
       requiresInstantUI = true
       createInstantStack = localCreateInstantStack
       configDepth = segmentDepth

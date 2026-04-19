@@ -168,6 +168,7 @@ import {
   trackThrownErrorInNavigation,
   createInstantValidationState,
 } from './dynamic-rendering'
+import { logBuildDebugHint } from './blocking-route-messages'
 import {
   getClientComponentLoaderMetrics,
   wrapClientComponentLoader,
@@ -6627,7 +6628,7 @@ async function validateInstantConfigsInBuild(
     } catch (err) {
       console.error(
         new InvariantError(
-          'An unexpected error occcured during instant validation',
+          'An unexpected error occurred during instant validation',
           { cause: err }
         )
       )
@@ -6737,6 +6738,7 @@ async function validateInstantConfigsInBuildImpl(
       console.error(
         `Build-time instant validation failed for route "${route}"${sampleDesc}.`
       )
+      logBuildDebugHint(route)
       return false
     } else {
       debug?.('✅ Sample validated successfully')

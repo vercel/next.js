@@ -31,9 +31,9 @@ use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
     TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
     VcValueTrait, VcValueType,
+    dyn_task_inputs::{DynTaskInputs, StackDynTaskInputs},
     event::EventListener,
     macro_helpers::NativeFunction,
-    magic_any::{MagicAny, StackMagicAny},
     manager::{TaskPersistence, TurboTasksBackendApi},
     raw_vc::CellId,
     registry,
@@ -80,7 +80,7 @@ impl Debug for TransientTaskType {
 pub struct CachedTaskType {
     pub native_fn: &'static NativeFunction,
     pub this: Option<RawVc>,
-    pub arg: Box<dyn MagicAny>,
+    pub arg: Box<dyn DynTaskInputs>,
 }
 
 impl CachedTaskType {
@@ -163,7 +163,7 @@ impl CachedTaskType {
         hasher: &impl BuildHasher,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
     ) -> u64 {
         use std::hash::Hasher;
         let mut state = hasher.build_hasher();
@@ -180,7 +180,7 @@ impl CachedTaskType {
     pub fn hash_encode_components<H: DeterministicHasher>(
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
         hasher: &mut H,
     ) {
         let fn_id = registry::get_function_id(native_fn);
@@ -197,7 +197,7 @@ impl CachedTaskType {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &dyn MagicAny,
+        arg: &dyn DynTaskInputs,
     ) -> bool {
         std::ptr::eq(self.native_fn, native_fn) && self.this == this && &*self.arg == arg
     }
@@ -655,7 +655,7 @@ pub trait Backend: Sync + Send {
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackMagicAny,
+        arg: &mut dyn StackDynTaskInputs,
         parent_task: Option<TaskId>,
         persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
@@ -708,8 +708,8 @@ mod cached_task_type_tests {
     use crate::{
         RawVc, TaskId,
         backend::CachedTaskType,
+        dyn_task_inputs::DynTaskInputs,
         macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
-        magic_any::MagicAny,
     };
 
     // Two distinct static NativeFunctions for testing pointer-based identity.
@@ -740,8 +740,8 @@ mod cached_task_type_tests {
         rs.hash_one(task)
     }
 
-    /// Build an arg `Box<dyn MagicAny>` for `(i32,)`.
-    fn make_arg(value: i32) -> Box<dyn MagicAny> {
+    /// Build an arg `Box<dyn DynTaskInputs>` for `(i32,)`.
+    fn make_arg(value: i32) -> Box<dyn DynTaskInputs> {
         Box::new((value,))
     }
 

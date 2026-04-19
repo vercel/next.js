@@ -34,9 +34,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
-        with:
-          tool: cargo-codspeed@3.0.5
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -72,9 +70,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
-        with:
-          tool: cargo-codspeed@3.0.5
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -111,9 +107,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
-        with:
-          tool: cargo-codspeed@3.0.5
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache

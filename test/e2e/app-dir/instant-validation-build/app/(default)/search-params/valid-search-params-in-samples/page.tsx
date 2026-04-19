@@ -4,7 +4,6 @@ import assert from 'node:assert/strict'
 import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       searchParams: {
@@ -16,7 +15,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 type SearchParams = Record<string, string | string[]>
 
