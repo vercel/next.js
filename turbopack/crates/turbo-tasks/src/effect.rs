@@ -143,7 +143,7 @@ type DynEffectApplyFuture<'a> = Pin<Box<dyn Future<Output = Result<()>> + Send +
 trait EffectCollectible {}
 
 /// The Effect instance collectible that is emitted for effects.
-#[turbo_tasks::value(serialization = "session_stateful", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "skip_expensive", cell = "new", eq = "manual")]
 struct EffectInstance {
     #[turbo_tasks(debug_ignore)]
     inner: Box<dyn DynEffect>,
@@ -199,7 +199,7 @@ pub fn emit_effect(effect: impl Effect) {
 /// # #[turbo_tasks::function(operation)]
 /// # fn some_turbo_tasks_operation(_args: Args) {}
 /// #
-/// #[turbo_tasks::value(serialization = "session_stateful")]
+/// #[turbo_tasks::value(serialization = "skip_expensive")]
 /// struct OutputWithEffects {
 ///     output: ReadRef<Example>,
 ///     effects: Effects,
@@ -255,7 +255,7 @@ type UniqueEffectIndices = Result<Vec<(usize, Arc<EffectStateEntry>)>, String>;
 /// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
 /// function and apply them later.
 #[derive(Default)]
-#[turbo_tasks::value(shared, eq = "manual", serialization = "session_stateful")]
+#[turbo_tasks::value(shared, eq = "manual", serialization = "skip_expensive")]
 pub struct Effects {
     #[turbo_tasks(debug_ignore)]
     effects: Vec<ReadRef<EffectInstance>>,

@@ -36,12 +36,7 @@ mod worker_thread;
 
 static OPERATION_TASK_ID: AtomicU32 = AtomicU32::new(1);
 
-#[turbo_tasks::value(
-    cell = "new",
-    serialization = "session_stateful",
-    eq = "manual",
-    shared
-)]
+#[turbo_tasks::value(cell = "new", serialization = "skip_expensive", eq = "manual", shared)]
 pub(crate) struct WorkerThreadPool {
     worker_options: Arc<WorkerOptions>,
     concurrency: usize,

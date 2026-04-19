@@ -59,6 +59,10 @@ enum SerializationMode {
     /// bincoding the in-memory form. Use for outputs whose in-memory form
     /// (SWC ASTs, codegen Ropes, etc.) isn't worth serializing.
     Skip,
+    /// Like `Skip` (no bincode, evictable), but the cell is expensive to
+    /// re-derive (e.g. WASM compile, Node process spawn). Eviction policy
+    /// may prefer evicting cheap cells first.
+    SkipExpensive,
     Auto,
     Custom,
 }
@@ -78,11 +82,13 @@ impl TryFrom<LitStr> for SerializationMode {
             "session_stateful" => Ok(SerializationMode::SessionStateful),
             "hash" => Ok(SerializationMode::Hash),
             "skip" => Ok(SerializationMode::Skip),
+            "skip_expensive" => Ok(SerializationMode::SkipExpensive),
             "auto" => Ok(SerializationMode::Auto),
             "custom" => Ok(SerializationMode::Custom),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"session_stateful\", \"hash\", \"skip\", \"auto\", or \"custom\"",
+                "expected \"session_stateful\", \"hash\", \"skip\", \"skip_expensive\", \"auto\", \
+                 or \"custom\"",
             )),
         }
     }
@@ -377,6 +383,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         SerializationMode::SessionStateful
         | SerializationMode::Hash
         | SerializationMode::Skip
+        | SerializationMode::SkipExpensive
         | SerializationMode::Custom => {}
     };
     if inner_type.is_some() {
@@ -409,24 +416,28 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let name = global_name_for_type(ident);
     // Dispatch to the constructor whose name reflects the persistence mode.
-    // `Hash` and `Skip` both map to `skip_persist` — hash-mode change detection
-    // is handled independently by the caller supplying a `content_hash`, not by
-    // a distinct persistence variant.
     let new_value_type = match serialization_mode {
         SerializationMode::SessionStateful => quote! {
             turbo_tasks::ValueType::session_stateful::<#ident>(#name)
         },
-        SerializationMode::Hash | SerializationMode::Skip => quote! {
+        SerializationMode::Skip => quote! {
             turbo_tasks::ValueType::skip_persist::<#ident>(#name)
+        },
+        SerializationMode::Hash => quote! {
+            turbo_tasks::ValueType::hash_only::<#ident>(#name)
+        },
+        SerializationMode::SkipExpensive => quote! {
+            turbo_tasks::ValueType::skip_persist_expensive::<#ident>(#name)
         },
         SerializationMode::Auto | SerializationMode::Custom => quote! {
             turbo_tasks::ValueType::persistable::<#ident>(#name)
         },
     };
     let has_serialization = match serialization_mode {
-        SerializationMode::SessionStateful | SerializationMode::Hash | SerializationMode::Skip => {
-            quote! { false }
-        }
+        SerializationMode::SessionStateful
+        | SerializationMode::Hash
+        | SerializationMode::Skip
+        | SerializationMode::SkipExpensive => quote! { false },
         SerializationMode::Auto | SerializationMode::Custom => quote! { true },
     };
 

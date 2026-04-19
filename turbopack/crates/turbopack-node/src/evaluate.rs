@@ -67,12 +67,7 @@ enum EvalJavaScriptIncomingMessage {
     Error(StructuredError),
 }
 
-#[turbo_tasks::value(
-    cell = "new",
-    serialization = "session_stateful",
-    eq = "manual",
-    shared
-)]
+#[turbo_tasks::value(cell = "new", serialization = "skip_expensive", eq = "manual", shared)]
 pub struct EvaluatePool {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     pool: Box<dyn EvaluateOperation>,

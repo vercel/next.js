@@ -37,18 +37,28 @@ pub enum ValueTypePersistence {
     /// Cells are serialized to the persistent cache and restored on next
     /// access after eviction. Maps to `serialization = "auto" | "custom"`.
     Persistable(AnyEncodeFn, AnyDecodeFn<SharedReference>),
-    /// The value type opts out of being persisted because re-running the
-    /// producing task to reproduce the cell is cheaper/simpler than
-    /// serializing the in-memory form. Cells are evictable; the next reader
-    /// after eviction triggers a recompute from the task's inputs. Maps to
-    /// `serialization = "skip" | "hash"`. The hash-based change detection
-    /// for `"hash"` is handled by the caller supplying a `content_hash`, not
-    /// by a distinct persistence variant.
-    SkipPersist,
-    /// Not persistable, not reconstructible — holds session-scoped state
-    /// (file system handles, worker pools, plugin DSOs, `State<>` interior
-    /// mutability). Cells of this type must stay in memory across eviction.
-    /// Maps to `serialization = "session_stateful"`.
+    /// The value type opts out of being persisted: re-running the producing
+    /// task to reproduce the cell is preferred over serializing the in-memory
+    /// form. Cells are evictable; the next reader after eviction triggers a
+    /// recompute from the task's inputs. Maps to
+    /// `serialization = "skip" | "skip_expensive"`.
+    SkipPersist {
+        /// Whether re-deriving this cell is non-trivial (e.g. WASM compile,
+        /// spawning a Node process pool). Eviction policy may prefer
+        /// evicting cheap cells first. True iff declared with
+        /// `serialization = "skip_expensive"`.
+        expensive: bool,
+    },
+    /// The value type is not persisted, but the macro emitted a
+    /// `DeterministicHash` derive and the write path stashes a `content_hash`
+    /// into `cell_data_hash` so post-eviction reads can detect unchanged
+    /// content and skip invalidation. Maps to `serialization = "hash"`.
+    HashOnly,
+    /// Not persistable, not reconstructible — holds interior-mutable state
+    /// that accumulates across the session (`State<>` cells, `Arc<Mutex<_>>`
+    /// dedup histories). Re-running the producing task would lose the
+    /// accumulated state, so cells of this type must stay in memory across
+    /// eviction. Maps to `serialization = "session_stateful"`.
     SessionStateful,
 }
 
@@ -115,9 +125,35 @@ impl ValueType {
     /// the task's inputs.
     ///
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "skip"` and `serialization = "hash"`.
+    /// `serialization = "skip"`.
     pub const fn skip_persist<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(global_name, ValueTypePersistence::SkipPersist)
+        Self::new_inner::<T>(
+            global_name,
+            ValueTypePersistence::SkipPersist { expensive: false },
+        )
+    }
+
+    /// Construct a `ValueType` that opts out of being persisted and is marked
+    /// as expensive to re-derive (e.g. WASM compile, Node process spawn). The
+    /// eviction policy may prefer evicting cheaper cells first.
+    ///
+    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// `serialization = "skip_expensive"`.
+    pub const fn skip_persist_expensive<T: VcValueType>(global_name: &'static str) -> Self {
+        Self::new_inner::<T>(
+            global_name,
+            ValueTypePersistence::SkipPersist { expensive: true },
+        )
+    }
+
+    /// Construct a `ValueType` that opts out of being persisted but stashes a
+    /// `content_hash` on each write so post-eviction reads can detect
+    /// unchanged content and skip invalidation.
+    ///
+    /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
+    /// `serialization = "hash"`.
+    pub const fn hash_only<T: VcValueType>(global_name: &'static str) -> Self {
+        Self::new_inner::<T>(global_name, ValueTypePersistence::HashOnly)
     }
 
     /// Construct a `ValueType` whose cells cannot be reconstructed by
@@ -403,6 +439,12 @@ mod tests {
     #[turbo_tasks::value(serialization = "skip")]
     struct SkipValue(#[turbo_tasks(trace_ignore)] u32);
 
+    #[turbo_tasks::value(serialization = "hash")]
+    struct HashValue(u32);
+
+    #[turbo_tasks::value(serialization = "skip_expensive")]
+    struct SkipExpensiveValue(#[turbo_tasks(trace_ignore)] u32);
+
     #[turbo_tasks::value(serialization = "session_stateful", cell = "new", eq = "manual")]
     struct SessionStatefulValue;
 
@@ -413,10 +455,36 @@ mod tests {
     fn skip_maps_to_skip_persist() {
         let vt = registry::get_value_type(SkipValue::get_value_type_id());
         assert!(
-            matches!(vt.persistence, ValueTypePersistence::SkipPersist),
-            "`serialization = \"skip\"` must map to ValueTypePersistence::SkipPersist"
+            matches!(
+                vt.persistence,
+                ValueTypePersistence::SkipPersist { expensive: false },
+            ),
+            "`serialization = \"skip\"` must map to SkipPersist {{ expensive: false }}"
         );
         assert!(!SkipValue::has_serialization());
+    }
+
+    #[test]
+    fn hash_maps_to_hash_only() {
+        let vt = registry::get_value_type(HashValue::get_value_type_id());
+        assert!(
+            matches!(vt.persistence, ValueTypePersistence::HashOnly),
+            "`serialization = \"hash\"` must map to HashOnly"
+        );
+        assert!(!HashValue::has_serialization());
+    }
+
+    #[test]
+    fn skip_expensive_maps_to_skip_persist_expensive() {
+        let vt = registry::get_value_type(SkipExpensiveValue::get_value_type_id());
+        assert!(
+            matches!(
+                vt.persistence,
+                ValueTypePersistence::SkipPersist { expensive: true },
+            ),
+            "`serialization = \"skip_expensive\"` must map to SkipPersist {{ expensive: true }}"
+        );
+        assert!(!SkipExpensiveValue::has_serialization());
     }
 
     #[test]

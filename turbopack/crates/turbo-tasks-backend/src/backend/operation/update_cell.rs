@@ -7,6 +7,7 @@ use smallvec::SmallVec;
 use turbo_tasks::{
     CellId, FxIndexMap, TaskId, TypedSharedReference, ValueTypePersistence,
     backend::{CellContent, CellHash, VerificationMode},
+    registry,
 };
 
 #[cfg(feature = "trace_task_dirty")]
@@ -58,20 +59,18 @@ impl UpdateCellOperation {
         #[cfg(not(feature = "verify_determinism"))] _verification_mode: VerificationMode,
         mut ctx: impl ExecuteContext<'_>,
     ) {
-        // content_hash is only meaningful for `serialization = "hash"` cells —
-        // other modes pass `None`. This invariant lets the hash-based
-        // invalidation-skip below fall through to `false` for any non-hash
-        // cell without an explicit persistable guard.
+        let value_type = registry::get_value_type(cell.type_id);
+        // `content_hash` is only ever supplied for `HashOnly` cells — only the
+        // `"hash"`-mode write path emits a hash, and no other mode consumes
+        // it. (It can still be `None` for `HashOnly` when the cell is being
+        // cleared.)
         debug_assert!(
-            !is_persistable(cell) || content_hash.is_none(),
-            "content_hash must be None for persistable cell content"
+            content_hash.is_none()
+                || matches!(value_type.persistence, ValueTypePersistence::HashOnly),
+            "content_hash must only be supplied for HashOnly cells"
         );
 
-        let content = if let CellContent(Some(new_content)) = content {
-            Some(new_content)
-        } else {
-            None
-        };
+        let content = content.0;
 
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
@@ -96,9 +95,7 @@ impl UpdateCellOperation {
                     && content.as_ref() != task.get_cell_data(&cell)
                 {
                     let task_description = task.get_task_description();
-                    let cell_type = turbo_tasks::registry::get_value_type(cell.type_id)
-                        .ty
-                        .global_name;
+                    let cell_type = value_type.ty.global_name;
                     eprintln!(
                         "Task {} updated cell #{} (type: {}) while recomputing",
                         task_description, cell.index, cell_type
@@ -114,22 +111,20 @@ impl UpdateCellOperation {
             // When not recomputing, we need to notify dependent tasks if the content actually
             // changes.
 
-            // For cells without available content, use hash-based comparison
-            // to detect whether the value actually changed—avoiding
-            // unnecessary invalidation. Only `serialization = "hash"` cells
-            // supply a `content_hash`; for all other modes `content_hash` is
-            // `None` and this falls through to `false`.
-            let skip_invalidation = {
-                let has_old_content = task.cell_data_contains(&cell);
-                if !has_old_content {
-                    match (content_hash, task.get_cell_data_hash(&cell)) {
-                        (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
-                        _ => false,
+            // For HashOnly cells without available content, use hash-based comparison to
+            // detect whether the value actually changed—avoiding unnecessary invalidation.
+            let skip_invalidation =
+                matches!(value_type.persistence, ValueTypePersistence::HashOnly) && {
+                    let has_old_content = task.cell_data_contains(&cell);
+                    if !has_old_content {
+                        match (content_hash, task.get_cell_data_hash(&cell)) {
+                            (Some(new_hash), Some(old_hash)) => new_hash == *old_hash,
+                            _ => false,
+                        }
+                    } else {
+                        false
                     }
-                } else {
-                    false
-                }
-            };
+                };
 
             #[cfg(feature = "trace_task_dirty")]
             let has_updated_key_hashes = updated_key_hashes.is_some();
@@ -176,7 +171,9 @@ impl UpdateCellOperation {
                 let old_content = task.remove_cell_data(&cell);
 
                 // Update cell_data_hash before dropping the task lock
-                update_cell_data_hash(&mut task, &cell, content_hash);
+                if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
+                    update_cell_data_hash(&mut task, &cell, content_hash);
+                }
 
                 drop(task);
                 drop(old_content);
@@ -213,8 +210,10 @@ impl UpdateCellOperation {
             task.remove_cell_data(&cell)
         };
 
-        // Update cell_data_hash for non-persistable cells.
-        update_cell_data_hash(&mut task, &cell, content_hash);
+        // Update cell_data_hash for non-hashonly cells.
+        if matches!(value_type.persistence, ValueTypePersistence::HashOnly) {
+            update_cell_data_hash(&mut task, &cell, content_hash);
+        }
 
         let in_progress_cell = task.remove_in_progress_cells(&cell);
 
@@ -234,7 +233,10 @@ impl UpdateCellOperation {
         match self {
             UpdateCellOperation::InvalidateWhenCellDependency { cell_ref, .. }
             | UpdateCellOperation::FinalCellChange { cell_ref, .. } => {
-                is_persistable(cell_ref.cell)
+                matches!(
+                    registry::get_value_type(cell_ref.cell.type_id).persistence,
+                    ValueTypePersistence::Persistable(_, _),
+                )
             }
             UpdateCellOperation::AggregationUpdate { .. } => true,
             UpdateCellOperation::Done => true,
@@ -242,34 +244,10 @@ impl UpdateCellOperation {
     }
 }
 
-fn is_persistable(cell: CellId) -> bool {
-    matches!(persistence(cell), ValueTypePersistence::Persistable(_, _),)
-}
-
-/// Returns `true` if cells of this type need a stored `cell_data_hash`.
-fn needs_content_hash(cell: CellId) -> bool {
-    matches!(persistence(cell), ValueTypePersistence::SkipPersist,)
-}
-
-fn persistence(cell: CellId) -> &'static ValueTypePersistence {
-    &turbo_tasks::registry::get_value_type(cell.type_id).persistence
-}
-
 /// Updates the stored cell_data_hash, which only `serialization = "hash"`
 /// cells consult (on eviction + recompute). Skips the update for all other
 /// persistence modes and when the hash hasn't changed.
-///
-/// `Persistable` cells store content directly; `SessionStateful` cells are
-/// pinned in memory. Neither ever reads a hash back, so writing one is waste.
-/// The callers of this function always pass `content_hash = None` for those
-/// modes (the hash-producing `hashed_compare_and_update` API is only emitted
-/// by the `"hash"` macro path), so the function would behave identically
-/// without the gate — keeping it for clarity and to skip a map access on the
-/// hot write path.
 fn update_cell_data_hash(task: &mut impl TaskGuard, cell: &CellId, content_hash: Option<CellHash>) {
-    if !needs_content_hash(*cell) {
-        return;
-    }
     let old_hash = task.get_cell_data_hash(cell).copied();
     if old_hash != content_hash {
         if let Some(hash) = content_hash {
