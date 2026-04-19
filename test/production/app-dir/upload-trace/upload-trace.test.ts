@@ -1,5 +1,4 @@
 import { nextTestSetup, isNextStart } from 'e2e-utils'
-import { runNextCommand } from 'next-test-utils'
 import http from 'http'
 import path from 'path'
 import fs from 'fs'
@@ -95,29 +94,24 @@ describe('upload-trace', () => {
     const mockUrl = `http://127.0.0.1:${address.port}`
 
     try {
-      const result = await runNextCommand(['internal', 'upload-trace'], {
-        cwd: next.testDir,
-        stderr: true,
-        stdout: true,
+      const result = await next.runCommand(['internal', 'upload-trace'], {
         env: {
           __NEXT_UPLOAD_TRACE_URL_OVERRIDE: mockUrl,
           VERCEL_BLOB_API_URL: mockUrl,
         },
       })
 
-      if (result.code !== 0) {
+      if (result.exitCode !== 0) {
         console.log('upload-trace stdout:', result.stdout)
         console.log('upload-trace stderr:', result.stderr)
       }
 
-      expect(result.code).toBe(0)
+      expect(result.exitCode).toBe(0)
       expect(handshakeRequests.length).toBe(expectedUploadCount)
       for (const req of handshakeRequests) {
         expect(req.filename).toBeTruthy()
       }
-      expect(result.stdout + result.stderr).toContain(
-        'All files uploaded successfully'
-      )
+      expect(result.cliOutput).toContain('All files uploaded successfully')
     } finally {
       mockServer.close()
     }
@@ -127,21 +121,16 @@ describe('upload-trace', () => {
     const emptyDir = path.join(next.testDir, 'empty-project')
     fs.mkdirSync(emptyDir, { recursive: true })
 
-    const result = await runNextCommand(
+    const result = await next.runCommand(
       ['internal', 'upload-trace', emptyDir],
       {
-        cwd: next.testDir,
-        stderr: true,
-        stdout: true,
         env: {
           __NEXT_UPLOAD_TRACE_URL_OVERRIDE: 'http://127.0.0.1:1',
         },
       }
     )
 
-    expect(result.code).toBe(1)
-    expect(result.stdout + result.stderr).toContain(
-      'Profiles directory not found'
-    )
+    expect(result.exitCode).toBe(1)
+    expect(result.cliOutput).toContain('Profiles directory not found')
   })
 })

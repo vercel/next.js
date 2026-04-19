@@ -603,7 +603,11 @@ export class NextInstance {
     // version etc.). Spawning the binary directly (rather than via `pnpm`)
     // also means signals sent to the child are delivered to the Next.js
     // process without an intermediate wrapper.
-    const nextBin = path.join(
+    //
+    // When running with NEXT_SKIP_ISOLATE there is no isolated install, so
+    // fall back to the workspace-level next binary instead (which also
+    // avoids a pnpm wrapper swallowing signals).
+    const localNextBin = path.join(
       this.testDir,
       'node_modules',
       'next',
@@ -611,6 +615,18 @@ export class NextInstance {
       'bin',
       'next'
     )
+    const workspaceNextBin = path.join(
+      __dirname,
+      '..',
+      '..',
+      '..',
+      'node_modules',
+      'next',
+      'dist',
+      'bin',
+      'next'
+    )
+    const nextBin = existsSync(localNextBin) ? localNextBin : workspaceNextBin
     const spawnArgs = ['node', '--no-deprecation', nextBin, ...args]
     const spawnOpts: import('child_process').SpawnOptions = {
       cwd: cwd ?? this.testDir,
