@@ -15,12 +15,7 @@ function isLocationObject(node: any): boolean {
     node.type === 'MemberExpression' &&
     node.object.type === 'Identifier' &&
     LOCATION_GLOBALS.has(node.object.name) &&
-    ((node.computed === false &&
-      node.property.type === 'Identifier' &&
-      node.property.name === 'location') ||
-      (node.computed === true &&
-        node.property.type === 'Literal' &&
-        node.property.value === 'location'))
+    isPropertyNamed(node, 'location')
   ) {
     return true
   }
