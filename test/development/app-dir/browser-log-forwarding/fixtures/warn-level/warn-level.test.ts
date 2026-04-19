@@ -31,8 +31,6 @@ describe('browser-log-forwarding warn level', () => {
 
     expect(browserLogs).toMatchInlineSnapshot(`
      "[browser] browser warn: this is a warning message (app/page.tsx:9:13)
-     [browser] browser error: this is an error message 
-     [browser] browser warn: this is a warning message (app/page.tsx:9:13)
      [browser] browser error: this is an error message "
     `)
   })
