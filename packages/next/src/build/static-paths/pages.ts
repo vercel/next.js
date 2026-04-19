@@ -175,7 +175,7 @@ export async function buildPagesStaticPaths({
             throw new Error(
               `A required parameter (${validParamKey}) has invalid type in getStaticPaths for ${page}.\n` +
               `Expected: ${expectedType} (e.g., "123")\n` +
-              `Received: ${actualType === 'number' ? `${actualType} (e.g., ${paramValue}). Make sure to convert to string: String(${paramValue}) or \`\${paramValue}\`\`` : actualType}.`}\n\n` +
+              `Received: ${actualType === 'number' ? `${actualType} (e.g., ${paramValue}). Make sure to convert to string: String(${paramValue}) or \`\${paramValue}\`` : actualType}.\n\n` +
               `All dynamic route parameters must be strings. See: https://nextjs.org/docs/messages/invalid-getstaticpaths-value`
             )
           }
