@@ -366,15 +366,19 @@ impl EcmascriptModuleAssetBuilder {
 
 /// Stores the raw bytes of the last successfully parsed version of a module.
 ///
-/// This is used by `failsafe_parse` to serve the last good AST when the file has a syntax error.
-/// The newtype is always-equal and no-op-hash so it is invisible to turbo-tasks cache key logic,
-/// but serializes the `Rope` contents so the fallback survives eviction and restarts.
-#[derive(TraceRawVcs, Encode, Decode, NonLocalValue)]
+/// Cached as a turbo-tasks cell inside `failsafe_parse`: the always-equal
+/// `PartialEq` impl means that re-running the task does not replace the cell,
+/// so the interior `Mutex<Option<Rope>>` (and its stored rope) survive across
+/// task executions. A `SerializationInvalidator` keeps the persistence layer
+/// in sync with the in-memory mutation.
+#[turbo_tasks::value(eq = "manual")]
 struct LastSuccessfulSource {
     #[bincode(with = "parking_lot_mutex_bincode")]
+    #[turbo_tasks(trace_ignore, debug_ignore)]
     source: parking_lot::Mutex<Option<Rope>>,
     /// Notifies the backend when the in-memory `source` changes so that the
     /// serialized task state is written back to the persistence layer.
+    #[turbo_tasks(debug_ignore)]
     serialization_invalidator: SerializationInvalidator,
 }
 
@@ -409,9 +413,9 @@ impl std::fmt::Debug for LastSuccessfulSource {
     }
 }
 
-// Always-equal and no-op hash so that this field is invisible to the
-// turbo-tasks cache key: two `EcmascriptModuleAsset` values with different
-// `last_successful_source` bytes compare equal and hash identically.
+// Always-equal so that re-celling a freshly constructed `LastSuccessfulSource`
+// does not overwrite the existing cell — the interior `Mutex` holds the
+// cross-execution state and must survive task re-runs.
 impl PartialEq for LastSuccessfulSource {
     fn eq(&self, _other: &Self) -> bool {
         true
@@ -420,11 +424,14 @@ impl PartialEq for LastSuccessfulSource {
 
 impl Eq for LastSuccessfulSource {}
 
+// No-op hash to uphold the `Hash` / `Eq` contract (equal values must hash
+// identically). The interior `Mutex` content is not part of the cache identity.
 impl std::hash::Hash for LastSuccessfulSource {
     fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
 }
 
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub struct EcmascriptModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -434,22 +441,6 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
-    #[turbo_tasks(debug_ignore)]
-    last_successful_source: LastSuccessfulSource,
-}
-impl core::fmt::Debug for EcmascriptModuleAsset {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.debug_struct("EcmascriptModuleAsset")
-            .field("source", &self.source)
-            .field("asset_context", &self.asset_context)
-            .field("ty", &self.ty)
-            .field("transforms", &self.transforms)
-            .field("options", &self.options)
-            .field("compile_time_info", &self.compile_time_info)
-            .field("side_effect_free_packages", &self.side_effect_free_packages)
-            .field("inner_assets", &self.inner_assets)
-            .finish()
-    }
 }
 
 #[turbo_tasks::value_trait]
@@ -565,8 +556,11 @@ impl EcmascriptModuleAsset {
     /// Returns `None` if no saved source is available or if any step fails, in
     /// which case the caller should fall back to the current (broken) result.
     /// On failure the cached source is cleared so we don't keep retrying it.
-    async fn try_parse_last_successful_source(&self) -> Option<Vc<ParseResult>> {
-        let rope = self.last_successful_source.get()?;
+    async fn try_parse_last_successful_source(
+        &self,
+        last_successful_source: &LastSuccessfulSource,
+    ) -> Option<Vc<ParseResult>> {
+        let rope = last_successful_source.get()?;
         let result: Result<Vc<ParseResult>> = async {
             let node_env = self
                 .compile_time_info
@@ -576,7 +570,7 @@ impl EcmascriptModuleAsset {
                 .owned()
                 .await?
                 .unwrap_or_else(|| rcstr!("development"));
-            crate::parse::parse_from_rope(&rope, self.source, self.ty, self.transforms, node_env)
+            crate::parse::parse_from_rope(rope, self.source, self.ty, self.transforms, node_env)
                 .await
         }
         .await;
@@ -584,7 +578,7 @@ impl EcmascriptModuleAsset {
             Ok(result) => Some(result),
             Err(_) => {
                 // A failure is very unexpected, but we don't want to keep bad bytes around
-                self.last_successful_source.clear();
+                last_successful_source.clear();
                 None
             }
         }
@@ -598,21 +592,31 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         let real_result = self.parse().await?;
         if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
-            if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                // Store the current file bytes as the last-known-good source.
-                // As long as the file doesn't change, this is _just_ an Arc::clone.
-                // If it does change then this will pin the old version until this
-                // task re-runs (at which point the new bytes are stored or cleared).
-                // After a session restore the bytes will be duplicated in memory
-                // until the task re-runs; making the task session-dependent would
-                // avoid that but is too expensive.
-                if let Some(rope) = crate::parse::get_rope_from_source(self.source).await? {
-                    self.last_successful_source.set(rope);
-                }
+            // The cell stored here survives re-runs of this task because
+            // `LastSuccessfulSource`'s `PartialEq` is always-equal: the
+            // compare-and-update path preserves the existing cell (and its
+            // interior `Mutex<Option<Rope>>`) whenever this function is
+            // re-executed.
+            let last_successful_source = LastSuccessfulSource::default().cell().await?;
+            if let ParseResult::Ok { program_source, .. } = &*real_result_value {
+                // Store the bytes that `parse()` actually saw as the
+                // last-known-good source. Reading the rope from
+                // `ParseResult::Ok` (rather than re-reading `self.source`)
+                // guarantees the cached bytes correspond to the AST just
+                // produced — under eventual consistency a separate read could
+                // observe a newer file version than `parse()` did.
+                // As long as the file doesn't change, this is _just_ an
+                // Arc::clone. If it does change this will pin the old version
+                // until this task re-runs (at which point the new bytes are
+                // stored or cleared). After a session restore the bytes will
+                // be duplicated in memory until the task re-runs; making the
+                // task session-dependent would avoid that but is too
+                // expensive.
+                last_successful_source.set(program_source.clone());
                 Ok(real_result)
             } else {
                 Ok(self
-                    .try_parse_last_successful_source()
+                    .try_parse_last_successful_source(&last_successful_source)
                     .await
                     .unwrap_or(real_result))
             }
@@ -744,7 +748,6 @@ impl EcmascriptModuleAsset {
             compile_time_info,
             side_effect_free_packages,
             inner_assets: None,
-            last_successful_source: Default::default(),
         })
     }
 
@@ -779,7 +782,6 @@ impl EcmascriptModuleAsset {
                 compile_time_info,
                 side_effect_free_packages,
                 inner_assets: Some(inner_assets),
-                last_successful_source: Default::default(),
             }))
         }
     }
