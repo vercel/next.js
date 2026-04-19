@@ -1,0 +1,75 @@
+---
+title: No location.assign or location.href navigation to relative URLs
+---
+
+> Prevent usage of `location.assign()` or `location.href` assignment to navigate to internal Next.js pages.
+
+## Why This Error Occurred
+
+`location.assign()` or `location.href = ...` was used to navigate to a relative URL. In Next.js, this bypasses the client-side router, causing a full page reload and losing any prefetched data or state managed by the framework.
+
+## Possible Ways to Fix It
+
+### During the render phase
+
+Use [`redirect()`](/docs/app/api-reference/functions/redirect) from `next/navigation`:
+
+```tsx filename="app/page.tsx"
+import { redirect } from 'next/navigation'
+
+export default function Page() {
+  redirect('/dashboard')
+}
+```
+
+```tsx filename="app/components/my-component.tsx"
+'use client'
+
+import { redirect } from 'next/navigation'
+
+export default function MyComponent({
+  isAuthorized,
+}: {
+  isAuthorized: boolean
+}) {
+  if (!isAuthorized) {
+    redirect('/login')
+  }
+  return <div>Protected content</div>
+}
+```
+
+### In Client Components (event handlers)
+
+Use [`useRouter().push()`](/docs/app/api-reference/functions/use-router) from `next/navigation`:
+
+```tsx filename="app/components/my-button.tsx"
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export default function MyButton() {
+  const router = useRouter()
+
+  return (
+    <button onClick={() => router.push('/dashboard')}>Go to Dashboard</button>
+  )
+}
+```
+
+### External URLs
+
+If you are navigating to an external URL (one with a protocol, e.g. `https://`), `location.assign()` and `location.href` are acceptable and will not trigger this rule:
+
+```js
+// Allowed — navigating to an external site
+location.href = 'https://example.com'
+window.location.assign('https://example.org/path')
+```
+
+## Useful Links
+
+- [Redirecting in Next.js](/docs/app/guides/redirecting)
+- [Linking and Navigating in Next.js](/docs/app/getting-started/linking-and-navigating)
+- [`redirect` API Reference](/docs/app/api-reference/functions/redirect)
+- [`useRouter` API Reference](/docs/app/api-reference/functions/use-router)
