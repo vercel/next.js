@@ -1,0 +1,6 @@
+/* This should not be duplicated */
+@import 'https://example.com/stylesheet1.css';
+
+.bar {
+  background-color: green;
+}

@@ -1,0 +1,28 @@
+{
+  "name": "@next/eslint-plugin-next",
+  "version": "16.3.0-canary.2",
+  "description": "ESLint plugin for Next.js.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "repository": {
+    "url": "vercel/next.js",
+    "directory": "packages/eslint-plugin-next"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "fast-glob": "3.3.1"
+  },
+  "devDependencies": {
+    "@types/eslint": "9.6.1",
+    "eslint": "9.37.0"
+  },
+  "scripts": {
+    "dev": "pnpm build",
+    "build": "swc -d dist src && pnpm types",
+    "types": "tsc --project tsconfig.json --skipLibCheck --declaration --emitDeclarationOnly --esModuleInterop --declarationDir dist",
+    "prepublishOnly": "cd ../../ && turbo run build"
+  }
+}

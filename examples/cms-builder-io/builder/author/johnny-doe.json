@@ -1,0 +1,24 @@
+{
+  "createdBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
+  "createdDate": 1613027534444,
+  "data": {
+    "image": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2F5df565e2c411421082123ea8c1084a73",
+    "name": "Johnny Roe"
+  },
+  "id": "d50fe8eced654b2dae22c738dbeabcee",
+  "lastUpdatedBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
+  "meta": {
+    "kind": "data"
+  },
+  "modelId": "6d30b724c93d4198b0c0ce2d3ce390dc",
+  "name": "Johnny Doe",
+  "published": "published",
+  "query": [],
+  "testRatio": 1,
+  "variations": {},
+  "lastUpdated": 1613067837951,
+  "rev": "0pjukbnd3ox",
+  "@originOrg": "8f6bae86bfa3487eb1a18f263118c832",
+  "@originContentId": "edcaddd1a70f494ba1955704cd88ca4f",
+  "@originModelId": "c71bab5b43fa42eca870e330a39b59e0"
+}

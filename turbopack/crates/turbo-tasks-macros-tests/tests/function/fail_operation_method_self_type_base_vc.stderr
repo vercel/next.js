@@ -1,0 +1,5 @@
+error: methods taking `self` are not supported with `operation`
+  --> tests/function/fail_operation_method_self_type_base_vc.rs:14:36
+   |
+14 |     fn arbitrary_self_type_base_vc(self: Vc<Self>) -> Vc<()> {
+   |                                    ^^^^^^^^^^^^^^

@@ -1,0 +1,56 @@
+name: Update React
+
+on:
+  schedule:
+    # At 40 minutes past 16:00 on Mon, Tue, Wed, Thu, and Fri
+    # i.e. 30min past React nightlies: https://github.com/facebook/react/blob/941e1b4a0a81ca3d5f2ac6ef35682e2f8e96dae1/.github/workflows/runtime_prereleases_nightly.yml#L6
+    # TODO: automatically trigger on React release
+    - cron: 40 16 * * 1,2,3,4,5
+  # Allow manual runs
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version to update to. Uses latest Canary if omitted.'
+        required: false
+
+env:
+  NODE_LTS_VERSION: 20
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      - name: Set Git author
+        run: |
+          git config user.name "nextjs-bot"
+          git config user.email "it+nextjs-bot@vercel.com"
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        # Just need scripts/ but those dependencies are listed in the workspace root.
+        run: pnpm install --filter .
+
+      - name: Create Pull Request
+        shell: bash
+        run: pnpm sync-react --actor "${{ github.actor }}" --commit --create-pull --version "${{ inputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}

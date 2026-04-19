@@ -1,0 +1,290 @@
+[
+    (
+        "*arrow function 907*",
+        Function(
+            2,
+            907,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "ConstAfterEvalClass",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "d1",
+        Constant(
+            Num(
+                ConstantNumber(
+                    TotalOrderF64(
+                        2.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "default_function_export_const_after_eval",
+        Function(
+            2,
+            251,
+            Constant(
+                Undefined,
+            ),
+        ),
+    ),
+    (
+        "foo_const_after_eval",
+        Object {
+            total_nodes: 3,
+            parts: [
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+            ],
+            mutable: true,
+        },
+    ),
+    (
+        "getter_not_const_after_eval",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "i",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                0.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Unknown {
+                    original_value: None,
+                    reason: "updated with update expression",
+                    has_side_effects: true,
+                },
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_const_export_const_after_eval",
+        Constant(
+            Num(
+                ConstantNumber(
+                    TotalOrderF64(
+                        3.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "named_function_export_const_after_eval",
+        Alternatives {
+            total_nodes: 4,
+            values: [
+                Function(
+                    2,
+                    65,
+                    Constant(
+                        Undefined,
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_let_export_const_after_eval",
+        Constant(
+            Num(
+                ConstantNumber(
+                    TotalOrderF64(
+                        2.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "named_let_export_const_after_eval_2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Unknown {
+                    original_value: Some(
+                        Variable(
+                            (
+                                "named_let_export_const_after_eval_2",
+                                #2,
+                            ),
+                        ),
+                    ),
+                    reason: "pattern without value",
+                    has_side_effects: false,
+                },
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                5.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_let_export_not_const_after_eval",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                5.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "named_let_export_not_const_after_eval_2",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                3.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "setter_not_const_after_eval",
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                1.0,
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Num(
+                        ConstantNumber(
+                            TotalOrderF64(
+                                2.0,
+                            ),
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+    (
+        "v",
+        Unknown {
+            original_value: Some(
+                Variable(
+                    (
+                        "v",
+                        #11,
+                    ),
+                ),
+            ),
+            reason: "pattern without value",
+            has_side_effects: false,
+        },
+    ),
+]

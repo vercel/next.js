@@ -1,0 +1,118 @@
+import { join } from 'path'
+import { findPort, retry } from 'next-test-utils'
+import https from 'https'
+import httpProxy from 'http-proxy'
+import fs from 'fs'
+import webdriver from 'next-webdriver'
+import { nextTestSetup } from 'e2e-utils'
+
+let proxyPort
+let proxyServer: https.Server
+
+describe('next-image-proxy', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname,
+    // This test is skipped when deployed because it relies on a proxy server
+    skipDeployment: true,
+  })
+
+  if (skipped) return
+
+  beforeAll(async () => {
+    proxyPort = await findPort()
+
+    const ssl = {
+      key: fs.readFileSync(
+        join(__dirname, 'certificates/localhost-key.pem'),
+        'utf8'
+      ),
+      cert: fs.readFileSync(
+        join(__dirname, 'certificates/localhost.pem'),
+        'utf8'
+      ),
+    }
+
+    const proxy = httpProxy.createProxyServer({
+      target: `http://localhost:${next.appPort}`,
+      ssl,
+      secure: false,
+    })
+
+    proxyServer = https.createServer(ssl, async (req, res) => {
+      proxy.web(req, res)
+    })
+
+    proxy.on('error', (err) => {
+      throw new Error('Failed to proxy: ' + err.message)
+    })
+
+    await new Promise<void>((resolve) => {
+      proxyServer.listen(proxyPort, () => resolve())
+    })
+  })
+
+  it('loads images without any errors', async () => {
+    let failCount = 0
+    let fulfilledCount = 0
+
+    const browser = await webdriver(`https://localhost:${proxyPort}`, '/', {
+      ignoreHTTPSErrors: true,
+      beforePageLoad(page) {
+        page.on('response', (response) => {
+          const url = response.url()
+          if (!url.includes('/_next/image')) return
+
+          const status = response.status()
+
+          console.log(`URL: ${url} Status: ${status}`)
+
+          if (!response.ok()) {
+            console.log(`Request failed: ${url}`)
+            failCount++
+          }
+
+          fulfilledCount++
+        })
+      },
+    })
+
+    const local = await browser.elementByCss('#app-page').getAttribute('src')
+    expect(normalizeURL(local)).toEqual(
+      `/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.HASH.png&w=828&q=90${next.getAssetQuery(true)}`
+    )
+
+    const remote = await browser
+      .elementByCss('#remote-app-page')
+      .getAttribute('src')
+    expect(remote).toEqual(
+      `/_next/image?url=https%3A%2F%2Fimage-optimization-test.vercel.app%2Ftest.jpg&w=640&q=90`
+    )
+
+    await retry(() => {
+      expect(fulfilledCount).toBe(4)
+      expect(failCount).toBe(0)
+    })
+    await browser.close()
+  })
+
+  it('should work with connection upgrade by removing it via filterReqHeaders()', async () => {
+    const $ = await next.render$('/')
+    const url1 = $('#app-page').attr('src')
+    const opts = { headers: { connection: 'upgrade' } }
+    const res1 = await next.fetch(url1, opts)
+    expect(res1.status).toBe(200)
+    const url2 = $('#remote-app-page').attr('src')
+    const res2 = await next.fetch(url2, opts)
+    expect(res2.status).toBe(200)
+  })
+
+  afterAll(() => {
+    proxyServer.close()
+  })
+})
+
+function normalizeURL(text: string) {
+  return text
+    .replace(/test\.[0-9a-z_-]{4,}\.(png|jpe?g)/g, 'test.HASH.$1')
+    .replace(/_next%2Fstatic%2Fimmutable%2F/g, '_next%2Fstatic%2F')
+}

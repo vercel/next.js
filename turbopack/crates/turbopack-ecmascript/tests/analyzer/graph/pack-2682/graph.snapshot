@@ -1,0 +1,174 @@
+[
+    (
+        "*arrow function 24*",
+        Function(
+            16,
+            24,
+            MemberCall(
+                15,
+                FreeVar(
+                    "JSON",
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "stringify",
+                        ),
+                    ),
+                ),
+                [
+                    Object {
+                        total_nodes: 12,
+                        parts: [
+                            KeyValue(
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "condition",
+                                        ),
+                                    ),
+                                ),
+                                Binary(
+                                    3,
+                                    Variable(
+                                        (
+                                            "variable",
+                                            #3,
+                                        ),
+                                    ),
+                                    StrictEqual,
+                                    Constant(
+                                        Str(
+                                            Atom(
+                                                "true",
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                            KeyValue(
+                                Constant(
+                                    Str(
+                                        Atom(
+                                            "buggedConditionalCheck",
+                                        ),
+                                    ),
+                                ),
+                                Tenary(
+                                    6,
+                                    Binary(
+                                        3,
+                                        Variable(
+                                            (
+                                                "variable",
+                                                #3,
+                                            ),
+                                        ),
+                                        StrictEqual,
+                                        Constant(
+                                            Str(
+                                                Atom(
+                                                    "true",
+                                                ),
+                                            ),
+                                        ),
+                                    ),
+                                    Constant(
+                                        Str(
+                                            Atom(
+                                                "true",
+                                            ),
+                                        ),
+                                    ),
+                                    Constant(
+                                        Str(
+                                            Atom(
+                                                "false",
+                                            ),
+                                        ),
+                                    ),
+                                ),
+                            ),
+                        ],
+                        mutable: true,
+                    },
+                ],
+            ),
+        ),
+    ),
+    (
+        "BuggyArguments",
+        Variable(
+            (
+                "*arrow function 24*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "res",
+        Call(
+            5,
+            Variable(
+                (
+                    "BuggyArguments",
+                    #2,
+                ),
+            ),
+            [
+                Object {
+                    total_nodes: 3,
+                    parts: [
+                        KeyValue(
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "variable",
+                                    ),
+                                ),
+                            ),
+                            Constant(
+                                Str(
+                                    Atom(
+                                        "false",
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ],
+                    mutable: true,
+                },
+            ],
+        ),
+    ),
+    (
+        "variable",
+        Alternatives {
+            total_nodes: 5,
+            values: [
+                Member(
+                    3,
+                    Argument(
+                        24,
+                        0,
+                    ),
+                    Constant(
+                        Str(
+                            Atom(
+                                "variable",
+                            ),
+                        ),
+                    ),
+                ),
+                Constant(
+                    Str(
+                        Atom(
+                            "true",
+                        ),
+                    ),
+                ),
+            ],
+            logical_property: None,
+        },
+    ),
+]

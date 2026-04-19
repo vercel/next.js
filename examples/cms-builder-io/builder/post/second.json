@@ -1,0 +1,1293 @@
+{
+  "createdBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
+  "createdDate": 1613031378505,
+  "data": {
+    "author": {
+      "@type": "@builder.io/core:Reference",
+      "id": "7b0b333bd44b4e91a6f4bf93158cb62b",
+      "model": "author"
+    },
+    "customFonts": [
+      {
+        "family": "Allura",
+        "isUserFont": true
+      }
+    ],
+    "image": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Ff2b8319ddd4642209af3a9a09f408dfd",
+    "inputs": [],
+    "intro": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
+    "slug": "second-one",
+    "title": "aber",
+    "blocks": [
+      {
+        "@type": "@builder.io/sdk:Element",
+        "@version": 2,
+        "id": "builder-003e28d053a145cf808c21773addd456",
+        "component": {
+          "name": "Core:Section",
+          "options": {
+            "maxWidth": 1200
+          }
+        },
+        "children": [
+          {
+            "@type": "@builder.io/sdk:Element",
+            "@version": 2,
+            "id": "builder-33d0b6c8b55b497db53fe28330606698",
+            "component": {
+              "name": "Columns",
+              "options": {
+                "columns": [
+                  {
+                    "blocks": [
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "id": "builder-9aead75dcd994cacaae186940a24b096",
+                        "component": {
+                          "name": "Image",
+                          "options": {
+                            "image": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2F83d80cd184c84a93bf9ed141114671b1",
+                            "backgroundSize": "cover",
+                            "backgroundPosition": "top",
+                            "lazy": false,
+                            "aspectRatio": 1.1104,
+                            "height": 1300,
+                            "width": 867,
+                            "sizes": "(max-width: 638px) 76vw, 34vw"
+                          }
+                        },
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "position": "relative",
+                            "flexShrink": "0",
+                            "boxSizing": "border-box",
+                            "marginTop": "20px",
+                            "minHeight": "20px",
+                            "minWidth": "20px",
+                            "overflow": "hidden",
+                            "paddingBottom": "0px"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "blocks": [
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "id": "builder-9e7671596631470a9ba962fb6d53fe91",
+                        "component": {
+                          "name": "Text",
+                          "options": {
+                            "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>"
+                          }
+                        },
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "flexShrink": "0",
+                            "position": "relative",
+                            "marginTop": "30px",
+                            "textAlign": "left",
+                            "lineHeight": "25px",
+                            "height": "auto"
+                          },
+                          "small": {
+                            "fontSize": "14px"
+                          }
+                        }
+                      },
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "id": "builder-e4df8c2cf25842b6abee292e4f9fd1e8",
+                        "component": {
+                          "name": "Text",
+                          "options": {
+                            "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.</p>"
+                          }
+                        },
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "flexShrink": "0",
+                            "position": "relative",
+                            "marginTop": "30px",
+                            "textAlign": "left",
+                            "lineHeight": "25px",
+                            "height": "auto"
+                          },
+                          "small": {
+                            "fontSize": "14px",
+                            "marginTop": "10px"
+                          }
+                        }
+                      },
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "id": "builder-c28284ce96b047f79801b04c4b7fd60b",
+                        "component": {
+                          "name": "Text",
+                          "options": {
+                            "text": "<p>Lorem ipsum dolor sit amet,</p>"
+                          }
+                        },
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "flexShrink": "0",
+                            "position": "relative",
+                            "marginTop": "20px",
+                            "textAlign": "left",
+                            "lineHeight": "25px",
+                            "height": "auto"
+                          },
+                          "small": {
+                            "fontSize": "14px",
+                            "marginTop": "10px"
+                          }
+                        }
+                      },
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "id": "builder-0ea495fde38a41e883e89d9287e6a604",
+                        "component": {
+                          "name": "Text",
+                          "options": {
+                            "text": "<p>Jane Smith</p>"
+                          }
+                        },
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "flexShrink": "0",
+                            "position": "relative",
+                            "marginTop": "20px",
+                            "textAlign": "left",
+                            "lineHeight": "25px",
+                            "height": "auto",
+                            "fontFamily": "Allura, sans-serif",
+                            "fontWeight": "600",
+                            "fontSize": "28px"
+                          },
+                          "medium": {
+                            "paddingBottom": "0px"
+                          },
+                          "small": {
+                            "fontSize": "14px"
+                          }
+                        }
+                      },
+                      {
+                        "@type": "@builder.io/sdk:Element",
+                        "@version": 2,
+                        "id": "builder-fd5fdad1673a4ccfb6b75e013b66502f",
+                        "component": {
+                          "name": "Text",
+                          "options": {
+                            "text": "<p>Co-Founder of store</p>"
+                          }
+                        },
+                        "responsiveStyles": {
+                          "large": {
+                            "display": "flex",
+                            "flexDirection": "column",
+                            "alignItems": "stretch",
+                            "flexShrink": "0",
+                            "position": "relative",
+                            "marginTop": "-1px",
+                            "textAlign": "left",
+                            "lineHeight": "25px",
+                            "height": "auto"
+                          },
+                          "medium": {
+                            "paddingBottom": "20px"
+                          },
+                          "small": {
+                            "fontSize": "14px"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ],
+                "space": 34,
+                "stackColumnsAt": "tablet"
+              }
+            },
+            "responsiveStyles": {
+              "large": {
+                "display": "flex",
+                "flexDirection": "column",
+                "alignItems": "stretch",
+                "position": "relative",
+                "flexShrink": "0",
+                "boxSizing": "border-box",
+                "width": "80%",
+                "marginLeft": "auto",
+                "marginRight": "auto"
+              }
+            }
+          },
+          {
+            "@type": "@builder.io/sdk:Element",
+            "@version": 2,
+            "id": "builder-58f738032526435288296afb482b930b",
+            "children": [
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-16978c305ac34c5e84353eca5778904f",
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-2509355e0a8a4b68861590c796b31701",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Our approach</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "fontWeight": "600",
+                        "fontSize": "28px",
+                        "color": "rgba(2, 75, 194, 1)"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "marginTop": "20px",
+                    "height": "auto",
+                    "paddingBottom": "30px"
+                  }
+                }
+              }
+            ],
+            "responsiveStyles": {
+              "large": {
+                "display": "flex",
+                "flexDirection": "column",
+                "alignItems": "stretch",
+                "position": "relative",
+                "flexShrink": "0",
+                "boxSizing": "border-box",
+                "marginTop": "30px",
+                "height": "auto",
+                "width": "100vw",
+                "marginLeft": "calc(50% - 50vw)",
+                "backgroundColor": "rgba(242, 246, 252, 1)",
+                "paddingBottom": "30px",
+                "paddingTop": "25px"
+              }
+            }
+          },
+          {
+            "@type": "@builder.io/sdk:Element",
+            "@version": 2,
+            "id": "builder-514ba8f61b5948e58c0608bf1c8b2b62",
+            "children": [
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-4e53d65a8c3d4afc8b9d9ec077a00feb",
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-9ddf5078aecc4d03bf5cacc6581bf9ef",
+                    "component": {
+                      "name": "Image",
+                      "options": {
+                        "image": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=598",
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center",
+                        "lazy": true,
+                        "aspectRatio": 0.6213,
+                        "sizes": "(max-width: 998px) 31vw, 28vw",
+                        "height": 1300,
+                        "width": 868,
+                        "srcset": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=100 100w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=200 200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=400 400w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=800 800w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=1200 1200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=1600 1600w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=2000 2000w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=598 598w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=307 307w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F042a6dc74b764273be4758ddb3cf3f31?width=384 384w"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "width": "100%",
+                        "minHeight": "20px",
+                        "minWidth": "20px",
+                        "overflow": "hidden"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-50f46cd9d5d146e58577f499feee20a0",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Collection name</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "fontSize": "18px",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-3df2858a55bd44dcb795bb412045747b",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-6d6f3f3d45b04df6a71a7d65c7b95d61",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Shop this collection →</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "medium": {
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "marginTop": "0px",
+                    "height": "auto",
+                    "width": "32%",
+                    "paddingBottom": "30px",
+                    "marginLeft": "10px"
+                  },
+                  "medium": {
+                    "width": "45%"
+                  },
+                  "small": {
+                    "width": "100%",
+                    "marginLeft": "0px"
+                  }
+                }
+              },
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-21e217f6344a4846bdcb2e9115ef7071",
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-093537281eeb474b9840d11ae59128e9",
+                    "component": {
+                      "name": "Image",
+                      "options": {
+                        "image": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=598",
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center",
+                        "lazy": true,
+                        "aspectRatio": 0.6213,
+                        "sizes": "(max-width: 998px) 31vw, 28vw",
+                        "height": 1300,
+                        "width": 868,
+                        "srcset": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=100 100w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=200 200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=400 400w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=800 800w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=1200 1200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=1600 1600w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=2000 2000w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=598 598w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=307 307w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F75cc3d48325a4b48aeaf1e3650bc12b3?width=384 384w"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "width": "100%",
+                        "minHeight": "20px",
+                        "minWidth": "20px",
+                        "overflow": "hidden"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-a6ef7f24494443e5bbb3c9781112149d",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Collection name</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "fontSize": "18px",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-43772cda114940d9bdd5ed075c2668ad",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-eed1a02358bc4acfb494dbcca9855dfc",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Shop this collection →</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "medium": {
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "marginTop": "0px",
+                    "height": "auto",
+                    "width": "32%",
+                    "paddingBottom": "30px",
+                    "marginLeft": "10px"
+                  },
+                  "medium": {
+                    "width": "45%"
+                  },
+                  "small": {
+                    "width": "100%",
+                    "marginLeft": "0px"
+                  }
+                }
+              },
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-5f72a8af06ce48699f73db3b7264b2c1",
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-a090ffb2f1de4c698430f0f9064afe1a",
+                    "component": {
+                      "name": "Image",
+                      "options": {
+                        "image": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=598",
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center",
+                        "lazy": true,
+                        "aspectRatio": 0.6213,
+                        "sizes": "(max-width: 998px) 31vw, 28vw",
+                        "height": 1300,
+                        "width": 868,
+                        "srcset": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=100 100w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=200 200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=400 400w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=800 800w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=1200 1200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=1600 1600w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=2000 2000w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=598 598w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=307 307w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fea7f818a036f4d8c83a8b24b2cae9f15?width=384 384w"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "width": "100%",
+                        "minHeight": "20px",
+                        "minWidth": "20px",
+                        "overflow": "hidden"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-a9be61d17d7141539031b387eaa442e8",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Collection name</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "fontSize": "18px",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-28f967a79a434006a31c81bcd1797c68",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-d86dfa71dc8540b2909a91ea8ac6b4b4",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Shop this collection →</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "medium": {
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "marginTop": "0px",
+                    "height": "auto",
+                    "width": "32%",
+                    "paddingBottom": "30px",
+                    "marginLeft": "10px"
+                  },
+                  "medium": {
+                    "width": "45%"
+                  },
+                  "small": {
+                    "width": "100%",
+                    "marginLeft": "0px"
+                  }
+                }
+              },
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-eed3f9e5371d43408fb9738a206f73ba",
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-476cb53479224af1898ecceadf3a587a",
+                    "component": {
+                      "name": "Image",
+                      "options": {
+                        "image": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=598",
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center",
+                        "lazy": true,
+                        "aspectRatio": 0.6213,
+                        "sizes": "(max-width: 998px) 31vw, 28vw",
+                        "height": 1300,
+                        "width": 868,
+                        "srcset": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=100 100w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=200 200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=400 400w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=800 800w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=1200 1200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=1600 1600w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=2000 2000w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=598 598w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=307 307w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fa6b91fce9c7943399d6ba504b560e1eb?width=384 384w"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "width": "100%",
+                        "minHeight": "20px",
+                        "minWidth": "20px",
+                        "overflow": "hidden"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-c9563979146c4c229cf5f8788e63e10d",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Collection name</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "fontSize": "18px",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-afa27b9b60fd4c0880064f476712fa2d",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-d7435c0c8eeb44bfa070cdc4999b2b13",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Shop this collection →</p>\n"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "marginTop": "0px",
+                    "height": "auto",
+                    "width": "32%",
+                    "paddingBottom": "30px",
+                    "marginLeft": "10px"
+                  },
+                  "medium": {
+                    "width": "45%"
+                  },
+                  "small": {
+                    "width": "100%",
+                    "marginLeft": "0px"
+                  }
+                }
+              },
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-9e246b64553c40ed8bb49a619056a4d8",
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-2c6e3c65976f4e95bbd777542fd5caca",
+                    "component": {
+                      "name": "Image",
+                      "options": {
+                        "image": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=598",
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center",
+                        "lazy": true,
+                        "aspectRatio": 0.6213,
+                        "sizes": "(max-width: 998px) 31vw, 28vw",
+                        "height": 1300,
+                        "width": 868,
+                        "srcset": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=100 100w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=200 200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=400 400w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=800 800w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=1200 1200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=1600 1600w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=2000 2000w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=598 598w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=307 307w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2F3b73348d1e934e51b29340e41acae8a1?width=384 384w"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "width": "100%",
+                        "minHeight": "20px",
+                        "minWidth": "20px",
+                        "overflow": "hidden"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-7a6999eea6404db28bdbae7e4b433bc3",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Collection name</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "fontSize": "18px",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-53c35499a0694e939e8b794e103039d2",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-da1cafe52692406aa46592cc0d98ba4d",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Shop this collection →</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "marginTop": "0px",
+                    "height": "auto",
+                    "width": "32%",
+                    "paddingBottom": "30px",
+                    "marginLeft": "10px"
+                  },
+                  "medium": {
+                    "width": "45%"
+                  },
+                  "small": {
+                    "width": "100%",
+                    "marginLeft": "0px"
+                  }
+                }
+              },
+              {
+                "@type": "@builder.io/sdk:Element",
+                "@version": 2,
+                "id": "builder-d529c10768684a539019c0d4faf79ab6",
+                "children": [
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-a13520343f3944aab3f070a76ce648d7",
+                    "component": {
+                      "name": "Image",
+                      "options": {
+                        "image": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=598",
+                        "backgroundSize": "cover",
+                        "backgroundPosition": "center",
+                        "lazy": true,
+                        "aspectRatio": 0.6213,
+                        "sizes": "(max-width: 998px) 31vw, 28vw",
+                        "height": 1300,
+                        "width": 868,
+                        "srcset": "https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=100 100w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=200 200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=400 400w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=800 800w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=1200 1200w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=1600 1600w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=2000 2000w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=598 598w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=307 307w, https://cdn.builder.io/api/v1/image/assets%2F89d6bbb44070475d9580fd22f21ef8f1%2Fbf5de7cba2434d4980bba0b4a293420e?width=384 384w"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "width": "100%",
+                        "minHeight": "20px",
+                        "minWidth": "20px",
+                        "overflow": "hidden"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-e7fac6c2cd8946e4821bd4567a20ac04",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Collection name</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "20px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "fontSize": "18px",
+                        "fontWeight": "600"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-0c7430abba114fdc923e17c8812c2d7f",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  },
+                  {
+                    "@type": "@builder.io/sdk:Element",
+                    "@version": 2,
+                    "id": "builder-2d2f4bed888240d2a79200b02ff223b2",
+                    "component": {
+                      "name": "Text",
+                      "options": {
+                        "text": "<p>Shop this collection →</p>"
+                      }
+                    },
+                    "responsiveStyles": {
+                      "large": {
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "alignItems": "stretch",
+                        "position": "relative",
+                        "flexShrink": "0",
+                        "boxSizing": "border-box",
+                        "marginTop": "5px",
+                        "lineHeight": "normal",
+                        "height": "auto",
+                        "textAlign": "center",
+                        "color": "rgba(2, 75, 194, 1)"
+                      },
+                      "small": {
+                        "fontSize": "14px"
+                      }
+                    }
+                  }
+                ],
+                "responsiveStyles": {
+                  "large": {
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "alignItems": "stretch",
+                    "position": "relative",
+                    "flexShrink": "0",
+                    "boxSizing": "border-box",
+                    "marginTop": "0px",
+                    "height": "auto",
+                    "width": "32%",
+                    "paddingBottom": "30px",
+                    "marginLeft": "10px"
+                  },
+                  "medium": {
+                    "width": "45%"
+                  },
+                  "small": {
+                    "width": "100%",
+                    "marginLeft": "0px"
+                  }
+                }
+              }
+            ],
+            "responsiveStyles": {
+              "large": {
+                "display": "flex",
+                "flexDirection": "row",
+                "position": "relative",
+                "flexShrink": "0",
+                "boxSizing": "border-box",
+                "marginTop": "20px",
+                "width": "100%",
+                "paddingBottom": "30px",
+                "flexWrap": "wrap",
+                "justifyContent": "center"
+              }
+            }
+          }
+        ],
+        "responsiveStyles": {
+          "large": {
+            "display": "flex",
+            "flexDirection": "column",
+            "alignItems": "stretch",
+            "position": "relative",
+            "flexShrink": "0",
+            "boxSizing": "border-box",
+            "marginTop": "0px",
+            "paddingLeft": "20px",
+            "paddingRight": "20px",
+            "paddingTop": "50px",
+            "paddingBottom": "50px",
+            "width": "100vw",
+            "marginLeft": "calc(50% - 50vw)"
+          }
+        }
+      },
+      {
+        "id": "builder-pixel-o7ofge7v1he",
+        "@type": "@builder.io/sdk:Element",
+        "tagName": "img",
+        "properties": {
+          "src": "https://cdn.builder.io/api/v1/pixel?apiKey=8f6bae86bfa3487eb1a18f263118c832",
+          "role": "presentation",
+          "width": "0",
+          "height": "0"
+        },
+        "responsiveStyles": {
+          "large": {
+            "height": "0",
+            "width": "0",
+            "display": "inline-block",
+            "opacity": "0",
+            "overflow": "hidden",
+            "pointerEvents": "none"
+          }
+        }
+      }
+    ],
+    "state": {
+      "deviceSize": "large",
+      "location": {
+        "path": "",
+        "query": {}
+      }
+    }
+  },
+  "id": "aa5cde0446204c228a11ea6ff10fff92",
+  "lastUpdatedBy": "4FFFg0MNRJT0z0nW4uUizDHfHJV2",
+  "meta": {
+    "hasLinks": false,
+    "kind": "component",
+    "needsHydration": false
+  },
+  "modelId": "3f6eda812cf2484088b1451a2150d38f",
+  "name": "second ",
+  "published": "published",
+  "query": [],
+  "testRatio": 1,
+  "variations": {},
+  "lastUpdated": 1613033616315,
+  "screenshot": "https://cdn.builder.io/api/v1/image/assets%2F8f6bae86bfa3487eb1a18f263118c832%2Fae6b7a78f9994ba2bded4527c22b647f",
+  "rev": "3mj2dvbqtry",
+  "@originOrg": "8f6bae86bfa3487eb1a18f263118c832",
+  "@originContentId": "3ff20a4db1994618bb45ac7c8610300f",
+  "@originModelId": "7a732bbf5d964e7bbeff4acef2735c8a"
+}

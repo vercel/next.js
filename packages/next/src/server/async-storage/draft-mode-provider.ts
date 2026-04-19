@@ -1,0 +1,96 @@
+import type { IncomingMessage } from 'http'
+import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
+import type { ResponseCookies } from '../web/spec-extension/cookies'
+import type { BaseNextRequest } from '../base-http'
+import type { NextRequest } from '../web/spec-extension/request'
+
+import {
+  COOKIE_NAME_PRERENDER_BYPASS,
+  checkIsOnDemandRevalidate,
+} from '../api-utils'
+import type { __ApiPreviewProps } from '../api-utils'
+
+export class DraftModeProvider {
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private _isEnabled: boolean
+
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _previewModeId: string | undefined
+
+  /**
+   * @internal - this declaration is stripped via `tsc --stripInternal`
+   */
+  private readonly _mutableCookies: ResponseCookies
+
+  constructor(
+    previewProps: __ApiPreviewProps | undefined,
+    req: IncomingMessage | BaseNextRequest<unknown> | NextRequest,
+    cookies: ReadonlyRequestCookies,
+    mutableCookies: ResponseCookies
+  ) {
+    // The logic for draftMode() is very similar to tryGetPreviewData()
+    // but Draft Mode does not have any data associated with it.
+    const isOnDemandRevalidate =
+      previewProps &&
+      checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
+
+    const cookieValue = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
+
+    this._isEnabled = Boolean(
+      !isOnDemandRevalidate &&
+        cookieValue &&
+        previewProps &&
+        (cookieValue === previewProps.previewModeId ||
+          // In dev mode, the cookie can be actual hash value preview id but the preview props can still be `development-id`.
+          (process.env.NODE_ENV !== 'production' &&
+            previewProps.previewModeId === 'development-id'))
+    )
+
+    this._previewModeId = previewProps?.previewModeId
+    this._mutableCookies = mutableCookies
+  }
+
+  get isEnabled() {
+    return this._isEnabled
+  }
+
+  enable() {
+    if (!this._previewModeId) {
+      throw new Error(
+        'Invariant: previewProps missing previewModeId this should never happen'
+      )
+    }
+
+    this._mutableCookies.set({
+      name: COOKIE_NAME_PRERENDER_BYPASS,
+      value: this._previewModeId,
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+    })
+
+    this._isEnabled = true
+  }
+
+  disable() {
+    // To delete a cookie, set `expires` to a date in the past:
+    // https://tools.ietf.org/html/rfc6265#section-4.1.1
+    // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
+    this._mutableCookies.set({
+      name: COOKIE_NAME_PRERENDER_BYPASS,
+      value: '',
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      expires: new Date(0),
+    })
+
+    this._isEnabled = false
+  }
+}

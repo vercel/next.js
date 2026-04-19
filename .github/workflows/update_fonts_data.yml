@@ -1,0 +1,48 @@
+name: Update Font Data
+
+on:
+  # Run every every day at midnight https://crontab.guru/#0_0_*_*_*/1
+  schedule:
+    - cron: '0 0 * * */1'
+  # Allow manual runs
+  workflow_dispatch:
+
+env:
+  NODE_LTS_VERSION: 20
+
+jobs:
+  create-pull-request:
+    runs-on: ubuntu-latest
+    if: github.repository_owner == 'vercel'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Commits made with the default `GITHUB_TOKEN` won't trigger workflows.
+          # See: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#using-the-github_token-in-a-workflow
+          token: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_LTS_VERSION }}
+          check-latest: true
+
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
+
+      - name: Install dependencies
+        shell: bash
+        run: pnpm i
+
+      - name: Create Pull Request
+        shell: bash
+        run: node scripts/automated-update-workflow.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
+          BRANCH_NAME: fonts-data
+          SCRIPT: scripts/update-google-fonts.js
+          PR_TITLE: Update font data
+          PR_BODY: This auto-generated PR updates font data with latest available

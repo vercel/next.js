@@ -1,0 +1,5 @@
+  x Route segment config "unstable_instant" requires `nextConfig.cacheComponents` to be enabled.
+   ,-[input.js:1:1]
+ 1 | export const unstable_instant = { prefetch: 'static' }
+   :              ^^^^^^^^^^^^^^^^
+   `----

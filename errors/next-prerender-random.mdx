@@ -1,0 +1,92 @@
+---
+title: Cannot access `Math.random()` before other uncached data or Request data in a Server Component
+---
+
+## Why This Error Occurred
+
+`Math.random()` was called in a Server Component before accessing other uncached data through APIs like `fetch()` and native database drivers, or Request data through built-in APIs like `cookies()`, `headers()`, `connection()` and `searchParams`. Accessing random values in this way interferes with the prerendering and prefetching capabilities of Next.js.
+
+## Possible Ways to Fix It
+
+If the random value is appropriate to be prerendered and prefetched consider moving it into a Cache Component or Cache Function with the `"use cache"` directive.
+
+If the random value is intended to be generated on every user request consider whether you can move the random value generation later, behind other existing uncached data or Request data access. If there is no way to do this you can always precede the random value generation with Request data access by using `await connection()`.
+
+If the random value is being used as a unique identifier for diagnostic purposes such as logging or tracking consider using an alternate method of id generation that does not rely on random number generation such as incrementing an integer.
+
+> **Note**: Sometimes the place that generates a random value synchronously is inside 3rd party code. While you can't easily replace the `Math.random()` call directly, the other strategies can be applied in your own project code regardless of how deep random generation is.
+
+### Cache the random value
+
+If your random value is cacheable, move the `Math.random()` call to a `"use cache"` function. For instance, imagine you have a product page and you want to randomize the product order periodically but you are fine with the random order being re-used for different users.
+
+Before:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const products = await getCachedProducts()
+  const randomSeed = Math.random()
+  const randomizedProducts = randomize(products, randomSeed)
+  return <ProductsView products={randomizedProducts} />
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  'use cache'
+  const products = await getCachedProducts()
+  const randomSeed = Math.random()
+  const randomizedProducts = randomize(products, randomSeed)
+  return <ProductsView products={randomizedProducts} />
+}
+```
+
+> **Note**: `"use cache"` is a powerful API with some nuances. If your cache lifetime is too short Next.js may still exclude it from prerendering. Check out the docs for `"use cache"` to learn more.
+
+### Indicate the random value is unique per Request
+
+If you want the random value to be evaluated on each Request precede it with `await connection()`. Next.js will exclude this Server Component from the prerendered HTML and include the fallback UI from the nearest Suspense boundary wrapping this component instead. When a user makes a Request for this page the Server Component will be rendered and the updated UI will stream in dynamically.
+
+Before:
+
+```jsx filename="app/page.js"
+export default async function Page() {
+  const products = await getCachedProducts()
+  const randomSeed = Math.random()
+  const randomizedProducts = randomize(products, randomSeed)
+  return <ProductsView products={randomizedProducts} />
+}
+```
+
+After:
+
+```jsx filename="app/page.js"
+import { connection } from 'next/server'
+
+async function ProductsSkeleton() {
+  ...
+}
+
+export default async function Page() {
+  const products = await getCachedProducts();
+  return (
+    <Suspense fallback={<ProductsSkeleton />}>
+      <DynamicProductsView products={products} />
+    </Suspense>
+  )
+}
+
+async function DynamicProductsView({ products }) {
+  await connection();
+  const randomSeed = Math.random()
+  const randomizedProducts = randomize(products, randomSeed)
+  return <ProductsView products={randomizedProducts} />
+}
+```
+
+## Useful Links
+
+- [`connection` function](/docs/app/api-reference/functions/connection)
+- [`Suspense` React API](https://react.dev/reference/react/Suspense)

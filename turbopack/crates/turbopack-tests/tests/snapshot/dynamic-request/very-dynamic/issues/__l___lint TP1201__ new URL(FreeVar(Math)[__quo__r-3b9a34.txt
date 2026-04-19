@@ -1,0 +1,12 @@
+[92;4msuggestion - [analysis] /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:17:0  lint TP1201 new URL(FreeVar(Math)["random"](), import.meta*0*["url"]) is very dynamic
+  
+      13 | 
+      14 | fs.readFileSync(unknown)
+      15 | readFileSync(unknown)
+      16 | 
+         + v-------------------------------v
+      17 + new URL(unknown, import.meta.url)
+         + ^-------------------------------^
+      18 | 
+  
+  - *0* import.meta: The import.meta object

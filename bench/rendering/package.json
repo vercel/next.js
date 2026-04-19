@@ -1,0 +1,14 @@
+{
+  "name": "bench-rendering",
+  "scripts": {
+    "build-application": "next build",
+    "start": "NODE_ENV=production pnpm build-application && NODE_ENV=production next start",
+    "bench:stateless": "ab -c1 -n3000 http://0.0.0.0:3000/stateless",
+    "bench:stateless-big": "ab -c1 -n500 http://0.0.0.0:3000/stateless-big",
+    "bench:recursive-copy": "node recursive-copy/run"
+  },
+  "dependencies": {
+    "fs-extra": "10.0.0",
+    "recursive-copy": "2.0.11"
+  }
+}

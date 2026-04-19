@@ -1,0 +1,79 @@
+import type {
+  ProxyConfig,
+  ProxyMatcher,
+  RSCModuleType,
+} from '../../analysis/get-page-static-info'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
+
+export type ModuleBuildInfo = {
+  nextEdgeMiddleware?: EdgeMiddlewareMeta
+  nextEdgeApiFunction?: EdgeMiddlewareMeta
+  nextEdgeSSR?: EdgeSSRMeta
+  nextWasmMiddlewareBinding?: AssetBinding
+  nextAssetMiddlewareBinding?: AssetBinding
+  usingIndirectEval?: boolean | Set<string>
+  route?: RouteMeta
+  importLocByPath?: Map<string, any>
+  rootDir?: string
+  rsc?: RSCMeta
+}
+
+/**
+ * A getter for module build info that casts to the type it should have.
+ * We also expose here types to make easier to use it.
+ */
+export function getModuleBuildInfo(webpackModule: webpack.Module) {
+  return webpackModule.buildInfo as ModuleBuildInfo
+}
+
+/**
+ * Location info for a server action (1-indexed line and column)
+ */
+export interface ServerActionLocation {
+  line: number
+  col: number
+}
+
+/**
+ * Server action info including name and optional source location
+ */
+export interface ServerActionInfo {
+  name: string
+  loc?: ServerActionLocation
+}
+
+export interface RSCMeta {
+  type: RSCModuleType
+  /** Map of action ID to export name (old format) or action info (new format with location) */
+  actionIds?: Record<string, string | ServerActionInfo>
+  clientRefs?: string[]
+  clientEntryType?: 'cjs' | 'auto'
+  isClientRef?: boolean
+  requests?: string[] // client requests in flight client entry
+}
+
+export interface RouteMeta {
+  page: string
+  absolutePagePath: string
+  preferredRegion: string | string[] | undefined
+  middlewareConfig: ProxyConfig
+  // references to other modules that this route needs
+  // e.g. related routes, not-found routes, etc
+  relatedModules?: string[]
+}
+
+export interface EdgeMiddlewareMeta {
+  page: string
+  matchers?: ProxyMatcher[]
+}
+
+export interface EdgeSSRMeta {
+  isServerComponent: boolean
+  isAppDir?: boolean
+  page: string
+}
+
+export interface AssetBinding {
+  filePath: string
+  name: string
+}

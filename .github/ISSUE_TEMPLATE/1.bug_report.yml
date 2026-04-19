@@ -1,0 +1,154 @@
+name: Report an issue
+description: Report a Next.js issue.
+type: Bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This template is used for reporting a Next.js issue. [Example](https://github.com/vercel/next.js/tree/canary/examples)-related issues should be reported using [this](https://github.com/vercel/next.js/issues/new?assignees=&labels=type%3A+example%2Ctemplate%3A+bug&template=2.example_bug_report.yml) issue template instead.
+
+        Feature requests should be opened in [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas). For more information about opening a feature request, [read more](https://github.com/vercel/next.js/blob/canary/contributing/core/adding-features.md).
+
+        Documentation requests should also be opened in [discussions](https://github.com/vercel/next.js/discussions/new?category=ideas).
+
+        Before opening a new issue, please do a [search](https://github.com/vercel/next.js/issues) of existing issues and :+1: upvote the existing issue instead. This will result in a quicker resolution.
+
+        If you need help with your own project, you can:
+        - Start a discussion in the ["Help"](https://github.com/vercel/next.js/discussions/categories/help) section.
+        - Ask a question in [Vercel Community](https://vercel.community/tags/c/help/9/nextjs).
+  - type: input
+    attributes:
+      label: Link to the code that reproduces this issue
+      description: |
+        A link to a **public** [GitHub repository](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) or a [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template) minimal reproduction. Minimal reproductions should be created from our [bug report template with `npx create-next-app -e reproduction-template`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template) and should include only changes that contribute to the issue. To report a Pages Router related issue, you can use these templates: [`npx create-next-app -e reproduction-template-pages`](https://github.com/vercel/next.js/tree/canary/examples/reproduction-template-pages) or [CodeSandbox](https://codesandbox.io/p/sandbox/github/vercel/next.js/tree/canary/examples/reproduction-template-pages).
+
+        If you decide to create your own minimal reproduction, please make sure test on canary. It is highly likely that the issue you are experiencing is already fixed in the canary version.
+
+        **Skipping this/providing an invalid link will result in the issue being closed.**
+      placeholder: 'https://github.com/user/my-minimal-nextjs-issue-reproduction'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: To Reproduce
+      description: A step-by-step description of how to reproduce the issue, based on the linked reproduction. Screenshots can be provided in the issue body below. If using code blocks, make sure that [syntax highlighting is correct](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) and double check that the rendered preview is not broken.
+      placeholder: |
+        1. Start the application in development (next dev)
+        2. Click X
+        3. Y will happen
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Current vs. Expected behavior
+      description: |
+        A clear and concise description of what the bug is (e.g., screenshots, logs, etc.), and what you expected to happen.
+
+        **Skipping this/failure to provide complete information of the bug will result in the issue being closed.**
+      placeholder: 'Following the steps from the previous section, I expected A to happen, but I observed B instead.'
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Provide environment information
+      description: Please run `next info` in the root directory of your project and paste the results. You might need to use `npx --no-install next info` if next is not in the current PATH.
+      render: bash
+      placeholder: |
+        Operating System:
+          Platform: darwin
+          Arch: arm64
+          Version: Darwin Kernel Version 23.6.0
+        Binaries:
+          Node: 20.17.0
+          npm: 10.8.2
+          Yarn: 1.22.22
+          pnpm: 9.10.0
+        Relevant Packages:
+          next: 15.0.0-canary.148
+          eslint-config-next: 15.0.0-canary.148
+          react: 19.0.0-rc-3dfd5d9e-20240910
+          react-dom: 19.0.0-rc-3dfd5d9e-20240910
+          typescript: 5.6.2
+        Next.js Config:
+          output: N/A
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Which area(s) are affected? (Select all that apply)
+      multiple: true
+      options:
+        - 'Not sure'
+        - 'After'
+        - 'Connection'
+        - 'Cookies'
+        - 'create-next-app'
+        - 'CSS'
+        - 'Draft Mode'
+        - 'cacheComponents'
+        - 'Dynamic Routes'
+        - 'Error Handling'
+        - 'Error Overlay'
+        - 'Headers'
+        - 'Lazy Loading'
+        - 'Font (next/font)'
+        - 'Form (next/form)'
+        - 'Image (next/image)'
+        - 'Instrumentation'
+        - 'Internationalization (i18n)'
+        - 'Linking and Navigating'
+        - 'Linting'
+        - 'Loading UI and Streaming'
+        - 'Markdown (MDX)'
+        - 'Metadata'
+        - 'Middleware'
+        - 'Module Resolution'
+        - 'Not Found'
+        - 'Output'
+        - 'Pages Router'
+        - 'Parallel & Intercepting Routes'
+        - 'Partial Prerendering (PPR)'
+        - 'Performance'
+        - 'React'
+        - 'Redirects'
+        - 'Route Groups'
+        - 'Route Handlers'
+        - 'Runtime'
+        - 'Script (next/script)'
+        - 'Server Actions'
+        - 'Testing'
+        - 'Turbopack'
+        - 'TypeScript'
+        - 'SWC'
+        - 'Use Cache'
+        - 'Webpack'
+
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Which stage(s) are affected? (Select all that apply)
+      multiple: true
+      options:
+        - 'next dev (local)'
+        - 'next build (local)'
+        - 'next start (local)'
+        - 'Vercel (Deployed)'
+        - 'Other (Deployed)'
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: |
+        Another way you can help the maintainers' job is to pinpoint the `canary` version of `next` that introduced the issue. Check out our [releases](https://github.com/vercel/next.js/releases), and try to find the first `canary` release that introduced the issue. This will help us narrow down the scope of the issue, and possibly point to the PR/code change that introduced it. You can install a specific version of `next` by running `npm install next@<version>`.
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: |
+        Any extra information that might help us investigate. For example, where are you deploying your application (Vercel, Docker, other platform)? Is it only reproducible on that platform, or locally too? Is the issue only happening in a specific browser? etc.
+      placeholder: |
+        I tested my reproduction against different canary releases, and the first one that introduced the bug was "15.0.0-canary.148", since reverting to "15.0.0-canary.147" works.
+
+        or
+
+        I am hosting via Docker with the recommended `output: "standalone"` option, and if I remove that option or try a different hosting option, I cannot reproduce the same issue.

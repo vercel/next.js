@@ -1,0 +1,13 @@
+  x You're importing `experimental_taintObjectReference` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/
+  | next-config-js/taint
+   ,-[input.js:1:1]
+ 1 | import { experimental_taintObjectReference } from 'react'
+   :          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----
+  x You're importing `experimental_taintUniqueValue` from React which requires `experimental.taint: true` in your Next.js config. Learn more: https://nextjs.org/docs/app/api-reference/config/next-
+  | config-js/taint
+   ,-[input.js:3:1]
+ 2 | 
+ 3 | import { experimental_taintUniqueValue } from 'react'
+   :          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   `----

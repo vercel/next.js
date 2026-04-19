@@ -1,0 +1,4 @@
+.name {
+  composes: base from '../base-scss.module.scss';
+  color: rgb(0, 128, 128);
+}

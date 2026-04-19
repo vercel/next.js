@@ -1,0 +1,48 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'bench/*'
+  - 'crates/*/js'
+  - 'turbopack/crates/*/js'
+  - 'turbopack/crates/turbopack-tests/tests/execution'
+  - 'turbopack/packages/*'
+updateNotifier: false
+publicHoistPattern:
+  - '*eslint*'
+allowBuilds:
+  '@ast-grep/cli': true
+ignoredBuiltDependencies:
+  - '@datadog/native-appsec'
+  - '@datadog/native-metrics'
+  - '@datadog/pprof'
+  - '@swc/core'
+  - '@tailwindcss/oxide'
+  - core-js
+  - cpu-features
+  - dd-trace
+  - esbuild
+  - msw
+  - nx
+  - playwright-chromium
+  - protobufjs
+  - sharp
+  - ssh2
+  - unrs-resolver
+  - wasm-pack
+# Keep security related settings in sync with pnpm-workspace.yaml written to
+# temporary fixture dirs in file://./scripts/install-native.mjs
+blockExoticSubdeps: true
+minimumReleaseAge: 2880 # 48 hrs
+minimumReleaseAgeExclude:
+  - '@next/*'
+  - '@turbo/*'
+  - '@vercel/*'
+  - '@workflow/*'
+  - babel-plugin-react-compiler
+  - next
+  - react
+  - react-dom
+  - react-is
+  - react-server-dom-*
+  - scheduler
+  - turbo

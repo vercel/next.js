@@ -1,0 +1,17 @@
+---
+title: '`placeholder=blur` without `blurDataURL`'
+---
+
+## Why This Error Occurred
+
+You are attempting use the `next/image` component with `placeholder=blur` property but no `blurDataURL` property.
+
+The `blurDataURL` might be missing because you're using a string for `src` instead of a static import.
+
+Or `blurDataURL` might be missing because the static import is an unsupported image format. Only jpg, png, webp, and avif are supported at this time, though animated images are not supported.
+
+## Possible Ways to Fix It
+
+- Add a [`blurDataURL`](/docs/pages/api-reference/components/image#blurdataurl) property, the contents should be a small Data URL to represent the image
+- Change the [`src`](/docs/pages/api-reference/components/image#src) property to a static import with one of the supported file types: jpg, png, webp, or avif (animated images not supported)
+- Remove the [`placeholder`](/docs/pages/api-reference/components/image#placeholder) property, effectively no blur effect

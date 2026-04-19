@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@formatjs/intl-localematcher": "0.5.7",
+    "negotiator": "1.0.0",
+    "next": "latest",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/negotiator": "0.6.3",
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.0.23",
+    "@types/react-dom": "^18.0.7",
+    "typescript": "^5.6.3"
+  }
+}

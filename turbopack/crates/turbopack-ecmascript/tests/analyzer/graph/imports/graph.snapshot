@@ -1,0 +1,49 @@
+[
+    (
+        "aa",
+        Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "x2",
+                    annotations: None,
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "a",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "xx",
+        Member(
+            3,
+            Module(
+                ModuleValue {
+                    module: "x1",
+                    annotations: None,
+                },
+            ),
+            Constant(
+                Str(
+                    Atom(
+                        "default",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "yy",
+        Module(
+            ModuleValue {
+                module: "x3",
+                annotations: None,
+            },
+        ),
+    ),
+]

@@ -1,0 +1,24 @@
+{
+  "name": "bench-production",
+  "version": "1.0.0",
+  "description": "Scripts for benchmarking in production.",
+  "main": "bench.js",
+  "type": "module",
+  "scripts": {
+    "bench": "node bench.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@szmarczak/http-timer": "5.0.1",
+    "asciichart": "1.5.25",
+    "commander": "2.20.0",
+    "dotenv": "10.0.0",
+    "downsample-lttb": "0.0.1",
+    "listr2": "5.0.8",
+    "p-queue": "7.3.0",
+    "term-size": "3.0.2",
+    "webpack-bundle-analyzer": "^4.6.1",
+    "webpack-stats-plugin": "^1.1.0"
+  }
+}

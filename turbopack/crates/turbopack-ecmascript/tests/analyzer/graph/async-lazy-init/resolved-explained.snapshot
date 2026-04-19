@@ -1,0 +1,11 @@
+computeAsyncValue = (...) => Promise<"async result">
+
+ensureAsyncProcessStarted = (...) => lasyInitAsyncProcess
+
+getLasyInitAsyncValue = (...) => lasyInitAsyncValue
+
+initLasyInitAsyncProcess = (...) => Promise<undefined>
+
+lasyInitAsyncProcess = (null | Promise<undefined>)
+
+lasyInitAsyncValue = (null | Promise<"async result">)

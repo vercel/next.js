@@ -1,0 +1,49 @@
+---
+title: Request-time API was called outside request
+---
+
+## Why This Error Occurred
+
+A Request-time API was called outside a request scope. (Eg.: Global scope).
+
+Note that Request-time APIs could have been called deep inside other modules/functions (eg.: third-party libraries) that are not immediately visible.
+
+## Possible Ways to Fix It
+
+Make sure that all Request-time API calls happen in a request scope.
+
+Example:
+
+```diff filename="app/page.js"
+import { cookies } from 'next/headers'
+
+- const cookieStore = await cookies()
+export default async function Page() {
++ const cookieStore = await cookies()
+  return ...
+}
+```
+
+```diff filename="app/foo/route.js"
+import { headers } from 'next/headers'
+
+- const headersList = await headers()
+export async function GET() {
++ const headersList = await headers()
+  return ...
+}
+```
+
+## `generateStaticParams`
+
+Request-time APIs like `headers()`, `cookies()`, `connection()`, and `draftMode()` are not available inside `generateStaticParams` because it runs at build time to determine which pages to statically generate. There is no HTTP request in this context.
+
+Note: Root param getters (`import { lang } from 'next/root-params'`) _are_ supported inside `generateStaticParams` for nested segments, as the parent params are known at that point.
+
+## Useful Links
+
+- [`headers()` function](/docs/app/api-reference/functions/headers)
+- [`cookies()` function](/docs/app/api-reference/functions/cookies)
+- [`draftMode()` function](/docs/app/api-reference/functions/draft-mode)
+- [`unstable_noStore()` function](/docs/app/api-reference/functions/unstable_noStore)
+- [`unstable_cache()` function](/docs/app/api-reference/functions/unstable_cache)

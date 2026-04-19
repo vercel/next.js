@@ -1,0 +1,16 @@
+---
+title: No Cache Detected
+---
+
+## Why This Error Occurred
+
+A Next.js build was triggered in a continuous integration environment, but no cache was detected.
+
+This results in slower builds and can hurt Next.js' filesystem cache of client-side bundles across builds.
+
+## Possible Ways to Fix It
+
+> **Note**: If this is a new project, or being built for the first time in your CI, you can ignore this error.
+> However, you'll want to make sure it doesn't continue to happen and fix it if it does!
+
+Follow the instructions in [CI Build Caching](/docs/pages/guides/ci-build-caching) to ensure your Next.js cache is persisted between builds.

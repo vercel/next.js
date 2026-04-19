@@ -1,0 +1,90 @@
+---
+title: Invalid Page / API Route Config
+---
+
+## Why This Error Occurred
+
+In one of your pages or API Routes, you used `export const config` with an invalid value.
+
+## Possible Ways to Fix It
+
+- The page's `config` must be an object initialized directly when being exported and not modified dynamically.
+- The `config` object must only contain static constant literals without expressions.
+
+<table>
+<thead>
+  <tr>
+    <th>Not Allowed</th>
+    <th>Allowed</th>
+  </tr>
+</thead>
+<tbody>
+
+<tr>
+<td>
+
+```js
+// `config` should be an object
+export const config = 'hello world'
+```
+
+</td>
+<td>
+
+```js
+export const config = {}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```js
+// `config.runtime` contains a dynamic expression
+export const config = {
+  runtime: `node${'js'}`,
+}
+```
+
+</td>
+<td>
+
+```js
+export const config = {
+  runtime: 'nodejs',
+}
+export const config = {
+  runtime: `edge`,
+}
+```
+
+</td>
+</tr>
+
+<tr>
+<td>
+
+```js
+// Re-exported `config` is not allowed
+export { config } from '../config'
+```
+
+</td>
+<td>
+
+```js
+export const config = {}
+```
+
+</td>
+</tr>
+
+</tbody>
+</table>
+
+## Useful Links
+
+- [API Routes Request Helpers](/docs/pages/building-your-application/routing/api-routes)
+- [Edge Runtime](/docs/app/api-reference/edge)

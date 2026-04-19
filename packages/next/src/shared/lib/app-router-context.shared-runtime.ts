@@ -1,0 +1,103 @@
+'use client'
+
+import type {
+  FocusAndScrollRef,
+  PrefetchKind,
+} from '../../client/components/router-reducer/router-reducer-types'
+import type { Params } from '../../server/request/params'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+  CacheNode,
+  LoadingModuleData,
+} from './app-router-types'
+import React from 'react'
+
+export interface NavigateOptions {
+  scroll?: boolean
+  /**
+   * Transition types to apply when navigating. These types are passed to
+   * [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType)
+   * inside the navigation transition, enabling
+   * [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components
+   * to apply different animations based on the type of navigation.
+   */
+  transitionTypes?: string[]
+}
+
+export interface PrefetchOptions {
+  kind: PrefetchKind
+  onInvalidate?: () => void
+}
+
+export interface AppRouterInstance {
+  /**
+   * Navigate to the previous history entry.
+   */
+  back(): void
+  /**
+   * Navigate to the next history entry.
+   */
+  forward(): void
+  /**
+   * Refresh the current page.
+   */
+  refresh(): void
+  /**
+   * Refresh the current page. Use in development only.
+   * @internal
+   */
+  hmrRefresh(): void
+  /**
+   * Navigate to the provided href.
+   * Pushes a new history entry.
+   */
+  push(href: string, options?: NavigateOptions): void
+  /**
+   * Navigate to the provided href.
+   * Replaces the current history entry.
+   */
+  replace(href: string, options?: NavigateOptions): void
+  /**
+   * Prefetch the provided href.
+   */
+  prefetch(href: string, options?: PrefetchOptions): void
+  /**
+   * Perform a gesture navigation using prefetched data.
+   * Only available when experimental.gestureTransition is enabled.
+   * @experimental
+   */
+  experimental_gesturePush?(href: string, options?: NavigateOptions): void
+}
+
+export const AppRouterContext = React.createContext<AppRouterInstance | null>(
+  null
+)
+export const LayoutRouterContext = React.createContext<{
+  parentTree: FlightRouterState
+  parentCacheNode: CacheNode
+  parentSegmentPath: FlightSegmentPath | null
+  parentParams: Params
+  parentLoadingData: LoadingModuleData | null
+  debugNameContext: string
+  url: string
+  isActive: boolean
+} | null>(null)
+
+export const GlobalLayoutRouterContext = React.createContext<{
+  tree: FlightRouterState
+  focusAndScrollRef: FocusAndScrollRef
+  nextUrl: string | null
+  previousNextUrl: string | null
+}>(null as any)
+
+export const TemplateContext = React.createContext<React.ReactNode>(null as any)
+
+if (process.env.NODE_ENV !== 'production') {
+  AppRouterContext.displayName = 'AppRouterContext'
+  LayoutRouterContext.displayName = 'LayoutRouterContext'
+  GlobalLayoutRouterContext.displayName = 'GlobalLayoutRouterContext'
+  TemplateContext.displayName = 'TemplateContext'
+}
+
+export const MissingSlotContext = React.createContext<Set<string>>(new Set())

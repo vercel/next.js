@@ -1,0 +1,46 @@
+.chips {
+  padding: 12px 0;
+  text-align: center;
+}
+
+a.chip {
+  display: inline-block;
+  background: #e0e0e0;
+  color: #333;
+  text-decoration: none;
+  padding: 0 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin: 0 5px 3px 0;
+}
+
+a.chip:hover {
+  background: #ccc;
+}
+
+.chip_remove {
+  display: inline-block;
+  background: #aaa;
+  border: 0;
+  height: 15px;
+  width: 15px;
+  border-radius: 50%;
+  padding: 0;
+  margin: 0 -10px 0 5px;
+  cursor: pointer;
+  font: inherit;
+  line-height: 15px;
+}
+
+.chip_remove:after {
+  color: #333;
+  content: "x";
+}
+
+.chip_remove:hover {
+  background: #999;
+}
+
+.chip_remove:active {
+  background: #777;
+}

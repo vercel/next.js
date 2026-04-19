@@ -1,0 +1,159 @@
+h2,
+h3 {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+code {
+  background-color: rgba(255, 229, 100, 0.2);
+  padding: 0 3px;
+  font-size: 0.94em;
+  word-break: break-word;
+}
+
+sub {
+  color: rgba(0, 0, 0, 0.47);
+}
+
+.header {
+  padding: 8px 0;
+  margin-bottom: 12px;
+  max-width: 70%;
+}
+
+.subheader {
+  font-size: 16px;
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+
+.layout {
+  position: relative;
+  max-width: 75%;
+  margin: 36px auto 0;
+}
+
+.nav {
+  margin: 12px auto 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.nav .nav-link {
+  text-decoration: none;
+  cursor: pointer;
+  padding: 12px;
+  color: #000000;
+  border: 2px solid #777777;
+  border-bottom: none;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+.nav .nav-link.active {
+  text-decoration: none;
+  cursor: pointer;
+  padding: 12px;
+  color: #fff;
+  background-color: #777777;
+  border: 2px solid #777777;
+  border-bottom: none;
+  border-top-left-radius: 4px;
+  border-top-right-radius: 4px;
+}
+
+.toggler {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.cache-option-toggler {
+  position: absolute;
+  top: 24px;
+  right: 0;
+  background-color: #2d357a;
+  color: #fff;
+  border-radius: 4px;
+  padding: 8px 16px 12px;
+  border: 1px solid black;
+}
+
+.cache-option-toggler h4 {
+  margin: 8px auto 16px;
+  font-weight: 500;
+}
+
+.cache-option-toggler select {
+  cursor: pointer;
+  padding: 4px;
+}
+
+.body {
+  min-height: 48vh;
+  border: 2px solid #777777;
+  padding: 12px 24px;
+  border-radius: 4px;
+}
+
+.form {
+  margin-top: 20px;
+  max-width: 300px;
+}
+
+.form-control {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.form-control.checkbox {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.form-control label {
+  font-weight: 500;
+}
+
+.form-control input {
+  margin-top: 8px;
+  font-size: 18px;
+}
+
+.form button[type="submit"] {
+  padding: 8px 12px;
+  font-size: 16px;
+  cursor: pointer;
+  background-color: #ff5d22;
+  border-radius: 4px;
+  border: none;
+  color: #fff;
+}
+
+.toggle-button {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: #ff5d22;
+  color: #fff;
+  border-radius: 4px;
+  border: none;
+}
+
+.visitor-data {
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+.visitor-data .details {
+  max-height: 200px;
+  overflow: scroll;
+}
+
+.clear-cache-button {
+  cursor: pointer;
+}
