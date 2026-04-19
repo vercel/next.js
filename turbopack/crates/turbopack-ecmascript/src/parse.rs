@@ -390,6 +390,10 @@ async fn parse_file_content(
             .to_string()
             .into();
             ReadSourceIssue {
+                // Technically we could supply byte offsets to the issue source, but
+                // that would cause another utf8 error to be produced when we
+                // attempt to infer line/column
+                // offsets
                 source: IssueSource::from_source_only(source),
                 error: error.clone(),
                 severity: if loose_errors {
@@ -759,10 +763,11 @@ pub async fn parse_from_rope(
     transforms: ResolvedVc<EcmascriptInputTransforms>,
     node_env: RcStr,
 ) -> Result<Vc<ParseResult>> {
-    let fs_path = source.ident().path().owned().await?;
-    let ident = &*source.ident().to_string().await?;
+    let ident_vc = source.ident();
+    let fs_path = ident_vc.path().owned().await?;
+    let ident = &*ident_vc.to_string().await?;
     let file_path_hash = hash_xxh3_hash64(ident) as u128;
-    let query = source.ident().await?.query.clone();
+    let query = ident_vc.await?.query.clone();
     let transforms = &*transforms.await?;
     parse_file_content(
         rope,
