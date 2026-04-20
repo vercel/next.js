@@ -13,6 +13,7 @@ import type AppPageRouteModule from '../route-modules/app-page/module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { isHangingPromiseRejectionError } from '../dynamic-rendering-utils'
 
 // Helper to create LoaderTree structures for testing
 type TestLoaderTree = [
@@ -693,6 +694,7 @@ describe('output export fallback params consumers', () => {
       reactServerErrorsByDigest: new Map(),
     } as any
 
+    const controller = new AbortController()
     const prerenderStore = {
       type: 'prerender',
       phase: 'render',
@@ -701,8 +703,8 @@ describe('output export fallback params consumers', () => {
       expire: 0,
       stale: 0,
       tags: null,
-      renderSignal: new AbortController().signal,
-      controller: new AbortController(),
+      renderSignal: controller.signal,
+      controller,
       cacheSignal: null,
       dynamicTracking: null,
       rootParams: underlyingParams,
@@ -727,6 +729,25 @@ describe('output export fallback params consumers', () => {
         expect(serverParams).not.toBe(clientParams)
         expect(() => serverParams.then(() => null)).toThrow('output: export')
         expect(() => clientParams.then(() => null)).not.toThrow()
+
+        const clientOutcome = await Promise.race([
+          clientParams.then(
+            () => 'resolved',
+            () => 'rejected'
+          ),
+          new Promise<'pending'>((resolve) =>
+            setTimeout(() => resolve('pending'))
+          ),
+        ])
+        expect(clientOutcome).toBe('pending')
+
+        controller.abort()
+        try {
+          await clientParams
+          throw new Error('Expected client params to reject after abort')
+        } catch (error) {
+          expect(isHangingPromiseRejectionError(error)).toBe(true)
+        }
       })
     })
   })
