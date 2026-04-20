@@ -8,7 +8,6 @@ module.exports = function actionInfo() {
     ISSUE_ID,
     SKIP_CLONE,
     GITHUB_REF,
-    GITHUB_SHA,
     LOCAL_STATS,
     GIT_ROOT_DIR,
     GITHUB_ACTION,
@@ -56,9 +55,6 @@ module.exports = function actionInfo() {
     prRef: GITHUB_REF,
     isLocal: LOCAL_STATS,
     commitId: null,
-    // Mirrors github.event.after || github.sha used by build_and_deploy.yml
-    // to ensure the tarball URL matches the deployed artifact.
-    githubHeadSha: GITHUB_SHA || null,
     issueId: ISSUE_ID,
     isRelease:
       GITHUB_REPOSITORY === 'vercel/next.js' &&
@@ -73,10 +69,6 @@ module.exports = function actionInfo() {
   if (GITHUB_EVENT_PATH) {
     const event = require(GITHUB_EVENT_PATH)
     info.actionName = event.action || info.actionName
-
-    if (event.after) {
-      info.githubHeadSha = event.after
-    }
 
     if (releaseTypes.has(info.actionName)) {
       info.isRelease = true
