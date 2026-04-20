@@ -11,6 +11,10 @@ bench = false
 
 [dependencies]
 
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
+libmimalloc-sys = { version = "0.1.44", features = [
+  "extended",
+], optional = true }
 
 [target.'cfg(not(any(target_os = "linux", target_family = "wasm")))'.dependencies]
 mimalloc = { version = "0.1.48", features = [
@@ -26,5 +30,5 @@ mimalloc = { version = "0.1.48", features = [
 ], optional = true }
 
 [features]
-custom_allocator = ["dep:mimalloc"]
+custom_allocator = ["dep:mimalloc", "dep:libmimalloc-sys"]
 default = ["custom_allocator"]

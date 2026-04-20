@@ -223,7 +223,6 @@ export const experimentalSchema = {
   partialFallbacks: z.boolean().optional(),
   dynamicOnHover: z.boolean().optional(),
   useOffline: z.boolean().optional(),
-  unstableIO: z.boolean().optional(),
   optimisticRouting: z.boolean().optional(),
   varyParams: z.boolean().optional(),
   prefetchInlining: z
@@ -527,8 +526,12 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useLightningcss: z.boolean().optional(),
           }),
         ]),
-        define: z.record(z.string(), z.string()).optional(),
-        defineServer: z.record(z.string(), z.string()).optional(),
+        define: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+          .optional(),
+        defineServer: z
+          .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+          .optional(),
         runAfterProductionCompile: z
           .function()
           .returns(z.promise(z.void()))

@@ -268,6 +268,7 @@ pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     is_external_tracing: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -277,9 +278,16 @@ pub async fn parse(
         ty = display(&ty)
     );
 
-    match parse_internal(source, ty, transforms, is_external_tracing, inline_helpers)
-        .instrument(span)
-        .await
+    match parse_internal(
+        source,
+        ty,
+        transforms,
+        node_env,
+        is_external_tracing,
+        inline_helpers,
+    )
+    .instrument(span)
+    .await
     {
         Ok(result) => Ok(result),
         // ast-grep-ignore: no-context-turbofmt
@@ -291,6 +299,7 @@ async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -336,6 +345,7 @@ async fn parse_internal(
                             source,
                             ty,
                             transforms,
+                            node_env.clone(),
                             loose_errors,
                             inline_helpers,
                         )
@@ -396,6 +406,7 @@ async fn parse_file_content(
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
+    node_env: RcStr,
     loose_errors: bool,
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
@@ -552,6 +563,7 @@ async fn parse_file_content(
                 query_str: query,
                 file_path: fs_path.clone(),
                 source,
+                node_env,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -593,7 +605,6 @@ async fn parse_file_content(
                 top_level_mark,
                 Arc::new(var_with_ts_declare),
                 Some(&comments),
-                Some(source),
             );
 
             let (comments, source_mapping_url) =

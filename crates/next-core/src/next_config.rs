@@ -22,7 +22,7 @@ use turbopack::module_options::{
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
+    chunk::{CrossOrigin, SourceMapsType},
     issue::{
         IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
@@ -112,7 +112,7 @@ pub struct NextConfig {
     skip_proxy_url_normalize: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
-    cross_origin: Option<CrossOriginConfig>,
+    cross_origin: CrossOrigin,
     dev_indicators: Option<DevIndicatorsConfig>,
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
@@ -179,28 +179,6 @@ impl NextConfig {
         new.cell()
     }
 }
-
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum CrossOriginConfig {
-    Anonymous,
-    UseCredentials,
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
 
 #[derive(
     Clone,
@@ -1111,6 +1089,10 @@ pub struct ExperimentalConfig {
     root_params: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
+
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
 
     // ---
     // UNSUPPORTED
@@ -2302,8 +2284,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
-        Vc::cell(self.cross_origin.clone())
+    pub fn cross_origin(&self) -> Vc<CrossOrigin> {
+        *self.cross_origin.resolved_cell()
     }
 
     #[turbo_tasks::function]
@@ -2370,6 +2352,16 @@ impl NextConfig {
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(Vc::cell(rules))
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_hash_salt(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.experimental
+                .output_hash_salt
+                .clone()
+                .unwrap_or_default(),
+        )
     }
 }
 

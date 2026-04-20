@@ -40,9 +40,6 @@ export type NextConfigComplete = Required<Omit<NextConfig, 'configFile'>> & {
   // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
   // traverse into the output directory.
   distDirRoot: string
-  // Pre-computed effective hash salt: experimental.outputHashSalt (from config)
-  // concatenated with NEXT_HASH_SALT (from env). Used by both Webpack and Turbopack.
-  hashSalt: string
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -430,7 +427,6 @@ export interface ExperimentalConfig {
   partialFallbacks?: boolean
   dynamicOnHover?: boolean
   useOffline?: boolean
-  unstableIO?: boolean
   optimisticRouting?: boolean
   varyParams?: boolean
   prefetchInlining?:
@@ -1557,13 +1553,13 @@ export interface NextConfig {
      * Replaces variables in your code during compile time. Each key will be
      * replaced with the respective values.
      */
-    define?: Record<string, string>
+    define?: Record<string, string | number | boolean>
 
     /**
      * Replaces server-only (Node.js and Edge) variables in your code during compile time.
      * Each key will be replaced with the respective values.
      */
-    defineServer?: Record<string, string>
+    defineServer?: Record<string, string | number | boolean>
 
     /**
      * A hook function that executes after production build compilation finishes,
@@ -1844,9 +1840,8 @@ export const defaultConfig = Object.freeze({
     partialFallbacks: true,
     dynamicOnHover: false,
     useOffline: false,
-    unstableIO: false,
     varyParams: false,
-    prefetchInlining: false,
+    prefetchInlining: true,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
     clientRouterFilterRedirects: false,
@@ -1991,7 +1986,6 @@ export interface NextConfigRuntime {
     | 'staleTimes'
     | 'dynamicOnHover'
     | 'useOffline'
-    | 'unstableIO'
     | 'optimisticRouting'
     | 'inlineCss'
     | 'prefetchInlining'
@@ -2059,7 +2053,6 @@ export function getNextConfigRuntime(
         staleTimes: ex.staleTimes,
         dynamicOnHover: ex.dynamicOnHover,
         useOffline: ex.useOffline,
-        unstableIO: ex.unstableIO,
         optimisticRouting: ex.optimisticRouting,
         inlineCss: ex.inlineCss,
         prefetchInlining: ex.prefetchInlining,
