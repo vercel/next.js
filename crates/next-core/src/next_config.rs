@@ -592,6 +592,11 @@ pub struct TurbopackConfig {
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
+    /// Custom URL prefix for Web Worker assets, overriding `assetPrefix` for
+    /// worker entrypoints and their module chunks. Mirrors webpack's
+    /// `output.workerPublicPath`. When unset, Worker URLs use the regular
+    /// chunk base path (backward compatible).
+    pub worker_public_path: Option<RcStr>,
     /// Issue patterns to ignore (suppress) from Turbopack output.
     #[serde(default)]
     pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
@@ -2270,6 +2275,15 @@ impl NextConfig {
                 .as_ref()
                 .and_then(|turbopack| turbopack.debug_ids)
                 .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_worker_public_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(
+            self.turbopack
+                .as_ref()
+                .and_then(|turbopack| turbopack.worker_public_path.clone()),
         )
     }
 

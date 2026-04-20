@@ -103,6 +103,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn worker_public_path(mut self, worker_public_path: Option<RcStr>) -> Self {
+        self.chunking_context.worker_public_path = worker_public_path;
+        self
+    }
+
     pub fn asset_suffix(mut self, asset_suffix: ResolvedVc<AssetSuffix>) -> Self {
         self.chunking_context.asset_suffix = Some(asset_suffix);
         self
@@ -267,6 +272,12 @@ pub struct BrowserChunkingContext {
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: Option<RcStr>,
+    /// Base path for Web Worker entrypoints and their module chunks. When set,
+    /// overrides `chunk_base_path` for URLs loaded via `new Worker(...)`.
+    /// Mirrors webpack's `output.workerPublicPath`. Primary use case: keep
+    /// Workers same-origin when `chunk_base_path`/`assetPrefix` points to a
+    /// cross-origin CDN (browsers reject cross-origin Worker construction).
+    worker_public_path: Option<RcStr>,
     /// Suffix that will be appended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     asset_suffix: Option<ResolvedVc<AssetSuffix>>,
@@ -355,6 +366,7 @@ impl BrowserChunkingContext {
                 asset_root_path,
                 asset_root_paths: Default::default(),
                 chunk_base_path: None,
+                worker_public_path: None,
                 asset_suffix: None,
                 asset_base_path: None,
                 asset_base_paths: Default::default(),
@@ -467,6 +479,13 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn chunk_base_path(&self) -> Vc<Option<RcStr>> {
         Vc::cell(self.chunk_base_path.clone())
+    }
+
+    /// Returns the worker public path override. When set, takes precedence
+    /// over `chunk_base_path` for Worker entrypoint and module chunk URLs.
+    #[turbo_tasks::function]
+    pub fn worker_public_path(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.worker_public_path.clone())
     }
 
     /// Returns the asset suffix path.

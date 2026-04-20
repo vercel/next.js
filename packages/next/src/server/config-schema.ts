@@ -176,6 +176,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
   resolveExtensions: z.array(z.string()).optional(),
   root: z.string().optional(),
   debugIds: z.boolean().optional(),
+  workerPublicPath: z.string().optional(),
   ignoreIssue: z
     .array(
       z.object({

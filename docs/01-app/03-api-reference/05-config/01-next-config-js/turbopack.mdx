@@ -44,13 +44,14 @@ module.exports = nextConfig
 
 The following options are available for the `turbopack` configuration:
 
-| Option              | Description                                                                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `root`              | Sets the application root directory. Should be an absolute path.                                                                         |
-| `rules`             | List of supported webpack loaders to apply when running with Turbopack.                                                                  |
-| `resolveAlias`      | Map aliased imports to modules to load in their place.                                                                                   |
-| `resolveExtensions` | List of extensions to resolve when importing files.                                                                                      |
-| `debugIds`          | Enable generation of [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in JavaScript bundles and source maps. |
+| Option              | Description                                                                                                                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `root`              | Sets the application root directory. Should be an absolute path.                                                                                                                                          |
+| `rules`             | List of supported webpack loaders to apply when running with Turbopack.                                                                                                                                   |
+| `resolveAlias`      | Map aliased imports to modules to load in their place.                                                                                                                                                    |
+| `resolveExtensions` | List of extensions to resolve when importing files.                                                                                                                                                       |
+| `debugIds`          | Enable generation of [debug IDs](https://github.com/tc39/ecma426/blob/main/proposals/debug-id.md) in JavaScript bundles and source maps.                                                                  |
+| `workerPublicPath`  | Custom URL prefix for Web Worker entrypoints and their module chunks, overriding [`assetPrefix`](/docs/app/api-reference/config/next-config-js/assetPrefix). Mirrors webpack's `output.workerPublicPath`. |
 
 ### Supported loaders
 
@@ -384,10 +385,26 @@ module.exports = {
 
 The option automatically adds a polyfill for debug IDs to the JavaScript bundle to ensure compatibility. The debug IDs are available in the `globalThis._debugIds` global variable.
 
+### Worker public path
+
+When [`assetPrefix`](/docs/app/api-reference/config/next-config-js/assetPrefix) points to a cross-origin CDN, Web Workers created via `new Worker(new URL(...))` fail to load because browsers reject cross-origin Worker construction. Use `workerPublicPath` to route Worker entrypoints and their module chunks through a same-origin prefix while keeping other assets on the CDN. This mirrors webpack's [`output.workerPublicPath`](https://webpack.js.org/configuration/output/#outputworkerpublicpath).
+
+```js filename="next.config.js"
+module.exports = {
+  assetPrefix: 'https://cdn.example.com',
+  turbopack: {
+    workerPublicPath: '/_next/',
+  },
+}
+```
+
+When unset, Worker URLs use the regular chunk base path (`assetPrefix`). Setting `workerPublicPath` only affects URLs loaded via `new Worker(...)`; other chunks, stylesheets, and static assets continue to use `assetPrefix`.
+
 ## Version History
 
 | Version  | Changes                                              |
 | -------- | ---------------------------------------------------- |
+| `16.3.0` | `turbopack.workerPublicPath` was added.              |
 | `16.2.0` | `turbopackLoader` import attributes were added.      |
 | `16.2.0` | `turbopack.rules.*.type` was added.                  |
 | `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |

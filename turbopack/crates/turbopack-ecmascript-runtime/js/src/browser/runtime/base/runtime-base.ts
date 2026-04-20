@@ -20,6 +20,12 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
+/**
+ * Custom URL prefix for Web Worker entrypoints and their module chunks.
+ * When non-empty, overrides CHUNK_BASE_PATH for URLs loaded via `new Worker(...)`.
+ * Mirrors webpack's `output.workerPublicPath`. Empty string means "use CHUNK_BASE_PATH".
+ */
+declare var WORKER_PUBLIC_PATH: string
 declare var ASSET_SUFFIX: string
 declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var WORKER_FORWARDED_GLOBALS: string[]
@@ -312,15 +318,28 @@ function createWorker(
 ): Worker {
   const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
 
+  // When `workerPublicPath` is set, route both the Worker entrypoint and its
+  // module chunks through that same-origin prefix instead of CHUNK_BASE_PATH.
+  // This mirrors webpack's `output.workerPublicPath` and is needed when
+  // `assetPrefix` points to a cross-origin CDN (browsers reject cross-origin
+  // Worker construction).
+  const workerBasePath =
+    typeof WORKER_PUBLIC_PATH === 'string' && WORKER_PUBLIC_PATH.length > 0
+      ? WORKER_PUBLIC_PATH
+      : CHUNK_BASE_PATH
+
   const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk))
+    .map((chunk) => getChunkRelativeUrl(chunk, workerBasePath))
     .reverse()
   const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
   for (const globalName of WORKER_FORWARDED_GLOBALS) {
     params.push((globalThis as Record<string, unknown>)[globalName])
   }
 
-  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
+  const url = new URL(
+    getChunkRelativeUrl(entrypoint, workerBasePath),
+    location.origin
+  )
   const paramsJson = JSON.stringify(params)
   if (isSharedWorker) {
     url.searchParams.set('params', paramsJson)
@@ -348,8 +367,11 @@ function instantiateRuntimeModule(
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
-function getChunkRelativeUrl(chunkPath: ChunkPath | ChunkListPath): ChunkUrl {
-  return `${CHUNK_BASE_PATH}${chunkPath
+function getChunkRelativeUrl(
+  chunkPath: ChunkPath | ChunkListPath,
+  basePath: string = CHUNK_BASE_PATH
+): ChunkUrl {
+  return `${basePath}${chunkPath
     .split('/')
     .map((p) => encodeURIComponent(p))
     .join('/')}${ASSET_SUFFIX}` as ChunkUrl
