@@ -480,14 +480,13 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    env:
-      NPM_TOKEN: ${{ secrets.NPM_TOKEN_ELEVATED }}
     steps:
       - name: Setup node
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version: 24
           check-latest: true
+          registry-url: 'https://registry.npmjs.org'
       - name: Setup corepack
         run: |
           npm i -g corepack@0.31
@@ -521,8 +520,6 @@ jobs:
           merge-multiple: true
           path: crates/wasm
 
-      - run: npm i -g npm@10.4.0 # need latest version for provenance (pinning to avoid bugs)
-      - run: echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
       - run: ./scripts/publish-native.js
       - run: ./scripts/publish-release.js
         env:
