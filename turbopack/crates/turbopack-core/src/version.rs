@@ -260,7 +260,7 @@ struct VersionRef(
     #[turbo_tasks(trace_ignore)] TraitRef<Box<dyn Version>>,
 );
 
-#[turbo_tasks::value(serialization = "session_stateful")]
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct VersionState {
     version: State<VersionRef>,
 }

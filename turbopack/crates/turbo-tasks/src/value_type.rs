@@ -41,12 +41,12 @@ pub enum ValueTypePersistence {
     /// task to reproduce the cell is preferred over serializing the in-memory
     /// form. Cells are evictable; the next reader after eviction triggers a
     /// recompute from the task's inputs. Maps to
-    /// `serialization = "skip" | "skip_expensive"`.
+    /// `serialization = "skip"` (plus an optional `evict` attribute).
     SkipPersist {
         /// Whether re-deriving this cell is non-trivial (e.g. WASM compile,
         /// spawning a Node process pool). Eviction policy may prefer
         /// evicting cheap cells first. True iff declared with
-        /// `serialization = "skip_expensive"`.
+        /// `serialization = "skip", evict = "last"`.
         expensive: bool,
     },
     /// The value type is not persisted, but the macro emitted a
@@ -58,7 +58,7 @@ pub enum ValueTypePersistence {
     /// that accumulates across the session (`State<>` cells, `Arc<Mutex<_>>`
     /// dedup histories). Re-running the producing task would lose the
     /// accumulated state, so cells of this type must stay in memory across
-    /// eviction. Maps to `serialization = "session_stateful"`.
+    /// eviction. Maps to `serialization = "skip", evict = "never"`.
     SessionStateful,
 }
 
@@ -138,7 +138,7 @@ impl ValueType {
     /// eviction policy may prefer evicting cheaper cells first.
     ///
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "skip_expensive"`.
+    /// `serialization = "skip", evict = "last"`.
     pub const fn skip_persist_expensive<T: VcValueType>(global_name: &'static str) -> Self {
         Self::new_inner::<T>(
             global_name,
@@ -162,7 +162,7 @@ impl ValueType {
     /// The storage layer must keep them in memory across eviction.
     ///
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
-    /// `serialization = "session_stateful"`.
+    /// `serialization = "skip", evict = "never"`.
     pub const fn session_stateful<T: VcValueType>(global_name: &'static str) -> Self {
         Self::new_inner::<T>(global_name, ValueTypePersistence::SessionStateful)
     }
@@ -442,10 +442,10 @@ mod tests {
     #[turbo_tasks::value(serialization = "hash")]
     struct HashValue(u32);
 
-    #[turbo_tasks::value(serialization = "skip_expensive")]
+    #[turbo_tasks::value(serialization = "skip", evict = "last")]
     struct SkipExpensiveValue(#[turbo_tasks(trace_ignore)] u32);
 
-    #[turbo_tasks::value(serialization = "session_stateful", cell = "new", eq = "manual")]
+    #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
     struct SessionStatefulValue;
 
     #[turbo_tasks::value]
@@ -482,7 +482,8 @@ mod tests {
                 vt.persistence,
                 ValueTypePersistence::SkipPersist { expensive: true },
             ),
-            "`serialization = \"skip_expensive\"` must map to SkipPersist {{ expensive: true }}"
+            "`serialization = \"skip\", evict = \"last\"` must map to SkipPersist {{ expensive: \
+             true }}"
         );
         assert!(!SkipExpensiveValue::has_serialization());
     }
@@ -492,7 +493,7 @@ mod tests {
         let vt = registry::get_value_type(SessionStatefulValue::get_value_type_id());
         assert!(
             matches!(vt.persistence, ValueTypePersistence::SessionStateful),
-            "`serialization = \"session_stateful\"` must map to \
+            "`serialization = \"skip\", evict = \"never\"` must map to \
              ValueTypePersistence::SessionStateful"
         );
         assert!(!SessionStatefulValue::has_serialization());
