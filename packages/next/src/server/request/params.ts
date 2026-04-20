@@ -558,6 +558,10 @@ function createRenderParamsInDev(
 
 interface CacheLifetime {}
 const CachedParams = new WeakMap<CacheLifetime, Promise<Params>>()
+const CachedErroringExportFallbackParams = new WeakMap<
+  CacheLifetime,
+  Promise<Params>
+>()
 
 const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
   get: function get(target, prop, receiver) {
@@ -615,7 +619,7 @@ function makeErroringExportFallbackParams(
   fallbackParams: OpaqueFallbackRouteParams,
   workStore: WorkStore
 ): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
+  const cachedParams = CachedErroringExportFallbackParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams
   }
@@ -639,7 +643,7 @@ function makeErroringExportFallbackParams(
       return ReflectAdapter.get(target, prop, receiver)
     },
   })
-  CachedParams.set(underlyingParams, promise)
+  CachedErroringExportFallbackParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {
     if (wellKnownProperties.has(prop)) {

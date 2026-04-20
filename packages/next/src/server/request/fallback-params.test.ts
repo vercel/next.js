@@ -4,9 +4,15 @@ import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
 } from './fallback-params'
+import {
+  createParamsFromClient,
+  createServerParamsForServerSegment,
+} from './params'
 import type { FallbackRouteParam } from '../../build/static-paths/types'
 import type AppPageRouteModule from '../route-modules/app-page/module'
 import type { LoaderTree } from '../lib/app-dir-module'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
 // Helper to create LoaderTree structures for testing
 type TestLoaderTree = [
@@ -658,6 +664,70 @@ describe('getFallbackRouteParams', () => {
 
       result = getFallbackRouteParams('/sidebar/is/real', routeModule)
       expect(result).toBeNull()
+    })
+  })
+})
+
+describe('output export fallback params consumers', () => {
+  it('does not reuse server erroring params promises for client consumers', async () => {
+    const fallbackParams = createOpaqueFallbackRouteParams([
+      { paramName: 'slug', paramType: 'dynamic' },
+    ])!
+    const underlyingParams = {
+      slug: fallbackParams.get('slug')![0],
+    }
+
+    const workStore = {
+      isStaticGeneration: true,
+      page: '/blog/[slug]/page',
+      route: '/blog/[slug]',
+      nextConfigOutput: 'export',
+      afterContext: {} as any,
+      previouslyRevalidatedTags: [],
+      refreshTagsByCacheKind: new Map(),
+      shouldTrackFetchMetrics: false,
+      buildId: 'build-id',
+      cacheComponentsEnabled: true,
+      runInCleanSnapshot: (fn: (...args: Array<any>) => any, ...args: any[]) =>
+        fn(...args),
+      reactServerErrorsByDigest: new Map(),
+    } as any
+
+    const prerenderStore = {
+      type: 'prerender',
+      phase: 'render',
+      implicitTags: {} as any,
+      revalidate: 0,
+      expire: 0,
+      stale: 0,
+      tags: null,
+      renderSignal: new AbortController().signal,
+      controller: new AbortController(),
+      cacheSignal: null,
+      dynamicTracking: null,
+      rootParams: underlyingParams,
+      prerenderResumeDataCache: null,
+      renderResumeDataCache: null,
+      hmrRefreshHash: undefined,
+      varyParamsAccumulator: null,
+      fallbackRouteParams: fallbackParams,
+      allowEmptyStaticShell: false,
+    } as any
+
+    await workAsyncStorage.run(workStore, async () => {
+      await workUnitAsyncStorage.run(prerenderStore, async () => {
+        const serverParams = createServerParamsForServerSegment(
+          underlyingParams,
+          null,
+          null,
+          false
+        )
+        const clientParams = createParamsFromClient(underlyingParams)
+
+        expect(serverParams).not.toBe(clientParams)
+        expect(() => serverParams.then(() => null)).toThrow('output: export')
+        expect(() => clientParams.then(() => null)).not.toThrow()
+      })
     })
   })
 })
