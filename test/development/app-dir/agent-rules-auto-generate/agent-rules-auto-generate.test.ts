@@ -11,6 +11,12 @@ describe('agent-rules auto-generate on next dev (agent detected)', () => {
   })
 
   it('creates AGENTS.md and CLAUDE.md at the project root when neither exists', async () => {
+    // A request is required to synchronize the test with the auto-gen
+    // hook — `✓ Ready in X` is logged before the config load that runs
+    // the hook, so `next.start()` resolves too early. `next.fetch` blocks
+    // on the request handler, which only becomes ready after the hook.
+    await next.fetch('/')
+
     const agentsContent = fs.readFileSync(
       path.join(next.testDir, 'AGENTS.md'),
       'utf-8'
@@ -53,6 +59,7 @@ describe('agent-rules auto-generate on next dev (no agent)', () => {
   })
 
   it('does not create AGENTS.md or CLAUDE.md when no agent is detected', async () => {
+    await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
     expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
@@ -68,6 +75,7 @@ describe('agent-rules auto-generate on next dev (agentRules: false)', () => {
   })
 
   it('does not generate files when agentRules is disabled in next.config', async () => {
+    await next.fetch('/')
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
     expect(fs.existsSync(path.join(next.testDir, 'CLAUDE.md'))).toBe(false)
   })
@@ -88,6 +96,7 @@ describe('agent-rules auto-generate on next dev (AGENTS.md already has marker)',
   })
 
   it('leaves the file untouched and does not create CLAUDE.md', async () => {
+    await next.fetch('/')
     const content = fs.readFileSync(
       path.join(next.testDir, 'AGENTS.md'),
       'utf-8'
@@ -112,6 +121,7 @@ describe('agent-rules auto-generate on next dev (AGENTS.md exists without marker
   })
 
   it('upserts the managed block and preserves existing content', async () => {
+    await next.fetch('/')
     const content = fs.readFileSync(
       path.join(next.testDir, 'AGENTS.md'),
       'utf-8'
@@ -136,6 +146,7 @@ describe('agent-rules auto-generate on next dev (CLAUDE.md exists, no AGENTS.md)
   })
 
   it('upserts into CLAUDE.md and does not create AGENTS.md', async () => {
+    await next.fetch('/')
     const claudeContent = fs.readFileSync(
       path.join(next.testDir, 'CLAUDE.md'),
       'utf-8'
