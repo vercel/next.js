@@ -5,7 +5,7 @@ const Page = () => {
     <div class="container">
       <h1>Google Maps Embed</h1>
       <GoogleMapsEmbed
-        apiKey="XYZ"
+        apiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}
         height={200}
         width="100%"
         mode="place"
