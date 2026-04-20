@@ -165,7 +165,7 @@ module.exports = nextConfig
 During `next build`, Next.js uses [vary params](/docs/app/api-reference/functions/generate-static-params) to determine which parts of each route depend on which dynamic params. It then renders a fallback shell per dynamic route:
 
 - **Param-independent layouts and components** (those that don't read the dynamic param) render fully as Server Components at build time.
-- **Param-dependent components** (those that `await params`) suspend at the nearest [Suspense boundary](/docs/app/api-reference/components/suspense), showing your `loading.tsx` or `<Suspense fallback>` UI.
+- **Param-dependent components** (those that `await params`) suspend at the nearest [Suspense boundary](/docs/app/guides/streaming#granular-streaming-with-suspense), showing your `loading.tsx` or `<Suspense fallback>` UI.
 
 Wrap param-dependent content in a Suspense boundary so the fallback shell can show meaningful loading UI:
 
