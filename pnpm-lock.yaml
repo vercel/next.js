@@ -25,6 +25,9 @@ overrides:
 packageExtensionsChecksum: sha256-ylDR55omOZlT4Sfpfh6n7mO2r/cLCmlirAikJ/E/LAw=
 
 patchedDependencies:
+  '@edge-runtime/cookies@6.0.0':
+    hash: 29c60d926c91241f1d940a701c1faa392b75cb3464b50f65360d08b51adb5a5b
+    path: patches/@edge-runtime__cookies@6.0.0.patch
   '@modelcontextprotocol/sdk':
     hash: 680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12
     path: patches/@modelcontextprotocol__sdk.patch
@@ -1204,7 +1207,7 @@ importers:
         version: 3.4.0
       '@edge-runtime/cookies':
         specifier: 6.0.0
-        version: 6.0.0
+        version: 6.0.0(patch_hash=29c60d926c91241f1d940a701c1faa392b75cb3464b50f65360d08b51adb5a5b)
       '@edge-runtime/ponyfill':
         specifier: 4.0.0
         version: 4.0.0
@@ -20223,7 +20226,7 @@ snapshots:
 
   '@discoveryjs/json-ext@0.5.7': {}
 
-  '@edge-runtime/cookies@6.0.0': {}
+  '@edge-runtime/cookies@6.0.0(patch_hash=29c60d926c91241f1d940a701c1faa392b75cb3464b50f65360d08b51adb5a5b)': {}
 
   '@edge-runtime/format@4.0.0': {}
 

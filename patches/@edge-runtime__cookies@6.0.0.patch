@@ -1,0 +1,61 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index db116a23a851701ca2e550ec2917825665a56f0a..e2f65617a6513d5481f5b7c6b2726d2838eeb159 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -129,9 +129,9 @@ interface CookieListItem extends Pick<CookieSerializeOptions, 'domain' | 'path'
+ }
+ /**
+  * Superset of {@link CookieListItem} extending it with
+- * the `httpOnly`, `maxAge` and `priority` properties.
++ * the `httpOnly`, `maxAge`, `priority` and `encode` properties.
+  */
+-type ResponseCookie = CookieListItem & Pick<CookieSerializeOptions, 'httpOnly' | 'maxAge' | 'priority'>;
++type ResponseCookie = CookieListItem & Pick<CookieSerializeOptions, 'httpOnly' | 'maxAge' | 'priority' | 'encode'>;
+ /**
+  * Subset of {@link CookieListItem}, only containing `name` and `value`
+  * since other cookie attributes aren't be available on a `Request`.
+diff --git a/dist/index.js b/dist/index.js
+index e82cb32f5e416cdf85a228ab036e89a41a7fe547..9e600e3936bf07fb81047c4ac1bb942ac703062a 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -42,7 +42,8 @@ function stringifyCookie(c) {
+     "partitioned" in c && c.partitioned && "Partitioned",
+     "priority" in c && c.priority && `Priority=${c.priority}`
+   ].filter(Boolean);
+-  const stringified = `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}`;
++  const encode = "encode" in c && typeof c.encode === "function" ? c.encode : encodeURIComponent;
++  const stringified = `${c.name}=${encode((_a = c.value) != null ? _a : "")}`;
+   return attrs.length === 0 ? stringified : `${stringified}; ${attrs.join("; ")}`;
+ }
+ function parseCookie(cookie) {
+@@ -56,13 +57,17 @@ function parseCookie(cookie) {
+       continue;
+     }
+     const [key, value] = [pair.slice(0, splitAt), pair.slice(splitAt + 1)];
+-    try {
+-      map.set(key, decodeURIComponent(value != null ? value : "true"));
+-    } catch {
+-    }
++    map.set(key, decodeCookieValue(value != null ? value : "true"));
+   }
+   return map;
+ }
++function decodeCookieValue(value) {
++  try {
++    return decodeURIComponent(value);
++  } catch {
++    return value;
++  }
++}
+ function parseSetCookie(setCookie) {
+   if (!setCookie) {
+     return void 0;
+@@ -86,7 +91,7 @@ function parseSetCookie(setCookie) {
+   );
+   const cookie = {
+     name,
+-    value: decodeURIComponent(value),
++    value: decodeCookieValue(value),
+     domain,
+     ...expires && { expires: new Date(expires) },
+     ...httponly && { httpOnly: true },

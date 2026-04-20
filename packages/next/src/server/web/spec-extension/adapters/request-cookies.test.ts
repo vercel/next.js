@@ -100,6 +100,35 @@ describe('MutableRequestCookiesAdapter', () => {
       expect.stringContaining('bar=;'),
     ])
   })
+
+  it('preserves custom cookie value encoders in update callbacks', () => {
+    const headers = new Headers({})
+    const underlyingCookies = new RequestCookies(headers)
+    const onUpdateCookies = jest.fn<void, [string[]]>()
+
+    const wrappedCookies = MutableRequestCookiesAdapter.wrap(
+      underlyingCookies,
+      onUpdateCookies
+    )
+
+    wrappedCookies.set('raw', 'qwerty123=', { encode: String })
+
+    expect(onUpdateCookies).toHaveBeenLastCalledWith(['raw=qwerty123=; Path=/'])
+  })
+
+  it('preserves raw percent values when reparsing custom encoded cookies', () => {
+    const headers = new Headers({})
+    const responseCookies = new ResponseCookies(headers)
+
+    responseCookies.set('raw', '100%', { encode: String })
+
+    expect(headers.get('set-cookie')).toBe('raw=100%; Path=/')
+    expect(new ResponseCookies(headers).get('raw')).toEqual({
+      name: 'raw',
+      value: '100%',
+      path: '/',
+    })
+  })
 })
 
 describe('wrapWithMutableAccessCheck', () => {

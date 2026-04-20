@@ -354,7 +354,8 @@
       "@rspack/core@1.6.7": "patches/@rspack__core@1.6.7.patch",
       "@modelcontextprotocol/sdk": "patches/@modelcontextprotocol__sdk.patch",
       "@vercel/blob": "patches/@vercel__blob.patch",
-      "postcss-scss": "patches/postcss-scss.patch"
+      "postcss-scss": "patches/postcss-scss.patch",
+      "@edge-runtime/cookies@6.0.0": "patches/@edge-runtime__cookies@6.0.0.patch"
     }
   }
 }
