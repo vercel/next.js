@@ -87,14 +87,14 @@ export async function writeAppTypeDeclarations({
       'types/validator.ts'
     )
     lines.push(`import "./${routeValidatorPath}";`)
+  }
 
-    if (typedRoutes === true) {
-      const linkTypesPath = path.posix.join(
-        distDir.replaceAll(path.win32.sep, path.posix.sep),
-        'types/link.d.ts'
-      )
-      lines.push(`import "./${linkTypesPath}";`)
-    }
+  if (typedRoutes === true) {
+    const linkTypesPath = path.posix.join(
+      distDir.replaceAll(path.win32.sep, path.posix.sep),
+      'types/link.d.ts'
+    )
+    lines.push(`import "./${linkTypesPath}";`)
   }
 
   // Push the notice in.
