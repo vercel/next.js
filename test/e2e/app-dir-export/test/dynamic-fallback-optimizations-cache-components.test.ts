@@ -170,6 +170,99 @@ if (isNextDeploy) {
         }
       })
 
+      it('reuses the hydrated fallback artifact base for sibling segment prefetches', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/hydrated/first/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          await act(async () => {}, 'no-requests')
+          clearRequests()
+
+          await act(async () => {
+            await browser
+              .elementByCss('input[data-link-accordion="/hydrated/second"]')
+              .click()
+          })
+
+          const prefetchRequests = getRequests()
+
+          expect(prefetchRequests.length).toBeGreaterThan(0)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/?_rsc=')
+            )
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/index.txt')
+            )
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/__next.')
+            )
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/__fallback')
+            )
+          ).toBe(true)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('dedupes hydrated sibling metadata prefetches by fallback artifact path', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/hydrated/first/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          clearRequests()
+
+          await act(async () => {
+            await browser
+              .elementByCss('input[data-link-accordion="/hydrated/second"]')
+              .click()
+            await browser
+              .elementByCss('input[data-link-accordion="/hydrated/third"]')
+              .click()
+          })
+
+          const prefetchRequests = getRequests()
+
+          expect(
+            prefetchRequests.filter((requestPath) =>
+              requestPath.startsWith('/hydrated/__fallback/__next._head.txt')
+            )
+          ).toHaveLength(1)
+          expect(
+            prefetchRequests.filter((requestPath) =>
+              requestPath.includes(
+                '/hydrated/__fallback/__next.hydrated.$d$thread.__PAGE__.txt'
+              )
+            )
+          ).toHaveLength(1)
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('loads nested fallback routes without concrete retries or extra probes', async () => {
         clearRequests()
         const browser = await webdriver(port, '/org/umbrella/chat/thread-789/')
