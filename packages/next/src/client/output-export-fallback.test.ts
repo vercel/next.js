@@ -260,6 +260,10 @@ describe('output export fallback helpers', () => {
     expect(result).not.toBeNull()
     expect(result?.fallbackUrl.pathname).toBe('/docs/__fallback/__route_0')
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/docs/api/reference/__fallback.txt',
+      'https://example.com/docs/api/reference/__fallback.meta.json',
+      'https://example.com/docs/api/__fallback.txt',
+      'https://example.com/docs/api/__fallback.meta.json',
       'https://example.com/docs/__fallback.txt',
       'https://example.com/docs/__fallback.meta.json',
       'https://example.com/docs/__fallback/__route_0.txt',
@@ -449,9 +453,15 @@ describe('output export fallback helpers', () => {
     )
 
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/docs/api/reference/__fallback.txt',
+      'https://example.com/docs/api/reference/__fallback.meta.json',
+      'https://example.com/docs/api/__fallback.txt',
+      'https://example.com/docs/api/__fallback.meta.json',
       'https://example.com/docs/__fallback.txt',
       'https://example.com/docs/__fallback.meta.json',
       'https://example.com/docs/__fallback/__route_0.txt',
+      'https://example.com/docs/api/guide/__fallback.txt',
+      'https://example.com/docs/api/guide/__fallback.meta.json',
     ])
   })
 })
