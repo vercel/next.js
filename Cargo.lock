@@ -9934,6 +9934,7 @@ dependencies = [
  "bincode 2.0.1",
  "bitfield",
  "codspeed-criterion-compat",
+ "crossbeam-utils",
  "dashmap 6.1.0",
  "either",
  "futures",
@@ -10807,6 +10808,8 @@ dependencies = [
  "serde",
  "serde_json",
  "tungstenite 0.21.0",
+ "turbo-rcstr",
+ "turbo-tasks-malloc",
  "turbopack-trace-utils",
  "zstd",
 ]

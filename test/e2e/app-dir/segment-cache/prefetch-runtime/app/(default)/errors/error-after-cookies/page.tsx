@@ -4,13 +4,12 @@ import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { ErrorBoundary } from '../../../../components/error-boundary'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
   // We're intentionally testing error behavior at runtime.
   // Build-time validation catches it and prevents that.
   unstable_disableValidation: true,
   samples: [{ cookies: [{ name: 'user-agent', value: null }] }],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

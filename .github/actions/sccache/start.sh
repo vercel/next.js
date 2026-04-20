@@ -32,12 +32,9 @@ sccache --stop-server 2>/dev/null || true
 pkill -9 -x cargo 2>/dev/null || true
 pkill -9 -x rustc 2>/dev/null || true
 
-# Install sccache via turbo task (cached by scripts/sccache-version).
-TURBO="pnpm dlx turbo@${TURBO_VERSION:-latest}"
-$TURBO run build-sccache ${TURBO_ARGS:-}
-SCCACHE_PATH="${GITHUB_WORKSPACE}/target/sccache/bin"
-export PATH="${SCCACHE_PATH}:${PATH}"
-echo "${SCCACHE_PATH}" >> "$GITHUB_PATH"
+# Install vercel/sccache fork via cargo-binstall.
+# cargo-binstall is installed by .github/actions/setup-rust.
+cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache
 sccache --version
 
 # Set env vars for the sccache server (export) and subsequent steps (GITHUB_ENV).
