@@ -38,6 +38,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 
 import {
+  applyOwnerStack,
   getRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
@@ -1349,6 +1350,7 @@ export async function cache(
 
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
+  applyOwnerStack(timeoutError)
 
   const wrapAsInvalidDynamicUsageError = (
     error: Error,

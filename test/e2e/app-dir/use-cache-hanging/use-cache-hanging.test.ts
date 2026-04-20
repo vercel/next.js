@@ -33,7 +33,7 @@ describe('use-cache-hanging', () => {
            "stack": [
              "getCachedData app/static/page.tsx (6:1)",
              "Cached app/static/page.tsx (18:24)",
-             "stringify <anonymous>",
+             "Page app/static/page.tsx (32:10)",
            ],
          }
         `)
@@ -62,6 +62,7 @@ describe('use-cache-hanging', () => {
            "stack": [
              "getCachedData app/runtime/page.tsx (8:1)",
              "Cached app/runtime/page.tsx (20:24)",
+             "Page app/runtime/page.tsx (42:7)",
            ],
          }
         `)
