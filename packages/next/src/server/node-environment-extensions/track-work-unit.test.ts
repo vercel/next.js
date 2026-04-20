@@ -3,17 +3,20 @@ import {
   createWorkUnitTracker,
   getPromiseAsyncId,
   rootTask,
-  workUnitAsyncStorage,
   log,
   type WorkUnitTracker,
   getOriginWorkUnit,
 } from './track-work-unit'
+import {
+  type WorkUnitStore,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 
 async function setup<T>(
   onMismatch: Parameters<typeof createWorkUnitTracker>[0],
   cb: (tracker: WorkUnitTracker) => Promise<T>
 ): Promise<T> {
-  const tracker = createWorkUnitTracker(onMismatch)
+  const tracker = createWorkUnitTracker(onMismatch, getStoreId)
   tracker.hook.enable()
   try {
     return await rootTask(() => cb(tracker))
@@ -22,9 +25,24 @@ async function setup<T>(
   }
 }
 
+type FakeWorkUnitStore = { type: string; __id: string }
+
+function createMockStore(id: string): WorkUnitStore {
+  const store: FakeWorkUnitStore = {
+    type: 'request',
+    __id: id,
+  }
+  return store as unknown as WorkUnitStore
+}
+
+function getStoreId(store: WorkUnitStore): string {
+  // We always use a fake store in these tests
+  return (store as unknown as FakeWorkUnitStore).__id
+}
+
 it('one', async () => {
   const onMismatch = jest.fn()
-  const tracker = createWorkUnitTracker(onMismatch)
+  const tracker = createWorkUnitTracker(onMismatch, getStoreId)
   tracker.hook.enable()
   try {
     await rootTask(async () => {
@@ -54,7 +72,7 @@ it('successive 1', async () => {
   await setup(onMismatch, async (tracker) => {
     let cachedPromise: Promise<any>
 
-    const initialStore = { id: 'initial' }
+    const initialStore = createMockStore('initial')
     await workUnitAsyncStorage.run(initialStore, async () => {
       log('[initial] creating cached promise')
       cachedPromise = Promise.resolve()
@@ -68,7 +86,7 @@ it('successive 1', async () => {
       expect(getOriginWorkUnit(tracker, x)).toBe(initialStore)
     })
 
-    const finalStore = { id: 'final' }
+    const finalStore = createMockStore('final')
     await workUnitAsyncStorage.run(finalStore, async () => {
       // wait for promise to be set
       await Promise.resolve()
@@ -97,7 +115,7 @@ it('successive 2', async () => {
   await setup(onMismatch, async (tracker) => {
     let cachedPromise: Promise<any>
 
-    const initialStore = { id: 'initial' }
+    const initialStore = createMockStore('initial')
     await workUnitAsyncStorage.run(initialStore, async () => {
       log('[initial] creating cached promise')
       const trigger = Promise.resolve()
@@ -115,7 +133,7 @@ it('successive 2', async () => {
       expect(getOriginWorkUnit(tracker, x)).toBe(initialStore)
     })
 
-    const finalStore = { id: 'final' }
+    const finalStore = createMockStore('final')
     await workUnitAsyncStorage.run(finalStore, async () => {
       // wait for promise to be set
       await Promise.resolve()
@@ -144,7 +162,7 @@ it('nested 1', async () => {
   await setup(onMismatch, async (tracker) => {
     let cachedPromise: Promise<any>
 
-    const outerStore = { id: 'outer' }
+    const outerStore = createMockStore('outer')
     log(`[outer] running outer store`)
     const outerWorkUnitPromise = workUnitAsyncStorage.run(
       outerStore,
@@ -157,7 +175,7 @@ it('nested 1', async () => {
         expect(getOriginWorkUnit(tracker, cachedPromise)).toBe(outerStore)
 
         log(`[outer] running inner store`)
-        const innerStore = { id: 'inner' }
+        const innerStore = createMockStore('inner')
         const innerWorkUnitPromise = workUnitAsyncStorage.run(
           innerStore,
           async () => {
@@ -197,7 +215,7 @@ it('one store', async () => {
   const onMismatch = jest.fn<void, [string, string]>()
   await setup(onMismatch, async (tracker) => {
     log(`running store`)
-    const store = { id: 'one' }
+    const store = createMockStore('one')
     const workUnitPromise = workUnitAsyncStorage.run(store, async () => {
       log('[one] creating promise')
       const promise = Promise.resolve()
@@ -223,7 +241,7 @@ it('one store, sync run', async () => {
   const onMismatch = jest.fn<void, [string, string]>()
   await setup(onMismatch, async (tracker) => {
     log(`running store`)
-    const store = { id: 'one' }
+    const store = createMockStore('one')
     const promises = workUnitAsyncStorage.run(store, () => {
       const promise1 = Promise.resolve()
       expect(getOriginWorkUnit(tracker, promise1)).toBe(store)
@@ -241,7 +259,7 @@ it('async snapshot', async () => {
   const onMismatch = jest.fn<void, [string, string]>()
   await setup(onMismatch, async (tracker) => {
     log(`running store`)
-    const store = { id: 'one' }
+    const store = createMockStore('one')
     const runInStore = workUnitAsyncStorage.run(store, () =>
       AsyncLocalStorage.snapshot()
     )
@@ -270,7 +288,7 @@ it('async snapshot', async () => {
   })
 })
 
-it.only('new promise', async () => {
+it('new promise', async () => {
   const onMismatch = jest.fn<void, [string, string]>()
   await setup(onMismatch, async () => {
     const original = Promise.reject(4)

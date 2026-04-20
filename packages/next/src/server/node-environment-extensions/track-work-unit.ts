@@ -1,5 +1,4 @@
 import {
-  AsyncLocalStorage,
   AsyncResource,
   createHook,
   executionAsyncId,
@@ -7,10 +6,12 @@ import {
 } from 'node:async_hooks'
 import * as util from 'node:util'
 import * as fs from 'node:fs'
+import {
+  type WorkUnitStore,
+  workUnitAsyncStorage,
+} from '../app-render/work-unit-async-storage.external'
 
 type StoreId = string
-type WorkUnitStore = { id: StoreId }
-export const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
 
 const INFO_MISSING_TYPE = 'MISSING_INIT'
 const INFO_PROMISE_TYPE = 'PROMISE'
@@ -31,7 +32,8 @@ function createMissingNode(): AsyncResourceNode {
 }
 
 export function createWorkUnitTracker(
-  onStoreMismatch: (expected: StoreId, actual: StoreId) => void
+  onStoreMismatch: (expected: StoreId, actual: StoreId) => void,
+  getStoreId: (store: WorkUnitStore) => StoreId
 ) {
   const nodesById = new Map<number, AsyncResourceNode>()
 
@@ -39,16 +41,19 @@ export function createWorkUnitTracker(
     if (id === 0) return 'main'
     const node = nodesById.get(id)
     if (!node) return '<missing>'
-    return `${node.type}@${node.status}, ${node.originStore?.id ?? '<no store>'}`
+    return `${node.type}@${node.status}, ${node.originStore ? getStoreId(node.originStore) : '<no store>'}`
   }
 
   const hook = createHook({
     // called when the async resource is created
     init(id, type, triggerId, _resource) {
-      debug('---------')
-      debug(
-        `# init ${id} (${type}), trigger: ${triggerId} (${getInfo(triggerId)}), eid: ${executionAsyncId()}, tid: ${triggerAsyncId()} store: ${workUnitAsyncStorage.getStore()?.id ?? '<no store>'}`
-      )
+      {
+        debug('---------')
+        const debugStore = workUnitAsyncStorage.getStore()
+        debug(
+          `# init ${id} (${type}), trigger: ${triggerId} (${getInfo(triggerId)}), eid: ${executionAsyncId()}, tid: ${triggerAsyncId()} store: ${debugStore ? getStoreId(debugStore) : '<no store>'}`
+        )
+      }
 
       const triggerStore: WorkUnitStore | null =
         nodesById.get(triggerId)?.originStore ?? null
@@ -63,15 +68,19 @@ export function createWorkUnitTracker(
       }
       nodesById.set(id, node)
 
-      if (currentStore && triggerStore && currentStore.id !== triggerStore.id) {
+      if (
+        currentStore &&
+        triggerStore &&
+        getStoreId(currentStore) !== getStoreId(triggerStore)
+      ) {
         debug(
           '#'.repeat(40) +
             '\n' +
-            `store mismatch for ${id}, ${currentStore.id} != ${triggerStore.id}`,
+            `store mismatch for ${id}, ${getStoreId(currentStore)} != ${getStoreId(triggerStore)}`,
           '\n' + '#'.repeat(40)
         )
         debug(new Error().stack)
-        onStoreMismatch(triggerStore.id, currentStore.id)
+        onStoreMismatch(getStoreId(triggerStore), getStoreId(currentStore))
       }
     },
 
