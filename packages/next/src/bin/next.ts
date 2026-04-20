@@ -643,9 +643,9 @@ internal
   )
   .addOption(
     new Option(
-      '--sort',
-      'Sort results by corrected duration descending (default: false).'
-    )
+      '--sort <mode>',
+      'Sort mode: "value" for corrected duration descending, "name" for alphabetical.'
+    ).choices(['value', 'name'])
   )
   .addOption(
     new Option('--search <search>', 'Substring filter on span name/category.')

@@ -12,7 +12,6 @@ const CHANGE_ITEM_GROUPS = {
     '.cursor',
     'bench',
     'docs',
-    'apps/docs',
     'errors',
     'examples',
     'UPGRADING.md',

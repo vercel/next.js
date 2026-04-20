@@ -19,9 +19,8 @@ const RuntimeSampleSchema = z
   })
   .strict()
 
-const InstantConfigStaticSchema = z
+const InstantConfigObjectSchema = z
   .object({
-    prefetch: z.literal('static'),
     samples: z.array(RuntimeSampleSchema).min(1).optional(),
     from: z.array(z.string()).optional(),
     unstable_disableValidation: z.literal(true).optional(),
@@ -30,40 +29,35 @@ const InstantConfigStaticSchema = z
   })
   .strict()
 
-const InstantConfigRuntimeSchema = z
-  .object({
-    prefetch: z.literal('runtime'),
-    samples: z.array(RuntimeSampleSchema).min(1),
-    from: z.array(z.string()).optional(),
-    unstable_disableValidation: z.literal(true).optional(),
-    unstable_disableDevValidation: z.literal(true).optional(),
-    unstable_disableBuildValidation: z.literal(true).optional(),
-  })
-  .strict()
-
 const InstantConfigSchema = z.union([
-  z.discriminatedUnion('prefetch', [
-    InstantConfigStaticSchema,
-    InstantConfigRuntimeSchema,
-  ]),
+  InstantConfigObjectSchema,
+  z.literal(true),
   z.literal(false),
 ])
 
-const PrefetchSchema = z.enum(['static', 'runtime'])
+const PrefetchSchema = z.enum([
+  'auto',
+  'force-disabled',
+  'force-static',
+  'force-runtime',
+])
 
-export type Instant = InstantConfigStatic | InstantConfigRuntime | false
+export type Instant = InstantConfig | true | false
 
-export type Prefetch = 'static' | 'runtime'
+export type Prefetch =
+  | 'auto'
+  | 'force-disabled'
+  | 'force-static'
+  | 'force-runtime'
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
-// the __GenericPrefetch type is used to avoid type widening issues with
+// the __GenericInstantConfig type is used to avoid type widening issues with
 // our choice to make exports the medium for programming a Next.js application
 // With exports the type is controlled by the module and all we can do is assert on it
 // from a consumer. However with string literals in objects these are by default typed widely
 // and thus cannot match the discriminated union type. If we figure out a better way we should
-// delete the __GenericPrefetch member.
+// delete the __GenericInstantConfig member.
 interface __GenericInstantConfig {
-  prefetch: string
   samples?: Array<WideInstantSample>
   from?: string[]
   unstable_disableValidation?: boolean
@@ -71,29 +65,19 @@ interface __GenericInstantConfig {
   unstable_disableBuildValidation?: boolean
 }
 
-interface InstantConfigStatic {
-  prefetch: 'static'
-  samples?: Array<InstantSample>
-  from?: string[]
-  unstable_disableValidation?: true
-  unstable_disableDevValidation?: true
-  unstable_disableBuildValidation?: true
-}
-
-interface InstantConfigRuntime {
-  prefetch: 'runtime'
-  samples: Array<InstantSample>
-  from?: string[]
-  unstable_disableValidation?: true
-  unstable_disableDevValidation?: true
-  unstable_disableBuildValidation?: true
-}
-
 type WideInstantSample = {
   cookies?: InstantSample['cookies']
   headers?: Array<string[]>
   params?: InstantSample['params']
   searchParams?: InstantSample['searchParams']
+}
+
+export interface InstantConfig {
+  samples?: Array<InstantSample>
+  from?: string[]
+  unstable_disableValidation?: true
+  unstable_disableDevValidation?: true
+  unstable_disableBuildValidation?: true
 }
 
 export type InstantSample = {
@@ -203,12 +187,12 @@ export function parseAppSegmentConfig(
           case 'unstable_instant': {
             return {
               // @TODO replace this link with a link to the docs when they are written
-              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be an object with \`prefetch: "static"\` or \`prefetch: "runtime"\`, or \`false\`. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
+              message: `Invalid unstable_instant value ${JSON.stringify(ctx.data)} on "${route}", must be \`true\`, \`false\`, or an object. Read more at https://nextjs.org/docs/messages/invalid-instant-configuration`,
             }
           }
           case 'unstable_prefetch': {
             return {
-              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "static" or "runtime".`,
+              message: `Invalid unstable_prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "force-disabled", "force-static", or "force-runtime".`,
             }
           }
           case 'unstable_dynamicStaleTime': {
