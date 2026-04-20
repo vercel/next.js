@@ -43,7 +43,8 @@ set_env() {
   echo "$1=$2" >> "$GITHUB_ENV"
 }
 
-set_env RUSTC_WRAPPER sccache
+# Temporary disable while we work out binstall issue
+#set_env RUSTC_WRAPPER sccache
 set_env SCCACHE_BASEDIRS "${INPUT_BASE_DIR:-${GITHUB_WORKSPACE}}"
 set_env CARGO_INCREMENTAL 0
 set_env SCCACHE_IDLE_TIMEOUT 0
