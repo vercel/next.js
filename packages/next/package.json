@@ -256,7 +256,7 @@
     "crypto-browserify": "3.12.0",
     "css-loader": "7.1.2",
     "css.escape": "1.5.1",
-    "cssnano-preset-default": "7.0.6",
+    "cssnano-preset-default": "7.0.13",
     "data-uri-to-buffer": "3.0.1",
     "debug": "4.1.1",
     "devalue": "2.0.1",
