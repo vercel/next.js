@@ -6,6 +6,8 @@ packages:
   - 'turbopack/crates/*/js'
   - 'turbopack/crates/turbopack-tests/tests/execution'
   - 'turbopack/packages/*'
+catalog:
+  typescript: 6.0.2
 updateNotifier: false
 publicHoistPattern:
   - '*eslint*'
