@@ -218,7 +218,7 @@ describe('app dir - basic', () => {
     })
   }
 
-  it('should encode chunk path correctly', async () => {
+  it('should encode chunk path param correctly', async () => {
     const requests = []
     const browser = await next.browser('/dynamic-client/first/second', {
       beforePageLoad(page) {
@@ -241,6 +241,31 @@ describe('app dir - basic', () => {
         expect.arrayContaining([
           expect.stringMatching(/.*%5Bcategory%5D\/%5Bid%5D.*\.js/),
         ])
+      )
+    }
+  })
+
+  it('should encode chunk path route group correctly', async () => {
+    const requests = []
+    const browser = await next.browser('/dynamic-client/group', {
+      beforePageLoad(page) {
+        page.on('request', (req) => {
+          requests.push(req.url())
+        })
+      },
+    })
+
+    await browser.waitForElementByCss('#id-page-route-group')
+
+    expect(requests).not.toEqual(
+      expect.arrayContaining([expect.stringContaining('(group)')])
+    )
+
+    // Turbopack doesn't recreate the original folder structure for the output chunks
+    if (!process.env.IS_TURBOPACK_TEST) {
+      expect(requests).toEqual(
+        // e.g. _next/static/chunks/app/dynamic-client/%28group%29/group/page-083f99d18ae1767f.js?dpl=...
+        expect.arrayContaining([expect.stringMatching(/.*%28group%29.*\.js/)])
       )
     }
   })

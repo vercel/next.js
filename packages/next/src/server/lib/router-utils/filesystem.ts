@@ -621,8 +621,8 @@ export async function setupFsCheck(opts: {
             // x-ref: https://github.com/vercel/next.js/issues/54008
             // There're cases that urls get decoded before requests, we should support both encoded and decoded ones.
             // e.g. nginx could decode the proxy urls, the below ones should be treated as the same:
-            // decoded version: `/_next/static/chunks/pages/blog/[slug]-d4858831b91b69f6.js`
-            // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
+            // decoded version: `/_next/static/chunks/pages/blog/(group)/[slug]-d4858831b91b69f6.js`
+            // encoded version: `/_next/static/chunks/pages/blog/%28group%29/%5Bslug%5D-d4858831b91b69f6.js`
             try {
               // encode the special characters in the path and retrieve again to determine if path exists.
               const encodedCurItemPath = encodeURIPath(curItemPath)
