@@ -610,6 +610,14 @@ async fn analyze_ecmascript_module_internal(
         .await?;
     }
 
+    let EcmascriptExportsAnalysis {
+        exports: _,
+        import_references,
+        esm_reexport_reference_idxs,
+        esm_evaluation_reference_idxs,
+        // This reads the ParseResult, so it has to happen before the final_read_hint.
+    } = &*compute_ecmascript_module_exports(*module, part).await?;
+
     let parsed = if !analyze_mode.is_code_gen() {
         // We are never code-gening the module, so we can drop the AST after the analysis.
         parsed.final_read_hint().await?
@@ -629,13 +637,6 @@ async fn analyze_ecmascript_module_internal(
     else {
         return analysis.build(Default::default(), false).await;
     };
-
-    let EcmascriptExportsAnalysis {
-        exports: _,
-        import_references,
-        esm_reexport_reference_idxs,
-        esm_evaluation_reference_idxs,
-    } = &*compute_ecmascript_module_exports(*module, part).await?;
 
     for i in esm_reexport_reference_idxs {
         analysis.add_esm_reexport_reference(*i);
