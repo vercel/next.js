@@ -429,6 +429,7 @@ export const experimentalSchema = {
 export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
   z.strictObject({
     adapterPath: z.string().optional(),
+    agentRules: z.boolean().optional(),
     allowedDevOrigins: z.array(z.string()).optional(),
     assetPrefix: z.string().optional(),
     basePath: z.string().optional(),
