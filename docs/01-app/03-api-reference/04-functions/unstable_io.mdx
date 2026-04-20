@@ -4,7 +4,7 @@ description: API Reference for the unstable_io function.
 version: draft
 ---
 
-`unstable_io()` informs Next.js that an IO operation will follow this call. When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is not enabled or when rendering in Pages Router, signifying IO in this way is not meaningful and the call will always resolve immediately. When Cache Components is enabled, you may be required to add `await unstable_io()` preceding synchronous IO that is encountered while prerendering pages (`new Date()` for example). Additionally, if you want to avoid having genuine uncached IO invoked while prerendering, you shield it by preceeding it with `await unstable_io()`.
+`unstable_io()` informs Next.js that an IO operation will follow this call. When [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) is not enabled or when rendering in Pages Router, signifying IO in this way is not meaningful and the call will always resolve immediately. When Cache Components is enabled, you may be required to add `await unstable_io()` preceding synchronous IO that is encountered while prerendering pages (`new Date()` for example). Additionally, if you want to avoid having genuine uncached IO invoked while prerendering, you can shield it by preceding it with `await unstable_io()`.
 
 ```ts filename="app/page.tsx" switcher
 import { unstable_io } from 'next/cache'
