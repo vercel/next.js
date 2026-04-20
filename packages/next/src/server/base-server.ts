@@ -553,6 +553,7 @@ export default abstract class Server<
       distDir: this.distDir,
       serverComponents: this.enabledDirectories.app,
       cacheLifeProfiles: this.nextConfig.cacheLife,
+      staticPageGenerationTimeout: this.nextConfig.staticPageGenerationTimeout,
       enableTainting: this.nextConfig.experimental.taint,
       crossOrigin: this.nextConfig.crossOrigin
         ? this.nextConfig.crossOrigin
@@ -576,6 +577,7 @@ export default abstract class Server<
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(

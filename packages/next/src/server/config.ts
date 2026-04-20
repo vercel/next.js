@@ -1526,6 +1526,14 @@ function assignDefaultsAndValidate(
     result.distDir = join(result.distDir, 'dev')
   }
 
+  // Derive the `'use cache'` fill timeout from `staticPageGenerationTimeout`
+  // if the user didn't set one explicitly. 90% leaves headroom for the
+  // cache-fill error to surface before the build worker kills the page.
+  if (result.experimental.useCacheTimeout === undefined) {
+    result.experimental.useCacheTimeout =
+      result.staticPageGenerationTimeout * 0.9
+  }
+
   return result as NextConfigComplete
 }
 
