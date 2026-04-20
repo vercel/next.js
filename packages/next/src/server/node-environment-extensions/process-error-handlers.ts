@@ -1,4 +1,4 @@
-import { isPostpone } from '../lib/router-utils/is-postpone'
+import { isNextInternalError } from '../../lib/is-next-internal-error'
 
 let _global = globalThis as typeof globalThis & {
   nextInitializedProcessErrorHandlers?: boolean
@@ -56,9 +56,8 @@ export function installProcessErrorHandlers(
 
   // Install a new handler to prevent the process from crashing.
   process.on('unhandledRejection', (reason: unknown) => {
-    if (isPostpone(reason)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
+    if (isNextInternalError(reason)) {
+      // Next.js internal errors are not really errors. They're just part of rendering.
       return
     }
     // Immediately log the error.
@@ -81,7 +80,7 @@ export function installProcessErrorHandlers(
   // is unrelated to the late-awaiting pattern. However, for similar reasons,
   // we still shouldn't crash the process. Just log it.
   process.on('uncaughtException', (reason: unknown) => {
-    if (isPostpone(reason)) {
+    if (isNextInternalError(reason)) {
       return
     }
     console.error(reason)
