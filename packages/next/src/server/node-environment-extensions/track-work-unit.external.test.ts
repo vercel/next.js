@@ -6,7 +6,7 @@ import {
   log,
   type WorkUnitTracker,
   getOriginWorkUnit,
-} from './track-work-unit'
+} from './track-work-unit.external'
 import {
   type WorkUnitStore,
   workUnitAsyncStorage,
