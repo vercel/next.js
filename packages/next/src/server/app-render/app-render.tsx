@@ -2489,6 +2489,36 @@ async function renderToHTMLOrFlightImpl(
 
   const { isStaticGeneration } = workStore
 
+
+  // ============================================
+  // 🔧 FIX: Draft Mode + dynamic APIs (searchParams, cookies, headers) on static pages
+  // When Draft Mode is enabled on a static page, temporarily force dynamic rendering
+  // for THIS REQUEST ONLY. This allows all dynamic request APIs to work correctly.
+  //
+  // This fixes the class of issues where static pages with Draft Mode enabled
+  // receive empty values for searchParams, cookies(), and headers().
+  //
+  // Reference Issue: https://github.com/vercel/next.js/issues/92562
+  // Related: #66277, #70384
+  // ============================================
+
+  const isDraftModeEnabled = 
+    parsedRequestHeaders.isDraftMode === true ||
+    req.headers['x-nextjs-draft-mode'] === '1' ||
+    req.cookies?.['__prerender_bypass'] !== undefined
+
+  if (isDraftModeEnabled && isStaticGeneration) {
+    workStore.isStaticGeneration = false
+    workStore.forceDynamic = true
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`[Next.js] Draft Mode on static page: ${pagePath || workStore?.page || 'unknown'}. Switching to dynamic render.`)
+
+    }
+  }
+
+  // ============================================
+
+
   let requestId: string
   let htmlRequestId: string
 
