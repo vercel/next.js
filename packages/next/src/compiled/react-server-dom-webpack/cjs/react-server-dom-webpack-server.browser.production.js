@@ -10,8 +10,23 @@
 
 "use strict";
 var ReactDOM = require("react-dom"),
-  React = require("react"),
-  channel = new MessageChannel(),
+  React = require("react");
+function formatProdErrorMessage(code) {
+  var url = "https://react.dev/errors/" + code;
+  if (1 < arguments.length) {
+    url += "?args[]=" + encodeURIComponent(arguments[1]);
+    for (var i = 2; i < arguments.length; i++)
+      url += "&args[]=" + encodeURIComponent(arguments[i]);
+  }
+  return (
+    "Minified React error #" +
+    code +
+    "; visit " +
+    url +
+    " for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+  );
+}
+var channel = new MessageChannel(),
   taskQueue = [];
 channel.port1.onmessage = function () {
   var task = taskQueue.shift();
@@ -135,18 +150,14 @@ var serverReferenceToString = {
         case "Provider":
           return receiver;
         case "then":
-          throw Error(
-            "Cannot await or return from a thenable. You cannot await a client module from a server component."
-          );
+          throw Error(formatProdErrorMessage(590));
       }
       throw Error(
-        "Cannot access " +
-          (String(target.name) + "." + String(name)) +
-          " on the server. You cannot dot into a client module from a server component. You can only pass the imported name through."
+        formatProdErrorMessage(591, String(target.name) + "." + String(name))
       );
     },
     set: function () {
-      throw Error("Cannot assign to a client module from a server module.");
+      throw Error(formatProdErrorMessage(592));
     }
   };
 function getReference(target, name) {
@@ -173,11 +184,7 @@ function getReference(target, name) {
       var moduleId = target.$$id;
       target.default = registerClientReferenceImpl(
         function () {
-          throw Error(
-            "Attempted to call the default export of " +
-              moduleId +
-              " from the server but it's on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."
-          );
+          throw Error(formatProdErrorMessage(593, moduleId));
         },
         target.$$id + "#",
         target.$$async
@@ -198,21 +205,12 @@ function getReference(target, name) {
         !1
       ));
   }
-  if ("symbol" === typeof name)
-    throw Error(
-      "Cannot read Symbol exports. Only named exports are supported on a client module imported on the server."
-    );
+  if ("symbol" === typeof name) throw Error(formatProdErrorMessage(594));
   clientReference = target[name];
   clientReference ||
     ((clientReference = registerClientReferenceImpl(
       function () {
-        throw Error(
-          "Attempted to call " +
-            String(name) +
-            "() from the server but " +
-            String(name) +
-            " is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."
-        );
+        throw Error(formatProdErrorMessage(595, String(name), String(name)));
       },
       target.$$id + "#" + name,
       target.$$async
@@ -242,7 +240,7 @@ var proxyHandlers$1 = {
       return PROMISE_PROTOTYPE;
     },
     set: function () {
-      throw Error("Cannot assign to a client module from a server module.");
+      throw Error(formatProdErrorMessage(592));
     }
   },
   ReactDOMSharedInternals =
@@ -508,24 +506,16 @@ var TEMPORARY_REFERENCE_TAG = Symbol.for("react.temporary.reference"),
         case "then":
           return;
       }
-      throw Error(
-        "Cannot access " +
-          String(name) +
-          " on the server. You cannot dot into a temporary client reference from a server component. You can only pass the value through to the client."
-      );
+      throw Error(formatProdErrorMessage(514, String(name)));
     },
     set: function () {
-      throw Error(
-        "Cannot assign to a temporary client reference from a server module."
-      );
+      throw Error(formatProdErrorMessage(515));
     }
   };
 function createTemporaryReference(temporaryReferences, id) {
   var reference = Object.defineProperties(
     function () {
-      throw Error(
-        "Attempted to call a temporary Client Reference from the server but it is on the client. It's not possible to invoke a client function from the server, it can only be rendered as a Component or passed to props of a Client Component."
-      );
+      throw Error(formatProdErrorMessage(516));
     },
     { $$typeof: { value: TEMPORARY_REFERENCE_TAG } }
   );
@@ -555,9 +545,7 @@ function getIteratorFn(maybeIterable) {
 var ASYNC_ITERATOR = Symbol.asyncIterator,
   REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key");
 function noop() {}
-var SuspenseException = Error(
-  "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
-);
+var SuspenseException = Error(formatProdErrorMessage(460));
 function trackUsedThenable(thenableState, thenable, index) {
   index = thenableState[index];
   void 0 === index
@@ -601,10 +589,7 @@ function trackUsedThenable(thenableState, thenable, index) {
 }
 var suspendedThenable = null;
 function getSuspendedThenable() {
-  if (null === suspendedThenable)
-    throw Error(
-      "Expected a suspended thenable. This is a bug in React. Please file an issue."
-    );
+  if (null === suspendedThenable) throw Error(formatProdErrorMessage(459));
   var thenable = suspendedThenable;
   suspendedThenable = null;
   return thenable;
@@ -654,17 +639,16 @@ var HooksDispatcher = {
   useEffectEvent: unsupportedHook
 };
 function unsupportedHook() {
-  throw Error("This Hook is not supported in Server Components.");
+  throw Error(formatProdErrorMessage(373));
 }
 function unsupportedRefresh() {
-  throw Error("Refreshing the cache is not supported in Server Components.");
+  throw Error(formatProdErrorMessage(384));
 }
 function unsupportedContext() {
-  throw Error("Cannot read a Client Context from a Server Component.");
+  throw Error(formatProdErrorMessage(502));
 }
 function useId() {
-  if (null === currentRequest$1)
-    throw Error("useId can only be used while React is rendering");
+  if (null === currentRequest$1) throw Error(formatProdErrorMessage(433));
   var id = currentRequest$1.identifierCount++;
   return "_" + currentRequest$1.identifierPrefix + "S_" + id.toString(32) + "_";
 }
@@ -683,10 +667,10 @@ function use(usable) {
   }
   if (usable.$$typeof === CLIENT_REFERENCE_TAG$1) {
     if (null != usable.value && usable.value.$$typeof === REACT_CONTEXT_TYPE)
-      throw Error("Cannot read a Client Context from a Server Component.");
-    throw Error("Cannot use() an already resolved Client Reference.");
+      throw Error(formatProdErrorMessage(502));
+    throw Error(formatProdErrorMessage(503));
   }
-  throw Error("An unsupported type was passed to use(): " + String(usable));
+  throw Error(formatProdErrorMessage(438, String(usable)));
 }
 var DefaultAsyncDispatcher = {
     getCacheForType: function (resourceType) {
@@ -708,10 +692,7 @@ var DefaultAsyncDispatcher = {
   },
   ReactSharedInternalsServer =
     React.__SERVER_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE;
-if (!ReactSharedInternalsServer)
-  throw Error(
-    'The "react" package in this environment is not configured correctly. The "react-server" condition must be enabled in any environment that runs React Server Components.'
-  );
+if (!ReactSharedInternalsServer) throw Error(formatProdErrorMessage(492));
 var isArrayImpl = Array.isArray,
   getPrototypeOf = Object.getPrototypeOf;
 function objectName(object) {
@@ -842,7 +823,7 @@ function RequestInstance(
     null !== ReactSharedInternalsServer.A &&
     ReactSharedInternalsServer.A !== DefaultAsyncDispatcher
   )
-    throw Error("Currently React only supports one RSC renderer at a time.");
+    throw Error(formatProdErrorMessage(458));
   ReactSharedInternalsServer.A = DefaultAsyncDispatcher;
   var abortSet = new Set(),
     pingedTasks = [],
@@ -1208,10 +1189,7 @@ function deferTask(request, task) {
   return serializeLazyID(task.id);
 }
 function renderElement(request, task, type, key, ref, props) {
-  if (null !== ref && void 0 !== ref)
-    throw Error(
-      "Refs cannot be used in Server Components, nor passed to Client Components."
-    );
+  if (null !== ref && void 0 !== ref) throw Error(formatProdErrorMessage(379));
   if (
     "function" === typeof type &&
     type.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
@@ -1421,18 +1399,10 @@ function serializeClientReference(
         ((existingId = modulePath.slice(idx + 1)),
         (resolvedModuleData = config[modulePath.slice(0, idx)]));
       if (!resolvedModuleData)
-        throw Error(
-          'Could not find the module "' +
-            modulePath +
-            '" in the React Client Manifest. This is probably a bug in the React Server Components bundler.'
-        );
+        throw Error(formatProdErrorMessage(596, modulePath));
     }
     if (!0 === resolvedModuleData.async && !0 === clientReference.$$async)
-      throw Error(
-        'The module "' +
-          modulePath +
-          '" is marked as an async ESM module but was loaded as a CJS proxy. This is probably a bug in the React Server Components bundler.'
-      );
+      throw Error(formatProdErrorMessage(597, modulePath));
     var JSCompiler_inline_result =
       !0 === resolvedModuleData.async || !0 === clientReference.$$async
         ? [resolvedModuleData.id, resolvedModuleData.chunks, existingId, 1]
@@ -1572,9 +1542,7 @@ function renderModelDestructive(
           value
         );
       case REACT_LEGACY_ELEMENT_TYPE:
-        throw Error(
-          'A React Element from an older version of React was rendered. This is not supported. It can happen if:\n- Multiple copies of the "react" package is used.\n- A library pre-bundled an old copy of "react" or "react/jsx-runtime".\n- A compiler tries to "inline" JSX instead of using the runtime.'
-        );
+        throw Error(formatProdErrorMessage(525));
     }
     if (value.$$typeof === CLIENT_REFERENCE_TAG$1)
       return serializeClientReference(
@@ -1713,8 +1681,10 @@ function renderModelDestructive(
       (null === request || null !== getPrototypeOf(request))
     )
       throw Error(
-        "Only plain objects, and a few built-ins, can be passed to Client Components from Server Components. Classes or null prototypes are not supported." +
+        formatProdErrorMessage(
+          498,
           describeObjectForErrorMessage(parent, parentPropertyName)
+        )
       );
     return value;
   }
@@ -1781,18 +1751,19 @@ function renderModelDestructive(
     )
       return "$T" + request;
     if (value.$$typeof === TEMPORARY_REFERENCE_TAG)
-      throw Error(
-        "Could not reference an opaque temporary reference. This is likely due to misconfiguring the temporaryReferences options on the server."
-      );
+      throw Error(formatProdErrorMessage(526));
     if (/^on[A-Z]/.test(parentPropertyName))
       throw Error(
-        "Event handlers cannot be passed to Client Component props." +
-          describeObjectForErrorMessage(parent, parentPropertyName) +
-          "\nIf you need interactivity, consider converting part of this to a Client Component."
+        formatProdErrorMessage(
+          374,
+          describeObjectForErrorMessage(parent, parentPropertyName)
+        )
       );
     throw Error(
-      'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.' +
+      formatProdErrorMessage(
+        375,
         describeObjectForErrorMessage(parent, parentPropertyName)
+      )
     );
   }
   if ("symbol" === typeof value) {
@@ -1803,9 +1774,11 @@ function renderModelDestructive(
     elementReference = value.description;
     if (Symbol.for(elementReference) !== value)
       throw Error(
-        "Only global symbols received from Symbol.for(...) can be passed to Client Components. The symbol Symbol.for(" +
-          (value.description + ") cannot be found among global symbols.") +
+        formatProdErrorMessage(
+          376,
+          value.description,
           describeObjectForErrorMessage(parent, parentPropertyName)
+        )
       );
     request.pendingChunks++;
     parentPropertyName = request.nextChunkId++;
@@ -1820,10 +1793,11 @@ function renderModelDestructive(
   }
   if ("bigint" === typeof value) return "$n" + value.toString(10);
   throw Error(
-    "Type " +
-      typeof value +
-      " is not supported in Client Component props." +
+    formatProdErrorMessage(
+      378,
+      typeof value,
       describeObjectForErrorMessage(parent, parentPropertyName)
+    )
   );
 }
 function logRecoverableError(request, error) {
@@ -1849,9 +1823,8 @@ function fatalError(request, error) {
   null !== request.destination
     ? ((request.status = 14), closeWithError(request.destination, error))
     : ((request.status = 13), (request.fatalError = error));
-  request.cacheController.abort(
-    Error("The render was aborted due to a fatal error.", { cause: error })
-  );
+  error = Error(formatProdErrorMessage(562), { cause: error });
+  request.cacheController.abort(error);
 }
 function emitErrorChunk(request, id, digest) {
   digest = { digest: digest };
@@ -2073,11 +2046,8 @@ function flushCompletedChunks(request) {
   }
   0 === request.pendingChunks &&
     (12 > request.status &&
-      request.cacheController.abort(
-        Error(
-          "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
-        )
-      ),
+      ((destination = Error(formatProdErrorMessage(563))),
+      request.cacheController.abort(destination)),
     null !== request.destination &&
       ((request.status = 14),
       request.destination.close(),
@@ -2159,15 +2129,11 @@ function abort(request, reason) {
         else {
           var error =
               void 0 === reason
-                ? Error(
-                    "The render was aborted by the server without a reason."
-                  )
+                ? Error(formatProdErrorMessage(432))
                 : "object" === typeof reason &&
                     null !== reason &&
                     "function" === typeof reason.then
-                  ? Error(
-                      "The render was aborted by the server with a promise."
-                    )
+                  ? Error(formatProdErrorMessage(530))
                   : reason,
             digest = logRecoverableError(request, error, null),
             errorId = request.nextChunkId++;
@@ -2200,12 +2166,7 @@ function resolveServerReference(bundlerConfig, id) {
     -1 !== idx &&
       ((name = id.slice(idx + 1)),
       (resolvedModuleData = bundlerConfig[id.slice(0, idx)]));
-    if (!resolvedModuleData)
-      throw Error(
-        'Could not find the module "' +
-          id +
-          '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
-      );
+    if (!resolvedModuleData) throw Error(formatProdErrorMessage(589, id));
   }
   return resolvedModuleData.async
     ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
@@ -2302,7 +2263,7 @@ ReactPromise.prototype.then = function (resolve, reject) {
             1e3 < cycleProtection
           ) {
             "function" === typeof reject &&
-              reject(Error("Cannot have cyclic thenables."));
+              reject(Error(formatProdErrorMessage(569)));
             return;
           }
           visited.add(inspectedValue);
@@ -2361,6 +2322,9 @@ function createResolvedModelChunk(response, value, id) {
     ($jscomp$compprop2[RESPONSE_SYMBOL] = response),
     $jscomp$compprop2)
   );
+}
+function createErroredChunk(response, reason) {
+  return new ReactPromise("rejected", null, reason);
 }
 function resolveModelChunk(response, chunk, value, id) {
   if ("pending" !== chunk.status)
@@ -2485,13 +2449,7 @@ function loadServerReference$1(response, metaData, parentObject, key) {
       var promiseValue = metaData.bound.value;
       promiseValue = isArrayImpl(promiseValue) ? promiseValue.slice(0) : [];
       if (1e3 < promiseValue.length) {
-        reject(
-          Error(
-            "Server Function has too many bound arguments. Received " +
-              promiseValue.length +
-              " but the limit is 1000."
-          )
-        );
+        reject(Error(formatProdErrorMessage(580, promiseValue.length, 1e3)));
         return;
       }
       promiseValue.unshift(null);
@@ -2574,9 +2532,7 @@ function bumpArrayCount(arrayContext, slots, response) {
     (arrayContext.count += slots) > response._arraySizeLimit &&
     arrayContext.fork
   )
-    throw Error(
-      "Maximum array nesting exceeded. Large nested arrays can be dangerous. Try adding intermediate objects."
-    );
+    throw Error(formatProdErrorMessage(571));
 }
 var initializingHandler = null;
 function initializeModelChunk(chunk) {
@@ -2652,7 +2608,7 @@ function getChunk(response, id) {
       "string" === typeof chunk
         ? createResolvedModelChunk(response, chunk, id)
         : response._closed
-          ? new ReactPromise("rejected", null, response._closedReason)
+          ? createErroredChunk(response, response._closedReason)
           : new ReactPromise("pending", null, null)),
     chunks.set(id, chunk));
   return chunk;
@@ -2679,7 +2635,7 @@ function fulfillReference(response, reference, value, arrayRoot) {
           getPrototypeOf(value) !== ArrayPrototype) ||
         !hasOwnProperty.call(value, name)
       )
-        throw Error("Invalid reference.");
+        throw Error(formatProdErrorMessage(570));
       value = value[name];
       if (isArrayImpl(value))
         (localLength = 0),
@@ -2763,7 +2719,7 @@ function getOutlinedModel(
             getPrototypeOf(id) !== ArrayPrototype) ||
           !hasOwnProperty.call(id, localLength)
         )
-          throw Error("Invalid reference.");
+          throw Error(formatProdErrorMessage(570));
         id = id[localLength];
         isArrayImpl(id)
           ? ((localLength = 0), (chunk = rootArrayContexts.get(id) || chunk))
@@ -2809,7 +2765,7 @@ function getOutlinedModel(
         null
       );
     case "pending":
-      throw Error("Invalid forward reference.");
+      throw Error(formatProdErrorMessage(574));
     default:
       return (
         initializingHandler
@@ -2828,20 +2784,20 @@ function getOutlinedModel(
   }
 }
 function createMap(response, model) {
-  if (!isArrayImpl(model)) throw Error("Invalid Map initializer.");
-  if (!0 === model.$$consumed) throw Error("Already initialized Map.");
+  if (!isArrayImpl(model)) throw Error(formatProdErrorMessage(575));
+  if (!0 === model.$$consumed) throw Error(formatProdErrorMessage(572));
   model.$$consumed = !0;
   return new Map(model);
 }
 function createSet(response, model) {
-  if (!isArrayImpl(model)) throw Error("Invalid Set initializer.");
-  if (!0 === model.$$consumed) throw Error("Already initialized Set.");
+  if (!isArrayImpl(model)) throw Error(formatProdErrorMessage(576));
+  if (!0 === model.$$consumed) throw Error(formatProdErrorMessage(573));
   model.$$consumed = !0;
   return new Set(model);
 }
 function extractIterator(response, model) {
-  if (!isArrayImpl(model)) throw Error("Invalid Iterator initializer.");
-  if (!0 === model.$$consumed) throw Error("Already initialized Iterator.");
+  if (!isArrayImpl(model)) throw Error(formatProdErrorMessage(577));
+  if (!0 === model.$$consumed) throw Error(formatProdErrorMessage(578));
   model.$$consumed = !0;
   return model[Symbol.iterator]();
 }
@@ -2871,15 +2827,10 @@ function parseTypedArray(
   reference = parseInt(reference.slice(2), 16);
   var key = response._prefix + reference;
   bytesPerElement = response._chunks;
-  if (bytesPerElement.has(reference))
-    throw Error("Already initialized typed array.");
+  if (bytesPerElement.has(reference)) throw Error(formatProdErrorMessage(568));
   bytesPerElement.set(
     reference,
-    new ReactPromise(
-      "rejected",
-      null,
-      Error("Already initialized typed array.")
-    )
+    createErroredChunk(response, Error(formatProdErrorMessage(568)))
   );
   reference = response._formData.get(key).arrayBuffer();
   if (initializingHandler) {
@@ -2937,11 +2888,10 @@ function parseReadableStream(response, reference, type) {
   function enqueue(value) {
     "bytes" !== type || ArrayBuffer.isView(value)
       ? controller.enqueue(value)
-      : flightController.error(Error("Invalid data for bytes stream."));
+      : flightController.error(Error(formatProdErrorMessage(579)));
   }
   reference = parseInt(reference.slice(2), 16);
-  if (response._chunks.has(reference))
-    throw Error("Already initialized stream.");
+  if (response._chunks.has(reference)) throw Error(formatProdErrorMessage(567));
   var controller = null,
     closed = !1,
     stream = new ReadableStream({
@@ -3008,8 +2958,7 @@ FlightIterator.prototype[ASYNC_ITERATOR] = function () {
 };
 function parseAsyncIterable(response, reference, iterator) {
   reference = parseInt(reference.slice(2), 16);
-  if (response._chunks.has(reference))
-    throw Error("Already initialized stream.");
+  if (response._chunks.has(reference)) throw Error(formatProdErrorMessage(567));
   var buffer = [],
     closed = !1,
     nextWriteIndex = 0,
@@ -3018,10 +2967,7 @@ function parseAsyncIterable(response, reference, iterator) {
     (($jscomp$compprop5[ASYNC_ITERATOR] = function () {
       var nextReadIndex = 0;
       return new FlightIterator(function (arg) {
-        if (void 0 !== arg)
-          throw Error(
-            "Values cannot be passed to next() of AsyncIterables passed to Client Components."
-          );
+        if (void 0 !== arg) throw Error(formatProdErrorMessage(524));
         if (nextReadIndex === buffer.length) {
           if (closed)
             return new ReactPromise(
@@ -3122,9 +3068,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
         );
       case "T":
         if (void 0 === reference || void 0 === response._temporaryReferences)
-          throw Error(
-            "Could not reference an opaque temporary reference. This is likely due to misconfiguring the temporaryReferences options on the server."
-          );
+          throw Error(formatProdErrorMessage(526));
         return createTemporaryReference(
           response._temporaryReferences,
           reference
@@ -3176,11 +3120,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
       case "n":
         obj = value.slice(2);
         if (300 < obj.length)
-          throw Error(
-            "BigInt is too large. Received " +
-              obj.length +
-              " digits but the limit is 300."
-          );
+          throw Error(formatProdErrorMessage(581, obj.length, 300));
         null !== arrayRoot && bumpArrayCount(arrayRoot, obj.length, response);
         return BigInt(obj);
       case "A":
@@ -3317,7 +3257,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
         obj = parseInt(value.slice(2), 16);
         response = response._formData.get(response._prefix + obj);
         if (!(response instanceof Blob))
-          throw Error("Referenced Blob is not a Blob.");
+          throw Error(formatProdErrorMessage(582));
         return response;
       case "R":
         return parseReadableStream(response, value, void 0);
@@ -3354,9 +3294,6 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
     _arraySizeLimit: arraySizeLimit
   };
 }
-function close(response) {
-  reportGlobalError(response, Error("Connection closed."));
-}
 function loadServerReference(bundlerConfig, metaData) {
   var id = metaData.id;
   if ("string" !== typeof id) return null;
@@ -3368,11 +3305,7 @@ function loadServerReference(bundlerConfig, metaData) {
         _ref = _ref[0];
         var fn = requireModule(serverReference);
         if (1e3 < _ref.length)
-          throw Error(
-            "Server Function has too many bound arguments. Received " +
-              _ref.length +
-              " but the limit is 1000."
-          );
+          throw Error(formatProdErrorMessage(580, _ref.length, 1e3));
         return fn.bind.apply(fn, [null].concat(_ref));
       })
     : bundlerConfig
@@ -3394,7 +3327,7 @@ function decodeBoundActionMetaData(
     body,
     arraySizeLimit
   );
-  close(body);
+  reportGlobalError(body, Error(formatProdErrorMessage(412)));
   body = getChunk(body, 0);
   body.then(function () {});
   if ("fulfilled" !== body.status) throw body.reason;
@@ -3466,7 +3399,7 @@ exports.decodeReply = function (body, webpackMap, options) {
     options ? options.arraySizeLimit : void 0
   );
   webpackMap = getChunk(body, 0);
-  close(body);
+  reportGlobalError(body, Error(formatProdErrorMessage(412)));
   return webpackMap;
 };
 exports.prerender = function (model, webpackMap, options) {

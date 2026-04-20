@@ -54,7 +54,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -79,7 +79,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -102,7 +102,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'undefined'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -137,7 +137,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'null'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -172,7 +172,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -271,9 +271,7 @@ describe('app-dir - errors', () => {
         expect.objectContaining({
           message: isNextDev
             ? 'custom server error'
-            : 'An error occurred in the Server Components render. ' +
-              'The specific message is omitted in production builds to avoid leaking sensitive details. ' +
-              'A digest property is included on this error instance which may provide additional details about the nature of the error.',
+            : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.',
         }),
       ])
     })
@@ -374,7 +372,7 @@ describe('app-dir - errors', () => {
         ).toBe(
           isNextDev
             ? 'this is a test'
-            : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+            : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
         )
 
         // Enable recovery via globalThis.__nextTestRecover

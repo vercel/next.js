@@ -1,14 +1,16 @@
 'use client'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 export function NavigateAndTrackRouterIdentity({ href }) {
   const router = useRouter()
+  const [prevRouter, setPrevRouter] = useState(router)
 
-  const [changedCount, setChangedCount] = useState(-1)
-  useEffect(() => {
+  const [changedCount, setChangedCount] = useState(0)
+  if (prevRouter !== router) {
+    setPrevRouter(router)
     setChangedCount((p) => p + 1)
-  }, [router])
+  }
 
   const [navigationCount, setNavigationCount] = useState(0)
   const navigate = () => {

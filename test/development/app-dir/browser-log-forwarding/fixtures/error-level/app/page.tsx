@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useInsertionEffect } from 'react'
 
 export default function Page() {
-  useEffect(() => {
+  useInsertionEffect(() => {
     console.log('browser log: this is a log message')
     console.info('browser info: this is an info message')
     console.warn('browser warn: this is a warning message')
