@@ -71,11 +71,6 @@ const cwd = process.cwd()
 
   console.log(`Publishing as "${tag}" dist tag...`)
 
-  if (!process.env.NPM_TOKEN) {
-    console.log('No NPM_TOKEN, exiting...')
-    return
-  }
-
   const packagesDir = path.join(cwd, 'packages')
   const packageDirs = fs.readdirSync(packagesDir)
   const publishSema = new Sema(2)
