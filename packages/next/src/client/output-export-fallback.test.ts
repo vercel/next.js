@@ -528,4 +528,64 @@ describe('output export fallback helpers', () => {
       'https://example.com/docs/api/guide/__fallback.meta.json',
     ])
   })
+
+  it('matches and fetches conflicting fallback branches under basePath', async () => {
+    process.env.__NEXT_ROUTER_BASEPATH = '/base'
+
+    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.endsWith('/base/docs/__fallback.meta.json')) {
+        return new Response(
+          JSON.stringify({
+            version: 1,
+            routes: [
+              {
+                route: '/docs/[section]/[page]',
+                fallbackPath: '/docs/__fallback/__route_0',
+              },
+              {
+                route: '/docs/[...slug]',
+                fallbackPath: '/docs/__fallback/__route_1',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        )
+      }
+
+      if (url.endsWith('/base/docs/__fallback/__route_0.txt')) {
+        return new Response('payload', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        })
+      }
+
+      return new Response('not found', {
+        status: 404,
+        headers: { 'content-type': 'text/html' },
+      })
+    })
+
+    global.fetch = fetchMock as typeof fetch
+
+    const renderedUrl = new URL('https://example.com/base/docs/api/reference')
+    const result = await fetchOutputExportFallbackResponse(renderedUrl)
+
+    expect(result).not.toBeNull()
+    expect(result?.fallbackUrl.pathname).toBe('/base/docs/__fallback/__route_0')
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/base/docs/api/reference/__fallback.meta.json',
+      'https://example.com/base/docs/api/reference/__fallback.txt',
+      'https://example.com/base/docs/api/reference/__fallback/index.txt',
+      'https://example.com/base/docs/api/__fallback.meta.json',
+      'https://example.com/base/docs/api/__fallback.txt',
+      'https://example.com/base/docs/api/__fallback/index.txt',
+      'https://example.com/base/docs/__fallback.meta.json',
+      'https://example.com/base/docs/__fallback/__route_0.txt',
+    ])
+  })
 })
