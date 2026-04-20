@@ -12,47 +12,6 @@ type StoreId = string
 type WorkUnitStore = { id: StoreId }
 export const workUnitAsyncStorage = new AsyncLocalStorage<WorkUnitStore>()
 
-let currentAlsRunCall: WorkUnitStore | null = null
-
-const AsyncLocalStorage$run = AsyncLocalStorage.prototype.run
-AsyncLocalStorage.prototype.run = function <T, R>(this: AsyncLocalStorage<T>) {
-  const storage = this
-  if (storage === workUnitAsyncStorage) {
-    const value = arguments[0] as WorkUnitStore
-    const callback = arguments[1]
-    const previous = currentAlsRunCall
-
-    currentAlsRunCall = value
-    try {
-      return AsyncLocalStorage$run.call(
-        this,
-        value,
-        wrapWithNamedAsyncNode(WORK_UNIT_SCOPE_MARKER, callback),
-        ...Array.prototype.slice.call(arguments, 2)
-      ) as R
-      // return AsyncLocalStorage$run.apply(this, arguments as any) as R
-    } finally {
-      currentAlsRunCall = previous
-    }
-  } else {
-    return AsyncLocalStorage$run.apply(this, arguments as any) as R
-  }
-}
-
-const WORK_UNIT_SCOPE_MARKER = 'NEXT:WORK_UNIT_SCOPE_MARKER'
-
-function wrapWithNamedAsyncNode<T>(name: string, callback: () => T): () => T {
-  return () => {
-    // when a named function wrapped with `AsyncLocalStorage.bind` is invoked,
-    // it triggers async hooks (`init`/`before`/`after`).
-    // inside `init`, the `type` will be the name of the function. We can use this to
-    // add a marker to detect when we're in a `AsyncLocalStorage#run` call
-    // and transitioning to a new workUnitStore.
-    const namedCallback = { [name]: () => callback() }[name.slice(0)]
-    return AsyncLocalStorage.bind(namedCallback)()
-  }
-}
-
 const INFO_MISSING_TYPE = 'MISSING_INIT'
 const INFO_PROMISE_TYPE = 'PROMISE'
 
@@ -94,13 +53,6 @@ export function createWorkUnitTracker(
       const triggerStore: WorkUnitStore | null =
         nodesById.get(triggerId)?.originStore ?? null
 
-      // let originStore: WorkUnitStore | null
-      // if (type === WORK_UNIT_SCOPE_MARKER) {
-      //   originStore =
-      // } else {
-
-      // }
-
       const currentStore = workUnitAsyncStorage.getStore() ?? null
       // Note: we don't always get one promise that acts like a root for the store transition,
       // there can be multiple
@@ -111,31 +63,15 @@ export function createWorkUnitTracker(
       }
       nodesById.set(id, node)
 
-      if (
-        type === WORK_UNIT_SCOPE_MARKER &&
-        currentAlsRunCall !== null &&
-        currentAlsRunCall === currentStore
-      ) {
-        // we're currently executing workUnitAsyncStorage.run for this store.
-        // it will be different from the outer context, and that's not an error.
+      if (currentStore && triggerStore && currentStore.id !== triggerStore.id) {
         debug(
-          `AsyncLocalStorage.run: from ${triggerStore?.id ?? '<no store>'} to ${currentStore.id}`
+          '#'.repeat(40) +
+            '\n' +
+            `store mismatch for ${id}, ${currentStore.id} != ${triggerStore.id}`,
+          '\n' + '#'.repeat(40)
         )
-      } else {
-        if (
-          currentStore &&
-          triggerStore &&
-          currentStore.id !== triggerStore.id
-        ) {
-          debug(
-            '#'.repeat(40) +
-              '\n' +
-              `store mismatch for ${id}, ${currentStore.id} != ${triggerStore.id}`,
-            '\n' + '#'.repeat(40)
-          )
-          debug(new Error().stack)
-          onStoreMismatch(triggerStore.id, currentStore.id)
-        }
+        debug(new Error().stack)
+        onStoreMismatch(triggerStore.id, currentStore.id)
       }
     },
 
