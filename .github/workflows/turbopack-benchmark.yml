@@ -23,6 +23,10 @@ env:
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
@@ -58,7 +62,6 @@ jobs:
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-cli small_apps
-          token: ${{ secrets.CODSPEED_TOKEN }}
 
   benchmark-analyzer:
     name: Benchmark Rust Crates (analyzer)
@@ -94,7 +97,6 @@ jobs:
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-ecmascript references
-          token: ${{ secrets.CODSPEED_TOKEN }}
 
   benchmark-large:
     name: Benchmark Rust Crates (large)
@@ -124,4 +126,3 @@ jobs:
         with:
           mode: instrumentation
           run: cargo codspeed run
-          token: ${{ secrets.CODSPEED_TOKEN }}
