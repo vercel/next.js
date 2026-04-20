@@ -19,6 +19,13 @@ describe('no-location-assign-relative-destination', () => {
           jsx: true,
         },
       },
+      globals: {
+        location: 'readonly',
+        window: 'readonly',
+        globalThis: 'readonly',
+        document: 'readonly',
+        self: 'readonly',
+      },
     },
   }).run('eslint', NextESLintRule, {
     valid: [
@@ -38,6 +45,17 @@ describe('no-location-assign-relative-destination', () => {
       // Bracket notation with absolute URL
       `location['href'] = 'https://example.com'`,
       `location['assign']('https://example.com')`,
+      // Locally-shadowed `location` is not the browser global
+      `const location = { href: '' }; location.href = '/foo'`,
+      `function handler(location) { location.href = '/foo'; location.assign('/foo') }`,
+      // Locally-shadowed `window` / `globalThis`
+      `const window = { location: { href: '' } }; window.location.href = '/foo'`,
+      `function handler(globalThis) { globalThis.location.assign('/foo') }`,
+      // Imported `location` binding is not the browser global
+      `
+        import { location } from './my-module';
+        location.href = '/foo'
+      `,
     ],
     invalid: [
       // location.href = (relative)

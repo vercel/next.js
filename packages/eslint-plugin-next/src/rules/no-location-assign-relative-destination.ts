@@ -3,7 +3,7 @@ import { defineRule } from '../utils/define-rule'
 const url =
   'https://nextjs.org/docs/messages/no-location-assign-relative-destination'
 
-const LOCATION_GLOBALS = new Set(['window', 'globalThis'])
+const LOCATION_GLOBALS = new Set(['window', 'globalThis', 'document', 'self'])
 
 function isLocationObject(node: any): boolean {
   // `location`
@@ -23,14 +23,11 @@ function isLocationObject(node: any): boolean {
 }
 
 function isPropertyNamed(memberNode: any, name: string): boolean {
-  return (
-    (memberNode.computed === false &&
-      memberNode.property.type === 'Identifier' &&
-      memberNode.property.name === name) ||
-    (memberNode.computed === true &&
-      memberNode.property.type === 'Literal' &&
-      memberNode.property.value === name)
-  )
+  return memberNode.computed
+    ? memberNode.property.type === 'Literal' &&
+        memberNode.property.value === name
+    : memberNode.property.type === 'Identifier' &&
+        memberNode.property.name === name
 }
 
 /** Returns true when the node is a string literal containing "://" (absolute URL). */
@@ -41,6 +38,20 @@ function isAbsoluteUrlLiteral(node: any): boolean {
     typeof node.value === 'string' &&
     node.value.includes('://')
   )
+}
+
+/**
+ * Returns the base `Identifier` node for a `location`-object reference — i.e.
+ * the identifier whose scope we need to check to know if it refers to the
+ * browser global. For `location`, the identifier is itself; for
+ * `window.location` / `globalThis.location`, the base is `window`/`globalThis`.
+ */
+function getLocationBaseIdentifier(locationNode: any): any {
+  if (locationNode.type === 'Identifier') {
+    return locationNode
+  }
+  // MemberExpression: window.location / globalThis.location
+  return locationNode.object
 }
 
 export default defineRule({
@@ -62,6 +73,7 @@ export default defineRule({
 
   create(context) {
     const { sourceCode } = context
+
     return {
       // location.assign(...) / location['assign'](...)
       // window.location.assign(...) / window.location['assign'](...)
@@ -77,11 +89,16 @@ export default defineRule({
           if (isAbsoluteUrlLiteral(node.arguments[0])) {
             return
           }
-          const expression = sourceCode.getText(callee)
+          // Allow calls where the base identifier (location/window/globalThis)
+          // refers to a locally declared variable, not the browser global.
+          const base = getLocationBaseIdentifier(callee.object)
+          if (!isGlobalReference(base)) {
+            return
+          }
           context.report({
             node,
             messageId: 'noLocationAssign',
-            data: { expression: expression + '()' },
+            data: { expression: sourceCode.getText(callee) + '()' },
           })
         }
       },
@@ -100,14 +117,31 @@ export default defineRule({
           if (isAbsoluteUrlLiteral(node.right)) {
             return
           }
-          const expression = sourceCode.getText(left)
+          // Allow assignments where the base identifier (location/window/globalThis)
+          // refers to a locally declared variable, not the browser global.
+          const base = getLocationBaseIdentifier(left.object)
+          if (!isGlobalReference(base)) {
+            return
+          }
           context.report({
             node,
             messageId: 'noLocationAssign',
-            data: { expression },
+            data: { expression: sourceCode.getText(left) },
           })
         }
       },
+    }
+
+    // By inline this helper function with create, I can have typed sourceCode.scopeManager
+    function isGlobalReference(node): boolean {
+      if (!node) return false
+      if (node.type !== 'Identifier') return false
+
+      const variable = sourceCode.scopeManager.scopes[0].set.get(node.name)
+
+      if (!variable || variable.defs.length > 0) return false
+
+      return variable.references.some(({ identifier }) => identifier === node)
     }
   },
 })
