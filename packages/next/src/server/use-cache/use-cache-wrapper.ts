@@ -2628,7 +2628,7 @@ export async function cache(
             // dynamic render), then we should warm up the cache with a fresh
             // revalidated entry.
             const revalidateCacheHandlerKey = cacheHandlerKey
-            generateCacheEntry(
+            const revalidatePromise = generateCacheEntry(
               workStore,
               // The background revalidation preserves the outer store for
               // reading (e.g. implicitTags) but skips propagation of cache life
@@ -2675,6 +2675,8 @@ export async function cache(
                   error
                 )
               })
+            workStore.pendingRevalidateWrites ??= []
+            workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
         }
       }
