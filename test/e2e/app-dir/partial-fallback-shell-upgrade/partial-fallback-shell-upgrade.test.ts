@@ -1,7 +1,7 @@
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
-import { retry } from 'next-test-utils'
+import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
 
 const isAdapterTest = Boolean(process.env.NEXT_ENABLE_ADAPTER)
@@ -104,6 +104,31 @@ describe('partial-fallback-shell-upgrade', () => {
       expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
       expect(secondResult.dynamicPart).not.toContain('<div id="two">foo</div>')
     })
+  })
+
+  it('should let a segment prefetch trigger the background shell upgrade', async () => {
+    const prefetchResponse = await next.fetch('/prefix/z/foo', {
+      headers: {
+        rsc: '1',
+        'next-router-prefetch': '1',
+        'next-router-segment-prefetch': '/_tree',
+      },
+    })
+
+    expect(prefetchResponse.status).toBe(200)
+
+    // Wait a moment to let the background upgrade to finish
+    await waitFor(3000)
+
+    const result = await fetchSplitHTML('/prefix/z/bar')
+
+    expect(result.response.status).toBe(200)
+    expect(result.static$('#one').text()).toBe('z')
+    expect(result.static$('#one-fallback').length).toBe(0)
+    expect(result.static$('#two-fallback').text()).toBe('loading two...')
+    expect(result.static$('#two').length).toBe(0)
+    expect(result.dynamicPart).toContain('<div id="two">bar</div>')
+    expect(result.dynamicPart).not.toContain('<div id="two">foo</div>')
   })
 
   it('should not keep upgrading once only fully dynamic params remain', async () => {

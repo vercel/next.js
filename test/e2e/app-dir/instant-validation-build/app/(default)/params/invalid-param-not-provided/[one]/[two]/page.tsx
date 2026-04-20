@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import { ensureThrows } from '../../../../../../ensure-error'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       params: {
@@ -13,7 +12,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page({
   params,

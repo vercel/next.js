@@ -4,7 +4,9 @@ use anyhow::Result;
 use either::Either;
 use smallvec::SmallVec;
 use turbo_bincode::TurboBincodeBuffer;
-use turbo_tasks::{TaskId, backend::CachedTaskType};
+use turbo_tasks::{
+    DynTaskInputs, RawVc, TaskId, backend::CachedTaskType, macro_helpers::NativeFunction,
+};
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage};
@@ -41,6 +43,20 @@ pub fn compute_task_type_hash(task_type: &CachedTaskType) -> TaskTypeHash {
         );
     }
     hash.to_le_bytes()
+}
+
+/// Computes a deterministic 64-bit hash from task type components for use as a TaskCache key.
+///
+/// Like [`compute_task_type_hash`], but works with borrowed components so the caller does not need
+/// to construct (and box-allocate) a full [`CachedTaskType`] first.
+pub fn compute_task_type_hash_from_components(
+    native_fn: &'static NativeFunction,
+    this: Option<RawVc>,
+    arg: &dyn DynTaskInputs,
+) -> TaskTypeHash {
+    let mut hasher = Xxh3Hash64Hasher::new();
+    CachedTaskType::hash_encode_components(native_fn, this, arg, &mut hasher);
+    hasher.finish().to_le_bytes()
 }
 
 /// Represents types accepted by [`TurboTasksBackend::new`]. Typically this is the value returned by
@@ -83,7 +99,12 @@ pub trait BackingStorageSealed: 'static + Send + Sync {
     /// Since TaskCache uses hash-based keys, multiple task types may (rarely) hash to the same key.
     /// The caller must verify each returned TaskId by comparing the stored task type which will
     /// require a second database read
-    fn lookup_task_candidates(&self, key: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>>;
+    fn lookup_task_candidates(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Result<SmallVec<[TaskId; 1]>>;
     /// Looks up and decodes persisted data for a single task, updating the provided storage with
     /// data from the database in the given category.
     fn lookup_data(
@@ -149,8 +170,13 @@ where
         ))
     }
 
-    fn lookup_task_candidates(&self, key: &CachedTaskType) -> Result<SmallVec<[TaskId; 1]>> {
-        either::for_both!(self, this => this.lookup_task_candidates(key))
+    fn lookup_task_candidates(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> Result<SmallVec<[TaskId; 1]>> {
+        either::for_both!(self, this_impl => this_impl.lookup_task_candidates(native_fn, this, arg))
     }
 
     fn lookup_data(

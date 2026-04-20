@@ -3,13 +3,12 @@ import { cachedDelay, DebugRenderKind } from '../../../../shared'
 import { cacheLife } from 'next/cache'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
   // We're intentionally testing error behavior at runtime.
   // Build-time validation catches it and prevents that.
   unstable_disableValidation: true,
   samples: [{ cookies: [] }],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

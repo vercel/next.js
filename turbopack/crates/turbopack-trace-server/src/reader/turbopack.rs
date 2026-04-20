@@ -8,6 +8,7 @@ use std::{
 
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_rcstr::{RcStr, RcStrInterning};
 use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 
 use super::TraceFormat;
@@ -124,31 +125,32 @@ impl InternalRowType<'_> {
     }
 }
 
-#[derive(Default)]
-struct QueuedRows {
-    rows: Vec<InternalRow<'static>>,
-}
-
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
     id_mapping: FxHashMap<u64, SpanIndex>,
-    queued_rows: FxHashMap<u64, QueuedRows>,
+    queued_rows: FxHashMap<u64, Vec<InternalRow<'static>>>,
     outdated_spans: FxHashSet<SpanIndex>,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
     thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
     self_time_started: FxHashMap<(u64, u64), Timestamp>,
+    /// Scratch buffer reused across `process_internal_row` calls to avoid
+    /// per-call allocation. Always empty between calls.
+    row_queue: Vec<InternalRow<'static>>,
+    interner: RcStrInterning,
 }
 
 impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
         Self {
             store,
-            id_mapping: FxHashMap::default(),
-            queued_rows: FxHashMap::default(),
-            outdated_spans: FxHashSet::default(),
-            thread_stacks: FxHashMap::default(),
-            thread_allocation_counters: FxHashMap::default(),
-            self_time_started: FxHashMap::default(),
+            id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
+            queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
+            outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
+            thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
+            thread_allocation_counters: FxHashMap::with_capacity_and_hasher(64, Default::default()),
+            self_time_started: FxHashMap::with_capacity_and_hasher(256, Default::default()),
+            row_queue: Vec::new(),
+            interner: RcStrInterning::new(),
         }
     }
 
@@ -356,21 +358,23 @@ impl TurbopackFormat {
     }
 
     fn process_internal_row(&mut self, store: &mut StoreWriteGuard, row: InternalRow<'_>) {
-        let mut queue = Vec::new();
-        queue.push(row);
+        // Reclaim capacity from the previous call; the field is always empty between calls.
+        let mut queue = take(&mut self.row_queue);
+        self.process_internal_row_queue(store, row, &mut queue);
         while !queue.is_empty() {
-            let q = take(&mut queue);
-            for row in q {
+            let batch = take(&mut queue);
+            for row in batch {
                 self.process_internal_row_queue(store, row, &mut queue);
             }
         }
+        self.row_queue = queue; // save capacity for next call
     }
 
     fn process_internal_row_queue(
         &mut self,
         store: &mut StoreWriteGuard,
         row: InternalRow<'_>,
-        queue: &mut Vec<InternalRow<'_>>,
+        queue: &mut Vec<InternalRow<'static>>,
     ) {
         let id = if let Some(id) = row.id {
             if let Some(id) = self.id_mapping.get(&id) {
@@ -379,7 +383,6 @@ impl TurbopackFormat {
                 self.queued_rows
                     .entry(id)
                     .or_default()
-                    .rows
                     .push(row.into_static());
                 return;
             }
@@ -397,19 +400,17 @@ impl TurbopackFormat {
                 let span_id = store.add_span(
                     id,
                     ts,
-                    target.into_owned(),
-                    name.into_owned(),
+                    self.interner.intern_cow(target),
+                    self.interner.intern_cow(name),
                     values
                         .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .map(|(k, v)| (self.interner.intern(k), self.interner.intern_display(v)))
                         .collect(),
                     &mut self.outdated_spans,
                 );
                 self.id_mapping.insert(new_id, span_id);
-                if let Some(QueuedRows { rows }) = self.queued_rows.remove(&new_id) {
-                    for row in rows {
-                        queue.push(row);
-                    }
+                if let Some(rows) = self.queued_rows.remove(&new_id) {
+                    queue.extend(rows);
                 }
             }
             InternalRowType::Record { ref values } => {
@@ -417,7 +418,7 @@ impl TurbopackFormat {
                     id.unwrap(),
                     values
                         .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .map(|(k, v)| (self.interner.intern(k), self.interner.intern_display(v)))
                         .collect(),
                     &mut self.outdated_spans,
                 );
@@ -438,17 +439,17 @@ impl TurbopackFormat {
                 );
                 let name = values
                     .swap_remove("name")
-                    .and_then(|v| v.as_str().map(|s| s.to_string()))
-                    .unwrap_or("event".into());
+                    .and_then(|v| v.as_str().map(|s| self.interner.intern(s)))
+                    .unwrap_or_else(|| RcStr::from("event"));
 
                 let id = store.add_span(
                     id,
                     ts.saturating_sub(duration),
-                    "event".into(),
+                    RcStr::from("event"),
                     name,
                     values
                         .iter()
-                        .map(|(k, v)| (k.to_string(), v.to_string()))
+                        .map(|(k, v)| (self.interner.intern(k), self.interner.intern_display(v)))
                         .collect(),
                     &mut self.outdated_spans,
                 );
@@ -488,6 +489,15 @@ impl TurbopackFormat {
 
 impl TraceFormat for TurbopackFormat {
     type Reused = Vec<TraceRow<'static>>;
+
+    fn create_reused() -> Vec<TraceRow<'static>> {
+        // Pre-allocate for a typical batch size to avoid repeated doubling during initial read.
+        Vec::with_capacity(4_096)
+    }
+
+    fn stats(&self) -> String {
+        format!("{} spans", self.id_mapping.len())
+    }
 
     fn read(&mut self, mut buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize> {
         reuse.clear();

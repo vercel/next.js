@@ -1,7 +1,7 @@
 import { CachedData, getCachedData } from '../../data-fetching'
 
-export const unstable_instant = { prefetch: 'runtime', samples: [{}] }
-export const unstable_prefetch = 'runtime'
+export const unstable_instant = true
+export const unstable_prefetch = 'force-runtime'
 
 const CACHE_KEY = __dirname + '/__PAGE__'
 

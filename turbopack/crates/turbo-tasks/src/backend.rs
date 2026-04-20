@@ -3,7 +3,7 @@ use std::{
     error::Error,
     fmt::{self, Debug, Display},
     future::Future,
-    hash::{BuildHasherDefault, Hash},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     pin::Pin,
     sync::Arc,
 };
@@ -30,9 +30,16 @@ use turbo_tasks_hash::DeterministicHasher;
 use crate::{
     RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
     TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
-    VcValueTrait, VcValueType, event::EventListener, macro_helpers::NativeFunction,
-    magic_any::MagicAny, manager::TurboTasksBackendApi, raw_vc::CellId, registry,
-    task::shared_reference::TypedSharedReference, task_statistics::TaskStatisticsApi, turbo_tasks,
+    VcValueTrait, VcValueType,
+    dyn_task_inputs::{DynTaskInputs, StackDynTaskInputs},
+    event::EventListener,
+    macro_helpers::NativeFunction,
+    manager::{TaskPersistence, TurboTasksBackendApi},
+    raw_vc::CellId,
+    registry,
+    task::shared_reference::TypedSharedReference,
+    task_statistics::TaskStatisticsApi,
+    turbo_tasks,
 };
 
 pub type TransientTaskRoot =
@@ -73,7 +80,7 @@ impl Debug for TransientTaskType {
 pub struct CachedTaskType {
     pub native_fn: &'static NativeFunction,
     pub this: Option<RawVc>,
-    pub arg: Box<dyn MagicAny>,
+    pub arg: Box<dyn DynTaskInputs>,
 }
 
 impl CachedTaskType {
@@ -88,13 +95,7 @@ impl CachedTaskType {
     /// This uses the same encoding logic as [`TurboBincodeEncode`] but writes
     /// directly to a [`DeterministicHasher`] instead of a buffer.
     pub fn hash_encode<H: DeterministicHasher>(&self, hasher: &mut H) {
-        let fn_id = registry::get_function_id(self.native_fn);
-        {
-            let mut encoder = new_hash_encoder(hasher);
-            Encode::encode(&fn_id, &mut encoder).expect("fn_id encoding should not fail");
-            Encode::encode(&self.this, &mut encoder).expect("this encoding should not fail");
-        }
-        (self.native_fn.arg_meta.hash_encode)(&*self.arg, hasher);
+        Self::hash_encode_components(self.native_fn, self.this, &*self.arg, hasher);
     }
 }
 
@@ -152,6 +153,53 @@ impl Hash for CachedTaskType {
 impl Display for CachedTaskType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.get_name())
+    }
+}
+
+impl CachedTaskType {
+    /// Compute the hash of a task type from its individual components, matching the Hash impl.
+    /// This avoids constructing a full CachedTaskType just to compute the hash.
+    pub fn hash_from_components(
+        hasher: &impl BuildHasher,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> u64 {
+        use std::hash::Hasher;
+        let mut state = hasher.build_hasher();
+        native_fn.hash(&mut state);
+        this.hash(&mut state);
+        arg.hash(&mut state);
+        state.finish()
+    }
+
+    /// Compute the deterministic hash for backing storage from components.
+    ///
+    /// This mirrors the logic in [`CachedTaskType::hash_encode`] but works with
+    /// borrowed components, avoiding the need to construct a full [`CachedTaskType`].
+    pub fn hash_encode_components<H: DeterministicHasher>(
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+        hasher: &mut H,
+    ) {
+        let fn_id = registry::get_function_id(native_fn);
+        {
+            let mut encoder = new_hash_encoder(hasher);
+            Encode::encode(&fn_id, &mut encoder).expect("fn_id encoding should not fail");
+            Encode::encode(&this, &mut encoder).expect("this encoding should not fail");
+        }
+        (native_fn.arg_meta.hash_encode)(arg, hasher);
+    }
+
+    /// Check equality of components against this CachedTaskType.
+    pub fn eq_components(
+        &self,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &dyn DynTaskInputs,
+    ) -> bool {
+        std::ptr::eq(self.native_fn, native_fn) && self.this == this && &*self.arg == arg
     }
 }
 
@@ -603,17 +651,13 @@ pub trait Backend: Sync + Send {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     );
 
-    fn get_or_create_persistent_task(
+    fn get_or_create_task(
         &self,
-        task_type: CachedTaskType,
+        native_fn: &'static NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackDynTaskInputs,
         parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> TaskId;
-
-    fn get_or_create_transient_task(
-        &self,
-        task_type: CachedTaskType,
-        parent_task: Option<TaskId>,
+        persistence: TaskPersistence,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> TaskId;
 
@@ -655,4 +699,169 @@ pub trait Backend: Sync + Send {
     /// Returns a human-readable name for the given task. Used by error display formatting
     /// to lazily resolve task names instead of storing them eagerly in error objects.
     fn get_task_name(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) -> String;
+}
+
+#[cfg(test)]
+mod cached_task_type_tests {
+    use std::{collections::hash_map::RandomState, hash::BuildHasher};
+
+    use crate::{
+        RawVc, TaskId,
+        backend::CachedTaskType,
+        dyn_task_inputs::DynTaskInputs,
+        macro_helpers::{ArgMeta, NativeFunction, into_task_fn},
+    };
+
+    // Two distinct static NativeFunctions for testing pointer-based identity.
+    //
+    // NativeFunction uses pointer-based Hash/Eq (via `turbo_registry!`), so each
+    // static gets a unique address that serves as its identity.
+    fn dummy_fn_a() {}
+    fn dummy_fn_b() {}
+
+    static FN_A: NativeFunction = NativeFunction::new(
+        "dummy_fn_a",
+        "dummy_fn_a",
+        ArgMeta::new::<(i32,)>(),
+        &into_task_fn(dummy_fn_a),
+        false,
+    );
+
+    static FN_B: NativeFunction = NativeFunction::new(
+        "dummy_fn_b",
+        "dummy_fn_b",
+        ArgMeta::new::<(i32,)>(),
+        &into_task_fn(dummy_fn_b),
+        false,
+    );
+
+    /// Build a `u64` hash for a `CachedTaskType` using its `Hash` impl and a `RandomState`.
+    fn hash_task(rs: &RandomState, task: &CachedTaskType) -> u64 {
+        rs.hash_one(task)
+    }
+
+    /// Build an arg `Box<dyn DynTaskInputs>` for `(i32,)`.
+    fn make_arg(value: i32) -> Box<dyn DynTaskInputs> {
+        Box::new((value,))
+    }
+
+    /// Build a `Some(RawVc::TaskOutput(..))` this value.
+    fn make_this(id: u32) -> Option<RawVc> {
+        Some(RawVc::TaskOutput(
+            TaskId::new(id).expect("non-zero task id"),
+        ))
+    }
+
+    // -----------------------------------------------------------------------
+    // 1. hash_from_components matches Hash impl on CachedTaskType
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn hash_from_components_matches_hash_impl_no_this() {
+        let rs = RandomState::new();
+        let arg = make_arg(42);
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(42),
+        };
+        let expected = hash_task(&rs, &task);
+        let actual = CachedTaskType::hash_from_components(&rs, &FN_A, None, &*arg);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn hash_from_components_matches_hash_impl_with_this() {
+        let rs = RandomState::new();
+        let this = make_this(1);
+        let arg = make_arg(99);
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this,
+            arg: make_arg(99),
+        };
+        let expected = hash_task(&rs, &task);
+        let actual = CachedTaskType::hash_from_components(&rs, &FN_A, this, &*arg);
+        assert_eq!(actual, expected);
+    }
+
+    // -----------------------------------------------------------------------
+    // 2. eq_components returns true when all components match
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_true_when_all_match() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(7),
+        };
+        assert!(task.eq_components(&FN_A, None, &(7i32,)));
+    }
+
+    #[test]
+    fn eq_components_returns_true_with_matching_this() {
+        let this = make_this(1);
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this,
+            arg: make_arg(7),
+        };
+        assert!(task.eq_components(&FN_A, this, &(7i32,)));
+    }
+
+    // -----------------------------------------------------------------------
+    // 3. eq_components returns false when native_fn differs
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_false_when_native_fn_differs() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(7),
+        };
+        // FN_B is a different static, so ptr::eq will be false
+        assert!(!task.eq_components(&FN_B, None, &(7i32,)));
+    }
+
+    // -----------------------------------------------------------------------
+    // 4. eq_components returns false when `this` differs
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_false_when_this_differs() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(7),
+        };
+        // Task has this=None, but we check with Some(...)
+        assert!(!task.eq_components(&FN_A, make_this(1), &(7i32,)));
+    }
+
+    #[test]
+    fn eq_components_returns_false_when_this_has_different_task_id() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: make_this(1),
+            arg: make_arg(7),
+        };
+        assert!(!task.eq_components(&FN_A, make_this(2), &(7i32,)));
+    }
+
+    // -----------------------------------------------------------------------
+    // 5. eq_components returns false when arg differs
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn eq_components_returns_false_when_arg_differs() {
+        let task = CachedTaskType {
+            native_fn: &FN_A,
+            this: None,
+            arg: make_arg(1),
+        };
+        // Same function and this, but different arg value
+        assert!(!task.eq_components(&FN_A, None, &(2i32,)));
+    }
 }

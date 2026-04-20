@@ -3,14 +3,13 @@ import { headers } from 'next/headers'
 import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       headers: [['x-test-header', 'testValue']],
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

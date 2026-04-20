@@ -18,10 +18,6 @@
       "outputs": ["../../target/.rust-fingerprint"],
       "cache": false,
     },
-    "build-sccache": {
-      "inputs": ["../../scripts/sccache-version"],
-      "outputs": ["../../target/sccache/**"],
-    },
     "build-native-auto": {
       "dependsOn": ["rust-fingerprint"],
       "inputs": ["../../target/.rust-fingerprint"],

@@ -1,7 +1,6 @@
 import type { Instant } from 'next'
 
 export const unstable_instant: Instant = {
-  prefetch: 'static',
   samples: [
     {
       params: {
