@@ -116,3 +116,31 @@ describe('app dir - output export fallback conflicts', () => {
     }
   })
 })
+
+describe('app dir - output export fallback internal path collisions', () => {
+  const { next, skipped } = nextTestSetup({
+    files: join(
+      __dirname,
+      '..',
+      'fixtures',
+      'dynamic-fallback-internal-path-conflict'
+    ),
+    skipStart: true,
+    skipDeployment: true,
+    disableAutoSkewProtection: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  it('errors when a multi-route fallback artifact path is already occupied', async () => {
+    const { exitCode, cliOutput } = await next.build()
+
+    expect(exitCode).toBe(1)
+    expect(cliOutput).toContain(
+      'conflicts with the internal "__fallback" path used by dynamic route fallbacks in static export mode'
+    )
+    expect(cliOutput).toContain('/docs/__fallback/__route_0')
+  })
+})
