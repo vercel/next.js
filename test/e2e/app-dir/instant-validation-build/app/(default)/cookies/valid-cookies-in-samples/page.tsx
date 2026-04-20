@@ -5,7 +5,6 @@ import assert from 'node:assert'
 import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       cookies: [
@@ -15,7 +14,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

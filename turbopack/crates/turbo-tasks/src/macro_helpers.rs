@@ -16,12 +16,13 @@ use crate::{
     ValueTypeId,
 };
 pub use crate::{
+    dyn_task_inputs::DynTaskInputs,
     global_name_for_method, global_name_for_scope, global_name_for_trait_method,
     global_name_for_trait_method_impl, global_name_for_type, inventory_submit,
-    magic_any::MagicAny,
     manager::{find_cell_by_id, find_cell_by_type, spawn_detached_for_testing},
     native_function::{
         ArgMeta, NativeFunction, VTABLE_DEFAULT, downcast_args_owned, downcast_args_ref,
+        downcast_stack_args_owned,
     },
     registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
