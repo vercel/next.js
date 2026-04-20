@@ -280,6 +280,7 @@ import type {
 } from '../../build/segment-config/app/app-segment-config'
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
+import { startWorkUnitPromiseTracking } from '../node-environment-extensions/track-work-unit.external'
 
 export type GetDynamicParamFromSegment = (
   // The LoaderTree to extract the dynamic param from
@@ -7365,6 +7366,8 @@ async function prerenderToStream(
         // transitioning out of the prerender environment
         signal: initialServerReactController.signal,
       }
+
+      startWorkUnitPromiseTracking()
 
       const pendingInitialServerResult = workUnitAsyncStorage.run(
         initialServerPrerenderStore,

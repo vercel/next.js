@@ -10,6 +10,47 @@ import {
   type WorkUnitStore,
   workUnitAsyncStorage,
 } from '../app-render/work-unit-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
+
+let globalTracker: WorkUnitTracker | null = null
+
+export function startWorkUnitPromiseTracking() {
+  if (!globalTracker) {
+    globalTracker = createWorkUnitTracker((expectedId, actualId) => {
+      // This runs in the scope where the promise is awaited/then'd.
+      // We should have userspace frames above us in the callstack that will
+      // point to the location.
+      console.warn(
+        new Error(
+          `A promise from one prerender was used in another prerender. (expected store ID: ${expectedId}, actual store ID: ${actualId})`
+        )
+      )
+    }, getGlobalStoreId)
+    globalTracker.hook.enable()
+  }
+}
+
+let nextStoreId = 0
+const storeIdByStore = new WeakMap<WorkUnitStore, StoreId>()
+const workStoreByWorkUnitStore = new WeakMap<WorkUnitStore, WorkStore>()
+
+function getGlobalStoreId(store: WorkUnitStore) {
+  const workStore = workAsyncStorage.getStore()
+  if (workStore) {
+    workStoreByWorkUnitStore.set(store, workStore)
+  }
+  let id = storeIdByStore.get(store)
+  if (id === undefined) {
+    id = `${workStore ? workStore.page + '-' : ''}${store.type}@${nextStoreId++}`
+    storeIdByStore.set(store, id)
+  }
+  return id
+}
+
+//=====================================
 
 type StoreId = string
 
@@ -47,10 +88,15 @@ export function createWorkUnitTracker(
   const hook = createHook({
     // called when the async resource is created
     init(id, type, triggerId, _resource) {
+      // for now, we're not worrying about leaking non-promises
+      if (type !== INFO_PROMISE_TYPE) {
+        return
+      }
+
       {
-        debug('---------')
+        debug?.('---------')
         const debugStore = workUnitAsyncStorage.getStore()
-        debug(
+        debug?.(
           `# init ${id} (${type}), trigger: ${triggerId} (${getInfo(triggerId)}), eid: ${executionAsyncId()}, tid: ${triggerAsyncId()} store: ${debugStore ? getStoreId(debugStore) : '<no store>'}`
         )
       }
@@ -73,13 +119,13 @@ export function createWorkUnitTracker(
         triggerStore &&
         getStoreId(currentStore) !== getStoreId(triggerStore)
       ) {
-        debug(
+        debug?.(
           '#'.repeat(40) +
             '\n' +
             `store mismatch for ${id}, ${getStoreId(currentStore)} != ${getStoreId(triggerStore)}`,
           '\n' + '#'.repeat(40)
         )
-        debug(new Error().stack)
+        debug?.(new Error().stack)
         onStoreMismatch(getStoreId(triggerStore), getStoreId(currentStore))
       }
     },
@@ -88,7 +134,7 @@ export function createWorkUnitTracker(
     // called 0-N times for handles (such as TCPWrap), and will be called exactly 1
     // time for requests (such as FSReqCallback).
     before(id) {
-      debug(`before ${id} (${getInfo(id)})`)
+      debug?.(`before ${id} (${getInfo(id)})`)
       logIndent += 1
       let info = nodesById.get(id)
       if (!info) {
@@ -101,7 +147,7 @@ export function createWorkUnitTracker(
     // we need to catch those here.
     // It also gets called for promise resolutions in general, so we handle those here
     promiseResolve(id) {
-      debug(`promiseResolve ${id} (${getInfo(id)}), tid: ${triggerAsyncId()}`)
+      debug?.(`promiseResolve ${id} (${getInfo(id)}), tid: ${triggerAsyncId()}`)
       let info = nodesById.get(id)
       if (!info) {
         nodesById.set(id, (info = createMissingNode()))
@@ -117,8 +163,11 @@ export function createWorkUnitTracker(
     },
 
     after(id) {
-      logIndent -= 1
-      debug(`after ${id} (${getInfo(id)})`)
+      if (logIndent > 0) {
+        // TODO: this shouldn't be possible
+        logIndent -= 1
+      }
+      debug?.(`after ${id} (${getInfo(id)})`)
       let info = nodesById.get(id)
       if (!info) {
         nodesById.set(id, (info = createMissingNode()))
@@ -131,7 +180,7 @@ export function createWorkUnitTracker(
     },
 
     destroy(id) {
-      debug(`destroy ${id} (${getInfo(id)})`)
+      debug?.(`destroy ${id} (${getInfo(id)})`)
     },
   })
 
@@ -152,12 +201,12 @@ export function getOriginWorkUnit(
 }
 
 export const rootTask = <T>(cb: () => Promise<T>) => {
-  debug('rootTask')
+  debug?.('rootTask')
   logIndent += 1
   const rootPromise = Promise.resolve()
   const taskPromise = rootPromise.then(cb)
   logIndent -= 1
-  debug(
+  debug?.(
     'created root task promise',
     getPromiseAsyncId(rootPromise),
     '->',
@@ -194,9 +243,11 @@ export function log(...args: any[]) {
   logImpl(formatLog(args))
 }
 
-function debug(...args: any[]) {
-  logImpl(dim(formatLog(args)))
-}
+const debug = process.env.NEXT_DEBUG_PROMISE_TRACKING
+  ? (...args: any[]) => {
+      logImpl(dim(formatLog(args)))
+    }
+  : undefined
 
 function logImpl(msg: string) {
   fs.writeFileSync(process.stdout.fd, msg + '\n')
