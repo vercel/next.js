@@ -23,9 +23,9 @@ export interface McpServerOptions {
   getDevServerUrl: () => string | undefined
   getTurbopackProject?: () => Project | undefined
   compileRoute?: (opts: {
-    page: string
-    clientOnly: boolean
-  }) => Promise<FormattedIssue[]>
+    routeSpecifier?: string
+    path?: string
+  }) => Promise<{ routeSpecifier: string; issues: FormattedIssue[] }>
 }
 
 let mcpServer: McpServer | undefined

@@ -38,46 +38,159 @@ async function callMcpTool(
       return
     }
 
-    it('should compile a valid app router root route', async () => {
-      const result = await callMcpTool(next.url, 'compile_route', {
-        page: '/',
+    describe('routeSpecifier input', () => {
+      it('should compile a valid app router root route', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          routeSpecifier: '/',
+        })
+        expect(result).toMatchObject({ routeSpecifier: '/', issues: [] })
       })
-      expect(result).toMatchObject({ page: '/', issues: [] })
+
+      it('should compile a valid dynamic app router route', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          routeSpecifier: '/blog/[slug]',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/blog/[slug]',
+          issues: [],
+        })
+      })
+
+      it('should compile a valid pages router route', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          routeSpecifier: '/about',
+        })
+        expect(result).toMatchObject({ routeSpecifier: '/about', issues: [] })
+      })
+
+      it('should compile a valid app router API route', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          routeSpecifier: '/api/users/[id]',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/api/users/[id]',
+          issues: [],
+        })
+      })
+
+      it('should compile a valid pages router API route', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          routeSpecifier: '/api/legacy',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/api/legacy',
+          issues: [],
+        })
+      })
+
+      it('should return notFound for a non-existent specifier', async () => {
+        const result = (await callMcpTool(next.url, 'compile_route', {
+          routeSpecifier: '/does-not-exist',
+        })) as any
+        expect(result).toMatchObject({
+          notFound: true,
+          input: '/does-not-exist',
+        })
+      })
     })
 
-    it('should compile a valid dynamic app router route', async () => {
-      const result = await callMcpTool(next.url, 'compile_route', {
-        page: '/blog/[slug]',
+    describe('path input', () => {
+      it('should resolve a static app route path', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/',
+        })
+        expect(result).toMatchObject({ routeSpecifier: '/', issues: [] })
       })
-      expect(result).toMatchObject({ page: '/blog/[slug]', issues: [] })
+
+      it('should resolve a dynamic app route path', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/blog/hello-world',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/blog/[slug]',
+          issues: [],
+        })
+      })
+
+      it('should resolve a catchall app route path', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/docs/a/b/c',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/docs/[...slug]',
+          issues: [],
+        })
+      })
+
+      it('should strip query string before matching', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/products/42?ref=x',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/products/[id]',
+          issues: [],
+        })
+      })
+
+      it('should resolve a pages router dynamic path', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/posts/7',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/posts/[id]',
+          issues: [],
+        })
+      })
+
+      it('should resolve an app router API path', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/api/users/42',
+        })
+        expect(result).toMatchObject({
+          routeSpecifier: '/api/users/[id]',
+          issues: [],
+        })
+      })
+
+      it('should resolve a static pages router path', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/about',
+        })
+        expect(result).toMatchObject({ routeSpecifier: '/about', issues: [] })
+      })
+
+      it('should strip a trailing slash before matching', async () => {
+        const result = await callMcpTool(next.url, 'compile_route', {
+          path: '/about/',
+        })
+        expect(result).toMatchObject({ routeSpecifier: '/about', issues: [] })
+      })
+
+      it('should return notFound when no route matches', async () => {
+        const result = (await callMcpTool(next.url, 'compile_route', {
+          path: '/nope/x',
+        })) as any
+        expect(result).toMatchObject({ notFound: true, input: '/nope/x' })
+      })
     })
 
-    it('should compile a valid pages router route', async () => {
-      const result = await callMcpTool(next.url, 'compile_route', {
-        page: '/about',
+    describe('input validation', () => {
+      it('should error when both routeSpecifier and path are provided', async () => {
+        const result = (await callMcpTool(next.url, 'compile_route', {
+          routeSpecifier: '/',
+          path: '/',
+        })) as any
+        expect(result).toMatchObject({
+          error: expect.stringContaining('exactly one'),
+        })
       })
-      expect(result).toMatchObject({ page: '/about', issues: [] })
-    })
 
-    it('should compile a valid app router API route', async () => {
-      const result = await callMcpTool(next.url, 'compile_route', {
-        page: '/api/users/[id]',
+      it('should error when neither routeSpecifier nor path is provided', async () => {
+        const result = (await callMcpTool(next.url, 'compile_route', {})) as any
+        expect(result).toMatchObject({
+          error: expect.stringContaining('exactly one'),
+        })
       })
-      expect(result).toMatchObject({ page: '/api/users/[id]', issues: [] })
-    })
-
-    it('should compile a valid pages router API route', async () => {
-      const result = await callMcpTool(next.url, 'compile_route', {
-        page: '/api/legacy',
-      })
-      expect(result).toMatchObject({ page: '/api/legacy', issues: [] })
-    })
-
-    it('should return an error for a non-existent route', async () => {
-      const result = (await callMcpTool(next.url, 'compile_route', {
-        page: '/does-not-exist',
-      })) as any
-      expect(result).toMatchObject({ notFound: true, page: '/does-not-exist' })
     })
   }
 )
@@ -98,14 +211,13 @@ async function callMcpTool(
 
     it('should return compilation issues inline in the response', async () => {
       const result = (await callMcpTool(next.url, 'compile_route', {
-        page: '/missing-module',
+        routeSpecifier: '/missing-module',
       })) as {
-        compiled: boolean
-        page: string
+        routeSpecifier: string
         issues: Array<{ severity: string; filePath: string; title: string }>
       }
 
-      expect(result.page).toBe('/missing-module')
+      expect(result.routeSpecifier).toBe('/missing-module')
       expect(result.issues.length).toBeGreaterThan(0)
 
       const moduleNotFound = result.issues.find(

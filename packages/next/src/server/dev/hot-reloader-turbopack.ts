@@ -125,6 +125,7 @@ import {
 } from './hot-reloader-shared-utils'
 import { getMcpMiddleware } from '../mcp/get-mcp-middleware'
 import { formatCompilationIssues } from '../mcp/tools/utils/format-compilation-issues'
+import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
@@ -1048,7 +1049,36 @@ export async function createHotReloaderTurbopack(
               clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
             getDevServerUrl: () => process.env.__NEXT_PRIVATE_ORIGIN,
             getTurbopackProject: () => project,
-            compileRoute: async (pageOpts) => {
+            compileRoute: async ({ routeSpecifier, path }) => {
+              // Resolve the caller's input to a concrete route specifier. The
+              // path-mode branch reuses the dev router's own live route table
+              // (opts.fsChecker) — the same one resolve-routes.ts consults on
+              // every incoming HTTP request — so first-match ordering and live
+              // route updates are inherited for free.
+              let page: string
+              if (routeSpecifier != null) {
+                page = routeSpecifier
+              } else if (path != null) {
+                const resolved = resolvePathToRoute(path, {
+                  appFiles: opts.fsChecker.appFiles,
+                  pageFiles: opts.fsChecker.pageFiles,
+                  dynamicRoutes: opts.fsChecker.getDynamicRoutes(),
+                })
+                if ('notFound' in resolved) {
+                  const err: NodeJS.ErrnoException = new Error(
+                    `no route matched for path "${resolved.pathname}"`
+                  )
+                  err.code = 'ENOENT'
+                  throw err
+                }
+                page = resolved.routeSpecifier
+              } else {
+                // Tool handler rejects the empty case; defend the boundary.
+                throw new Error(
+                  'compileRoute: either routeSpecifier or path is required'
+                )
+              }
+
               // ensurePage uses findPagePathData when no definition is provided,
               // which calls normalizePagePath("/") → "/index" then findPageFile
               // looking for "index.tsx" — neither of which matches "page.tsx" in
@@ -1060,13 +1090,17 @@ export async function createHotReloaderTurbopack(
               // strip that suffix and find the entry matching the user-facing route.
               let appOriginalName: string | undefined
               for (const [name] of currentEntrypoints.app) {
-                if (normalizeAppPath(name) === pageOpts.page) {
+                if (normalizeAppPath(name) === page) {
                   appOriginalName = name
                   break
                 }
               }
               const ensureOpts = {
-                ...pageOpts,
+                page,
+                // Compile both server and client bundles, matching what happens
+                // on a real page navigation. Client-only compilation isn't a
+                // meaningful MCP use case so we don't expose it as a knob.
+                clientOnly: false,
                 // Skip wiring HMR subscriptions: there is no client to receive
                 // updates for routes compiled this way, and these subscriptions
                 // are never unsubscribed (see TODOs in handleRouteType).
@@ -1122,7 +1156,10 @@ export async function createHotReloaderTurbopack(
                 throw moduleBuildError
               }
 
-              return formatCompilationIssues(rawIssues)
+              return {
+                routeSpecifier: page,
+                issues: formatCompilationIssues(rawIssues),
+              }
             },
           }),
         ]
