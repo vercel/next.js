@@ -2503,7 +2503,6 @@ async function renderToHTMLOrFlightImpl(
   // ============================================
 
   const isDraftModeEnabled = 
-    parsedRequestHeaders.isDraftMode === true ||
     req.headers['x-nextjs-draft-mode'] === '1' ||
     req.cookies?.['__prerender_bypass'] !== undefined
 
@@ -2512,12 +2511,9 @@ async function renderToHTMLOrFlightImpl(
     workStore.forceDynamic = true
     if (process.env.NODE_ENV === 'development') {
       console.log(`[Next.js] Draft Mode on static page: ${pagePath || workStore?.page || 'unknown'}. Switching to dynamic render.`)
-
     }
   }
-
   // ============================================
-
 
   let requestId: string
   let htmlRequestId: string
