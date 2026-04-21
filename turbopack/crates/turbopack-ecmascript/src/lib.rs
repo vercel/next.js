@@ -2854,11 +2854,11 @@ fn encode_module_into_comment_span(
 
 impl Comments for CodeGenResultCommentsConsumable<'_> {
     fn add_leading(&self, _pos: BytePos, _cmt: Comment) {
-        unimplemented!("CodeGenResultCommentsConsumable add_leading")
+        unimplemented!("add_leading")
     }
 
     fn add_leading_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
-        unimplemented!("CodeGenResultCommentsConsumable add_leading_comments")
+        unimplemented!("add_leading_comments")
     }
 
     fn has_leading(&self, pos: BytePos) -> bool {
@@ -2884,7 +2884,7 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn move_leading(&self, _from: BytePos, _to: BytePos) {
-        unimplemented!("CodeGenResultCommentsConsumable move_leading")
+        unimplemented!("move_leading")
     }
 
     fn take_leading(&self, pos: BytePos) -> Option<Vec<Comment>> {
@@ -2956,11 +2956,11 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn add_trailing(&self, _pos: BytePos, _cmt: Comment) {
-        unimplemented!("CodeGenResultCommentsConsumable add_trailing")
+        unimplemented!("add_trailing")
     }
 
     fn add_trailing_comments(&self, _pos: BytePos, _comments: Vec<Comment>) {
-        unimplemented!("CodeGenResultCommentsConsumable add_trailing_comments")
+        unimplemented!("add_trailing_comments")
     }
 
     fn has_trailing(&self, pos: BytePos) -> bool {
@@ -2986,7 +2986,7 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn move_trailing(&self, _from: BytePos, _to: BytePos) {
-        unimplemented!("CodeGenResultCommentsConsumable move_trailing")
+        unimplemented!("move_trailing")
     }
 
     fn take_trailing(&self, pos: BytePos) -> Option<Vec<Comment>> {
@@ -3061,7 +3061,7 @@ impl Comments for CodeGenResultCommentsConsumable<'_> {
     }
 
     fn add_pure_comment(&self, _pos: BytePos) {
-        unimplemented!("CodeGenResultCommentsConsumable add_pure_comment")
+        unimplemented!("add_pure_comment")
     }
 }
 
