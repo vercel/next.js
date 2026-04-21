@@ -187,26 +187,13 @@ impl ReferencedAsset {
                                 liveness: *liveness,
                             }));
                         }
-                        Some(EsmExport::ImportedNamespace(_)) => {
-                            // A namespace re-export (e.g. `export * as X from '...'`) — always
-                            // use the outer `asset`'s chunk item id for the `namespace_ident`.
-                            // Recursing would derive the ident from the inner module (and in
-                            // particular from a different module when the re-export is mediated
-                            // by a synthesized `EcmascriptModuleRenameModule`), but the callers
-                            // that emit `var <namespace_ident> = __turbopack_context__.i(id)`
-                            // look up `id` on the outer asset. The two ids must match.
-                            return Ok(Some(ReferencedAssetIdent::Module {
-                                namespace_ident: Self::get_ident_from_placeable(
-                                    asset,
-                                    chunking_context,
-                                )
-                                .await?,
-                                ctxt: Some(ctxt),
-                                export: Some(export.clone()),
-                            }));
-                        }
-                        Some(EsmExport::ImportedBinding(esm_ref, import_name, _)) => {
-                            let imported = Some(import_name.clone());
+                        Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
+                        | Some(b @ EsmExport::ImportedNamespace(esm_ref)) => {
+                            let imported = if let EsmExport::ImportedBinding(_, export, _) = b {
+                                Some(export.clone())
+                            } else {
+                                None
+                            };
 
                             let referenced_asset =
                                 ReferencedAsset::from_resolve_result(esm_ref.resolve_reference())
