@@ -646,21 +646,35 @@ impl EsmAssetReference {
                                         unreachable!();
                                     }
                                     ReferencedAsset::Some(asset) => {
-                                        let id = asset.chunk_item_id(chunking_context).await?;
-                                        // The `.i(id)` must use the module that corresponds to
-                                        // the emitted `namespace_ident`. When the ident was
-                                        // resolved through a re-export chain (e.g. `export *
-                                        // as X from './inner'`), this is the inner module, not
-                                        // the directly-referenced (rename) module. Fall back to
-                                        // the directly-referenced asset when the ident didn't
-                                        // record a specific target (external references).
-                                        let import_id = match &ident {
-                                            ReferencedAssetIdent::Module {
-                                                import_module: Some(m),
-                                                ..
-                                            } => m.chunk_item_id(chunking_context).await?,
-                                            _ => id.clone(),
+                                        // Two things can differ between the directly-referenced
+                                        // asset and `ident.import_module`: when the ident was
+                                        // resolved through a re-export chain (e.g. `export * as
+                                        // X from './inner'`), `import_module` is the inner
+                                        // module while `asset` is the outer (rename) module.
+                                        //
+                                        // - The `.i(...)` call must use `import_module`'s id so the
+                                        //   variable holds the namespace its mangled name claims
+                                        //   to.
+                                        // - The hoisted-statement key uses `asset`'s id to keep
+                                        //   dedup behavior stable: two references to the same
+                                        //   `import_module` but via different paths (e.g. through a
+                                        //   rename vs. directly) may have different syntax contexts
+                                        //   and must emit separate `var` declarations — AST merging
+                                        //   then renames them.
+                                        let ReferencedAssetIdent::Module {
+                                            import_module: Some(import_module),
+                                            ..
+                                        } = &ident
+                                        else {
+                                            unreachable!(
+                                                "ReferencedAsset::Some produces an ident with \
+                                                 import_module: Some(..)"
+                                            );
                                         };
+                                        let import_id =
+                                            import_module.chunk_item_id(chunking_context).await?;
+                                        let hoist_key =
+                                            asset.chunk_item_id(chunking_context).await?;
                                         let (sym, ctxt) =
                                             ident.into_module_namespace_ident().unwrap();
                                         let name = Ident::new(
@@ -677,7 +691,7 @@ impl EsmAssetReference {
                                             call_expr.set_span(PURE_SP);
                                         }
                                         result.push(CodeGenerationHoistedStmt::new(
-                                            id.to_string().into(),
+                                            hoist_key.to_string().into(),
                                             var_decl_with_span(
                                                 quote!(
                                                     "var $name = $call;" as Stmt,
