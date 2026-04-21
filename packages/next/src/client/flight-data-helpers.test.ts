@@ -405,4 +405,110 @@ describe('createInitialRSCPayloadFromFallbackPrerender', () => {
     expect(payload.f[0][2]).toBe('head-node')
     expect(payload.f[0][3]).toBe(true)
   })
+
+  it('prefers rewritten headers over the rendered URL override', () => {
+    const fallbackInitialRSCPayload: InitialRSCPayload = {
+      b: 'build-id',
+      c: ['', 'docs', '%%drp:slug:abc123%%'],
+      q: '',
+      i: false,
+      f: [
+        [
+          [
+            '',
+            {
+              children: [
+                'docs',
+                {
+                  children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+                },
+              ],
+            },
+          ],
+          null,
+          'head-node',
+          false,
+        ],
+      ],
+      m: new Set(),
+      G: [(() => null) as any, undefined],
+      S: false,
+      h: null,
+    }
+
+    const response = new Response(null, {
+      headers: {
+        'x-nextjs-rewritten-path': '/docs/rewritten',
+        'x-nextjs-rewritten-query': 'from=fetch',
+      },
+    })
+
+    const payload = createInitialRSCPayloadFromFallbackPrerender(
+      response,
+      fallbackInitialRSCPayload,
+      new URL('https://example.com/docs/original?from=document')
+    )
+
+    const patchedTree = payload.f[0][0]
+    expect(patchedTree[1].children[0]).toBe('docs')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'rewritten',
+      'd',
+      null,
+    ])
+    expect(payload.q).toBe('?from=fetch')
+    expect(payload.c.join('/')).toBe('/docs/original?from=document')
+  })
+
+  it('falls back to the rendered URL override when no rewritten headers are present', () => {
+    const fallbackInitialRSCPayload: InitialRSCPayload = {
+      b: 'build-id',
+      c: ['', 'docs', '%%drp:slug:abc123%%'],
+      q: '',
+      i: false,
+      f: [
+        [
+          [
+            '',
+            {
+              children: [
+                'docs',
+                {
+                  children: [['slug', '%%drp:slug:abc123%%', 'd', null], {}],
+                },
+              ],
+            },
+          ],
+          null,
+          'head-node',
+          false,
+        ],
+      ],
+      m: new Set(),
+      G: [(() => null) as any, undefined],
+      S: false,
+      h: null,
+    }
+
+    const response = new Response(null, {
+      headers: {},
+    })
+
+    const payload = createInitialRSCPayloadFromFallbackPrerender(
+      response,
+      fallbackInitialRSCPayload,
+      new URL('https://example.com/docs/original?from=document')
+    )
+
+    const patchedTree = payload.f[0][0]
+    expect(patchedTree[1].children[0]).toBe('docs')
+    expect(patchedTree[1].children[1].children[0]).toEqual([
+      'slug',
+      'original',
+      'd',
+      null,
+    ])
+    expect(payload.q).toBe('?from=document')
+  })
 })

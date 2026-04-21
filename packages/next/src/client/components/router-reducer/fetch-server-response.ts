@@ -82,6 +82,7 @@ type SpaFetchServerResponseResult = {
   flightData: NormalizedFlightData[]
   canonicalUrl: URL
   renderedSearch: NormalizedSearch
+  outputExportFallbackBasePath: string | null
   couldBeIntercepted: boolean
   supportsPerSegmentPrefetching: boolean
   postponed: boolean
@@ -167,8 +168,12 @@ export async function fetchServerResponse(
   const originalUrl = url
 
   try {
+    let usedCachedOutputExportFallback = false
+    let outputExportFallbackBasePath: string | null = null
     if (process.env.NODE_ENV === 'production') {
       if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+        const { getCachedOutputExportFallbackRequestUrl } =
+          require('../../output-export-fallback') as typeof import('../../output-export-fallback')
         // In "output: export" mode, we can't rely on headers to distinguish
         // between HTML and RSC requests. Instead, we append an extra prefix
         // to the request.
@@ -177,6 +182,10 @@ export async function fetchServerResponse(
           url.pathname += 'index.txt'
         } else {
           url.pathname += '.txt'
+        }
+
+        if (getCachedOutputExportFallbackRequestUrl(url) !== null) {
+          usedCachedOutputExportFallback = true
         }
       }
     }
@@ -234,17 +243,20 @@ export async function fetchServerResponse(
 
         if (fallbackResult !== null) {
           usedOutputExportFallback = true
-          const fallbackFetch = await createFetch<NavigationFlightResponse>(
-            new URL(fallbackResult.response.url),
-            headers,
-            'auto',
-            false
+          outputExportFallbackBasePath = fallbackResult.fallbackUrl.pathname
+          const { response: processed, cacheData } = await processFetch(
+            fallbackResult.response
           )
 
           res = {
-            ...fallbackFetch,
+            ok: processed.ok,
             redirected: false,
+            headers: processed.headers,
+            body: processed.body,
+            status: processed.status,
             url: originalUrl.href,
+            flightResponsePromise: null,
+            cacheData: Promise.resolve(cacheData),
           }
           responseUrl = originalUrl
           canonicalUrl = originalUrl
@@ -315,7 +327,7 @@ export async function fetchServerResponse(
     }
 
     const normalizedFlightData = normalizeFlightData(
-      usedOutputExportFallback
+      usedOutputExportFallback || usedCachedOutputExportFallback
         ? fillInFallbackFlightData(
             flightResponse.f,
             originalUrl.pathname,
@@ -343,6 +355,7 @@ export async function fetchServerResponse(
       // header alone. So we need to investigate why the header is sometimes
       // wrong for interception routes.
       renderedSearch: flightResponse.q as NormalizedSearch,
+      outputExportFallbackBasePath,
       couldBeIntercepted: interception,
       supportsPerSegmentPrefetching: flightResponse.S,
       postponed,
@@ -585,6 +598,14 @@ export async function createFetch<T>(
   // search param to it. This should not leak outside of this function, so we
   // track them separately.
   let fetchUrl = new URL(url)
+  if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+    const { getCachedOutputExportFallbackRequestUrl } =
+      require('../../output-export-fallback') as typeof import('../../output-export-fallback')
+    const fallbackRequestUrl = getCachedOutputExportFallbackRequestUrl(fetchUrl)
+    if (fallbackRequestUrl !== null) {
+      fetchUrl = fallbackRequestUrl
+    }
+  }
   await setCacheBustingSearchParam(fetchUrl, headers)
   let processed = fetch(fetchUrl, fetchOptions).then(processFetch)
   let fetchPromise = processed.then(({ response }) => response)

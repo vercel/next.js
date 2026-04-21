@@ -317,6 +317,7 @@ function navigateUsingPrefetchedRouteTree(
     data: null,
     head: null,
     dynamicStaleAt: computeDynamicStaleAt(now, UnknownDynamicStaleTime),
+    outputExportFallbackBasePath: route.outputExportFallbackBasePath,
   }
   return navigateToKnownRoute(
     now,
@@ -407,6 +408,7 @@ async function navigateToUnknownRoute(
     flightData,
     canonicalUrl,
     renderedSearch,
+    outputExportFallbackBasePath,
     couldBeIntercepted,
     supportsPerSegmentPrefetching,
     dynamicStaleTime,
@@ -426,6 +428,7 @@ async function navigateToUnknownRoute(
     renderedSearch,
     dynamicStaleTime
   )
+  navigationSeed.outputExportFallbackBasePath = outputExportFallbackBasePath
 
   // Learn the route pattern so we can predict it for future navigations.
   // hasDynamicRewrite is false because this is a fresh navigation to an
@@ -434,7 +437,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
-    discoverKnownRoute(
+    const discoveredRoute = discoverKnownRoute(
       now,
       url.pathname,
       nextUrl,
@@ -446,6 +449,10 @@ async function navigateToUnknownRoute(
       supportsPerSegmentPrefetching,
       false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
     )
+    if (outputExportFallbackBasePath !== null) {
+      discoveredRoute.outputExportFallbackBasePath =
+        outputExportFallbackBasePath
+    }
 
     if (staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =
@@ -485,6 +492,8 @@ async function navigateToUnknownRoute(
       )
         .then((processed) => {
           if (processed !== null) {
+            processed.navigationSeed.outputExportFallbackBasePath =
+              outputExportFallbackBasePath
             writeDynamicRenderResponseIntoCache(
               now,
               FetchStrategy.PPRRuntime,
@@ -743,6 +752,7 @@ export type NavigationSeed = {
   data: CacheNodeSeedData | null
   head: HeadData | null
   dynamicStaleAt: number
+  outputExportFallbackBasePath: string | null
 }
 
 export function convertServerPatchToFullTree(
@@ -816,6 +826,7 @@ export function convertServerPatchToFullTree(
     renderedSearch,
     head,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
+    outputExportFallbackBasePath: null,
   }
 }
 

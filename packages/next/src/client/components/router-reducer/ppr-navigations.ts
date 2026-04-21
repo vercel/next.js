@@ -1671,6 +1671,8 @@ async function fetchMissingDynamicData(
       )
         .then((processed) => {
           if (processed !== null) {
+            processed.navigationSeed.outputExportFallbackBasePath =
+              routeCacheEntry.outputExportFallbackBasePath
             writeDynamicRenderResponseIntoCache(
               now,
               FetchStrategy.PPRRuntime,

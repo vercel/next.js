@@ -11,6 +11,10 @@ import type {
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 import type { NormalizedSearch } from './components/segment-cache/cache-key'
 import {
+  NEXT_REWRITTEN_PATH_HEADER,
+  NEXT_REWRITTEN_QUERY_HEADER,
+} from './components/app-router-headers'
+import {
   getCacheKeyForDynamicParam,
   parseDynamicParamFromURLPart,
   doesStaticSegmentAppearInURL,
@@ -95,10 +99,14 @@ export function createInitialRSCPayloadFromFallbackPrerender(
 
   // Patch the Flight data sent by the server with the correct params parsed
   // from the URL + response object.
-  const renderedPathname =
-    renderedUrlOverride?.pathname ?? getRenderedPathname(response)
-  const renderedSearch =
-    renderedUrlOverride?.search ?? getRenderedSearch(response)
+  const renderedPathname = response.headers.has(NEXT_REWRITTEN_PATH_HEADER)
+    ? getRenderedPathname(response)
+    : ((renderedUrlOverride?.pathname ??
+        getRenderedPathname(response)) as string)
+  const renderedSearch = response.headers.has(NEXT_REWRITTEN_QUERY_HEADER)
+    ? getRenderedSearch(response)
+    : ((renderedUrlOverride?.search ??
+        getRenderedSearch(response)) as NormalizedSearch)
   const canonicalUrl = createHrefFromUrl(
     renderedUrlOverride ?? new URL(location.href)
   )

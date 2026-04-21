@@ -1,6 +1,9 @@
 import {
+  getOutputExportFallbackConflicts,
+  getOutputExportFallbackMetadataPath,
   getOutputExportFallbackPath,
   getOutputExportFallbackStaticPrefix,
+  getOutputExportFallbackVariantPath,
   isOutputExportDynamicFallbackEnabled,
   isOutputExportOptimisticRoutingEnabled,
   isOutputExportVaryParamsEnabled,
@@ -12,6 +15,12 @@ describe('output export dynamic fallback flags', () => {
       '/org/acme/chat/__fallback'
     )
     expect(getOutputExportFallbackPath('')).toBe('/__fallback')
+    expect(getOutputExportFallbackMetadataPath('/org/__fallback')).toBe(
+      '/org/__fallback.meta.json'
+    )
+    expect(getOutputExportFallbackVariantPath('/org/__fallback', 1)).toBe(
+      '/org/__fallback/__route_1'
+    )
   })
 
   it('derives the static prefix before the first dynamic segment', () => {
@@ -22,6 +31,31 @@ describe('output export dynamic fallback flags', () => {
       ''
     )
     expect(getOutputExportFallbackStaticPrefix('/org/acme/chat')).toBeNull()
+  })
+
+  it('detects conflicting dynamic fallback routes that share one static prefix', () => {
+    expect(
+      getOutputExportFallbackConflicts([
+        '/docs/[...slug]',
+        '/docs/[section]/[page]',
+        '/blog/[slug]',
+      ])
+    ).toEqual([
+      {
+        fallbackPath: '/docs/__fallback',
+        routes: ['/docs/[...slug]', '/docs/[section]/[page]'],
+      },
+    ])
+  })
+
+  it('does not flag non-conflicting fallback routes with different prefixes', () => {
+    expect(
+      getOutputExportFallbackConflicts([
+        '/org/[org]/chat/[thread]',
+        '/org/acme/chat/[thread]',
+        '/docs/[...slug]',
+      ])
+    ).toEqual([])
   })
 
   it('enables export fallback only for output export with cache components', () => {

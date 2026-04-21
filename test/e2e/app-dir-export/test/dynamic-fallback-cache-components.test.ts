@@ -276,7 +276,7 @@ if (skipped) {
 
         expect(fallbackHtml).toContain('__NEXT_EXPORT_FALLBACK=1')
         expect(fallbackHtml).not.toContain('>Home<')
-        expect(fallbackHtml).not.toContain('__next-export-fallback-style')
+        expect(fallbackHtml).toContain('__next-export-fallback-style')
       })
 
       it('supports browser back/forward between fallback routes', async () => {

@@ -4,10 +4,10 @@ import { findSourceMapURL } from './app-find-source-map-url'
 import { processFetch } from './components/router-reducer/fetch-server-response'
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import {
-  addOutputExportDataSuffix,
-  fetchOutputExportDataResponse,
   fetchOutputExportFallbackResponse,
-  stripOutputExportDataSuffix,
+  fetchOutputExportNotFoundDataResponse,
+  fetchOutputExportNotFoundResponse,
+  getConfiguredOutputExportNotFoundCandidate,
 } from './output-export-fallback'
 
 type DebugChannel =
@@ -29,14 +29,17 @@ type OutputExportFallbackState = {
   resumeUrl: URL | undefined
 }
 
+type OutputExportFallbackInitialResponse = {
+  initialRSCPayload: InitialRSCPayload
+  fallbackBasePath: string | null
+}
+
 declare global {
   interface Window {
     __NEXT_EXPORT_FALLBACK?: boolean
     __NEXT_EXPORT_ORIGINAL_URL?: string
   }
 }
-
-const NEXT_EXPORT_ORIGINAL_URL_SESSION_KEY = '__NEXT_EXPORT_ORIGINAL_URL'
 
 export function getOutputExportFallbackState(): OutputExportFallbackState {
   return {
@@ -53,40 +56,52 @@ export async function createOutputExportFallbackInitialResponse({
 }: {
   createFromFetch: CreateFromFetch
   debugChannel: DebugChannel
-}): Promise<InitialRSCPayload> {
+}): Promise<OutputExportFallbackInitialResponse> {
   const renderedUrl = new URL(window.location.href)
   const fallbackResult = await fetchOutputExportFallbackResponse(renderedUrl, {
     credentials: 'same-origin',
   })
 
   if (fallbackResult !== null) {
-    try {
-      sessionStorage.setItem(
-        NEXT_EXPORT_ORIGINAL_URL_SESSION_KEY,
-        renderedUrl.href
-      )
-    } catch {}
-
-    const fallbackDocumentUrl = stripOutputExportDataSuffix(
-      new URL(fallbackResult.response.url)
-    )
-
-    window.location.replace(fallbackDocumentUrl.href)
-    return await new Promise<InitialRSCPayload>(() => {})
+    return {
+      initialRSCPayload: await decodeFallbackPrerenderPayload(
+        Promise.resolve(fallbackResult.response),
+        renderedUrl,
+        createFromFetch,
+        debugChannel
+      ),
+      fallbackBasePath: fallbackResult.fallbackUrl.pathname,
+    }
   }
 
   const response =
-    (await fetchOutputExportDataResponse(new URL('/_not-found', renderedUrl), {
+    (await fetchOutputExportNotFoundDataResponse(renderedUrl, {
       credentials: 'same-origin',
     })) ??
-    (await fetch(
-      addOutputExportDataSuffix(new URL('/_not-found', renderedUrl)),
-      {
-        credentials: 'same-origin',
-      }
-    ))
+    (await fetchOutputExportNotFoundResponse(renderedUrl, {
+      credentials: 'same-origin',
+    }))
 
-  const processedResponse = Promise.resolve(response)
+  return {
+    initialRSCPayload: await decodeFallbackPrerenderPayload(
+      Promise.resolve(response),
+      renderedUrl,
+      createFromFetch,
+      debugChannel
+    ),
+    fallbackBasePath: getConfiguredOutputExportNotFoundCandidate(
+      renderedUrl.pathname
+    ),
+  }
+}
+
+async function decodeFallbackPrerenderPayload(
+  responsePromise: Promise<Response>,
+  renderedUrl: URL | undefined,
+  createFromFetch: CreateFromFetch,
+  debugChannel: DebugChannel
+): Promise<InitialRSCPayload> {
+  const processedResponse = responsePromise
     .then(processFetch)
     .then(({ response: processed }) => processed)
 
