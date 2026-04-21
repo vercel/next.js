@@ -6,6 +6,7 @@ import {
   RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 import type { BaseNextRequest } from '../../base-http'
+import { isRSCRequestHeader } from '../../lib/is-rsc-request'
 import { parseReqUrl } from '../../../lib/url'
 import { formatUrl } from '../../../shared/lib/router/utils/format-url'
 import { addRequestMeta } from '../../request-meta'
@@ -22,7 +23,7 @@ function getHeaderValue(
 export function applyAppPageRscRequestMetaFromHeaders(
   req: Pick<IncomingMessage | BaseNextRequest, 'headers'>
 ): void {
-  const isRscRequest = getHeaderValue(req.headers[RSC_HEADER]) === '1'
+  const isRscRequest = isRSCRequestHeader(req.headers[RSC_HEADER])
   if (!isRscRequest) {
     return
   }
