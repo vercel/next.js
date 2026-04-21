@@ -3,13 +3,16 @@ import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
 // |         | Pages Client            | Pages Server (SSR,RSC)  | API Routes/Middleware/Metadata |
 // |---------|-------------------------|-------------------------|--------------------------------|
-// | new URL | /_next/static/media/... | /_next/static/media/... | /server/assets/...             |
+// | new URL | /_next/static/media/... | /_next/static/media/... | /_next/static/media/...        |
 // | import  | /_next/static/media/... | /_next/static/media/... | /_next/static/media/...        |
 // |---------|-------------------------|-------------------------|--------------------------------|
 //
 // Webpack has
 // - a bug where App Router API routes (and Metadata) return client assets for `new URL`s.
 // - a bug where Edge Page routes return client assets for `new URL`s.
+//
+// Turbopack uses a single shared Node.js chunking context for all server endpoints (SSR pages,
+// API routes, metadata routes), so `new URL` assets all go to `_next/static/media/`.
 describe(`Handle new URL asset references`, () => {
   const { next, skipped, isTurbopack } = nextTestSetup({
     files: __dirname,
@@ -25,9 +28,13 @@ describe(`Handle new URL asset references`, () => {
     return
   }
 
-  const serverFileRegex = expect.stringMatching(
-    /file:.*\/.next(\/dev)?\/server\/.*\/vercel.HASH.png$/
-  )
+  const serverFileRegex = isTurbopack
+    ? expect.stringMatching(
+        /file:.*\/.next(\/dev)?\/static\/media\/vercel.HASH.png$/
+      )
+    : expect.stringMatching(
+        /file:.*\/.next(\/dev)?\/server\/.*\/vercel.HASH.png$/
+      )
   const serverEdgeUrl = isTurbopack
     ? `blob:server/edge/assets/vercel.HASH.png`
     : `blob:vercel.HASH.png`
