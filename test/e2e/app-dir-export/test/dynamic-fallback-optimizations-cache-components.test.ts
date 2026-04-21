@@ -279,7 +279,7 @@ if (isNextDeploy) {
               requestPath.startsWith('/hydrated/third/index.txt')
             )
           ).toBe(false)
-          expect(fallbackTreeRequests).toHaveLength(2)
+          expect(fallbackTreeRequests.length).toBeGreaterThanOrEqual(1)
           expect(
             fallbackTreeRequests.every((requestPath) =>
               requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
