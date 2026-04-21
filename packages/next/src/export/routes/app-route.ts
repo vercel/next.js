@@ -48,7 +48,10 @@ export async function exportAppRoute(
   htmlFilepath: string,
   fileWriter: MultiFileWriter,
   cacheComponents: boolean,
-  experimental: Required<Pick<ExperimentalConfig, 'authInterrupts'>>,
+  staticPageGenerationTimeout: number,
+  experimental: Required<
+    Pick<ExperimentalConfig, 'authInterrupts' | 'useCacheTimeout'>
+  >,
   buildId: string
 ): Promise<ExportRouteResult> {
   // Ensure that the URL is absolute.
@@ -81,6 +84,7 @@ export async function exportAppRoute(
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
     },
     sharedContext: {
       buildId,

@@ -2,11 +2,8 @@ import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
-}
-export const unstable_prefetch = 'runtime'
+export const unstable_instant = true
+export const unstable_prefetch = 'force-runtime'
 
 export default async function Page() {
   return (

@@ -6,6 +6,11 @@ packages:
   - 'turbopack/crates/*/js'
   - 'turbopack/crates/turbopack-tests/tests/execution'
   - 'turbopack/packages/*'
+catalog:
+  eslint: 9.37.0
+  jest: 29.7.0
+  prettier: 3.6.2
+  typescript: 6.0.2
 updateNotifier: false
 publicHoistPattern:
   - '*eslint*'

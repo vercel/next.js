@@ -6,6 +6,10 @@ license = "MIT"
 edition = "2024"
 autobenches = false
 
+[features]
+default = ["custom_allocator"]
+custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
+
 [[bin]]
 name = "turbo-trace-server"
 path = "src/main.rs"
@@ -24,6 +28,8 @@ rustc-demangle = "0.1"
 rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
 tungstenite = { version = "0.21.0" }
 turbopack-trace-utils = { workspace = true }
 zstd = { version = "0.13.0" }

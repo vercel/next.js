@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-const _instant = { prefetch: 'static' }
+const _instant = true
 const instant = _instant
 export { instant as unstable_instant }
 

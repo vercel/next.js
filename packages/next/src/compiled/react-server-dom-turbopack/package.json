@@ -48,7 +48,7 @@
     "neo-async": "^2.6.1"
   },
   "peerDependencies": {
-    "react": "19.3.0-canary-fef12a01-20260413",
-    "react-dom": "19.3.0-canary-fef12a01-20260413"
+    "react": "19.3.0-canary-da9325b5-20260417",
+    "react-dom": "19.3.0-canary-da9325b5-20260417"
   }
 }

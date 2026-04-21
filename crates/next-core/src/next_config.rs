@@ -1090,6 +1090,10 @@ pub struct ExperimentalConfig {
     runtime_server_deployment_id: Option<bool>,
     supports_immutable_assets: Option<bool>,
 
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -2348,6 +2352,16 @@ impl NextConfig {
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(Vc::cell(rules))
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_hash_salt(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.experimental
+                .output_hash_salt
+                .clone()
+                .unwrap_or_default(),
+        )
     }
 }
 

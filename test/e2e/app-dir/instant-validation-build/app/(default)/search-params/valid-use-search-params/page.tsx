@@ -3,7 +3,6 @@ import { Suspense } from 'react'
 import { SearchParamsReader } from './search-params-reader'
 
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       searchParams: {
@@ -14,7 +13,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export default function Page() {
   return (

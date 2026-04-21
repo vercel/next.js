@@ -30,7 +30,7 @@ pub async fn get_next_client_transforms_rules(
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
-    let modularize_imports_config = &next_config.modularize_imports().await?;
+    let modularize_imports_config = next_config.modularize_imports();
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     let page_extensions: Vec<String> = next_config
         .page_extensions()
@@ -40,14 +40,13 @@ pub async fn get_next_client_transforms_rules(
         .collect();
 
     if !foreign_code {
-        rules.push(get_next_lint_transform_rule(enable_mdx_rs));
+        rules.push(get_next_lint_transform_rule(enable_mdx_rs).await?);
     }
 
-    if !modularize_imports_config.is_empty() {
-        rules.push(get_next_modularize_imports_rule(
-            modularize_imports_config,
-            enable_mdx_rs,
-        ));
+    if !modularize_imports_config.await?.is_empty() {
+        rules.push(
+            get_next_modularize_imports_rule(modularize_imports_config, enable_mdx_rs).await?,
+        );
     }
 
     // This is purely a performance optimization:
@@ -64,11 +63,11 @@ pub async fn get_next_client_transforms_rules(
         ))],
     ));
 
-    rules.push(get_next_font_transform_rule(enable_mdx_rs));
+    rules.push(get_next_font_transform_rule(enable_mdx_rs).await?);
 
     let is_development = mode.await?.is_development();
     if is_development {
-        rules.push(get_debug_fn_name_rule(enable_mdx_rs));
+        rules.push(get_debug_fn_name_rule(enable_mdx_rs).await?);
     }
 
     let use_cache_enabled = *next_config.enable_use_cache().await?;
@@ -78,17 +77,20 @@ pub async fn get_next_client_transforms_rules(
     match &context_ty {
         ClientContextType::Pages { pages_dir } => {
             if !foreign_code {
-                rules.push(get_next_pages_transforms_rule(
-                    pages_dir.clone(),
-                    ExportFilter::StripDataExports,
-                    enable_mdx_rs,
-                    vec![],
-                    &page_extensions,
-                )?);
-                rules.push(get_next_disallow_export_all_in_page_rule(
-                    enable_mdx_rs,
-                    pages_dir.clone(),
-                ));
+                rules.push(
+                    get_next_pages_transforms_rule(
+                        pages_dir.clone(),
+                        ExportFilter::StripDataExports,
+                        enable_mdx_rs,
+                        vec![],
+                        &page_extensions,
+                    )
+                    .await?,
+                );
+                rules.push(
+                    get_next_disallow_export_all_in_page_rule(enable_mdx_rs, pages_dir.clone())
+                        .await?,
+                );
             }
         }
         ClientContextType::App { .. } => {
@@ -109,8 +111,8 @@ pub async fn get_next_client_transforms_rules(
     };
 
     if !foreign_code {
-        rules.push(get_next_cjs_optimizer_rule(enable_mdx_rs));
-        rules.push(get_next_pure_rule(enable_mdx_rs));
+        rules.push(get_next_cjs_optimizer_rule(enable_mdx_rs).await?);
+        rules.push(get_next_pure_rule(enable_mdx_rs).await?);
 
         rules.push(
             get_next_dynamic_transform_rule(false, false, is_app_dir, mode, enable_mdx_rs).await?,
