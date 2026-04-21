@@ -72,6 +72,13 @@ pub enum ReferencedAssetIdent {
         namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
+        /// The module whose `chunk_item_id` corresponds to `namespace_ident`. When the ident was
+        /// resolved through a re-export chain, this is the final module in that chain, not the
+        /// directly referenced asset. The `.i(id)` call that initializes the variable must use
+        /// this module's id so the variable actually holds the expected namespace.
+        ///
+        /// `None` for external references, where there is no resolved module.
+        import_module: Option<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     },
 }
 
@@ -98,6 +105,7 @@ impl ReferencedAssetIdent {
                 namespace_ident,
                 ctxt,
                 export,
+                import_module: _,
             } => {
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
@@ -233,10 +241,12 @@ impl ReferencedAsset {
                                         // but in the module containing the reexport
                                         ctxt: None,
                                         export,
+                                        import_module,
                                     }) => Some(ReferencedAssetIdent::Module {
                                         namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
+                                        import_module,
                                     }),
                                     ident => ident,
                                 },
@@ -254,12 +264,14 @@ impl ReferencedAsset {
                         .await?,
                     ctxt: None,
                     export,
+                    import_module: Some(*asset),
                 })
             }
             ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
                 namespace_ident: magic_identifier::mangle(&format!("{ty} external {request}")),
                 ctxt: None,
                 export,
+                import_module: None,
             }),
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
@@ -627,6 +639,20 @@ impl EsmAssetReference {
                                     }
                                     ReferencedAsset::Some(asset) => {
                                         let id = asset.chunk_item_id(chunking_context).await?;
+                                        // The `.i(id)` must use the module that corresponds to
+                                        // the emitted `namespace_ident`. When the ident was
+                                        // resolved through a re-export chain (e.g. `export *
+                                        // as X from './inner'`), this is the inner module, not
+                                        // the directly-referenced (rename) module. Fall back to
+                                        // the directly-referenced asset when the ident didn't
+                                        // record a specific target (external references).
+                                        let import_id = match &ident {
+                                            ReferencedAssetIdent::Module {
+                                                import_module: Some(m),
+                                                ..
+                                            } => m.chunk_item_id(chunking_context).await?,
+                                            _ => id.clone(),
+                                        };
                                         let (sym, ctxt) =
                                             ident.into_module_namespace_ident().unwrap();
                                         let name = Ident::new(
@@ -637,7 +663,7 @@ impl EsmAssetReference {
                                         let mut call_expr = quote!(
                                             "$turbopack_import($id)" as Expr,
                                             turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                            id: Expr = module_id_to_lit(&id),
+                                            id: Expr = module_id_to_lit(&import_id),
                                         );
                                         if this.is_pure_import {
                                             call_expr.set_span(PURE_SP);
