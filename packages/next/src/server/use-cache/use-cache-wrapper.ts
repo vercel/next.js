@@ -2644,7 +2644,7 @@ export async function cache(
               fn,
               timeoutError
             )
-              .then((result) => {
+              .then(async (result) => {
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
 
@@ -2665,7 +2665,7 @@ export async function cache(
                     )
                   }
 
-                  ignoredStream.cancel()
+                  await ignoredStream.cancel()
                 }
               })
               .catch((error) => {
