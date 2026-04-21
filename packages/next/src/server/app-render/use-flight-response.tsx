@@ -1,7 +1,7 @@
 import type { BinaryStreamOf } from './app-render'
 import type { Readable } from 'node:stream'
 
-import { htmlEscapeJsonString } from '../htmlescape'
+import { htmlEscapeAttributeString, htmlEscapeJsonString } from '../htmlescape'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getClientReferenceManifest } from './manifests-singleton'
@@ -165,7 +165,7 @@ export function createInlinedDataReadableStream(
   formState: unknown | null
 ): ReadableStream<Uint8Array> {
   const startScriptTag = nonce
-    ? `<script nonce=${JSON.stringify(nonce)}>`
+    ? `<script nonce="${htmlEscapeAttributeString(nonce)}">`
     : '<script>'
 
   const flightReader = flightStream.getReader()
