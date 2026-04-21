@@ -452,8 +452,50 @@ pub enum UnevictableReason {
     Modified,
     /// The task is transient
     Transient,
-    // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
-    NothingToEvict,
+    /// Nothing left to evict — the task has already been fully dropped and only
+    /// holds `current_session_clean` (the benign, expected state: keeps the
+    /// "skip re-read on restore" optimization).
+    NothingToEvictSessionCleanOnly,
+    /// Nothing left to evict and `prefetched` is still set. Unexpected:
+    /// `drop_partial` clears `prefetched`, so seeing this suggests a path that
+    /// sets `prefetched` after eviction without going through restore.
+    NothingToEvictPrefetched,
+    /// Nothing left to evict but `aggregated_current_session_clean_containers`
+    /// is populated — tracks clean-containers in the current session, not
+    /// cleared by `drop_partial`.
+    NothingToEvictAggregatedSessionClean,
+    /// Nothing left to evict but an `outdated_*` lazy field is populated
+    /// (outdated_collectibles / outdated_output_dependencies /
+    /// outdated_cell_dependencies / outdated_collectibles_dependencies).
+    /// These have `shrink_on_completion` so seeing them means completion
+    /// didn't clear them for some reason.
+    NothingToEvictOutdated,
+    /// Nothing left to evict but `transient_cell_data` is populated (cells
+    /// computed in memory that weren't persisted).
+    NothingToEvictTransientCellData,
+    /// Nothing left to evict but `in_progress_cells` is populated (partial
+    /// cell computation state).
+    NothingToEvictInProgressCells,
+    /// Nothing left to evict but some other transient lazy variant is present
+    /// (`activeness`, `in_progress`, `transient_task_type`). These should
+    /// have been caught by earlier evictability guards; seeing them here
+    /// means evictability's filter is inconsistent with reality.
+    NothingToEvictTransientOther,
+    /// Nothing left to evict but a filter_transient inline field holds
+    /// transient residue (`output_dependent`, `output`, `upper` keyed by
+    /// transient task ids).
+    NothingToEvictInlineResidue,
+    /// Nothing left to evict and `leaf_distance` is non-default. Unexpected —
+    /// updates go through a restore-triggering accessor.
+    NothingToEvictLeafDistance,
+    /// Nothing left to evict and `is_empty()` is true — the task should have
+    /// been erased by the eviction pass but wasn't. Bug.
+    NothingToEvictEmpty,
+    /// Nothing left to evict, fallback when none of the more specific
+    /// categories match. Likely multiple blockers or a field we haven't
+    /// categorized.
+    // Keep this last: `COUNT` is derived from its discriminant.
+    NothingToEvictOther,
 }
 
 impl UnevictableReason {
@@ -463,12 +505,22 @@ impl UnevictableReason {
         UnevictableReason::InProgress,
         UnevictableReason::Modified,
         UnevictableReason::Transient,
-        UnevictableReason::NothingToEvict,
+        UnevictableReason::NothingToEvictSessionCleanOnly,
+        UnevictableReason::NothingToEvictPrefetched,
+        UnevictableReason::NothingToEvictAggregatedSessionClean,
+        UnevictableReason::NothingToEvictOutdated,
+        UnevictableReason::NothingToEvictTransientCellData,
+        UnevictableReason::NothingToEvictInProgressCells,
+        UnevictableReason::NothingToEvictTransientOther,
+        UnevictableReason::NothingToEvictInlineResidue,
+        UnevictableReason::NothingToEvictLeafDistance,
+        UnevictableReason::NothingToEvictEmpty,
+        UnevictableReason::NothingToEvictOther,
     ];
 
     /// Number of variants. Derived from the last variant's discriminant, so adding a
-    /// new variant before `NothingToEvict` stays correct automatically.
-    pub const COUNT: usize = (UnevictableReason::NothingToEvict as usize) + 1;
+    /// new variant before `NothingToEvictOther` stays correct automatically.
+    pub const COUNT: usize = (UnevictableReason::NothingToEvictOther as usize) + 1;
 
     #[inline]
     pub const fn index(self) -> usize {
@@ -482,7 +534,31 @@ impl UnevictableReason {
             UnevictableReason::InProgress => "skipped_in_progress",
             UnevictableReason::Modified => "skipped_modified",
             UnevictableReason::Transient => "skipped_transient",
-            UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
+            UnevictableReason::NothingToEvictSessionCleanOnly => {
+                "skipped_nothing_to_evict_session_clean_only"
+            }
+            UnevictableReason::NothingToEvictPrefetched => "skipped_nothing_to_evict_prefetched",
+            UnevictableReason::NothingToEvictAggregatedSessionClean => {
+                "skipped_nothing_to_evict_aggregated_session_clean"
+            }
+            UnevictableReason::NothingToEvictOutdated => "skipped_nothing_to_evict_outdated",
+            UnevictableReason::NothingToEvictTransientCellData => {
+                "skipped_nothing_to_evict_transient_cell_data"
+            }
+            UnevictableReason::NothingToEvictInProgressCells => {
+                "skipped_nothing_to_evict_in_progress_cells"
+            }
+            UnevictableReason::NothingToEvictTransientOther => {
+                "skipped_nothing_to_evict_transient_other"
+            }
+            UnevictableReason::NothingToEvictInlineResidue => {
+                "skipped_nothing_to_evict_inline_residue"
+            }
+            UnevictableReason::NothingToEvictLeafDistance => {
+                "skipped_nothing_to_evict_leaf_distance"
+            }
+            UnevictableReason::NothingToEvictEmpty => "skipped_nothing_to_evict_empty",
+            UnevictableReason::NothingToEvictOther => "skipped_nothing_to_evict_other",
         }
     }
 }
@@ -559,7 +635,7 @@ impl TaskStorage {
         if !flags.data_restored() && !flags.meta_restored() {
             return (
                 key_evictability,
-                ValueEvictability::Unevictable(UnevictableReason::NothingToEvict),
+                ValueEvictability::Unevictable(self.classify_nothing_to_evict()),
             );
         }
 
