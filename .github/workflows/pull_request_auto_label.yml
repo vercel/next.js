@@ -35,7 +35,11 @@ name: Pull Request Auto-Labeler
 # shell command, revisit this threat model.
 on:
   pull_request_target:
-    types: [opened, reopened, synchronize, ready_for_review]
+    # `opened` covers new PRs (including drafts) and `synchronize` covers
+    # every subsequent push. Other lifecycle events (`reopened`,
+    # `ready_for_review`, `edited`) don't change the file list or the
+    # author, so there's nothing new to label.
+    types: [opened, synchronize]
 
 permissions:
   contents: read
