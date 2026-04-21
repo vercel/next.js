@@ -195,12 +195,11 @@ export function createInitialRouterState({
         Date.now(),
         initialRuntimePrefetchStream,
         initialTree,
-        initialRenderedSearch
+        initialRenderedSearch,
+        outputExportFallbackBasePath
       )
         .then((processed) => {
           if (processed !== null) {
-            processed.navigationSeed.outputExportFallbackBasePath =
-              outputExportFallbackBasePath
             writeDynamicRenderResponseIntoCache(
               Date.now(),
               FetchStrategy.PPRRuntime,

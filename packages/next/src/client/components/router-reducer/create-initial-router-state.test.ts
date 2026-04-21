@@ -116,7 +116,7 @@ describe('createInitialRouterState output export fallback', () => {
       data: null,
       head: null,
       dynamicStaleAt: Date.now() + 30_000,
-      outputExportFallbackBasePath: null as string | null,
+      outputExportFallbackBasePath: '/hydrated/__fallback' as string | null,
     }
 
     mockProcessRuntimePrefetchStream.mockResolvedValue({
@@ -143,7 +143,11 @@ describe('createInitialRouterState output export fallback', () => {
     await Promise.resolve()
     await Promise.resolve()
 
-    expect(processedNavigationSeed.outputExportFallbackBasePath).toBe(
+    expect(mockProcessRuntimePrefetchStream).toHaveBeenCalledWith(
+      expect.any(Number),
+      expect.any(ReadableStream),
+      ['', {}],
+      '',
       '/hydrated/__fallback'
     )
     expect(mockWriteDynamicRenderResponseIntoCache).toHaveBeenCalledWith(
