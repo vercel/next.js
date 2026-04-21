@@ -6,7 +6,7 @@ import webdriver from 'next-webdriver'
 import { buildAndStartOutputExportServer } from './utils'
 
 if (isNextDeploy) {
-  describe.skip('app dir - output export fallback route shapes with Cache Components', () => {})
+  it('skips deploy mode', () => {})
 } else {
   const describeProduction = isNextDev ? describe.skip : describe
 

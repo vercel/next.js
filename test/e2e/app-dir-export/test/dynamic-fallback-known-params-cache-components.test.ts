@@ -18,7 +18,7 @@ const { next, skipped, isNextDev } = nextTestSetup({
 })
 
 if (skipped) {
-  describe.skip('app dir - output export dynamic routes with Cache Components and known prerenders', () => {})
+  it('skips unsupported mode', () => {})
 } else {
   const describeProduction = isNextDev ? describe.skip : describe
 
