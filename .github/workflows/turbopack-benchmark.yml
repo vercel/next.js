@@ -51,7 +51,7 @@ jobs:
           npm i -g corepack@0.31
           corepack enable
           pnpm install --loglevel error
-      - run: unset CODSPEED_TOKEN
+
       - name: Build app build benchmarks
         env:
           CODSPEED_RUNNER_MODE: instrumentation
@@ -86,7 +86,7 @@ jobs:
           npm i -g corepack@0.31
           corepack enable
           pnpm install --loglevel error
-      - run: unset CODSPEED_TOKEN
+
       - name: Build app build benchmarks
         env:
           CODSPEED_RUNNER_MODE: instrumentation
@@ -115,7 +115,6 @@ jobs:
         uses: ./.github/actions/sccache
         with:
           turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
-      - run: unset CODSPEED_TOKEN
 
       - name: Build the benchmark target(s)
         env:
