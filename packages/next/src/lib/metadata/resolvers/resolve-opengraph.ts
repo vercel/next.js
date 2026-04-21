@@ -10,7 +10,11 @@ import type {
   MetadataContext,
 } from '../types/resolvers'
 import type { ResolvedTwitterMetadata, Twitter } from '../types/twitter-types'
-import { resolveArray, resolveAsArrayOrUndefined } from '../generate/utils'
+import {
+  resolveArray,
+  resolveAsArrayOrUndefined,
+  normalizeMetadataString,
+} from '../generate/utils'
 import {
   getSocialImageMetadataBaseFallback,
   isStringOrURL,
@@ -191,6 +195,7 @@ export const resolveOpenGraph: AsyncFieldResolverExtraArgs<
   const resolved = {
     ...openGraph,
     title: resolveTitle(openGraph.title, titleTemplate),
+    description: normalizeMetadataString(openGraph.description),
   } as ResolvedOpenGraph
   resolveProps(resolved, openGraph)
 
@@ -227,6 +232,8 @@ export const resolveTwitter: FieldResolverExtraArgs<
   for (const infoKey of TwitterBasicInfoKeys) {
     resolved[infoKey] = twitter[infoKey] || null
   }
+  // Normalize description to prevent hydration mismatch from CRLF line endings
+  resolved.description = normalizeMetadataString(resolved.description)
 
   resolved.images = resolveImages(
     twitter.images,

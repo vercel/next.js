@@ -25,4 +25,24 @@ function getOrigin(url: string | URL): string | undefined {
   return origin
 }
 
-export { resolveAsArrayOrUndefined, resolveArray, getOrigin }
+/**
+ * Normalizes a metadata string value by stripping carriage return characters.
+ * This prevents duplicate meta tags caused by CRLF line endings in metadata.
+ *
+ * @see https://github.com/vercel/next.js/issues/93089
+ */
+function normalizeMetadataString<T extends string | null | undefined>(
+  value: T
+): T {
+  if (typeof value === 'string') {
+    return value.replace(/\r/g, '') as T
+  }
+  return value
+}
+
+export {
+  resolveAsArrayOrUndefined,
+  resolveArray,
+  getOrigin,
+  normalizeMetadataString,
+}

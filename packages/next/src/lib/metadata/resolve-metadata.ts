@@ -36,7 +36,10 @@ import {
 } from './default-metadata'
 import { resolveOpenGraph, resolveTwitter } from './resolvers/resolve-opengraph'
 import { resolveTitle } from './resolvers/resolve-title'
-import { resolveAsArrayOrUndefined } from './generate/utils'
+import {
+  resolveAsArrayOrUndefined,
+  normalizeMetadataString,
+} from './generate/utils'
 import {
   getComponentTypeModule,
   getLayoutOrPageModule,
@@ -352,7 +355,9 @@ async function mergeMetadata(
         newResolvedMetadata[key] = metadata[key] ?? null
         break
       case 'description':
-        newResolvedMetadata[key] = metadata[key] ?? null
+        newResolvedMetadata[key] = normalizeMetadataString(
+          metadata[key] ?? null
+        )
         break
       case 'generator':
         newResolvedMetadata[key] = metadata[key] ?? null
