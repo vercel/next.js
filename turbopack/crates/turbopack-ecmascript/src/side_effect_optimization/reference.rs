@@ -186,9 +186,6 @@ impl EcmascriptModulePartReference {
                         | ExportUsage::Evaluation => None,
                     },
                     scope_hoisting_context,
-                    // `EcmascriptModulePartReference` always resolves to an in-graph module, not
-                    // an external — `import_externals` would never be read from the ident here.
-                    false,
                 )
                 .await?
                 .context("part module reference should have an ident")?;

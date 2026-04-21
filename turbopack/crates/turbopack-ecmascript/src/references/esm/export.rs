@@ -751,16 +751,7 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(
-                            chunking_context,
-                            Some(name.clone()),
-                            scope_hoisting_context,
-                            // This path never emits the `.i(...)` call itself — it only uses the
-                            // resulting `namespace_ident` to reference a variable that the
-                            // importing module already declares. `import_externals` on the ident
-                            // would be unread.
-                            false,
-                        )
+                        .get_ident(chunking_context, Some(name.clone()), scope_hoisting_context)
                         .await?
                         .map(|ident| {
                             let expr = ident.as_expr_individual(DUMMY_SP);
@@ -825,13 +816,7 @@ impl EsmExports {
                     let referenced_asset =
                         ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?;
                     referenced_asset
-                        .get_ident(
-                            chunking_context,
-                            None,
-                            scope_hoisting_context,
-                            // See the comment on the ImportedBinding call above.
-                            false,
-                        )
+                        .get_ident(chunking_context, None, scope_hoisting_context)
                         .await?
                         .map(|ident| {
                             let imported = ident.as_expr(DUMMY_SP, false);

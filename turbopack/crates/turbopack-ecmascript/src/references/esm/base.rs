@@ -87,15 +87,10 @@ pub enum ReferencedAssetIdent {
 pub enum ImportSource {
     /// Import an in-graph module by its chunk item id.
     Module(ModuleId),
-    /// Import an external dependency.
-    External {
-        request: RcStr,
-        ty: ExternalType,
-        /// Whether to use `__turbopack_external_import` (true) or
-        /// `__turbopack_external_require` (false) for ESM externals. Ignored for other
-        /// external types, which always use `__turbopack_external_require`.
-        import_externals: bool,
-    },
+    /// Import an external dependency. The emitting site decides between
+    /// `__turbopack_external_import` and `__turbopack_external_require` based on its own
+    /// `import_externals` flag.
+    External { request: RcStr, ty: ExternalType },
 }
 
 impl ReferencedAssetIdent {
@@ -180,16 +175,9 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
-        import_externals: bool,
     ) -> Result<Option<ReferencedAssetIdent>> {
-        self.get_ident_inner(
-            chunking_context,
-            export,
-            scope_hoisting_context,
-            import_externals,
-            None,
-        )
-        .await
+        self.get_ident_inner(chunking_context, export, scope_hoisting_context, None)
+            .await
     }
 
     async fn get_ident_inner(
@@ -197,7 +185,6 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
-        import_externals: bool,
         initial: Option<&ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
@@ -254,7 +241,6 @@ impl ReferencedAsset {
                                     chunking_context,
                                     imported,
                                     scope_hoisting_context,
-                                    import_externals,
                                     Some(asset),
                                 ))
                                 .await?
@@ -301,7 +287,6 @@ impl ReferencedAsset {
                 import_module: ImportSource::External {
                     request: request.clone(),
                     ty: *ty,
-                    import_externals,
                 },
             }),
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
@@ -662,7 +647,6 @@ impl EsmAssetReference {
                                     _ => None,
                                 }),
                                 scope_hoisting_context,
-                                import_externals,
                             )
                             .await?;
                         // `referenced_asset` must not be used past this point: the ident carries
@@ -708,7 +692,6 @@ impl EsmAssetReference {
                                     ImportSource::External {
                                         request,
                                         ty: ExternalType::EcmaScriptModule,
-                                        import_externals,
                                     } => {
                                         if !*chunking_context
                                             .environment()
@@ -739,7 +722,6 @@ impl EsmAssetReference {
                                     ImportSource::External {
                                         request,
                                         ty: ExternalType::CommonJs | ExternalType::Url,
-                                        import_externals: _,
                                     } => {
                                         if !*chunking_context
                                             .environment()
