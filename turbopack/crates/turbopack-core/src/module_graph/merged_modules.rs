@@ -552,41 +552,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             },
         )?;
 
-        // Synthesized wrapper modules (e.g. rename modules for `export * as X from '...'`) only
-        // exist to expose a remapped namespace. Their emitted code always contains a
-        // `__turbopack_context__.i(<self id>)` lookup, which requires the module's factory to be
-        // registered in the runtime module factories map. Expose them `External` so their id ends
-        // up in the merged chunk item's `additional_ids`.
-        #[allow(clippy::type_complexity)]
-        let candidates: Vec<(
-            ResolvedVc<Box<dyn MergeableModule>>,
-            ResolvedVc<Box<dyn Module>>,
-        )> = {
-            let mut seen: FxHashSet<ResolvedVc<Box<dyn Module>>> = FxHashSet::default();
-            let mut result = Vec::new();
-            for referenced in intra_group_references.values().flatten().copied() {
-                if !seen.insert(referenced) || exposed_modules_imported.contains(&referenced) {
-                    continue;
-                }
-                if let Some(mergeable) =
-                    ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(referenced)
-                {
-                    result.push((mergeable, referenced));
-                }
-            }
-            result
-        };
         drop(inner_span);
-        async {
-            for (mergeable, module) in &candidates {
-                if *mergeable.requires_namespace_exposure().await? {
-                    exposed_modules_imported.insert(*module);
-                }
-            }
-            anyhow::Ok(())
-        }
-        .instrument(tracing::info_span!("expose namespace wrappers"))
-        .await?;
         let inner_span = tracing::info_span!("reconciliation").entered();
         while let Some((_, common_occurrences)) = lists_reverse_indices.pop() {
             if common_occurrences.len() < 2 {
