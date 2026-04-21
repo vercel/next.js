@@ -110,12 +110,14 @@ async function main() {
   } catch (error) {
     setFailed(
       `Failed to apply labels to PR #${prNumber}: ${
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.stack ?? error.message : String(error)
       }`
     )
   }
 }
 
 main().catch((error) => {
-  setFailed(error instanceof Error ? error.message : String(error))
+  setFailed(
+    error instanceof Error ? error.stack ?? error.message : String(error)
+  )
 })
