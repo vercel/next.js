@@ -6,7 +6,7 @@ use std::{
     marker::PhantomData,
     panic::{self, AssertUnwindSafe, catch_unwind},
     sync::{
-        Arc,
+        Arc, LazyLock,
         atomic::{AtomicUsize, Ordering},
     },
     thread::{self, Thread, available_parallelism},
@@ -21,8 +21,8 @@ use crate::{TurboTasksApi, manager::try_turbo_tasks, turbo_tasks_scope};
 
 /// Number of worker tasks to spawn that process jobs. It's 1 less than the number of cpus as we
 /// also use the current task as worker.
-#[ctor::ctor]
-static WORKER_TASKS: usize = unsafe { available_parallelism().map_or(0, |n| n.get() - 1) };
+static WORKER_TASKS: LazyLock<usize> =
+    LazyLock::new(|| available_parallelism().map_or(0, |n| n.get() - 1));
 
 enum WorkQueueJob {
     Job(usize, Box<dyn FnOnce() + Send + 'static>),
