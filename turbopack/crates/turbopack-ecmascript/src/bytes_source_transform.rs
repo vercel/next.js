@@ -51,21 +51,10 @@ impl SourceTransform for BytesSourceTransform {
         let encoded = data_encoding::BASE64_NOPAD.encode(&bytes);
 
         // Generate ES module that decodes base64 to Uint8Array with inline source map.
-        // Uses Uint8Array.fromBase64 (ES2024+) with atob fallback for older environments.
         let code = format!(
-            r#"
-"use turbopack no side effects";
-
-const decode = Uint8Array.fromBase64 || function(base64) {{
-  const binaryString = atob(base64);
-  const buffer = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {{
-    buffer[i] = binaryString.charCodeAt(i)
-  }}
-  return buffer
-}};
-
-export default decode({});
+            r#""use turbopack no side effects";
+import {{ base64Decode }} from '@turbopack/base64';
+export default base64Decode({});
 {}"#,
             StringifyJs(&encoded),
             // For binary files, we use an empty string as sourcesContent since the

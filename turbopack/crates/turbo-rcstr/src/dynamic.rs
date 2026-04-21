@@ -70,10 +70,16 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
 
     let hash = hash_bytes(text.as_ref().as_bytes());
 
-    let entry: Arc<PrehashedString> = Arc::new(PrehashedString {
+    let prehashed = PrehashedString {
         value: Payload::String(text.into()),
         hash,
-    });
+    };
+    new_atom_from_prehashed(prehashed)
+}
+
+/// Construct a new dynamic RcStr from a PrehashedString
+pub(crate) fn new_atom_from_prehashed(prehashed: PrehashedString) -> RcStr {
+    let entry: Arc<PrehashedString> = Arc::new(prehashed);
     let entry = Arc::into_raw(entry);
 
     let ptr: NonNull<PrehashedString> = unsafe {

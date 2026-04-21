@@ -6,7 +6,6 @@ describe('standalone mode - tracing-unparsable', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies,
-    skipDeployment: true,
     skipStart: true,
   })
 

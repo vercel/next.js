@@ -11,6 +11,7 @@ use std::{
     time::Duration,
 };
 
+use event_listener::Listener as _;
 #[cfg(feature = "hanging_detection")]
 use tokio::time::{Timeout, timeout};
 
@@ -201,6 +202,17 @@ impl Future for EventListener {
     }
 }
 
+#[cfg(not(feature = "hanging_detection"))]
+impl EventListener {
+    /// Blocks the current thread until the event is notified.
+    ///
+    /// This is the synchronous equivalent of `.await`-ing the `EventListener`.
+    /// Only valid in synchronous contexts (e.g. backend operations).
+    pub fn wait(self) {
+        self.listener.wait();
+    }
+}
+
 #[cfg(feature = "hanging_detection")]
 pub struct EventListener {
     description: Arc<dyn Fn() -> String + Sync + Send>,
@@ -270,6 +282,22 @@ impl Future for EventListener {
         }
         // EventListener was awaited again after completion
         Poll::Ready(())
+    }
+}
+
+#[cfg(feature = "hanging_detection")]
+impl EventListener {
+    /// Blocks the current thread until the event is notified.
+    ///
+    /// Note: In `hanging_detection` builds, timeout warnings are not emitted
+    /// for sync waits (only for async `.await` usage).
+    pub fn wait(mut self) {
+        if let Some(future) = self.future.take() {
+            // SAFETY: EventListener is Unpin, so it's safe to move out of the Pin.
+            unsafe { std::pin::Pin::into_inner_unchecked(future) }
+                .into_inner()
+                .wait();
+        }
     }
 }
 

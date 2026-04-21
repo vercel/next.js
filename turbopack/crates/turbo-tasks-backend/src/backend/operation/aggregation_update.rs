@@ -5,7 +5,6 @@ use std::{
     mem::take,
     num::NonZeroU32,
     ops::{ControlFlow, Deref},
-    sync::Arc,
     thread::yield_now,
     time::{Duration, Instant},
 };
@@ -23,10 +22,7 @@ use tracing::span::Span;
     feature = "trace_find_and_schedule"
 ))]
 use tracing::trace_span;
-use turbo_tasks::{
-    FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, backend::CachedTaskType,
-    event::EventDescription,
-};
+use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
 
 #[cfg(feature = "trace_task_dirty")]
 use crate::backend::operation::invalidate::TaskDirtyCause;
@@ -272,8 +268,6 @@ pub enum AggregationUpdateJob {
         // upon attempted serialization) similar to #[serde(skip)] on variants
         #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
-        /// Set the task type if not already set
-        task_type: Option<Arc<CachedTaskType>>,
     },
     /// Increases the active counters of the tasks
     IncreaseActiveCounts {
@@ -1168,12 +1162,12 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task, task_type } => {
-                    self.increase_active_count(ctx, task, task_type);
+                AggregationUpdateJob::IncreaseActiveCount { task } => {
+                    self.increase_active_count(ctx, task);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id, None);
+                        self.increase_active_count(ctx, task_id);
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -1256,10 +1250,14 @@ impl AggregationUpdateQueue {
             self.find_and_schedule_dirty(jobs, ctx);
             false
         } else if !self.scheduled_tasks.is_empty() {
-            ctx.for_each_task_all(self.scheduled_tasks.keys().copied(), |task, ctx| {
-                let parent_priority = self.scheduled_tasks[&task.id()];
-                ctx.schedule_task(task, parent_priority);
-            });
+            ctx.for_each_task_all(
+                self.scheduled_tasks.keys().copied(),
+                "schedule tasks",
+                |task, ctx| {
+                    let parent_priority = self.scheduled_tasks[&task.id()];
+                    ctx.schedule_task(task, parent_priority);
+                },
+            );
             self.scheduled_tasks.clear();
             false
         } else {
@@ -1376,10 +1374,7 @@ impl AggregationUpdateQueue {
                         let has_active_count =
                             upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
-                            self.push(AggregationUpdateJob::IncreaseActiveCount {
-                                task: task_id,
-                                task_type: None,
-                            });
+                            self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
                         }
                     }
                     // notify uppers about new follower
@@ -1444,18 +1439,22 @@ impl AggregationUpdateQueue {
             .map(|job| (job.task_id, job.span.clone()))
             .collect();
         // For performance reasons this should stay `Meta` and not `All`
-        ctx.for_each_task_meta(jobs.into_iter().map(|job| job.task_id), |task, ctx| {
-            let task_id = task.id();
-            // Enter the enqueue-time span and create a per-task child span with the
-            // task description. Both guards must live until the end of the closure.
-            #[cfg(feature = "trace_find_and_schedule")]
-            let _trace = (
-                spans.remove(&task_id).flatten().map(|s| s.entered()),
-                trace_span!("find and schedule", %task_id, name = task.get_task_description())
-                    .entered(),
-            );
-            self.find_and_schedule_dirty_internal(task_id, task, ctx);
-        });
+        ctx.for_each_task_meta(
+            jobs.into_iter().map(|job| job.task_id),
+            "find and schedule dirty",
+            |task, ctx| {
+                let task_id = task.id();
+                // Enter the enqueue-time span and create a per-task child span with the
+                // task description. Both guards must live until the end of the closure.
+                #[cfg(feature = "trace_find_and_schedule")]
+                let _trace = (
+                    spans.remove(&task_id).flatten().map(|s| s.entered()),
+                    trace_span!("find and schedule", %task_id, name = task.get_task_description())
+                        .entered(),
+                );
+                self.find_and_schedule_dirty_internal(task_id, task, ctx);
+            },
+        );
     }
 
     fn find_and_schedule_dirty_internal(
@@ -1507,21 +1506,25 @@ impl AggregationUpdateQueue {
         update: AggregatedDataUpdate,
     ) {
         // For performance reasons this should stay `Meta` and not `All`
-        ctx.for_each_task_meta(upper_ids.iter().copied(), |mut upper, ctx| {
-            let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
-            if !diff.is_empty() {
-                let upper_ids = get_uppers(&upper);
-                if !upper_ids.is_empty() {
-                    self.push(
-                        AggregatedDataUpdateJob {
-                            upper_ids,
-                            update: diff,
-                        }
-                        .into(),
-                    );
+        ctx.for_each_task_meta(
+            upper_ids.iter().copied(),
+            "aggregated data update",
+            |mut upper, ctx| {
+                let diff = update.apply(&mut upper, ctx.should_track_activeness(), self);
+                if !diff.is_empty() {
+                    let upper_ids = get_uppers(&upper);
+                    if !upper_ids.is_empty() {
+                        self.push(
+                            AggregatedDataUpdateJob {
+                                upper_ids,
+                                update: diff,
+                            }
+                            .into(),
+                        );
+                    }
                 }
-            }
-        });
+            },
+        );
     }
 
     fn inner_of_uppers_lost_follower(
@@ -1574,20 +1577,24 @@ impl AggregationUpdateQueue {
                 if !data.is_empty() {
                     // remove data from upper
                     // For performance reasons this should stay `Meta` and not `All`
-                    ctx.for_each_task_meta(removed_uppers.iter().copied(), |mut upper, ctx| {
-                        // STEP 6
-                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
-                        if !diff.is_empty() {
-                            let upper_ids = get_uppers(&upper);
-                            self.push(
-                                AggregatedDataUpdateJob {
-                                    upper_ids,
-                                    update: diff,
-                                }
-                                .into(),
-                            )
-                        }
-                    });
+                    ctx.for_each_task_meta(
+                        removed_uppers.iter().copied(),
+                        "remove data from uppers",
+                        |mut upper, ctx| {
+                            // STEP 6
+                            let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
+                            if !diff.is_empty() {
+                                let upper_ids = get_uppers(&upper);
+                                self.push(
+                                    AggregatedDataUpdateJob {
+                                        upper_ids,
+                                        update: diff,
+                                    }
+                                    .into(),
+                                )
+                            }
+                        },
+                    );
                 }
                 // STEP 7
                 if !followers.is_empty() {
@@ -1896,7 +1903,7 @@ impl AggregationUpdateQueue {
     /// See detailed comments in that function, follow the STEP numbers.
     fn inner_of_uppers_has_new_follower<T: TaskIdWithOptionalCount + Clone, const N: usize>(
         &mut self,
-        ctx: &mut impl ExecuteContext,
+        ctx: &mut impl ExecuteContext<'_>,
         new_follower_id: TaskId,
         mut upper_ids: SmallVec<[T; N]>,
     ) {
@@ -2061,6 +2068,7 @@ impl AggregationUpdateQueue {
                         upper_ids_with_min_aggregation_number
                             .iter()
                             .map(|(entry, _)| entry.task_id()),
+                        "add data to uppers",
                         |mut upper, ctx| {
                             // STEP 6d
                             if has_data {
@@ -2458,7 +2466,6 @@ impl AggregationUpdateQueue {
                     if has_active_count {
                         self.push(AggregationUpdateJob::IncreaseActiveCount {
                             task: new_follower_id,
-                            task_type: None,
                         });
                     }
 
@@ -2616,29 +2623,16 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(
-        &mut self,
-        ctx: &mut impl ExecuteContext,
-        task_id: TaskId,
-        task_type: Option<Arc<CachedTaskType>>,
-    ) {
+    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
         let mut task = ctx.task(
             task_id,
-            if task_type.is_some() {
-                TaskDataCategory::All
-            } else {
-                // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta
-            },
+            // For performance reasons this should stay Meta and not All.
+            // persistent_task_type is now set eagerly in initialize_new_task.
+            TaskDataCategory::Meta,
         );
-        if let Some(task_type) = task_type
-            && !task.has_persistent_task_type()
-        {
-            let _ = task.set_persistent_task_type(task_type);
-        }
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();

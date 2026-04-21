@@ -37,7 +37,7 @@ pub async fn get_next_server_transforms_rules(
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
-    let modularize_imports_config = &next_config.modularize_imports().await?;
+    let modularize_imports_config = next_config.modularize_imports();
     let mdx_rs = next_config.mdx_rs().await?.is_some();
     let page_extensions: Vec<String> = next_config
         .page_extensions()
@@ -47,16 +47,13 @@ pub async fn get_next_server_transforms_rules(
         .collect();
 
     if !foreign_code {
-        rules.push(get_next_lint_transform_rule(mdx_rs));
+        rules.push(get_next_lint_transform_rule(mdx_rs).await?);
     }
 
-    if !modularize_imports_config.is_empty() {
-        rules.push(get_next_modularize_imports_rule(
-            modularize_imports_config,
-            mdx_rs,
-        ));
+    if !modularize_imports_config.await?.is_empty() {
+        rules.push(get_next_modularize_imports_rule(modularize_imports_config, mdx_rs).await?);
     }
-    rules.push(get_next_font_transform_rule(mdx_rs));
+    rules.push(get_next_font_transform_rule(mdx_rs).await?);
 
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
@@ -84,19 +81,21 @@ pub async fn get_next_server_transforms_rules(
     let is_server_components = match &context_ty {
         ServerContextType::Pages { pages_dir } | ServerContextType::PagesApi { pages_dir } => {
             if !foreign_code {
-                rules.push(get_next_disallow_export_all_in_page_rule(
-                    mdx_rs,
-                    pages_dir.clone(),
-                ));
-                rules.push(get_next_pages_transforms_rule(
-                    pages_dir.clone(),
-                    ExportFilter::StripDefaultExport,
-                    mdx_rs,
-                    vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
-                        Some(EntryReferenceSubType::PageData),
-                    ))],
-                    &page_extensions,
-                )?);
+                rules.push(
+                    get_next_disallow_export_all_in_page_rule(mdx_rs, pages_dir.clone()).await?,
+                );
+                rules.push(
+                    get_next_pages_transforms_rule(
+                        pages_dir.clone(),
+                        ExportFilter::StripDefaultExport,
+                        mdx_rs,
+                        vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
+                            Some(EntryReferenceSubType::PageData),
+                        ))],
+                        &page_extensions,
+                    )
+                    .await?,
+                );
             }
             false
         }
@@ -158,10 +157,7 @@ pub async fn get_next_server_transforms_rules(
     };
 
     if is_app_dir {
-        rules.push(get_next_debug_instant_stack_rule(
-            mdx_rs,
-            page_extensions.clone(),
-        ));
+        rules.push(get_next_debug_instant_stack_rule(mdx_rs, page_extensions.clone()).await?);
     }
 
     if is_app_dir &&
@@ -170,7 +166,7 @@ pub async fn get_next_server_transforms_rules(
         next_runtime != NextRuntime::Edge &&
         *next_config.enable_cache_components().await?
     {
-        rules.push(get_next_track_dynamic_imports_transform_rule(mdx_rs));
+        rules.push(get_next_track_dynamic_imports_transform_rule(mdx_rs).await?);
     }
 
     if !foreign_code {
@@ -179,8 +175,8 @@ pub async fn get_next_server_transforms_rules(
                 .await?,
         );
 
-        rules.push(get_next_cjs_optimizer_rule(mdx_rs));
-        rules.push(get_next_pure_rule(mdx_rs));
+        rules.push(get_next_cjs_optimizer_rule(mdx_rs).await?);
+        rules.push(get_next_pure_rule(mdx_rs).await?);
 
         // [NOTE]: this rule only works in prod config
         // https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L409
@@ -194,16 +190,19 @@ pub async fn get_next_server_transforms_rules(
         let mode = *mode.await?;
 
         if mode == NextMode::Development {
-            rules.push(get_middleware_dynamic_assert_rule(mdx_rs));
+            rules.push(get_middleware_dynamic_assert_rule(mdx_rs).await?);
         }
 
         if !foreign_code {
-            rules.push(next_edge_node_api_assert(
-                mdx_rs,
-                matches!(context_ty, ServerContextType::Middleware { .. })
-                    && mode == NextMode::Build,
-                mode == NextMode::Build,
-            ));
+            rules.push(
+                next_edge_node_api_assert(
+                    mdx_rs,
+                    matches!(context_ty, ServerContextType::Middleware { .. })
+                        && mode == NextMode::Build,
+                    mode == NextMode::Build,
+                )
+                .await?,
+            );
         }
 
         if matches!(context_ty, ServerContextType::AppRoute { .. }) {
@@ -246,14 +245,14 @@ pub async fn get_next_server_internal_transforms_rules(
     match context_ty {
         ServerContextType::Pages { .. } => {
             // Apply next/font transforms to foreign code
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::PagesApi { .. } => {}
         ServerContextType::AppSSR { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::AppRSC { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}

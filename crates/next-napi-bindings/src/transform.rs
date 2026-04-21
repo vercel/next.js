@@ -31,6 +31,7 @@ use std::{
     fs::read_to_string,
     panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
+    sync::Arc,
 };
 
 use anyhow::{Context as _, anyhow, bail};
@@ -41,10 +42,11 @@ use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
-    base::{Compiler, TransformOutput, try_with_handler},
+    base::{Compiler, TransformOutput, config::RuntimeOptions, try_with_handler},
     common::{FileName, GLOBALS, Mark, comments::SingleThreadedComments, errors::ColorConfig},
     ecma::ast::noop_pass,
 };
+use swc_plugin_backend_wasmtime::WasmtimeRuntime;
 
 use crate::{complete_output, get_compiler, util::MapErr};
 
@@ -128,6 +130,8 @@ impl Task for TransformTask {
                             let unresolved_mark = Mark::new();
                             let mut options = options.patch(&fm);
                             options.swc.unresolved_mark = Some(unresolved_mark);
+                            options.swc.runtime_options =
+                                RuntimeOptions::default().plugin_runtime(Arc::new(WasmtimeRuntime));
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();

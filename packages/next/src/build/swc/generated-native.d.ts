@@ -153,8 +153,8 @@ export declare function minify(
 export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
 export interface NapiAssetPath {
-  path: string
-  contentHash: string
+  path: RcStr
+  contentHash: RcStr
 }
 export interface NapiWrittenEndpoint {
   type: string
@@ -363,7 +363,7 @@ export interface AppPageNapiRoute {
 }
 export interface NapiRoute {
   /** The router path */
-  pathname: string
+  pathname: RcStr
   /** The relative path from project_path to the route file */
   originalName?: RcStr
   /** The type of route, eg a Page or App */
@@ -483,6 +483,9 @@ export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
 ): Promise<TurbopackResult>
+export declare function projectGetAllCompilationIssues(project: {
+  __napiType: 'Project'
+}): Promise<TurbopackResult>
 /**
  * Opens the Turbopack persistent cache database at the given path and performs a full compaction.
  *
@@ -522,13 +525,13 @@ export declare function rootTaskDispose(rootTask: {
 export interface NapiIssue {
   severity: string
   stage: string
-  filePath: string
+  filePath: RcStr
   title: any
   description?: any
   detail?: any
   source?: NapiIssueSource
   additionalSources: Array<NapiAdditionalIssueSource>
-  documentationLink: string
+  documentationLink: RcStr
   importTraces: any
   /**
    * Pre-rendered code frame for the issue's source location, if available.
@@ -537,7 +540,7 @@ export interface NapiIssue {
   codeFrame?: string
 }
 export interface NapiAdditionalIssueSource {
-  description: string
+  description: RcStr
   source: NapiIssueSource
   /** Pre-rendered code frame for this additional source location, if available. */
   codeFrame?: string
@@ -551,16 +554,16 @@ export interface NapiIssueSourceRange {
   end: NapiSourcePos
 }
 export interface NapiSource {
-  ident: string
-  filePath: string
+  ident: RcStr
+  filePath: RcStr
 }
 export interface NapiSourcePos {
   line: number
   column: number
 }
 export interface NapiDiagnostic {
-  category: string
-  name: string
+  category: RcStr
+  name: RcStr
   payload: Record<string, string>
 }
 export declare function expandNextJsTemplate(
@@ -604,10 +607,77 @@ export declare function transformSync(
   isModule: boolean,
   options: Buffer
 ): object
-export declare function startTurbopackTraceServer(
+/** Options for `query_trace_spans`. */
+export interface TraceQueryOptions {
+  /**
+   * Optional parent span ID (as returned by a previous query).
+   * Omit or set to `null`/`undefined` for root-level spans.
+   */
+  parent?: string
+  /** When `true` (default), aggregate child spans with the same name. */
+  aggregated?: boolean
+  /** Sort mode: `"value"` for duration descending, `"name"` for alphabetical. Omit for execution order. */
+  sort?: 'value' | 'name'
+  /** Optional substring search query applied to span name/category. */
+  search?: string
+  /** 1-based page number. Default `1`. */
+  page?: number
+}
+/** Information about a single span or aggregated span group. */
+export interface TraceSpanInfo {
+  /** Span ID. Pass this as `parent` in a follow-up call to get children. */
+  id: string
+  /** Display name of the span. */
+  name: string
+  /** Raw CPU total time in internal ticks (100 ticks = 1 µs). */
+  cpuDuration: number
+  /** Concurrency-corrected total time in internal ticks (100 ticks = 1 µs). */
+  correctedDuration: number
+  /** Start time relative to parent start, in internal ticks. */
+  startRelativeToParent: number
+  /** End time relative to parent start, in internal ticks. */
+  endRelativeToParent: number
+  /** Key-value attributes attached to the span. */
+  args: Array<Array<string>>
+  /** True if this entry represents an aggregated group of spans. */
+  isAggregated: boolean
+  /** Number of spans in this aggregated group (only set when `is_aggregated`). */
+  count?: number
+  /** Sum of CPU duration across all spans in the group. */
+  totalCpuDuration?: number
+  /** Average CPU duration across spans in the group. */
+  avgCpuDuration?: number
+  /** Sum of corrected duration across all spans in the group. */
+  totalCorrectedDuration?: number
+  /** Average corrected duration across spans in the group. */
+  avgCorrectedDuration?: number
+  /** Raw span ID for aggregated groups (the index of the first span). */
+  firstSpanId?: string
+}
+/** The result of a `query_trace_spans` call. */
+export interface TraceQueryResult {
+  spans: Array<TraceSpanInfo>
+  /** Current page (1-based). */
+  page: number
+  /** Total number of pages available. */
+  totalPages: number
+  /** Total number of matching spans across all pages. */
+  totalCount: number
+}
+/**
+ * Starts the turbopack trace server on a background thread and returns a
+ * handle immediately (non-blocking). The WebSocket server will be available
+ * at `ws://127.0.0.1:<port>` (default port 5747).
+ */
+export declare function startTurbopackTraceServerHandle(
   path: string,
   port?: number | undefined | null
-): void
+): TraceServerHandle
+/** Query spans from the trace store held by a `TraceServerHandle`. */
+export declare function queryTraceSpans(
+  handle: TraceServerHandle,
+  options: TraceQueryOptions
+): TraceQueryResult
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string
@@ -656,3 +726,9 @@ export declare function initCustomTraceSubscriber(
 export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell>
 ): void
+/**
+ * An opaque handle to a running trace server instance.
+ * Holds a reference to the shared store so that `query_trace_spans` can
+ * query it without blocking Node.js with the WebSocket server loop.
+ */
+export declare class TraceServerHandle {}

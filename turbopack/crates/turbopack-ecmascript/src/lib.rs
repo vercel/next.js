@@ -3,7 +3,6 @@
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
-#![feature(int_roundings)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 #![recursion_limit = "256"]
@@ -32,7 +31,7 @@ pub(crate) mod static_code;
 mod swc_comments;
 pub mod text;
 pub mod text_source_transform;
-pub(crate) mod transform;
+pub mod transform;
 pub mod tree_shake;
 pub mod typescript;
 pub mod utils;
@@ -702,10 +701,19 @@ impl EcmascriptModuleAsset {
 impl EcmascriptModuleAsset {
     pub async fn parse(&self) -> Result<Vc<ParseResult>> {
         let options = self.options.await?;
+        let node_env = self
+            .compile_time_info
+            .await?
+            .defines
+            .read_process_env(rcstr!("NODE_ENV"))
+            .owned()
+            .await?
+            .unwrap_or_else(|| rcstr!("development"));
         Ok(parse(
             *self.source,
             self.ty,
             *self.transforms,
+            node_env,
             options.analyze_mode == AnalyzeMode::Tracing,
             options.inline_helpers,
         ))
@@ -1001,9 +1009,9 @@ impl EcmascriptModuleContentOptions {
             anyhow::Ok(
                 part_code_gens
                     .into_iter()
-                    .chain(esm_code_gens.into_iter())
+                    .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
-                    .chain(code_gens.into_iter())
+                    .chain(code_gens)
                     .collect(),
             )
         }
@@ -1739,8 +1747,8 @@ async fn process_parse_result(
 
                     let export_contexts = eval_context
                         .map_either(
-                            |e| Cow::Owned(e.imports.exports),
-                            |e| Cow::Borrowed(&e.imports.exports),
+                            |e| Cow::Owned(e.imports.exports_ids),
+                            |e| Cow::Borrowed(&e.imports.exports_ids),
                         )
                         .into_inner();
                     let preserved_exports =
@@ -1891,7 +1899,7 @@ async fn process_parse_result(
                     .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -1919,7 +1927,7 @@ async fn process_parse_result(
                             .await?;
                     let body = vec![
                         quote!(
-                            "const e = new Error($msg);" as Stmt,
+                            "var e = new Error($msg);" as Stmt,
                             msg: Expr = Expr::Lit(msg.into()),
                         ),
                         quote!("e.code = 'MODULE_UNPARSABLE';" as Stmt),
@@ -2567,6 +2575,17 @@ impl SourceMapper for CodeGenResultSourceMap {
                     .1,
                 })
             }
+        }
+    }
+    fn map_raw_pos(&self, pos: BytePos) -> BytePos {
+        match self {
+            CodeGenResultSourceMap::None => BytePos::DUMMY,
+            CodeGenResultSourceMap::Single { .. } => pos,
+            CodeGenResultSourceMap::ScopeHoisting {
+                modules_header_width,
+                lookup_table,
+                ..
+            } => CodeGenResultComments::decode_bytepos(*modules_header_width, pos, lookup_table).1,
         }
     }
 }

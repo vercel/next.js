@@ -22,8 +22,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::ResolvedVc;
-use turbopack_core::{resolve::ExportUsage, source::Source};
+use turbopack_core::resolve::ExportUsage;
 
 use super::{
     ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind, is_unresolved_id,
@@ -31,7 +30,10 @@ use super::{
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{WellKnownObjectKind, is_unresolved},
-    references::{constant_value::parse_single_expr_lit, for_each_ident_in_pat},
+    code_gen::CodeGen,
+    references::{
+        constant_value::parse_single_expr_lit, esm::EsmModuleItem, for_each_ident_in_pat,
+    },
     utils::{AstPathRange, unparen},
 };
 
@@ -269,63 +271,40 @@ impl Effect {
     }
 }
 
+#[derive(Debug)]
 pub enum AssignmentScope {
+    /// assigned in the root scope
     ModuleEval,
+    /// assigned in a function scopes
     Function,
 }
 
+/// Tracks the locations where this was assigned to:
+/// This is used to track the _liveness_ of exports.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AssignmentScopes {
+    /// assigned only in the root scope
     AllInModuleEvalScope,
+    /// assigned in any set of function scopes
     AllInFunctionScopes,
+    /// assigned in both module and function scopes
     Mixed,
 }
 impl AssignmentScopes {
-    fn new(initial: AssignmentScope) -> Self {
+    pub fn new(initial: AssignmentScope) -> Self {
         match initial {
             AssignmentScope::ModuleEval => AssignmentScopes::AllInModuleEvalScope,
             AssignmentScope::Function => AssignmentScopes::AllInFunctionScopes,
         }
     }
 
-    fn merge(self, other: AssignmentScope) -> Self {
+    pub fn merge(self, other: AssignmentScope) -> Self {
         // If the other assignment kind is the same as the current one, return the current one.
         if self == Self::new(other) {
             self
         } else {
             AssignmentScopes::Mixed
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct VarMeta {
-    pub value: JsValue,
-    /// Tracks the locations where this was assigned to:
-    /// - [`AssignmentScopes::AllInModuleEvalScope`] if it was assigned only in the root scope
-    /// - [`AssignmentScopes::AllInFunctionScopes`] if it was assigned in any set of function
-    ///   scopes
-    /// - [`AssignmentScopes::Mixed`] if it was assigned in both
-    ///
-    /// This is used to track the _liveness_ of exports.
-    pub assignment_scopes: AssignmentScopes,
-}
-
-impl VarMeta {
-    pub fn new(value: JsValue, kind: AssignmentScope) -> Self {
-        Self {
-            value,
-            assignment_scopes: AssignmentScopes::new(kind),
-        }
-    }
-
-    pub fn normalize(&mut self) {
-        self.value.normalize();
-    }
-
-    fn add_alt(&mut self, value: JsValue, kind: AssignmentScope) {
-        self.value.add_alt(value);
-        self.assignment_scopes = self.assignment_scopes.merge(kind);
     }
 }
 
@@ -355,7 +334,7 @@ impl DeclUsage {
 
 #[derive(Debug)]
 pub struct VarGraph {
-    pub values: FxHashMap<Id, VarMeta>,
+    pub values: FxHashMap<Id, JsValue>,
 
     /// Map [`JsValue::FreeVar`] names to their [`Id`] to facilitate lookups into [`Self::values`].
     ///
@@ -364,6 +343,8 @@ pub struct VarGraph {
     pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
+    // Some unconditional codegens, usually for ESM items.
+    pub code_gens: Vec<CodeGen>,
 
     // ident -> immediate usage (top level decl)
     pub decl_usages: FxHashMap<Id, DeclUsage>,
@@ -388,11 +369,13 @@ pub fn create_graph(
     m: &Program,
     eval_context: &EvalContext,
     analyze_mode: AnalyzeMode,
+    supports_block_scoping: bool,
 ) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
         free_var_ids: Default::default(),
         effects: Default::default(),
+        code_gens: Default::default(),
         decl_usages: Default::default(),
         import_usages: Default::default(),
         exports: Default::default(),
@@ -406,6 +389,8 @@ pub fn create_graph(
             state: Default::default(),
             effects: Default::default(),
             hoisted_effects: Default::default(),
+            code_gens: Default::default(),
+            supports_block_scoping,
         },
         &mut Default::default(),
     );
@@ -440,14 +425,11 @@ impl EvalContext {
         top_level_mark: Mark,
         force_free_values: Arc<FxHashSet<Id>>,
         comments: Option<&dyn Comments>,
-        source: Option<ResolvedVc<Box<dyn Source>>>,
     ) -> Self {
         Self {
             unresolved_mark,
             top_level_mark,
-            imports: module.map_or(ImportMap::default(), |m| {
-                ImportMap::analyze(m, source, comments)
-            }),
+            imports: module.map_or(ImportMap::default(), |m| ImportMap::analyze(m, comments)),
             force_free_values,
         }
     }
@@ -880,14 +862,8 @@ impl EvalContext {
         let js_value = try_with_handler(cm, Default::default(), |_| {
             GLOBALS.set(&Default::default(), || {
                 let expr = parse_single_expr_lit(expr_lit);
-                let eval_context = EvalContext::new(
-                    None,
-                    Mark::new(),
-                    Mark::new(),
-                    Default::default(),
-                    None,
-                    None,
-                );
+                let eval_context =
+                    EvalContext::new(None, Mark::new(), Mark::new(), Default::default(), None);
 
                 Ok(eval_context.eval(&expr))
             })
@@ -940,6 +916,13 @@ struct Analyzer<'a> {
     /// Tracked separately so we can preserve effects from hoisted declarations even when we don't
     /// collect effects from the declaring context.
     hoisted_effects: Vec<Effect>,
+
+    // Some unconditional codegens, usually for ESM items.
+    code_gens: Vec<CodeGen>,
+
+    /// Whether we may codegen `let` and `const` or if we should fallback to var (at the cost of
+    /// slightly less correct circular import errors) for EsmModuleItem
+    supports_block_scoping: bool,
 
     eval_context: &'a EvalContext,
 }
@@ -1525,15 +1508,10 @@ impl Analyzer<'_> {
             self.data.free_var_ids.insert(id.0.clone(), id.clone());
         }
 
-        let kind = if self.is_in_fn() {
-            AssignmentScope::Function
-        } else {
-            AssignmentScope::ModuleEval
-        };
         if let Some(prev) = self.data.values.get_mut(&id) {
-            prev.add_alt(value, kind);
+            prev.add_alt(value);
         } else {
-            self.data.values.insert(id, VarMeta::new(value, kind));
+            self.data.values.insert(id, value);
         }
         // TODO(kdy1): We may need to report an error for this.
         // Variables declared with `var` are hoisted, but using undefined as its
@@ -1937,9 +1915,30 @@ impl Analyzer<'_> {
             span: member_expr.span(),
         });
     }
+
+    fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
+        if self.analyze_mode.is_code_gen() {
+            self.code_gens.push(
+                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
+                    .into(),
+            );
+        }
+    }
 }
 
 impl VisitAstPath for Analyzer<'_> {
+    fn visit_import_decl<'ast: 'r, 'r>(
+        &mut self,
+        import: &'ast ImportDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        import.visit_children_with_ast_path(self, ast_path);
+        if import.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+    }
+
     fn visit_import_specifier<'ast: 'r, 'r>(
         &mut self,
         _import_specifier: &'ast ImportSpecifier,
@@ -2727,6 +2726,7 @@ impl VisitAstPath for Analyzer<'_> {
         });
         self.effects.append(&mut self.hoisted_effects);
         self.data.effects = take(&mut self.effects);
+        self.data.code_gens = take(&mut self.code_gens);
     }
 
     fn visit_cond_expr<'ast: 'r, 'r>(
@@ -2981,6 +2981,18 @@ impl VisitAstPath for Analyzer<'_> {
         self.effects = prev_effects;
     }
 
+    fn visit_export_all<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportAll,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if export.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
     fn visit_export_decl<'ast: 'r, 'r>(
         &mut self,
         node: &'ast ExportDecl,
@@ -3004,8 +3016,15 @@ impl VisitAstPath for Analyzer<'_> {
                     });
                 }
             }
-            _ => {}
+            Decl::Using(_) => {
+                // See https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/export#:~:text=You%20cannot%20use%20export%20on%20a%20using%20or%20await%20using%20declaration
+                unreachable!("using declarations can not be exported");
+            }
+            Decl::TsInterface(_) | Decl::TsTypeAlias(_) | Decl::TsEnum(_) | Decl::TsModule(_) => {
+                // ignore typescript for code generation
+            }
         };
+        self.add_esm_module_item(ast_path);
         node.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3014,6 +3033,9 @@ impl VisitAstPath for Analyzer<'_> {
         node: &'ast ExportNamedSpecifier,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
+        if node.is_type_only {
+            return;
+        }
         let export_name = node
             .exported
             .as_ref()
@@ -3028,6 +3050,36 @@ impl VisitAstPath for Analyzer<'_> {
             },
         );
         node.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_export_default_expr<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultExpr,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_export_default_decl<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast ExportDefaultDecl,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
+    }
+
+    fn visit_named_export<'ast: 'r, 'r>(
+        &mut self,
+        export: &'ast NamedExport,
+        ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
+    ) {
+        if export.type_only {
+            return;
+        }
+        self.add_esm_module_item(ast_path);
+        export.visit_children_with_ast_path(self, ast_path);
     }
 }
 

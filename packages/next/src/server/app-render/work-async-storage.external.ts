@@ -5,6 +5,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { AppSegmentConfig } from '../../build/segment-config/app/app-segment-config'
 import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
+import type { SharedCacheResult } from '../use-cache/use-cache-wrapper'
 
 // Share the instance module in the next-shared layer
 import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
@@ -81,6 +82,16 @@ export interface WorkStore {
 
   fetchMetrics?: FetchMetrics
   shouldTrackFetchMetrics: boolean
+
+  /**
+   * Tracks pending `"use cache"` invocations within the current request scope,
+   * keyed by the serialized cache key (coarse key). Used for intra-request
+   * deduplication: when multiple components call the same cache function within
+   * a single request, only the first one runs (cache handler lookup +
+   * generation), and joiners tee its result stream.
+   * Root params are identical within a request, so the coarse key is sufficient.
+   */
+  pendingCacheInvocations?: Map<string, Promise<SharedCacheResult>>
 
   isDraftMode?: boolean
   isUnstableNoStore?: boolean

@@ -41,7 +41,7 @@ RUN HOST_ARCH=$(dpkg --print-architecture) && \
       "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-updates main universe" \
       "deb [arch=${FOREIGN_ARCH}] ${FOREIGN_MIRROR} focal-security main universe" \
       > /etc/apt/sources.list
-
+  
 # Core build tools + GNU cross-compilation sysroots + Node.js 20 via nodesource.
 # crossbuild-essential installs headers + libs in the multiarch layout
 # that clang finds via --target. Both archs installed so the image
@@ -50,7 +50,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends \
     nodejs \
-    clang lld llvm pkg-config wget git xz-utils \
+    clang lld llvm pkg-config wget git xz-utils libssl-dev \
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -85,13 +85,14 @@ RUN rustup target add \
     x86_64-unknown-linux-musl \
     aarch64-unknown-linux-musl
 
-# Install @napi-rs/cli and cargo-rustflags globally.
-# cargo-rustflags resolves the effective RUSTFLAGS for a target by querying
-# cargo's own config resolution (handles cfg() predicates, --config overlays).
-RUN npm i -g @napi-rs/cli@2.18.4 && \
-    cargo install cargo-rustflags
-
-# Verify installations
-RUN node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null
+# Install cargo-binstall, then use it for Rust tools.
+ARG CARGO_BINSTALL_VERSION=1.18.1
+RUN ARCH=$(uname -m) && \
+    curl -fsSL "https://github.com/cargo-bins/cargo-binstall/releases/download/v${CARGO_BINSTALL_VERSION}/cargo-binstall-${ARCH}-unknown-linux-musl.tgz" \
+      | tar xz -C /root/.cargo/bin && \
+    npm i -g @napi-rs/cli@2.18.4 && \
+    cargo binstall --no-confirm --targets "${ARCH}-unknown-linux-musl" cargo-rustflags@0.4.0 && \
+    cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache && \
+    node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null && sccache --version
 
 WORKDIR /build
