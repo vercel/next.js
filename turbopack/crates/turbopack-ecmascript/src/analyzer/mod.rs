@@ -2,7 +2,7 @@
 
 use std::{
     borrow::Cow,
-    fmt::{Display, Formatter, Write},
+    fmt::{self, Display, Formatter, Write},
     hash::{BuildHasherDefault, Hash, Hasher},
     mem::take,
     sync::Arc,
@@ -468,8 +468,16 @@ pub enum JsValue {
     /// `(total_node_count, args)`
     SuperCall(u32, Vec<JsValue>),
     /// A function call with a `this` context.
-    /// `(total_node_count, obj, prop, args)`
-    MemberCall(u32, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
+    ///
+    /// `(total_node_count, list)` where `list` is a `MemberCallList` with layout
+    /// `[args..., prop, obj]`. Storing `obj` and `prop` at the tail lets the fallthrough in
+    /// `replace_builtin` pop them off cheaply and reuse the remaining `Vec` as the owned
+    /// args, avoiding an extra allocation on that hot path. Unifying into one `Vec` drops
+    /// the variant payload from 44 to 28 bytes — the previous size driver of the whole enum.
+    ///
+    /// `MemberCallList` has a custom `Debug` impl that re-emits the pre-refactor 4-tuple
+    /// shape so fixture snapshots don't churn.
+    MemberCall(u32, MemberCallList),
     /// A member access `obj[prop]`
     /// `(total_node_count, obj, prop)`
     Member(u32, Box<JsValue>, Box<JsValue>),
@@ -505,6 +513,71 @@ pub enum JsValue {
     FreeVar(Atom),
     /// This is a reference to a imported module.
     Module(ModuleValue),
+}
+
+/// Storage for [`JsValue::MemberCall`]: `[args..., prop, obj]`.
+///
+/// The reversed layout (obj/prop at the tail) is what makes the `replace_builtin`
+/// fallthrough path cheap: `pop` obj, `pop` prop, and the remaining `Vec` **is** the args
+/// `Vec` with no reallocation.
+///
+/// The custom `Debug` impl re-emits the pre-refactor derived shape
+/// (`MemberCall(total, obj, prop, [args])`) by writing obj/prop/args as siblings inside the
+/// parent's `debug_tuple`. This keeps fixture snapshots identical to the 4-tuple-payload
+/// version without forcing a hand-written `Debug` on every `JsValue` arm.
+#[derive(Default, Clone, Hash, PartialEq, Eq)]
+pub struct MemberCallList(Vec<JsValue>);
+
+impl fmt::Debug for MemberCallList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Layout: [args..., prop, obj]
+        let n = self.0.len();
+        let obj = &self.0[n - 1];
+        let prop = &self.0[n - 2];
+        let args = &self.0[..n - 2];
+        if f.alternate() {
+            // The parent `debug_tuple` writes the field's leading indent for us (via
+            // PadAdapter) and appends `,\n` after we return. Emitting
+            // `<obj>,\n<prop>,\n<args>` with no trailing comma makes us appear as three
+            // sibling fields in the parent's pretty-print output.
+            writeln!(f, "{obj:#?},")?;
+            writeln!(f, "{prop:#?},")?;
+            write!(f, "{args:#?}")
+        } else {
+            write!(f, "{obj:?}, {prop:?}, {args:?}")
+        }
+    }
+}
+
+impl MemberCallList {
+    fn new(obj: Box<JsValue>, prop: Box<JsValue>, args: Vec<JsValue>) -> Self {
+        let mut list = args;
+        list.reserve_exact(2);
+        list.push(*prop);
+        list.push(*obj);
+        Self(list)
+    }
+
+    /// Take everything out. The returned `args` `Vec` reuses the original allocation — no
+    /// copy. That's the point of storing obj/prop at the tail.
+    fn into_parts(mut self) -> (JsValue, JsValue, Vec<JsValue>) {
+        let obj = self.0.pop().unwrap();
+        let prop = self.0.pop().unwrap();
+        (obj, prop, self.0)
+    }
+}
+
+impl std::ops::Deref for MemberCallList {
+    type Target = Vec<JsValue>;
+    fn deref(&self) -> &Vec<JsValue> {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for MemberCallList {
+    fn deref_mut(&mut self) -> &mut Vec<JsValue> {
+        &mut self.0
+    }
 }
 
 impl From<&'_ str> for JsValue {
@@ -786,16 +859,23 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::MemberCall(_, obj, prop, list) => write!(
-                f,
-                "{}[{}]({})",
-                obj,
-                prop,
-                list.iter()
-                    .map(|v| v.to_string())
-                    .collect::<Vec<_>>()
-                    .join(", ")
-            ),
+            JsValue::MemberCall(_, list) => {
+                // Layout: [args..., prop, obj]
+                let n = list.len();
+                let obj = &list[n - 1];
+                let prop = &list[n - 2];
+                let args = &list[..n - 2];
+                write!(
+                    f,
+                    "{}[{}]({})",
+                    obj,
+                    prop,
+                    args.iter()
+                        .map(|v| v.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             JsValue::Member(_, obj, prop) => write!(f, "{obj}[{prop}]"),
             JsValue::Module(ModuleValue {
                 module: name,
@@ -1089,12 +1169,8 @@ impl JsValue {
     }
 
     pub fn member_call(o: Box<JsValue>, p: Box<JsValue>, args: Vec<JsValue>) -> Self {
-        Self::MemberCall(
-            1 + o.total_nodes() + p.total_nodes() + total_nodes(&args),
-            o,
-            p,
-            args,
-        )
+        let total = 1 + o.total_nodes() + p.total_nodes() + total_nodes(&args);
+        Self::MemberCall(total, MemberCallList::new(o, p, args))
     }
 
     pub fn member(o: Box<JsValue>, p: Box<JsValue>) -> Self {
@@ -1181,7 +1257,7 @@ impl JsValue {
             | JsValue::New(c, _, _)
             | JsValue::Call(c, _, _)
             | JsValue::SuperCall(c, _)
-            | JsValue::MemberCall(c, _, _, _)
+            | JsValue::MemberCall(c, _)
             | JsValue::Member(c, _, _)
             | JsValue::Function(c, _, _)
             | JsValue::Iterated(c, ..)
@@ -1257,8 +1333,8 @@ impl JsValue {
             JsValue::SuperCall(c, list) => {
                 *c = 1 + total_nodes(list);
             }
-            JsValue::MemberCall(c, o, m, list) => {
-                *c = 1 + o.total_nodes() + m.total_nodes() + total_nodes(list);
+            JsValue::MemberCall(c, list) => {
+                *c = 1 + total_nodes(list);
             }
             JsValue::Member(c, o, p) => {
                 *c = 1 + o.total_nodes() + p.total_nodes();
@@ -1596,13 +1672,17 @@ impl JsValue {
                     )
                 )
             }
-            JsValue::MemberCall(_, obj, prop, list) => {
+            JsValue::MemberCall(_, list) => {
+                // Layout: [args..., prop, obj]
+                let n = list.len();
+                let obj = &list[n - 1];
+                let prop = &list[n - 2];
                 format!(
                     "{}[{}]({})",
                     obj.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
                     prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
                     pretty_join(
-                        &list
+                        &list[..n - 2]
                             .iter()
                             .map(|v| v.explain_internal_inner(
                                 hints,
@@ -2065,13 +2145,15 @@ impl JsValue {
                         return None;
                     }
                 }
-                JsValue::MemberCall(_, callee, prop, args) if args.is_empty() => {
+                JsValue::MemberCall(_, list) if list.len() == 2 => {
+                    // Layout: [args..., prop, obj]; here args is empty so list = [prop, obj].
+                    let prop = &list[0];
                     if let Some(prop) = prop.as_str() {
                         segments.push(DefinableNameSegmentRef::Call(prop));
                     } else {
                         return None;
                     }
-                    current = callee;
+                    current = &list[1];
                 }
                 JsValue::TypeOf(_, arg) => {
                     segments.push(DefinableNameSegmentRef::TypeOf);
@@ -2132,7 +2214,7 @@ impl JsValue {
             JsValue::New(_, _callee, _args) => true,
             JsValue::Call(_, _callee, _args) => true,
             JsValue::SuperCall(_, _args) => true,
-            JsValue::MemberCall(_, _obj, _prop, _args) => true,
+            JsValue::MemberCall(_, _list) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::Function(_, _, _) => false,
             JsValue::Url(_, _) => false,
@@ -2634,10 +2716,8 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::MemberCall(_, obj, prop, list) => {
-                let m1 = visitor(obj);
-                let m2 = visitor(prop);
-                let mut modified = m1 || m2;
+            JsValue::MemberCall(_, list) => {
+                let mut modified = false;
                 for item in list.iter_mut() {
                     if visitor(item) {
                         modified = true
@@ -2729,10 +2809,17 @@ impl JsValue {
                 }
                 m
             }
-            JsValue::MemberCall(_, obj, prop, list) if !list.is_empty() => {
-                let m1 = visitor(obj);
-                let m2 = visitor(prop);
-                let modified = m1 || m2;
+            // Layout: [args..., prop, obj]. "early" children are obj + prop (only when there
+            // are call args; otherwise the whole list walks as late children elsewhere).
+            JsValue::MemberCall(_, list) if list.len() > 2 => {
+                let n = list.len();
+                let early = &mut list[n - 2..];
+                let mut modified = false;
+                for item in early.iter_mut() {
+                    if visitor(item) {
+                        modified = true;
+                    }
+                }
                 if modified {
                     self.update_total_nodes();
                 }
@@ -2780,9 +2867,11 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::MemberCall(_, _, _, list) if !list.is_empty() => {
+            // Layout: [args..., prop, obj]. Late children of MemberCall = the call args.
+            JsValue::MemberCall(_, list) if list.len() > 2 => {
+                let n = list.len();
                 let mut modified = false;
-                for item in list.iter_mut() {
+                for item in list[..n - 2].iter_mut() {
                     if visitor(item) {
                         modified = true
                     }
@@ -2858,9 +2947,7 @@ impl JsValue {
                     visitor(item);
                 }
             }
-            JsValue::MemberCall(_, obj, prop, list) => {
-                visitor(obj);
-                visitor(prop);
+            JsValue::MemberCall(_, list) => {
                 for item in list.iter() {
                     visitor(item);
                 }
@@ -3158,11 +3245,8 @@ impl JsValue {
             (JsValue::Call(lc, lf, la), JsValue::Call(rc, rf, ra)) => {
                 lc == rc && lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
             }
-            (JsValue::MemberCall(lc, lo, lp, la), JsValue::MemberCall(rc, ro, rp, ra)) => {
-                lc == rc
-                    && lo.similar(ro, depth - 1)
-                    && lp.similar(rp, depth - 1)
-                    && all_similar(la, ra, depth - 1)
+            (JsValue::MemberCall(lc, ll), JsValue::MemberCall(rc, rl)) => {
+                lc == rc && all_similar(ll, rl, depth - 1)
             }
             (JsValue::Member(lc, lo, lp), JsValue::Member(rc, ro, rp)) => {
                 lc == rc && lo.similar(ro, depth - 1) && lp.similar(rp, depth - 1)
@@ -3263,10 +3347,8 @@ impl JsValue {
             JsValue::SuperCall(_, a) => {
                 all_similar_hash(a, state, depth - 1);
             }
-            JsValue::MemberCall(_, a, b, c) => {
-                a.similar_hash(state, depth - 1);
-                b.similar_hash(state, depth - 1);
-                all_similar_hash(c, state, depth - 1);
+            JsValue::MemberCall(_, list) => {
+                all_similar_hash(list, state, depth - 1);
             }
             JsValue::Member(_, o, p) => {
                 o.similar_hash(state, depth - 1);
