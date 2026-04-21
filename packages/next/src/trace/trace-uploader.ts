@@ -1,11 +1,11 @@
 import findUp from 'next/dist/compiled/find-up'
 import fsPromise from 'fs/promises'
-import child_process from 'child_process'
 import assert from 'assert'
 import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
 import path from 'path'
+import { getGitBranch, getGitCommit } from '../lib/helpers/git'
 
 const COMMON_ALLOWED_EVENTS = ['memory-usage']
 
@@ -128,23 +128,11 @@ interface TraceMetadata {
   )
   const pkgName = projectPkgJson.name
 
-  const git = os.platform() === 'win32' ? 'git.exe' : 'git'
-
   const isVercelEnvironment = !!process.env.VERCEL
 
-  const commit =
-    process.env.VERCEL_GIT_COMMIT_SHA ||
-    child_process
-      .spawnSync(git, ['rev-parse', 'HEAD'])
-      .stdout.toString()
-      .trimEnd()
+  const commit = getGitCommit(projectDir) ?? ''
 
-  const branch =
-    process.env.VERCEL_GIT_COMMIT_REF ||
-    child_process
-      .spawnSync(git, ['rev-parse', '--abbrev-ref', 'HEAD'])
-      .stdout.toString()
-      .trimEnd()
+  const branch = getGitBranch(projectDir) ?? ''
 
   const readLineInterface = createInterface({
     input: createReadStream(path.join(projectDir, distDir, 'trace')),
