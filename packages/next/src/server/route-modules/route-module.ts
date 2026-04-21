@@ -49,6 +49,7 @@ import {
   getRequestMeta,
   type NextIncomingMessage,
 } from '../request-meta'
+import { patchSetHeaderWithCookieSupport } from '../lib/patch-set-header'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
@@ -647,6 +648,10 @@ export abstract class RouteModule<
 
     // edge runtime handles loading instrumentation at the edge adapter level
     if (process.env.NEXT_RUNTIME !== 'edge') {
+      if (res) {
+        patchSetHeaderWithCookieSupport(req, res)
+      }
+
       const { join, relative } =
         require('node:path') as typeof import('node:path')
 
