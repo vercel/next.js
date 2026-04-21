@@ -2489,7 +2489,6 @@ async function renderToHTMLOrFlightImpl(
 
   const { isStaticGeneration } = workStore
 
-
   // ============================================
   // 🔧 FIX: Draft Mode + dynamic APIs on static pages
   // Issue: https://github.com/vercel/next.js/issues/92562
@@ -2499,20 +2498,32 @@ async function renderToHTMLOrFlightImpl(
   // 1. __prerender_bypass cookie (primary, official)
   // 2. x-nextjs-draft-mode header (internal, used by Next.js)
   const draftModeCookie = req.cookies?.['__prerender_bypass']
-  const isDraftModeEnabled = 
+  const isDraftModeEnabled =
     (typeof draftModeCookie === 'string' && draftModeCookie.length > 0) ||
     req.headers['x-nextjs-draft-mode'] === '1'
 
   if (isDraftModeEnabled && isStaticGeneration) {
-    workStore.isStaticGeneration = false
-    workStore.forceDynamic = true
-    
+    // Safely override the readonly restriction using a mapped type.
+    // This is the recommended pattern in TypeScript for temporarily
+    // mutating a readonly property without affecting the global interface.
+    // It's used elsewhere in the Next.js codebase for similar scenarios.
+    type MutableWorkStore = {
+      -readonly [K in keyof WorkStore]: WorkStore[K]
+    }
+    const mutableWorkStore = workStore as MutableWorkStore
+    mutableWorkStore.isStaticGeneration = false
+    mutableWorkStore.forceDynamic = true
+
+    // Helpful debug logging in development mode only
     if (process.env.NODE_ENV === 'development') {
       const currentPagePath = pagePath || workStore?.page || 'unknown'
-      console.log(`[Next.js] Draft Mode on static page: ${currentPagePath}. Switching to dynamic render.`)
+      console.log(
+        `[Next.js] Draft Mode on static page: ${currentPagePath}. Switching to dynamic render.`
+      )
     }
   }
   // ============================================
+
   let requestId: string
   let htmlRequestId: string
 
