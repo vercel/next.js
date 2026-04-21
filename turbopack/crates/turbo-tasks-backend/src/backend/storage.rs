@@ -1066,6 +1066,7 @@ where
         SnapshotShardIter {
             shard: self,
             buffer,
+            next_index: 0,
         }
     }
 }
@@ -1075,6 +1076,11 @@ where
 pub struct SnapshotShardIter<'l, P> {
     shard: SnapshotShard<'l, P>,
     buffer: TurboBincodeBuffer,
+    /// Cursor into `shard.modified`. Index-based (rather than `pop()`) so the
+    /// full `modified` vec is preserved for phase 3's touched-set sweep, which
+    /// runs in `Drop` and needs the list of tasks whose flags were just cleared
+    /// by iteration.
+    next_index: usize,
 }
 
 impl<'l, P> Iterator for SnapshotShardIter<'l, P>
@@ -1084,7 +1090,8 @@ where
     type Item = SnapshotItem;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(task_id) = self.shard.modified.pop() {
+        if let Some(&task_id) = self.shard.modified.get(self.next_index) {
+            self.next_index += 1;
             let mut inner = self.shard.storage.map.get_mut(&task_id).unwrap();
             // If the task was re-modified during snapshot, the snapshots map may
             // hold a pre-modification copy we must serialize instead of the live
@@ -1122,6 +1129,16 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
         self.shard
             ._guard
             .return_scratch_buffer(std::mem::take(&mut self.buffer));
+        // Forward this shard's `modified` vec to the guard so phase 3's
+        // touched-set sweep in `end_snapshot` can re-visit just the tasks whose
+        // flags were cleared by iteration. Only when eviction is enabled —
+        // otherwise the list is useless and we avoid a pointless mutex acquire.
+        if self.shard._guard.evict.enabled() {
+            let modified = std::mem::take(&mut self.shard.modified);
+            if !modified.is_empty() {
+                self.shard._guard.touched_modified.lock().push(modified);
+            }
+        }
     }
 }
 
