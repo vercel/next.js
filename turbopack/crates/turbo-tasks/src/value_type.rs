@@ -256,7 +256,6 @@ impl TraitMethod {
 pub struct TraitType {
     pub ty: RegistryType,
     pub methods: &'static [TraitMethod],
-    pub method_names: &'static [&'static str],
     pub default_methods: &'static [Option<&'static NativeFunction>],
 }
 
@@ -264,8 +263,8 @@ impl Debug for TraitType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("TraitType");
         d.field("name", &self.ty.name);
-        for (name, method) in self.method_names.iter().zip(self.methods.iter()) {
-            d.field(name, method);
+        for method in self.methods.iter() {
+            d.field(method.method_name, method);
         }
         d.finish()
     }
@@ -282,13 +281,11 @@ impl TraitType {
         name: &'static str,
         global_name: &'static str,
         methods: &'static [TraitMethod],
-        method_names: &'static [&'static str],
         default_methods: &'static [Option<&'static NativeFunction>],
     ) -> Self {
         Self {
             ty: RegistryType::new::<T>(name, global_name),
             methods,
-            method_names,
             default_methods,
         }
     }
@@ -297,8 +294,7 @@ impl TraitType {
     pub fn get(&self, name: &str) -> &TraitMethod {
         self.methods
             .iter()
-            .zip(self.method_names)
-            .find_map(|(method, method_name)| (*method_name == name).then_some(method))
+            .find(|method| method.method_name == name)
             .expect("Method not found!")
     }
 }
@@ -307,17 +303,20 @@ turbo_registry!("Trait", TraitType);
 
 pub trait TraitVtablePrototype {
     const LEN: usize;
-    const NAMES: &'static [&'static str];
     const DEFAULTS: &'static [Option<&'static NativeFunction>];
 }
 
-pub const fn index_of_name(array: &'static [&'static str], name: &'static str) -> usize {
+/// Linear-scan lookup of a [`TraitMethod`] by `method_name` in a `&'static [TraitMethod]`. Const
+/// so the `value_trait` macro's per-method dispatch site can resolve to an array index at
+/// compile time.
+pub const fn index_of_method_name(methods: &'static [TraitMethod], name: &'static str) -> usize {
     let mut i = 0;
-    'outer: while i < array.len() {
-        if array[i].len() == name.len() {
+    'outer: while i < methods.len() {
+        let entry = methods[i].method_name;
+        if entry.len() == name.len() {
             let mut j = 0;
             while j < name.len() {
-                if array[i].as_bytes()[j] != name.as_bytes()[j] {
+                if entry.as_bytes()[j] != name.as_bytes()[j] {
                     i += 1;
                     continue 'outer;
                 }
@@ -330,7 +329,10 @@ pub const fn index_of_name(array: &'static [&'static str], name: &'static str) -
     panic!("Method not found!")
 }
 
-pub const fn build_trait_vtable<B: TraitVtablePrototype, const LEN: usize>(
+pub const fn build_trait_vtable<
+    B: TraitVtablePrototype + crate::registry::RegistryDef<TraitType>,
+    const LEN: usize,
+>(
     overrides: &[(&'static str, &'static NativeFunction)],
 ) -> [&'static NativeFunction; LEN] {
     let mut methods = [&crate::native_function::VTABLE_DEFAULT; LEN];
@@ -345,7 +347,10 @@ pub const fn build_trait_vtable<B: TraitVtablePrototype, const LEN: usize>(
     let mut i = 0;
     while i < overrides.len() {
         let (name, f) = overrides[i];
-        methods[index_of_name(B::NAMES, name)] = f;
+        methods[index_of_method_name(
+            <B as crate::registry::RegistryDef<TraitType>>::DEF.methods,
+            name,
+        )] = f;
         i += 1;
     }
     methods

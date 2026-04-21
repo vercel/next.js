@@ -69,7 +69,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let trait_type_ident = get_trait_type_ident(trait_ident);
     let mut dynamic_trait_fns = Vec::new();
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
-    let mut method_names: Vec<TokenStream2> = Vec::new();
     let mut default_methods: Vec<TokenStream2> = Vec::new();
     let mut native_functions = Vec::new();
     let mut items: Vec<TokenStream2> = Vec::with_capacity(raw_items.len());
@@ -231,7 +230,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     index: #index,
                 },
             });
-            method_names.push(quote! { #method_name_str });
             default_methods.push(quote! { Some(&#native_function_ident) });
 
             native_functions.push(quote! {
@@ -269,7 +267,6 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     index: #index,
                 },
             });
-            method_names.push(quote! { #method_name_str });
             default_methods.push(quote! { None });
             quote! { ; }
         };
@@ -311,7 +308,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
     }
 
-    let num_methods = method_names.len();
+    let num_methods = default_methods.len();
     let trait_name = global_name_for_type(quote! { dyn #trait_ident });
     let expanded = quote! {
         #[must_use]
@@ -329,14 +326,12 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                     stringify!(#trait_ident),
                     #trait_name,
                     &[#(#trait_methods)*],
-                    &[#(#method_names),*],
                     &[#(#default_methods),*]
                 )
         );
 
         impl turbo_tasks::macro_helpers::TraitVtablePrototype for Box<dyn #trait_ident> {
             const LEN: usize = #num_methods;
-            const NAMES: &[&str] = &[#(#method_names),*];
             const DEFAULTS: &[Option<&turbo_tasks::macro_helpers::NativeFunction>] = &[#(#default_methods),*];
         }
 
