@@ -27,7 +27,7 @@ pub use crate::{
     registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
     turbo_register,
-    value_type::{TraitVtablePrototype, build_trait_vtable},
+    value_type::{TraitVtablePrototype, build_trait_vtable, index_of_name},
 };
 
 #[cfg(debug_assertions)]

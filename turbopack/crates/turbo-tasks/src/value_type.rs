@@ -293,8 +293,13 @@ impl TraitType {
         }
     }
 
-    pub const fn get(&'static self, name: &'static str) -> &'static TraitMethod {
-        &self.methods[index_of_name(self.method_names, name)]
+    #[cfg(test)]
+    pub fn get(&self, name: &str) -> &TraitMethod {
+        self.methods
+            .iter()
+            .zip(self.method_names)
+            .find_map(|(method, method_name)| (*method_name == name).then_some(method))
+            .expect("Method not found!")
     }
 }
 
@@ -306,7 +311,7 @@ pub trait TraitVtablePrototype {
     const DEFAULTS: &'static [Option<&'static NativeFunction>];
 }
 
-pub(crate) const fn index_of_name(array: &'static [&'static str], name: &'static str) -> usize {
+pub const fn index_of_name(array: &'static [&'static str], name: &'static str) -> usize {
     let mut i = 0;
     'outer: while i < array.len() {
         if array[i].len() == name.len() {

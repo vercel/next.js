@@ -559,8 +559,11 @@ impl TurboFn<'_> {
                 let this = #converted_this;
                 let persistence = #persistence;
                 let mut arg = turbo_tasks::StackDynTaskInputsSlot::new(inputs);
-                static TRAIT_METHOD: &'static turbo_tasks::TraitMethod =
-                    #trait_type_ident.get(stringify!(#ident));
+                static TRAIT_METHOD: &'static turbo_tasks::TraitMethod = &#trait_type_ident
+                    .methods[turbo_tasks::macro_helpers::index_of_name(
+                        #trait_type_ident.method_names,
+                        stringify!(#ident),
+                    )];
                 <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                     turbo_tasks::trait_call(
                         TRAIT_METHOD,
