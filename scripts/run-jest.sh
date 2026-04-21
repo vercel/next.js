@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+#
+# Set up environment variables for a Next.js jest test run and exec jest
+# in a single hop, replacing this shell process.
+#
+# Previously, the pnpm test scripts chained through multiple `pnpm run` +
+# `cross-env` layers (e.g. test-dev-turbo -> with-turbo -> test-dev-inner ->
+# testheadless -> testonly -> jest), each adding a node/pnpm process-startup
+# tax. This helper collapses that into one script invocation.
+#
+# Usage:
+#   scripts/run-jest.sh \
+#     [--mode=<dev|start|deploy>] \
+#     [--bundler=<webpack|turbo|rspack>] \
+#     [--experimental] \
+#     [--headless] \
+#     -- [jest args...]
+#
+# All arguments after `--` are forwarded verbatim to jest.
+
+set -eo pipefail
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --mode=dev|--mode=start|--mode=deploy)
+      export NEXT_TEST_MODE="${1#--mode=}"
+      ;;
+    --mode=*)
+      echo "run-jest.sh: unknown mode: ${1#--mode=}" >&2
+      exit 1
+      ;;
+    --bundler=webpack)
+      export IS_WEBPACK_TEST=1
+      ;;
+    --bundler=turbo)
+      export IS_TURBOPACK_TEST=1
+      ;;
+    --bundler=rspack)
+      export NEXT_RSPACK=1
+      export NEXT_TEST_USE_RSPACK=1
+      ;;
+    --bundler=*)
+      echo "run-jest.sh: unknown bundler: ${1#--bundler=}" >&2
+      exit 1
+      ;;
+    --experimental)
+      export __NEXT_CACHE_COMPONENTS=true
+      export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+      ;;
+    --headless)
+      export HEADLESS=true
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      echo "run-jest.sh: unknown argument: $1" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+exec jest --runInBand "$@"
