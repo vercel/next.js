@@ -319,18 +319,27 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             self.should_persist(),
             "snapshot_and_evict requires persistence"
         );
-        let snapshot_result = self.snapshot_and_persist(None, "test", turbo_tasks);
-        let had_new_data = match snapshot_result {
-            Ok((_, new_data)) => new_data,
+        // `snapshot_and_persist` runs phase 1 + phase 3 eviction inline when
+        // `should_evict()` is true. For the test helper we want eviction
+        // unconditionally, so if the backend wasn't configured with
+        // `evict_after_snapshot=true` we fall back to a post-pass `evict` call.
+        match self.snapshot_and_persist(None, "test", turbo_tasks) {
+            Ok((_, new_data, counts)) => {
+                if self.should_evict() {
+                    (new_data, counts)
+                } else {
+                    // Interleaved eviction was disabled by config; do a full-pass
+                    // eviction now so tests observe the snapshot → evict cycle.
+                    (new_data, self.storage.evict(None))
+                }
+            }
             Err(_) => {
                 // Snapshot/persist failed — skip eviction since the data may not
                 // be on disk yet. Evicting now could lose in-memory state that
                 // can't be restored.
-                return (false, EvictionCounts::default());
+                (false, EvictionCounts::default())
             }
-        };
-        let counts = self.storage.evict_after_snapshot(None);
-        (had_new_data, counts)
+        }
     }
 
     fn should_restore(&self) -> bool {
@@ -936,7 +945,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         parent_span: Option<tracing::Id>,
         reason: &str,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
-    ) -> Result<(Instant, bool), anyhow::Error> {
+    ) -> Result<(Instant, bool, EvictionCounts), anyhow::Error> {
         let snapshot_span =
             tracing::trace_span!(parent: parent_span.clone(), "snapshot", reason = reason)
                 .entered();
@@ -957,9 +966,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         // Enter snapshot mode, which atomically reads and resets the modified count.
         // Checking after start_snapshot ensures no concurrent increments can race.
-        let (snapshot_guard, has_modifications) = self
-            .storage
-            .start_snapshot(EvictMode::Disabled, parent_span.clone());
+        let (snapshot_guard, has_modifications) = self.storage.start_snapshot(
+            if self.should_evict() {
+                EvictMode::Enabled
+            } else {
+                EvictMode::Disabled
+            },
+            parent_span.clone(),
+        );
 
         let suspended_operations = snapshot_phase.take_suspended_operations();
 
@@ -967,10 +981,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(snapshot_phase);
 
         if !has_modifications {
-            // No tasks modified since the last snapshot — drop the guard (which
-            // calls end_snapshot) and skip the expensive O(N) scan.
-            drop(snapshot_guard);
-            return Ok((start, false));
+            // No tasks modified since the last snapshot — skip the expensive O(N)
+            // scan. Unwrap the guard and `finish` so phase 3 still runs (for
+            // `snapshots`-map drain + any in-flight eviction bookkeeping).
+            // persist_succeeded stays false, so phase-3 eviction is a no-op.
+            let counts = Arc::try_unwrap(snapshot_guard)
+                .unwrap_or_else(|_| {
+                    unreachable!("SnapshotGuard has no other strong refs before take_snapshot")
+                })
+                .finish();
+            return Ok((start, false, counts));
         }
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1222,7 +1242,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
         };
 
-        let task_snapshots = self.storage.take_snapshot(snapshot_guard, &process);
+        let task_snapshots = self.storage.take_snapshot(snapshot_guard.clone(), &process);
 
         drop(snapshot_span);
         let snapshot_duration = start.elapsed();
@@ -1232,7 +1252,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // This should be impossible — if we got here, modified_count was nonzero, and every
             // modification that increments the count also failed during encoding.
             std::hint::cold_path();
-            return Ok((snapshot_time, false));
+            let counts = Arc::try_unwrap(snapshot_guard)
+                .unwrap_or_else(|_| {
+                    unreachable!("SnapshotGuard Arc should be unique after empty take_snapshot")
+                })
+                .finish();
+            return Ok((snapshot_time, false, counts));
         }
 
         let persist_start = Instant::now();
@@ -1243,6 +1268,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // that further persist attempts would corrupt the task graph in storage.
             self.backing_storage
                 .save_snapshot(suspended_operations, task_snapshots)?;
+            // save_snapshot returned Ok — bytes are committed to the backing store.
+            // Phase 3 may now drop in-memory task values and drain deferred
+            // task_cache removals.
+            snapshot_guard.mark_persisted();
             #[cfg(feature = "print_cache_item_size")]
             {
                 let mut task_cache_stats = task_cache_stats
@@ -1353,7 +1382,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ],
         )));
 
-        Ok((snapshot_time, true))
+        let counts = Arc::try_unwrap(snapshot_guard)
+            .unwrap_or_else(|_| {
+                unreachable!(
+                    "SnapshotGuard Arc should be unique after save_snapshot drained every \
+                     SnapshotShard"
+                )
+            })
+            .finish();
+        Ok((snapshot_time, true, counts))
     }
 
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
@@ -2815,7 +2852,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 Self::log_unrecoverable_persist_error();
                                 return;
                             }
-                            Ok((snapshot_start, new_data)) => {
+                            Ok((snapshot_start, new_data, counts)) => {
                                 // if we see 'new_data' then the next idle transition is 'fresh'
                                 fresh_idle = new_data;
                                 is_first = false;
@@ -2836,9 +2873,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                         }
                                     }};
                                 }
-                                // Evict persisted tasks from memory to reclaim space.
-                                // Like compaction, this runs after snapshot_and_persist
-                                // as a separate concern.
+                                // Eviction is interleaved into snapshot_and_persist
+                                // (phase 1 during take_snapshot, phase 3 during
+                                // end_snapshot), so the normal case needs no action
+                                // here. The only remaining case is the "first snapshot
+                                // after startup with no new data": phase 1 was skipped
+                                // because there were no modifications, so we fall back
+                                // to a full-pass `evict` to reclaim loaded-but-
+                                // unmodified tasks from memory.
                                 //
                                 // TODO: improve eviction policy — current approach is a full sweep
                                 // after every snapshot. Better strategies to consider:
@@ -2853,16 +2895,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 // (data was already on disk from a prior run, so
                                 // new_data may be false but in-memory state can still
                                 // be evicted).
-                                let mut ran_eviction = false;
-                                if this.should_evict() && (new_data || !evicted) {
+                                let mut ran_eviction = new_data && this.should_evict();
+                                if this.should_evict() && !new_data && !evicted {
                                     if check_idle_ended!() {
                                         // need to start all the way over so we catch the next
                                         // signal
                                         continue 'outer;
                                     }
-                                    evicted = true;
+                                    this.storage.evict(background_span.id());
                                     ran_eviction = true;
-                                    this.storage.evict_after_snapshot(background_span.id());
+                                }
+                                if ran_eviction {
+                                    evicted = true;
                                 }
 
                                 // Compact while idle (up to limit), regardless of

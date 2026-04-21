@@ -43,14 +43,10 @@ pub enum TaskDataCategory {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EvictMode {
     Disabled,
-    // Wired up in steps 3+ of the interleaved-eviction refactor.
-    #[allow(dead_code)]
     Enabled,
 }
 
 impl EvictMode {
-    // Phase 1 / phase 3 will call this from steps 3+ of the interleaved-eviction refactor.
-    #[allow(dead_code)]
     #[inline]
     pub fn enabled(self) -> bool {
         matches!(self, EvictMode::Enabled)
@@ -306,11 +302,9 @@ impl Storage {
         P: for<'a> Fn(TaskId, &'a TaskStorage, &mut TurboBincodeBuffer) -> SnapshotItem + Sync,
     >(
         &'l self,
-        guard: SnapshotGuard<'l>,
+        guard: Arc<SnapshotGuard<'l>>,
         process: &'l P,
     ) -> Vec<SnapshotShard<'l, P>> {
-        let guard = Arc::new(guard);
-
         let shards: Vec<_> = self.map.shards().iter().enumerate().collect();
 
         // The number of shards is much larger than the number of threads, so the effect of the
@@ -441,11 +435,7 @@ impl Storage {
     /// Safety invariant: `start_snapshot` and `end_snapshot` are always called
     /// sequentially within a single `snapshot_and_persist` invocation (the sole
     /// caller). There is no concurrent snapshot lifecycle, so they cannot race.
-    pub fn start_snapshot(
-        &self,
-        evict: EvictMode,
-        parent_span: Option<Id>,
-    ) -> (SnapshotGuard<'_>, bool) {
+    pub fn start_snapshot(&self, evict: EvictMode) -> (SnapshotGuard<'_>, bool) {
         // Enter snapshot mode first so concurrent track_modification calls switch
         // to the _during_snapshot path and stop incrementing shard_modified_counts.
         self.snapshot_mode.store(true, Ordering::Release);
@@ -457,23 +447,23 @@ impl Storage {
             .shard_modified_counts
             .iter()
             .any(|c| c.load(Ordering::Relaxed) > 0);
-        (
-            SnapshotGuard::new(self, evict, parent_span),
-            has_modifications,
-        )
+        (SnapshotGuard::new(self, evict), has_modifications)
     }
 
-    /// End snapshot mode.
+    /// End snapshot mode, then run phase 3 of eviction if enabled.
     ///
     /// Modified/new flags on tasks are cleared incrementally during snapshot iteration
     /// (in `take_snapshot` for direct_snapshots, and in `SnapshotShardIter::next` for
     /// modified tasks), so no full-map scan is needed here.
     ///
-    /// This method only needs to:
+    /// Steps:
     /// 1. Leave snapshot mode so new modifications go to the modified flags directly.
     /// 2. Promote `modified_during_snapshot` → `modified` for tasks that were accessed during
     ///    snapshot mode (tracked in the small `snapshots` map).
-    fn end_snapshot(&self) {
+    /// 3. If `guard.evict.enabled()` and `guard.persist_succeeded`, sweep the touched-set
+    ///    (per-shard `modified` vecs forwarded by `SnapshotShardIter::Drop`) and drain the deferred
+    ///    `task_cache` removal list buffered by phase 1.
+    fn end_snapshot(&self, guard: &SnapshotGuard<'_>) {
         // Leave snapshot mode first. After this, concurrent track_modification calls
         // will set modified flags directly instead of going through the snapshots map.
         self.snapshot_mode.store(false, Ordering::Release);
@@ -534,6 +524,72 @@ impl Storage {
             drop(snap_guard);
             drop(map_guard);
         });
+
+        // Phase 3. Gated on `persist_succeeded` so a failed `save_snapshot` never
+        // drops tasks whose modifications aren't on disk or causes task_cache
+        // removals that would violate the CachedTaskType → TaskId identity invariant.
+        if !guard.evict.enabled() || !guard.persist_succeeded.load(Ordering::Acquire) {
+            return;
+        }
+
+        let mut phase3_counts = EvictionCounts::default();
+
+        // 3a. Touched-set sweep: re-visit each modified task whose flags were
+        // cleared by SnapshotShardIter::next. Their bytes are now durable on
+        // disk, so dropping the in-memory value is safe.
+        let touched_modified = std::mem::take(&mut *guard.touched_modified.lock());
+        let mut phase3_deferred: Vec<Arc<CachedTaskType>> = Vec::new();
+        for shard_modified in touched_modified {
+            for task_id in shard_modified {
+                let Some(mut inner) = self.map.get_mut(&task_id) else {
+                    // Task was removed by another path between iteration and here —
+                    // nothing to do.
+                    continue;
+                };
+                if task_id.is_transient() {
+                    // Defense in depth — transient tasks shouldn't appear in the
+                    // modified list, but if one does we can't evict it.
+                    phase3_counts.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
+                    continue;
+                }
+                let (key_evictability, value_evictability) = inner.evictability();
+                apply_key_eviction_inline(
+                    &self.task_cache,
+                    &inner,
+                    key_evictability,
+                    &mut phase3_deferred,
+                    &mut phase3_counts,
+                );
+                if apply_value_eviction(&mut inner, value_evictability, &mut phase3_counts) {
+                    // Task is now empty; drop the RefMut and remove from the map.
+                    drop(inner);
+                    self.map.remove(&task_id);
+                }
+            }
+        }
+
+        // 3b. Drain the phase-1 deferred task_cache removals, with the same
+        // try-lock-and-defer backoff used elsewhere so we can't deadlock with
+        // get_or_create_task's task_cache → map lock order.
+        let phase1_deferred = std::mem::take(&mut *guard.deferred_task_cache_removals.lock());
+        for task_type in phase1_deferred {
+            match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
+                TryLockAndRemove::Removed => phase3_counts.key_evictions += 1,
+                TryLockAndRemove::NotFound => {}
+                TryLockAndRemove::WouldBlock => phase3_deferred.push(task_type),
+            }
+        }
+        // Second pass: any removals still contended get a blocking remove now
+        // that we hold no map shard lock.
+        drain_deferred_task_cache_removals(&self.task_cache, phase3_deferred, &mut phase3_counts);
+
+        // 3c. Shrink task_cache when we evicted more entries than remain, so
+        // the shard tables give back slack capacity.
+        if phase3_counts.key_evictions > self.task_cache.len() {
+            self.task_cache.shrink_to_fit();
+        }
+
+        *guard.phase3_counts.lock() += phase3_counts;
     }
 
     /// Returns true if actively snapshotting (modifications should go to snapshots map).
@@ -577,7 +633,7 @@ impl Storage {
         drop_contents(&self.task_cache);
     }
 
-    /// Evict tasks from in-memory storage after a successful snapshot.
+    /// On-demand full-map eviction pass.
     ///
     /// Iterates all tasks and applies the eviction level returned by
     /// `TaskStorage::evictability()`:
@@ -587,11 +643,14 @@ impl Storage {
     /// - `MetaOnly`: drop meta fields only
     /// - `No`: skip
     ///
-    /// Must be called when NOT in snapshot mode (i.e., after `end_snapshot()`).
-    pub fn evict_after_snapshot(&self, parent_span: Option<Id>) -> EvictionCounts {
+    /// During a normal snapshot cycle, this equivalent work is interleaved
+    /// across phase 1 (`take_snapshot`) and phase 3 (`end_snapshot`). This
+    /// method exists for callers that need an eviction pass without driving a
+    /// snapshot; it must not be called while snapshot mode is active.
+    pub fn evict(&self, parent_span: Option<Id>) -> EvictionCounts {
         let span = tracing::trace_span!(
             parent: parent_span,
-            "evict_after_snapshot",
+            "evict",
             total_task_cache_keys = self.task_cache.len(),
             total_map_keys = self.map.len(),
             counts = tracing::field::Empty,
@@ -599,7 +658,7 @@ impl Storage {
         .entered();
         debug_assert!(
             !self.snapshot_mode(),
-            "evict_after_snapshot must not be called during snapshot mode"
+            "Storage::evict must not be called during snapshot mode"
         );
 
         let counts: Vec<EvictionCounts> = parallel::map_collect(self.map.shards(), |shard| {
@@ -920,10 +979,6 @@ enum ScratchBufferSlot {
     Available(TurboBincodeBuffer),
 }
 
-// Several fields below are populated by later phases of the interleaved-eviction
-// refactor; they are carried on the guard now so the struct's shape stabilizes
-// ahead of steps 3–5 and the call sites change in a single place.
-#[allow(dead_code)]
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,
     /// Per-thread scratch buffers for encoding task data. Buffers are taken
@@ -935,9 +990,6 @@ pub struct SnapshotGuard<'l> {
     /// Eviction mode for this snapshot. Threaded through so phases 1/3 can
     /// check it without additional parameters.
     evict: EvictMode,
-    /// Parent tracing span id. Used as the parent for the `evict` span created
-    /// by [`SnapshotGuard::finish`].
-    parent_span: Option<Id>,
     /// Counts accumulated by phase 1 (inside `take_snapshot`).
     /// One mutex acquire per shard at the end of its closure.
     phase1_counts: Mutex<EvictionCounts>,
@@ -961,12 +1013,11 @@ pub struct SnapshotGuard<'l> {
 }
 
 impl<'l> SnapshotGuard<'l> {
-    fn new(storage: &'l Storage, evict: EvictMode, parent_span: Option<Id>) -> Self {
+    fn new(storage: &'l Storage, evict: EvictMode) -> Self {
         Self {
             storage,
             scratch_buffers: ThreadLocal::new(),
             evict,
-            parent_span,
             phase1_counts: Mutex::new(EvictionCounts::default()),
             phase3_counts: Mutex::new(EvictionCounts::default()),
             deferred_task_cache_removals: Mutex::new(Vec::new()),
@@ -981,9 +1032,6 @@ impl<'l> SnapshotGuard<'l> {
     /// Must be called by the caller between a successful `save_snapshot` return
     /// and dropping (or `finish`ing) the guard. Phase 3 will skip the eviction
     /// work that depends on disk durability when this flag is not set.
-    // Wired up by the interleaved-eviction refactor once phase 3 replaces the
-    // legacy `evict_after_snapshot` post-pass.
-    #[allow(dead_code)]
     pub fn mark_persisted(&self) {
         self.persist_succeeded.store(true, Ordering::Release);
     }
@@ -994,10 +1042,9 @@ impl<'l> SnapshotGuard<'l> {
     /// `SnapshotShardIter` instances (which hold `Arc<SnapshotGuard>`) have been
     /// dropped. Running via this path lets `end_snapshot` emit metrics; the
     /// `Drop` fallback handles panic-safety but does not expose counts.
-    #[allow(dead_code)]
     pub fn finish(self) -> EvictionCounts {
         self.finished.store(true, Ordering::Release);
-        self.storage.end_snapshot();
+        self.storage.end_snapshot(&self);
         let mut totals = std::mem::take(&mut *self.phase1_counts.lock());
         totals += std::mem::take(&mut *self.phase3_counts.lock());
         totals
@@ -1041,7 +1088,7 @@ impl Drop for SnapshotGuard<'_> {
         if self.finished.load(Ordering::Acquire) {
             return;
         }
-        self.storage.end_snapshot();
+        self.storage.end_snapshot(self);
     }
 }
 
@@ -1144,6 +1191,8 @@ impl<P> Drop for SnapshotShardIter<'_, P> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
@@ -1201,13 +1250,13 @@ mod tests {
         }
 
         // Step 2: enter snapshot mode.
-        let (snapshot_guard, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(EvictMode::Disabled);
         assert!(has_modifications);
 
         // Step 3: `take_snapshot` scans the shard. At this point the task has
         // `any_modified()=true` and `any_modified_during_snapshot()=false`, so it
         // goes into the `modified` list inside the returned `SnapshotShard`.
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process);
+        let shards = storage.take_snapshot(Arc::new(snapshot_guard), &dummy_process);
 
         // Step 4: now that the scan is done but before we consume the iterator,
         // modify the task again. We're still in snapshot mode, the task is already
@@ -1240,7 +1289,7 @@ mod tests {
 
         // The during-snapshot modification must be reflected in shard_modified_counts so
         // the next snapshot cycle picks it up. Verify by starting another snapshot.
-        let (_guard2, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
+        let (_guard2, has_modifications) = storage.start_snapshot(EvictMode::Disabled);
         assert!(
             has_modifications,
             "shard_modified_counts must be non-zero after promoting modified_during_snapshot"
@@ -1275,11 +1324,11 @@ mod tests {
         }
 
         // Step 2: enter snapshot mode.
-        let (snapshot_guard, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(EvictMode::Disabled);
         assert!(has_modifications);
 
         // Step 3: take_snapshot — task goes into modified list (meta_modified = true).
-        let shards = storage.take_snapshot(snapshot_guard, &dummy_process);
+        let shards = storage.take_snapshot(Arc::new(snapshot_guard), &dummy_process);
 
         // Step 4: modify data during snapshot. The `(true, false)` branch fires:
         // data was not previously modified, so snapshots gets a None entry.
@@ -1309,7 +1358,7 @@ mod tests {
         }
 
         // Next snapshot cycle must pick up the promoted data_modified.
-        let (_guard2, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
+        let (_guard2, has_modifications) = storage.start_snapshot(EvictMode::Disabled);
         assert!(
             has_modifications,
             "shard_modified_counts must be non-zero after promoting data_modified_during_snapshot"
