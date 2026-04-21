@@ -1739,7 +1739,9 @@ export async function handler(
         const instantTestRequestId =
           routeModule.isDev === true ? crypto.randomUUID() : null
         body.pipeThrough(
-          createInstantTestScriptInsertionTransformStream(instantTestRequestId)
+          await createInstantTestScriptInsertionTransformStream(
+            instantTestRequestId
+          )
         )
         return sendRenderResult({
           req,
