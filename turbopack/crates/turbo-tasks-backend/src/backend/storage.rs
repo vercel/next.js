@@ -526,55 +526,17 @@ impl Storage {
                     continue;
                 }
                 let (key_evictability, value_evictability) = task.get().evictability();
-                match key_evictability {
-                    KeyEvictability::Evictable => {
-                        // The task type is persisted to backing storage (new_task = false),
-                        // so task_cache is a pure perf cache. Remove it now; it will be
-                        // re-populated by task_by_type() on the next cache miss.
-                        let task_type = task.get().get_persistent_task_type().unwrap();
-                        // Only try to acquire the lock, if we cannot just remove at the end
-                        // Because `get_or_create_task` acquires 'task_cache' then `storage.map` and
-                        // we do the opposite we need to be defensive here.  Attempting here is just
-                        // an optimization to avoid pushing into `deferred_task_cache_removals`
-                        match try_lock_and_remove(&self.task_cache, task_type.as_ref()) {
-                            TryLockAndRemove::Removed => {
-                                evicted.key_evictions += 1;
-                            }
-                            TryLockAndRemove::NotFound => {
-                                // Generally this should be rare, it more or less implies something
-                                // else is concurrently holding the Arc
-                            }
-                            TryLockAndRemove::WouldBlock => {
-                                // Contention, to avoid a deadlock just defer
-                                deferred_task_cache_removals.push(task_type.clone());
-                            }
-                        }
-                    }
-                    KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
-                }
-                match value_evictability {
-                    ValueEvictability::Evictable { meta, data } => {
-                        match task.get_mut().drop_partial(data, meta) {
-                            DropPartialOutcome::Empty => {
-                                unsafe {
-                                    shard.erase(bucket);
-                                }
-                                evicted.full += 1;
-                            }
-                            DropPartialOutcome::HasResidue => {
-                                if data && meta {
-                                    evicted.data_and_meta += 1;
-                                } else if data {
-                                    evicted.data_only += 1;
-                                } else {
-                                    debug_assert!(meta);
-                                    evicted.meta_only += 1;
-                                }
-                            }
-                        }
-                    }
-                    ValueEvictability::Unevictable(reason) => {
-                        evicted.unevictable_reasons[reason.index()] += 1;
+                apply_key_eviction_inline(
+                    &self.task_cache,
+                    task.get(),
+                    key_evictability,
+                    &mut deferred_task_cache_removals,
+                    &mut evicted,
+                );
+                if apply_value_eviction(task.get_mut(), value_evictability, &mut evicted) {
+                    // SAFETY: We hold the shard write lock; the bucket reference is still valid.
+                    unsafe {
+                        shard.erase(bucket);
                     }
                 }
             }
@@ -588,11 +550,11 @@ impl Storage {
             // Release the map shard lock before draining deferred removals so that a thread
             // holding a task_cache shard lock and waiting on this map shard can make progress.
             drop(shard);
-            for task_type in deferred_task_cache_removals {
-                if self.task_cache.remove(task_type.as_ref()).is_some() {
-                    evicted.key_evictions += 1;
-                }
-            }
+            drain_deferred_task_cache_removals(
+                &self.task_cache,
+                deferred_task_cache_removals,
+                &mut evicted,
+            );
             evicted
         });
 
@@ -616,6 +578,98 @@ impl Storage {
         span.record("counts", tracing::field::display(&totals));
 
         totals
+    }
+}
+
+/// Apply the value-side of eviction to a task in-place.
+///
+/// Returns `true` if the task is now empty and the caller should erase it from
+/// the map shard. Returns `false` otherwise (either the task is unevictable, or
+/// it still has content after the partial drop).
+///
+/// Increments the appropriate `counts` field based on the outcome.
+fn apply_value_eviction(
+    task: &mut TaskStorage,
+    value_evictability: ValueEvictability,
+    counts: &mut EvictionCounts,
+) -> bool {
+    match value_evictability {
+        ValueEvictability::Evictable { meta, data } => match task.drop_partial(data, meta) {
+            DropPartialOutcome::Empty => {
+                counts.full += 1;
+                true
+            }
+            DropPartialOutcome::HasResidue => {
+                if data && meta {
+                    counts.data_and_meta += 1;
+                } else if data {
+                    counts.data_only += 1;
+                } else {
+                    debug_assert!(meta);
+                    counts.meta_only += 1;
+                }
+                false
+            }
+        },
+        ValueEvictability::Unevictable(reason) => {
+            counts.unevictable_reasons[reason.index()] += 1;
+            false
+        }
+    }
+}
+
+/// Apply the key-side (`task_cache`) eviction for a task, attempting to remove
+/// inline and falling back to deferral on contention.
+///
+/// `get_or_create_task` acquires `task_cache` before the `map` shard, so when we
+/// hold a `map` shard lock we must not block on `task_cache`. We try to acquire
+/// the relevant `task_cache` shard without blocking; on `WouldBlock` the removal
+/// is pushed onto `deferred` and drained after the map shard lock is released
+/// (see [`drain_deferred_task_cache_removals`]).
+fn apply_key_eviction_inline(
+    task_cache: &FxDashMap<Arc<CachedTaskType>, TaskId>,
+    task: &TaskStorage,
+    key_evictability: KeyEvictability,
+    deferred: &mut Vec<Arc<CachedTaskType>>,
+    counts: &mut EvictionCounts,
+) {
+    match key_evictability {
+        KeyEvictability::Evictable => {
+            // The task type is persisted to backing storage (new_task = false),
+            // so task_cache is a pure perf cache. Remove it now; it will be
+            // re-populated by task_by_type() on the next cache miss.
+            let task_type = task.get_persistent_task_type().unwrap();
+            match try_lock_and_remove(task_cache, task_type.as_ref()) {
+                TryLockAndRemove::Removed => {
+                    counts.key_evictions += 1;
+                }
+                TryLockAndRemove::NotFound => {
+                    // Generally this should be rare, it more or less implies something
+                    // else is concurrently holding the Arc
+                }
+                TryLockAndRemove::WouldBlock => {
+                    // Contention, to avoid a deadlock just defer
+                    deferred.push(task_type.clone());
+                }
+            }
+        }
+        KeyEvictability::AlreadyEvicted | KeyEvictability::Unevictable => {}
+    }
+}
+
+/// Drain `task_cache` removals that could not be performed inline.
+///
+/// Must be called AFTER the corresponding map shard lock has been released, to
+/// avoid the `task_cache` ↔ `map` lock cycle with `get_or_create_task`.
+fn drain_deferred_task_cache_removals(
+    task_cache: &FxDashMap<Arc<CachedTaskType>, TaskId>,
+    deferred: Vec<Arc<CachedTaskType>>,
+    counts: &mut EvictionCounts,
+) {
+    for task_type in deferred {
+        if task_cache.remove(task_type.as_ref()).is_some() {
+            counts.key_evictions += 1;
+        }
     }
 }
 
