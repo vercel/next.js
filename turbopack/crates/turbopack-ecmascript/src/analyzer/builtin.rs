@@ -41,8 +41,14 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
             }
         }
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, box obj, box prop, args) => {
+        // list layout: [args..., prop, obj]
+        JsValue::MemberCall(_, list) => {
+            let n = list.len();
+            let (args, tail) = list.split_at_mut(n - 2);
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
+            let (prop_slot, obj_slot) = tail.split_at_mut(1);
+            let prop = &mut prop_slot[0];
+            let obj = &mut obj_slot[0];
             match obj {
                 // We don't know what the callee is, so we can early return
                 &mut JsValue::Unknown {
@@ -339,7 +345,16 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             _ => false,
         },
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        JsValue::MemberCall(_, box obj, box prop, args) => {
+        // list layout: [args..., prop, obj] — popping obj then prop off the tail lets us
+        // reuse the underlying Vec as the owned args Vec with no reallocation on the common
+        // fallthrough path below.
+        JsValue::MemberCall(_, list) => {
+            // `into_parts` pops obj + prop off the tail of the underlying `Vec`, and the
+            // remaining `Vec` (owned, not reallocated) becomes `args`.
+            let (mut obj, mut prop, mut args) = take(list).into_parts();
+            let obj = &mut obj;
+            let prop = &mut prop;
+            let args = &mut args;
             match obj {
                 // matching calls on an array like `[1,2,3].concat([4,5,6])`
                 JsValue::Array { items, mutable, .. } => {
