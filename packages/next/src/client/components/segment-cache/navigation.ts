@@ -426,9 +426,9 @@ async function navigateToUnknownRoute(
     currentFlightRouterState,
     flightData,
     renderedSearch,
-    dynamicStaleTime
+    dynamicStaleTime,
+    outputExportFallbackBasePath
   )
-  navigationSeed.outputExportFallbackBasePath = outputExportFallbackBasePath
 
   // Learn the route pattern so we can predict it for future navigations.
   // hasDynamicRewrite is false because this is a fresh navigation to an
@@ -488,12 +488,11 @@ async function navigateToUnknownRoute(
         now,
         runtimePrefetchStream,
         currentFlightRouterState,
-        renderedSearch
+        renderedSearch,
+        outputExportFallbackBasePath
       )
         .then((processed) => {
           if (processed !== null) {
-            processed.navigationSeed.outputExportFallbackBasePath =
-              outputExportFallbackBasePath
             writeDynamicRenderResponseIntoCache(
               now,
               FetchStrategy.PPRRuntime,
@@ -760,7 +759,8 @@ export function convertServerPatchToFullTree(
   currentTree: FlightRouterState,
   flightData: Array<NormalizedFlightData> | null,
   renderedSearch: string,
-  dynamicStaleTimeSeconds: number
+  dynamicStaleTimeSeconds: number,
+  outputExportFallbackBasePath: string | null = null
 ): NavigationSeed {
   // During a client navigation or prefetch, the server sends back only a patch
   // for the parts of the tree that have changed.
@@ -826,7 +826,7 @@ export function convertServerPatchToFullTree(
     renderedSearch,
     head,
     dynamicStaleAt: computeDynamicStaleAt(now, dynamicStaleTimeSeconds),
-    outputExportFallbackBasePath: null,
+    outputExportFallbackBasePath,
   }
 }
 

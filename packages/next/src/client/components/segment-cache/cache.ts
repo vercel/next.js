@@ -2045,9 +2045,9 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     DynamicRequestTreeForEntireRoute,
     flightDatas,
     renderedSearch,
-    UnknownDynamicStaleTime
+    UnknownDynamicStaleTime,
+    outputExportFallbackBasePath
   )
-  navigationSeed.outputExportFallbackBasePath = outputExportFallbackBasePath
   if (navigationSeed.metadataVaryPath === null) {
     rejectRouteCacheEntry(entry, now + 10 * 1000)
     return null
@@ -2149,9 +2149,9 @@ async function fetchSegmentsFromOutputExportFallback(
     DynamicRequestTreeForEntireRoute,
     flightDatas,
     renderedSearch,
-    UnknownDynamicStaleTime
+    UnknownDynamicStaleTime,
+    outputExportFallbackBasePath
   )
-  navigationSeed.outputExportFallbackBasePath = outputExportFallbackBasePath
   if (navigationSeed.metadataVaryPath === null) {
     rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
     return null
@@ -3354,7 +3354,8 @@ export async function processRuntimePrefetchStream(
   now: number,
   runtimePrefetchStream: ReadableStream<Uint8Array>,
   baseTree: FlightRouterState,
-  renderedSearch: string
+  renderedSearch: string,
+  outputExportFallbackBasePath: string | null = null
 ): Promise<{
   flightDatas: NormalizedFlightData[]
   navigationSeed: NavigationSeed
@@ -3389,7 +3390,8 @@ export async function processRuntimePrefetchStream(
     baseTree,
     flightDatas,
     renderedSearch,
-    UnknownDynamicStaleTime
+    UnknownDynamicStaleTime,
+    outputExportFallbackBasePath
   )
 
   return {

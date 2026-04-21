@@ -14,6 +14,7 @@ import {
   upgradeToPendingSegment,
   writeDynamicRenderResponseIntoCache,
 } from './cache'
+import { convertServerPatchToFullTree } from './navigation'
 import { finalizeMetadataVaryPath, finalizePageVaryPath } from './vary-path'
 
 describe('getOutputExportSegmentRequestUrl', () => {
@@ -213,5 +214,22 @@ describe('readOrCreateSegmentCacheEntry output export fallback', () => {
 
     expect(secondEntry).toBe(ownedEntry)
     expect(secondEntry?.status).toBe(EntryStatus.Fulfilled)
+  })
+})
+
+describe('convertServerPatchToFullTree output export fallback', () => {
+  it('records the learned fallback artifact base path on the returned navigation seed', () => {
+    const navigationSeed = convertServerPatchToFullTree(
+      Date.now(),
+      ['', {}],
+      null,
+      '',
+      0,
+      '/docs/__fallback'
+    )
+
+    expect(navigationSeed.outputExportFallbackBasePath).toBe(
+      '/docs/__fallback'
+    )
   })
 })
