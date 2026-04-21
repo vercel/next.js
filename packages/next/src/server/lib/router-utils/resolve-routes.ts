@@ -451,6 +451,21 @@ export function getResolveRoutes(
 
               if (curLocaleResult.detectedLocale) {
                 addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
+              } else if (
+                defaultLocale &&
+                !curLocaleResult.pathname.startsWith('/_next/')
+              ) {
+                // Match normalized _next/data requests against the same
+                // locale-prefixed internal pathname shape used by direct page
+                // requests when the default locale was inferred.
+                normalized = addPathPrefix(
+                  curLocaleResult.pathname === '/'
+                    ? `/${defaultLocale}`
+                    : addPathPrefix(
+                        curLocaleResult.pathname || '',
+                        `/${defaultLocale}`
+                      )
+                )
               }
             }
 
