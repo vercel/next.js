@@ -11,9 +11,9 @@ describe('Does not override tsconfig moduleResolution field during build', () =>
       pkg: new FileRef(join(__dirname, 'pkg')),
     },
     dependencies: {
-      typescript: 'latest',
+      typescript: '5.8.2',
       '@types/react': 'latest',
-      '@types/node': 'latest',
+      '@types/node': '20.17.6',
       pkg: './pkg',
     },
   })

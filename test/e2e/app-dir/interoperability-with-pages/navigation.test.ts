@@ -9,9 +9,9 @@ describe('navigation between pages and app dir', () => {
     next = await createNext({
       files: new FileRef(__dirname),
       dependencies: {
-        typescript: 'latest',
+        typescript: '5.8.2',
         '@types/react': 'latest',
-        '@types/node': 'latest',
+        '@types/node': '20.17.6',
       },
     })
   })

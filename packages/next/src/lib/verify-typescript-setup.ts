@@ -9,6 +9,7 @@ import * as log from '../build/output/log'
 
 import { getTypeScriptIntent } from './typescript/getTypeScriptIntent'
 import type { TypeCheckResult } from './typescript/runTypeCheck'
+import { getTypeScriptPackageSpec } from './typescript/required-packages'
 import { writeAppTypeDeclarations } from './typescript/writeAppTypeDeclarations'
 import { writeConfigurationDefaults } from './typescript/writeConfigurationDefaults'
 import { installDependencies } from './install-dependencies'
@@ -70,10 +71,15 @@ export async function verifyTypeScriptSetup({
     )
 
     if (deps.missing?.length > 0) {
+      const missingPackages = deps.missing.map((pkg) => ({
+        ...pkg,
+        pkg: getTypeScriptPackageSpec(pkg.pkg),
+      }))
+
       if (isCI) {
         // we don't attempt auto install in CI to avoid side-effects
         // and instead log the error for installing needed packages
-        missingDepsError(dir, deps.missing)
+        missingDepsError(dir, missingPackages)
       }
       console.log(
         bold(
@@ -91,7 +97,7 @@ export async function verifyTypeScriptSetup({
           ) +
           '\n'
       )
-      await installDependencies(dir, deps.missing, true).catch((err) => {
+      await installDependencies(dir, missingPackages, true).catch((err) => {
         if (err && typeof err === 'object' && 'command' in err) {
           console.error(
             `Failed to install required TypeScript dependencies, please install them manually to continue:\n` +
