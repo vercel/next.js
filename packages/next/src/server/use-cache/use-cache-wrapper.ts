@@ -38,6 +38,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 
 import {
+  applyOwnerStack,
   getRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
@@ -100,6 +101,19 @@ interface PublicCacheContext {
 }
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
+
+// The maximum time we allow a `'use cache'` entry to fill. After this, we
+// assume the fill is stalled — either on hanging input to the cached function,
+// or on hanging I/O inside of it — and de-opt with an error.
+//
+// For prerender, this needs to be lower than the general build timeout
+// (`staticPageGenerationTimeout`, default 60s) so the cache-fill error surfaces
+// before the build worker kills the page.
+//
+// TODO: Derive this from the configured `staticPageGenerationTimeout` instead
+// of hard-coding it, so users who raise or lower the build timeout get a
+// matching cache-fill timeout.
+const USE_CACHE_FILL_TIMEOUT_MS = 50_000
 
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
@@ -1051,18 +1065,17 @@ async function generateCacheEntryImpl(
   )
 
   let stream: ReadableStream<Uint8Array>
+  let devTimeoutSignal: AbortSignal | undefined
+  let devTimeoutTimer: ReturnType<typeof setTimeout> | undefined
 
   switch (outerWorkUnitStore.type) {
     case 'prerender-runtime':
     case 'prerender':
       const timeoutAbortController = new AbortController()
-      // If we're prerendering, we give you 50 seconds to fill a cache entry.
-      // Otherwise we assume you stalled on hanging input and de-opt. This needs
-      // to be lower than just the general timeout of 60 seconds.
       const timer = setTimeout(() => {
         workStore.invalidDynamicUsageError = timeoutError
         timeoutAbortController.abort(timeoutError)
-      }, 50000)
+      }, USE_CACHE_FILL_TIMEOUT_MS)
 
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
@@ -1127,18 +1140,40 @@ async function generateCacheEntryImpl(
       }
       break
     case 'request':
-      // If we're filling caches for a staged render, make sure that
-      // it takes at least a task, so we'll always notice a cache miss between stages.
-      //
-      // TODO(restart-on-cache-miss): This is suboptimal.
-      // Ideally we wouldn't need to restart for microtasky caches,
-      // but the current logic for omitting short-lived caches only works correctly
-      // if we do a second render, so that's the best we can do until we refactor that.
-      if (
-        process.env.NODE_ENV === 'development' &&
-        outerWorkUnitStore.cacheSignal
-      ) {
+      // TODO: We should just check if the render is abandonable. This is
+      // relevant in restart-on-cache-miss in general, so when we implement that
+      // for cached navs, it'll also be needed in prod
+      if (process.env.__NEXT_DEV_SERVER && outerWorkUnitStore.cacheSignal) {
+        // If we're filling caches for a staged render, make sure that it takes
+        // at least a task, so we'll always notice a cache miss between stages.
+        //
+        // TODO(restart-on-cache-miss): This is suboptimal. Ideally we wouldn't
+        // need to restart for microtasky caches, but the current logic for
+        // omitting short-lived caches only works correctly if we do a second
+        // render, so that's the best we can do until we refactor that.
         await new Promise((resolve) => setTimeout(resolve))
+
+        // Start a cache-fill timeout so a hanging `'use cache'` entry surfaces
+        // the same error in dev as during prerender. Cleared when
+        // pendingCacheResult settles.
+        //
+        // Only skip the timeout when we're exactly in the Dynamic stage. That
+        // mirrors prerender, where caches guarded by e.g. `await connection()`
+        // aren't executed at all. We can't use `< RenderStage.Dynamic` here
+        // because `RenderStage.Abandoned` is numerically higher than Dynamic,
+        // but semantically it means the initial prospective render was aborted
+        // while caches are still pending — the outer flow then awaits
+        // `cacheSignal.cacheReady()`, so we need the timer to break a potential
+        // deadlock.
+        const stagedRendering = outerWorkUnitStore.stagedRendering
+        if (stagedRendering?.currentStage !== RenderStage.Dynamic) {
+          const devTimeoutAbortController = new AbortController()
+          devTimeoutSignal = devTimeoutAbortController.signal
+          devTimeoutTimer = setTimeout(() => {
+            workStore.invalidDynamicUsageError = timeoutError
+            devTimeoutAbortController.abort(timeoutError)
+          }, USE_CACHE_FILL_TIMEOUT_MS)
+        }
       }
     // fallthrough
     case 'prerender-ppr':
@@ -1153,6 +1188,7 @@ async function generateCacheEntryImpl(
         {
           environmentName: 'Cache',
           filterStackFrame,
+          signal: devTimeoutSignal,
           temporaryReferences,
           onError: handleError,
         }
@@ -1171,7 +1207,11 @@ async function generateCacheEntryImpl(
     innerCacheStore,
     startTime,
     errors
-  )
+  ).finally(() => {
+    if (devTimeoutTimer !== undefined) {
+      clearTimeout(devTimeoutTimer)
+    }
+  })
 
   if (process.env.NODE_ENV === 'development') {
     // Name the stream for React DevTools.
@@ -1308,6 +1348,7 @@ export async function cache(
 
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
+  applyOwnerStack(timeoutError)
 
   const wrapAsInvalidDynamicUsageError = (
     error: Error,
