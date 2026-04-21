@@ -9899,6 +9899,7 @@ dependencies = [
  "bincode 2.0.1",
  "codspeed-criterion-compat",
  "concurrent-queue",
+ "ctor 0.8.0",
  "dashmap 6.1.0",
  "either",
  "erased-serde",
