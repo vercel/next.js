@@ -255,7 +255,9 @@ impl TraitMethod {
 
 pub struct TraitType {
     pub ty: RegistryType,
-    pub methods: phf::Map<&'static str, TraitMethod>,
+    /// Method metadata in the same order as `method_names`. Index `i` corresponds to
+    /// `method_names[i]`.
+    pub methods: &'static [TraitMethod],
     pub method_names: &'static [&'static str],
     pub default_methods: &'static [Option<&'static NativeFunction>],
 }
@@ -264,7 +266,7 @@ impl Debug for TraitType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let mut d = f.debug_struct("TraitType");
         d.field("name", &self.ty.name);
-        for (name, method) in self.methods.entries() {
+        for (name, method) in self.method_names.iter().zip(self.methods.iter()) {
             d.field(name, method);
         }
         d.finish()
@@ -281,7 +283,7 @@ impl TraitType {
     pub const fn new<T: 'static>(
         name: &'static str,
         global_name: &'static str,
-        methods: phf::Map<&'static str, TraitMethod>,
+        methods: &'static [TraitMethod],
         method_names: &'static [&'static str],
         default_methods: &'static [Option<&'static NativeFunction>],
     ) -> Self {
@@ -293,8 +295,10 @@ impl TraitType {
         }
     }
 
-    pub fn get(&self, name: &str) -> &TraitMethod {
-        self.methods.get(name).unwrap()
+    /// Look up a method by name. `const` so callers can store the resulting reference in a
+    /// `static`/`const` item instead of a `LazyLock`.
+    pub const fn get(&'static self, name: &'static str) -> &'static TraitMethod {
+        &self.methods[index_of_name(self.method_names, name)]
     }
 }
 
