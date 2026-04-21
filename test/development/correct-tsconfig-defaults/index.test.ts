@@ -12,7 +12,7 @@ describe('correct tsconfig.json defaults', () => {
       },
       skipStart: true,
       dependencies: {
-        typescript: 'latest',
+        typescript: '5.8.2',
         '@types/react': 'latest',
         '@types/node': 'latest',
       },

@@ -136,7 +136,7 @@ describe('eslint plugin deps', () => {
         // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
         eslint: '8.56.0',
         'eslint-config-next': 'latest',
-        typescript: 'latest',
+        typescript: '5.8.2',
       },
       packageJson: {
         scripts: {

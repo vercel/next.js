@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { deregisterHook, registerHook, requireFromString } from './require-hook'
 import { warn } from '../output/log'
 import { installDependencies } from '../../lib/install-dependencies'
+import { getTypeScriptPackageSpec } from '../../lib/typescript/required-packages'
 
 function resolveSWCOptions(
   cwd: string,
@@ -47,18 +48,20 @@ async function verifyTypeScriptSetup(cwd: string, configFileName: string) {
         `Installing TypeScript as it was not found while loading "${configFileName}".`
       )
 
-      await installDependencies(cwd, [{ pkg: 'typescript' }], true).catch(
-        (err) => {
-          if (err && typeof err === 'object' && 'command' in err) {
-            console.error(
-              `Failed to install TypeScript, please install it manually to continue:\n` +
-                (err as any).command +
-                '\n'
-            )
-          }
-          throw err
+      await installDependencies(
+        cwd,
+        [{ pkg: getTypeScriptPackageSpec('typescript') }],
+        true
+      ).catch((err) => {
+        if (err && typeof err === 'object' && 'command' in err) {
+          console.error(
+            `Failed to install TypeScript, please install it manually to continue:\n` +
+              (err as any).command +
+              '\n'
+          )
         }
-      )
+        throw err
+      })
     }
   }
 }

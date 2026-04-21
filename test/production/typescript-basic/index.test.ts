@@ -11,7 +11,7 @@ describe('TypeScript basic', () => {
       files: new FileRef(path.join(__dirname, 'app')),
       dependencies: {
         '@next/bundle-analyzer': 'canary',
-        typescript: 'latest',
+        typescript: '5.8.2',
         '@types/node': 'latest',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
