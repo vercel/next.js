@@ -673,6 +673,13 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
+   * Emit browser chunks as ES modules (using `export default` and `import()`) instead
+   * of classic scripts (using `globalThis["TURBOPACK"].push` and `<script>` tags).
+   * All chunks will run in strict mode. Defaults to false.
+   */
+  turbopackBrowserEsmChunks?: boolean
+
+  /**
    * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.
    * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
    */
@@ -2034,6 +2041,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'supportsImmutableAssets'
     | 'useNodeStreams'
+    | 'turbopackBrowserEsmChunks'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2102,6 +2110,7 @@ export function getNextConfigRuntime(
         exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
         supportsImmutableAssets: ex.supportsImmutableAssets,
         useNodeStreams: ex.useNodeStreams,
+        turbopackBrowserEsmChunks: ex.turbopackBrowserEsmChunks,
 
         trustHostHeader: ex.trustHostHeader,
         isExperimentalCompile: ex.isExperimentalCompile,

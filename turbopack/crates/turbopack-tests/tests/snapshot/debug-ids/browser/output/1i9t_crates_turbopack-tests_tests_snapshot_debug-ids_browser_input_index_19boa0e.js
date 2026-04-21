@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="6a138f62-859e-e13c-84a0-d111b048d46a")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="694db01f-d95b-4a74-b18c-eadb2804c7ff")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -11,6 +11,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
+var RUNTIME_URL = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : "";
 var ASSET_SUFFIX = "";
 var CROSS_ORIGIN = null;
 var WORKER_FORWARDED_GLOBALS = [];
@@ -763,14 +764,13 @@ browserContextPrototype.q = exportUrl;
     } else {
         url.hash = '#params=' + encodeURIComponent(paramsJson);
     }
-    // Remove type: "module" from options since our worker entrypoint is not a module
-    const options = workerOptions ? {
-        ...workerOptions,
-        type: undefined
-    } : undefined;
-    return new WorkerConstructor(url, options);
+    return new WorkerConstructor(url, workerOptions);
 }
 browserContextPrototype.b = createWorker;
+function getRuntimeUrl() {
+    return RUNTIME_URL;
+}
+browserContextPrototype.B = getRuntimeUrl;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1969,9 +1969,9 @@ globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= [];
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers
     if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
-    const src = document?.currentScript?.getAttribute?.('src') ?? '';
-    const qi = src.indexOf('?');
-    return qi >= 0 ? src.slice(qi) : '';
+    // RUNTIME_URL is set by the runtime epilogue (document.currentScript.src in classic mode).
+    const qi = RUNTIME_URL.indexOf('?');
+    return qi >= 0 ? RUNTIME_URL.slice(qi) : '';
 }
 let BACKEND;
 /**
@@ -2063,7 +2063,7 @@ let BACKEND;
             return resolver.promise;
         }
         if (typeof importScripts === 'function') {
-            // We're in a web worker
+            // We're in a classic web worker
             if (isCss(chunkUrl)) {
             // ignore
             } else if (isJs(chunkUrl)) {
@@ -2247,5 +2247,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=6a138f62-859e-e13c-84a0-d111b048d46a
+//# debugId=694db01f-d95b-4a74-b18c-eadb2804c7ff
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

@@ -229,6 +229,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn esm_chunks(mut self, esm_chunks: bool) -> Self {
+        self.chunking_context.esm_chunks = esm_chunks;
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::cell(self.chunking_context)
     }
@@ -329,6 +334,10 @@ pub struct BrowserChunkingContext {
     hash_salt: ResolvedVc<RcStr>,
     /// The crossorigin mode for dynamically loaded chunks.
     cross_origin: CrossOrigin,
+    /// Emit chunks as ES modules (`export default [factories...]`) instead of
+    /// `globalThis["TURBOPACK"].push([...])`. The runtime loads them via `import()`.
+    /// Requires `current_chunk_method` to be set to `ImportMetaUrl` when used.
+    esm_chunks: bool,
 }
 
 impl BrowserChunkingContext {
@@ -383,6 +392,7 @@ impl BrowserChunkingContext {
                 chunk_loading_global: Default::default(),
                 hash_salt: ResolvedVc::cell(RcStr::default()),
                 cross_origin: Default::default(),
+                esm_chunks: false,
             },
         }
     }
@@ -513,9 +523,16 @@ impl BrowserChunkingContext {
         )
     }
 
+    /// Returns the crossorigin mode for dynamically loaded chunks.
     #[turbo_tasks::function]
     pub fn cross_origin(&self) -> Vc<CrossOrigin> {
         self.cross_origin.cell()
+    }
+
+    /// Returns whether chunks are emitted as ES modules.
+    #[turbo_tasks::function]
+    pub fn esm_chunks(&self) -> Vc<bool> {
+        Vc::cell(self.esm_chunks)
     }
 }
 
@@ -972,12 +989,23 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
+    async fn worker_entrypoint(self: Vc<Self>, is_esm: bool) -> Result<Vc<Box<dyn OutputAsset>>> {
         let chunking_context: Vc<Box<dyn ChunkingContext>> = Vc::upcast(self);
         let resolved = chunking_context.to_resolved().await?;
         let forwarded_globals = chunking_context.worker_forwarded_globals();
-        let entrypoint = EcmascriptBrowserWorkerEntrypoint::new(*resolved, forwarded_globals);
+        let entrypoint =
+            EcmascriptBrowserWorkerEntrypoint::new(*resolved, forwarded_globals, is_esm);
         Ok(Vc::upcast(entrypoint))
+    }
+
+    #[turbo_tasks::function]
+    async fn esm_chunking_context(self: Vc<Self>) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        if self.await?.esm_chunks {
+            return Ok(Vc::upcast(self));
+        }
+        let mut inner = (*self.await?).clone();
+        inner.esm_chunks = true;
+        Ok(Vc::upcast(BrowserChunkingContext::cell(inner)))
     }
 }
 

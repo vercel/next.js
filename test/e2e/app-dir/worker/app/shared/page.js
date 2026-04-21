@@ -7,27 +7,41 @@ export default function Home() {
     <div>
       <button
         onClick={() => {
-          const worker = new SharedWorker(
-            new URL('../shared-worker', import.meta.url),
-            {
-              type: 'module',
-            }
-          )
-          worker.port.addEventListener('message', (event) => {
-            setState(event.data)
-            // Run a second time, which will use the same worker
+          try {
             const worker = new SharedWorker(
               new URL('../shared-worker', import.meta.url),
               {
                 type: 'module',
               }
             )
+            worker.onerror = (event) => {
+              setState(
+                'worker-error:' + (event.message || event.type || 'unknown')
+              )
+            }
             worker.port.addEventListener('message', (event) => {
               setState(event.data)
+              // Run a second time, which will use the same worker
+              const worker = new SharedWorker(
+                new URL('../shared-worker', import.meta.url),
+                {
+                  type: 'module',
+                }
+              )
+              worker.onerror = (event) => {
+                setState(
+                  'worker-error2:' + (event.message || event.type || 'unknown')
+                )
+              }
+              worker.port.addEventListener('message', (event) => {
+                setState(event.data)
+              })
+              worker.port.start()
             })
             worker.port.start()
-          })
-          worker.port.start()
+          } catch (e) {
+            setState('catch-error:' + e.message)
+          }
         }}
       >
         Get web worker data

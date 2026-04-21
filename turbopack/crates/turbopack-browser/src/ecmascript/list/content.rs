@@ -45,6 +45,8 @@ pub(super) struct EcmascriptDevChunkListContent {
     source: EcmascriptDevChunkListSource,
     /// The global variable name used for chunk loading (derived from chunkLoadingGlobal config).
     chunk_loading_global: RcStr,
+    /// Whether chunks are emitted as ES modules.
+    esm_chunks: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -75,6 +77,7 @@ impl EcmascriptDevChunkListContent {
             .chunk_loading_global()
             .await?)
             .clone();
+        let esm_chunks = *chunk_list_ref.chunking_context.esm_chunks().await?;
         Ok(EcmascriptDevChunkListContent {
             current_chunk_method,
             chunks_contents: chunk_list_ref
@@ -96,6 +99,7 @@ impl EcmascriptDevChunkListContent {
                 .collect(),
             source: chunk_list_ref.source,
             chunk_loading_global,
+            esm_chunks,
         }
         .cell())
     }
@@ -147,34 +151,48 @@ impl EcmascriptDevChunkListContent {
             .map(|s| s.as_str())
             .collect::<Vec<_>>();
 
-        let script_or_path = match &this.current_chunk_method {
-            CurrentChunkMethodWithData::StringLiteral(path) => Either::Left(StringifyJs(path)),
-            CurrentChunkMethodWithData::DocumentCurrentScript => {
-                Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
-            }
-        };
-
         let mut code = CodeBuilder::default();
 
-        // When loaded, JS chunks must register themselves with the `TURBOPACK` global
-        // variable. Similarly, we register the chunk list with the
-        // `{chunk_loading_global}_CHUNK_LISTS` global variable.
-        let chunk_lists_global = format!("{}_CHUNK_LISTS", this.chunk_loading_global);
-        writedoc!(
-            code,
-            // `||=` would be better but we need to be es2020 compatible
-            //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
-            r#"
-                (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
-                    script: {script_or_path},
-                    chunks: {chunks},
-                    source: {source}
-                }});
-            "#,
-            chunk_lists_global = StringifyJs(&chunk_lists_global),
-            chunks = StringifyJs(&chunks),
-            source = StringifyJs(&this.source),
-        )?;
+        if this.esm_chunks {
+            // In ESM mode, export the chunk list data as a named export.
+            // The ESM runtime backend detects this (via the `chunkList` export)
+            // and calls registerChunkList instead of installCompressedModuleFactories.
+            // This avoids relying on globalThis for chunk list registration.
+            writedoc!(
+                code,
+                r#"
+                    export const chunkList = {{ chunks: {chunks}, source: {source} }};
+                "#,
+                chunks = StringifyJs(&chunks),
+                source = StringifyJs(&this.source),
+            )?;
+        } else {
+            let script_or_path = match &this.current_chunk_method {
+                CurrentChunkMethodWithData::StringLiteral(path) => Either::Left(StringifyJs(path)),
+                CurrentChunkMethodWithData::DocumentCurrentScript => {
+                    Either::Right(CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR)
+                }
+            };
+            // When loaded, JS chunks must register themselves with the `TURBOPACK` global
+            // variable. Similarly, we register the chunk list with the
+            // `{chunk_loading_global}_CHUNK_LISTS` global variable.
+            let chunk_lists_global = format!("{}_CHUNK_LISTS", this.chunk_loading_global);
+            writedoc!(
+                code,
+                // `||=` would be better but we need to be es2020 compatible
+                //`x || (x = default)` is better than `x = x || default` simply because we avoid _writing_ the property in the common case.
+                r#"
+                    (globalThis[{chunk_lists_global}] || (globalThis[{chunk_lists_global}] = [])).push({{
+                        script: {script_or_path},
+                        chunks: {chunks},
+                        source: {source}
+                    }});
+                "#,
+                chunk_lists_global = StringifyJs(&chunk_lists_global),
+                chunks = StringifyJs(&chunks),
+                source = StringifyJs(&this.source),
+            )?;
+        }
 
         Ok(Code::cell(code.build()))
     }

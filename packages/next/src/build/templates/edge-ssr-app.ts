@@ -175,6 +175,9 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
+        turbopackBrowserEsmChunks: Boolean(
+          nextConfig.experimental.turbopackBrowserEsmChunks
+        ),
       },
 
       incrementalCache: await pageRouteModule.getIncrementalCache(

@@ -48,6 +48,9 @@ pub struct WorkerAssetReference {
     /// When true, skip creating WorkerLoaderModule and return the inner module directly.
     /// This is used when we're only tracing dependencies, not generating code.
     pub tracing_only: bool,
+    /// When true, the worker was created with `{ type: "module" }` and uses ES module
+    /// semantics (import() instead of importScripts in the bootstrap).
+    pub is_esm: bool,
 }
 
 /// The request type varies between web and Node.js workers
@@ -73,6 +76,7 @@ impl WorkerAssetReference {
         error_mode: ResolveErrorMode,
         tracing_only: bool,
         is_shared: bool,
+        is_esm: bool,
     ) -> Self {
         WorkerAssetReference {
             worker_type: if is_shared {
@@ -85,6 +89,7 @@ impl WorkerAssetReference {
             issue_source,
             error_mode,
             tracing_only,
+            is_esm,
         }
     }
 
@@ -108,6 +113,7 @@ impl WorkerAssetReference {
             issue_source,
             error_mode,
             tracing_only,
+            is_esm: false,
         }
     }
 }
@@ -232,10 +238,14 @@ impl ModuleReference for WorkerAssetReference {
                         continue;
                     }
 
-                    let loader =
-                        WorkerLoaderModule::new(*chunkable, self.worker_type, *asset_context)
-                            .to_resolved()
-                            .await?;
+                    let loader = WorkerLoaderModule::new(
+                        *chunkable,
+                        self.worker_type,
+                        *asset_context,
+                        self.is_esm,
+                    )
+                    .to_resolved()
+                    .await?;
 
                     primary.push((
                         request_key.clone(),

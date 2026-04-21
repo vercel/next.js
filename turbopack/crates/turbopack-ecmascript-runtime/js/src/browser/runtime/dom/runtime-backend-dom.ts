@@ -12,9 +12,9 @@
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers
   if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
-  const src = document?.currentScript?.getAttribute?.('src') ?? ''
-  const qi = src.indexOf('?')
-  return qi >= 0 ? src.slice(qi) : ''
+  // RUNTIME_URL is set by the runtime epilogue (document.currentScript.src in classic mode).
+  const qi = RUNTIME_URL.indexOf('?')
+  return qi >= 0 ? RUNTIME_URL.slice(qi) : ''
 }
 
 type ChunkResolver = {
@@ -157,7 +157,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     }
 
     if (typeof importScripts === 'function') {
-      // We're in a web worker
+      // We're in a classic web worker
       if (isCss(chunkUrl)) {
         // ignore
       } else if (isJs(chunkUrl)) {

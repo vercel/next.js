@@ -735,4 +735,9 @@ impl ChunkingContext for NodeJsChunkingContext {
     fn worker_forwarded_globals(&self) -> Vc<Vec<RcStr>> {
         Vc::cell(self.worker_forwarded_globals.clone())
     }
+
+    #[turbo_tasks::function]
+    async fn esm_chunking_context(self: Vc<Self>) -> Result<Vc<Box<dyn ChunkingContext>>> {
+        Ok(Vc::upcast(self))
+    }
 }

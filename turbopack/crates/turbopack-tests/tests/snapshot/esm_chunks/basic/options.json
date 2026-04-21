@@ -1,0 +1,7 @@
+{
+  "runtime": "Browser",
+  "runtimeType": "Production",
+  "minifyType": "NoMinify",
+  "environment": "Browser",
+  "esmChunks": true
+}

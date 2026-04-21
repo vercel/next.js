@@ -2035,6 +2035,22 @@ where
                         } else {
                             ResolveErrorMode::Error
                         };
+                        // Parse `type: "module"` from the options argument (second arg).
+                        // Distinct from the outer `is_esm` which describes the *calling* module.
+                        let is_module_worker =
+                            if let Some(JsValue::Object { parts, .. }) = args.get(1) {
+                                parts.iter().any(|part| {
+                                    matches!(
+                                        part,
+                                        ObjectPart::KeyValue(
+                                            JsValue::Constant(JsConstantValue::Str(key)),
+                                            JsValue::Constant(JsConstantValue::Str(val)),
+                                        ) if key.as_str() == "type" && val.as_str() == "module"
+                                    )
+                                })
+                            } else {
+                                false
+                            };
                         analysis.add_reference_code_gen(
                             WorkerAssetReference::new_web_worker(
                                 origin,
@@ -2043,6 +2059,7 @@ where
                                 error_mode,
                                 tracing_only,
                                 is_shared,
+                                is_module_worker,
                             ),
                             ast_path.to_vec().into(),
                         );

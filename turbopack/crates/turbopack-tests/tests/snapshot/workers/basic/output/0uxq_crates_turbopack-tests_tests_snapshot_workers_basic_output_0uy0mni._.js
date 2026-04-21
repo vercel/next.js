@@ -40,7 +40,7 @@ if (chunkUrls.length > 0) {
         scriptsToLoad.push(chunkUrl.toString());
     }
 
-    // As scripts are loaded, allow them to pop from the array
+    // Restore original order in TURBOPACK_NEXT_CHUNK_URLS (URL params store them reversed).
     chunkUrls.reverse();
     importScripts.apply(self, scriptsToLoad);
 }

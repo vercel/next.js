@@ -70,7 +70,7 @@ describe('app dir - workers', () => {
   })
 
   if (isNextDeploy || isNextStart) {
-    it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
+    it('should forward NEXT_DEPLOYMENT_ID to module web workers', async () => {
       const browser = await next.browser('/deployment-id', {
         beforePageLoad,
       })
@@ -127,11 +127,11 @@ describe('app dir - workers', () => {
 
     await browser.elementByCss('button').click()
 
-    await retry(async () =>
+    await retry(async () => {
       expect(await browser.elementByCss('#worker-state').text()).toBe(
         'shared-worker.ts:worker-dep:2'
       )
-    )
+    })
   })
 
   it('should support loading PNG files in web workers', async () => {

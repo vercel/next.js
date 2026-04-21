@@ -26,6 +26,7 @@ pub async fn get_browser_runtime_code(
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
     cross_origin: Vc<CrossOrigin>,
+    esm_chunks: bool,
 ) -> Result<Vc<Code>> {
     let asset_context = *asset_context;
     let environment = asset_context.compile_time_info().environment();
@@ -69,11 +70,19 @@ pub async fn get_browser_runtime_code(
             panic!("Node.js runtime is not supported in the browser runtime!")
         }
         (ChunkLoading::Dom, RuntimeType::Development) => {
-            runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
+            runtime_backend_code.push(if esm_chunks {
+                "browser/runtime/dom/runtime-backend-dom-esm.ts"
+            } else {
+                "browser/runtime/dom/runtime-backend-dom.ts"
+            });
             runtime_backend_code.push("browser/runtime/dom/dev-backend-dom.ts");
         }
         (ChunkLoading::Dom, RuntimeType::Production) => {
-            runtime_backend_code.push("browser/runtime/dom/runtime-backend-dom.ts");
+            runtime_backend_code.push(if esm_chunks {
+                "browser/runtime/dom/runtime-backend-dom-esm.ts"
+            } else {
+                "browser/runtime/dom/runtime-backend-dom.ts"
+            });
         }
 
         #[cfg(feature = "test")]
@@ -91,7 +100,24 @@ pub async fn get_browser_runtime_code(
     let cross_origin = *cross_origin.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
-    if *environment
+    if esm_chunks {
+        // In ESM mode the evaluate chunk is itself an ES module, so top-level `await` is
+        // available.  We make the IIFE async and await it at the module level so that
+        // `import(evaluate_chunk)` only resolves after `registerChunk` (and all its async
+        // sub-tasks — loading other chunks, instantiating runtime modules) has completed.
+        // This is required for SharedWorkers where the `connect` event fires right after the
+        // module's top-level execution is done; without the await, `shared-worker.ts`'s
+        // `addEventListener('connect', ...)` would not yet have been registered.
+        if *environment
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?
+        {
+            code += "await (async () => {\n";
+        } else {
+            code += "await (async function(){\n";
+        }
+    } else if *environment
         .runtime_versions()
         .supports_arrow_functions()
         .await?
@@ -101,22 +127,51 @@ pub async fn get_browser_runtime_code(
         code += "(function(){\n";
     }
 
+    if !esm_chunks {
+        // In classic script mode the IIFE bails out if TURBOPACK is not an array
+        // (i.e., a second evaluate chunk ran before the first finished bootstrapping).
+        writedoc!(
+            code,
+            r#"
+                if (!Array.isArray(globalThis[{}])) {{
+                    return;
+                }}
+            "#,
+            StringifyJs(&chunk_loading_global),
+        )?;
+    }
     writedoc!(
         code,
         r#"
-            if (!Array.isArray(globalThis[{}])) {{
-                return;
-            }}
 
             var CHUNK_BASE_PATH = {};
             var RELATIVE_ROOT_PATH = {};
             var RUNTIME_PUBLIC_PATH = {};
         "#,
-        StringifyJs(&chunk_loading_global),
         StringifyJs(chunk_base_path),
         StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
     )?;
+
+    // RUNTIME_URL must be set before ASSET_SUFFIX because getAssetSuffixFromScriptSrc()
+    // reads it. In ESM mode we use import.meta.url (only valid at module top-level, but
+    // the whole evaluate chunk is an ES module so the IIFE inherits that scope). In classic
+    // mode we read document.currentScript.src.
+    if esm_chunks {
+        writedoc!(
+            code,
+            r#"
+                var RUNTIME_URL = import.meta.url;
+            "#
+        )?;
+    } else {
+        writedoc!(
+            code,
+            r#"
+                var RUNTIME_URL = typeof document !== "undefined" && document.currentScript ? document.currentScript.src : "";
+            "#
+        )?;
+    }
 
     match &*asset_suffix {
         AssetSuffix::None => {
@@ -223,25 +278,39 @@ pub async fn get_browser_runtime_code(
 
     // Registering chunks and chunk lists depends on the BACKEND variable, which is set by the
     // specific runtime code, hence it must be appended after it.
-    writedoc!(
-        code,
-        r#"
-            var chunksToRegister = globalThis[{chunk_loading_global}];
-            globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
-            chunksToRegister.forEach(registerChunk);
-        "#,
-        chunk_loading_global = StringifyJs(&chunk_loading_global),
-    )?;
-    if matches!(runtime_type, RuntimeType::Development) {
+    if esm_chunks {
+        // ESM mode: the RuntimeParams are in __turbopack_params__ (a const defined before
+        // the runtime IIFE in the same evaluate chunk file). No TURBOPACK global to drain.
+        // Pass an empty string as the chunk path — the ESM registerChunk ignores it.
+        // We await here (inside the async IIFE) so the module-level `await` at the top
+        // propagates all the way through chunk loading and module instantiation.
         writedoc!(
             code,
             r#"
-            var chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
-            globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
-            chunkListsToRegister.forEach(registerChunkList);
-        "#,
-            chunk_lists_global = StringifyJs(&chunk_lists_global),
+                await BACKEND.registerChunk("", __turbopack_params__);
+            "#,
         )?;
+    } else {
+        writedoc!(
+            code,
+            r#"
+                var chunksToRegister = globalThis[{chunk_loading_global}];
+                globalThis[{chunk_loading_global}] = {{ push: registerChunk }};
+                chunksToRegister.forEach(registerChunk);
+            "#,
+            chunk_loading_global = StringifyJs(&chunk_loading_global),
+        )?;
+        if matches!(runtime_type, RuntimeType::Development) {
+            writedoc!(
+                code,
+                r#"
+                var chunkListsToRegister = globalThis[{chunk_lists_global}] || [];
+                globalThis[{chunk_lists_global}] = {{ push: registerChunkList }};
+                chunkListsToRegister.forEach(registerChunkList);
+            "#,
+                chunk_lists_global = StringifyJs(&chunk_lists_global),
+            )?;
+        }
     }
     writedoc!(
         code,
