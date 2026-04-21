@@ -696,6 +696,56 @@ describe('instant-navigation-testing-api', () => {
     expect(instantCookie).toBeUndefined()
   })
 
+  it('blocks out-of-band client fetch during instant scope (SPA)', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-client-fetch')
+
+      // The page title appears (it's a client component, rendered immediately)
+      const title = page.locator('[data-testid="client-fetch-title"]')
+      await title.waitFor({ state: 'visible' })
+
+      // The fetch to /api/data is blocked, so the loading state persists
+      const loading = page.locator('[data-testid="fetched-data-loading"]')
+      await loading.waitFor({ state: 'visible' })
+
+      // The fetched data has NOT arrived
+      const fetchedData = page.locator('[data-testid="fetched-data"]')
+      expect(await fetchedData.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, the fetch completes
+    const fetchedData = page.locator('[data-testid="fetched-data"]')
+    await fetchedData.waitFor({ state: 'visible' })
+    expect(await fetchedData.textContent()).toContain('api response')
+  })
+
+  it('blocks out-of-band client fetch during instant scope (MPA)', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#plain-link-to-client-fetch')
+
+      // The page title appears
+      const title = page.locator('[data-testid="client-fetch-title"]')
+      await title.waitFor({ state: 'visible' })
+
+      // The fetch to /api/data is blocked, so the loading state persists
+      const loading = page.locator('[data-testid="fetched-data-loading"]')
+      await loading.waitFor({ state: 'visible' })
+
+      // The fetched data has NOT arrived
+      const fetchedData = page.locator('[data-testid="fetched-data"]')
+      expect(await fetchedData.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, the fetch completes
+    const fetchedData = page.locator('[data-testid="fetched-data"]')
+    await fetchedData.waitFor({ state: 'visible' })
+    expect(await fetchedData.textContent()).toContain('api response')
+  })
+
   it('clears cookie even when callback throws', async () => {
     const page = await openPage(next, '/')
 
