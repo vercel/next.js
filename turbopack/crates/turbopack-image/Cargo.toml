@@ -32,7 +32,6 @@ image = { workspace = true, default-features = false, features = [
   "tga",
 ] }
 mime = { workspace = true }
-once_cell = { workspace = true }
 regex = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true }

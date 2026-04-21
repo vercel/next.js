@@ -1,7 +1,6 @@
 use std::{ops::Deref, sync::LazyLock};
 
 use anyhow::Result;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
@@ -12,8 +11,8 @@ use crate::next_app::{AppPage, AppPath, PageSegment, PageType};
 pub mod image;
 pub mod route;
 
-pub static STATIC_LOCAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
-    Lazy::new(|| {
+pub static STATIC_LOCAL_METADATA: LazyLock<FxHashMap<&'static str, &'static [&'static str]>> =
+    LazyLock::new(|| {
         FxHashMap::from_iter([
             (
                 "icon",
@@ -26,8 +25,8 @@ pub static STATIC_LOCAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'stati
         ])
     });
 
-pub static STATIC_GLOBAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
-    Lazy::new(|| {
+pub static STATIC_GLOBAL_METADATA: LazyLock<FxHashMap<&'static str, &'static [&'static str]>> =
+    LazyLock::new(|| {
         FxHashMap::from_iter([
             ("favicon", &["ico"] as &'static [&'static str]),
             ("manifest", &["webmanifest", "json"]),
