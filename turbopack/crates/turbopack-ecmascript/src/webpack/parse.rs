@@ -24,7 +24,7 @@ use crate::{
     utils::unparen,
 };
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 #[derive(Debug)]
 pub enum WebpackRuntime {
     Webpack5 {

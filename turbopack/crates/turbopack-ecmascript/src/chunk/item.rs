@@ -53,7 +53,7 @@ pub enum RewriteSourcePath {
 
 // Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
 // persisted and we want to avoid duplicating it.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,

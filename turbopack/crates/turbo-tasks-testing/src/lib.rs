@@ -220,9 +220,8 @@ impl TurboTasksApi for VcStorage {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
-        self.read_own_task_cell(current_task, index, options)
+        self.read_own_task_cell(current_task, index)
     }
 
     fn try_read_local_output(
@@ -258,12 +257,7 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn read_own_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        _options: ReadCellOptions,
-    ) -> Result<TypedCellContent> {
+    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
         let map = self.cells.lock().unwrap();
         Ok(if let Some(cell) = map.get(&(task, index)) {
             cell.to_owned()
@@ -277,7 +271,6 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
-        _is_serializable_cell_content: bool,
         content: CellContent,
         _updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         _content_hash: Option<[u8; 16]>,

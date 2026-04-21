@@ -28,7 +28,7 @@ struct OutputAssetsMap(
 
 type ExpandedState = State<FxHashSet<RcStr>>;
 
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
     root_path: FileSystemPath,
     root_assets: ResolvedVc<OutputAssetsSet>,

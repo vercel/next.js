@@ -43,14 +43,20 @@ impl TryFrom<LitStr> for CellMode {
     }
 }
 
+/// How a value type's cells are persisted across restarts.
 enum SerializationMode {
-    None,
-    /// Like `None` (no bincode serialization), but also stores a hash of the cell value so that
-    /// changes can be detected even when the transient cell data has been evicted from memory.
-    /// Only valid with `cell = "compare"` (or the default).
-    Hash,
+    /// Round-trip through bincode via auto-derived `Encode` / `Decode`.
     Auto,
+    /// Round-trip through bincode via a manual `Encode` / `Decode` impl
+    /// supplied by the value type.
     Custom,
+    /// No persistence of the value itself. Eviction policy is controlled
+    /// separately via the `evict` attribute.
+    Skip,
+    /// Persist only a hash of the value so post-eviction reads can detect
+    /// unchanged content and skip invalidation. Only valid with
+    /// `cell = "compare"` (or the default).
+    Hash,
 }
 
 impl Parse for SerializationMode {
@@ -65,13 +71,53 @@ impl TryFrom<LitStr> for SerializationMode {
 
     fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
         match lit.value().as_str() {
-            "none" => Ok(SerializationMode::None),
-            "hash" => Ok(SerializationMode::Hash),
             "auto" => Ok(SerializationMode::Auto),
             "custom" => Ok(SerializationMode::Custom),
+            "skip" => Ok(SerializationMode::Skip),
+            "hash" => Ok(SerializationMode::Hash),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"none\", \"hash\", \"auto\", or \"custom\"",
+                "expected \"auto\", \"custom\", \"skip\", or \"hash\"",
+            )),
+        }
+    }
+}
+
+/// Eviction policy for a `serialization = "skip"` value type. Ignored for
+/// other serialization modes (the macro rejects non-`Always` values in that
+/// case).
+enum EvictMode {
+    /// Evictable freely. The next reader after eviction triggers a recompute
+    /// from the task's inputs. This is the default when `evict` is omitted.
+    Always,
+    /// Evictable, but re-deriving is non-trivial (e.g. WASM compile,
+    /// spawning a Node process pool). Eviction policy should prefer
+    /// evicting cheaper cells first.
+    Last,
+    /// Not evictable: the value holds interior-mutable state that
+    /// accumulates across the session (`State<>` cells, `Arc<Mutex<_>>`
+    /// dedup histories) and must stay in memory.
+    Never,
+}
+
+impl Parse for EvictMode {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse::<LitStr>()?;
+        Self::try_from(ident)
+    }
+}
+
+impl TryFrom<LitStr> for EvictMode {
+    type Error = Error;
+
+    fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
+        match lit.value().as_str() {
+            "always" => Ok(EvictMode::Always),
+            "last" => Ok(EvictMode::Last),
+            "never" => Ok(EvictMode::Never),
+            _ => Err(Error::new_spanned(
+                &lit,
+                "expected \"always\", \"last\", or \"never\"",
             )),
         }
     }
@@ -79,6 +125,7 @@ impl TryFrom<LitStr> for SerializationMode {
 
 struct ValueArguments {
     serialization_mode: SerializationMode,
+    evict_mode: EvictMode,
     shared: bool,
     cell_mode: CellMode,
     manual_eq: bool,
@@ -92,6 +139,7 @@ impl Parse for ValueArguments {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut result = ValueArguments {
             serialization_mode: SerializationMode::Auto,
+            evict_mode: EvictMode::Always,
             shared: false,
             cell_mode: CellMode::Compare,
             manual_eq: false,
@@ -123,6 +171,18 @@ impl Parse for ValueArguments {
                     }),
                 ) => {
                     result.serialization_mode = SerializationMode::try_from(str)?;
+                }
+                (
+                    "evict",
+                    Meta::NameValue(MetaNameValue {
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
+                    }),
+                ) => {
+                    result.evict_mode = EvictMode::try_from(str)?;
                 }
                 (
                     "cell",
@@ -179,8 +239,8 @@ impl Parse for ValueArguments {
                         &meta,
                         format!(
                             "unexpected {meta:?}, expected \"shared\", \"into\", \
-                             \"serialization\", \"cell\", \"eq\", \"hash\", \"transparent\", or \
-                             \"operation\""
+                             \"serialization\", \"evict\", \"cell\", \"eq\", \"hash\", \
+                             \"transparent\", or \"operation\""
                         ),
                     ));
                 }
@@ -195,6 +255,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
     let ValueArguments {
         serialization_mode,
+        evict_mode,
         shared,
         cell_mode,
         manual_eq,
@@ -220,6 +281,20 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         return syn::Error::new(
             proc_macro2::Span::call_site(),
             "hash = \"manual\" only makes sense with serialization = \"hash\"",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    // `evict = "last" | "never"` is only valid when `serialization = "skip"`;
+    // other persistence modes have their own eviction semantics fixed by the
+    // backend (Persistable: evict-and-restore, HashOnly: evict-with-hash-gate).
+    if !matches!(evict_mode, EvictMode::Always)
+        && !matches!(serialization_mode, SerializationMode::Skip)
+    {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "evict = \"last\" | \"never\" is only valid with serialization = \"skip\"",
         )
         .to_compile_error()
         .into();
@@ -363,7 +438,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
         }
-        SerializationMode::None | SerializationMode::Hash | SerializationMode::Custom => {}
+        SerializationMode::Custom | SerializationMode::Skip | SerializationMode::Hash => {}
     };
     if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
@@ -394,18 +469,28 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let name = global_name_for_type(ident);
-    let new_value_type = match serialization_mode {
-        SerializationMode::None | SerializationMode::Hash => quote! {
-            turbo_tasks::ValueType::new::<#ident>(#name)
+    // Dispatch to the constructor whose name reflects the persistence +
+    // eviction combo. `evict` is only read when `serialization = Skip`;
+    // other modes ignore it (and the parser rejects non-Always values).
+    let new_value_type = match (&serialization_mode, &evict_mode) {
+        (SerializationMode::Auto | SerializationMode::Custom, _) => quote! {
+            turbo_tasks::ValueType::persistable::<#ident>(#name)
         },
-        SerializationMode::Auto | SerializationMode::Custom => {
-            quote! {
-                turbo_tasks::ValueType::new_with_bincode::<#ident>(#name)
-            }
-        }
+        (SerializationMode::Hash, _) => quote! {
+            turbo_tasks::ValueType::hash_only::<#ident>(#name)
+        },
+        (SerializationMode::Skip, EvictMode::Always) => quote! {
+            turbo_tasks::ValueType::skip_persist::<#ident>(#name)
+        },
+        (SerializationMode::Skip, EvictMode::Last) => quote! {
+            turbo_tasks::ValueType::skip_persist_expensive::<#ident>(#name)
+        },
+        (SerializationMode::Skip, EvictMode::Never) => quote! {
+            turbo_tasks::ValueType::session_stateful::<#ident>(#name)
+        },
     };
     let has_serialization = match serialization_mode {
-        SerializationMode::None | SerializationMode::Hash => quote! { false },
+        SerializationMode::Skip | SerializationMode::Hash => quote! { false },
         SerializationMode::Auto | SerializationMode::Custom => quote! { true },
     };
 

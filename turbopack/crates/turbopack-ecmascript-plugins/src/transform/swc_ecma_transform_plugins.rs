@@ -16,7 +16,16 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
 /// compiled, serialized WASM module instead of raw file bytes to reduce the
 /// cost of the compilation.
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", shared)]
+///
+/// Tagged `evict = "last"` so eviction prefers evicting cheaper cells first —
+/// re-deriving a compiled module is pure but pays a non-trivial WASM compile.
+#[turbo_tasks::value(
+    serialization = "skip",
+    evict = "last",
+    eq = "manual",
+    cell = "new",
+    shared
+)]
 pub struct SwcPluginModule {
     pub name: RcStr,
     #[turbo_tasks(trace_ignore, debug_ignore)]

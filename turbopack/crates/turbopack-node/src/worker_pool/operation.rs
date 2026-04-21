@@ -57,7 +57,7 @@ pub(crate) struct PoolState {
     pub(crate) waiters: Mutex<Vec<oneshot::Sender<u32>>>,
 }
 
-#[turbo_tasks::value(cell = "new", serialization = "none", eq = "manual", shared)]
+#[turbo_tasks::value(cell = "new", serialization = "skip", eq = "manual", shared)]
 #[derive(Clone, PartialEq, Eq, Hash)]
 pub(super) struct WorkerOptions {
     pub(super) filename: RcStr,

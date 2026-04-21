@@ -149,7 +149,7 @@ async fn stylesheet_to_css(
 #[turbo_tasks::value(transparent)]
 pub struct UnresolvedUrlReferences(pub Vec<(String, ResolvedVc<UrlAssetReference>)>);
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)] // This is a turbo-tasks value
 pub enum ParseCssResult {
     Ok {
@@ -169,7 +169,7 @@ pub enum ParseCssResult {
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 pub enum CssWithPlaceholderResult {
     Ok {
         parse_result: ResolvedVc<ParseCssResult>,
@@ -188,7 +188,7 @@ pub enum CssWithPlaceholderResult {
     NotFound,
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FinalCssResult {
     Ok {
         #[turbo_tasks(trace_ignore)]

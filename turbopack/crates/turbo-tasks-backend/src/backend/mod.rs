@@ -1,3 +1,4 @@
+mod cell_data;
 mod counter_map;
 mod operation;
 mod storage;
@@ -857,7 +858,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let ReadCellOptions {
-            is_serializable_cell_content,
             tracking,
             final_read_hint,
         } = options;
@@ -878,9 +878,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
 
         let content = if final_read_hint {
-            task.remove_cell_data(is_serializable_cell_content, cell)
+            task.remove_cell_data(&cell)
         } else {
-            task.get_cell_data(is_serializable_cell_content, cell)
+            task.get_cell_data(&cell).cloned()
         };
         if let Some(content) = content {
             if tracking.should_track(false) {
@@ -888,7 +888,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             }
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
-                CellContent(Some(content.reference)),
+                CellContent(Some(content)),
             )));
         }
 
@@ -2689,9 +2689,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Note: We do not mark the tasks as dirty here, as these tasks are unused or stale
             // anyway and we want to avoid needless re-executions. When the cells become
             // used again, they are invalidated from the update cell operation.
-            // Remove cell data for cells that no longer exist
-            let to_remove_persistent: Vec<_> = task
-                .iter_persistent_cell_data()
+            let to_remove: Vec<_> = task
+                .iter_cell_data()
                 .filter_map(|(cell, _)| {
                     cell_counters
                         .get(&cell.type_id)
@@ -2699,25 +2698,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .then_some(*cell)
                 })
                 .collect();
-
-            // Remove transient cell data for cells that no longer exist
-            let to_remove_transient: Vec<_> = task
-                .iter_transient_cell_data()
-                .filter_map(|(cell, _)| {
-                    cell_counters
-                        .get(&cell.type_id)
-                        .is_none_or(|start_index| cell.index >= *start_index)
-                        .then_some(*cell)
-                })
-                .collect();
-            removed_cell_data.reserve_exact(to_remove_persistent.len() + to_remove_transient.len());
-            for cell in to_remove_persistent {
-                if let Some(data) = task.remove_persistent_cell_data(&cell) {
-                    removed_cell_data.push(data.into_untyped());
-                }
-            }
-            for cell in to_remove_transient {
-                if let Some(data) = task.remove_transient_cell_data(&cell) {
+            removed_cell_data.reserve_exact(to_remove.len());
+            for cell in to_remove {
+                if let Some(data) = task.remove_cell_data(&cell) {
                     removed_cell_data.push(data);
                 }
             }
@@ -2904,14 +2887,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = task.get_cell_data(options.is_serializable_cell_content, cell) {
-            debug_assert!(content.type_id == cell.type_id, "Cell type ID mismatch");
-            Ok(CellContent(Some(content.reference)).into_typed(cell.type_id))
+        if let Some(content) = task.get_cell_data(&cell).cloned() {
+            Ok(CellContent(Some(content)).into_typed(cell.type_id))
         } else {
             Ok(CellContent(None).into_typed(cell.type_id))
         }
@@ -3041,7 +3022,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
@@ -3052,7 +3032,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task_id,
             cell,
             content,
-            is_serializable_cell_content,
             updated_key_hashes,
             content_hash,
             verification_mode,
@@ -3553,11 +3532,9 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        options: ReadCellOptions,
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) -> Result<TypedCellContent> {
-        self.0
-            .try_read_own_task_cell(task_id, cell, options, turbo_tasks)
+        self.0.try_read_own_task_cell(task_id, cell, turbo_tasks)
     }
 
     fn read_task_collectibles(
@@ -3598,7 +3575,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         &self,
         task_id: TaskId,
         cell: CellId,
-        is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
@@ -3608,7 +3584,6 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         self.0.update_task_cell(
             task_id,
             cell,
-            is_serializable_cell_content,
             content,
             updated_key_hashes,
             content_hash,

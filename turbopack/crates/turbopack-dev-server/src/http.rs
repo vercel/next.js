@@ -28,7 +28,7 @@ use crate::source::{
     resolve::{ResolveSourceRequestResult, resolve_source_request},
 };
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 enum GetFromSourceResult {
     Static {
         content: ReadRef<FileContent>,
@@ -71,7 +71,7 @@ async fn get_from_source_operation(
     )
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct GetFromSourceResultWithCollectibles {
     result: ReadRef<GetFromSourceResult>,
     effects: Effects,

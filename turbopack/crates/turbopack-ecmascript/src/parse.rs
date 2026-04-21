@@ -144,7 +144,7 @@ impl Visit for IdentCollector {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 #[allow(clippy::large_enum_variant)]
 pub enum ParseResult {
     Ok {
