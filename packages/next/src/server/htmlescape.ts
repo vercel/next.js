@@ -11,6 +11,23 @@ const ESCAPE_LOOKUP: { [match: string]: string } = {
 
 export const ESCAPE_REGEX = /[&><\u2028\u2029]/g
 
+const ATTRIBUTE_ESCAPE_LOOKUP: { [match: string]: string } = {
+  '&': '&amp;',
+  '"': '&quot;',
+  "'": '&#39;',
+  '<': '&lt;',
+  '>': '&gt;',
+}
+
+const ATTRIBUTE_ESCAPE_REGEX = /[&"'<>]/g
+
 export function htmlEscapeJsonString(str: string): string {
   return str.replace(ESCAPE_REGEX, (match) => ESCAPE_LOOKUP[match])
+}
+
+export function htmlEscapeAttributeString(str: string): string {
+  return str.replace(
+    ATTRIBUTE_ESCAPE_REGEX,
+    (match) => ATTRIBUTE_ESCAPE_LOOKUP[match]
+  )
 }

@@ -1,4 +1,4 @@
-import { ESCAPE_REGEX } from '../htmlescape'
+const CSP_NONCE_SOURCE_REGEX = /^'nonce-([A-Za-z0-9+/_-]+={0,2})'$/
 
 export function getScriptNonceFromHeader(
   cspHeaderValue: string
@@ -19,35 +19,13 @@ export function getScriptNonceFromHeader(
     return
   }
 
-  // Extract the nonce from the directive
-  const nonce = directive
-    .split(' ')
-    // Remove the 'strict-src'/'default-src' string, this can't be the nonce.
-    .slice(1)
-    .map((source) => source.trim())
-    // Find the first source with the 'nonce-' prefix.
-    .find(
-      (source) =>
-        source.startsWith("'nonce-") &&
-        source.length > 8 &&
-        source.endsWith("'")
-    )
-    // Grab the nonce by trimming the 'nonce-' prefix.
-    ?.slice(7, -1)
+  // Extract the first valid nonce from the directive. Malformed nonces are
+  // ignored so the request can continue without a nonce instead of failing.
+  for (const source of directive.split(/\s+/).slice(1)) {
+    const match = source.trim().match(CSP_NONCE_SOURCE_REGEX)
 
-  // If we could't find the nonce, then we're done.
-  if (!nonce) {
-    return
+    if (match) {
+      return match[1]
+    }
   }
-
-  // Don't accept the nonce value if it contains HTML escape characters.
-  // Technically, the spec requires a base64'd value, but this is just an
-  // extra layer.
-  if (ESCAPE_REGEX.test(nonce)) {
-    throw new Error(
-      'Nonce value from Content-Security-Policy contained HTML escape characters.\nLearn more: https://nextjs.org/docs/messages/nonce-contained-invalid-characters'
-    )
-  }
-
-  return nonce
 }
