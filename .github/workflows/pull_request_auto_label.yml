@@ -1,0 +1,58 @@
+name: Pull Request Auto-Labeler
+
+# Runs on pull_request_target so the workflow has the permissions of the
+# base repository and can write labels on PRs opened from forks.
+#
+# Security model (reviewed: pull_request_target is one of the more dangerous
+# GitHub events, because the workflow runs with a token that has write
+# access to the base repo while processing a PR whose contents may be
+# attacker-controlled):
+#
+#   1. We explicitly check out the BASE repo at the BASE ref, NOT the PR
+#      head. This means the labeler config (`.github/labeler.json`) and the
+#      compiled action bundle (`.github/actions/next-repo-actions/dist/`)
+#      always come from the trusted base branch. A fork PR cannot change
+#      these files to grant itself team-only labels.
+#   2. We do NOT install dependencies for the PR (no `pnpm install`,
+#      `npm install`, or any other command that would execute lifecycle
+#      scripts from the PR's `package.json`). The action is pre-built and
+#      committed into the repo.
+#   3. The action itself only reads:
+#        - the static config file from the base checkout; and
+#        - `pull_request.user.login` and the list of changed files from the
+#          GitHub API.
+#      Both of these are authenticated by GitHub and cannot be forged by
+#      the PR author.
+#   4. `permissions` is scoped to the minimum needed: `pull-requests: write`
+#      (to apply labels) and `contents: read` (to check out the base).
+#   5. `if: github.repository_owner == 'vercel'` prevents the workflow from
+#      running in unrelated forks of this repo.
+#
+# Changing any of the above should be done with care.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-auto-label-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Always check out the base repo / base branch, never the PR head.
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+      - name: Apply labels
+        run: node ./.github/actions/next-repo-actions/dist/pr-auto-label/index.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
