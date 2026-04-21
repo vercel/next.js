@@ -10,21 +10,20 @@ name: Pull Request Auto-Labeler
 # This workflow does neither:
 #
 #   1. Checkout is pinned to the BASE ref (`github.event.pull_request.base.sha`)
-#      with `persist-credentials: false`, so the labeler config
-#      (`.github/labeler.json`) and the compiled action bundle
-#      (`.github/actions/next-repo-actions/dist/pr-auto-label/`) always
-#      come from the trusted base branch. A fork PR cannot modify these
-#      files to grant itself team-only labels.
+#      with `persist-credentials: false`, so the compiled action bundle
+#      (`.github/actions/next-repo-actions/dist/pr-auto-label/`) — which
+#      has the labeler config (`pr-auto-label.config.json`) inlined into
+#      it at build time — always comes from the trusted base branch. A
+#      fork PR cannot modify it to grant itself team-only labels.
 #   2. No PR-controlled code executes on the runner. We don't run
 #      `pnpm install` / `npm install` / `setup-node` with a lockfile from
 #      the PR, and we don't run any script defined by the PR's
 #      `package.json`. The action bundle is pre-built and committed.
 #   3. No PR-controlled text is interpolated into `run:` scripts. The
-#      action reads only the static config from the base checkout plus
-#      `pull_request.user.login` and the list of changed files via the
-#      GitHub API — both authenticated by GitHub and not forgeable by the
-#      PR author — and passes them to the `octokit` client, not to a
-#      shell.
+#      action reads `pull_request.user.login` and the list of changed
+#      files via the GitHub API — both authenticated by GitHub and not
+#      forgeable by the PR author — and passes them to the `octokit`
+#      client, not to a shell.
 #   4. `permissions` is scoped to the minimum needed: `pull-requests: write`
 #      (to apply labels) and `contents: read` (to check out the base).
 #   5. `if: github.repository_owner == 'vercel'` prevents the workflow

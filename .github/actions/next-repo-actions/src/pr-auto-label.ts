@@ -1,8 +1,7 @@
-import { readFileSync } from 'fs'
-import { join } from 'path'
 import { info, setFailed, warning } from '@actions/core'
 import { context, getOctokit } from '@actions/github'
 import { minimatch } from 'minimatch'
+import config from './pr-auto-label.config.json'
 
 type AuthorRule = { type: 'user'; pattern: string }
 type LabelRule = string | AuthorRule
@@ -70,16 +69,6 @@ async function main() {
     return
   }
 
-  const configPath =
-    process.env.LABELER_CONFIG_PATH ||
-    join(
-      process.env.GITHUB_WORKSPACE || process.cwd(),
-      '.github',
-      'labeler.json'
-    )
-
-  const config: LabelerConfig = JSON.parse(readFileSync(configPath, 'utf8'))
-
   const octokit = getOctokit(process.env.GITHUB_TOKEN)
 
   const changedFiles: string[] = await octokit.paginate(
@@ -91,7 +80,7 @@ async function main() {
   info(`PR #${prNumber} author: ${author}`)
   info(`PR #${prNumber} changed files: ${changedFiles.length}`)
 
-  const labelsToAdd = computeLabels(config, author, changedFiles)
+  const labelsToAdd = computeLabels(config as LabelerConfig, author, changedFiles)
 
   if (labelsToAdd.length === 0) {
     info('No labels matched.')
