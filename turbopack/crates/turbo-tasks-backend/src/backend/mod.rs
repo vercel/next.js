@@ -49,6 +49,7 @@ use turbo_tasks::{
     util::{IdFactoryWithReuse, good_chunk_size, into_chunks},
 };
 
+use self::storage::EvictMode;
 pub use self::{
     operation::AnyOperation,
     storage::{EvictionCounts, SpecificTaskDataCategory, TaskDataCategory},
@@ -956,7 +957,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         };
         // Enter snapshot mode, which atomically reads and resets the modified count.
         // Checking after start_snapshot ensures no concurrent increments can race.
-        let (snapshot_guard, has_modifications) = self.storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = self
+            .storage
+            .start_snapshot(EvictMode::Disabled, parent_span.clone());
 
         let suspended_operations = snapshot_phase.take_suspended_operations();
 

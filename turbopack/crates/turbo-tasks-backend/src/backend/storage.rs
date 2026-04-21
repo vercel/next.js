@@ -9,6 +9,7 @@ use std::{
     },
 };
 
+use parking_lot::Mutex;
 use thread_local::ThreadLocal;
 use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
@@ -32,6 +33,28 @@ pub enum TaskDataCategory {
     Meta,
     Data,
     All,
+}
+
+/// Whether eviction runs alongside a snapshot.
+///
+/// `Enabled` drops the value of unmodified evictable tasks during `take_snapshot`
+/// (phase 1) and drops persisted-modified tasks during `end_snapshot` (phase 3).
+/// `Disabled` behaves like the legacy snapshot path — no in-lifecycle eviction.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EvictMode {
+    Disabled,
+    // Wired up in steps 3+ of the interleaved-eviction refactor.
+    #[allow(dead_code)]
+    Enabled,
+}
+
+impl EvictMode {
+    // Phase 1 / phase 3 will call this from steps 3+ of the interleaved-eviction refactor.
+    #[allow(dead_code)]
+    #[inline]
+    pub fn enabled(self) -> bool {
+        matches!(self, EvictMode::Enabled)
+    }
 }
 
 /// Counts of tasks evicted at each level.
@@ -355,7 +378,11 @@ impl Storage {
     /// Safety invariant: `start_snapshot` and `end_snapshot` are always called
     /// sequentially within a single `snapshot_and_persist` invocation (the sole
     /// caller). There is no concurrent snapshot lifecycle, so they cannot race.
-    pub fn start_snapshot(&self) -> (SnapshotGuard<'_>, bool) {
+    pub fn start_snapshot(
+        &self,
+        evict: EvictMode,
+        parent_span: Option<Id>,
+    ) -> (SnapshotGuard<'_>, bool) {
         // Enter snapshot mode first so concurrent track_modification calls switch
         // to the _during_snapshot path and stop incrementing shard_modified_counts.
         self.snapshot_mode.store(true, Ordering::Release);
@@ -367,7 +394,10 @@ impl Storage {
             .shard_modified_counts
             .iter()
             .any(|c| c.load(Ordering::Relaxed) > 0);
-        (SnapshotGuard::new(self), has_modifications)
+        (
+            SnapshotGuard::new(self, evict, parent_span),
+            has_modifications,
+        )
     }
 
     /// End snapshot mode.
@@ -801,6 +831,10 @@ enum ScratchBufferSlot {
     Available(TurboBincodeBuffer),
 }
 
+// Several fields below are populated by later phases of the interleaved-eviction
+// refactor; they are carried on the guard now so the struct's shape stabilizes
+// ahead of steps 3–5 and the call sites change in a single place.
+#[allow(dead_code)]
 pub struct SnapshotGuard<'l> {
     storage: &'l Storage,
     /// Per-thread scratch buffers for encoding task data. Buffers are taken
@@ -809,14 +843,75 @@ pub struct SnapshotGuard<'l> {
     /// dropped (after all iterators are done), the `ThreadLocal` drops too,
     /// freeing all buffers.
     scratch_buffers: ThreadLocal<Cell<ScratchBufferSlot>>,
+    /// Eviction mode for this snapshot. Threaded through so phases 1/3 can
+    /// check it without additional parameters.
+    evict: EvictMode,
+    /// Parent tracing span id. Used as the parent for the `evict` span created
+    /// by [`SnapshotGuard::finish`].
+    parent_span: Option<Id>,
+    /// Counts accumulated by phase 1 (inside `take_snapshot`).
+    /// One mutex acquire per shard at the end of its closure.
+    phase1_counts: Mutex<EvictionCounts>,
+    /// Counts accumulated by phase 3 (inside `end_snapshot`).
+    phase3_counts: Mutex<EvictionCounts>,
+    /// `task_cache` removals deferred by phase 1 until after `save_snapshot`
+    /// commits, to preserve the `CachedTaskType` → `TaskId` identity invariant.
+    /// Drained by phase 3 iff `persist_succeeded`.
+    deferred_task_cache_removals: Mutex<Vec<Arc<CachedTaskType>>>,
+    /// Per-shard `modified` vecs forwarded from `SnapshotShardIter::Drop`, used
+    /// by phase 3's touched-set sweep to re-visit just the modified tasks that
+    /// were persisted this cycle.
+    touched_modified: Mutex<Vec<Vec<TaskId>>>,
+    /// Set to `true` by the caller after `save_snapshot` returns Ok. Phase 3
+    /// gates map-value evictions and `task_cache` removals on this flag to
+    /// avoid dropping tasks whose modifications aren't on disk yet.
+    persist_succeeded: AtomicBool,
+    /// Set by `finish` so `Drop` knows `end_snapshot` has already run and
+    /// avoids double-executing phase 3 work.
+    finished: AtomicBool,
 }
 
 impl<'l> SnapshotGuard<'l> {
-    fn new(storage: &'l Storage) -> Self {
+    fn new(storage: &'l Storage, evict: EvictMode, parent_span: Option<Id>) -> Self {
         Self {
             storage,
             scratch_buffers: ThreadLocal::new(),
+            evict,
+            parent_span,
+            phase1_counts: Mutex::new(EvictionCounts::default()),
+            phase3_counts: Mutex::new(EvictionCounts::default()),
+            deferred_task_cache_removals: Mutex::new(Vec::new()),
+            touched_modified: Mutex::new(Vec::new()),
+            persist_succeeded: AtomicBool::new(false),
+            finished: AtomicBool::new(false),
         }
+    }
+
+    /// Mark the snapshot as successfully persisted to the backing store.
+    ///
+    /// Must be called by the caller between a successful `save_snapshot` return
+    /// and dropping (or `finish`ing) the guard. Phase 3 will skip the eviction
+    /// work that depends on disk durability when this flag is not set.
+    // Wired up by the interleaved-eviction refactor once phase 3 replaces the
+    // legacy `evict_after_snapshot` post-pass.
+    #[allow(dead_code)]
+    pub fn mark_persisted(&self) {
+        self.persist_succeeded.store(true, Ordering::Release);
+    }
+
+    /// End the snapshot and return the aggregated eviction counts.
+    ///
+    /// Consumes the guard, so the caller must ensure all `SnapshotShard` /
+    /// `SnapshotShardIter` instances (which hold `Arc<SnapshotGuard>`) have been
+    /// dropped. Running via this path lets `end_snapshot` emit metrics; the
+    /// `Drop` fallback handles panic-safety but does not expose counts.
+    #[allow(dead_code)]
+    pub fn finish(self) -> EvictionCounts {
+        self.finished.store(true, Ordering::Release);
+        self.storage.end_snapshot();
+        let mut totals = std::mem::take(&mut *self.phase1_counts.lock());
+        totals += std::mem::take(&mut *self.phase3_counts.lock());
+        totals
     }
 
     fn take_scratch_buffer(&self) -> TurboBincodeBuffer {
@@ -852,6 +947,11 @@ impl<'l> SnapshotGuard<'l> {
 
 impl Drop for SnapshotGuard<'_> {
     fn drop(&mut self) {
+        // If `finish` already ran, phase 3 / end_snapshot work is done.
+        // Drop remains to release held resources but must not re-run end_snapshot.
+        if self.finished.load(Ordering::Acquire) {
+            return;
+        }
         self.storage.end_snapshot();
     }
 }
@@ -941,7 +1041,7 @@ mod tests {
     use turbo_bincode::TurboBincodeBuffer;
     use turbo_tasks::TaskId;
 
-    use super::{SpecificTaskDataCategory, Storage};
+    use super::{EvictMode, SpecificTaskDataCategory, Storage};
     use crate::backing_storage::SnapshotItem;
 
     fn non_transient_task(id: u32) -> TaskId {
@@ -995,7 +1095,7 @@ mod tests {
         }
 
         // Step 2: enter snapshot mode.
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
         assert!(has_modifications);
 
         // Step 3: `take_snapshot` scans the shard. At this point the task has
@@ -1034,7 +1134,7 @@ mod tests {
 
         // The during-snapshot modification must be reflected in shard_modified_counts so
         // the next snapshot cycle picks it up. Verify by starting another snapshot.
-        let (_guard2, has_modifications) = storage.start_snapshot();
+        let (_guard2, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
         assert!(
             has_modifications,
             "shard_modified_counts must be non-zero after promoting modified_during_snapshot"
@@ -1069,7 +1169,7 @@ mod tests {
         }
 
         // Step 2: enter snapshot mode.
-        let (snapshot_guard, has_modifications) = storage.start_snapshot();
+        let (snapshot_guard, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
         assert!(has_modifications);
 
         // Step 3: take_snapshot — task goes into modified list (meta_modified = true).
@@ -1103,7 +1203,7 @@ mod tests {
         }
 
         // Next snapshot cycle must pick up the promoted data_modified.
-        let (_guard2, has_modifications) = storage.start_snapshot();
+        let (_guard2, has_modifications) = storage.start_snapshot(EvictMode::Disabled, None);
         assert!(
             has_modifications,
             "shard_modified_counts must be non-zero after promoting data_modified_during_snapshot"
