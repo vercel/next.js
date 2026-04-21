@@ -1140,21 +1140,19 @@ async function generateCacheEntryImpl(
       }
       break
     case 'request':
-      // If we're filling caches for a staged render, make sure that
-      // it takes at least a task, so we'll always notice a cache miss between stages.
-      //
-      // TODO(restart-on-cache-miss): This is suboptimal.
-      // Ideally we wouldn't need to restart for microtasky caches,
-      // but the current logic for omitting short-lived caches only works correctly
-      // if we do a second render, so that's the best we can do until we refactor that.
-      if (
-        process.env.NODE_ENV === 'development' &&
-        outerWorkUnitStore.cacheSignal
-      ) {
+      // TODO: We should just check if the render is abandonable. This is
+      // relevant in restart-on-cache-miss in general, so when we implement that
+      // for cached navs, it'll also be needed in prod
+      if (process.env.__NEXT_DEV_SERVER && outerWorkUnitStore.cacheSignal) {
+        // If we're filling caches for a staged render, make sure that it takes
+        // at least a task, so we'll always notice a cache miss between stages.
+        //
+        // TODO(restart-on-cache-miss): This is suboptimal. Ideally we wouldn't
+        // need to restart for microtasky caches, but the current logic for
+        // omitting short-lived caches only works correctly if we do a second
+        // render, so that's the best we can do until we refactor that.
         await new Promise((resolve) => setTimeout(resolve))
-      }
 
-      if (process.env.NODE_ENV === 'development') {
         // Start a cache-fill timeout so a hanging `'use cache'` entry surfaces
         // the same error in dev as during prerender. Cleared when
         // pendingCacheResult settles.
