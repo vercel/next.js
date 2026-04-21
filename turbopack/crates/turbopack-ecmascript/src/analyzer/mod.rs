@@ -3492,9 +3492,11 @@ pub enum WellKnownFunctionKind {
     RequireFrom(Box<ConstantString>),
     RequireResolve,
     RequireContext,
-    RequireContextRequire(RequireContextValue),
-    RequireContextRequireKeys(RequireContextValue),
-    RequireContextRequireResolve(RequireContextValue),
+    // Boxed: `RequireContextValue` wraps a 56-byte `FxIndexMap`. Inlining it here dominates
+    // `WellKnownFunctionKind`'s size (64 bytes) and by extension `JsValue`.
+    RequireContextRequire(Box<RequireContextValue>),
+    RequireContextRequireKeys(Box<RequireContextValue>),
+    RequireContextRequireResolve(Box<RequireContextValue>),
     Define,
     FsReadMethod(Atom),
     FsReadDir,
@@ -3649,7 +3651,7 @@ pub mod test_utils {
                     );
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        RequireContextValue(map),
+                        Box::new(RequireContextValue(map)),
                     ))
                 }
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),

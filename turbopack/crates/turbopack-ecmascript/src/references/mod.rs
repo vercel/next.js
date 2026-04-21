@@ -3675,9 +3675,9 @@ async fn require_context_visitor(
     );
 
     Ok(JsValue::WellKnownFunction(
-        WellKnownFunctionKind::RequireContextRequire(
+        WellKnownFunctionKind::RequireContextRequire(Box::new(
             RequireContextValue::from_context_map(map).await?,
-        ),
+        )),
     ))
 }
 
