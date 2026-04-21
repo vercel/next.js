@@ -255,8 +255,6 @@ impl TraitMethod {
 
 pub struct TraitType {
     pub ty: RegistryType,
-    /// Method metadata in the same order as `method_names`. Index `i` corresponds to
-    /// `method_names[i]`.
     pub methods: &'static [TraitMethod],
     pub method_names: &'static [&'static str],
     pub default_methods: &'static [Option<&'static NativeFunction>],
@@ -295,8 +293,6 @@ impl TraitType {
         }
     }
 
-    /// Look up a method by name. `const` so callers can store the resulting reference in a
-    /// `static`/`const` item instead of a `LazyLock`.
     pub const fn get(&'static self, name: &'static str) -> &'static TraitMethod {
         &self.methods[index_of_name(self.method_names, name)]
     }
