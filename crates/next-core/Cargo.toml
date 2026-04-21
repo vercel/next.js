@@ -25,6 +25,7 @@ itertools = { workspace = true }
 lightningcss = { workspace = true }
 mime_guess = "2.0.4"
 percent-encoding = "2.3.1"
+phf = { workspace = true }
 qstring = { workspace = true }
 react_remove_properties = { workspace = true }
 regex = { workspace = true }

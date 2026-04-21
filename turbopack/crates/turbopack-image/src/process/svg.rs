@@ -4,24 +4,22 @@
 use std::sync::LazyLock;
 
 use anyhow::{Result, anyhow, bail};
+use phf::phf_map;
 use regex::Regex;
-use rustc_hash::FxHashMap;
 
 const INCH_CM: f64 = 2.54;
-static UNITS: LazyLock<FxHashMap<&str, f64>> = LazyLock::new(|| {
-    FxHashMap::from_iter([
-        ("in", 96.0),
-        ("cm", 96.0 / INCH_CM),
-        ("em", 16.0),
-        ("ex", 8.0),
-        ("m", 96.0 / INCH_CM * 100.0),
-        ("mm", 96.0 / INCH_CM / 10.0),
-        ("pc", 96.0 / 72.0 / 12.0),
-        ("pt", 96.0 / 72.0),
-        ("px", 1.0),
-        ("", 1.0),
-    ])
-});
+static UNITS: phf::Map<&'static str, f64> = phf_map! {
+    "in" => 96.0,
+    "cm" => 96.0 / INCH_CM,
+    "em" => 16.0,
+    "ex" => 8.0,
+    "m" => 96.0 / INCH_CM * 100.0,
+    "mm" => 96.0 / INCH_CM / 10.0,
+    "pc" => 96.0 / 72.0 / 12.0,
+    "pt" => 96.0 / 72.0,
+    "px" => 1.0,
+    "" => 1.0,
+};
 
 static UNIT_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^([0-9.]+(?:e-?\d+)?)((?:in|cm|em|ex|m|mm|pc|pt|px)?)$").unwrap()

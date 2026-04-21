@@ -32,8 +32,8 @@ image = { workspace = true, default-features = false, features = [
   "tga",
 ] }
 mime = { workspace = true }
+phf = { workspace = true }
 regex = { workspace = true }
-rustc-hash = { workspace = true }
 serde = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
