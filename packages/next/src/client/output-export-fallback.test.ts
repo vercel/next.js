@@ -16,8 +16,16 @@ describe('output export fallback helpers', () => {
 
   afterEach(() => {
     global.fetch = originalFetch
-    process.env.__NEXT_ROUTER_BASEPATH = originalBasePath
-    process.env.__NEXT_TRAILING_SLASH = originalTrailingSlash
+    if (originalBasePath === undefined) {
+      delete process.env.__NEXT_ROUTER_BASEPATH
+    } else {
+      process.env.__NEXT_ROUTER_BASEPATH = originalBasePath
+    }
+    if (originalTrailingSlash === undefined) {
+      delete process.env.__NEXT_TRAILING_SLASH
+    } else {
+      process.env.__NEXT_TRAILING_SLASH = originalTrailingSlash
+    }
     clearOutputExportFallbackManifestCache()
     jest.restoreAllMocks()
   })
