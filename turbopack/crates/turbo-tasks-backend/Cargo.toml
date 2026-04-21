@@ -44,7 +44,6 @@ either = { workspace = true }
 hashbrown = { workspace = true, features = ["raw"] }
 indexmap = { workspace = true }
 lzzzz = { workspace = true, optional = true }
-once_cell = { workspace = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
 ringmap = { workspace = true, features = ["serde"] }

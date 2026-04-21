@@ -1,7 +1,6 @@
-use std::mem::take;
+use std::{cell::LazyCell, mem::take};
 
 use bincode::{Decode, Encode};
-use once_cell::unsync::Lazy;
 use rustc_hash::FxHashSet;
 use smallvec::SmallVec;
 use turbo_tasks::{
@@ -131,7 +130,7 @@ impl UpdateCellOperation {
             #[cfg(feature = "trace_task_dirty")]
             let has_updated_key_hashes = updated_key_hashes.is_some();
             let updated_key_hashes_set = updated_key_hashes.map(|updated_key_hashes| {
-                Lazy::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
+                LazyCell::new(|| updated_key_hashes.into_iter().collect::<FxHashSet<u64>>())
             });
 
             // Collect dependent tasks only when not skipping invalidation.

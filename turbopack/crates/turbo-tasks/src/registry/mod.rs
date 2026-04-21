@@ -1,7 +1,6 @@
-use std::{cell::SyncUnsafeCell, num::NonZeroU16};
+use std::{cell::SyncUnsafeCell, num::NonZeroU16, sync::LazyLock};
 
 use anyhow::Error;
-use once_cell::sync::Lazy;
 
 use crate::{
     TraitType, ValueType,
@@ -134,16 +133,16 @@ fn init_registry<T: Registerable>(mut items: Vec<&'static T>) -> Box<[&'static T
 
 /// Get an item by its ID from a registry slice
 #[inline]
-fn get_item<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> &'static T {
+fn get_item<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, id: T::Id) -> &'static T {
     registry[*id as usize - 1]
 }
 
 /// Get the ID for a registered item. Forces registry init if needed, which
 /// assigns IDs to all items as a side effect.
 #[inline]
-fn get_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, item: &'static T) -> T::Id {
-    Lazy::force(registry);
-    // SAFETY: The ID write happens-before this read thanks to the fence inside of Lazy
+fn get_id<T: Registerable>(registry: &LazyLock<Box<[&'static T]>>, item: &'static T) -> T::Id {
+    LazyLock::force(registry);
+    // SAFETY: The ID write happens-before this read thanks to the fence inside of LazyLock
     let n = unsafe { std::ptr::read(item.ty().id.get()) };
     let Some(id) = NonZeroU16::new(n) else {
         panic!(
@@ -156,7 +155,10 @@ fn get_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, item: &'static T)
 }
 
 /// Validate that an ID is within the valid range
-fn validate_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -> Option<Error> {
+fn validate_id<T: Registerable>(
+    registry: &LazyLock<Box<[&'static T]>>,
+    id: T::Id,
+) -> Option<Error> {
     let len = registry.len();
     if *id as usize <= len {
         None
@@ -168,7 +170,7 @@ fn validate_id<T: Registerable>(registry: &Lazy<Box<[&'static T]>>, id: T::Id) -
     }
 }
 
-static FUNCTIONS: Lazy<Box<[&'static NativeFunction]>> = Lazy::new(|| {
+static FUNCTIONS: LazyLock<Box<[&'static NativeFunction]>> = LazyLock::new(|| {
     init_registry(
         inventory::iter::<&'static NativeFunction>
             .into_iter()
@@ -191,7 +193,7 @@ pub fn validate_function_id(id: FunctionId) -> Option<Error> {
     validate_id(&FUNCTIONS, id)
 }
 
-pub(crate) static VALUES: Lazy<Box<[&'static ValueType]>> = Lazy::new(|| {
+pub(crate) static VALUES: LazyLock<Box<[&'static ValueType]>> = LazyLock::new(|| {
     let items = init_registry(
         inventory::iter::<&'static ValueType>
             .into_iter()
@@ -222,7 +224,7 @@ pub(crate) fn trait_type_count() -> usize {
     TRAITS.len()
 }
 
-static TRAITS: Lazy<Box<[&'static TraitType]>> = Lazy::new(|| {
+static TRAITS: LazyLock<Box<[&'static TraitType]>> = LazyLock::new(|| {
     init_registry(
         inventory::iter::<&'static TraitType>
             .into_iter()

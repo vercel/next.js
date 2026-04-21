@@ -1,10 +1,10 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
+use std::sync::LazyLock;
+
 pub use async_trait::async_trait;
 pub use bincode;
 pub use inventory;
-pub use once_cell::sync::{Lazy, OnceCell};
-pub use phf;
 use rustc_hash::FxHashMap;
 pub use shrink_to_fit;
 pub use tracing;
@@ -27,7 +27,7 @@ pub use crate::{
     registry::RegistryDef,
     task::function::{into_task_fn, into_task_fn_with_this},
     turbo_register,
-    value_type::{TraitVtablePrototype, build_trait_vtable},
+    value_type::{TraitVtablePrototype, build_trait_vtable, index_of_method_name},
 };
 
 #[cfg(debug_assertions)]
@@ -209,18 +209,19 @@ unsafe impl Sync for RawPtr {}
 unsafe impl Send for RawPtr {}
 
 // Accumulate all trait impls by trait id
-static TRAIT_CAST_FNS: Lazy<FxDashMap<TraitTypeId, Vec<(ValueTypeId, RawPtr)>>> = Lazy::new(|| {
-    let map: FxDashMap<TraitTypeId, Vec<(ValueTypeId, RawPtr)>> = FxDashMap::default();
-    for CollectableTraitCastFunctions(trait_id_fn, value_id_fn, cast_fn) in
-        inventory::iter::<CollectableTraitCastFunctions>
-    {
-        map.entry(trait_id_fn())
-            .or_default()
-            .value_mut()
-            .push((value_id_fn(), RawPtr(*cast_fn)));
-    }
-    map
-});
+static TRAIT_CAST_FNS: LazyLock<FxDashMap<TraitTypeId, Vec<(ValueTypeId, RawPtr)>>> =
+    LazyLock::new(|| {
+        let map: FxDashMap<TraitTypeId, Vec<(ValueTypeId, RawPtr)>> = FxDashMap::default();
+        for CollectableTraitCastFunctions(trait_id_fn, value_id_fn, cast_fn) in
+            inventory::iter::<CollectableTraitCastFunctions>
+        {
+            map.entry(trait_id_fn())
+                .or_default()
+                .value_mut()
+                .push((value_id_fn(), RawPtr(*cast_fn)));
+        }
+        map
+    });
 
 // Holds a raw pointer to a function that can perform a fat pointer cast
 pub struct CollectableTraitCastFunctions(
