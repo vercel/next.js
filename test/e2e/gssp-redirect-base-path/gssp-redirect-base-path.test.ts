@@ -315,9 +315,11 @@ describe('GS(S)P Redirect with basePath', () => {
       window.history.back()
     })()`)
 
-    const curUrl = await browser.url()
-    const { pathname, search } = new URL(curUrl)
-    expect(pathname + search).toEqual(`${basePath}`)
+    await retry(async () => {
+      const curUrl = await browser.url()
+      const { pathname, search } = new URL(curUrl)
+      expect(pathname + search).toEqual(`${basePath}`)
+    })
   })
 
   it('should not replace history of the origin page when GSSP page is navigated to client-side (external)', async () => {
@@ -339,9 +341,11 @@ describe('GS(S)P Redirect with basePath', () => {
       window.history.back()
     })()`)
 
-    const curUrl = await browser.url()
-    const { pathname, search } = new URL(curUrl)
-    expect(pathname + search).toEqual(`${basePath}`)
+    await retry(async () => {
+      const curUrl = await browser.url()
+      const { pathname, search } = new URL(curUrl)
+      expect(pathname + search).toEqual(`${basePath}`)
+    })
   })
 
   it('should not replace history of the origin page when GSP page is navigated to client-side (internal)', async () => {
@@ -363,9 +367,11 @@ describe('GS(S)P Redirect with basePath', () => {
       window.history.back()
     })()`)
 
-    const curUrl = await browser.url()
-    const { pathname, search } = new URL(curUrl)
-    expect(pathname + search).toEqual(`${basePath}`)
+    await retry(async () => {
+      const curUrl = await browser.url()
+      const { pathname, search } = new URL(curUrl)
+      expect(pathname + search).toEqual(`${basePath}`)
+    })
   })
 
   it('should not replace history of the origin page when GSP page is navigated to client-side (external)', async () => {
@@ -387,9 +393,11 @@ describe('GS(S)P Redirect with basePath', () => {
       window.history.back()
     })()`)
 
-    const curUrl = await browser.url()
-    const { pathname, search } = new URL(curUrl)
-    expect(pathname + search).toEqual(`${basePath}`)
+    await retry(async () => {
+      const curUrl = await browser.url()
+      const { pathname, search } = new URL(curUrl)
+      expect(pathname + search).toEqual(`${basePath}`)
+    })
   })
 
   if (isNextStart) {

@@ -1,6 +1,9 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
-describe('FileSystemPublicRoutes', () => {
+// `exportPathMap` + `useFileSystemPublicRoutes: false` is a dev-only routing
+// behavior; the custom server runs `next({ dev: true })` so production mode is
+// not exercised by the original integration test.
+;(isNextDev ? describe : describe.skip)('FileSystemPublicRoutes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.js',

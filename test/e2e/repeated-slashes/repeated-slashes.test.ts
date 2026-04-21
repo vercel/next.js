@@ -48,13 +48,22 @@ function runTests({
     }
   }
 
+  // Always resolve to a numeric port. We cannot use `next.fetch(...)` for
+  // URLs that start with `//` or contain `\\` because `next.fetch` internally
+  // runs them through `new URL(path, baseUrl)`, which normalizes them as
+  // protocol-relative URLs (e.g. `//google.com` becomes `http://google.com/`).
+  // `fetchViaHTTP` with a numeric port concatenates the path onto the origin
+  // verbatim, preserving the repeated-slash/backslash behavior under test.
+  const resolvePort = () => (getPort ? getPort() : Number(next.appPort))
+
   if (!isExport) {
     it('should normalize repeated slashes in redirects correctly', async () => {
-      const res = await (getPort
-        ? fetchViaHTTP(getPort(), '/redirect-forward-slashes', undefined, {
-            redirect: 'manual',
-          })
-        : next.fetch('/redirect-forward-slashes', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(
+        resolvePort(),
+        '/redirect-forward-slashes',
+        undefined,
+        { redirect: 'manual' }
+      )
 
       expect(res.status).toBe(307)
       const parsedUrl = new URL(res.headers.get('location'))
@@ -64,11 +73,12 @@ function runTests({
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
       expect(await res.text()).toBe('/test/google.com')
 
-      const res2 = await (getPort
-        ? fetchViaHTTP(getPort(), '/redirect-back-slashes', undefined, {
-            redirect: 'manual',
-          })
-        : next.fetch('/redirect-back-slashes', { redirect: 'manual' }))
+      const res2 = await fetchViaHTTP(
+        resolvePort(),
+        '/redirect-back-slashes',
+        undefined,
+        { redirect: 'manual' }
+      )
 
       expect(res2.status).toBe(307)
       const parsedUrl2 = new URL(res2.headers.get('location'))
@@ -81,13 +91,11 @@ function runTests({
   }
 
   it('should handle double slashes correctly', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(port, '//google.com', undefined, {
-            redirect: 'manual',
-          })
-        : next.fetch('//google.com', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(port, '//google.com', undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(308)
 
       const parsedUrl = new URL(res.headers.get('location'))
@@ -96,9 +104,7 @@ function runTests({
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
-    const browser = port
-      ? await webdriver(port, '//google.com')
-      : await next.browser('//google.com')
+    const browser = await webdriver(port, '//google.com')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -111,11 +117,14 @@ function runTests({
   })
 
   it('should handle double slashes correctly with query', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(port, '//google.com', { h: '1' }, { redirect: 'manual' })
-        : next.fetch('//google.com?h=1', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(
+        port,
+        '//google.com',
+        { h: '1' },
+        { redirect: 'manual' }
+      )
       expect(res.status).toBe(308)
       const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe('/google.com')
@@ -125,9 +134,7 @@ function runTests({
       })
     }
 
-    const browser = port
-      ? await webdriver(port, '//google.com?h=1')
-      : await next.browser('//google.com?h=1')
+    const browser = await webdriver(port, '//google.com?h=1')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -140,11 +147,11 @@ function runTests({
   })
 
   it('should handle double slashes correctly with hash', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(port, '//google.com', undefined, { redirect: 'manual' })
-        : next.fetch('//google.com', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(port, '//google.com', undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(308)
       const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe('/google.com')
@@ -152,9 +159,7 @@ function runTests({
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
-    const browser = port
-      ? await webdriver(port, '//google.com#hello')
-      : await next.browser('//google.com#hello')
+    const browser = await webdriver(port, '//google.com#hello')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -167,20 +172,16 @@ function runTests({
   })
 
   it('should handle double slashes correctly with encoded', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(port, '/%2Fgoogle.com', undefined, {
-            redirect: 'manual',
-          })
-        : next.fetch('/%2Fgoogle.com', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(port, '/%2Fgoogle.com', undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(404)
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = port
-      ? await webdriver(port, '/%2Fgoogle.com')
-      : await next.browser('/%2Fgoogle.com')
+    const browser = await webdriver(port, '/%2Fgoogle.com')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -191,23 +192,19 @@ function runTests({
   })
 
   it('should handle double slashes correctly with encoded and query', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(
-            port,
-            '/%2Fgoogle.com',
-            { hello: '1' },
-            { redirect: 'manual' }
-          )
-        : next.fetch('/%2Fgoogle.com?hello=1', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(
+        port,
+        '/%2Fgoogle.com',
+        { hello: '1' },
+        { redirect: 'manual' }
+      )
       expect(res.status).toBe(404)
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = port
-      ? await webdriver(port, '/%2Fgoogle.com?hello=1')
-      : await next.browser('/%2Fgoogle.com?hello=1')
+    const browser = await webdriver(port, '/%2Fgoogle.com?hello=1')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -219,20 +216,16 @@ function runTests({
   })
 
   it('should handle double slashes correctly with encoded and hash', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(port, '/%2Fgoogle.com', undefined, {
-            redirect: 'manual',
-          })
-        : next.fetch('/%2Fgoogle.com', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(port, '/%2Fgoogle.com', undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(404)
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = port
-      ? await webdriver(port, '/%2Fgoogle.com#hello')
-      : await next.browser('/%2Fgoogle.com#hello')
+    const browser = await webdriver(port, '/%2Fgoogle.com#hello')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -244,13 +237,11 @@ function runTests({
   })
 
   it('should handle backslashes correctly', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(port, '/\\google.com', undefined, {
-            redirect: 'manual',
-          })
-        : next.fetch('/\\google.com', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(port, '/\\google.com', undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(308)
       const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe('/google.com')
@@ -259,9 +250,7 @@ function runTests({
       expect(await res.text()).toBe('/google.com')
     }
 
-    const browser = port
-      ? await webdriver(port, '/\\google.com')
-      : await next.browser('/\\google.com')
+    const browser = await webdriver(port, '/\\google.com')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -274,13 +263,11 @@ function runTests({
   })
 
   it('should handle mixed backslashes/forward slashes correctly', async () => {
-    const port = getPort ? getPort() : undefined
+    const port = resolvePort()
     if (!isExport) {
-      const res = await (port
-        ? fetchViaHTTP(port, '/\\/google.com', undefined, {
-            redirect: 'manual',
-          })
-        : next.fetch('/\\/google.com', { redirect: 'manual' }))
+      const res = await fetchViaHTTP(port, '/\\/google.com', undefined, {
+        redirect: 'manual',
+      })
       expect(res.status).toBe(308)
       const parsedUrl = new URL(res.headers.get('location'))
       expect(parsedUrl.pathname).toBe(isExport ? '//google.com' : '/google.com')
@@ -289,9 +276,7 @@ function runTests({
       expect(await res.text()).toBe('/google.com')
     }
 
-    const browser = port
-      ? await webdriver(port, '/\\/google.com#hello')
-      : await next.browser('/\\/google.com#hello')
+    const browser = await webdriver(port, '/\\/google.com#hello')
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '///google.com' : '/google.com'
@@ -304,10 +289,8 @@ function runTests({
   })
 
   it('should handle slashes in next/link correctly', async () => {
-    const port = getPort ? getPort() : undefined
-    const browser = port
-      ? await webdriver(port, `/invalid${isExport ? '.html' : ''}`)
-      : await next.browser(`/invalid${isExport ? '.html' : ''}`)
+    const port = resolvePort()
+    const browser = await webdriver(port, `/invalid${isExport ? '.html' : ''}`)
     const invalidHrefs = [
       '//google.com',
       '//google.com?hello=1',
@@ -355,10 +338,7 @@ function runTests({
         hash: '#hello',
       },
     ]) {
-      const port = getPort ? getPort() : undefined
-      const browser = port
-        ? await webdriver(port, '/')
-        : await next.browser('/')
+      const browser = await webdriver(resolvePort(), '/')
       await browser.eval(
         `window.next.router.push("${item.href}"${
           item.as ? `, "${item.as}"` : ''
@@ -402,10 +382,7 @@ function runTests({
         hash: '#hello',
       },
     ]) {
-      const port = getPort ? getPort() : undefined
-      const browser = port
-        ? await webdriver(port, '/')
-        : await next.browser('/')
+      const browser = await webdriver(resolvePort(), '/')
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${

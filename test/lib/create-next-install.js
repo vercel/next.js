@@ -156,12 +156,24 @@ async function createNextInstall({
         ...packageJson.scripts,
       }
 
+      // Pin the same pnpm version the repo uses so corepack resolves a
+      // consistent pnpm across isolated test dirs. Without this, `pnpm` may
+      // fall back to whatever version is installed at the system level, which
+      // can disagree with the repo's `packageManager` field and cause mismatch
+      // errors (e.g. pnpm-workspace.yaml written for v10 parsed by v9).
+      const rootPackageManager = require(
+        path.join(__dirname, '../../package.json')
+      ).packageManager
+      const packageManagerField =
+        packageJson.packageManager || rootPackageManager
+
       await fs.ensureDir(installDir)
       await fs.writeFile(
         path.join(installDir, 'package.json'),
         JSON.stringify(
           {
             ...packageJson,
+            ...(packageManagerField && { packageManager: packageManagerField }),
             scripts,
             dependencies: combinedDependencies,
             private: true,

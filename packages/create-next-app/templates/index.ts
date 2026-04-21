@@ -1,7 +1,10 @@
 import { install } from "../helpers/install";
 import { runTypegen } from "../helpers/typegen";
 import { copy } from "../helpers/copy";
-import { getPnpmMajorVersion } from "../helpers/get-pkg-manager";
+import {
+  getPackageManagerVersion,
+  getPnpmMajorVersion,
+} from "../helpers/get-pkg-manager";
 
 import { async as glob } from "fast-glob";
 import os from "os";
@@ -343,6 +346,19 @@ export const installTemplate = async ({
         path.join(root, "pnpm-workspace.yaml"),
         pnpmWorkspaceYaml,
       );
+    }
+  }
+
+  // Pin the package manager version via corepack so the project always uses the
+  // same version the project was created with. This avoids subtle differences
+  // between the pnpm/yarn/bun version on a contributor's PATH and the one used
+  // to scaffold the project (e.g. a pnpm-workspace.yaml written for pnpm v10+
+  // but installed with pnpm v9 on PATH).
+  // See: https://nodejs.org/api/packages.html#packagemanager
+  if (packageManager !== "npm") {
+    const packageManagerVersion = getPackageManagerVersion(packageManager);
+    if (packageManagerVersion) {
+      packageJson.packageManager = `${packageManager}@${packageManagerVersion}`;
     }
   }
 

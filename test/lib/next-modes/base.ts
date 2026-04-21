@@ -272,12 +272,25 @@ export class NextInstance {
 
         if (skipInstall || skipIsolatedNext) {
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
+          // Pin the same pnpm version the repo uses so corepack resolves a
+          // consistent pnpm across isolated test dirs. Mirrors the logic in
+          // `create-next-install.js` so skipInstall / skipIsolatedNext test
+          // dirs behave the same as regular ones.
+          const rootPackageManager = require(
+            path.join(__dirname, '../../../package.json')
+          ).packageManager
+          const packageManagerField =
+            (this.packageJson as { packageManager?: string }).packageManager ||
+            rootPackageManager
           await fs.mkdir(this.testDir, { recursive: true })
           await fs.writeFile(
             path.join(this.testDir, 'package.json'),
             JSON.stringify(
               {
                 ...this.packageJson,
+                ...(packageManagerField && {
+                  packageManager: packageManagerField,
+                }),
                 dependencies: {
                   ...finalDependencies,
                   next:

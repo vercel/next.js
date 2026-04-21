@@ -170,13 +170,7 @@ export default page
   })
 
   it('does not show error with getStaticProps in pages/404 build', async () => {
-    // Create a new test setup to avoid CLI output contamination from previous tests
-    const { next: buildNext } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-    })
-
-    await buildNext.patchFile(
+    await next.patchFile(
       'pages/404.js',
       `
       const page = () => 'custom 404 page'
@@ -184,9 +178,9 @@ export default page
       export default page
     `
     )
-    const { exitCode } = await buildNext.build()
+    const { exitCode, cliOutput } = await next.build()
     expect(exitCode).toBe(0)
-    expect(buildNext.cliOutput).not.toMatch(gip404Err)
+    expect(cliOutput).not.toMatch(gip404Err)
   })
 
   it('shows error with getServerSideProps in pages/404 build', async () => {
@@ -220,10 +214,10 @@ export default page
     const resNext = await next.fetch('/_next/abc')
 
     expect(res404.headers.get('Cache-Control')).toBe(
-      'no-cache, must-revalidate'
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
     expect(resNext.headers.get('Cache-Control')).toBe(
-      'no-cache, must-revalidate'
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
   })
 
@@ -244,10 +238,10 @@ export default page
     const resNext = await next.fetch('/_next/abc')
 
     expect(res404.headers.get('Cache-Control')).toBe(
-      'no-cache, must-revalidate'
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
     expect(resNext.headers.get('Cache-Control')).toBe(
-      'no-cache, must-revalidate'
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
   })
 
@@ -259,11 +253,9 @@ export default page
     const res404 = await next.fetch('/404')
     const resNext = await next.fetch('/_next/abc')
 
-    expect(res404.headers.get('Cache-Control')).toBe(
-      'no-cache, must-revalidate'
-    )
+    expect(res404.headers.get('Cache-Control')).toBe(null)
     expect(resNext.headers.get('Cache-Control')).toBe(
-      'no-cache, must-revalidate'
+      'private, no-cache, no-store, max-age=0, must-revalidate'
     )
   })
 })

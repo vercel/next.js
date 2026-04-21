@@ -6,6 +6,7 @@ describe('Dynamic Routing with Middleware', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: join(__dirname, '../dynamic-routing'),
     skipStart: true,
+    disableAutoSkewProtection: true,
   })
 
   beforeAll(async () => {

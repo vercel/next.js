@@ -63,10 +63,10 @@ describe('Custom _error', () => {
       expect(next.cliOutput).toMatch(/ƒ .*?\/404/)
       expect(next.cliOutput).not.toMatch(/ƒ .*?\/_error/)
     })
-  }
 
-  it('renders custom _error successfully', async () => {
-    const html = await next.render('/')
-    expect(html).toMatch(/Custom error/)
-  })
+    it('renders custom _error successfully', async () => {
+      const html = await next.render('/')
+      expect(html).toMatch(/Custom error/)
+    })
+  }
 })

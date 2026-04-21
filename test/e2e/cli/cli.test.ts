@@ -1170,58 +1170,62 @@ describe('CLI Usage: duplicate sass dependencies', () => {
   const { next, isNextStart } = nextTestSetup({
     files: join(__dirname, 'duplicate-sass'),
     skipStart: true,
-    dependencies: {
-      ...reactDependencies,
-      sass: 'latest',
-      'node-sass': 'latest',
-    },
+    dependencies: reactDependencies,
   })
 
-  ;(isNextStart ? test : test.skip)(
-    'duplicate sass deps',
-    async () => {
-      const port = await findPort()
-
-      require('console').log(
-        'testDir package.json:',
-        await next.readFile('package.json').catch((err: Error) => err.message)
+  // The original integration test relied on pre-existing fake `sass` and
+  // `node-sass` modules in `duplicate-sass/node_modules/`. In e2e mode the
+  // isolated `pnpm install` moves any pre-existing `node_modules` to
+  // `.ignored`, so we recreate the fake modules and reference them in
+  // `package.json` after install, before running `next dev`.
+  beforeAll(async () => {
+    if (!isNextStart) return
+    const pkg = await next.readJSON('package.json')
+    pkg.dependencies = {
+      ...pkg.dependencies,
+      sass: '1.0.0',
+      'node-sass': '1.0.0',
+    }
+    await next.patchFile('package.json', JSON.stringify(pkg, null, 2))
+    for (const name of ['sass', 'node-sass']) {
+      await next.patchFile(
+        `node_modules/${name}/package.json`,
+        JSON.stringify({ name, version: '1.0.0' })
       )
+      await next.patchFile(
+        `node_modules/${name}/index.js`,
+        'module.exports = {}\n'
+      )
+    }
+  })
+  ;(isNextStart ? test : test.skip)('duplicate sass deps', async () => {
+    const port = await findPort()
 
-      let output = ''
-      let child: ChildProcess | undefined
-      const exit = next
-        .runCommand(['dev', next.testDir, '-p', String(port)], {
-          onStdout(msg) {
-            output += msg
-          },
-          onStderr(msg) {
-            output += msg
-          },
-          instance: (p) => {
-            child = p
-          },
-        })
-        .catch(() => {})
+    let output = ''
+    let child: ChildProcess | undefined
+    const exit = next
+      .runCommand(['dev', next.testDir, '-p', String(port)], {
+        onStdout(msg) {
+          output += msg
+        },
+        onStderr(msg) {
+          output += msg
+        },
+        instance: (p) => {
+          child = p
+        },
+      })
+      .catch(() => {})
 
-      try {
-        await retry(
-          () => {
-            if (!/both `sass` and `node-sass` installed/.test(output)) {
-              throw new Error(
-                `warning not found yet. current output:\n${output}`
-              )
-            }
-          },
-          90_000,
-          1000
-        )
-      } finally {
-        if (child) {
-          await killApp(child).catch(() => {})
-        }
-        await exit
+    try {
+      await retry(() => {
+        expect(output).toMatch(/both `sass` and `node-sass` installed/)
+      })
+    } finally {
+      if (child) {
+        await killApp(child).catch(() => {})
       }
-    },
-    120_000
-  )
+      await exit
+    }
+  })
 })

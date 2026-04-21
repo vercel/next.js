@@ -131,14 +131,19 @@ describe('Non-Standard NODE_ENV', () => {
       const { next } = nextTestSetup({
         files: __dirname,
         skipStart: true,
-        env: { NODE_ENV: 'development' },
       })
 
       it('should show the warning with NODE_ENV set to development with next start', async () => {
+        // Build without NODE_ENV=development. Matches the original integration
+        // test, which only sets NODE_ENV=development for `next start` (not
+        // `next build`). Building with NODE_ENV=development additionally
+        // triggers unrelated turbopack production-build issues.
         await next.build()
-        const start = next.cliOutput.length
-        await next.start()
-        expect(next.cliOutput.slice(start)).toContain(warningText)
+        next.env.NODE_ENV = 'development'
+        // `next.start()` resets `cliOutput` to '' so we do not need to slice
+        // from a pre-start index.
+        await next.start({ skipBuild: true })
+        expect(next.cliOutput).toContain(warningText)
       })
     })
   })

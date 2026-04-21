@@ -120,8 +120,8 @@ describe('tsconfig.json verifier', () => {
     await new Promise((resolve) => setTimeout(resolve, 500))
     expect(await next.readFile('tsconfig.json')).toBe('')
 
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('moduleResolution')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
 
     if (strictRouteTypes) {
@@ -334,101 +334,11 @@ describe('tsconfig.json verifier', () => {
     }
   })
 
-  it('allows you to set commonjs module mode', async () => {
-    expect(await next.hasFile('tsconfig.json')).toBe(false)
-
-    await next.patchFile(
-      'tsconfig.json',
-      `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
-    )
-    await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(exitCode).toBe(0)
-
-    if (strictRouteTypes) {
-      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
-         "{
-           "compilerOptions": {
-             "esModuleInterop": true,
-             "module": "commonjs",
-             "target": "ES2017",
-             "lib": [
-               "dom",
-               "dom.iterable",
-               "esnext"
-             ],
-             "allowJs": true,
-             "skipLibCheck": true,
-             "strict": false,
-             "noEmit": true,
-             "incremental": true,
-             "moduleResolution": "node",
-             "resolveJsonModule": true,
-             "isolatedModules": true,
-             "jsx": "react-jsx",
-             "plugins": [
-               {
-                 "name": "next"
-               }
-             ],
-             "strictNullChecks": true
-           },
-           "include": [
-             "next-env.d.ts",
-             "**/*.mts",
-             "**/*.ts",
-             "**/*.tsx"
-           ],
-           "exclude": [
-             "node_modules"
-           ]
-         }
-         "
-        `)
-    } else {
-      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
-         "{
-           "compilerOptions": {
-             "esModuleInterop": true,
-             "module": "commonjs",
-             "target": "ES2017",
-             "lib": [
-               "dom",
-               "dom.iterable",
-               "esnext"
-             ],
-             "allowJs": true,
-             "skipLibCheck": true,
-             "strict": false,
-             "noEmit": true,
-             "incremental": true,
-             "moduleResolution": "node",
-             "resolveJsonModule": true,
-             "isolatedModules": true,
-             "jsx": "react-jsx",
-             "plugins": [
-               {
-                 "name": "next"
-               }
-             ],
-             "strictNullChecks": true
-           },
-           "include": [
-             "next-env.d.ts",
-             ".next/types/**/*.ts",
-             ".next/dev/types/**/*.ts",
-             "**/*.mts",
-             "**/*.ts",
-             "**/*.tsx"
-           ],
-           "exclude": [
-             "node_modules"
-           ]
-         }
-         "
-        `)
-    }
-  })
+  // `module: commonjs` forces `moduleResolution: node`, which TypeScript 6
+  // deprecates (TS5107). The commonjs case is tested in a separate describe
+  // block below that pins TypeScript 5.9 until we stop emitting the deprecated
+  // resolution. See the `tsconfig.json verifier 5.x` block at the end of this
+  // file.
 
   it('allows you to set es2020 module mode', async () => {
     expect(await next.hasFile('tsconfig.json')).toBe(false)
@@ -534,8 +444,8 @@ describe('tsconfig.json verifier', () => {
       `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "node16", "module": "node16" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('moduleResolution')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
 
     if (strictRouteTypes) {
@@ -631,8 +541,8 @@ describe('tsconfig.json verifier', () => {
       `{ "compilerOptions": { "esModuleInterop": false, "moduleResolution": "bundler" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('moduleResolution')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
 
     if (strictRouteTypes) {
@@ -728,8 +638,8 @@ describe('tsconfig.json verifier', () => {
       `{ "compilerOptions": { "target": "es2022" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('target')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('target')
     expect(exitCode).toBe(0)
 
     if (strictRouteTypes) {
@@ -825,8 +735,8 @@ describe('tsconfig.json verifier', () => {
       `{ "compilerOptions": { "esModuleInterop": false, "module": "node16", "moduleResolution": "node16" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('moduleResolution')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
 
     if (strictRouteTypes) {
@@ -922,8 +832,8 @@ describe('tsconfig.json verifier', () => {
       `{ "compilerOptions": { "verbatimModuleSyntax": true } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('isolatedModules')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('isolatedModules')
     expect(exitCode).toBe(0)
 
     if (strictRouteTypes) {
@@ -1060,8 +970,8 @@ describe('tsconfig.json verifier', () => {
       `{ "extends": "./tsconfig.base.json" }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('isolatedModules')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('isolatedModules')
     expect(exitCode).toBe(0)
 
     expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(
@@ -1123,8 +1033,8 @@ describe('tsconfig.json verifier', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('moduleResolution')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
 
     expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(
@@ -1185,8 +1095,8 @@ describe('tsconfig.json verifier', () => {
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
 
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('moduleResolution')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('moduleResolution')
     expect(exitCode).toBe(0)
 
     expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(
@@ -1203,16 +1113,140 @@ describe('tsconfig.json verifier', () => {
       `{ "compilerOptions": { "module": "preserve" } }`
     )
     await new Promise((resolve) => setTimeout(resolve, 500))
-    const { exitCode } = await next.build()
-    expect(next.cliOutput).not.toContain('moduleResolution')
-    expect(next.cliOutput).not.toContain('esModuleInterop')
-    expect(next.cliOutput).not.toContain('resolveJsonModule')
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('moduleResolution')
+    expect(cliOutput).not.toContain('esModuleInterop')
+    expect(cliOutput).not.toContain('resolveJsonModule')
     expect(exitCode).toBe(0)
 
     if (strictRouteTypes) {
       expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot()
     } else {
       expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot()
+    }
+  })
+})
+
+// `module: commonjs` forces Next.js to emit `moduleResolution: node`, which
+// TypeScript 6 deprecates (TS5107). Pin TypeScript 5.9 for this case until we
+// stop emitting the deprecated resolution.
+describe('tsconfig.json verifier 5.x', () => {
+  const { next, isNextStart } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    dependencies: {
+      typescript: '5.9.3',
+    },
+  })
+
+  if (!isNextStart) {
+    it('skipped for non-start mode', () => {})
+    return
+  }
+
+  beforeEach(async () => {
+    await next.deleteFile('tsconfig.json')
+    await next.deleteFile('tsconfig.base.json')
+  })
+
+  afterEach(async () => {
+    await next.deleteFile('tsconfig.json')
+    await next.deleteFile('tsconfig.base.json')
+  })
+
+  it('allows you to set commonjs module mode', async () => {
+    expect(await next.hasFile('tsconfig.json')).toBe(false)
+
+    await next.patchFile(
+      'tsconfig.json',
+      `{ "compilerOptions": { "esModuleInterop": false, "module": "commonjs" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { exitCode } = await next.build()
+    expect(exitCode).toBe(0)
+
+    if (strictRouteTypes) {
+      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+    } else {
+      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "commonjs",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "moduleResolution": "node",
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
     }
   })
 })
