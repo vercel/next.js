@@ -1178,12 +1178,7 @@ export async function handler(
                 !exposeTestingApi &&
                 // Instant Navigation Testing API requests intentionally keep
                 // the route in shell mode; don't upgrade these in background.
-                !isInstantNavigationTest &&
-                // Avoid background revalidate during prefetches; this can
-                // trigger unexpected RSC requests that break optimistic
-                // rewrite detection and surface fallback upgrade errors to
-                // the prefetch itself.
-                !isPrefetchRSCRequest
+                !isInstantNavigationTest
               ) {
                 scheduleOnNextTick(async () => {
                   const responseCache = routeModule.getResponseCache(req)

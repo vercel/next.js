@@ -350,16 +350,15 @@ describe('optimistic-routing', () => {
     await browser.back()
     await browser.elementById('rendered-route-history')
 
-    // Step 3: Navigate to /rewritten/second.
-    // This link has prefetch={false}. Even though we've "learned" the route
-    // from step 1, the route should be marked as having a dynamic rewrite,
-    // so we should NOT use the cached pattern.
-    await act(async () => {
-      const revealSecond = await browser.elementByCss(
-        'input[data-link-accordion="/rewritten/second"]'
-      )
-      await revealSecond.click()
-    }, 'no-requests') // Assert: prefetch={false} means no requests on reveal
+    // Step 3: Reveal /rewritten/second.
+    // This link still has prefetch={false}, but background fallback-shell
+    // upgrades from the first rewritten route are allowed to issue router
+    // requests. The important assertion here is that we do not reuse the
+    // previously learned route pattern when we actually navigate.
+    const revealSecond = await browser.elementByCss(
+      'input[data-link-accordion="/rewritten/second"]'
+    )
+    await revealSecond.click()
 
     const linkSecond = await browser.elementByCss('a[href="/rewritten/second"]')
     await act(async () => {
