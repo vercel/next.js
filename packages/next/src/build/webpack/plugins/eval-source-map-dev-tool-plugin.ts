@@ -15,6 +15,7 @@ import {
   SourceMapDevToolModuleOptionsPlugin,
 } from 'next/dist/compiled/webpack/webpack'
 import type { RawSourceMap } from 'next/dist/compiled/source-map'
+import * as path from 'path'
 
 const cache = new WeakMap<webpack.sources.Source, webpack.sources.Source>()
 
@@ -154,11 +155,38 @@ export default class EvalSourceMapDevToolPlugin {
             sourceMap = { ...sourceMap }
             const context = compiler.options.context!
             const root = compiler.root
+
+            // Relative `sources` entries in a source map resolve against the
+            // map's own URL per the source-map spec
+            // (https://tc39.es/source-map/#resolving-sources). Recover the
+            // map's location from the module's `//# sourceMappingURL=`
+            // trailer. For `ConcatenatedModule` we use `rootModule.resource`
+            // as the base for all constituent sources; that's a heuristic
+            // and can be wrong for non-root sources, but failed lookups fall
+            // back to the `compilation.findModule` path below.
+            const ownerModule =
+              m instanceof NormalModule
+                ? m
+                : m instanceof ConcatenatedModule &&
+                    m.rootModule instanceof NormalModule
+                  ? m.rootModule
+                  : null
+            const mapBase = ownerModule
+              ? getSourceMapBase(
+                  ownerModule.resource,
+                  typeof content === 'string' ? content : content.toString()
+                )
+              : null
+            // Fall back to the compilation context when we can't derive a map
+            // location (no `sourceMappingURL`, virtual/non-NormalModule
+            // source).
+            const base = mapBase ?? context
+
             const modules = sourceMap.sources.map((sourceMapSource) => {
               if (!sourceMapSource.startsWith('webpack://'))
                 return sourceMapSource
               sourceMapSource = makePathsAbsolute(
-                context,
+                base,
                 sourceMapSource.slice(10),
                 root
               )
@@ -298,4 +326,25 @@ export default class EvalSourceMapDevToolPlugin {
       }
     )
   }
+}
+
+/**
+ * Parses `//# sourceMappingURL=` from a module's source and returns the
+ * directory the map lives in. For inline `data:` maps the map's "location" is
+ * the module source itself. Returns `null` if there's no trailer so callers
+ * can fall back.
+ */
+function getSourceMapBase(
+  moduleResource: string,
+  moduleSource: string
+): string | null {
+  const match = /\/\/# sourceMappingURL=(\S+)\s*$/m.exec(moduleSource)
+  if (!match) {
+    return null
+  }
+  const url = match[1]
+  if (url.startsWith('data:')) {
+    return path.dirname(moduleResource)
+  }
+  return path.dirname(path.resolve(path.dirname(moduleResource), url))
 }
