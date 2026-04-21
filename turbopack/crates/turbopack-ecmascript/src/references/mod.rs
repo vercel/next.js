@@ -625,6 +625,7 @@ async fn analyze_ecmascript_module_internal(
         comments,
         source_map,
         source_mapping_url,
+        program_source: _,
     } = &*parsed
     else {
         return analysis.build(Default::default(), false).await;
