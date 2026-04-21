@@ -404,7 +404,7 @@ fn require(args: Vec<JsValue>) -> JsValue {
 }
 
 /// (try to) statically evaluate `require.context(...)()`
-fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
+fn require_context_require(val: Box<RequireContextValue>, args: Vec<JsValue>) -> Result<JsValue> {
     if args.is_empty() {
         return Ok(JsValue::unknown(
             JsValue::call(
@@ -452,7 +452,10 @@ fn require_context_require(val: RequireContextValue, args: Vec<JsValue>) -> Resu
 }
 
 /// (try to) statically evaluate `require.context(...).keys()`
-fn require_context_require_keys(val: RequireContextValue, args: Vec<JsValue>) -> Result<JsValue> {
+fn require_context_require_keys(
+    val: Box<RequireContextValue>,
+    args: Vec<JsValue>,
+) -> Result<JsValue> {
     Ok(if args.is_empty() {
         JsValue::array(val.0.keys().cloned().map(|k| k.into()).collect())
     } else {
@@ -471,7 +474,7 @@ fn require_context_require_keys(val: RequireContextValue, args: Vec<JsValue>) ->
 
 /// (try to) statically evaluate `require.context(...).resolve()`
 fn require_context_require_resolve(
-    val: RequireContextValue,
+    val: Box<RequireContextValue>,
     args: Vec<JsValue>,
 ) -> Result<JsValue> {
     if args.len() != 1 {
