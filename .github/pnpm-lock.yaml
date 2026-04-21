@@ -77,9 +77,6 @@ importers:
       ai:
         specifier: ^3.4.14
         version: 3.4.33(react@19.0.0)(sswr@2.2.0(svelte@5.46.1))(svelte@5.46.1)(vue@3.5.26(typescript@5.7.2))(zod@3.25.76)
-      minimatch:
-        specifier: ^9.0.9
-        version: 9.0.9
       slack-block-builder:
         specifier: ^2.8.0
         version: 2.8.0
@@ -133,6 +130,22 @@ importers:
       typescript:
         specifier: 5.1.6
         version: 5.1.6
+
+  actions/pr-auto-label:
+    dependencies:
+      '@actions/core':
+        specifier: ^1.11.1
+        version: 1.11.1
+      '@actions/github':
+        specifier: 6.0.0
+        version: 6.0.0
+      minimatch:
+        specifier: ^9.0.9
+        version: 9.0.9
+    devDependencies:
+      '@vercel/ncc':
+        specifier: ^0.38.3
+        version: 0.38.3
 
   actions/upload-turboyet-data:
     dependencies:
@@ -200,9 +213,6 @@ packages:
 
   '@actions/github@6.0.0':
     resolution: {integrity: sha512-alScpSVnYmjNEXboZjarjukQEzgCRmjMv6Xj47fsdnqGS73bjJNDpiiXmp8jr0UZLdUB6d9jW63IcmddUP+l0g==}
-
-  '@actions/http-client@2.2.0':
-    resolution: {integrity: sha512-q+epW0trjVUUHboliPb4UF9g2msf+w61b32tAkFEwL/IwP0DQWgbCMM0Hbe3e3WXSKz5VcUXbzJQgy8Hkra/Lg==}
 
   '@actions/http-client@2.2.3':
     resolution: {integrity: sha512-mx8hyJi/hjFvbPokCg4uRd4ZX78t+YyRPtnKWwIl+RzNaVuFpQHfmlGVfsKEJN8LwTCvL+DfVgAM04XaHkm6bA==}
@@ -306,10 +316,6 @@ packages:
   '@babel/types@7.28.5':
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
-
-  '@fastify/busboy@2.1.0':
-    resolution: {integrity: sha512-+KpH+QxZU7O4675t3mnkQKcZZg56u+K/Ct2K+N2AZYNVK8kyeo/bI18tI8aPm3tvNNRyTWfj6s5tnGNlcbQRsA==}
-    engines: {node: '>=14'}
 
   '@fastify/busboy@2.1.1':
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
@@ -1138,10 +1144,6 @@ packages:
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
 
-  undici@5.28.2:
-    resolution: {integrity: sha512-wh1pHJHnUeQV5Xa8/kyQhO7WFa8M34l026L5P/+2TYiakvGy5Rdc8jWZVyG7ieht/0WgJLEd3kcU5gKx+6GC8w==}
-    engines: {node: '>=14.0'}
-
   undici@5.28.4:
     resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}
     engines: {node: '>=14.0'}
@@ -1282,15 +1284,10 @@ snapshots:
 
   '@actions/github@6.0.0':
     dependencies:
-      '@actions/http-client': 2.2.0
+      '@actions/http-client': 2.2.3
       '@octokit/core': 5.0.2
       '@octokit/plugin-paginate-rest': 9.1.5(@octokit/core@5.0.2)
       '@octokit/plugin-rest-endpoint-methods': 10.2.0(@octokit/core@5.0.2)
-
-  '@actions/http-client@2.2.0':
-    dependencies:
-      tunnel: 0.0.6
-      undici: 5.28.2
 
   '@actions/http-client@2.2.3':
     dependencies:
@@ -1390,8 +1387,6 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
-
-  '@fastify/busboy@2.1.0': {}
 
   '@fastify/busboy@2.1.1': {}
 
@@ -2244,10 +2239,6 @@ snapshots:
     optional: true
 
   undici-types@5.26.5: {}
-
-  undici@5.28.2:
-    dependencies:
-      '@fastify/busboy': 2.1.0
 
   undici@5.28.4:
     dependencies:

@@ -1,7 +1,7 @@
-import { info, setFailed, warning } from '@actions/core'
+import { getInput, info, setFailed, warning } from '@actions/core'
 import { context, getOctokit } from '@actions/github'
 import { minimatch } from 'minimatch'
-import config from './pr-auto-label.config.json'
+import config from './config.json'
 
 type AuthorRule = { type: 'user'; pattern: string }
 type LabelRule = string | AuthorRule
@@ -53,7 +53,12 @@ export function computeLabels(
 }
 
 async function main() {
-  if (!process.env.GITHUB_TOKEN) throw new TypeError('GITHUB_TOKEN not set')
+  const token = getInput('github-token') || process.env.GITHUB_TOKEN
+  if (!token) {
+    throw new TypeError(
+      '`github-token` input is missing and GITHUB_TOKEN is not set.'
+    )
+  }
 
   const pr = context.payload.pull_request
   if (!pr) {
@@ -69,7 +74,7 @@ async function main() {
     return
   }
 
-  const octokit = getOctokit(process.env.GITHUB_TOKEN)
+  const octokit = getOctokit(token)
 
   const changedFiles: string[] = await octokit.paginate(
     octokit.rest.pulls.listFiles,
