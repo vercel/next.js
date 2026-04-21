@@ -62,4 +62,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 
+# Resolves to `node_modules/.bin/jest` via `$PATH`. This relies on being
+# invoked through pnpm (or another package runner), which prepends the
+# workspace's `node_modules/.bin/` to `$PATH` before running the script.
 exec jest --runInBand "$@"
