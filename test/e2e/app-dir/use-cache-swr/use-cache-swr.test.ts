@@ -53,6 +53,52 @@ describe('use-cache-swr', () => {
     expect(cliOutput).not.toMatch(/PersistentCacheHandler::set.*"outer"/)
   })
 
+  it('should serve stale data without blocking on the background regeneration', async () => {
+    // Fetch 1: cold cache. The cached component blocks for ~1s.
+    const $1 = await next.render$('/delayed')
+    const cached1 = $1('#cached').text()
+    const dynamic1 = $1('#dynamic').text()
+    expect(cached1).toBeDateString()
+    expect(dynamic1).toBeDateString()
+
+    // Wait past the 1s revalidate window (cacheLife('seconds')).
+    await new Promise((resolve) => setTimeout(resolve, 1200))
+
+    outputIndex = next.cliOutput.length
+
+    // Fetch 2: stale hit. Should return the stale entry immediately and kick
+    // off the regeneration in the background, rather than blocking on the 1s
+    // delay in the cached component.
+    const start2 = Date.now()
+    const $2 = await next.render$('/delayed')
+    const duration2 = Date.now() - start2
+    const cached2 = $2('#cached').text()
+    const dynamic2 = $2('#dynamic').text()
+
+    expect(cached2).toBe(cached1)
+    expect(dynamic2).not.toBe(dynamic1)
+    expect(duration2).toBeLessThan(1000)
+
+    // Wait for the background regen to finish writing the fresh entry.
+    await retry(() => {
+      expect(next.cliOutput.slice(outputIndex)).toMatch(
+        /PersistentCacheHandler::set/
+      )
+    })
+
+    // Fetch 3: should serve the pre-warmed fresh entry from the background
+    // regen, not a new stale value.
+    const start3 = Date.now()
+    const $3 = await next.render$('/delayed')
+    const duration3 = Date.now() - start3
+    const cached3 = $3('#cached').text()
+    const dynamic3 = $3('#dynamic').text()
+
+    expect(cached3).not.toBe(cached1)
+    expect(dynamic3).not.toBe(dynamic2)
+    expect(duration3).toBeLessThan(1000)
+  })
+
   it('should pass implicit tags to cache handler get() for nested caches during SWR', async () => {
     const browser = await next.browser('/')
     await browser.elementById('outer-data').text()
