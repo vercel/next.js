@@ -334,7 +334,7 @@ describe('output export fallback helpers', () => {
     ])
   })
 
-  it('matches and fetches conflicting fallback branches under basePath', async () => {
+  it('matches and fetches conflicting fallback branches under basePath via shallower metadata', async () => {
     process.env.__NEXT_ROUTER_BASEPATH = '/base'
 
     const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
@@ -578,12 +578,11 @@ describe('output export fallback helpers', () => {
     expect(result).not.toBeNull()
     expect(result?.fallbackUrl.pathname).toBe('/base/docs/__fallback/__route_0')
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
-      'https://example.com/base/docs/api/reference/__fallback.meta.json',
       'https://example.com/base/docs/api/reference/__fallback.txt',
-      'https://example.com/base/docs/api/reference/__fallback/index.txt',
-      'https://example.com/base/docs/api/__fallback.meta.json',
+      'https://example.com/base/docs/api/reference/__fallback.meta.json',
       'https://example.com/base/docs/api/__fallback.txt',
-      'https://example.com/base/docs/api/__fallback/index.txt',
+      'https://example.com/base/docs/api/__fallback.meta.json',
+      'https://example.com/base/docs/__fallback.txt',
       'https://example.com/base/docs/__fallback.meta.json',
       'https://example.com/base/docs/__fallback/__route_0.txt',
     ])
