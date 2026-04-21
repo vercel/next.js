@@ -125,6 +125,7 @@ describe('fetchServerResponse output export fallback', () => {
     expect(typeof result).not.toBe('string')
     if (typeof result !== 'string') {
       expect(result.canonicalUrl.href).toBe(`${origin}/another/third`)
+      expect(result.outputExportFallbackBasePath).toBe('/another/__fallback')
     }
     expect(global.fetch).toHaveBeenCalledTimes(1)
     expect(mockFetchOutputExportFallbackResponse).toHaveBeenCalledTimes(1)
