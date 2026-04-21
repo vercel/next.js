@@ -65,6 +65,7 @@ impl EsmBinding {
         let mut visitors = vec![];
 
         let export = self.export.clone();
+        let import_externals = self.reference.await?.import_externals;
         let imported_module = self.reference.get_referenced_asset().await?;
 
         enum ImportedIdent {
@@ -76,7 +77,12 @@ impl EsmBinding {
         let imported_ident = match &*imported_module {
             ReferencedAsset::None => ImportedIdent::None,
             imported_module => imported_module
-                .get_ident(chunking_context, export, scope_hoisting_context)
+                .get_ident(
+                    chunking_context,
+                    export,
+                    scope_hoisting_context,
+                    import_externals,
+                )
                 .await?
                 .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module),
         };
