@@ -59,7 +59,8 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
 import { getRequestMeta } from '../request-meta'
-import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
+import { setCacheBustingSearchParamWithHash } from '../../client/components/router-reducer/set-cache-busting-search-param'
+import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -346,19 +347,15 @@ async function createRedirectRenderResult(
     forwardedHeaders.delete(ACTION_HEADER)
 
     try {
-      setCacheBustingSearchParam(fetchUrl, {
-        [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(
-          NEXT_ROUTER_PREFETCH_HEADER
-        )
+      const cacheBustingSearchParam = await computeCacheBustingSearchParam(
+        forwardedHeaders.get(NEXT_ROUTER_PREFETCH_HEADER)
           ? ('1' as const)
           : undefined,
-        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ??
-          undefined,
-        [NEXT_ROUTER_STATE_TREE_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
-        [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
-      })
+        forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ?? undefined,
+        forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
+        forwardedHeaders.get(NEXT_URL) ?? undefined
+      )
+      setCacheBustingSearchParamWithHash(fetchUrl, cacheBustingSearchParam)
 
       const response = await fetch(fetchUrl, {
         method: 'GET',
