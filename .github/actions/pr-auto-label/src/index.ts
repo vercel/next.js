@@ -85,7 +85,11 @@ async function main() {
   info(`PR #${prNumber} author: ${author}`)
   info(`PR #${prNumber} changed files: ${changedFiles.length}`)
 
-  const labelsToAdd = computeLabels(config as LabelerConfig, author, changedFiles)
+  const labelsToAdd = computeLabels(
+    config as LabelerConfig,
+    author,
+    changedFiles
+  )
 
   if (labelsToAdd.length === 0) {
     info('No labels matched.')
@@ -104,7 +108,7 @@ async function main() {
   } catch (error) {
     setFailed(
       `Failed to apply labels to PR #${prNumber}: ${
-        error instanceof Error ? error.stack ?? error.message : String(error)
+        error instanceof Error ? (error.stack ?? error.message) : String(error)
       }`
     )
   }
@@ -112,6 +116,6 @@ async function main() {
 
 main().catch((error) => {
   setFailed(
-    error instanceof Error ? error.stack ?? error.message : String(error)
+    error instanceof Error ? (error.stack ?? error.message) : String(error)
   )
 })
