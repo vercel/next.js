@@ -1,58 +1,14 @@
 import { defineRule } from '../utils/define-rule'
+import {
+  getStringIfConstant,
+  findVariable,
+} from '@eslint-community/eslint-utils'
+
+import type * as ESTree from 'estree'
+import type { SourceCode } from 'eslint'
 
 const url =
   'https://nextjs.org/docs/messages/no-location-assign-relative-destination'
-
-const LOCATION_GLOBALS = new Set(['window', 'globalThis', 'document', 'self'])
-
-function isLocationObject(node: any): boolean {
-  // `location`
-  if (node.type === 'Identifier' && node.name === 'location') {
-    return true
-  }
-  // `window.location` / `globalThis.location` (dot or bracket notation)
-  if (
-    node.type === 'MemberExpression' &&
-    node.object.type === 'Identifier' &&
-    LOCATION_GLOBALS.has(node.object.name) &&
-    isPropertyNamed(node, 'location')
-  ) {
-    return true
-  }
-  return false
-}
-
-function isPropertyNamed(memberNode: any, name: string): boolean {
-  return memberNode.computed
-    ? memberNode.property.type === 'Literal' &&
-        memberNode.property.value === name
-    : memberNode.property.type === 'Identifier' &&
-        memberNode.property.name === name
-}
-
-/** Returns true when the node is a string literal containing "://" (absolute URL). */
-function isAbsoluteUrlLiteral(node: any): boolean {
-  return (
-    node != null &&
-    node.type === 'Literal' &&
-    typeof node.value === 'string' &&
-    node.value.includes('://')
-  )
-}
-
-/**
- * Returns the base `Identifier` node for a `location`-object reference — i.e.
- * the identifier whose scope we need to check to know if it refers to the
- * browser global. For `location`, the identifier is itself; for
- * `window.location` / `globalThis.location`, the base is `window`/`globalThis`.
- */
-function getLocationBaseIdentifier(locationNode: any): any {
-  if (locationNode.type === 'Identifier') {
-    return locationNode
-  }
-  // MemberExpression: window.location / globalThis.location
-  return locationNode.object
-}
 
 export default defineRule({
   meta: {
@@ -73,28 +29,27 @@ export default defineRule({
 
   create(context) {
     const { sourceCode } = context
+    const { scopeManager } = sourceCode
+    if (!scopeManager) return {}
 
     return {
       // location.assign(...) / location['assign'](...)
       // window.location.assign(...) / window.location['assign'](...)
       // globalThis.location.assign(...) / globalThis.location['assign'](...)
       CallExpression(node) {
-        const callee = node.callee
-        if (
-          callee.type === 'MemberExpression' &&
-          isPropertyNamed(callee, 'assign') &&
-          isLocationObject(callee.object)
-        ) {
-          // Allow calls where the first argument is an absolute URL string literal
-          if (isAbsoluteUrlLiteral(node.arguments[0])) {
-            return
-          }
-          // Allow calls where the base identifier (location/window/globalThis)
-          // refers to a locally declared variable, not the browser global.
-          const base = getLocationBaseIdentifier(callee.object)
-          if (!isGlobalReference(base)) {
-            return
-          }
+        const { callee, arguments: args } = node
+        if (!isMemberExprWithNamedProperty(callee, 'assign')) return
+
+        const rootIdentifier = getLocationRootIdentifier(callee.object)
+        if (!rootIdentifier) return
+        if (!isGlobalReference(sourceCode, rootIdentifier)) return
+        if (args.length < 1) return
+
+        const firstArg = args[0]
+        if (firstArg.type === 'SpreadElement') return
+
+        const value = getStaticStringPrefix(firstArg, sourceCode)
+        if (value !== null && isRelativeUrl(value)) {
           context.report({
             node,
             messageId: 'noLocationAssign',
@@ -103,26 +58,19 @@ export default defineRule({
         }
       },
 
-      // location.href = ... / location['href'] = ...
-      // window.location.href = ... / window.location['href'] = ...
-      // globalThis.location.href = ... / globalThis.location['href'] = ...
+      // location.href = '/path'
+      // window.location.href = '/path'
+      // globalThis.location.href = '/path'
       AssignmentExpression(node) {
-        const left = node.left
-        if (
-          left.type === 'MemberExpression' &&
-          isPropertyNamed(left, 'href') &&
-          isLocationObject(left.object)
-        ) {
-          // Allow assignments where the right-hand side is an absolute URL string literal
-          if (isAbsoluteUrlLiteral(node.right)) {
-            return
-          }
-          // Allow assignments where the base identifier (location/window/globalThis)
-          // refers to a locally declared variable, not the browser global.
-          const base = getLocationBaseIdentifier(left.object)
-          if (!isGlobalReference(base)) {
-            return
-          }
+        const { left, right } = node
+        if (!isMemberExprWithNamedProperty(left, 'href')) return
+
+        const rootIdentifier = getLocationRootIdentifier(left.object)
+        if (!rootIdentifier) return
+        if (!isGlobalReference(sourceCode, rootIdentifier)) return
+
+        const value = getStaticStringPrefix(right, sourceCode)
+        if (value !== null && isRelativeUrl(value)) {
           context.report({
             node,
             messageId: 'noLocationAssign',
@@ -131,17 +79,94 @@ export default defineRule({
         }
       },
     }
-
-    // By inline this helper function with create, I can have typed sourceCode.scopeManager
-    function isGlobalReference(node): boolean {
-      if (!node) return false
-      if (node.type !== 'Identifier') return false
-
-      const variable = sourceCode.scopeManager.scopes[0].set.get(node.name)
-
-      if (!variable || variable.defs.length > 0) return false
-
-      return variable.references.some(({ identifier }) => identifier === node)
-    }
   },
 })
+
+const ABSOLUTE_URL_RE = /^(?:[a-z][\d+.a-z-]*:|\/\/)/i
+const GLOBAL_PREFIXES = new Set(['window', 'globalThis', 'document', 'self'])
+
+function isMemberExprWithNamedProperty(
+  expr: ESTree.Node,
+  name: string
+): expr is ESTree.MemberExpression {
+  if (expr.type !== 'MemberExpression') return false
+
+  return expr.computed
+    ? expr.property.type === 'Literal' && expr.property.value === name
+    : expr.property.type === 'Identifier' && expr.property.name === name
+}
+
+function isRelativeUrl(value: string): boolean {
+  return !ABSOLUTE_URL_RE.test(value)
+}
+function getLocationRootIdentifier(
+  node: ESTree.Expression | ESTree.Super
+): ESTree.Identifier | null {
+  if (node.type === 'Identifier' && node.name === 'location') {
+    return node
+  }
+  if (
+    node.type === 'MemberExpression' &&
+    node.object.type === 'Identifier' &&
+    GLOBAL_PREFIXES.has(node.object.name) &&
+    isMemberExprWithNamedProperty(node, 'location')
+  ) {
+    return node.object
+  }
+  return null
+}
+
+function isGlobalReference(
+  sourceCode: SourceCode,
+  node: ESTree.Node | null
+): boolean {
+  if (!node) return false
+  if (node.type !== 'Identifier') return false
+
+  const variable = sourceCode.scopeManager.scopes[0].set.get(node.name)
+
+  if (!variable || variable.defs.length > 0) return false
+
+  return variable.references.some(({ identifier }) => identifier === node)
+}
+
+function getStaticStringPrefix(
+  node: ESTree.Expression | ESTree.PrivateIdentifier,
+  sourceCode: SourceCode
+): string | null {
+  const constantValue = getStringIfConstant(node, sourceCode.getScope(node))
+  if (constantValue !== null) {
+    return constantValue
+  }
+
+  if (node.type === 'TemplateLiteral' && node.quasis.length > 0) {
+    return node.quasis[0].value.cooked ?? node.quasis[0].value.raw
+  }
+
+  if (node.type === 'BinaryExpression' && node.operator === '+') {
+    return getStaticStringPrefix(node.left, sourceCode)
+  }
+
+  if (node.type === 'Identifier') {
+    const variable = findVariable(sourceCode.getScope(node), node)
+    if (!variable || variable.defs.length < 1) return null
+
+    const def = variable.defs[variable.defs.length - 1]
+    if (def.type !== 'Variable') return null
+
+    const readPos = node.range![0]
+    let lastWriteExpr: ESTree.Expression | null = def.node.init ?? null
+
+    for (const ref of variable.references) {
+      if (ref.identifier.range![0] >= readPos) break
+      if (ref.isWrite() && ref.writeExpr && ref.writeExpr !== def.node.init) {
+        lastWriteExpr = ref.writeExpr as ESTree.Expression
+      }
+    }
+
+    if (!lastWriteExpr) return null
+    return getStaticStringPrefix(lastWriteExpr, sourceCode)
+  }
+
+  return null
+}
