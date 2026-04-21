@@ -281,6 +281,7 @@ export default async function Page() {
   return <p>{await getBuildTimeValue()}</p>
 }
 ```
+
 > **Good to know**:
 >
 > - Param-dependent content for fallback routes renders on the client, so use client-side fetching patterns like `fetch`, SWR, or React Query in those parts of the tree.
