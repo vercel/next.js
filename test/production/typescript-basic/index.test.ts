@@ -12,7 +12,7 @@ describe('TypeScript basic', () => {
       dependencies: {
         '@next/bundle-analyzer': 'canary',
         typescript: '5.8.2',
-        '@types/node': 'latest',
+        '@types/node': '20.17.6',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
       },

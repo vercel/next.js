@@ -130,7 +130,7 @@ describe('eslint plugin deps', () => {
         'eslint-config-prettier': 'latest',
         'eslint-plugin-import': 'latest',
         'eslint-plugin-react': 'latest',
-        '@types/node': 'latest',
+        '@types/node': '20.17.6',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
         // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes

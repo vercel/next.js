@@ -62,6 +62,7 @@ type OmitFirstArgument<F> = F extends (
 // prettier-ignore
 const nextjsReactPeerVersion = "19.1.0";
 const latestSupportedTypeScriptVersion = '5.8.2'
+const latestSupportedNodeTypesVersion = '20.17.6'
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -215,7 +216,7 @@ export class NextInstance {
           '@types/react': '^19.1.1',
           '@types/react-dom': '^19.1.2',
           typescript: latestSupportedTypeScriptVersion,
-          '@types/node': 'latest',
+          '@types/node': latestSupportedNodeTypesVersion,
           ...this.dependencies,
           ...this.packageJson?.dependencies,
         }

@@ -11,7 +11,7 @@ describe('navigation between pages and app dir', () => {
       dependencies: {
         typescript: '5.8.2',
         '@types/react': 'latest',
-        '@types/node': 'latest',
+        '@types/node': '20.17.6',
       },
     })
   })

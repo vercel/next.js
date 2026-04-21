@@ -6,7 +6,7 @@ describe('redirects and rewrites', () => {
     dependencies: {
       typescript: '5.8.2',
       '@types/react': 'latest',
-      '@types/node': 'latest',
+      '@types/node': '20.17.6',
     },
   })
 

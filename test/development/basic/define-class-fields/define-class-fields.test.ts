@@ -10,7 +10,7 @@ describe('useDefineForClassFields SWC option', () => {
       mobx: '6.3.7',
       typescript: '5.8.2',
       '@types/react': 'latest',
-      '@types/node': 'latest',
+      '@types/node': '20.17.6',
       'mobx-react': '7.2.1',
     },
   })
