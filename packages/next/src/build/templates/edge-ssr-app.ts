@@ -152,6 +152,7 @@ async function requestHandler(
 
       multiZoneDraftMode: false,
       cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
       logServerFunctions:
@@ -167,6 +168,7 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
         cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),

@@ -860,6 +860,7 @@ export async function handler(
           prefetchHints: prefetchHintsManifest,
           incrementalCache,
           cacheLifeProfiles: nextConfig.cacheLife,
+          staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
           logServerFunctions:
@@ -888,6 +889,7 @@ export async function handler(
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+            useCacheTimeout: nextConfig.experimental.useCacheTimeout,
             cachedNavigations: Boolean(
               nextConfig.experimental.cachedNavigations
             ),

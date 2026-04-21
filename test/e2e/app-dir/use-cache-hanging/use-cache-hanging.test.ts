@@ -42,7 +42,7 @@ describe('use-cache-hanging', () => {
 
         expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
     at getCachedData (app/static/page.tsx:6:1)`)
-      }, 180_000)
+      })
     })
 
     describe('when a "use cache" fill hangs in the runtime stage', () => {
@@ -71,7 +71,7 @@ describe('use-cache-hanging', () => {
 
         expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
     at getCachedData (app/runtime/page.tsx:8:1)`)
-      }, 180_000)
+      })
     })
 
     describe('when a "use cache" performs long-running I/O in the dynamic stage', () => {
@@ -86,7 +86,7 @@ describe('use-cache-hanging', () => {
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
         expect(cliOutput).not.toContain(expectedTimeoutErrorMessage)
-      }, 180_000)
+      })
     })
   } else {
     describe('when a "use cache" fill hangs during prerendering', () => {
@@ -105,7 +105,7 @@ describe('use-cache-hanging', () => {
           // Webpack production builds don't have source maps by default.
           expect(next.cliOutput).toContain(expectedTimeoutErrorMessage)
         }
-      }, 180_000)
+      })
     })
   }
 })

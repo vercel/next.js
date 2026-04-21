@@ -126,8 +126,16 @@ export class EdgeRouteModuleWrapper {
         cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
         experimental: {
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
+          // Edge runtime doesn't support Cache Components, so this value is
+          // never read. 0 is a sentinel: if something ever reads it, the cache
+          // fill will time out immediately and surface the bug.
+          useCacheTimeout: 0,
         },
         cacheLifeProfiles: nextConfig.cacheLife,
+        // Edge runtime doesn't do static generation, so this value does not
+        // apply here. 0 is a sentinel: if something ever reads it, it'll
+        // surface loudly instead of silently using a misleading default.
+        staticPageGenerationTimeout: 0,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.

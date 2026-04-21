@@ -23,6 +23,7 @@ export type WorkStoreContext = {
   nonce?: string
   renderOpts: {
     cacheLifeProfiles?: { [profile: string]: CacheLife }
+    staticPageGenerationTimeout: number
     incrementalCache?: IncrementalCache
     isOnDemandRevalidate?: boolean
     cacheComponents: boolean
@@ -31,7 +32,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'authInterrupts'
+      'isRoutePPREnabled' | 'authInterrupts' | 'useCacheTimeout'
     >
 
     /**
@@ -121,6 +122,8 @@ export function createWorkStore({
       // so that it can access the fs cache without mocks
       renderOpts.incrementalCache || (globalThis as any).__incrementalCache,
     cacheLifeProfiles: renderOpts.cacheLifeProfiles,
+    useCacheTimeout: renderOpts.experimental.useCacheTimeout,
+    staticPageGenerationTimeout: renderOpts.staticPageGenerationTimeout,
     isBuildTimePrerendering: renderOpts.isBuildTimePrerendering,
     fetchCache: renderOpts.fetchCache,
     isOnDemandRevalidate: renderOpts.isOnDemandRevalidate,

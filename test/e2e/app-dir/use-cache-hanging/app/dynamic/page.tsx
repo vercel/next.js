@@ -5,11 +5,12 @@ import { ReactNode, Suspense } from 'react'
 // subject to the dev fill timeout. This mirrors prerender, where caches
 // past `connection()` aren't executed at all and therefore not subject to
 // the timeout handling either. The sleep is intentionally longer than the
-// 50s timeout so the test fails if the timer isn't cleared.
+// configured `experimental.useCacheTimeout` (10s) so the test fails if the
+// timer isn't cleared.
 async function Cached(): Promise<ReactNode> {
   'use cache'
 
-  await new Promise((resolve) => setTimeout(resolve, 52_000))
+  await new Promise((resolve) => setTimeout(resolve, 12_000))
 
   return <p id="cached">cached</p>
 }

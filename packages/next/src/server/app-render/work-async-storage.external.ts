@@ -29,6 +29,8 @@ export interface WorkStore {
 
   readonly incrementalCache?: IncrementalCache
   readonly cacheLifeProfiles?: { [profile: string]: CacheLife }
+  readonly useCacheTimeout: number
+  readonly staticPageGenerationTimeout: number
 
   readonly isOnDemandRevalidate?: boolean
   readonly isBuildTimePrerendering?: boolean

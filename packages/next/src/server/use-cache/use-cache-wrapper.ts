@@ -102,19 +102,6 @@ interface PublicCacheContext {
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
 
-// The maximum time we allow a `'use cache'` entry to fill. After this, we
-// assume the fill is stalled — either on hanging input to the cached function,
-// or on hanging I/O inside of it — and de-opt with an error.
-//
-// For prerender, this needs to be lower than the general build timeout
-// (`staticPageGenerationTimeout`, default 60s) so the cache-fill error surfaces
-// before the build worker kills the page.
-//
-// TODO: Derive this from the configured `staticPageGenerationTimeout` instead
-// of hard-coding it, so users who raise or lower the build timeout get a
-// matching cache-fill timeout.
-const USE_CACHE_FILL_TIMEOUT_MS = 50_000
-
 type CacheKeyParts =
   | [buildId: string, id: string, args: unknown[]]
   | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
@@ -642,6 +629,28 @@ function assertDefaultCacheLife(
   }
 }
 
+// The maximum time we allow a `'use cache'` entry to fill. After this, we
+// assume the fill is stalled — either on hanging input to the cached function,
+// or on hanging I/O inside of it — and de-opt with an error.
+//
+// For prerender, the effective value is clamped to 90% of the configured
+// `staticPageGenerationTimeout` so the cache-fill error surfaces before the
+// build worker kills the page. In dev (`request`), the configured
+// `experimental.useCacheTimeout` is used straight.
+function getUseCacheFillTimeoutMs(
+  workStore: WorkStore,
+  workUnitStoreType: 'prerender' | 'prerender-runtime' | 'request'
+): number {
+  const { useCacheTimeout, staticPageGenerationTimeout } = workStore
+
+  const effectiveTimeout =
+    workUnitStoreType === 'request'
+      ? useCacheTimeout
+      : Math.min(useCacheTimeout, staticPageGenerationTimeout * 0.9)
+
+  return effectiveTimeout * 1000
+}
+
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   cacheContext: CacheContext,
@@ -1072,10 +1081,13 @@ async function generateCacheEntryImpl(
     case 'prerender-runtime':
     case 'prerender':
       const timeoutAbortController = new AbortController()
-      const timer = setTimeout(() => {
-        workStore.invalidDynamicUsageError = timeoutError
-        timeoutAbortController.abort(timeoutError)
-      }, USE_CACHE_FILL_TIMEOUT_MS)
+      const timer = setTimeout(
+        () => {
+          workStore.invalidDynamicUsageError = timeoutError
+          timeoutAbortController.abort(timeoutError)
+        },
+        getUseCacheFillTimeoutMs(workStore, outerWorkUnitStore.type)
+      )
 
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
@@ -1169,10 +1181,13 @@ async function generateCacheEntryImpl(
         if (stagedRendering?.currentStage !== RenderStage.Dynamic) {
           const devTimeoutAbortController = new AbortController()
           devTimeoutSignal = devTimeoutAbortController.signal
-          devTimeoutTimer = setTimeout(() => {
-            workStore.invalidDynamicUsageError = timeoutError
-            devTimeoutAbortController.abort(timeoutError)
-          }, USE_CACHE_FILL_TIMEOUT_MS)
+          devTimeoutTimer = setTimeout(
+            () => {
+              workStore.invalidDynamicUsageError = timeoutError
+              devTimeoutAbortController.abort(timeoutError)
+            },
+            getUseCacheFillTimeoutMs(workStore, outerWorkUnitStore.type)
+          )
         }
       }
     // fallthrough

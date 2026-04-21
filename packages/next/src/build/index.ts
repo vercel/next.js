@@ -2098,6 +2098,8 @@ export default async function build(
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
+              useCacheTimeout: config.experimental.useCacheTimeout,
+              staticPageGenerationTimeout: config.staticPageGenerationTimeout,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
               defaultLocale: config.i18n?.defaultLocale,
@@ -2325,6 +2327,10 @@ export default async function build(
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
+                            useCacheTimeout:
+                              config.experimental.useCacheTimeout,
+                            staticPageGenerationTimeout:
+                              config.staticPageGenerationTimeout,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.cacheHandlers,
                             isrFlushToDisk: ciEnvironment.hasNextSupport

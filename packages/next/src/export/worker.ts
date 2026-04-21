@@ -257,6 +257,7 @@ async function exportPageImpl(
       htmlFilepath,
       fileWriter,
       commonRenderOpts.cacheComponents,
+      commonRenderOpts.staticPageGenerationTimeout,
       commonRenderOpts.experimental,
       buildId
     )
