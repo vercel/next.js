@@ -230,6 +230,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   metadata: RouteTree
   supportsPerSegmentPrefetching: boolean
   hasInlinedSegments: boolean
+  outputExportFallbackBasePath: string | null
   // When true, this entry should not be used as a template for route
   // prediction. Set when we discover that the URL was rewritten by middleware
   // to a different route structure (e.g., /foo was rewritten to /bar). Since
@@ -695,6 +696,8 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
     hasInlinedSegments: routeWithNoSearchParams.hasInlinedSegments,
+    outputExportFallbackBasePath:
+      routeWithNoSearchParams.outputExportFallbackBasePath,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
 
     // Override the rendered search with the optimistic value.
@@ -767,7 +770,8 @@ function deprecated_createOptimisticRouteTree(
 export function readOrCreateSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree,
+  outputExportFallbackBasePath: string | null = null
 ): SegmentCacheEntry {
   const existingEntry = readSegmentCacheEntry(now, tree.varyPath)
   if (existingEntry !== null) {
@@ -776,7 +780,11 @@ export function readOrCreateSegmentCacheEntry(
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
+  const varyPathForRequest = getSegmentVaryPathForRequest(
+    fetchStrategy,
+    tree,
+    outputExportFallbackBasePath
+  )
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = false
   setInCacheMap(
@@ -791,7 +799,8 @@ export function readOrCreateSegmentCacheEntry(
 export function readOrCreateRevalidatingSegmentEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree,
+  outputExportFallbackBasePath: string | null = null
 ): SegmentCacheEntry {
   // This function is called when we've already confirmed that a particular
   // segment is cached, but we want to perform another request anyway in case it
@@ -827,7 +836,11 @@ export function readOrCreateRevalidatingSegmentEntry(
   // Create a pending entry and add it to the cache. The stale time is set to a
   // default value; the actual stale time will be set when the entry is
   // fulfilled with data from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
+  const varyPathForRequest = getSegmentVaryPathForRequest(
+    fetchStrategy,
+    tree,
+    outputExportFallbackBasePath
+  )
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(
@@ -842,14 +855,19 @@ export function readOrCreateRevalidatingSegmentEntry(
 export function overwriteRevalidatingSegmentCacheEntry(
   now: number,
   fetchStrategy: FetchStrategy,
-  tree: RouteTree
+  tree: RouteTree,
+  outputExportFallbackBasePath: string | null = null
 ) {
   // This function is called when we've already decided to replace an existing
   // revalidation entry. Create a new entry and write it into the cache,
   // overwriting the previous value. The stale time is set to a default value;
   // the actual stale time will be set when the entry is fulfilled with data
   // from the server response.
-  const varyPathForRequest = getSegmentVaryPathForRequest(fetchStrategy, tree)
+  const varyPathForRequest = getSegmentVaryPathForRequest(
+    fetchStrategy,
+    tree,
+    outputExportFallbackBasePath
+  )
   const pendingEntry = createDetachedSegmentCacheEntry(now)
   const isRevalidation = true
   setInCacheMap(
@@ -1116,6 +1134,7 @@ export function fulfillRouteCacheEntry(
   fulfilledEntry.renderedSearch = renderedSearch
   fulfilledEntry.supportsPerSegmentPrefetching = supportsPerSegmentPrefetching
   fulfilledEntry.hasInlinedSegments = false
+  fulfilledEntry.outputExportFallbackBasePath = null
   fulfilledEntry.hasDynamicRewrite = false
   pingBlockedTasks(entry)
   return fulfilledEntry
@@ -1915,6 +1934,7 @@ type OutputExportFallbackNavigationData = {
   couldBeIntercepted: boolean
   flightDatas: NormalizedFlightData[]
   headVaryParams: VaryParams | null
+  outputExportFallbackBasePath: string
   responseSize: number
   staleAt: number
   supportsPerSegmentPrefetching: boolean
@@ -1933,6 +1953,7 @@ async function fetchOutputExportFallbackNavigationData(
   if (fallbackResult === null) {
     return null
   }
+  const outputExportFallbackBasePath = fallbackResult.fallbackUrl.pathname
 
   const { response } = await processFetch(fallbackResult.response)
   if (!response.body) {
@@ -1980,6 +2001,7 @@ async function fetchOutputExportFallbackNavigationData(
     couldBeIntercepted: serverData.i,
     flightDatas,
     headVaryParams,
+    outputExportFallbackBasePath,
     responseSize,
     staleAt: await getStaleAt(now, serverData.s),
     supportsPerSegmentPrefetching: serverData.S,
@@ -2010,6 +2032,7 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     couldBeIntercepted,
     flightDatas,
     headVaryParams,
+    outputExportFallbackBasePath,
     responseSize,
     staleAt,
     supportsPerSegmentPrefetching,
@@ -2024,6 +2047,7 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     renderedSearch,
     UnknownDynamicStaleTime
   )
+  navigationSeed.outputExportFallbackBasePath = outputExportFallbackBasePath
   if (navigationSeed.metadataVaryPath === null) {
     rejectRouteCacheEntry(entry, now + 10 * 1000)
     return null
@@ -2057,6 +2081,7 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     false
   )
   fulfilledEntry.hasInlinedSegments = true
+  fulfilledEntry.outputExportFallbackBasePath = outputExportFallbackBasePath
 
   if (!couldBeIntercepted) {
     const fulfilledVaryPath = getFulfilledRouteVaryPath(
@@ -2094,8 +2119,14 @@ async function fetchSegmentsFromOutputExportFallback(
     return null
   }
 
-  const { buildId, closed, flightDatas, headVaryParams, staleAt } =
-    navigationData
+  const {
+    buildId,
+    closed,
+    flightDatas,
+    headVaryParams,
+    outputExportFallbackBasePath,
+    staleAt,
+  } = navigationData
   const renderedSearch = renderedUrl.search as NormalizedSearch
 
   const spawnedEntries = new Map<SegmentRequestKey, PendingSegmentCacheEntry>()
@@ -2120,6 +2151,7 @@ async function fetchSegmentsFromOutputExportFallback(
     renderedSearch,
     UnknownDynamicStaleTime
   )
+  navigationSeed.outputExportFallbackBasePath = outputExportFallbackBasePath
   if (navigationSeed.metadataVaryPath === null) {
     rejectRemainingSegmentsInBundle(segments, now + 10 * 1000)
     return null
@@ -2203,10 +2235,14 @@ export async function fetchSegmentsOnCacheMiss(
   // Testing API. Static pre-renders don't normally happen during development.
   addInstantPrefetchHeaderIfLocked(headers)
 
-  const requestUrl = isOutputExportMode
-    ? // In output: "export" mode, we need to add the segment path to the URL.
-      addSegmentPathToUrlInOutputExportMode(url, normalizedRequestKey)
-    : url
+  let requestUrl = url
+  if (isOutputExportMode) {
+    requestUrl = getOutputExportSegmentRequestUrl(
+      url,
+      normalizedRequestKey,
+      route.outputExportFallbackBasePath
+    )
+  }
   try {
     const response = await fetchPrefetchResponse(requestUrl, headers)
     if (
@@ -2306,8 +2342,16 @@ export async function fetchSegmentsOnCacheMiss(
       // generic path. Otherwise use the request vary path.
       const canonicalVaryPath =
         process.env.__NEXT_VARY_PARAMS && data.varyParams !== null
-          ? getFulfilledSegmentVaryPath(node.tree.varyPath, data.varyParams)
-          : getSegmentVaryPathForRequest(FetchStrategy.PPR, node.tree)
+          ? getFulfilledSegmentVaryPath(
+              node.tree.varyPath,
+              data.varyParams,
+              route.outputExportFallbackBasePath !== null
+            )
+          : getSegmentVaryPathForRequest(
+              FetchStrategy.PPR,
+              node.tree,
+              route.outputExportFallbackBasePath
+            )
 
       let fulfilled: FulfilledSegmentCacheEntry | null = null
       const nodeEntry = node.entry
@@ -2753,6 +2797,7 @@ export function writeDynamicRenderResponseIntoCache(
         staleAt,
         seedData,
         isResponsePartial,
+        navigationSeed.outputExportFallbackBasePath,
         spawnedEntries
       )
     }
@@ -2782,6 +2827,7 @@ export function writeDynamicRenderResponseIntoCache(
         // parameter.
         headVaryParams,
         metadataTree,
+        navigationSeed.outputExportFallbackBasePath,
         spawnedEntries
       )
     }
@@ -2815,6 +2861,7 @@ function writeSeedDataIntoCache(
   staleAt: number,
   seedData: CacheNodeSeedData,
   isResponsePartial: boolean,
+  outputExportFallbackBasePath: string | null,
   entriesOwnedByCurrentTask: Map<
     SegmentRequestKey,
     PendingSegmentCacheEntry
@@ -2838,6 +2885,7 @@ function writeSeedDataIntoCache(
     staleAt,
     varyParams,
     tree,
+    outputExportFallbackBasePath,
     entriesOwnedByCurrentTask
   )
 
@@ -2857,6 +2905,7 @@ function writeSeedDataIntoCache(
           staleAt,
           childSeedData,
           isResponsePartial,
+          outputExportFallbackBasePath,
           entriesOwnedByCurrentTask
         )
       }
@@ -2876,6 +2925,7 @@ function fulfillEntrySpawnedByRuntimePrefetch(
   staleAt: number,
   segmentVaryParams: Set<string> | null,
   tree: RouteTree,
+  outputExportFallbackBasePath: string | null,
   entriesOwnedByCurrentTask: Map<
     SegmentRequestKey,
     PendingSegmentCacheEntry
@@ -2899,7 +2949,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
       const fulfilledVaryPath = getFulfilledSegmentVaryPath(
         tree.varyPath,
-        segmentVaryParams
+        segmentVaryParams,
+        outputExportFallbackBasePath !== null
       )
       const isRevalidation = false
       setInCacheMap(
@@ -2914,7 +2965,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
     const possiblyNewEntry = readOrCreateSegmentCacheEntry(
       now,
       fetchStrategy,
-      tree
+      tree,
+      outputExportFallbackBasePath
     )
     if (possiblyNewEntry.status === EntryStatus.Empty) {
       // Confirmed this is a new entry. We can fulfill it.
@@ -2929,7 +2981,8 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       if (process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null) {
         const fulfilledVaryPath = getFulfilledSegmentVaryPath(
           tree.varyPath,
-          segmentVaryParams
+          segmentVaryParams,
+          outputExportFallbackBasePath !== null
         )
         const isRevalidation = false
         setInCacheMap(
@@ -2955,8 +3008,16 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       // the request vary path.
       const varyPath =
         process.env.__NEXT_VARY_PARAMS && segmentVaryParams !== null
-          ? getFulfilledSegmentVaryPath(tree.varyPath, segmentVaryParams)
-          : getSegmentVaryPathForRequest(fetchStrategy, tree)
+          ? getFulfilledSegmentVaryPath(
+              tree.varyPath,
+              segmentVaryParams,
+              outputExportFallbackBasePath !== null
+            )
+          : getSegmentVaryPathForRequest(
+              fetchStrategy,
+              tree,
+              outputExportFallbackBasePath
+            )
       upsertSegmentEntry(now, varyPath, newEntry)
     }
   }
@@ -3102,6 +3163,24 @@ function createIncrementalPrefetchResponseStream(
   })
 }
 
+export function getOutputExportSegmentRequestUrl(
+  url: URL,
+  segmentPath: SegmentRequestKey,
+  outputExportFallbackBasePath: string | null
+): URL {
+  const staticUrl = new URL(url)
+  if (outputExportFallbackBasePath !== null) {
+    staticUrl.pathname = outputExportFallbackBasePath
+  }
+  const routeDir = staticUrl.pathname.endsWith('/')
+    ? staticUrl.pathname.slice(0, -1)
+    : staticUrl.pathname
+  const staticExportFilename =
+    convertSegmentPathToStaticExportFilename(segmentPath)
+  staticUrl.pathname = `${routeDir}/${staticExportFilename}`
+  return staticUrl
+}
+
 function addSegmentPathToUrlInOutputExportMode(
   url: URL,
   segmentPath: SegmentRequestKey
@@ -3109,14 +3188,7 @@ function addSegmentPathToUrlInOutputExportMode(
   if (isOutputExportMode) {
     // In output: "export" mode, we cannot use a header to encode the segment
     // path. Instead, we append it to the end of the pathname.
-    const staticUrl = new URL(url)
-    const routeDir = staticUrl.pathname.endsWith('/')
-      ? staticUrl.pathname.slice(0, -1)
-      : staticUrl.pathname
-    const staticExportFilename =
-      convertSegmentPathToStaticExportFilename(segmentPath)
-    staticUrl.pathname = `${routeDir}/${staticExportFilename}`
-    return staticUrl
+    return getOutputExportSegmentRequestUrl(url, segmentPath, null)
   }
   return url
 }
