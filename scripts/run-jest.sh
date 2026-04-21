@@ -3,11 +3,6 @@
 # Set up environment variables for a Next.js jest test run and exec jest
 # in a single hop, replacing this shell process.
 #
-# Previously, the pnpm test scripts chained through multiple `pnpm run` +
-# `cross-env` layers (e.g. test-dev-turbo -> with-turbo -> test-dev-inner ->
-# testheadless -> testonly -> jest), each adding a node/pnpm process-startup
-# tax. This helper collapses that into one script invocation.
-#
 # Usage:
 #   scripts/run-jest.sh \
 #     [--mode=<dev|start|deploy>] \
