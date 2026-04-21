@@ -1,11 +1,9 @@
-import { createReadStream } from 'fs'
-import http from 'http'
 import { join } from 'path'
 import { createNext, isNextDeploy, isNextDev, NextInstance } from 'e2e-utils'
-import express from 'express'
 import fs from 'fs-extra'
-import { findPort, retry, stopApp } from 'next-test-utils'
+import { retry } from 'next-test-utils'
 import webdriver from 'next-webdriver'
+import { buildAndStartOutputExportServer } from './utils'
 
 if (isNextDeploy) {
   describe.skip('app dir - output export fallback route shapes with Cache Components', () => {})
@@ -30,26 +28,10 @@ if (isNextDeploy) {
           skipStart: true,
           disableAutoSkewProtection: true,
         })
-        await next.build()
-
-        port = await findPort()
-        const app = express()
-        const server = http.createServer(app)
-        const outDir = join(next.testDir, 'out')
-        const fallbackHtml = join(outDir, '_fallback.html')
-
-        app.use(
-          express.static(outDir, {
-            extensions: ['html'],
-            redirect: false,
-          })
-        )
-        app.use((_req, res) => {
-          createReadStream(fallbackHtml).pipe(res)
-        })
-
-        await new Promise<void>((resolve) => server.listen(port, resolve))
-        stopOrKill = () => stopApp(server)
+        ;({ port, stopOrKill } = await buildAndStartOutputExportServer(next, {
+          trailingSlash: true,
+          useFallbackDocument: true,
+        }))
       })
 
       afterAll(async () => {
