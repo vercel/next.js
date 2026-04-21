@@ -14,7 +14,7 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt, ModuleId},
     issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     loader::ResolvedWebpackLoaderItem,
     module::{Module, ModuleSideEffects},
@@ -72,13 +72,29 @@ pub enum ReferencedAssetIdent {
         namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
-        /// The module whose `chunk_item_id` corresponds to `namespace_ident`. When the ident was
-        /// resolved through a re-export chain, this is the final module in that chain, not the
-        /// directly referenced asset. The `.i(id)` call that initializes the variable must use
-        /// this module's id so the variable actually holds the expected namespace.
+        /// Describes what to import to populate the variable that `namespace_ident` names.
         ///
-        /// `None` for external references, where there is no resolved module.
-        import_module: Option<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+        /// When the ident was resolved through a re-export chain (e.g. `export * as X from
+        /// './inner'`), this is the final module in that chain, not the directly referenced
+        /// asset — so the `.i(...)` call that initializes the variable loads the module whose
+        /// namespace `namespace_ident` claims to hold.
+        import_module: ImportSource,
+    },
+}
+
+/// The source to import when initializing a `ReferencedAssetIdent::Module` variable.
+#[derive(Debug)]
+pub enum ImportSource {
+    /// Import an in-graph module by its chunk item id.
+    Module(ModuleId),
+    /// Import an external dependency.
+    External {
+        request: RcStr,
+        ty: ExternalType,
+        /// Whether to use `__turbopack_external_import` (true) or
+        /// `__turbopack_external_require` (false) for ESM externals. Ignored for other
+        /// external types, which always use `__turbopack_external_require`.
+        import_externals: bool,
     },
 }
 
@@ -164,9 +180,16 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        import_externals: bool,
     ) -> Result<Option<ReferencedAssetIdent>> {
-        self.get_ident_inner(chunking_context, export, scope_hoisting_context, None)
-            .await
+        self.get_ident_inner(
+            chunking_context,
+            export,
+            scope_hoisting_context,
+            import_externals,
+            None,
+        )
+        .await
     }
 
     async fn get_ident_inner(
@@ -174,6 +197,7 @@ impl ReferencedAsset {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         export: Option<RcStr>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        import_externals: bool,
         initial: Option<&ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Result<Option<ReferencedAssetIdent>> {
         Ok(match self {
@@ -230,6 +254,7 @@ impl ReferencedAsset {
                                     chunking_context,
                                     imported,
                                     scope_hoisting_context,
+                                    import_externals,
                                     Some(asset),
                                 ))
                                 .await?
@@ -264,14 +289,20 @@ impl ReferencedAsset {
                         .await?,
                     ctxt: None,
                     export,
-                    import_module: Some(*asset),
+                    import_module: ImportSource::Module(
+                        asset.chunk_item_id(chunking_context).await?,
+                    ),
                 })
             }
             ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
                 namespace_ident: magic_identifier::mangle(&format!("{ty} external {request}")),
                 ctxt: None,
                 export,
-                import_module: None,
+                import_module: ImportSource::External {
+                    request: request.clone(),
+                    ty: *ty,
+                    import_externals,
+                },
             }),
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
@@ -594,11 +625,15 @@ impl EsmAssetReference {
                 _ => {
                     let mut result = vec![];
 
-                    let merged_index = if let ReferencedAsset::Some(asset) = &*referenced_asset {
-                        scope_hoisting_context.get_module_index(*asset)
-                    } else {
-                        None
-                    };
+                    let (merged_index, hoist_key) =
+                        if let ReferencedAsset::Some(asset) = &*referenced_asset {
+                            (
+                                scope_hoisting_context.get_module_index(*asset),
+                                Some(asset.chunk_item_id(chunking_context).await?),
+                            )
+                        } else {
+                            (None, None)
+                        };
 
                     if let Some(merged_index) = merged_index {
                         // Insert a placeholder to inline the merged module at the right place
@@ -627,13 +662,24 @@ impl EsmAssetReference {
                                     _ => None,
                                 }),
                                 scope_hoisting_context,
+                                import_externals,
                             )
                             .await?;
+                        // `referenced_asset` must not be used past this point: the ident carries
+                        // everything about the import target (see `ImportSource`) — notably,
+                        // when the ident was resolved through a re-export chain, the
+                        // directly-referenced asset is the outer (rename) module, not the one
+                        // the emitted variable actually holds.
                         match ident {
                             Some(ReferencedAssetIdent::LocalBinding { .. }) => {
                                 // no need to import
                             }
-                            Some(ident @ ReferencedAssetIdent::Module { .. }) => {
+                            Some(ReferencedAssetIdent::Module {
+                                namespace_ident,
+                                ctxt,
+                                export: _,
+                                import_module,
+                            }) => {
                                 let span = this
                                     .issue_source
                                     .to_swc_offsets()
@@ -641,71 +687,29 @@ impl EsmAssetReference {
                                     .map_or(DUMMY_SP, |(start, end)| {
                                         Span::new(BytePos(start), BytePos(end))
                                     });
-                                match &*referenced_asset {
-                                    ReferencedAsset::Unresolvable => {
-                                        unreachable!();
-                                    }
-                                    ReferencedAsset::Some(asset) => {
-                                        // Two things can differ between the directly-referenced
-                                        // asset and `ident.import_module`: when the ident was
-                                        // resolved through a re-export chain (e.g. `export * as
-                                        // X from './inner'`), `import_module` is the inner
-                                        // module while `asset` is the outer (rename) module.
-                                        //
-                                        // - The `.i(...)` call must use `import_module`'s id so the
-                                        //   variable holds the namespace its mangled name claims
-                                        //   to.
-                                        // - The hoisted-statement key uses `asset`'s id to keep
-                                        //   dedup behavior stable: two references to the same
-                                        //   `import_module` but via different paths (e.g. through a
-                                        //   rename vs. directly) may have different syntax contexts
-                                        //   and must emit separate `var` declarations — AST merging
-                                        //   then renames them.
-                                        let ReferencedAssetIdent::Module {
-                                            import_module: Some(import_module),
-                                            ..
-                                        } = &ident
-                                        else {
-                                            unreachable!(
-                                                "ReferencedAsset::Some produces an ident with \
-                                                 import_module: Some(..)"
-                                            );
-                                        };
-                                        let import_id =
-                                            import_module.chunk_item_id(chunking_context).await?;
-                                        let hoist_key =
-                                            asset.chunk_item_id(chunking_context).await?;
-                                        let (sym, ctxt) =
-                                            ident.into_module_namespace_ident().unwrap();
-                                        let name = Ident::new(
-                                            sym.into(),
-                                            DUMMY_SP,
-                                            ctxt.unwrap_or_default(),
-                                        );
-                                        let mut call_expr = quote!(
-                                            "$turbopack_import($id)" as Expr,
-                                            turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                            id: Expr = module_id_to_lit(&import_id),
-                                        );
-                                        if this.is_pure_import {
-                                            call_expr.set_span(PURE_SP);
-                                        }
-                                        result.push(CodeGenerationHoistedStmt::new(
+                                let name = Ident::new(
+                                    namespace_ident.into(),
+                                    DUMMY_SP,
+                                    ctxt.unwrap_or_default(),
+                                );
+                                let (key, mut call_expr) = match import_module {
+                                    ImportSource::Module(id) => {
+                                        let hoist_key = hoist_key
+                                            .expect("ImportSource::Module implies Some asset");
+                                        (
                                             hoist_key.to_string().into(),
-                                            var_decl_with_span(
-                                                quote!(
-                                                    "var $name = $call;" as Stmt,
-                                                    name = name,
-                                                    call: Expr = call_expr
-                                                ),
-                                                span,
+                                            quote!(
+                                                "$turbopack_import($id)" as Expr,
+                                                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                                                id: Expr = module_id_to_lit(&id),
                                             ),
-                                        ));
+                                        )
                                     }
-                                    ReferencedAsset::External(
+                                    ImportSource::External {
                                         request,
-                                        ExternalType::EcmaScriptModule,
-                                    ) => {
+                                        ty: ExternalType::EcmaScriptModule,
+                                        import_externals,
+                                    } => {
                                         if !*chunking_context
                                             .environment()
                                             .supports_esm_externals()
@@ -717,45 +721,26 @@ impl EsmAssetReference {
                                                 chunking_context.name()
                                             );
                                         }
-                                        let (sym, ctxt) =
-                                            ident.into_module_namespace_ident().unwrap();
-                                        let name = Ident::new(
-                                            sym.into(),
-                                            DUMMY_SP,
-                                            ctxt.unwrap_or_default(),
-                                        );
-                                        let mut call_expr = if import_externals {
+                                        let call = if import_externals {
                                             quote!(
                                                 "$turbopack_external_import($id)" as Expr,
                                                 turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
-                                                id: Expr = Expr::Lit(request.clone().to_string().into())
+                                                id: Expr = Expr::Lit(request.to_string().into())
                                             )
                                         } else {
                                             quote!(
                                                 "$turbopack_external_require($id, () => require($id), true)" as Expr,
                                                 turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                                id: Expr = Expr::Lit(request.clone().to_string().into())
+                                                id: Expr = Expr::Lit(request.to_string().into())
                                             )
                                         };
-                                        if this.is_pure_import {
-                                            call_expr.set_span(PURE_SP);
-                                        }
-                                        result.push(CodeGenerationHoistedStmt::new(
-                                            name.sym.as_str().into(),
-                                            var_decl_with_span(
-                                                quote!(
-                                                    "var $name = $call;" as Stmt,
-                                                    name = name,
-                                                    call: Expr = call_expr,
-                                                ),
-                                                span,
-                                            ),
-                                        ));
+                                        (name.sym.as_str().into(), call)
                                     }
-                                    ReferencedAsset::External(
+                                    ImportSource::External {
                                         request,
-                                        ExternalType::CommonJs | ExternalType::Url,
-                                    ) => {
+                                        ty: ExternalType::CommonJs | ExternalType::Url,
+                                        import_externals: _,
+                                    } => {
                                         if !*chunking_context
                                             .environment()
                                             .supports_commonjs_externals()
@@ -767,36 +752,16 @@ impl EsmAssetReference {
                                                 chunking_context.name()
                                             );
                                         }
-                                        let (sym, ctxt) =
-                                            ident.into_module_namespace_ident().unwrap();
-                                        let name = Ident::new(
-                                            sym.into(),
-                                            DUMMY_SP,
-                                            ctxt.unwrap_or_default(),
-                                        );
-                                        let mut call_expr = quote!(
+                                        let call = quote!(
                                             "$turbopack_external_require($id, () => require($id), true)" as Expr,
                                             turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                            id: Expr = Expr::Lit(request.clone().to_string().into())
+                                            id: Expr = Expr::Lit(request.to_string().into())
                                         );
-                                        if this.is_pure_import {
-                                            call_expr.set_span(PURE_SP);
-                                        }
-                                        result.push(CodeGenerationHoistedStmt::new(
-                                            name.sym.as_str().into(),
-                                            var_decl_with_span(
-                                                quote!(
-                                                    "var $name = $call;" as Stmt,
-                                                    name = name,
-                                                    call: Expr = call_expr,
-                                                ),
-                                                span,
-                                            ),
-                                        ));
+                                        (name.sym.as_str().into(), call)
                                     }
                                     // fallback in case we introduce a new `ExternalType`
                                     #[allow(unreachable_patterns)]
-                                    ReferencedAsset::External(request, ty) => {
+                                    ImportSource::External { request, ty, .. } => {
                                         bail!(
                                             "Unsupported external type {:?} for ESM reference \
                                              with request: {:?}",
@@ -804,8 +769,21 @@ impl EsmAssetReference {
                                             request
                                         )
                                     }
-                                    ReferencedAsset::None => {}
                                 };
+                                if this.is_pure_import {
+                                    call_expr.set_span(PURE_SP);
+                                }
+                                result.push(CodeGenerationHoistedStmt::new(
+                                    key,
+                                    var_decl_with_span(
+                                        quote!(
+                                            "var $name = $call;" as Stmt,
+                                            name = name,
+                                            call: Expr = call_expr
+                                        ),
+                                        span,
+                                    ),
+                                ));
                             }
                             None => {
                                 // Nothing to import.

@@ -182,7 +182,15 @@ impl ModuleHotReferenceCodeGen {
                     ReferencedAsset::Some(asset) => {
                         let imported_module = &*referenced_asset;
                         let ident = imported_module
-                            .get_ident(chunking_context, None, scope_hoisting_context)
+                            .get_ident(
+                                chunking_context,
+                                None,
+                                scope_hoisting_context,
+                                // This path never emits the `.i(...)` call itself — it only
+                                // uses the resulting `namespace_ident`. `import_externals` on
+                                // the ident would be unread.
+                                false,
+                            )
                             .await?;
                         if let Some((namespace_ident, ctxt)) =
                             ident.and_then(|i| i.into_module_namespace_ident())
