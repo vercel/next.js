@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/other.js"],"sourcesContent":["export const LONG_STRING =\n  'abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789'\n\nexport const LONG_NUMBER = 21345672345678345678901234567890\n\nexport const LONG_BIG_NUMBER = 21345672345678345678901234567890n\n\nexport const REGEX = /ab/i\n"],"names":["LONG_STRING","LONG_NUMBER","LONG_BIG_NUMBER","REGEX"],"mappings":";;;;;;;;;;AAAO,MAAMA,cACX;AAEK,MAAMC,cAAc;AAEpB,MAAMC,kBAAkB,iCAAiC;AAEzD,MAAMC,QAAQ"}},
+    {"offset": {"line": 22, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js"],"sourcesContent":["import { LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, REGEX } from './other'\n\n// shouldn't inline\nconsole.log(LONG_STRING, LONG_NUMBER, LONG_BIG_NUMBER, REGEX)\n\n// TODO ideally would still use for evaluation even though not inlined\nif (LONG_STRING && LONG_NUMBER && LONG_BIG_NUMBER && REGEX) {\n  console.log('ok')\n} else {\n  require('./dead-code')\n}\n"],"names":["console","log"],"mappings":";AAAA;;AAEA,mBAAmB;AACnBA,QAAQC,GAAG,CAAC,4OAAW,EAAE,4OAAW,EAAE,gPAAe,EAAE,sOAAK;AAE5D,sEAAsE;AACtE,IAAI,4OAAW,IAAI,4OAAW,IAAI,gPAAe,IAAI,sOAAK,EAAE;IAC1DD,QAAQC,GAAG,CAAC;AACd,OAAO;;;;;;AAEP"}}]
+}

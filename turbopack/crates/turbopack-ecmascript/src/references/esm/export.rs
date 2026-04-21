@@ -706,8 +706,11 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding = if let Some((local, ctxt)) =
-                        eval_context.imports.exports_ids.get(exported)
+                    let binding = if let Some((local, ctxt)) = eval_context
+                        .imports
+                        .exports_ids
+                        .get(exported)
+                        .map(|(id, _)| id)
                     {
                         Some((local.clone(), *ctxt))
                     } else {

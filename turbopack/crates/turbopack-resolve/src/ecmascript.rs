@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TraitRef, Vc};
+use turbo_tasks::{TraitRef, Vc};
 use turbopack_core::{
     context::AssetContext,
     issue::IssueSource,
@@ -109,6 +109,33 @@ pub async fn esm_resolve(
     specific_resolve(origin_ref, request, options, ty, error_mode, issue_source).await
 }
 
+pub async fn esm_resolve_source(
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
+    ty: EcmaScriptModulesReferenceSubType,
+    error_mode: ResolveErrorMode,
+    issue_source: Option<IssueSource>,
+) -> Result<Vc<ResolveResult>> {
+    let ty = ReferenceType::EcmaScriptModules(ty);
+    let origin_ref = origin.into_trait_ref().await?;
+    let options = apply_esm_specific_options(origin_ref.resolve_options(), &ty)
+        .resolve()
+        .await?;
+    let origin_path = origin_ref.origin_path();
+    let result = resolve(origin_path.parent(), ty.clone(), request, options);
+
+    handle_resolve_source_error(
+        result,
+        ty,
+        origin_path,
+        request,
+        options,
+        error_mode,
+        issue_source,
+    )
+    .await
+}
+
 #[turbo_tasks::function]
 pub async fn cjs_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
@@ -127,8 +154,8 @@ pub async fn cjs_resolve(
 
 #[turbo_tasks::function]
 pub async fn cjs_resolve_source(
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    request: ResolvedVc<Request>,
+    origin: Vc<Box<dyn ResolveOrigin>>,
+    request: Vc<Request>,
     ty: CommonJsReferenceSubType,
     issue_source: Option<IssueSource>,
     error_mode: ResolveErrorMode,
@@ -139,13 +166,13 @@ pub async fn cjs_resolve_source(
         .to_resolved()
         .await?;
     let origin_path = origin_ref.origin_path();
-    let result = resolve(origin_path.parent(), ty.clone(), *request, options);
+    let result = resolve(origin_path.parent(), ty.clone(), request, options);
 
     handle_resolve_source_error(
         result,
         ty,
         origin_path,
-        *request,
+        request,
         options,
         error_mode,
         issue_source,
