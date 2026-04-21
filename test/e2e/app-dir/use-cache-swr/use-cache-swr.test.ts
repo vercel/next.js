@@ -23,6 +23,10 @@ describe('use-cache-swr', () => {
     // Wait for the outer cache to go stale (revalidate: 5).
     await new Promise((resolve) => setTimeout(resolve, 6000))
 
+    // Reset output index so the regen set we poll for below can't be satisfied
+    // by the initial cold-fill set from the first fetch.
+    outputIndex = next.cliOutput.length
+
     // This request should trigger SWR: the handler returns the stale entry,
     // the framework serves it to the client, and kicks off a background regen.
     await browser.refresh()
