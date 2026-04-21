@@ -1229,6 +1229,11 @@ impl Visit for Analyzer<'_> {
         {
             // Skip traversing if obj is a Expr::Ident, so that it doesn't get added to
             // full_star_imports below in visit_expr.
+
+            // TODO this currently doesn't properly mark the import in self.program_decl_usage, see
+            // todo in
+            // turbopack/crates/turbopack-tests/tests/execution/turbopack/remove-unused-imports/
+            // import-star/input/index.js
             return;
         }
         node.visit_children_with(self);
