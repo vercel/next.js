@@ -42,16 +42,23 @@ on:
     # author, so there's nothing new to label.
     types: [opened, synchronize]
 
-permissions:
-  pull-requests: write
+# Deny-by-default at the workflow level. The job below opts back in to
+# `pull-requests: write` — the minimum needed to apply labels.
+permissions: {}
 
 concurrency:
-  group: pr-auto-label-${{ github.event.pull_request.number }}
+  # `github.event.pull_request.number` is always set for
+  # `pull_request_target`, but fall back to the run ID if this workflow is
+  # ever extended to run on other events, to avoid collapsing unrelated
+  # runs into the same group.
+  group: pr-auto-label-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   label:
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
     steps:
       - uses: vercel/next.js/.github/actions/pr-auto-label@canary

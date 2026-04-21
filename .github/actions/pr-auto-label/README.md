@@ -23,6 +23,26 @@ Referencing `@canary` means a PR targeting a release branch is still
 labeled against the latest rules, matching the original
 `next-labeler-webhook` behavior.
 
+## Security model
+
+The action is designed to run under `pull_request_target` so it can label
+PRs from forks, and is hardened accordingly:
+
+- **No inputs.** The action reads `GITHUB_TOKEN` from the environment
+  rather than an input, so callers can't pass an unrelated higher-scoped
+  token from a fork-controlled context.
+- **No PR-controlled code runs.** The calling workflow does not check out
+  the PR, install dependencies, or execute scripts from the PR. Only the
+  trusted action bundle, fetched by GitHub from `@canary`, runs.
+- **No PR-controlled strings are shell-interpolated.** The only
+  PR-derived values are `pull_request.user.login` and the changed file
+  list — both returned by the GitHub API, not by the PR author — and
+  neither is ever passed to a shell.
+- **Labels are capped by config.** The action only applies labels whose
+  names appear as keys in `src/config.json`. Anything else is rejected
+  before the `addLabels` call so a buggy config can't silently create new
+  labels in the repo.
+
 ## Config
 
 Labeling rules live in [`src/config.json`](src/config.json). Each label

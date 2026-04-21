@@ -1,4 +1,4 @@
-import { getInput, info, setFailed, warning } from '@actions/core'
+import { info, setFailed, warning } from '@actions/core'
 import { context, getOctokit } from '@actions/github'
 import { minimatch } from 'minimatch'
 import config from './config.json'
@@ -53,10 +53,12 @@ export function computeLabels(
 }
 
 async function main() {
-  const token = getInput('github-token') || process.env.GITHUB_TOKEN
+  // Read the token strictly from the environment so a caller can't pass an
+  // unrelated higher-privileged token via an action input.
+  const token = process.env.GITHUB_TOKEN
   if (!token) {
     throw new TypeError(
-      '`github-token` input is missing and GITHUB_TOKEN is not set.'
+      'GITHUB_TOKEN is not set. Ensure the calling workflow grants `pull-requests: write`.'
     )
   }
 
@@ -85,11 +87,22 @@ async function main() {
   info(`PR #${prNumber} author: ${author}`)
   info(`PR #${prNumber} changed files: ${changedFiles.length}`)
 
+  const allowedLabels = new Set(Object.keys((config as LabelerConfig).labels))
   const labelsToAdd = computeLabels(
     config as LabelerConfig,
     author,
     changedFiles
-  )
+  ).filter((label) => {
+    // Defense in depth: `addLabels` will create missing labels on the fly,
+    // so ensure the set we send is always a subset of the config's keys.
+    // `computeLabels` already enforces this, but an explicit filter here
+    // keeps the invariant local to the API call.
+    if (!allowedLabels.has(label)) {
+      warning(`Skipping unknown label "${label}" not declared in config.`)
+      return false
+    }
+    return true
+  })
 
   if (labelsToAdd.length === 0) {
     info('No labels matched.')

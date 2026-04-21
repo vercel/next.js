@@ -2,13 +2,13 @@ name: 'PR Auto-Labeler'
 description: >-
   Applies labels to a pull request based on changed files and author, using
   the config in this action's src/config.json.
-inputs:
-  github-token:
-    description: >-
-      GitHub token used to list PR files and add labels. Must have
-      `pull-requests: write`. Defaults to the token of the workflow run.
-    required: false
-    default: ${{ github.token }}
+
+# This action deliberately has no inputs. It reads `GITHUB_TOKEN` from the
+# environment, which GitHub Actions populates with the job's own token.
+# Exposing a `github-token` input would let callers pass an unrelated
+# (potentially higher-privileged) token from a fork-controlled context;
+# forcing the use of the job token keeps the principle of least privilege
+# tied to the workflow's declared `permissions:` block.
 runs:
   using: 'node24'
   main: 'dist/index.js'
