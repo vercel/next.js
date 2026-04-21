@@ -1774,8 +1774,12 @@ export async function fetchRouteOnCacheMiss(
       // Get the params that were used to render the target page. These may
       // be different from the params in the request URL, if the page
       // was rewritten.
-      const renderedPathname = getRenderedPathname(response)
-      const renderedSearch = getRenderedSearch(response)
+      const renderedPathname = isOutputExportMode
+        ? (urlAfterRedirects.pathname as NormalizedPathname)
+        : getRenderedPathname(response)
+      const renderedSearch = isOutputExportMode
+        ? (urlAfterRedirects.search as NormalizedSearch)
+        : getRenderedSearch(response)
 
       // Convert the server-sent data into the RouteTree format used by the
       // client cache.
