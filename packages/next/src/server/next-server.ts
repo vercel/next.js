@@ -1001,7 +1001,27 @@ export default class NextNodeServer extends BaseServer<
         return true
       }
 
-      const cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+      let cacheKey = ImageOptimizerCache.getCacheKey(paramsResult)
+
+      // In development, include the file's mtime in the cache key for
+      // local non-static images so that edits to files in public/ are
+      // reflected immediately without restarting the dev server.
+      if (this.dev && !paramsResult.isAbsolute && !paramsResult.isStatic) {
+        try {
+          const urlPath = paramsResult.href.split('?')[0]
+          const publicFilePath = join(
+            /* turbopackIgnore: true */ this.dir,
+            CLIENT_PUBLIC_FILES_PATH,
+            urlPath
+          )
+          const { mtimeMs } = await fs.promises.stat(publicFilePath)
+          const { getHash } =
+            require('./image-optimizer') as typeof import('./image-optimizer')
+          cacheKey = getHash([cacheKey, mtimeMs])
+        } catch {
+          // File not in public/ or could not be stat'd — use original key.
+        }
+      }
 
       try {
         const { getExtension } =
