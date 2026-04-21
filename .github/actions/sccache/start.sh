@@ -34,7 +34,18 @@ pkill -9 -x rustc 2>/dev/null || true
 
 # Install vercel/sccache fork via cargo-binstall.
 # cargo-binstall is installed by .github/actions/setup-rust.
-cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache
+#
+# Two constraints:
+#  - Force musl target: vercel/sccache only publishes musl binaries.
+#    musl is statically linked, so it runs fine on glibc systems.
+#  - --strategies crate-meta-data: only use the fork's pkg-url, no
+#    fallback to QuickInstall or cargo-install. Fail loudly if the fork
+#    binary is missing instead of silently installing upstream
+#    mozilla/sccache 0.14.0 (which lacks the vercel_artifacts backend).
+ARCH=$(uname -m)
+cargo binstall --no-confirm --strategies crate-meta-data \
+  --targets "${ARCH}-unknown-linux-musl" \
+  --git https://github.com/vercel/sccache sccache
 sccache --version
 
 # Set env vars for the sccache server (export) and subsequent steps (GITHUB_ENV).
@@ -43,8 +54,7 @@ set_env() {
   echo "$1=$2" >> "$GITHUB_ENV"
 }
 
-# Temporary disable while we work out binstall issue
-#set_env RUSTC_WRAPPER sccache
+set_env RUSTC_WRAPPER sccache
 set_env SCCACHE_BASEDIRS "${INPUT_BASE_DIR:-${GITHUB_WORKSPACE}}"
 set_env CARGO_INCREMENTAL 0
 set_env SCCACHE_IDLE_TIMEOUT 0

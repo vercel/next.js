@@ -92,7 +92,7 @@ RUN ARCH=$(uname -m) && \
       | tar xz -C /root/.cargo/bin && \
     npm i -g @napi-rs/cli@2.18.4 && \
     cargo binstall --no-confirm --targets "${ARCH}-unknown-linux-musl" cargo-rustflags@0.4.0 && \
-    cargo binstall --no-confirm --git https://github.com/vercel/sccache sccache && \
+    cargo binstall --no-confirm --strategies crate-meta-data --targets "${ARCH}-unknown-linux-musl" --git https://github.com/vercel/sccache sccache && \
     node --version && rustc --version && napi -h > /dev/null && cargo rustflags --help > /dev/null && sccache --version
 
 WORKDIR /build
