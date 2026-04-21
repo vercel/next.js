@@ -33,6 +33,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
+      release_environment: ${{ steps.deploy-target.outputs.release_environment }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -55,6 +56,8 @@ jobs:
         run: |
           # TODO: Remove the new release check once the new release workflow is fully replaced.
           RELEASE_CHECK=$(node ./scripts/check-is-release.js 2> /dev/null || :)
+          RELEASE_ENVIRONMENT=""
+
           if [[ $RELEASE_CHECK == 'new-release' ]];
           then
             echo "__NEW_RELEASE=true" >> $GITHUB_ENV
@@ -62,6 +65,25 @@ jobs:
           elif [[ $RELEASE_CHECK == v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
+            if [[ "$RELEASE_CHECK" == *-canary.* ]];
+            then
+              RELEASE_ENVIRONMENT="release-canary"
+            elif [[ "$RELEASE_CHECK" == *-beta.* ]];
+            then
+              RELEASE_ENVIRONMENT="release-beta"
+            elif [[ "$RELEASE_CHECK" == *-rc.* ]];
+            then
+              RELEASE_ENVIRONMENT="release-release-candidate"
+            elif [[ "$RELEASE_CHECK" != *-* ]];
+            then
+              RELEASE_ENVIRONMENT="release-stable"
+            fi
+            if [[ -z "$RELEASE_ENVIRONMENT" ]];
+            then
+              echo "::error::Missing release environment for $RELEASE_CHECK"
+              exit 1
+            fi
+            echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
           elif [ '${{ github.ref }}' == 'refs/heads/next-15-5' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
@@ -567,6 +589,7 @@ jobs:
     if: ${{ needs.deploy-target.outputs.value == 'production' }}
     name: Potentially publish release
     runs-on: ubuntu-latest
+    environment: ${{ needs.deploy-target.outputs.release_environment }}
     needs:
       - deploy-target
       - build
