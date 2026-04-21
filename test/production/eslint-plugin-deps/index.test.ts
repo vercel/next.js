@@ -130,13 +130,13 @@ describe('eslint plugin deps', () => {
         'eslint-config-prettier': 'latest',
         'eslint-plugin-import': 'latest',
         'eslint-plugin-react': 'latest',
-        '@types/node': 'latest',
+        '@types/node': '20.17.6',
         '@types/react': 'latest',
         '@types/react-dom': 'latest',
         // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
         eslint: '8.56.0',
         'eslint-config-next': 'latest',
-        typescript: 'latest',
+        typescript: '5.8.2',
       },
       packageJson: {
         scripts: {
