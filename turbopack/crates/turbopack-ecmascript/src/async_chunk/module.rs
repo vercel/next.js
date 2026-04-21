@@ -7,6 +7,7 @@ use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
         ChunksData, ModuleChunkItemIdExt, availability_info::AvailabilityInfo,
+        available_modules::AvailableModuleItem,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -68,7 +69,9 @@ impl AsyncLoaderModule {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
+                && chunk_items
+                    .contains_key(&AvailableModuleItem::from(chunkable_module_or_batch))
+                    .await?
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),

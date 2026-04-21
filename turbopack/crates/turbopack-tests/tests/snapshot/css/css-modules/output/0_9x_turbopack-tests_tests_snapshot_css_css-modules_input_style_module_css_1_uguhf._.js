@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_css_css-modules_input_style_module_css_0ox2tup._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_css_css-modules_input_style_module_css_1_uguhf._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-modules/input/style.module.css [test] (css module, async loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v((parentImport) => {

@@ -4,7 +4,7 @@ use bitfield::bitfield;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
 
-use crate::chunk::available_modules::{AvailableModules, AvailableModulesSet};
+use crate::chunk::available_modules::AvailableModulesSet;
 
 bitfield! {
     #[derive(Clone, Copy, Default, TaskInput, TraceRawVcs, NonLocalValue, PartialEq, Eq, Hash, Encode, Decode)]
@@ -19,7 +19,7 @@ bitfield! {
 pub struct AvailabilityInfo {
     flags: AvailabilityFlags,
     /// There are modules already available.
-    available_modules: Option<ResolvedVc<AvailableModules>>,
+    available_modules: Option<ResolvedVc<AvailableModulesSet>>,
 }
 
 impl AvailabilityInfo {
@@ -30,7 +30,7 @@ impl AvailabilityInfo {
         }
     }
 
-    pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModules>> {
+    pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModulesSet>> {
         self.available_modules
     }
 
@@ -48,7 +48,7 @@ impl AvailabilityInfo {
         } else {
             Self {
                 flags: self.flags,
-                available_modules: Some(AvailableModules::new(modules).to_resolved().await?),
+                available_modules: Some(modules.to_resolved().await?),
             }
         })
     }
