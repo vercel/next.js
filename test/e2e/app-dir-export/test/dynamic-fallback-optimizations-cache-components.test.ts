@@ -170,7 +170,7 @@ if (isNextDeploy) {
         }
       })
 
-      it('reuses the hydrated fallback artifact base for sibling segment prefetches', async () => {
+      it('falls through from a concrete route-tree probe to the hydrated fallback tree', async () => {
         let act!: ReturnType<typeof createRouterAct>
         const browser = await webdriver(port, '/hydrated/first/', {
           beforePageLoad(page: Playwright.Page) {
@@ -207,12 +207,22 @@ if (isNextDeploy) {
           ).toBe(false)
           expect(
             prefetchRequests.some((requestPath) =>
-              requestPath.startsWith('/hydrated/second/__next.')
+              requestPath.startsWith('/hydrated/second/index.txt')
             )
           ).toBe(false)
           expect(
             prefetchRequests.some((requestPath) =>
-              requestPath.startsWith('/hydrated/__fallback')
+              requestPath.startsWith('/hydrated/second/__fallback/index.txt')
+            )
+          ).toBe(true)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/__fallback.meta.json')
+            )
+          ).toBe(true)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
             )
           ).toBe(true)
         } finally {
@@ -220,7 +230,7 @@ if (isNextDeploy) {
         }
       })
 
-      it('dedupes hydrated sibling metadata prefetches by fallback artifact path', async () => {
+      it('reuses the same hydrated fallback tree endpoint across sibling prefetches', async () => {
         let act!: ReturnType<typeof createRouterAct>
         const browser = await webdriver(port, '/hydrated/first/', {
           beforePageLoad(page: Playwright.Page) {
@@ -245,19 +255,36 @@ if (isNextDeploy) {
           })
 
           const prefetchRequests = getRequests()
+          const fallbackTreeRequests = prefetchRequests.filter((requestPath) =>
+            requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
+          )
 
           expect(
-            prefetchRequests.filter((requestPath) =>
-              requestPath.startsWith('/hydrated/__fallback/__next._head.txt')
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/?_rsc=')
             )
-          ).toHaveLength(1)
+          ).toBe(false)
           expect(
-            prefetchRequests.filter((requestPath) =>
-              requestPath.includes(
-                '/hydrated/__fallback/__next.hydrated.$d$thread.__PAGE__.txt'
-              )
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/third/?_rsc=')
             )
-          ).toHaveLength(1)
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/index.txt')
+            )
+          ).toBe(false)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/third/index.txt')
+            )
+          ).toBe(false)
+          expect(fallbackTreeRequests).toHaveLength(2)
+          expect(
+            fallbackTreeRequests.every((requestPath) =>
+              requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
+            )
+          ).toBe(true)
         } finally {
           await browser.close()
         }
