@@ -228,8 +228,6 @@ describe('convertServerPatchToFullTree output export fallback', () => {
       '/docs/__fallback'
     )
 
-    expect(navigationSeed.outputExportFallbackBasePath).toBe(
-      '/docs/__fallback'
-    )
+    expect(navigationSeed.outputExportFallbackBasePath).toBe('/docs/__fallback')
   })
 })
