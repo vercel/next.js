@@ -300,6 +300,13 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
+   * When background revalidation resolves some route params but not others,
+   * tracks the param keys that are no longer placeholders so only the
+   * unresolved subset suspends in intermediate PPR shells.
+   */
+  resolvedRouteParamKeys?: Set<string>
+
+  /**
    * The fallback params for this route. In dev, used for validating prerenders.
    * In production, used to defer params resolution during staged rendering.
    */
