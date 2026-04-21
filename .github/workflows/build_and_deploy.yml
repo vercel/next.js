@@ -42,6 +42,7 @@ jobs:
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
+      release_environment: ${{ steps.deploy-target.outputs.release_environment }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -62,9 +63,31 @@ jobs:
         # 'staging' for canary branch since that will eventually be published i.e. become the production build.
         id: deploy-target
         run: |
-          if [[ $(node ./scripts/check-is-release.js 2> /dev/null || :) == v* ]];
+          RELEASE_VERSION="$(node ./scripts/check-is-release.js 2> /dev/null || :)"
+          RELEASE_ENVIRONMENT=""
+
+          if [[ "$RELEASE_VERSION" == v* ]];
           then
             echo "value=production" >> $GITHUB_OUTPUT
+            if [[ "$RELEASE_VERSION" == *-canary.* ]];
+            then
+              RELEASE_ENVIRONMENT="release-canary"
+            elif [[ "$RELEASE_VERSION" == *-beta.* ]];
+            then
+              RELEASE_ENVIRONMENT="release-beta"
+            elif [[ "$RELEASE_VERSION" == *-rc.* ]];
+            then
+              RELEASE_ENVIRONMENT="release-release-candidate"
+            elif [[ "$RELEASE_VERSION" != *-* ]];
+            then
+              RELEASE_ENVIRONMENT="release-stable"
+            fi
+            if [[ -z "$RELEASE_ENVIRONMENT" ]];
+            then
+              echo "::error::Missing release environment for $RELEASE_VERSION"
+              exit 1
+            fi
+            echo "release_environment=$RELEASE_ENVIRONMENT" >> $GITHUB_OUTPUT
           elif [ ''"${GIT_REF}"'' == 'refs/heads/canary' ]
           then
             echo "value=staging" >> $GITHUB_OUTPUT
@@ -472,6 +495,7 @@ jobs:
     if: ${{ needs.deploy-target.outputs.value == 'production' }}
     name: Potentially publish release
     runs-on: ubuntu-latest
+    environment: ${{ needs.deploy-target.outputs.release_environment }}
     needs:
       - deploy-target
       - build
