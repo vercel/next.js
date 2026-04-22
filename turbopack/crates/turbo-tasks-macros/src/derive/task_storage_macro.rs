@@ -69,6 +69,17 @@ struct FieldInfo {
     /// If true, drop this field entirely after execution completes if the task is immutable.
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
+    /// If true, the macro dispatches to `FieldType::drop_partial(&mut v) -> bool`
+    /// in the generated `TaskStorage::drop_partial` lazy retain_mut arm instead
+    /// of the default wholesale reset. The method's `bool` return signals whether
+    /// residue remains (`true` keeps the variant). On restore, the incoming
+    /// persistent entries are merged into the residue via `extend`, so the field
+    /// type must support `extend(IntoIterator<Item = ...>)` through the usual
+    /// newtype `DerefMut`. See `CellData::drop_partial` for the canonical example.
+    ///
+    /// Cannot be combined with `filter_transient` (both produce residue) or
+    /// `inline` (the current consumer is a lazy field; keep the surface small).
+    custom_drop_partial: bool,
     /// Optional override for the underlying map type, used when the field is a
     /// newtype wrapping `AutoMap<K, V>` (or similar) so callers can inject
     /// custom bincode / accessor behavior while the macro still generates map
@@ -373,6 +384,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut use_default = false;
     let mut shrink_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
+    let mut custom_drop_partial = false;
     let mut as_type: Option<Type> = None;
 
     // Find and parse the field attribute
@@ -494,13 +506,15 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                         shrink_on_completion = true;
                     } else if ident == "drop_on_completion_if_immutable" {
                         drop_on_completion_if_immutable = true;
+                    } else if ident == "custom_drop_partial" {
+                        custom_drop_partial = true;
                     } else {
                         meta.span()
                             .unwrap()
                             .error(format!(
                                 "unknown modifier `{ident}`, expected `inline`, \
-                                 `filter_transient`, `default`, `shrink_on_completion`, or \
-                                 `drop_on_completion_if_immutable`"
+                                 `filter_transient`, `default`, `shrink_on_completion`, \
+                                 `drop_on_completion_if_immutable`, or `custom_drop_partial`"
                             ))
                             .emit();
                     }
@@ -597,6 +611,39 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         }
     }
 
+    if custom_drop_partial {
+        if inline {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`custom_drop_partial` on inline field `{field_name}` is not supported; move \
+                     the field to lazy storage or extend the macro to handle inline custom drops"
+                ))
+                .emit();
+        }
+        if filter_transient {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`custom_drop_partial` cannot be combined with `filter_transient` on \
+                     `{field_name}`: both paths produce residue and the semantics would conflict"
+                ))
+                .emit();
+        }
+        if !is_collection {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`custom_drop_partial` on field `{field_name}` requires a collection storage \
+                     type (auto_set, auto_map, counter_map)"
+                ))
+                .emit();
+        }
+    }
+
     FieldInfo {
         is_pub,
         field_name,
@@ -609,6 +656,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         use_default,
         shrink_on_completion,
         drop_on_completion_if_immutable,
+        custom_drop_partial,
         as_type,
     }
 }
@@ -2810,7 +2858,7 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
 
     let drop_lazy_arms: Vec<_> = grouped_fields
         .all_lazy()
-        .filter(|f| !f.is_transient())
+        .filter(|f| !f.is_transient() && (f.filter_transient || f.custom_drop_partial))
         .map(gen_drop_lazy_match_arm)
         .collect();
 
@@ -2890,8 +2938,8 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                         // accepting the task for full eviction.
                         return !f.is_empty();
                     }
-                    let drop_this = if f.is_data() { data } else { meta };
-                    if !drop_this {
+                    let drop_this_category = if f.is_data() { data } else { meta };
+                    if !drop_this_category {
                         return true;
                     }
                     match f {
@@ -2931,11 +2979,21 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
 /// if any, retain them in place and keep the variant.
 fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
     let variant_name = &field.variant_name;
-    if !field.filter_transient {
+    assert!(field.filter_transient || field.custom_drop_partial);
+
+    // Fields opting into `custom_drop_partial` delegate the whole decision to
+    // `FieldType::drop_partial(&mut v) -> bool`. The `bool` feeds straight
+    // into `retain_mut`'s keep/drop flag. The variant's inner type matches
+    // the declared field_type (the outer newtype, not `as_type`).
+    if field.custom_drop_partial {
+        let field_type = &field.field_type;
         return quote! {
-            LazyField::#variant_name(_) => false,
+            LazyField::#variant_name(v) => {
+                <#field_type>::drop_partial(v)
+            }
         };
     }
+
     let body = {
         let v = quote! { v };
         if let StorageType::Direct = field.storage_type {
@@ -3562,7 +3620,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     let merge_lazy_arms: Vec<_> = grouped_fields
         .all_lazy()
         .enumerate()
-        .filter(|(_, f)| !f.is_transient() && f.filter_transient)
+        .filter(|(_, f)| !f.is_transient() && (f.filter_transient || f.custom_drop_partial))
         .map(|(idx, f)| gen_restore_lazy_merge_arm(f, idx as u8))
         .collect();
 
@@ -3766,7 +3824,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 /// so the pushed variant is never looked up again within this call — no need
 /// to update `index`.
 fn gen_restore_lazy_merge_arm(field: &FieldInfo, discriminant: u8) -> TokenStream {
-    debug_assert!(field.filter_transient);
+    debug_assert!(field.filter_transient || field.custom_drop_partial);
     let variant_name = &field.variant_name;
     quote! {
         LazyField::#variant_name(incoming) => {

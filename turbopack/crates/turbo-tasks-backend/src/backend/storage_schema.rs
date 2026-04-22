@@ -298,6 +298,7 @@ struct TaskStorageSchema {
         storage = "auto_map",
         category = "data",
         shrink_on_completion,
+        custom_drop_partial,
         as_type = "AutoMap<CellId, SharedReference>"
     )]
     cell_data: CellData,
@@ -1435,6 +1436,128 @@ mod tests {
             storage.get_output(),
             Some(&OutputValue::Output(transient_task(1)))
         );
+    }
+
+    // ==========================================================================
+    // cell_data custom_drop_partial dispatch
+    // ==========================================================================
+
+    mod cell_data_drop_partial {
+        //! End-to-end: verify `TaskStorage::drop_partial` dispatches to
+        //! `CellData::drop_partial`, and that `restore_data_from` merges the
+        //! retained residue with incoming persistent entries instead of
+        //! clobbering it. The per-variant partitioning is covered in
+        //! `cell_data.rs` — here we only need one non-recoverable entry as
+        //! residue and one recoverable entry to be dropped.
+        use turbo_tasks::{self as turbo_tasks, VcValueType};
+
+        use super::*;
+
+        #[turbo_tasks::value]
+        struct Keepable(#[allow(dead_code)] u32);
+
+        #[turbo_tasks::value(serialization = "skip", evict = "last")]
+        struct KeepMe(
+            #[turbo_tasks(trace_ignore)]
+            #[allow(dead_code)]
+            u32,
+        );
+
+        fn dummy_ref() -> SharedReference {
+            SharedReference::new(triomphe::Arc::new(0u32))
+        }
+
+        fn keepable_cell(index: u32) -> CellId {
+            CellId {
+                type_id: Keepable::get_value_type_id(),
+                index,
+            }
+        }
+
+        fn keep_me_cell(index: u32) -> CellId {
+            CellId {
+                type_id: KeepMe::get_value_type_id(),
+                index,
+            }
+        }
+
+        #[test]
+        fn drop_partial_retains_non_recoverable_entries() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.cell_data_mut().insert(keep_me_cell(1), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            storage.drop_partial(true, false);
+
+            let cells = storage.cell_data().expect("residue keeps the variant");
+            assert_eq!(cells.len(), 1);
+            assert!(cells.contains_key(&keep_me_cell(1)));
+            assert!(!cells.contains_key(&keepable_cell(0)));
+        }
+
+        #[test]
+        fn drop_partial_removes_variant_when_all_recoverable() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            storage.drop_partial(true, false);
+
+            assert!(
+                storage.cell_data().is_none(),
+                "variant is dropped when drop_partial empties it"
+            );
+        }
+
+        #[test]
+        fn restore_merges_residue_with_incoming() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.cell_data_mut().insert(keep_me_cell(1), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            storage.drop_partial(true, false);
+            // Only KeepMe entry survives.
+            assert_eq!(storage.cell_data().unwrap().len(), 1);
+
+            // Simulate a restore: disk had only the persistable entry.
+            let mut source = TaskStorage::new();
+            source.cell_data_mut().insert(keepable_cell(0), dummy_ref());
+
+            storage.restore_data_from(source);
+
+            let cells = storage
+                .cell_data()
+                .expect("residue + incoming both present");
+            assert_eq!(cells.len(), 2);
+            assert!(cells.contains_key(&keepable_cell(0)));
+            assert!(cells.contains_key(&keep_me_cell(1)));
+        }
+
+        #[test]
+        fn drop_partial_meta_does_not_touch_cell_data() {
+            let mut storage = TaskStorage::new();
+            storage
+                .cell_data_mut()
+                .insert(keepable_cell(0), dummy_ref());
+            storage.flags.set_data_restored(true);
+            storage.flags.set_meta_restored(true);
+
+            storage.drop_partial(false, true);
+
+            // cell_data is category=data; meta-only drop leaves it alone.
+            assert_eq!(storage.cell_data().unwrap().len(), 1);
+        }
     }
 
     // ==========================================================================
