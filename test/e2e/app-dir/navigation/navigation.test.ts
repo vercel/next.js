@@ -358,6 +358,29 @@ describe('app dir - navigation', () => {
     })
   })
 
+  describe('cross-pathname Link then same-pathname hash change', () => {
+    const startPath = '/hash-cross-path-push'
+    const destinationPath = '/hash-cross-path-push/destination'
+
+    it('should replace (not concatenate) the hash when <Link> triggers the same-pathname hash change', async () => {
+      const browser = await next.browser(startPath)
+
+      await browser.elementByCss('#link-to-target-foo').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#foo'
+        )
+      )
+
+      await browser.elementByCss('#link-to-target-baz').click()
+      await retry(() =>
+        expect(browser.url()).resolves.toEqual(
+          next.url + destinationPath + '#baz'
+        )
+      )
+    })
+  })
+
   describe('not-found', () => {
     it('should trigger not-found in a server component', async () => {
       const browser = await next.browser('/not-found/servercomponent')
