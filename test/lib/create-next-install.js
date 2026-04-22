@@ -81,12 +81,36 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa('pnpm', ['turbo', 'run', 'pack-for-isolated-tests'], {
-            cwd: origRepoDir,
-            stdio: ['ignore', 'inherit', 'inherit'],
-          })
-        )
+        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(async () => {
+          const result = await execa(
+            'pnpm',
+            [
+              'turbo',
+              'run',
+              'pack-for-isolated-tests',
+              // minimize output
+              '--output-logs=errors-only',
+              '--summarize=false',
+              // disable interactive UI when running in a terminal
+              '--ui=stream',
+            ],
+            {
+              cwd: origRepoDir,
+              stdio: ['ignore', 'pipe', 'pipe'],
+              env: {
+                NO_UPDATE_NOTIFIER: '1', // Disable banner informing about new turborepo version
+              },
+              reject: false,
+            }
+          )
+          // Only log output if the command errored, otherwise it's just noise
+          if (result.failed) {
+            require('console').error(result.all)
+            throw new Error(
+              'Errors occurred when running turbo-run-pack, see output above'
+            )
+          }
+        })
 
         if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
