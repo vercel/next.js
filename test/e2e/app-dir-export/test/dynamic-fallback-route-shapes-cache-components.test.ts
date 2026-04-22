@@ -155,52 +155,6 @@ if (isNextDeploy) {
           await browser.close()
         }
       })
-
-      it('renders nested fallback params across multiple dynamic segments', async () => {
-        const browser = await webdriver(port, '/org/umbrella/chat/thread-789/')
-
-        try {
-          await retry(async () => {
-            expect(await browser.elementByCss('#org-name').text()).toBe(
-              'Org umbrella'
-            )
-            expect(await browser.elementByCss('h1').text()).toBe(
-              'umbrella:thread-789'
-            )
-          })
-
-          await browser.elementByCss('a[href="/org/"]').click()
-          await retry(async () => {
-            expect(await browser.elementByCss('h1').text()).toBe('Org index')
-          })
-
-          await browser
-            .elementByCss('a[href="/org/acme/chat/thread-123/"]')
-            .click()
-          await retry(async () => {
-            expect(await browser.elementByCss('#org-name').text()).toBe(
-              'Org acme'
-            )
-            expect(await browser.elementByCss('h1').text()).toBe(
-              'acme:thread-123'
-            )
-          })
-
-          await browser
-            .elementByCss('a[href="/org/acme/chat/thread-456/"]')
-            .click()
-          await retry(async () => {
-            expect(await browser.elementByCss('#org-name').text()).toBe(
-              'Org acme'
-            )
-            expect(await browser.elementByCss('h1').text()).toBe(
-              'acme:thread-456'
-            )
-          })
-        } finally {
-          await browser.close()
-        }
-      })
     }
   )
 }

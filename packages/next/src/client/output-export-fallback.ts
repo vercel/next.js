@@ -242,6 +242,27 @@ export function getCachedOutputExportFallbackDataUrl(url: URL): URL | null {
   return cached !== undefined ? new URL(cached) : null
 }
 
+export function getCachedOutputExportFallbackBasePath(url: URL): string | null {
+  let routeDirectory: string
+  if (url.pathname.endsWith('/index.txt')) {
+    routeDirectory = normalizeOutputExportRouteDirectory(
+      url.pathname.slice(0, -10) || '/'
+    )
+  } else if (url.pathname.endsWith('.txt')) {
+    routeDirectory = normalizeOutputExportRouteDirectory(
+      url.pathname.slice(0, -4) || '/'
+    )
+  } else {
+    routeDirectory = normalizeOutputExportRouteDirectory(
+      url.pathname.slice(0, url.pathname.lastIndexOf('/')) || '/'
+    )
+  }
+
+  const fallbackBasePath =
+    getOutputExportFallbackCacheStore().basePaths.get(routeDirectory)
+  return fallbackBasePath !== undefined ? fallbackBasePath : null
+}
+
 export function getCachedOutputExportFallbackRequestUrl(url: URL): URL | null {
   const cachedDataUrl = getCachedOutputExportFallbackDataUrl(url)
   if (cachedDataUrl !== null) {
@@ -416,24 +437,6 @@ export async function fetchOutputExportFallbackResponse(
     const candidateUrl = new URL(renderedUrl)
     candidateUrl.pathname = candidate
 
-    const directResult = await fetchConfiguredOutputExportDataResult(
-      candidateUrl,
-      prefersTrailingSlash,
-      init
-    )
-    if (directResult) {
-      cacheOutputExportFallbackDataUrl(
-        renderedUrl,
-        candidateUrl,
-        directResult.dataUrl
-      )
-      return {
-        response: directResult.response,
-        renderedUrl,
-        fallbackUrl: candidateUrl,
-      }
-    }
-
     const fallbackManifest = await fetchOutputExportFallbackManifest(
       candidateUrl,
       init
@@ -470,6 +473,26 @@ export async function fetchOutputExportFallbackResponse(
             fallbackUrl: branchFallbackUrl,
           }
         }
+      }
+
+      continue
+    }
+
+    const directResult = await fetchConfiguredOutputExportDataResult(
+      candidateUrl,
+      prefersTrailingSlash,
+      init
+    )
+    if (directResult) {
+      cacheOutputExportFallbackDataUrl(
+        renderedUrl,
+        candidateUrl,
+        directResult.dataUrl
+      )
+      return {
+        response: directResult.response,
+        renderedUrl,
+        fallbackUrl: candidateUrl,
       }
     }
   }

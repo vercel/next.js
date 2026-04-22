@@ -7,6 +7,7 @@ import {
 } from '../../lib/constants'
 import {
   getOutputExportFallbackMetadataPath,
+  needsOutputExportFallbackManifest,
   getOutputExportFallbackPath,
   getOutputExportFallbackStaticPrefix,
   getOutputExportFallbackVariantPath,
@@ -34,6 +35,7 @@ export type OutputExportFallbackArtifactVariant = {
 
 export type OutputExportFallbackArtifactPlan = {
   fallbackRoute: string
+  needsManifest: boolean
   variants: OutputExportFallbackArtifactVariant[]
 }
 
@@ -184,6 +186,9 @@ export function planOutputExportFallbackArtifacts(
       if (entries.length === 1) {
         return {
           fallbackRoute,
+          needsManifest: needsOutputExportFallbackManifest(
+            entries[0].dynamicRoute
+          ),
           variants: [
             {
               route: entries[0].dynamicRoute,
@@ -214,6 +219,7 @@ export function planOutputExportFallbackArtifacts(
 
       return {
         fallbackRoute,
+        needsManifest: true,
         variants,
       }
     })
@@ -225,8 +231,8 @@ export async function emitOutputExportFallbackArtifacts(
   subFolders: boolean
 ): Promise<string[]> {
   const fallbackHtmlPathsByPlan = await Promise.all(
-    plans.map(async ({ fallbackRoute, variants }) => {
-      if (variants.length > 1) {
+    plans.map(async ({ fallbackRoute, needsManifest, variants }) => {
+      if (needsManifest) {
         const manifestPath = join(
           outDir,
           getOutputExportFallbackMetadataPath(fallbackRoute)

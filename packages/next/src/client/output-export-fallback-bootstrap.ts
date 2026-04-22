@@ -2,8 +2,13 @@ import type { InitialRSCPayload } from '../shared/lib/app-router-types'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import { processFetch } from './components/router-reducer/fetch-server-response'
-import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import {
+  createInitialRSCPayloadFromFallbackPrerender,
+  doesFilledFallbackFlightDataMatchRenderedPathname,
+} from './flight-data-helpers'
+import {
+  addOutputExportDataSuffix,
+  getCachedOutputExportFallbackBasePath,
   fetchOutputExportFallbackResponse,
   fetchOutputExportNotFoundDataResponse,
   fetchOutputExportNotFoundResponse,
@@ -63,14 +68,23 @@ export async function createOutputExportFallbackInitialResponse({
   })
 
   if (fallbackResult !== null) {
-    return {
-      initialRSCPayload: await decodeFallbackPrerenderPayload(
-        Promise.resolve(fallbackResult.response),
-        renderedUrl,
-        createFromFetch,
-        debugChannel
-      ),
-      fallbackBasePath: fallbackResult.fallbackUrl.pathname,
+    const fallbackPayload = await decodeFallbackPrerenderPayload(
+      Promise.resolve(fallbackResult.response),
+      renderedUrl,
+      createFromFetch,
+      debugChannel
+    )
+
+    if (
+      doesFilledFallbackFlightDataMatchRenderedPathname(
+        fallbackPayload.f,
+        renderedUrl.pathname
+      )
+    ) {
+      return {
+        initialRSCPayload: fallbackPayload,
+        fallbackBasePath: fallbackResult.fallbackUrl.pathname,
+      }
     }
   }
 
@@ -89,9 +103,10 @@ export async function createOutputExportFallbackInitialResponse({
       createFromFetch,
       debugChannel
     ),
-    fallbackBasePath: getConfiguredOutputExportNotFoundCandidate(
-      renderedUrl.pathname
-    ),
+    fallbackBasePath:
+      getCachedOutputExportFallbackBasePath(
+        addOutputExportDataSuffix(renderedUrl)
+      ) ?? getConfiguredOutputExportNotFoundCandidate(renderedUrl.pathname),
   }
 }
 

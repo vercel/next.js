@@ -10,6 +10,7 @@ import type {
 } from '../shared/lib/app-router-types'
 import { PAGE_SEGMENT_KEY } from '../shared/lib/segment'
 import type { NormalizedSearch } from './components/segment-cache/cache-key'
+import { extractPathFromFlightRouterState } from './components/router-reducer/compute-changed-path'
 import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
@@ -22,6 +23,7 @@ import {
   getRenderedSearch,
 } from './route-params'
 import { createHrefFromUrl } from './components/router-reducer/create-href-from-url'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 
 export type NormalizedFlightData = {
   /**
@@ -146,6 +148,33 @@ export function fillInFallbackFlightData<T extends FlightData>(
   ) as FlightDataPath[]
 
   return filledFlightData as T
+}
+
+export function doesFilledFallbackFlightDataMatchRenderedPathname(
+  flightData: FlightData,
+  renderedPathname: string
+): boolean {
+  if (typeof flightData === 'string') {
+    return true
+  }
+
+  const normalizedRenderedPathname =
+    normalizePathTrailingSlash(renderedPathname)
+
+  return flightData.some((flightDataPath) => {
+    const { tree } = getFlightDataPartsFromPath(flightDataPath)
+    const extractedPath = extractPathFromFlightRouterState(tree)
+    const extractedPathname = extractedPath === '' ? '/' : extractedPath
+
+    if (extractedPathname == null) {
+      return false
+    }
+
+    return (
+      normalizePathTrailingSlash(extractedPathname) ===
+      normalizedRenderedPathname
+    )
+  })
 }
 
 function fillInFallbackFlightDataPath(
