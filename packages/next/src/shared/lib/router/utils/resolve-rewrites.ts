@@ -22,12 +22,16 @@ export default function resolveRewrites(
   locales?: readonly string[]
 ): {
   matchedPage: boolean
+  matchedRewrite: boolean
+  matchedNonDeterministicRewrite: boolean
   parsedAs: ParsedAs
   asPath: string
   resolvedHref?: string
   externalDest?: boolean
 } {
   let matchedPage = false
+  let matchedRewrite = false
+  let matchedNonDeterministicRewrite = false
   let externalDest = false
   let parsedAs: ParsedAs = parseRelativeUrl(asPath)
   let fsPathname = removeTrailingSlash(
@@ -74,11 +78,23 @@ export default function resolveRewrites(
     }
 
     if (params) {
+      if (!rewrite.initialReconciliationDeterministic) {
+        // 1. A matching rewrite fell outside the exact client-side subset.
+        // 2. Later callers preserve the conservative `unknown` fallback for it.
+        matchedNonDeterministicRewrite = true
+      }
+
       if (!rewrite.destination) {
         // this is a proxied rewrite which isn't handled on the client
         externalDest = true
         return true
       }
+
+      // 1. An internal rewrite was accepted for this request.
+      // 2. Later callers keep this routing fact separate from the eventual
+      //    hydration reconciliation decision.
+      matchedRewrite = true
+
       const destRes = prepareDestination({
         appendParamsToQuery: true,
         destination: rewrite.destination,
@@ -148,6 +164,8 @@ export default function resolveRewrites(
 
   return {
     asPath,
+    matchedRewrite,
+    matchedNonDeterministicRewrite,
     parsedAs,
     matchedPage,
     resolvedHref,

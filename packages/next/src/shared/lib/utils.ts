@@ -7,6 +7,7 @@ import type { NextRouter } from './router/router'
 import type { ParsedUrlQuery } from 'querystring'
 import type { PreviewData } from '../../types'
 import type { COMPILER_NAMES } from './constants'
+import type { RewriteReconciliationState } from './router/utils/rewrite-reconciliation'
 import type fs from 'fs'
 
 export type NextComponentType<
@@ -89,6 +90,7 @@ export type NEXT_DATA = {
   props: Record<string, any>
   page: string
   query: ParsedUrlQuery
+  rewriteReconciliation?: RewriteReconciliationState
   buildId: string
   assetPrefix?: string
   nextExport?: boolean

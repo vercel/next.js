@@ -95,6 +95,16 @@ export interface RequestMeta {
   resolvedPathname?: string
 
   /**
+   * 1. This is a routing fact recorded on the request.
+   * 2. It is consumed later by the Pages Router hydration logic.
+   * 3. When `true`, a rewrite changed this request to another route handled by
+   *    the Pages Router.
+   * 4. It does not by itself mean hydration reconciliation is required, because
+   *    the initial payload may already contain the rewritten route/query state.
+   */
+  matchedRewrite?: boolean
+
+  /**
    * The cookies that were added by middleware and were added to the response.
    */
   middlewareCookie?: string[]

@@ -38,6 +38,7 @@ import type { PagesModule } from './route-modules/pages/module'
 import type { ComponentsEnhancer } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { Revalidate } from './lib/cache-control'
+import type { RewriteReconciliationState } from '../shared/lib/router/utils/rewrite-reconciliation'
 import type { COMPILER_NAMES } from '../shared/lib/constants'
 
 import React, { type JSX } from 'react'
@@ -112,6 +113,42 @@ let warn: typeof import('../build/output/log').warn
 let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
+
+/**
+ * Return the exact rewrite reconciliation value that may be serialized into
+ * `__NEXT_DATA__`.
+ *
+ * 1. Only exact request-time answers belong in the client bootstrap payload.
+ * 2. Build-time prerendering must omit the field, because shared static HTML
+ *    cannot carry a request-specific reconciliation result.
+ * 3. `unknown` and `undefined` both mean "omit the field": `unknown` is not an
+ *    exact reusable answer, and `undefined` covers render-layer callers that do
+ *    not provide a reconciliation value.
+ *
+ * @param rewriteReconciliation the rewrite reconciliation result for the
+ * current render, if any
+ * @param isBuildTimePrerendering whether the current render is producing shared
+ * static HTML at build time
+ * @returns the exact value to serialize into `__NEXT_DATA__`, or `undefined`
+ * when the field must be omitted
+ */
+function getSerializedRewriteReconciliation(
+  rewriteReconciliation: RewriteReconciliationState | undefined,
+  isBuildTimePrerendering: boolean
+): Exclude<RewriteReconciliationState, 'unknown'> | undefined {
+  if (isBuildTimePrerendering) {
+    return undefined
+  }
+
+  if (
+    rewriteReconciliation === 'unknown' ||
+    rewriteReconciliation === undefined
+  ) {
+    return undefined
+  }
+
+  return rewriteReconciliation
+}
 
 if (process.env.NEXT_RUNTIME !== 'edge') {
   tryGetPreviewData = (
@@ -256,6 +293,7 @@ export type RenderOptsPartial = {
   nextScriptWorkers: any
   resolvedUrl?: string
   resolvedAsPath?: string
+  rewriteReconciliation?: RewriteReconciliationState
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   nextFontManifest?: DeepReadonly<NextFontManifest>
@@ -1486,11 +1524,20 @@ export async function renderToHTMLImpl(
     locale,
     locales,
   } = renderOpts
+  const serializedRewriteReconciliation = getSerializedRewriteReconciliation(
+    renderOpts.rewriteReconciliation,
+    renderOpts.isBuildTimePrerendering === true
+  )
   const htmlProps: HtmlProps = {
     __NEXT_DATA__: {
       props, // The result of getInitialProps
       page: pathname, // The rendered page
       query, // querystring parsed / passed by the user
+      ...(serializedRewriteReconciliation !== undefined
+        ? {
+            rewriteReconciliation: serializedRewriteReconciliation,
+          }
+        : {}),
       buildId: sharedContext.buildId,
       assetPrefix: assetPrefix === '' ? undefined : assetPrefix, // send assetPrefix to the client side when configured, otherwise don't sent in the resulting HTML
       nextExport: nextExport === true ? true : undefined, // If this is a page exported by `next export`
