@@ -1,4 +1,10 @@
-import { getServerUtils } from './server-utils'
+import type { IncomingMessage } from 'http'
+import type { NextUrlWithParsedQuery } from './request-meta'
+
+import {
+  getPagesRouterRewriteHydrationQueries,
+  getServerUtils,
+} from './server-utils'
 
 describe('getParamsFromRouteMatches', () => {
   it('should return nothing for a non-dynamic route', () => {
@@ -199,6 +205,99 @@ describe('normalizeDynamicRouteParams', () => {
         project: '%5Bproject%5D-suffix',
       },
       hasValidParams: true,
+    })
+  })
+})
+
+describe('handleRewrites', () => {
+  it('should report query-only rewrites as matched rewrites', () => {
+    const { handleRewrites } = getServerUtils({
+      page: '/',
+      basePath: '',
+      rewrites: {
+        beforeFiles: [],
+        afterFiles: [
+          {
+            source: '/rewrite',
+            destination: '/?foo=bar',
+          },
+        ],
+        fallback: [],
+      },
+      i18n: undefined,
+      pageIsDynamic: false,
+      caseSensitive: false,
+    })
+
+    const result = handleRewrites(
+      {
+        headers: {},
+      } as IncomingMessage,
+      {
+        pathname: '/rewrite',
+        query: {},
+      } as NextUrlWithParsedQuery
+    )
+
+    expect(result.matchedRewrite).toBe(true)
+    expect(result.rewrittenParsedUrl.pathname).toBe('/')
+    expect(result.rewrittenParsedUrl.query).toEqual({ foo: 'bar' })
+  })
+})
+
+describe('getPagesRouterRewriteHydrationQueries', () => {
+  it('should serialize params only for getStaticProps pages in non-experimental mode', () => {
+    expect(
+      getPagesRouterRewriteHydrationQueries(
+        true,
+        false,
+        { foo: 'bar' },
+        { slug: ['a', 'b'] }
+      )
+    ).toEqual({
+      serializedQuery: { slug: ['a', 'b'] },
+      reconciledQuery: { foo: 'bar', slug: ['a', 'b'] },
+    })
+  })
+
+  it('should preserve the reconciled query for experimental compile static pages', () => {
+    expect(
+      getPagesRouterRewriteHydrationQueries(
+        true,
+        true,
+        { foo: 'bar' },
+        {
+          slug: 'a',
+        }
+      )
+    ).toEqual({
+      serializedQuery: { foo: 'bar', slug: 'a' },
+      reconciledQuery: { foo: 'bar', slug: 'a' },
+    })
+  })
+
+  it('should preserve the reconciled query for non-static pages', () => {
+    expect(
+      getPagesRouterRewriteHydrationQueries(
+        false,
+        false,
+        { foo: 'bar' },
+        {
+          slug: 'a',
+        }
+      )
+    ).toEqual({
+      serializedQuery: { foo: 'bar', slug: 'a' },
+      reconciledQuery: { foo: 'bar', slug: 'a' },
+    })
+  })
+
+  it('should treat missing params as an empty query object', () => {
+    expect(
+      getPagesRouterRewriteHydrationQueries(true, false, { foo: 'bar' })
+    ).toEqual({
+      serializedQuery: {},
+      reconciledQuery: { foo: 'bar' },
     })
   })
 })
