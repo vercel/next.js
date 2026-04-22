@@ -44,8 +44,11 @@ pub mod graph;
 pub mod imports;
 pub mod linker;
 pub mod side_effects;
+mod slim_vec;
 pub mod top_level_await;
 pub mod well_known;
+
+pub use slim_vec::SlimVec;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ObjectPart {
@@ -414,7 +417,10 @@ pub enum JsValue {
     /// info. Has a reason string for explanation.
     Unknown {
         original_value: Option<Arc<JsValue>>,
-        reason: Cow<'static, str>,
+        /// `&'static str` instead of `Cow<'static, str>`: every construction site passes a
+        /// string literal, and dropping the `Cow` discriminant + owned variant shrinks the
+        /// payload from 24 B to 16 B — a key lever for hitting a 32 B enum.
+        reason: &'static str,
         has_side_effects: bool,
     },
 
@@ -461,15 +467,19 @@ pub enum JsValue {
     /// A constructor call.
     /// `(total_node_count, callee, args)`
     ///
-    /// `Box<[JsValue]>` saves 8 B vs `Vec<JsValue>` (16 B fat pointer vs 24 B). Combined with
-    /// the `Call` variant below, this drops the payload from 40 B to 32 B (aligned).
-    New(u32, Box<JsValue>, Box<[JsValue]>),
+    /// `SlimVec<JsValue>` is 16 B (same as `Box<[T]>`, 8 B smaller than `Vec<T>`) so combined
+    /// with the `Call` variant below this drops the payload from 40 B to 32 B. Unlike
+    /// `Box<[T]>`, conversion from `Vec` is zero-cost — no `shrink_to_fit` realloc, which was a
+    /// per-construction cost with `Box<[T]>`.
+    New(u32, Box<JsValue>, SlimVec<JsValue>),
     /// A function call without a `this` context.
     /// `(total_node_count, callee, args)`
     ///
-    /// `Box<[JsValue]>` saves 8 B vs `Vec<JsValue>` (16 B fat pointer vs 24 B). Combined with
-    /// the `New` variant above, this drops the payload from 40 B to 32 B (aligned).
-    Call(u32, Box<JsValue>, Box<[JsValue]>),
+    /// `SlimVec<JsValue>` is 16 B (same as `Box<[T]>`, 8 B smaller than `Vec<T>`) so combined
+    /// with the `New` variant above this drops the payload from 40 B to 32 B. Unlike
+    /// `Box<[T]>`, conversion from `Vec` is zero-cost — no `shrink_to_fit` realloc, which was a
+    /// per-construction cost with `Box<[T]>`.
+    Call(u32, Box<JsValue>, SlimVec<JsValue>),
     /// A super call to the parent constructor.
     /// `(total_node_count, args)`
     SuperCall(u32, Vec<JsValue>),
@@ -1166,7 +1176,7 @@ impl JsValue {
         Self::New(
             1 + f.total_nodes() + total_nodes(&args),
             f,
-            args.into_boxed_slice(),
+            SlimVec::from_vec(args),
         )
     }
 
@@ -1174,7 +1184,7 @@ impl JsValue {
         Self::Call(
             1 + f.total_nodes() + total_nodes(&args),
             f,
-            args.into_boxed_slice(),
+            SlimVec::from_vec(args),
         )
     }
 
@@ -1206,19 +1216,19 @@ impl JsValue {
     pub fn unknown(
         value: impl Into<Arc<JsValue>>,
         side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
+        reason: &'static str,
     ) -> Self {
         Self::Unknown {
             original_value: Some(value.into()),
-            reason: reason.into(),
+            reason,
             has_side_effects: side_effects,
         }
     }
 
-    pub fn unknown_empty(side_effects: bool, reason: impl Into<Cow<'static, str>>) -> Self {
+    pub fn unknown_empty(side_effects: bool, reason: &'static str) -> Self {
         Self::Unknown {
             original_value: None,
-            reason: reason.into(),
+            reason,
             has_side_effects: side_effects,
         }
     }
@@ -1227,12 +1237,12 @@ impl JsValue {
         is_unknown: bool,
         value: JsValue,
         side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
+        reason: &'static str,
     ) -> Self {
         if is_unknown {
             Self::Unknown {
                 original_value: Some(value.into()),
-                reason: reason.into(),
+                reason,
                 has_side_effects: side_effects,
             }
         } else {
@@ -2047,27 +2057,19 @@ impl JsValue {
 // Unknown management
 impl JsValue {
     /// Convert the value into unknown with a specific reason.
-    pub fn make_unknown(&mut self, side_effects: bool, reason: impl Into<Cow<'static, str>>) {
+    pub fn make_unknown(&mut self, side_effects: bool, reason: &'static str) {
         *self = JsValue::unknown(take(self), side_effects || self.has_side_effects(), reason);
     }
 
     /// Convert the owned value into unknown with a specific reason.
-    pub fn into_unknown(
-        mut self,
-        side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
-    ) -> Self {
+    pub fn into_unknown(mut self, side_effects: bool, reason: &'static str) -> Self {
         self.make_unknown(side_effects, reason);
         self
     }
 
     /// Convert the value into unknown with a specific reason, but don't retain
     /// the original value.
-    pub fn make_unknown_without_content(
-        &mut self,
-        side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
-    ) {
+    pub fn make_unknown_without_content(&mut self, side_effects: bool, reason: &'static str) {
         *self = JsValue::unknown_empty(side_effects || self.has_side_effects(), reason);
     }
 
@@ -3651,7 +3653,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 pub mod test_utils {
     use anyhow::Result;
     use turbo_rcstr::rcstr;
-    use turbo_tasks::{FxIndexMap, PrettyPrintError, Vc};
+    use turbo_tasks::{FxIndexMap, Vc};
     use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
@@ -3750,7 +3752,7 @@ pub mod test_utils {
                         Box::new(RequireContextValue(map)),
                     ))
                 }
-                Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
+                Err(_err) => v.into_unknown(true, "require.context() options parse error"),
             },
             JsValue::New(
                 _,

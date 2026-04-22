@@ -3777,7 +3777,7 @@ async fn require_context_visitor(
 ) -> Result<JsValue> {
     let options = match parse_require_context(&args) {
         Ok(options) => options,
-        Err(err) => {
+        Err(_err) => {
             return Ok(JsValue::unknown(
                 JsValue::call(
                     Box::new(JsValue::WellKnownFunction(
@@ -3786,7 +3786,7 @@ async fn require_context_visitor(
                     args,
                 ),
                 true,
-                PrettyPrintError(&err).to_string(),
+                "require.context() options parse error",
             ));
         }
     };
