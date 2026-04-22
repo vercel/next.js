@@ -16,6 +16,7 @@ import {
   ActionDidRevalidateStaticAndDynamic as ActionDidRevalidate,
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import { normalizePathnameToCacheTag } from '../../lib/cache-tag-path'
 
 type CacheLifeConfig = {
   expire?: number
@@ -97,7 +98,9 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     return
   }
 
-  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${removeTrailingSlash(originalPath)}`
+  let normalizedPath = `${NEXT_CACHE_IMPLICIT_TAG_ID}${removeTrailingSlash(
+    normalizePathnameToCacheTag(originalPath)
+  )}`
 
   if (type) {
     normalizedPath += `${normalizedPath.endsWith('/') ? '' : '/'}${type}`

@@ -281,12 +281,20 @@ describe('required server files app router', () => {
         '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second,isr-page',
       ],
       [
+        '/isr/%E3%83%A4%E3%82%AF%E3%83%AB%E3%83%88',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/%E3%83%A4%E3%82%AF%E3%83%AB%E3%83%88,isr-page',
+      ],
+      [
         '/api/isr/first',
         '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first,isr-page',
       ],
       [
         '/api/isr/second',
         '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second,isr-page',
+      ],
+      [
+        '/api/isr/%E3%83%A4%E3%82%AF%E3%83%AB%E3%83%88',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/%E3%83%A4%E3%82%AF%E3%83%AB%E3%83%88,isr-page',
       ],
     ]) {
       require('console').error('checking', { path, tags })
@@ -299,7 +307,9 @@ describe('required server files app router', () => {
         })
       )
       expect(res.status).toBe(200)
-      expect(res.headers.get('x-next-cache-tags')).toBe(tags)
+      const cacheTags = res.headers.get('x-next-cache-tags')
+      expect(cacheTags).toBe(tags)
+      expect(cacheTags).toMatch(/^[\x20-\x7e]+$/)
     }
   })
 

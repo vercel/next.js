@@ -73,6 +73,30 @@ describe('getImplicitTags()', () => {
         '_N_T_/foo/bar/baz',
       ],
     },
+    {
+      page: '/wiki/[slug]/page',
+      pathname: '/wiki/ヤクルト',
+      fallbackRouteParams: null,
+      expectedTags: [
+        '_N_T_/layout',
+        '_N_T_/wiki/layout',
+        '_N_T_/wiki/[slug]/layout',
+        '_N_T_/wiki/[slug]/page',
+        '_N_T_/wiki/%E3%83%A4%E3%82%AF%E3%83%AB%E3%83%88',
+      ],
+    },
+    {
+      page: '/wiki/[slug]/page',
+      pathname: '/wiki/%E3%83%A4%E3%82%AF%E3%83%AB%E3%83%88',
+      fallbackRouteParams: null,
+      expectedTags: [
+        '_N_T_/layout',
+        '_N_T_/wiki/layout',
+        '_N_T_/wiki/[slug]/layout',
+        '_N_T_/wiki/[slug]/page',
+        '_N_T_/wiki/%E3%83%A4%E3%82%AF%E3%83%AB%E3%83%88',
+      ],
+    },
   ])(
     'for page $page with pathname $pathname',
     async ({ page, pathname, fallbackRouteParams, expectedTags }) => {

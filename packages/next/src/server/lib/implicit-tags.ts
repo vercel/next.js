@@ -2,6 +2,7 @@ import { NEXT_CACHE_IMPLICIT_TAG_ID } from '../../lib/constants'
 import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 import { getCacheHandlerEntries } from '../use-cache/handlers'
 import { createLazyResult, type LazyResult } from './lazy-result'
+import { normalizePathnameToCacheTag } from './cache-tag-path'
 
 export interface ImplicitTags {
   /**
@@ -81,14 +82,14 @@ export async function getImplicitTags(
   // Add the derived tags from the page.
   const derivedTags = getDerivedTags(page)
   for (let tag of derivedTags) {
-    tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
+    tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${normalizePathnameToCacheTag(tag)}`
     tags.add(tag)
   }
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
   if (pathname && (!fallbackRouteParams || fallbackRouteParams.size === 0)) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${pathname}`
+    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${normalizePathnameToCacheTag(pathname)}`
     tags.add(tag)
   }
 
