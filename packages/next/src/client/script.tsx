@@ -6,7 +6,7 @@ import type { ScriptHTMLAttributes } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { setAttributesFromProps } from './set-attributes-from-props'
 import { requestIdleCallback } from './request-idle-callback'
-import { htmlEscapeJsonString } from '../server/htmlescape'
+import { htmlEscapeJsonString } from '../shared/lib/htmlescape'
 
 const ScriptCache = new Map()
 const LoadCache = new Set()
