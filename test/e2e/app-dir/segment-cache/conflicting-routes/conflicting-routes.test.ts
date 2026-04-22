@@ -18,10 +18,13 @@ describe('conflicting routes', () => {
   async function segmentPrefetch(url: string, segmentPath: string) {
     const fetchUrl = new URL(url, 'http://localhost')
     const searchParams = new URLSearchParams(fetchUrl.search)
-    searchParams.set(
-      '_rsc',
-      computeCacheBustingSearchParam('1', segmentPath, undefined, undefined)
+    const cacheBustingParam = await computeCacheBustingSearchParam(
+      '1',
+      segmentPath,
+      undefined,
+      undefined
     )
+    searchParams.set('_rsc', cacheBustingParam)
     fetchUrl.search = searchParams.toString()
     return await next.fetch(fetchUrl.pathname + fetchUrl.search, {
       headers: {
