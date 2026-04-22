@@ -3567,7 +3567,7 @@ async fn value_visitor_inner(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
             args,
-        ) => require_resolve_visitor(origin, args).await?,
+        ) => require_resolve_visitor(origin, args.into_vec()).await?,
         JsValue::Call(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
@@ -3581,7 +3581,7 @@ async fn value_visitor_inner(
             _,
             box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
             args,
-        ) => require_context_visitor(origin, args).await?,
+        ) => require_context_visitor(origin, args.into_vec()).await?,
         JsValue::Call(
             _,
             box JsValue::WellKnownFunction(

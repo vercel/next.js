@@ -21,7 +21,7 @@ pub async fn replace_well_known(
             well_known_function_call(
                 kind,
                 JsValue::unknown_empty(false, "this is not analyzed yet"),
-                args,
+                args.into_vec(),
                 compile_time_info,
                 allow_project_root_tracing,
             )

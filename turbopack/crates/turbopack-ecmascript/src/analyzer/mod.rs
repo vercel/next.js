@@ -460,10 +460,16 @@ pub enum JsValue {
     Binary(u32, Box<JsValue>, BinaryOperator, Box<JsValue>),
     /// A constructor call.
     /// `(total_node_count, callee, args)`
-    New(u32, Box<JsValue>, Vec<JsValue>),
+    ///
+    /// `Box<[JsValue]>` saves 8 B vs `Vec<JsValue>` (16 B fat pointer vs 24 B). Combined with
+    /// the `Call` variant below, this drops the payload from 40 B to 32 B (aligned).
+    New(u32, Box<JsValue>, Box<[JsValue]>),
     /// A function call without a `this` context.
     /// `(total_node_count, callee, args)`
-    Call(u32, Box<JsValue>, Vec<JsValue>),
+    ///
+    /// `Box<[JsValue]>` saves 8 B vs `Vec<JsValue>` (16 B fat pointer vs 24 B). Combined with
+    /// the `New` variant above, this drops the payload from 40 B to 32 B (aligned).
+    Call(u32, Box<JsValue>, Box<[JsValue]>),
     /// A super call to the parent constructor.
     /// `(total_node_count, args)`
     SuperCall(u32, Vec<JsValue>),
@@ -1157,11 +1163,19 @@ impl JsValue {
     }
 
     pub fn new(f: Box<JsValue>, args: Vec<JsValue>) -> Self {
-        Self::New(1 + f.total_nodes() + total_nodes(&args), f, args)
+        Self::New(
+            1 + f.total_nodes() + total_nodes(&args),
+            f,
+            args.into_boxed_slice(),
+        )
     }
 
     pub fn call(f: Box<JsValue>, args: Vec<JsValue>) -> Self {
-        Self::Call(1 + f.total_nodes() + total_nodes(&args), f, args)
+        Self::Call(
+            1 + f.total_nodes() + total_nodes(&args),
+            f,
+            args.into_boxed_slice(),
+        )
     }
 
     pub fn super_call(args: Vec<JsValue>) -> Self {

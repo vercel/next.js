@@ -182,7 +182,7 @@ where
                     for arg in args.iter() {
                         total_nodes -= arg.total_nodes();
                     }
-                    entry.insert(args);
+                    entry.insert(args.into_vec());
                     work_queue_stack.push(Step::LeaveCall(func_ident));
                     work_queue_stack.push(Step::Enter(*return_value));
                 } else {
@@ -194,7 +194,7 @@ where
                     done.push(JsValue::unknown(
                         JsValue::call(
                             Box::new(JsValue::Function(function_nodes, func_ident, return_value)),
-                            args,
+                            args.into_vec(),
                         ),
                         true,
                         "recursive function call",

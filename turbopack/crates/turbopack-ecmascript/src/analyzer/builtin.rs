@@ -491,7 +491,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             *value = JsValue::alternatives(
                 take(values)
                     .into_iter()
-                    .map(|alt| JsValue::call(Box::new(alt), args.clone()))
+                    .map(|alt| JsValue::call(Box::new(alt), args.to_vec()))
                     .collect(),
             );
             true
