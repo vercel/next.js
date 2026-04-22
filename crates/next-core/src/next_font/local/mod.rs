@@ -52,24 +52,27 @@ struct NextFontLocalFontFileOptions {
 #[turbo_tasks::value]
 pub(crate) struct NextFontLocalResolvePlugin {
     root: FileSystemPath,
+    condition: ResolvedVc<BeforeResolvePluginCondition>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextFontLocalResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: FileSystemPath) -> Vc<Self> {
-        NextFontLocalResolvePlugin { root }.cell()
+    pub async fn new(root: FileSystemPath) -> Result<Vc<Self>> {
+        let condition = BeforeResolvePluginCondition::from_request_glob(Glob::new(
+            rcstr!("{next,@vercel/turbopack-next/internal}/font/local/*"),
+            GlobOptions::default(),
+        ))
+        .to_resolved()
+        .await?;
+        Ok(NextFontLocalResolvePlugin { root, condition }.cell())
     }
 }
 
 #[turbo_tasks::value_impl]
 impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
-    #[turbo_tasks::function]
     fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        BeforeResolvePluginCondition::from_request_glob(Glob::new(
-            rcstr!("{next,@vercel/turbopack-next/internal}/font/local/*"),
-            GlobOptions::default(),
-        ))
+        *self.condition
     }
 
     #[turbo_tasks::function]

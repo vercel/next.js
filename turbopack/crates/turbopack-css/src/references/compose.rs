@@ -46,10 +46,10 @@ impl ModuleReference for CssModuleComposeReference {
             None,
         );
 
-        let resolved = result.first_module().await?;
+        let resolved = result.await?.first_module().await?;
         let file_path = self.origin.origin_path().to_resolved().await?;
-        if let Some(module) = &*resolved {
-            if ResolvedVc::try_downcast_type::<EcmascriptCssModule>(*module).is_none() {
+        if let Some(module) = resolved {
+            if ResolvedVc::try_downcast_type::<EcmascriptCssModule>(module).is_none() {
                 CssModuleComposesIssue {
                     severity: IssueSeverity::Error,
                     file_path,

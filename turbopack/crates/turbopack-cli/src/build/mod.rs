@@ -295,6 +295,7 @@ async fn build_internal(
                 origin
                     .resolve_asset(request_vc, origin.resolve_options(), ty)
                     .await?
+                    .await?
                     .first_module()
                     .await?
                     .with_context(|| {

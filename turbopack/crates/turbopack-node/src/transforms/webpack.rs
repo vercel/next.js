@@ -661,7 +661,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     options,
                 );
 
-                if let Some(source) = *resolved.first_source().await? {
+                if let Some(source) = resolved.await?.first_source() {
                     if let Some(path) = self.cwd.get_relative_path_to(&source.ident().await?.path) {
                         Ok(ResponseMessage::Resolve { path })
                     } else {
@@ -702,7 +702,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 )
                 .await?;
 
-                let Some(module) = *resolved.first_module().await? else {
+                let Some(module) = resolved.await?.first_module().await? else {
                     bail!(
                         "importModule: unable to resolve {} in {}",
                         request,

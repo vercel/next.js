@@ -28,7 +28,7 @@ pub async fn handle_resolve_error(
 ) -> Result<Vc<ModuleResolveResult>> {
     Ok(match result.await {
         Ok(result_ref) => {
-            if result_ref.is_unresolvable_ref() {
+            if result_ref.is_unresolvable() {
                 emit_unresolvable_issue(
                     error_mode,
                     origin,
@@ -71,7 +71,7 @@ pub async fn handle_resolve_source_error(
 ) -> Result<Vc<ResolveResult>> {
     Ok(match result.await {
         Ok(result_ref) => {
-            if result_ref.is_unresolvable_ref() {
+            if result_ref.is_unresolvable() {
                 emit_unresolvable_issue(
                     error_mode,
                     origin,

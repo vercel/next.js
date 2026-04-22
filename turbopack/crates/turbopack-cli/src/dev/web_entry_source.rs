@@ -138,15 +138,12 @@ pub async fn create_web_entry_source(
         .into_iter()
         .map(|request| async move {
             let ty = ReferenceType::Entry(EntryReferenceSubType::Web);
-            Ok(origin
+            origin
                 .resolve_asset(request, origin.resolve_options(), ty)
                 .await?
-                .to_resolved()
                 .await?
-                .primary_modules()
-                .await?
-                .first()
-                .copied())
+                .first_module()
+                .await
         })
         .try_flat_join()
         .await?;

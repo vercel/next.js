@@ -3605,16 +3605,14 @@ async fn require_resolve_visitor(
         )
         .to_resolved()
         .await?;
-        let mut values =
-            resolved
-                .primary_sources()
-                .await?
-                .iter()
-                .map(|&source| async move {
-                    Ok(require_resolve(source.ident().await?.path.clone()).into())
-                })
-                .try_join()
-                .await?;
+        let mut values = resolved
+            .await?
+            .primary_sources()
+            .map(|source| async move {
+                Ok(require_resolve(source.ident().await?.path.clone()).into())
+            })
+            .try_join()
+            .await?;
 
         match values.len() {
             0 => JsValue::unknown(

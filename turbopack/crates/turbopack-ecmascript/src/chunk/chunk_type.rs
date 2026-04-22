@@ -57,12 +57,18 @@ impl ChunkType for EcmascriptChunkType {
         else {
             bail!("Chunk item is not an ecmascript chunk item but reporting chunk type ecmascript");
         };
-        Ok(Vc::cell(
-            chunk_item
-                .content_with_async_module_info(async_module_info, true)
-                .await
-                .map_or(0, |content| round_chunk_item_size(content.inner_code.len())),
-        ))
+        let chunk_item = chunk_item.into_trait_ref().await?;
+        let size = match chunk_item
+            .content_with_async_module_info(async_module_info, true)
+            .await
+        {
+            Ok(content) => {
+                let content = content.await?;
+                round_chunk_item_size(content.inner_code.len())
+            }
+            Err(_) => 0,
+        };
+        Ok(Vc::cell(size))
     }
 }
 

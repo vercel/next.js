@@ -204,7 +204,7 @@ async fn track_glob_internal(
                             types.push(path.get_type())
                         }
                     }
-                    // The most likely case of this is actually a sylink resolution error, it is
+                    // The most likely case of this is actually a symlink resolution error, it is
                     // fine to ignore since the mere act of attempting to resolve it has triggered
                     // the ncecessary dependencies.  If this file is actually a dependency we should
                     // get an error in the actual webpack loader when it reads it.

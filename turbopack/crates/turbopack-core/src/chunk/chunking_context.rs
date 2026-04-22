@@ -160,13 +160,13 @@ impl ChunkGroupResult {
 #[turbo_tasks::value_impl]
 impl ChunkGroupResult {
     #[turbo_tasks::function]
-    pub async fn output_assets_with_referenced(&self) -> Result<Vc<OutputAssetsWithReferenced>> {
-        Ok(OutputAssetsWithReferenced {
+    pub fn output_assets_with_referenced(&self) -> Vc<OutputAssetsWithReferenced> {
+        OutputAssetsWithReferenced {
             assets: self.assets,
             referenced_assets: self.referenced_assets,
             references: self.references,
         }
-        .cell())
+        .cell()
     }
 
     #[turbo_tasks::function]

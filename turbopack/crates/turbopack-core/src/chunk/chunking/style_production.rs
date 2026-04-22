@@ -48,7 +48,7 @@ pub async fn make_style_production_chunks(
             } else {
                 make_chunk(
                     vec![&ChunkItemOrBatchWithInfo::ChunkItem {
-                        chunk_item: chunk_item.clone(),
+                        chunk_item: *chunk_item,
                         size: 0,
                         asset_ident: rcstr!(""),
                     }],

@@ -178,15 +178,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .references()
         .await?
         .iter()
-        .map(|reference| async {
-            reference
-                .resolve_reference()
-                .to_resolved()
-                .await?
-                .primary_modules()
-                .owned()
-                .await
-        })
+        .map(|reference| async { reference.resolve_reference().await?.primary_modules().await })
         .try_join()
         .await?
         .into_iter()
@@ -231,7 +223,7 @@ pub async fn primary_chunkable_referenced_modules(
                 let resolved = reference
                     .resolve_reference()
                     .await?
-                    .primary_modules_ref()
+                    .primary_modules()
                     .await?;
                 let binding_usage = if include_binding_usage {
                     trait_ref.binding_usage()
