@@ -640,6 +640,14 @@ function makeErroringExportFallbackParams(
         return () => throwError()
       }
 
+      if (
+        typeof prop === 'string' &&
+        !wellKnownProperties.has(prop) &&
+        fallbackParams.has(prop)
+      ) {
+        return throwError()
+      }
+
       return ReflectAdapter.get(target, prop, receiver)
     },
   })
