@@ -20,7 +20,7 @@ const requireComponent = (name) => {
   return Component;
 };
 
-//Bug: when dynamic imports are used within the module, it doest not get outputted server-side
+//Bug: when dynamic imports are used within the module, it does not get outputted server-side
 //let AgilityModule = dynamic(() => import ('../components/' + m.moduleName));
 
 export const requireComponentDependencyByName = (name) => {
