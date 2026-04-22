@@ -25,12 +25,6 @@ const resolvedIOPromise: Promise<void> = Promise.resolve(undefined)
  * request and can be used freely inside cache scopes and client components.
  */
 export function unstable_io(): Promise<void> {
-  if (!process.env.__NEXT_UNSTABLE_IO) {
-    throw new Error(
-      '`unstable_io()` requires the `experimental.unstableIO` option to be enabled in your Next.js config.'
-    )
-  }
-
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 

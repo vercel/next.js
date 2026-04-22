@@ -93,6 +93,12 @@
   --color-green-900: #63c174;
   --color-green-1000: #e5fbeb;
 
+  /* Instant Guidance Cards */
+  --color-instant-border-blue: rgba(82, 169, 255, 0.45);
+  --color-instant-border-purple: rgba(160, 120, 240, 0.45);
+  --color-instant-border-red: rgba(255, 99, 105, 0.4);
+  --color-instant-text-purple: rgb(160, 120, 240);
+
   /* Turbopack Dark - Temporary */
   --color-turbopack-text-red: #ff6d92;
   --color-turbopack-text-blue: #45b2ff;
@@ -197,6 +203,12 @@
     --color-green-800: #388e4a;
     --color-green-900: #63c174;
     --color-green-1000: #e5fbeb;
+
+    /* Instant Guidance Cards */
+    --color-instant-border-blue: rgba(82, 169, 255, 0.45);
+    --color-instant-border-purple: rgba(160, 120, 240, 0.45);
+    --color-instant-border-red: rgba(255, 99, 105, 0.4);
+    --color-instant-text-purple: rgb(160, 120, 240);
 
     /* Turbopack Dark - Temporary */
     --color-turbopack-text-red: #ff6d92;

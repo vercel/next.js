@@ -256,7 +256,7 @@ describe('turbopack-trace-server', () => {
   })
 
   it('should drill into children of a span using its ID', async () => {
-    const { spans } = await querySpansJson(mcpPort, { sort: true })
+    const { spans } = await querySpansJson(mcpPort, { sort: 'value' })
     const spanId = spans[0].id
 
     const childMd = await callMcpTool(mcpPort, 'query_spans', {
@@ -275,7 +275,7 @@ describe('turbopack-trace-server', () => {
 
   it('should return results when searching for a real span name', async () => {
     // Get a real span name from the root level via JSON output.
-    const { spans } = await querySpansJson(mcpPort, { sort: true })
+    const { spans } = await querySpansJson(mcpPort, { sort: 'value' })
     const searchTerm = spans[0].name.slice(0, 20)
 
     const md = await callMcpTool(mcpPort, 'query_spans', {
@@ -286,8 +286,14 @@ describe('turbopack-trace-server', () => {
     expect(md).toMatch(/###/)
   })
 
-  it('should support sort by duration', async () => {
-    const md = await callMcpTool(mcpPort, 'query_spans', { sort: true })
+  it('should support sort by value', async () => {
+    const md = await callMcpTool(mcpPort, 'query_spans', { sort: 'value' })
+    expect(md).toContain('## Spans at root level')
+    expect(md).toMatch(/###/)
+  })
+
+  it('should support sort by name', async () => {
+    const md = await callMcpTool(mcpPort, 'query_spans', { sort: 'name' })
     expect(md).toContain('## Spans at root level')
     expect(md).toMatch(/###/)
   })
@@ -321,11 +327,24 @@ describe('turbopack-trace-server', () => {
     expect(stdout).toMatch(/CPU Duration|Corrected Duration/)
   })
 
-  it('CLI: should support --sort flag', async () => {
+  it('CLI: should support --sort value flag', async () => {
     const { stdout, exitCode } = await runQueryTraceCli([
       '--port',
       String(mcpPort),
       '--sort',
+      'value',
+    ])
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Spans at root level')
+    expect(stdout).toMatch(/###/)
+  })
+
+  it('CLI: should support --sort name flag', async () => {
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--sort',
+      'name',
     ])
     expect(exitCode).toBe(0)
     expect(stdout).toContain('## Spans at root level')
@@ -334,7 +353,7 @@ describe('turbopack-trace-server', () => {
 
   it('CLI: should support --search flag with a real match', async () => {
     // Get a real span name to search for via JSON output.
-    const { spans } = await querySpansJson(mcpPort, { sort: true })
+    const { spans } = await querySpansJson(mcpPort, { sort: 'value' })
     const searchTerm = spans[0].name.slice(0, 20)
 
     const { stdout, exitCode } = await runQueryTraceCli([
@@ -372,7 +391,7 @@ describe('turbopack-trace-server', () => {
   })
 
   it('CLI: should support --parent to drill into children', async () => {
-    const { spans } = await querySpansJson(mcpPort, { sort: true })
+    const { spans } = await querySpansJson(mcpPort, { sort: 'value' })
     const spanId = spans[0].id
 
     const { stdout, exitCode } = await runQueryTraceCli([

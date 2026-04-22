@@ -23,6 +23,10 @@ env:
   TURBO_TEAM: 'vercel'
   TURBO_CACHE: 'remote:rw'
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
@@ -34,9 +38,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
-        with:
-          tool: cargo-codspeed@3.0.5
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -60,7 +62,6 @@ jobs:
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-cli small_apps
-          token: ${{ secrets.CODSPEED_TOKEN }}
 
   benchmark-analyzer:
     name: Benchmark Rust Crates (analyzer)
@@ -72,9 +73,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
-        with:
-          tool: cargo-codspeed@3.0.5
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -98,7 +97,6 @@ jobs:
         with:
           mode: instrumentation
           run: cargo codspeed run -p turbopack-ecmascript references
-          token: ${{ secrets.CODSPEED_TOKEN }}
 
   benchmark-large:
     name: Benchmark Rust Crates (large)
@@ -111,9 +109,7 @@ jobs:
         uses: ./.github/actions/setup-rust
 
       - name: Install cargo-codspeed
-        uses: taiki-e/install-action@7627fb428e65e78e2ec9a24ae5c5bd5f8553f182 # v2.69.10
-        with:
-          tool: cargo-codspeed@3.0.5
+        run: cargo binstall --no-confirm cargo-codspeed@3.0.5
 
       - name: Start sccache
         uses: ./.github/actions/sccache
@@ -130,4 +126,3 @@ jobs:
         with:
           mode: instrumentation
           run: cargo codspeed run
-          token: ${{ secrets.CODSPEED_TOKEN }}

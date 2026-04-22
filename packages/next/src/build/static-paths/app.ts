@@ -782,6 +782,8 @@ export async function buildAppStaticPaths({
   distDir,
   cacheComponents,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   segments,
   isrFlushToDisk,
   cacheHandler,
@@ -802,6 +804,8 @@ export async function buildAppStaticPaths({
   route: NormalizedAppRoute
   cacheComponents: boolean
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   segments: readonly Readonly<AppSegment>[]
   distDir: string
   isrFlushToDisk?: boolean
@@ -859,10 +863,12 @@ export async function buildAppStaticPaths({
     renderOpts: {
       incrementalCache,
       cacheLifeProfiles,
+      staticPageGenerationTimeout,
       supportsDynamicResponse: true,
       cacheComponents,
       experimental: {
         authInterrupts,
+        useCacheTimeout,
       },
       waitUntil: afterRunner.context.waitUntil,
       onClose: afterRunner.context.onClose,

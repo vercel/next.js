@@ -6,6 +6,7 @@ use std::{
 };
 
 use rustc_hash::FxHashSet;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     self_time_tree::SelfTimeTree,
@@ -42,8 +43,8 @@ fn new_root_span() -> Span {
         parent: None,
         depth: 0,
         start: Timestamp::MAX,
-        category: "".into(),
-        name: "(root)".into(),
+        category: RcStr::default(),
+        name: rcstr!("(root)"),
         args: vec![],
         events: vec![],
         is_complete: true,
@@ -66,7 +67,11 @@ fn new_root_span() -> Span {
 impl Store {
     pub fn new() -> Self {
         Self {
-            spans: vec![new_root_span()],
+            spans: {
+                let mut v = Vec::with_capacity(131_072);
+                v.push(new_root_span());
+                v
+            },
             self_time_tree: env::var("NO_CORRECTED_TIME")
                 .ok()
                 .is_none()
@@ -86,6 +91,12 @@ impl Store {
         self.memory_samples.clear();
     }
 
+    pub fn optimize(&mut self) {
+        if let Some(tree) = self.self_time_tree.as_mut() {
+            tree.optimize();
+        }
+    }
+
     pub fn has_time_info(&self) -> bool {
         self.self_time_tree
             .as_ref()
@@ -96,9 +107,9 @@ impl Store {
         &mut self,
         parent: Option<SpanIndex>,
         start: Timestamp,
-        category: String,
-        name: String,
-        args: Vec<(String, String)>,
+        category: RcStr,
+        name: RcStr,
+        args: Vec<(RcStr, RcStr)>,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
@@ -152,7 +163,7 @@ impl Store {
     pub fn add_args(
         &mut self,
         span_index: SpanIndex,
-        args: Vec<(String, String)>,
+        args: Vec<(RcStr, RcStr)>,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
@@ -187,7 +198,7 @@ impl Store {
     ) {
         if let Some(tree) = self.self_time_tree.as_mut() {
             if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
-                tree.for_each_in_range(start, end, |_, _, span| {
+                tree.for_each_in_range_optimize(start, end, &mut |_, _, span| {
                     outdated_spans.insert(*span);
                 });
             }

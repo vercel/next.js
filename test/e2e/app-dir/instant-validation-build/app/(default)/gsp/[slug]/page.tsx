@@ -7,7 +7,6 @@ import { AssertParamsClient } from './client'
 // samples use 'hello', but generateStaticParams uses 'foo'/'bar'.
 // During validation, the sample params should be used, not the GSP values.
 export const unstable_instant: Instant = {
-  prefetch: 'runtime',
   samples: [
     {
       params: {
@@ -16,7 +15,7 @@ export const unstable_instant: Instant = {
     },
   ],
 }
-export const unstable_prefetch = 'runtime'
+export const unstable_prefetch = 'force-runtime'
 
 export function generateStaticParams() {
   return [{ slug: 'foo' }, { slug: 'bar' }]
