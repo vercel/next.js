@@ -59,6 +59,7 @@ import {
   processTopLevelIssues,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
+  type StartChangeSubscription,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -1088,10 +1089,20 @@ export async function createHotReloaderTurbopack(
               // trailing /page or /route segment (e.g. "/page" for the root route,
               // "/blog/[slug]/page" for a dynamic page). Use normalizeAppPath to
               // strip that suffix and find the entry matching the user-facing route.
-              let appOriginalName: string | undefined
+              let extraOptions: object | undefined = undefined
               for (const [name] of currentEntrypoints.app) {
                 if (normalizeAppPath(name) === page) {
-                  appOriginalName = name
+                  extraOptions = {
+                    // Synthesize a definition so ensurePage bypasses findPagePathData.
+                    // Only page and bundlePath are used from the definition:
+                    // - page: the originalName used as the route key for currentEntrypoints lookup
+                    // - bundlePath: must start with "app/" to set isInsideAppDir=true
+                    definition: {
+                      page: name,
+                      bundlePath: `app${name}`,
+                      filename: '',
+                    } as any,
+                  }
                   break
                 }
               }
@@ -1105,19 +1116,7 @@ export async function createHotReloaderTurbopack(
                 // updates for routes compiled this way, and these subscriptions
                 // are never unsubscribed (see TODOs in handleRouteType).
                 subscribeToChanges: false,
-                ...(appOriginalName
-                  ? {
-                      // Synthesize a definition so ensurePage bypasses findPagePathData.
-                      // Only page and bundlePath are used from the definition:
-                      // - page: the originalName used as the route key for currentEntrypoints lookup
-                      // - bundlePath: must start with "app/" to set isInsideAppDir=true
-                      definition: {
-                        page: appOriginalName,
-                        bundlePath: `app${appOriginalName}`,
-                        filename: '',
-                      } as any,
-                    }
-                  : {}),
+                ...extraOptions,
               }
 
               // Snapshot the current issue maps before compilation so we can
@@ -1805,11 +1804,11 @@ export async function createHotReloaderTurbopack(
               logErrors: true,
 
               hooks: {
-                // Omit subscribeToChanges to skip wiring HMR subscriptions for
+                // Pass a no-o subscribeToChanges to skip wiring HMR subscriptions for
                 // one-shot compilations (e.g. compile_route MCP tool).
-                ...(subscribeToChanges
-                  ? { subscribeToChanges: subscribeToClientChanges }
-                  : null),
+                subscribeToChanges: subscribeToChanges
+                  ? subscribeToClientChanges
+                  : ((async () => {}) as StartChangeSubscription),
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
                   currentWrittenEntrypoints.set(id, result)
                   assetMapper.setPathsForKey(id, result.clientPaths)
