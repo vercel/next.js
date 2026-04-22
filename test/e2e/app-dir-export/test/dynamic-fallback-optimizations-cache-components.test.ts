@@ -45,7 +45,7 @@ async function buildAndStartOutputExportServer(next: NextInstance) {
 }
 
 if (isNextDeploy) {
-  describe.skip('app dir - output export dynamic route optimizations with Cache Components', () => {})
+  it('skips deploy mode', () => {})
 } else {
   const describeProduction = isNextDev ? describe.skip : describe
 
