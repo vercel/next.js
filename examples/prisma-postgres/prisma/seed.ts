@@ -88,14 +88,14 @@ async function main() {
       {
         title: "Designing Scalable Schemas with Prisma",
         content:
-          "Phasellus ut erat nec elit ultricies egestas. Vestibulum rhoncus urna eget magna varius pharetra.",
+          "Phasellus ut erat nec elit ultricies egestas. Vestibulum rhoncus urna eget magna various pharetra.",
         published: true,
         authorId: userIdMapping.diana!,
       },
       {
         title: "Handling Relations Between Models in ORMs",
         content:
-          "Integer luctus ac augue at tristique. Curabitur varius nisl vitae mi fringilla, vel tincidunt nunc dictum.",
+          "Integer luctus ac augue at tristique. Curabitur various nisl vitae mi fringilla, vel tincidunt nunc dictum.",
         published: false,
         authorId: userIdMapping.diana!,
       },
