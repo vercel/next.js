@@ -114,29 +114,87 @@ let postProcessHTML: typeof import('./post-process').postProcessHTML
 
 const DOCTYPE = '<!DOCTYPE html>'
 
+type PageComponentWithInternals = NextComponentType & {
+  origGetInitialProps?: NextComponentType['getInitialProps']
+  unstable_scriptLoader?: () => JSX.Element[]
+}
+
+type AppComponentWithInternals = AppType & {
+  origGetInitialProps?: AppType['getInitialProps']
+}
+
+type RequestLocalRewriteSerializationOptions = {
+  /** The page `getStaticProps`, if present. */
+  getStaticProps?: GetStaticProps
+  /** The page `getServerSideProps`, if present. */
+  getServerSideProps?: GetServerSideProps
+  /** The page `getInitialProps`, if present. */
+  pageGetInitialProps?: NextComponentType['getInitialProps']
+  /** The custom `_app.getInitialProps`, if present. */
+  appGetInitialProps?: AppType['getInitialProps']
+}
+
+/**
+ * Check whether the current Pages Router data mode may serialize a
+ * request-local rewrite reconciliation result.
+ *
+ * Request-local HTML:
+ * - `getServerSideProps`
+ * - page `getInitialProps`
+ * - custom `_app.getInitialProps` on non-SSG pages
+ *
+ * Shared/static HTML:
+ * - Static Site Generation (SSG) via `getStaticProps`
+ * - Incremental Static Regeneration (ISR), which is still `getStaticProps`
+ *   but with later regeneration/caching of the same shared static output
+ * - data modes without request-local hooks
+ *
+ * Some hook combinations can occur and are handled by ordering:
+ * - `getStaticProps` + custom `_app.getInitialProps` still returns `false`
+ *   because the resulting HTML is shared/static.
+ * - page `getInitialProps` + custom `_app.getInitialProps` returns `true`
+ *   because the resulting HTML is request-local.
+ *
+ * @param options the Pages Router data hooks for the current render
+ * @returns true when this Pages Router data mode may safely serialize a
+ * request-local rewrite reconciliation result
+ */
+function canSerializeRequestLocalRewriteReconciliation({
+  getStaticProps,
+  getServerSideProps,
+  pageGetInitialProps,
+  appGetInitialProps,
+}: RequestLocalRewriteSerializationOptions): boolean {
+  if (getStaticProps) return false
+  if (getServerSideProps) return true
+  if (pageGetInitialProps) return true
+  if (appGetInitialProps) return true
+  return false
+}
+
 /**
  * Return the exact rewrite reconciliation value that may be serialized into
  * `__NEXT_DATA__`.
  *
- * 1. Only exact request-time answers belong in the client bootstrap payload.
- * 2. Build-time prerendering must omit the field, because shared static HTML
- *    cannot carry a request-specific reconciliation result.
+ * 1. Only exact request-local answers belong in the client bootstrap payload.
+ * 2. The caller decides whether the current render may expose request-local
+ *    rewrite state at all.
  * 3. `unknown` and `undefined` both mean "omit the field": `unknown` is not an
  *    exact reusable answer, and `undefined` covers render-layer callers that do
  *    not provide a reconciliation value.
  *
  * @param rewriteReconciliation the rewrite reconciliation result for the
  * current render, if any
- * @param isBuildTimePrerendering whether the current render is producing shared
- * static HTML at build time
+ * @param canSerializeRewriteReconciliation whether the current render may
+ * serialize request-local rewrite state
  * @returns the exact value to serialize into `__NEXT_DATA__`, or `undefined`
  * when the field must be omitted
  */
 function getSerializedRewriteReconciliation(
   rewriteReconciliation: RewriteReconciliationState | undefined,
-  isBuildTimePrerendering: boolean
+  canSerializeRewriteReconciliation: boolean
 ): Exclude<RewriteReconciliationState, 'unknown'> | undefined {
-  if (isBuildTimePrerendering) {
+  if (!canSerializeRewriteReconciliation) {
     return undefined
   }
 
@@ -558,6 +616,8 @@ export async function renderToHTMLImpl(
   let Component: React.ComponentType<{}> | ((props: any) => JSX.Element) =
     renderOpts.Component
   const OriginComponent = Component
+  const pageComponent = Component as PageComponentWithInternals
+  const appComponent = App as AppComponentWithInternals
 
   const isFallback = renderContext.isFallback ?? false
   const notFoundSrcPage = renderContext.developmentNotFoundSourcePage
@@ -568,17 +628,21 @@ export async function renderToHTMLImpl(
   const isSSG = !!getStaticProps
   const isBuildTimeSSG = isSSG && renderOpts.isBuildTimePrerendering
   const defaultAppGetInitialProps =
-    App.getInitialProps === (App as any).origGetInitialProps
+    appComponent.getInitialProps === appComponent.origGetInitialProps
 
-  const hasPageGetInitialProps = !!(Component as any)?.getInitialProps
-  const hasPageScripts = (Component as any)?.unstable_scriptLoader
+  const pageGetInitialProps = pageComponent.getInitialProps
+  const appGetInitialProps = defaultAppGetInitialProps
+    ? undefined
+    : appComponent.getInitialProps
+
+  const hasPageGetInitialProps = !!pageGetInitialProps
+  const hasPageScripts = pageComponent.unstable_scriptLoader
 
   const pageIsDynamic = isDynamicRoute(pathname)
 
   const defaultErrorGetInitialProps =
     pathname === '/_error' &&
-    (Component as any).getInitialProps ===
-      (Component as any).origGetInitialProps
+    pageGetInitialProps === pageComponent.origGetInitialProps
 
   if (
     renderOpts.isBuildTimePrerendering &&
@@ -770,8 +834,7 @@ export async function renderToHTMLImpl(
 
   let initialScripts: any = {}
   if (hasPageScripts) {
-    initialScripts.beforeInteractive = []
-      .concat(hasPageScripts())
+    initialScripts.beforeInteractive = ([] as JSX.Element[])
       .filter((script: any) => script.props.strategy === 'beforeInteractive')
       .map((script: any) => script.props)
   }
@@ -1524,9 +1587,20 @@ export async function renderToHTMLImpl(
     locale,
     locales,
   } = renderOpts
+  // 1. Build-time prerendering is always shared/static HTML.
+  // 2. Otherwise, only request-local Pages Router data modes may serialize
+  //    this exact rewrite reconciliation answer.
+  const canSerializeRewriteReconciliation =
+    !renderOpts.isBuildTimePrerendering &&
+    canSerializeRequestLocalRewriteReconciliation({
+      getStaticProps,
+      getServerSideProps,
+      pageGetInitialProps,
+      appGetInitialProps,
+    })
   const serializedRewriteReconciliation = getSerializedRewriteReconciliation(
     renderOpts.rewriteReconciliation,
-    renderOpts.isBuildTimePrerendering === true
+    canSerializeRewriteReconciliation
   )
   const htmlProps: HtmlProps = {
     __NEXT_DATA__: {

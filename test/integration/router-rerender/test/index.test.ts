@@ -1,5 +1,6 @@
 /* eslint-env jest */
 
+import cheerio from 'cheerio'
 import { join } from 'path'
 import {
   findPort,
@@ -7,6 +8,7 @@ import {
   launchApp,
   nextBuild,
   nextStart,
+  renderViaHTTP,
   retry,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -77,6 +79,34 @@ const runRewriteTests = () => {
   })
 }
 
+const runSharedStaticSerializationTests = () => {
+  describe('shared static rewrite serialization', () => {
+    it('should not serialize request-local rewrite reconciliation into shared blocking getStaticProps HTML', async () => {
+      // 1. Request the shared blocking `getStaticProps` page through the public
+      //    rewrite first.
+      // 2. The generated HTML must still omit any request-local
+      //    `rewriteReconciliation` signal.
+      const rewrittenHtml = await renderViaHTTP(
+        appPort,
+        '/rewrite-to-blocking-gsp/first'
+      )
+      const rewritten$ = cheerio.load(rewrittenHtml)
+      const rewrittenNextData = JSON.parse(rewritten$('#__NEXT_DATA__').text())
+
+      expect('rewriteReconciliation' in rewrittenNextData).toBe(false)
+
+      // 1. Request the same shared page directly afterward.
+      // 2. The reused shared/static HTML must still omit any request-local
+      //    `rewriteReconciliation` signal.
+      const directHtml = await renderViaHTTP(appPort, '/blocking-gsp/first')
+      const direct$ = cheerio.load(directHtml)
+      const directNextData = JSON.parse(direct$('#__NEXT_DATA__').text())
+
+      expect('rewriteReconciliation' in directNextData).toBe(false)
+    })
+  })
+}
+
 describe('router rerender', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
@@ -102,6 +132,7 @@ describe('router rerender', () => {
 
       runTests()
       runRewriteTests()
+      runSharedStaticSerializationTests()
     }
   )
 })
