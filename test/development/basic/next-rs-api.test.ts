@@ -3,7 +3,7 @@ import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
-  Diagnostics,
+  BuildFeatureUsage,
   Issue,
   Project,
   RawEntrypoints,
@@ -62,24 +62,17 @@ function normalizeIssues(issues: Issue[]) {
     })
 }
 
-function normalizeDiagnostics(diagnostics: Diagnostics[]) {
+function normalizeDiagnostics(diagnostics: BuildFeatureUsage[]) {
   return diagnostics
-    .map((diagnostic) => {
-      if (diagnostic.name === 'EVENT_BUILD_FEATURE_USAGE') {
-        diagnostic.payload = Object.fromEntries(
-          Object.entries(diagnostic.payload).map(([key, value]) => {
-            return [
-              key.replace(
-                /^(x86_64|i686|aarch64)-(apple-darwin|unknown-linux-(gnu|musl)|pc-windows-msvc)$/g,
-                'platform-triplet'
-              ),
-              value,
-            ]
-          })
-        )
-      }
-      return diagnostic
-    })
+    .map((diagnostic) => ({
+      // Normalize the target-triple in the `featureName` so snapshots are
+      // stable across platforms.
+      featureName: diagnostic.featureName.replace(
+        /^swc\/target\/(x86_64|i686|aarch64)-(apple-darwin|unknown-linux-(gnu|musl)|pc-windows-msvc)$/,
+        'swc/target/platform-triplet'
+      ),
+      invocationCount: diagnostic.invocationCount,
+    }))
     .sort((a, b) => {
       const a_ = JSON.stringify(a)
       const b_ = JSON.stringify(b)
@@ -149,9 +142,11 @@ export default () => <div>${text}<Client /></div>;`
 }
 
 describe('next.rs api writeToDisk multiple times', () => {
+  let next: NextInstance
+  afterEach(async () => {
+    await next?.destroy()
+  })
   it('should allow to write to disk multiple times', async () => {
-    let next: NextInstance
-
     next = await createNext({
       skipStart: true,
       files: {
@@ -303,8 +298,6 @@ main()
       }
     )
     expect(result.status).toBe(0)
-
-    await next.destroy()
   })
 })
 

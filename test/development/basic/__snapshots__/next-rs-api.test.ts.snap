@@ -59,88 +59,44 @@ exports[`next.rs api should allow to write root page to disk: issues 1`] = `[]`;
 exports[`next.rs api should detect the correct routes: diagnostics 1`] = `
 [
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "modularizeImports": "true",
-    },
+    "featureName": "modularizeImports",
+    "invocationCount": 1,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "persistentCaching": "false",
-    },
+    "featureName": "skipProxyUrlNormalize",
+    "invocationCount": 0,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "platform-triplet": "true",
-    },
+    "featureName": "skipTrailingSlashRedirect",
+    "invocationCount": 0,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "skipProxyUrlNormalize": "false",
-    },
+    "featureName": "swc/target/platform-triplet",
+    "invocationCount": 1,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "skipTrailingSlashRedirect": "false",
-    },
+    "featureName": "swcEmotion",
+    "invocationCount": 0,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcEmotion": "false",
-    },
+    "featureName": "swcReactRemoveProperties",
+    "invocationCount": 0,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcReactRemoveProperties": "false",
-    },
+    "featureName": "swcRelay",
+    "invocationCount": 0,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcRelay": "false",
-    },
+    "featureName": "swcRemoveConsole",
+    "invocationCount": 0,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcRemoveConsole": "false",
-    },
+    "featureName": "swcStyledComponents",
+    "invocationCount": 0,
   },
   {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "swcStyledComponents": "false",
-    },
-  },
-  {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "transpilePackages": "false",
-    },
-  },
-  {
-    "category": "NextFeatureTelemetry_category_tbd",
-    "name": "EVENT_BUILD_FEATURE_USAGE",
-    "payload": {
-      "turbotrace": "false",
-    },
+    "featureName": "transpilePackages",
+    "invocationCount": 0,
   },
 ]
 `;

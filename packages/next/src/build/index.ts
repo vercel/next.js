@@ -1641,7 +1641,8 @@ export default async function build(
             ...rest
           } = await turbopackBuild(
             process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
-              process.env.NEXT_TURBOPACK_USE_WORKER !== '0'
+              process.env.NEXT_TURBOPACK_USE_WORKER !== '0',
+            telemetry
           )
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
