@@ -6,10 +6,15 @@ describe('patch-fetch-request-body', () => {
   let externalServerPort: number
   let externalServer: http.Server
 
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipStart: true,
+    skipDeployment: true,
   })
+
+  if (skipped) {
+    return
+  }
 
   beforeAll(async () => {
     externalServerPort = await findPort()
