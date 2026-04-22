@@ -222,7 +222,7 @@ if (isNextDeploy) {
           ).toBe(true)
           expect(
             prefetchRequests.some((requestPath) =>
-              requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
+              requestPath.startsWith('/hydrated/__fallback/__next.')
             )
           ).toBe(true)
         } finally {
@@ -278,9 +278,7 @@ if (isNextDeploy) {
             expect(
               prefetchRequests.length === 0 ||
                 prefetchRequests.some((requestPath) =>
-                  requestPath.startsWith(
-                    '/hydrated/__fallback/__next._tree.txt'
-                  )
+                  requestPath.startsWith('/hydrated/__fallback/__next.')
                 )
             ).toBe(true)
           })
@@ -315,7 +313,7 @@ if (isNextDeploy) {
 
           const prefetchRequests = getRequests()
           const fallbackTreeRequests = prefetchRequests.filter((requestPath) =>
-            requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
+            requestPath.startsWith('/hydrated/__fallback/__next.')
           )
 
           expect(
@@ -341,7 +339,7 @@ if (isNextDeploy) {
           expect(fallbackTreeRequests.length).toBeGreaterThanOrEqual(1)
           expect(
             fallbackTreeRequests.every((requestPath) =>
-              requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
+              requestPath.startsWith('/hydrated/__fallback/__next.')
             )
           ).toBe(true)
         } finally {

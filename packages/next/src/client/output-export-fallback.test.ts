@@ -130,7 +130,61 @@ describe('output export fallback helpers', () => {
     expect(result?.renderedUrl.href).toBe(renderedUrl.href)
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
       'https://example.com/org/acme/chat/123/__fallback.txt',
+      'https://example.com/org/acme/chat/123/__fallback.meta.json',
     ])
+  })
+
+  it('uses manifest fallback base paths even when the direct artifact already exists', async () => {
+    const fetchMock = jest.fn(async (input: RequestInfo | URL) => {
+      const url = String(input)
+
+      if (url.endsWith('/hydrated/second/__fallback/index.txt')) {
+        return new Response('payload', {
+          status: 200,
+          headers: { 'content-type': 'text/plain' },
+        })
+      }
+
+      if (url.endsWith('/hydrated/second/__fallback.meta.json')) {
+        return new Response(
+          JSON.stringify({
+            version: 1,
+            routes: [
+              {
+                route: '/hydrated/[thread]',
+                fallbackPath: '/hydrated/__fallback',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'content-type': 'application/json' },
+          }
+        )
+      }
+
+      return new Response('not found', {
+        status: 404,
+        headers: { 'content-type': 'text/html' },
+      })
+    })
+
+    global.fetch = fetchMock as typeof fetch
+
+    const renderedUrl = new URL('https://example.com/hydrated/second/')
+    const result = await fetchOutputExportFallbackResponse(renderedUrl)
+
+    expect(result).not.toBeNull()
+    expect(result?.fallbackUrl.pathname).toBe('/hydrated/__fallback')
+    expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://example.com/hydrated/second/__fallback/index.txt',
+      'https://example.com/hydrated/second/__fallback.meta.json',
+    ])
+    expect(
+      getCachedOutputExportFallbackRequestUrl(
+        new URL('https://example.com/hydrated/second/__next._tree.txt')
+      )?.href
+    ).toBe('https://example.com/hydrated/__fallback/__next._tree.txt')
   })
 
   it('falls through deeper prefixes before using a shallower fallback artifact', async () => {
@@ -177,6 +231,7 @@ describe('output export fallback helpers', () => {
       'https://example.com/docs/guides/export/__fallback.txt',
       'https://example.com/docs/guides/export/__fallback.meta.json',
       'https://example.com/docs/guides/__fallback.txt',
+      'https://example.com/docs/guides/__fallback.meta.json',
     ])
   })
 
