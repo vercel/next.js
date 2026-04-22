@@ -20,6 +20,7 @@ pub struct Span {
     pub args: Vec<(RcStr, RcStr)>,
 
     // This might change during writing:
+    /// The list of events sorted by start time
     pub events: Vec<SpanEvent>,
     pub is_complete: bool,
 
@@ -41,6 +42,19 @@ pub struct Span {
     pub time_data: OnceLock<Box<SpanTimeData>>,
     pub extra: OnceLock<Box<SpanExtra>>,
     pub names: OnceLock<Box<SpanNames>>,
+}
+
+impl Span {
+    pub fn insert_event(&mut self, event: SpanEvent) {
+        // Insertion sort to insert sorted
+        let id = self.events.len();
+        self.events.push(event);
+        let mut current = id;
+        while current > 0 && self.events[current].start() < self.events[current - 1].start() {
+            self.events.swap(current, current - 1);
+            current -= 1;
+        }
+    }
 }
 
 #[derive(Default)]
@@ -108,7 +122,7 @@ pub struct SpanEventSelfTime {
 
 pub enum SpanEvent {
     SelfTime(SpanEventSelfTime),
-    Child { index: SpanIndex },
+    Child { start: Timestamp, index: SpanIndex },
 }
 
 impl SpanEvent {
@@ -118,6 +132,13 @@ impl SpanEvent {
             end,
             corrected_self_time: OnceLock::new(),
         })
+    }
+
+    pub fn start(&self) -> Timestamp {
+        match self {
+            SpanEvent::SelfTime(self_time) => self_time.start,
+            SpanEvent::Child { start, .. } => *start,
+        }
     }
 }
 

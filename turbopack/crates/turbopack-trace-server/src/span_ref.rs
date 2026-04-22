@@ -180,8 +180,7 @@ impl<'a> SpanRef<'a> {
         1
     }
 
-    // TODO(sokra) use events instead of children for visualizing span graphs
-    #[allow(dead_code)]
+    /// Events sorted by start time, including self time and children.
     pub fn events(&self) -> impl DoubleEndedIterator<Item = SpanEventRef<'a>> {
         self.span.events.iter().map(|event| match event {
             SpanEvent::SelfTime(self_time) => SpanEventRef::SelfTime {
@@ -190,7 +189,7 @@ impl<'a> SpanRef<'a> {
                     self_time,
                 },
             },
-            SpanEvent::Child { index } => SpanEventRef::Child {
+            SpanEvent::Child { index, .. } => SpanEventRef::Child {
                 span: SpanRef {
                     span: &self.store.spans[index.get()],
                     store: self.store,
@@ -200,10 +199,11 @@ impl<'a> SpanRef<'a> {
         })
     }
 
+    /// Children sorted by start time, excluding self time.
     pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a + use<'a> {
         self.span.events.iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index } => Some(SpanRef {
+            SpanEvent::Child { index, .. } => Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),
@@ -211,10 +211,11 @@ impl<'a> SpanRef<'a> {
         })
     }
 
+    /// Children sorted by start time, excluding self time, in parallel.
     pub fn children_par(&self) -> impl ParallelIterator<Item = SpanRef<'a>> + 'a {
         self.span.events.par_iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index } => Some(SpanRef {
+            SpanEvent::Child { index, .. } => Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),

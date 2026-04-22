@@ -152,7 +152,7 @@ impl Store {
             depth = CUT_OFF_DEPTH - 1;
         }
         if depth < CUT_OFF_DEPTH {
-            parent.events.push(SpanEvent::Child { index: id });
+            parent.insert_event(SpanEvent::Child { start, index: id });
         }
         parent.start = min(parent.start, start);
         let span = &mut self.spans[id.get()];
@@ -221,7 +221,7 @@ impl Store {
         outdated_spans.insert(span_index);
         time_data.self_time += end - start;
         time_data.self_end = max(time_data.self_end, end);
-        span.events.push(SpanEvent::self_time(start, end));
+        span.insert_event(SpanEvent::self_time(start, end));
         self.insert_self_time(start, end, span_index, outdated_spans);
     }
 
@@ -258,7 +258,7 @@ impl Store {
                 self.insert_self_time(current, start, span_index, outdated_spans);
                 self_time += start - current;
             }
-            events.push(SpanEvent::Child { index });
+            events.push(SpanEvent::Child { start, index });
             current = max(current, end);
         }
         current -= start_time;
@@ -292,6 +292,7 @@ impl Store {
     ) {
         outdated_spans.insert(span_index);
         let span = &mut self.spans[span_index.get()];
+        let span_start = span.start;
 
         let old_parent = span.parent.replace(parent);
         let old_parent = if let Some(parent) = old_parent {
@@ -300,17 +301,18 @@ impl Store {
         } else {
             &mut self.spans[0]
         };
-        if let Some(index) = old_parent
-            .events
-            .iter()
-            .position(|event| matches!(event, SpanEvent::Child { index } if *index == span_index))
-        {
+        if let Some(index) = old_parent.events.iter().position(
+            |event| matches!(event, SpanEvent::Child { index, .. } if *index == span_index),
+        ) {
             old_parent.events.remove(index);
         }
 
         outdated_spans.insert(parent);
         let parent = &mut self.spans[parent.get()];
-        parent.events.push(SpanEvent::Child { index: span_index });
+        parent.insert_event(SpanEvent::Child {
+            start: span_start,
+            index: span_index,
+        });
     }
 
     pub fn add_allocation(
@@ -418,7 +420,7 @@ impl Store {
 
     pub fn root_spans(&self) -> impl Iterator<Item = SpanRef<'_>> {
         self.spans[0].events.iter().filter_map(|event| match event {
-            &SpanEvent::Child { index: id } => Some(SpanRef {
+            &SpanEvent::Child { index: id, .. } => Some(SpanRef {
                 span: &self.spans[id.get()],
                 store: self,
                 index: id.get(),
