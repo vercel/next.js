@@ -409,14 +409,14 @@ if (isNextDeploy) {
           ).toBe(false)
           expect(
             requests.some((requestPath) =>
-              requestPath.startsWith('/org/__fallback.meta.json')
-            )
-          ).toBe(false)
-          expect(
-            requests.some((requestPath) =>
               requestPath.startsWith('/org/__fallback.txt')
             )
           ).toBe(false)
+          expect(
+            requests.filter((requestPath) =>
+              requestPath.startsWith('/org/__fallback.meta.json')
+            )
+          ).toHaveLength(1)
           expect(
             requests.filter((requestPath) =>
               requestPath.startsWith('/org/__fallback/index.txt')

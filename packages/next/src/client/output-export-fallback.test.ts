@@ -265,6 +265,7 @@ describe('output export fallback helpers', () => {
     expect(result?.renderedUrl.href).toBe(renderedUrl.href)
     expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
       'https://example.com/org/umbrella/chat/thread-789/__fallback/index.txt',
+      'https://example.com/org/umbrella/chat/thread-789/__fallback.meta.json',
     ])
   })
 
