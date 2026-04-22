@@ -254,7 +254,7 @@ async fn endpoint_write_to_disk_with_apply(
         endpoint_write_to_disk(*endpoint)
     }
 
-    #[turbo_tasks::value(serialization = "none")]
+    #[turbo_tasks::value(serialization = "skip")]
     struct WithEffects {
         output_paths: ReadRef<EndpointOutputPaths>,
         effects: Effects,

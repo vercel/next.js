@@ -35,10 +35,11 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "cross-env": "10.1.0",
+    "eslint": "catalog:",
     "inliner": "1.13.1",
     "postcss": "^8.5",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
-    "typescript": "6.0.2"
+    "typescript": "catalog:"
   }
 }

@@ -688,7 +688,7 @@ impl ImportTracer for ModuleGraphImportTracer {
 
 /// The ReadRef version of ModuleGraphBase. This is better for eventual consistency, as the graphs
 /// aren't awaited multiple times within the same task.
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 pub struct ModuleGraph {
     input_graphs: Vec<OperationVc<SingleModuleGraph>>,
     input_binding_usage: Option<OperationVc<BindingUsageInfo>>,
@@ -858,7 +858,7 @@ impl Deref for ModuleGraph {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual", cell = "new")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual", cell = "new")]
 pub struct ModuleGraphLayer {
     snapshot: ModuleGraphSnapshot,
 }
@@ -2310,7 +2310,7 @@ pub mod tests {
         + Send
         + 'static,
     ) {
-        #[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
+        #[turbo_tasks::value(serialization = "skip", eq = "manual", cell = "new")]
         struct SetupGraph {
             module_graph: ReadRef<ModuleGraph>,
             entry_modules: Vec<ResolvedVc<Box<dyn Module>>>,

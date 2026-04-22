@@ -213,7 +213,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         noop_backing_storage(),
     ));
 
-    #[turbo_tasks::value(serialization = "none")]
+    #[turbo_tasks::value(serialization = "skip", evict = "never")]
     struct JsResultWithEffects {
         result: ReadRef<JsResult>,
         effects: Effects,

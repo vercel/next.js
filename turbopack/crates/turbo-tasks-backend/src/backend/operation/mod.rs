@@ -18,8 +18,8 @@ use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
 use turbo_tasks::{
-    CellId, DynTaskInputs, FxIndexMap, RawVc, TaskExecutionReason, TaskId, TaskPriority,
-    TurboTasksBackendApi, TurboTasksCallApi, TypedSharedReference, backend::CachedTaskType,
+    CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
+    TaskPriority, TurboTasksBackendApi, TurboTasksCallApi, backend::CachedTaskType,
     macro_helpers::NativeFunction,
 };
 
@@ -1255,60 +1255,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             .unwrap_or_default();
         dirty_count > clean_count
     }
-    fn remove_cell_data(
-        &mut self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-    ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
-            self.remove_persistent_cell_data(&cell)
-        } else {
-            self.remove_transient_cell_data(&cell)
-                .map(|sr| sr.into_typed(cell.type_id))
-        }
-    }
-    fn get_cell_data(
-        &self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-    ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
-            self.get_persistent_cell_data(&cell).cloned()
-        } else {
-            self.get_transient_cell_data(&cell)
-                .map(|sr| sr.clone().into_typed(cell.type_id))
-        }
-    }
-    fn has_cell_data(&self, is_serializable_cell_content: bool, cell: CellId) -> bool {
-        if is_serializable_cell_content {
-            self.persistent_cell_data_contains(&cell)
-        } else {
-            self.transient_cell_data_contains(&cell)
-        }
-    }
-    /// Set cell data, returning the old value if any.
-    fn set_cell_data(
-        &mut self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-        value: TypedSharedReference,
-    ) -> Option<TypedSharedReference> {
-        if is_serializable_cell_content {
-            self.insert_persistent_cell_data(cell, value)
-        } else {
-            self.insert_transient_cell_data(cell, value.into_untyped())
-                .map(|sr| sr.into_typed(cell.type_id))
-        }
-    }
-
-    /// Add new cell data (asserts that the cell is new and didn't exist before).
-    fn add_cell_data(
-        &mut self,
-        is_serializable_cell_content: bool,
-        cell: CellId,
-        value: TypedSharedReference,
-    ) {
-        let old = self.set_cell_data(is_serializable_cell_content, cell, value);
+    /// Add new cell data. Panics if the cell already had a value.
+    fn add_cell_data(&mut self, cell: CellId, value: SharedReference) {
+        let old = self.insert_cell_data(cell, value);
         assert!(old.is_none(), "Cell data already exists for {cell:?}");
     }
 

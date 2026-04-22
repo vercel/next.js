@@ -6814,6 +6814,8 @@ async function validateInstantConfigInBuildWithSample(
     route: outerWorkStore.route,
     incrementalCache: outerWorkStore.incrementalCache,
     cacheLifeProfiles: outerWorkStore.cacheLifeProfiles,
+    useCacheTimeout: outerWorkStore.useCacheTimeout,
+    staticPageGenerationTimeout: outerWorkStore.staticPageGenerationTimeout,
     isBuildTimePrerendering: false,
     fetchCache: outerWorkStore.fetchCache,
     isOnDemandRevalidate: false,

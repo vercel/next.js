@@ -17,7 +17,8 @@
   },
   "devDependencies": {
     "@types/eslint": "9.6.1",
-    "eslint": "9.37.0"
+    "eslint": "9.37.0",
+    "typescript": "catalog:"
   },
   "scripts": {
     "dev": "pnpm build",

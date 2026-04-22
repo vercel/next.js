@@ -34,6 +34,7 @@
     "@types/jest": "^29.5.0",
     "@vercel/ncc": "0.34.0",
     "jest": "^29.5.0",
-    "ts-jest": "^29.1.0"
+    "ts-jest": "^29.1.0",
+    "typescript": "catalog:"
   }
 }

@@ -302,11 +302,21 @@ export async function adapter(
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
+                // Proxy doesn't do static generation, so this value does not
+                // apply here. 0 is a sentinel: if something ever reads it,
+                // it'll surface loudly instead of silently using a misleading
+                // default.
+                staticPageGenerationTimeout: 0,
                 cacheComponents: false,
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
+                  // Proxy doesn't fill Cache Components entries, so this value
+                  // is never read. 0 is a sentinel: if something ever reads it,
+                  // the cache fill will time out immediately and surface the
+                  // bug.
+                  useCacheTimeout: 0,
                 },
                 supportsDynamicResponse: true,
                 waitUntil,
