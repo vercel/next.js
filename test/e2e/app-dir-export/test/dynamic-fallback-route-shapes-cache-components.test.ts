@@ -200,6 +200,21 @@ if (isNextDeploy) {
           await browser.close()
         }
       })
+
+      it('renders the global not-found route instead of a mismatched fallback shell', async () => {
+        const browser = await webdriver(port, '/org/acme/missing-one/')
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe(
+              'My custom not found page'
+            )
+            expect(await browser.hasElementByCss('#org-section')).toBe(false)
+          })
+        } finally {
+          await browser.close()
+        }
+      })
     }
   )
 }

@@ -386,46 +386,38 @@ function createStaticPrerenderParams(
     case 'prerender':
     case 'prerender-client': {
       const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            if (
-              paramsConsumer === 'server' &&
-              workStore.nextConfigOutput === 'export'
-            ) {
-              return makeErroringExportFallbackParams(
-                underlyingParamsWithVarying,
-                fallbackParams,
-                workStore
-              )
-            }
-            // This params object has one or more fallback params, so we need
-            // to consider the awaiting of this params object "dynamic". Since
-            // we are in cacheComponents mode we encode this as a promise that never
-            // resolves.
-            return makeHangingParams(
-              underlyingParamsWithVarying,
-              workStore,
-              prerenderStore
-            )
-          }
+      if (fallbackParams && fallbackParams.size > 0) {
+        if (
+          paramsConsumer === 'server' &&
+          workStore.nextConfigOutput === 'export'
+        ) {
+          return makeErroringExportFallbackParams(
+            underlyingParamsWithVarying,
+            fallbackParams,
+            workStore
+          )
         }
+        // This params object has one or more fallback params, so we need
+        // to consider the awaiting of this params object "dynamic". Since
+        // we are in cacheComponents mode we encode this as a promise that never
+        // resolves.
+        return makeHangingParams(
+          underlyingParamsWithVarying,
+          workStore,
+          prerenderStore
+        )
       }
       break
     }
     case 'prerender-ppr': {
       const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            return makeErroringParams(
-              underlyingParamsWithVarying,
-              fallbackParams,
-              workStore,
-              prerenderStore
-            )
-          }
-        }
+      if (fallbackParams && fallbackParams.size > 0) {
+        return makeErroringParams(
+          underlyingParamsWithVarying,
+          fallbackParams,
+          workStore,
+          prerenderStore
+        )
       }
       break
     }
@@ -466,15 +458,11 @@ function createRuntimePrerenderParams(
 }
 
 function hasFallbackRouteParams(
-  underlyingParams: Params,
+  _underlyingParams: Params,
   fallbackParams: OpaqueFallbackRouteParams | null | undefined
 ): boolean {
-  if (fallbackParams) {
-    for (let key in underlyingParams) {
-      if (fallbackParams.has(key)) {
-        return true
-      }
-    }
+  if (fallbackParams && fallbackParams.size > 0) {
+    return true
   }
   return false
 }
@@ -653,20 +641,18 @@ function makeErroringExportFallbackParams(
   })
   CachedErroringExportFallbackParams.set(underlyingParams, promise)
 
-  Object.keys(underlyingParams).forEach((prop) => {
+  for (const prop of fallbackParams.keys()) {
     if (wellKnownProperties.has(prop)) {
-      return
+      continue
     }
 
-    if (fallbackParams.has(prop)) {
-      Object.defineProperty(augmentedUnderlying, prop, {
-        get() {
-          return throwError()
-        },
-        enumerable: true,
-      })
-    }
-  })
+    Object.defineProperty(augmentedUnderlying, prop, {
+      get() {
+        return throwError()
+      },
+      enumerable: true,
+    })
+  }
 
   return promise
 }
