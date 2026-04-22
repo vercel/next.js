@@ -5,6 +5,17 @@ import escapeStringRegexp from 'escape-string-regexp'
 
 const BUILD_FAILURE_RE = /Build failed because of (webpack|Rspack) errors/
 
+// PostCSS plugins referenced by the `.postcssrc.json` / `postcss.config.js`
+// files under `css-fixtures/` must be resolvable from the isolated test
+// install. The original integration test relied on these being hoisted in the
+// monorepo root, but the isolated next install only sees declared deps.
+const postcssPluginDeps = {
+  pixrem: '5.0.0',
+  'postcss-pseudoelements': '5.0.0',
+  'postcss-short-size': '4.0.0',
+  'postcss-trolling': '0.1.7',
+}
+
 describe('CSS Customization', () => {
   ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
     'production mode',
@@ -13,6 +24,7 @@ describe('CSS Customization', () => {
         const { next } = nextTestSetup({
           files: path.join(__dirname, 'css-fixtures/custom-configuration'),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         beforeAll(async () => {
@@ -85,6 +97,7 @@ describe('CSS Customization', () => {
         const { next } = nextTestSetup({
           files: path.join(__dirname, 'css-fixtures/custom-configuration-arr'),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         beforeAll(async () => {
@@ -163,6 +176,7 @@ describe('CSS Customization', () => {
             'css-fixtures/custom-configuration-loader'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         beforeAll(async () => {
@@ -200,6 +214,7 @@ describe('CSS Customization', () => {
         const { next } = nextTestSetup({
           files: path.join(__dirname, 'css-fixtures/bad-custom-configuration'),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         beforeAll(async () => {
@@ -261,6 +276,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-1'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -280,6 +296,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-2'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -302,6 +319,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-3'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -321,6 +339,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-4'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -340,6 +359,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-5'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -359,6 +379,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-6'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -378,6 +399,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-7'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -397,6 +419,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-arr-8'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {
@@ -416,6 +439,7 @@ describe('CSS Customization', () => {
             'css-fixtures/bad-custom-configuration-func'
           ),
           skipStart: true,
+          dependencies: postcssPluginDeps,
         })
 
         it('should fail the build', async () => {

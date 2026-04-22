@@ -30,37 +30,43 @@ export function runTests(ctx: {
           .sort()
       }
 
-      const cacheKeys = await getCacheKeys()
-      expect(cacheKeys).toEqual(
-        middlewareEnabled
-          ? [
-              '/_next/data/BUILD_ID/[name].json?another=value&name=%5Bname%5D',
-              '/_next/data/BUILD_ID/added-later/first.json?name=added-later&comment=first',
-              '/_next/data/BUILD_ID/blog/321/comment/123.json?name=321&id=123',
-              '/_next/data/BUILD_ID/d/dynamic-1.json?id=dynamic-1',
-              '/_next/data/BUILD_ID/on-mount/test-w-hash.json?post=test-w-hash',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/:42.json?rest=%3A42',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1%2F/he%2Fllo2.json?rest=hello1%2F&rest=he%2Fllo2',
-              '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/post-1.json?fromHome=true&name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?hidden=value&name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?name=post-1',
-              '/_next/data/BUILD_ID/post-1.json?name=post-1&another=value',
-              '/_next/data/BUILD_ID/post-1/comment-1.json?name=post-1&comment=comment-1',
-              '/_next/data/BUILD_ID/post-1/comments.json?name=post-1',
-            ]
-          : [
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
-              '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
-            ]
-      )
+      const expectedCacheKeys = middlewareEnabled
+        ? [
+            '/_next/data/BUILD_ID/[name].json?another=value&name=%5Bname%5D',
+            '/_next/data/BUILD_ID/added-later/first.json?name=added-later&comment=first',
+            '/_next/data/BUILD_ID/blog/321/comment/123.json?name=321&id=123',
+            '/_next/data/BUILD_ID/d/dynamic-1.json?id=dynamic-1',
+            '/_next/data/BUILD_ID/on-mount/test-w-hash.json?post=test-w-hash',
+            '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
+            '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+            '/_next/data/BUILD_ID/p1/p2/all-ssr/:42.json?rest=%3A42',
+            '/_next/data/BUILD_ID/p1/p2/all-ssr/hello.json?rest=hello',
+            '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1%2F/he%2Fllo2.json?rest=hello1%2F&rest=he%2Fllo2',
+            '/_next/data/BUILD_ID/p1/p2/all-ssr/hello1/hello2.json?rest=hello1&rest=hello2',
+            '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
+            '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+            '/_next/data/BUILD_ID/post-1.json?fromHome=true&name=post-1',
+            '/_next/data/BUILD_ID/post-1.json?hidden=value&name=post-1',
+            '/_next/data/BUILD_ID/post-1.json?name=post-1',
+            '/_next/data/BUILD_ID/post-1.json?name=post-1&another=value',
+            '/_next/data/BUILD_ID/post-1/comment-1.json?name=post-1&comment=comment-1',
+            '/_next/data/BUILD_ID/post-1/comments.json?name=post-1',
+          ]
+        : [
+            '/_next/data/BUILD_ID/p1/p2/all-ssg/hello.json?rest=hello',
+            '/_next/data/BUILD_ID/p1/p2/all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+            '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello.json?rest=hello',
+            '/_next/data/BUILD_ID/p1/p2/nested-all-ssg/hello1/hello2.json?rest=hello1&rest=hello2',
+          ]
+
+      // Prefetches land asynchronously after hydration. In webpack production
+      // builds assets load differently than Turbopack so retry until the
+      // expected set is present.
+      await retry(async () => {
+        expect(await getCacheKeys()).toEqual(expectedCacheKeys)
+      })
+
+      const cacheKeys = expectedCacheKeys
 
       const links = [
         {

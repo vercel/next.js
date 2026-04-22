@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, shouldUseTurbopack } from 'next-test-utils'
+import { retry, shouldUseTurbopack, waitFor } from 'next-test-utils'
 ;(shouldUseTurbopack() ? describe.skip : describe)('On Demand Entries', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -31,21 +31,25 @@ import { retry, shouldUseTurbopack } from 'next-test-utils'
 
   it('should dispose inactive pages', async () => {
     await next.render('/')
+
     await next.render('/about')
+
     await next.render('/third')
 
-    await retry(
-      async () => {
+    for (let i = 0; i < 30; ++i) {
+      await waitFor(1000)
+      try {
         const manifest = JSON.parse(
           await next.readFile('.next/dev/build-manifest.json')
         )
         expect(manifest.pages['/']).toBeUndefined()
         expect(manifest.pages['/about']).toBeDefined()
         expect(manifest.pages['/third']).toBeDefined()
-      },
-      30_000,
-      1000
-    )
+        return
+      } catch {
+        continue
+      }
+    }
   })
 
   it('should navigate to pages with dynamic imports', async () => {

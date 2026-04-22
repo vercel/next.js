@@ -114,7 +114,12 @@ describe('i18n Support Root Catch-all', () => {
       )
     })
 
-    expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
+    // The URL can update before the component re-renders with the new locale
+    // (observed with webpack production builds). Wait for the render to
+    // reflect the new locale before asserting the rest of the router state.
+    await retry(async () => {
+      expect(await browser.elementByCss('#router-locale').text()).toBe('nl-NL')
+    })
     expect(await browser.elementByCss('#router-default-locale').text()).toBe(
       'en-US'
     )

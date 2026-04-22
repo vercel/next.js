@@ -51,6 +51,14 @@ const timeout = parseInt(getArg('--timeout') || '300000')
 const listMode = hasFlag('--list')
 const summaryMode = hasFlag('--summary')
 const retryFails = hasFlag('--retry-fails')
+const bundler = getArg('--bundler') || 'turbopack'
+if (bundler !== 'turbopack' && bundler !== 'webpack') {
+  console.error(
+    `Invalid --bundler: ${bundler}. Expected "turbopack" or "webpack".`
+  )
+  process.exit(1)
+}
+const resultSuffix = bundler === 'webpack' ? '.webpack.json' : '.json'
 
 // --- Determine modes for a file based on its directory ---
 function modesForFile(filePath) {
@@ -80,7 +88,7 @@ function resultSlug(file, mode) {
 }
 
 function resultPath(file, mode) {
-  return path.join(RESULTS_DIR, `${resultSlug(file, mode)}.json`)
+  return path.join(RESULTS_DIR, `${resultSlug(file, mode)}${resultSuffix}`)
 }
 
 function hasResult(file, mode) {
@@ -124,16 +132,29 @@ function parseJestOutput(output) {
 
 // --- Run a single test file ---
 function runTest(file, mode) {
-  const command = mode === 'dev' ? 'test-dev-turbo' : 'test-start-turbo'
+  const suffix = bundler === 'webpack' ? 'webpack' : 'turbo'
+  const command = mode === 'dev' ? `test-dev-${suffix}` : `test-start-${suffix}`
 
   return new Promise((resolve) => {
     const startTime = Date.now()
     let output = ''
     let killed = false
 
+    // Strip Cursor's sandbox-cache Playwright path so tests use the default
+    // ~/Library/Caches/ms-playwright browsers that `pnpm playwright install`
+    // populated for this repo.
+    const childEnv = { ...process.env }
+    if (
+      childEnv.PLAYWRIGHT_BROWSERS_PATH &&
+      childEnv.PLAYWRIGHT_BROWSERS_PATH.includes('cursor-sandbox-cache')
+    ) {
+      delete childEnv.PLAYWRIGHT_BROWSERS_PATH
+    }
+
     const child = spawn('pnpm', [command, file], {
       cwd: REPO_ROOT,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: childEnv,
     })
 
     child.stdout.on('data', (chunk) => {
@@ -170,6 +191,7 @@ function runTest(file, mode) {
       resolve({
         file,
         mode,
+        bundler,
         verdict,
         exitCode: code,
         durationMs,

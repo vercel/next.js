@@ -19,6 +19,9 @@ describe('Export Dynamic Pages', () => {
     const outDir = path.join(next.testDir, 'out')
     server = http.createServer((req, res) => {
       let urlPath = (req.url || '/').split('?')[0]
+      try {
+        urlPath = decodeURIComponent(urlPath)
+      } catch {}
       let filePath = path.join(outDir, urlPath)
 
       if (!path.extname(filePath)) {

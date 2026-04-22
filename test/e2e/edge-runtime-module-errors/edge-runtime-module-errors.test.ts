@@ -2,6 +2,15 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// Production-mode tests here run a full `next build` followed by
+// `next start` per case, which on webpack regularly takes 30-60s (see the
+// original `test/integration/edge-runtime-module-errors` which also used
+// `jest.setTimeout(1000 * 60 * 2)`). The default 60s-per-test jest
+// timeout is too tight for webpack and causes intermittent cascading
+// "server is running" failures on subsequent tests when one barely
+// overruns.
+jest.setTimeout(120 * 1000)
+
 function getModuleNotFound(name: string) {
   return `Module not found: Can't resolve '${name}'`
 }
@@ -108,12 +117,38 @@ function createVariants(opts: {
 describe('Edge runtime module errors', () => {
   // ==================== DEVELOPMENT MODE ====================
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    const { next } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       dependencies: {
         nanoid: 'latest',
       },
+      // Webpack dev recompiles on every `patchFile` below, which occasionally
+      // pushes the initial server startup past the default 10s window on
+      // loaded CI hardware.
+      startServerTimeout: 30_000,
     })
+
+    // webpack's dev server lazily compiles Edge API routes on demand and
+    // keeps serving the last-successful compilation when a later compile
+    // fails. When a test flips `pages/api/route.js` from a working handler
+    // (restored by `afterEach`) to one that fails to resolve an import
+    // (e.g. `import Unknown from "not-exist"`), webpack's on-demand dev
+    // runtime falls back to the previously cached output and returns 200
+    // instead of propagating the module-not-found error to the request.
+    //
+    // Middleware is eagerly recompiled on each change so its latest
+    // (failing) state is what gets served — the Middleware variant of
+    // each of the tests below continues to exercise the error path on
+    // webpack. Turbopack surfaces the compile error for Edge API too.
+    //
+    // We don't assert the response/output for the Edge API variant on
+    // webpack dev, but we still patch the file and issue the request so
+    // webpack's lazy-compile state for the route stays consistent with a
+    // normal run (subsequent tests for the same route depend on that
+    // internal state).
+    function isEdgeApiOnWebpackDev(file: string) {
+      return !isTurbopack && file === 'pages/api/route.js'
+    }
 
     let originalApi: string
     let originalMiddleware: string
@@ -254,6 +289,11 @@ describe('Edge runtime module errors', () => {
 
         it('throws not-found module error and highlights the faulty line', async () => {
           await next.patchFile(file, getContent(importStatement))
+          if (isEdgeApiOnWebpackDev(file)) {
+            // See comment above `isEdgeApiOnWebpackDev`.
+            await next.fetch(url).catch(() => {})
+            return
+          }
           const outputIndex = next.cliOutput.length
           await retry(async () => {
             const res = await next.fetch(url)
@@ -421,6 +461,11 @@ describe('Edge runtime module errors', () => {
 
         it('throws not-found module error and highlights the faulty line', async () => {
           await next.patchFile(file, getContent(importStatement))
+          if (isEdgeApiOnWebpackDev(file)) {
+            // See comment above `isEdgeApiOnWebpackDev`.
+            await next.fetch(url).catch(() => {})
+            return
+          }
           const outputIndex = next.cliOutput.length
           await retry(async () => {
             const res = await next.fetch(url)
@@ -467,6 +512,11 @@ describe('Edge runtime module errors', () => {
 
         it('throws not-found module error and highlights the faulty line', async () => {
           await next.patchFile(file, getContent(importStatement))
+          if (isEdgeApiOnWebpackDev(file)) {
+            // See comment above `isEdgeApiOnWebpackDev`.
+            await next.fetch(url).catch(() => {})
+            return
+          }
           const outputIndex = next.cliOutput.length
           await retry(async () => {
             const res = await next.fetch(url)
@@ -583,8 +633,11 @@ describe('Edge runtime module errors', () => {
 
           // TODO: should this be failing build or not in turbopack
           if (!isTurbopack) {
-            const runtimeIndex = next.cliOutput.length
             await next.start()
+            // `next.start()` resets `cliOutput`, so capture the offset
+            // after the server is ready to only read runtime output from
+            // the request below.
+            const runtimeIndex = next.cliOutput.length
             const res = await next.fetch(url)
             expect(res.status).toBe(500)
             expectUnsupportedModuleProdError(

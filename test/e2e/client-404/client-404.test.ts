@@ -9,13 +9,30 @@ describe('Client 404', () => {
     files: __dirname,
   })
 
+  beforeAll(async () => {
+    // pre-build the home page so that navigating to it from the
+    // error page doesn't time out while webpack compiles on demand
+    await next.render('/')
+  })
+
   describe('should show 404 upon client replacestate', () => {
     it('should navigate the page', async () => {
       const browser = await next.browser('/asd')
       const serverCode = await browser
         .waitForElementByCss('#errorStatusCode')
         .text()
-      await browser.waitForElementByCss('#errorGoHome').click()
+      // In webpack dev mode, compiling the home page (via the
+      // `next.render('/')` pre-build in beforeAll) can race with the
+      // `/asd` page's hydration and trigger a Fast Refresh-driven full
+      // reload, which in turn swallows the click on `#errorGoHome` and
+      // leaves the browser back on `/asd`. Retry the click until the
+      // home page actually becomes visible.
+      await retry(async () => {
+        if (!(await browser.hasElementByCssSelector('#hellom8'))) {
+          await browser.waitForElementByCss('#errorGoHome').click()
+          await browser.waitForElementByCss('#hellom8', 5000)
+        }
+      })
       await browser.waitForElementByCss('#hellom8').back()
       const clientCode = await browser
         .waitForElementByCss('#errorStatusCode')

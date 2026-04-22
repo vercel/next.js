@@ -88,6 +88,11 @@ export async function tryNextDev({
     files: dir,
     installCommand: 'true',
     skipStart: false,
+    // Freshly installed CNA projects (with tailwind, eslint plugins, etc.)
+    // can take well over the default 10s to boot `next start`, especially
+    // under webpack where the built output is larger. Give them generous
+    // headroom so these tests aren't flaky on loaded CI machines.
+    startServerTimeout: 60_000,
   })
 
   try {

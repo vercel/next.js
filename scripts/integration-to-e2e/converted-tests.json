@@ -189,7 +189,7 @@
       "test/integration/broken-webpack-plugin/test/index.test.ts"
     ],
     "converted": [
-      "test/production/broken-webpack-plugin/broken-webpack-plugin.test.ts"
+      "test/development/broken-webpack-plugin/broken-webpack-plugin.test.ts"
     ]
   },
   {

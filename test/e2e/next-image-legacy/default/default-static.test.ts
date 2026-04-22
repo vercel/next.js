@@ -1,5 +1,5 @@
 /* eslint-disable jest/no-standalone-expect */
-import { nextTestSetup, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import cheerio from 'cheerio'
 
 describe('Build Error Tests', () => {
@@ -104,16 +104,21 @@ describe('Static Image Component Tests', () => {
 
   it('Should add a blur placeholder to statically imported jpg', async () => {
     const $ = cheerio.load(html)
+    const style = $('#basic-static').attr('style')
     if (isTurbopack) {
-      expect(
-        replaceDataUrl($('#basic-static').attr('style'))
-      ).toMatchInlineSnapshot(
+      expect(replaceDataUrl(style)).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
       )
+    } else if (isNextDev) {
+      // In webpack dev, `next/legacy/image` emits a dynamic blur URL via the
+      // image optimizer route instead of an inlined base64 data URL, to avoid
+      // slowing down the dev server (see
+      // `packages/next/src/build/webpack/loaders/next-image-loader/blur.ts`).
+      expect(replaceBlurUrl(style)).toMatchInlineSnapshot(
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("<REPLACED_BLUR_URL>")"`
+      )
     } else {
-      expect(
-        replaceDataUrl($('#basic-static').attr('style'))
-      ).toMatchInlineSnapshot(
+      expect(replaceDataUrl(style)).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
       )
     }
@@ -121,13 +126,25 @@ describe('Static Image Component Tests', () => {
 
   it('Should add a blur placeholder to statically imported png', async () => {
     const $ = cheerio.load(html)
+    const style = $('#basic-static')[2].attribs.style
     if (isTurbopack) {
-      expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
+      expect(style).toMatchInlineSnapshot(
         `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAICAYAAAA870V8AAAARUlEQVR42l3MoQ0AQQhE0XG7xWwIJSBIKBRJOZRBEXOWnPjimQ8AXC3ce+nuPOcQEcHuppkRVcWZYWYSIkJV5XvvN9j4AFZHJTnjDHb/AAAAAElFTkSuQmCC")"`
       )
+    } else if (isNextDev) {
+      // In webpack dev, `next/legacy/image` emits a dynamic blur URL via the
+      // image optimizer route instead of an inlined base64 data URL, to avoid
+      // slowing down the dev server (see
+      // `packages/next/src/build/webpack/loaders/next-image-loader/blur.ts`).
+      expect(replaceBlurUrl(style)).toMatchInlineSnapshot(
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("<REPLACED_BLUR_URL>")"`
+      )
     } else {
-      expect($('#basic-static')[2].attribs.style).toMatchInlineSnapshot(
-        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAMAAAAICAMAAAALMbVOAAAAGFBMVEUBAQFCQkIHBwcuLi79/f0rKyu1tbWurq7lN1wyAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAHElEQVR4nGNggAImRiYGRhZGBjYWdgZmVmaYMAACVQAo1/LzagAAAABJRU5ErkJggg==")"`
+      // In webpack start, the exact base64 output of the blur placeholder
+      // depends on the environment's sharp/libvips version, so normalize the
+      // data URL contents to only assert the data URL prefix.
+      expect(replaceDataUrl(style)).toMatchInlineSnapshot(
+        `"position:absolute;top:0;left:0;bottom:0;right:0;box-sizing:border-box;padding:0;border:none;margin:auto;display:block;width:0;height:0;min-width:100%;max-width:100%;min-height:100%;max-height:100%;background-size:cover;background-position:0% 0%;filter:blur(20px);background-image:url("data:<REPLACED>")"`
       )
     }
   })
@@ -157,4 +174,14 @@ describe('Static Image Component Tests', () => {
 
 function replaceDataUrl(styles) {
   return styles.replace(/url\("data:[^"]+"\)/g, 'url("data:<REPLACED>")')
+}
+
+// Webpack dev emits a dynamic blur URL that points at the image optimizer
+// route, e.g. `/_next/image?url=...&w=8&q=70`. Normalize it so the snapshot
+// only asserts the style shape, not the encoded src.
+function replaceBlurUrl(styles) {
+  return styles.replace(
+    /url\("\/_next\/image\?[^"]+"\)/g,
+    'url("<REPLACED_BLUR_URL>")'
+  )
 }

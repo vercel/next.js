@@ -25,10 +25,22 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
         react: '19.3.0-canary-fef12a01-20260413',
         'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
-      buildCommand: 'pnpm next build project-a',
+      // The relay SWC transform uses `process.cwd()` as its root, so the
+      // Next.js process must run with its working directory set to the
+      // sub-project. We do that here by wrapping the command in a shell
+      // script defined via `packageJson.scripts`, which `pnpm run` executes
+      // via a shell so `cd` works.
+      packageJson: {
+        scripts: {
+          'build-project-a': 'cd project-a && next build',
+          'dev-project-a': `cd project-a && next dev${shouldUseTurbopack() ? ' --turbopack' : ''}`,
+          'start-project-a': 'cd project-a && next start',
+        },
+      },
+      buildCommand: 'pnpm run build-project-a',
       startCommand: isNextDev
-        ? `pnpm next dev project-a${shouldUseTurbopack() ? ' --turbopack' : ''}`
-        : 'pnpm next start project-a',
+        ? 'pnpm run dev-project-a'
+        : 'pnpm run start-project-a',
     })
 
     it('should resolve index page correctly', async () => {
@@ -47,10 +59,17 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
         react: '19.3.0-canary-fef12a01-20260413',
         'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
-      buildCommand: 'pnpm next build project-b',
+      packageJson: {
+        scripts: {
+          'build-project-b': 'cd project-b && next build',
+          'dev-project-b': `cd project-b && next dev${shouldUseTurbopack() ? ' --turbopack' : ''}`,
+          'start-project-b': 'cd project-b && next start',
+        },
+      },
+      buildCommand: 'pnpm run build-project-b',
       startCommand: isNextDev
-        ? `pnpm next dev project-b${shouldUseTurbopack() ? ' --turbopack' : ''}`
-        : 'pnpm next start project-b',
+        ? 'pnpm run dev-project-b'
+        : 'pnpm run start-project-b',
     })
 
     it('should resolve index page correctly', async () => {

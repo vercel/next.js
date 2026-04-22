@@ -46,7 +46,12 @@ describe('Hash changes i18n', () => {
       expect(await browser.eval('window.location.hash')).toBe('#hash')
     })
 
-    expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    // The URL can update before the component re-renders with the new locale
+    // (observed with webpack production builds). Wait for the render to
+    // reflect the new locale before asserting the remaining render state.
+    await retry(async () => {
+      expect(await browser.elementByCss('#router-locale').text()).toBe('fr')
+    })
     expect(await browser.elementByCss('#props-locale').text()).toBe('fr')
 
     await browser.elementByCss('#change-locale').click()
@@ -58,7 +63,9 @@ describe('Hash changes i18n', () => {
       expect(await browser.eval('window.location.hash')).toBe('#hash')
     })
 
-    expect(await browser.elementByCss('#router-locale').text()).toBe('en')
+    await retry(async () => {
+      expect(await browser.elementByCss('#router-locale').text()).toBe('en')
+    })
     expect(await browser.elementByCss('#props-locale').text()).toBe('en')
   })
 

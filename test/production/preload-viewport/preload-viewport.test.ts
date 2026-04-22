@@ -26,7 +26,7 @@ describe('Prefetching Links in viewport', () => {
   beforeAll(async () => {
     await next.build()
     buildId = await next.readFile('.next/BUILD_ID')
-    await next.start()
+    await next.start({ skipBuild: true })
 
     proxyPort = await findPort()
     const proxy = httpProxy.createProxyServer({

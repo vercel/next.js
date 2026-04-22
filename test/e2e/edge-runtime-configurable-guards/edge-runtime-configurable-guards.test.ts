@@ -5,6 +5,14 @@ import { retry } from 'next-test-utils'
 const TELEMETRY_EVENT_NAME = 'NEXT_EDGE_ALLOW_DYNAMIC_USED'
 const LIB_PATH = 'node_modules/lib/index.js'
 
+// Production-mode tests run a full `next build` followed by `next start`,
+// which on webpack regularly takes 30-60s per test case (see the original
+// `test/integration/edge-runtime-configurable-guards` which also used
+// `jest.setTimeout(1000 * 60 * 2)`). The default 60s-per-test timeout is
+// too tight for webpack here; bump it so slower runs do not cascade into
+// "server is running" errors on subsequent tests.
+jest.setTimeout(120 * 1000)
+
 describe('Edge runtime configurable guards', () => {
   ;(isNextDev ? describe : describe.skip)('development mode', () => {
     const { next, isTurbopack } = nextTestSetup({
@@ -32,6 +40,22 @@ describe('Edge runtime configurable guards', () => {
       await next.patchFile('middleware.js', originalMiddleware)
       await next.patchFile(LIB_PATH, originalLib)
     })
+
+    // Webpack treats `node_modules` as a "managed path" in its snapshot
+    // config (see packages/next/src/build/webpack-config.ts), meaning it
+    // assumes the contents of any file under `node_modules` are immutable
+    // per package version. When a test patches
+    // `node_modules/lib/index.js`, webpack's dev server keeps serving the
+    // originally-cached (empty) lib module, so imports like
+    // `import { hasDynamic } from 'lib'` resolve to an object without
+    // `hasDynamic`. Restarting the dev server forces a fresh read of
+    // `node_modules/lib/index.js`. Turbopack watches node_modules
+    // correctly and does not need this workaround.
+    async function restartForWebpackIfLibPatched(libPatched: boolean) {
+      if (!libPatched || isTurbopack) return
+      await next.stop()
+      await next.start()
+    }
 
     describe('Multiple functions with different configurations', () => {
       async function patchMultipleFunctions() {
@@ -181,6 +205,7 @@ describe('Edge runtime configurable guards', () => {
           if (middlewareContent)
             await next.patchFile('middleware.js', middlewareContent)
           if (libContent) await next.patchFile(LIB_PATH, libContent)
+          await restartForWebpackIfLibPatched(libContent !== null)
 
           const outputIndex = next.cliOutput.length
           await retry(async () => {
@@ -253,6 +278,7 @@ describe('Edge runtime configurable guards', () => {
           if (middlewareContent)
             await next.patchFile('middleware.js', middlewareContent)
           if (libContent) await next.patchFile(LIB_PATH, libContent)
+          await restartForWebpackIfLibPatched(libContent !== null)
 
           const outputIndex = next.cliOutput.length
           await retry(async () => {
@@ -337,9 +363,30 @@ describe('Edge runtime configurable guards', () => {
     })
 
     afterEach(async () => {
+      // Production-mode tests that reach `next.start()` normally call
+      // `next.stop()` themselves, but if a test times out or throws before
+      // that we would otherwise leave the server running and every later
+      // `next.build()` call would fail with
+      // "can not run export while server is running". Stopping here is a
+      // no-op when the server is already stopped.
+      try {
+        await next.stop()
+      } catch {}
       await next.patchFile('pages/api/route.js', originalApiRoute)
       await next.patchFile('middleware.js', originalMiddleware)
       await next.patchFile(LIB_PATH, originalLib)
+      // Webpack treats `node_modules` as a "managed path" in its snapshot
+      // config, so changes to `node_modules/lib/index.js` between test
+      // cases are not invalidated from webpack's persistent build cache
+      // at `.next/cache/webpack`. That causes later builds to re-use a
+      // stale compiled `lib` module from a previous test (e.g. still
+      // containing `hasUnusedDynamic`), which can trip the
+      // `unstable_allowDynamic` analyzer. Drop the entire `.next` dir
+      // between cases so each build reads `lib` fresh. Turbopack does
+      // not share this cache and does not need the workaround.
+      if (!isTurbopack) {
+        await next.deleteFile('.next')
+      }
     })
 
     // eslint-disable-next-line jest/no-identical-title

@@ -3,6 +3,11 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 describe('Nullish configs in next.config.js', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    skipStart: true,
+  })
+
+  afterEach(async () => {
+    await next.stop().catch(() => {})
   })
 
   it('should ignore configs set to `undefined` in next.config.js', async () => {
@@ -17,6 +22,8 @@ describe('Nullish configs in next.config.js', () => {
       }
     `
     )
+
+    await next.start()
 
     const html = await next.render('/')
     expect(html).toContain('Hello World')
@@ -40,6 +47,8 @@ describe('Nullish configs in next.config.js', () => {
       }
     `
     )
+
+    await next.start()
 
     const html = await next.render('/')
     expect(html).toContain('Hello World')

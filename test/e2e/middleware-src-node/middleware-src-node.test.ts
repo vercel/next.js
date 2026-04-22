@@ -5,7 +5,7 @@ const srcHeader = 'X-From-Src-Middleware'
 const rootHeader = 'X-From-Root-Middleware'
 
 describe('middleware-src-node', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     skipDeployment: true,
@@ -66,6 +66,15 @@ export default function () {
   return response
 }`
       )
+      // Webpack dev does not reliably switch from the already-compiled
+      // src/middleware.* to the newly created root middleware.* files when
+      // they are added at runtime. Restarting the dev server forces a fresh
+      // middleware resolution. Turbopack picks up the new root middleware
+      // without a restart.
+      if (!isTurbopack) {
+        await next.stop()
+        await next.start()
+      }
     })
 
     afterAll(async () => {
