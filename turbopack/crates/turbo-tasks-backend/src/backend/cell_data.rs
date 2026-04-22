@@ -45,6 +45,50 @@ impl CellData {
     pub fn new() -> Self {
         Self::default()
     }
+
+    /// Drop cells that can be cheaply reconstructed on next access, retain
+    /// those that cannot. Called by the macro-generated `TaskStorage::drop_partial`
+    /// on the data-eviction path.
+    ///
+    /// Dropped:
+    /// - `Persistable` — restored from disk.
+    /// - `SkipPersist { expensive: false }` — cheap to re-derive by re-running the task.
+    /// - `HashOnly` — the hash lives in `cell_data_hash`; value is re-derived.
+    ///
+    /// Retained:
+    /// - `SkipPersist { expensive: true }` — expensive to re-derive.
+    /// - `SessionStateful` — would lose accumulated state if dropped.
+    ///
+    /// Returns `true` if entries remain, so the caller can drop the whole
+    /// `LazyField::CellData` variant when empty.
+    pub fn drop_partial(&mut self) -> bool {
+        self.0.retain(
+            |cell_id, _| match registry::get_value_type(cell_id.type_id).persistence {
+                ValueTypePersistence::Persistable(_, _)
+                | ValueTypePersistence::SkipPersist { expensive: false }
+                | ValueTypePersistence::HashOnly => {
+                    // these are either persisted or determined to not be worth persisting because
+                    // they are cheap to re-derive
+                    false
+                }
+                ValueTypePersistence::SkipPersist { expensive: true }
+                | ValueTypePersistence::SessionStateful => {
+                    // These are either impossible to derive or expensive so we retain.
+                    true
+                }
+            },
+        );
+        !self.0.is_empty()
+    }
+}
+
+impl IntoIterator for CellData {
+    type Item = (CellId, SharedReference);
+    type IntoIter = <InnerMap as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
 impl Deref for CellData {
@@ -129,3 +173,100 @@ impl<Context> TurboBincodeDecode<Context> for CellData {
 
 impl_encode_for_turbo_bincode_encode!(CellData);
 impl_decode_for_turbo_bincode_decode!(CellData);
+
+#[cfg(test)]
+mod tests {
+    //! `drop_partial` must partition cells by their `ValueTypePersistence` —
+    //! keep the non-recoverable ones, drop the rest. Tests below declare one
+    //! value type per persistence variant and exercise every partition.
+    use turbo_tasks::{self as turbo_tasks, VcValueType};
+
+    use super::*;
+
+    #[turbo_tasks::value]
+    struct PersistableV(#[allow(dead_code)] u32);
+
+    #[turbo_tasks::value(serialization = "skip")]
+    struct SkipCheapV(
+        #[turbo_tasks(trace_ignore)]
+        #[allow(dead_code)]
+        u32,
+    );
+
+    #[turbo_tasks::value(serialization = "skip", evict = "last")]
+    struct SkipExpensiveV(
+        #[turbo_tasks(trace_ignore)]
+        #[allow(dead_code)]
+        u32,
+    );
+
+    #[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
+    struct SessionStatefulV;
+
+    #[turbo_tasks::value(serialization = "hash")]
+    struct HashOnlyV(#[allow(dead_code)] u32);
+
+    fn cell_of<V: VcValueType>(index: u32) -> CellId {
+        CellId {
+            type_id: V::get_value_type_id(),
+            index,
+        }
+    }
+
+    fn dummy_ref() -> SharedReference {
+        // The drop_partial logic only inspects the key's type_id, not the
+        // value, so any Any + Send + Sync works.
+        SharedReference::new(triomphe::Arc::new(0u32))
+    }
+
+    #[test]
+    fn drop_partial_partitions_by_persistence() {
+        let mut data = CellData::new();
+        data.insert(cell_of::<PersistableV>(0), dummy_ref());
+        data.insert(cell_of::<SkipCheapV>(0), dummy_ref());
+        data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
+        data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
+        data.insert(cell_of::<HashOnlyV>(0), dummy_ref());
+
+        let still_has_entries = data.drop_partial();
+
+        assert!(still_has_entries, "two non-recoverable entries remain");
+        assert_eq!(data.len(), 2);
+        assert!(data.contains_key(&cell_of::<SkipExpensiveV>(0)));
+        assert!(data.contains_key(&cell_of::<SessionStatefulV>(0)));
+        assert!(!data.contains_key(&cell_of::<PersistableV>(0)));
+        assert!(!data.contains_key(&cell_of::<SkipCheapV>(0)));
+        assert!(!data.contains_key(&cell_of::<HashOnlyV>(0)));
+    }
+
+    #[test]
+    fn drop_partial_fully_empties_when_all_recoverable() {
+        let mut data = CellData::new();
+        data.insert(cell_of::<PersistableV>(0), dummy_ref());
+        data.insert(cell_of::<SkipCheapV>(0), dummy_ref());
+        data.insert(cell_of::<HashOnlyV>(0), dummy_ref());
+
+        let still_has_entries = data.drop_partial();
+
+        assert!(!still_has_entries);
+        assert!(data.is_empty());
+    }
+
+    #[test]
+    fn drop_partial_keeps_everything_when_all_non_recoverable() {
+        let mut data = CellData::new();
+        data.insert(cell_of::<SkipExpensiveV>(0), dummy_ref());
+        data.insert(cell_of::<SessionStatefulV>(0), dummy_ref());
+
+        let still_has_entries = data.drop_partial();
+
+        assert!(still_has_entries);
+        assert_eq!(data.len(), 2);
+    }
+
+    #[test]
+    fn drop_partial_on_empty_returns_false() {
+        let mut data = CellData::new();
+        assert!(!data.drop_partial());
+    }
+}
