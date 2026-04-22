@@ -437,24 +437,6 @@ export async function fetchOutputExportFallbackResponse(
     const candidateUrl = new URL(renderedUrl)
     candidateUrl.pathname = candidate
 
-    const directResult = await fetchConfiguredOutputExportDataResult(
-      candidateUrl,
-      prefersTrailingSlash,
-      init
-    )
-    if (directResult) {
-      cacheOutputExportFallbackDataUrl(
-        renderedUrl,
-        candidateUrl,
-        directResult.dataUrl
-      )
-      return {
-        response: directResult.response,
-        renderedUrl,
-        fallbackUrl: candidateUrl,
-      }
-    }
-
     const fallbackManifest = await fetchOutputExportFallbackManifest(
       candidateUrl,
       init
@@ -494,6 +476,24 @@ export async function fetchOutputExportFallbackResponse(
       }
 
       continue
+    }
+
+    const directResult = await fetchConfiguredOutputExportDataResult(
+      candidateUrl,
+      prefersTrailingSlash,
+      init
+    )
+    if (directResult) {
+      cacheOutputExportFallbackDataUrl(
+        renderedUrl,
+        candidateUrl,
+        directResult.dataUrl
+      )
+      return {
+        response: directResult.response,
+        renderedUrl,
+        fallbackUrl: candidateUrl,
+      }
     }
   }
 
