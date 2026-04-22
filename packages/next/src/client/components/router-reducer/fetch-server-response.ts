@@ -294,7 +294,7 @@ export async function createFetch(
   // search param to it. This should not leak outside of this function, so we
   // track them separately.
   let fetchUrl = new URL(url)
-  setCacheBustingSearchParam(fetchUrl, headers)
+  await setCacheBustingSearchParam(fetchUrl, headers)
   let browserResponse = await fetch(fetchUrl, fetchOptions)
 
   // If the server responds with a redirect (e.g. 307), and the redirected
@@ -349,7 +349,7 @@ export async function createFetch(
       // Append the cache busting search param to the redirected URL and
       // fetch again.
       fetchUrl = new URL(responseUrl)
-      setCacheBustingSearchParam(fetchUrl, headers)
+      await setCacheBustingSearchParam(fetchUrl, headers)
       browserResponse = await fetch(fetchUrl, fetchOptions)
       // We just performed a manual redirect, so this is now true.
       redirected = true
