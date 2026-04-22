@@ -221,7 +221,7 @@ impl Store {
         outdated_spans.insert(span_index);
         time_data.self_time += end - start;
         time_data.self_end = max(time_data.self_end, end);
-        span.events.push(SpanEvent::SelfTime { start, end });
+        span.events.push(SpanEvent::self_time(start, end));
         self.insert_self_time(start, end, span_index, outdated_spans);
     }
 
@@ -249,18 +249,12 @@ impl Store {
         for (start, end, index) in children {
             if start > current {
                 if start > self_end {
-                    events.push(SpanEvent::SelfTime {
-                        start: current,
-                        end: self_end,
-                    });
+                    events.push(SpanEvent::self_time(current, self_end));
                     self.insert_self_time(current, self_end, span_index, outdated_spans);
                     self_time += self_end - current;
                     break;
                 }
-                events.push(SpanEvent::SelfTime {
-                    start: current,
-                    end: start,
-                });
+                events.push(SpanEvent::self_time(current, start));
                 self.insert_self_time(current, start, span_index, outdated_spans);
                 self_time += start - current;
             }
@@ -270,10 +264,10 @@ impl Store {
         current -= start_time;
         if current < total_time {
             self_time += total_time - current;
-            events.push(SpanEvent::SelfTime {
-                start: current + start_time,
-                end: start_time + total_time,
-            });
+            events.push(SpanEvent::self_time(
+                current + start_time,
+                start_time + total_time,
+            ));
             self.insert_self_time(
                 current + start_time,
                 start_time + total_time,
@@ -309,7 +303,7 @@ impl Store {
         if let Some(index) = old_parent
             .events
             .iter()
-            .position(|event| *event == SpanEvent::Child { index: span_index })
+            .position(|event| matches!(event, SpanEvent::Child { index } if *index == span_index))
         {
             old_parent.events.remove(index);
         }

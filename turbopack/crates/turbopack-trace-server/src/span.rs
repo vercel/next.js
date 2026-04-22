@@ -100,10 +100,25 @@ impl Span {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct SpanEventSelfTime {
+    pub start: Timestamp,
+    pub end: Timestamp,
+    pub corrected_self_time: OnceLock<Timestamp>,
+}
+
 pub enum SpanEvent {
-    SelfTime { start: Timestamp, end: Timestamp },
+    SelfTime(SpanEventSelfTime),
     Child { index: SpanIndex },
+}
+
+impl SpanEvent {
+    pub fn self_time(start: Timestamp, end: Timestamp) -> Self {
+        Self::SelfTime(SpanEventSelfTime {
+            start,
+            end,
+            corrected_self_time: OnceLock::new(),
+        })
+    }
 }
 
 #[derive(Clone)]
