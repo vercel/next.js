@@ -27,15 +27,7 @@ describe('patch-fetch-request-body', () => {
       externalServer.once('error', reject)
     })
 
-    await next.patchFile(
-      'next.config.js',
-      `/** @type {import('next').NextConfig} */
-const nextConfig = {
-  env: { EXTERNAL_SERVER_PORT: "${externalServerPort}" },
-}
-module.exports = nextConfig`
-    )
-
+    next.env.EXTERNAL_SERVER_PORT = String(externalServerPort)
     await next.start()
   })
 
