@@ -439,7 +439,7 @@ describe('cache-components', () => {
 
         const stateTree = JSON.stringify(['', {}])
         const requestUrl = new URL('/cases/static', `http://localhost:${port}`)
-        const cacheBustingParam = computeCacheBustingSearchParam(
+        const cacheBustingParam = await computeCacheBustingSearchParam(
           undefined,
           undefined,
           stateTree,
