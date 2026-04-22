@@ -145,7 +145,8 @@ export function createInitialRouterState({
               staleAt,
               initialTree,
               initialRenderedSearch,
-              true // isResponsePartial
+              true, // isResponsePartial
+              outputExportFallbackBasePath
             )
           })
           .catch(() => {
@@ -170,7 +171,8 @@ export function createInitialRouterState({
               staleAt,
               initialTree,
               initialRenderedSearch,
-              false // isResponsePartial
+              false, // isResponsePartial
+              outputExportFallbackBasePath
             )
           })
           .catch(() => {

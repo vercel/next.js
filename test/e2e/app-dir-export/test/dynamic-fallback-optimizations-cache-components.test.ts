@@ -230,6 +230,65 @@ if (isNextDeploy) {
         }
       })
 
+      it('keeps shared hydrated fallback endpoints after revisiting a cached fallback route', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/hydrated/first/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          await browser.elementByCss('a[href="/"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('Home')
+          })
+
+          clearRequests()
+
+          await browser.elementByCss('a[href^="/hydrated/first"]').click()
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          await act(async () => {}, 'no-requests')
+          clearRequests()
+
+          await browser
+            .elementByCss('input[data-link-accordion="/hydrated/second"]')
+            .click()
+
+          await retry(async () => {
+            const prefetchRequests = getRequests()
+
+            expect(
+              prefetchRequests.some((requestPath) =>
+                requestPath.startsWith('/hydrated/second/?_rsc=')
+              )
+            ).toBe(false)
+            expect(
+              prefetchRequests.some((requestPath) =>
+                requestPath.startsWith('/hydrated/second/__next.')
+              )
+            ).toBe(false)
+            expect(
+              prefetchRequests.length === 0 ||
+                prefetchRequests.some((requestPath) =>
+                  requestPath.startsWith(
+                    '/hydrated/__fallback/__next._tree.txt'
+                  )
+                )
+            ).toBe(true)
+          })
+        } finally {
+          await browser.close()
+        }
+      })
+
       it('reuses the same hydrated fallback tree endpoint across sibling prefetches', async () => {
         let act!: ReturnType<typeof createRouterAct>
         const browser = await webdriver(port, '/hydrated/first/', {
@@ -285,6 +344,45 @@ if (isNextDeploy) {
               requestPath.startsWith('/hydrated/__fallback/__next._tree.txt')
             )
           ).toBe(true)
+        } finally {
+          await browser.close()
+        }
+      })
+
+      it('keeps shared hydrated segment requests on the fallback artifact during sibling prefetches', async () => {
+        let act!: ReturnType<typeof createRouterAct>
+        const browser = await webdriver(port, '/hydrated/first/', {
+          beforePageLoad(page: Playwright.Page) {
+            act = createRouterAct(page)
+          },
+        })
+
+        try {
+          await retry(async () => {
+            expect(await browser.elementByCss('h1').text()).toBe('first')
+          })
+
+          await act(async () => {}, 'no-requests')
+          clearRequests()
+
+          await act(async () => {
+            await browser
+              .elementByCss('input[data-link-accordion="/hydrated/second"]')
+              .click()
+          })
+
+          const prefetchRequests = getRequests()
+          const sharedFallbackSegmentRequests = prefetchRequests.filter(
+            (requestPath) =>
+              requestPath.startsWith('/hydrated/__fallback/__next.')
+          )
+
+          expect(sharedFallbackSegmentRequests.length).toBeGreaterThan(0)
+          expect(
+            prefetchRequests.some((requestPath) =>
+              requestPath.startsWith('/hydrated/second/__next.')
+            )
+          ).toBe(false)
         } finally {
           await browser.close()
         }

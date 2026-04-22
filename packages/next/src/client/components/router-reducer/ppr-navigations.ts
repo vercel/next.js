@@ -1625,7 +1625,8 @@ async function fetchMissingDynamicData(
       task.route,
       result.flightData,
       result.renderedSearch,
-      result.dynamicStaleTime
+      result.dynamicStaleTime,
+      result.outputExportFallbackBasePath
     )
 
     // If the navigation lock is active, wait for it to be released before
@@ -1653,7 +1654,8 @@ async function fetchMissingDynamicData(
             staleAt,
             dynamicRequestTree,
             result.renderedSearch,
-            isResponsePartial
+            isResponsePartial,
+            result.outputExportFallbackBasePath
           )
         })
         .catch(() => {

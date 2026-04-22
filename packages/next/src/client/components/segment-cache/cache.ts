@@ -3320,7 +3320,8 @@ export function writeStaticStageResponseIntoCache(
   staleAt: number,
   baseTree: FlightRouterState,
   renderedSearch: string,
-  isResponsePartial: boolean
+  isResponsePartial: boolean,
+  outputExportFallbackBasePath: string | null = null
 ): void {
   const fetchStrategy = isResponsePartial
     ? FetchStrategy.PPR
@@ -3340,7 +3341,8 @@ export function writeStaticStageResponseIntoCache(
     baseTree,
     flightDatas,
     renderedSearch,
-    UnknownDynamicStaleTime
+    UnknownDynamicStaleTime,
+    outputExportFallbackBasePath
   )
   writeDynamicRenderResponseIntoCache(
     now,

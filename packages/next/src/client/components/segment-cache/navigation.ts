@@ -471,7 +471,8 @@ async function navigateToUnknownRoute(
             staleAt,
             currentFlightRouterState,
             renderedSearch,
-            isResponsePartial
+            isResponsePartial,
+            outputExportFallbackBasePath
           )
         })
         .catch(() => {

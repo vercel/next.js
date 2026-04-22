@@ -405,14 +405,22 @@ function discoverKnownRoutePart(
       // - staticChildren: null = siblings unknown (can't safely match dynamic)
       // - staticChildren: Map = siblings known (even if empty)
       // This matters in dev mode where webpack may not know all siblings yet.
-      if (staticSiblings !== null) {
+      if (staticSiblings !== null || process.env.NODE_ENV === 'production') {
         // Siblings are known - ensure we have a Map (even if empty)
         if (parentKnownRoutePart.staticChildren === null) {
           parentKnownRoutePart.staticChildren = new Map()
         }
+      }
+      if (staticSiblings !== null) {
+        const staticChildren = parentKnownRoutePart.staticChildren
+        if (staticChildren === null) {
+          throw new Error(
+            'Expected staticChildren to be initialized for known dynamic siblings.'
+          )
+        }
         for (const sibling of staticSiblings) {
-          if (!parentKnownRoutePart.staticChildren.has(sibling)) {
-            parentKnownRoutePart.staticChildren.set(sibling, createEmptyPart())
+          if (!staticChildren.has(sibling)) {
+            staticChildren.set(sibling, createEmptyPart())
           }
         }
       }
