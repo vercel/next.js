@@ -2627,7 +2627,8 @@ export async function cache(
             // If this is stale, and we're not in a prerender (i.e. this is
             // dynamic render), then we should warm up the cache with a fresh
             // revalidated entry.
-            const result = await generateCacheEntry(
+            const revalidateCacheHandlerKey = cacheHandlerKey
+            const revalidatePromise = generateCacheEntry(
               workStore,
               // The background revalidation preserves the outer store for
               // reading (e.g. implicitTags) but skips propagation of cache life
@@ -2643,29 +2644,39 @@ export async function cache(
               fn,
               timeoutError
             )
+              .then(async (result) => {
+                if (result.type === 'cached') {
+                  const { stream: ignoredStream, pendingCacheResult } = result
 
-            if (result.type === 'cached') {
-              const { stream: ignoredStream, pendingCacheResult } = result
+                  const savedCacheResult = saveToResumeDataCache(
+                    prerenderResumeDataCache,
+                    serializedCacheKey,
+                    pendingCacheResult
+                  )
 
-              const savedCacheResult = saveToResumeDataCache(
-                prerenderResumeDataCache,
-                serializedCacheKey,
-                pendingCacheResult
-              )
+                  if (cacheHandler) {
+                    saveToCacheHandler(
+                      cacheHandler,
+                      workStore,
+                      id,
+                      serializedCacheKey,
+                      savedCacheResult,
+                      rootParams
+                    )
+                  }
 
-              if (cacheHandler) {
-                saveToCacheHandler(
-                  cacheHandler,
-                  workStore,
-                  id,
-                  serializedCacheKey,
-                  savedCacheResult,
-                  rootParams
+                  await ignoredStream.cancel()
+                }
+              })
+              .catch((error) => {
+                debug?.(
+                  'background cache revalidation failed for',
+                  revalidateCacheHandlerKey,
+                  error
                 )
-              }
-
-              await ignoredStream.cancel()
-            }
+              })
+            workStore.pendingRevalidateWrites ??= []
+            workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
         }
       }
