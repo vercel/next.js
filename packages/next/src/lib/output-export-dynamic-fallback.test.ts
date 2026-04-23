@@ -162,6 +162,7 @@ describe('output export dynamic fallback flags', () => {
       isOutputExportOptimisticRoutingEnabled({
         output: 'export',
         cacheComponents: true,
+        experimental: { optimisticRouting: false },
       })
     ).toBe(true)
 

@@ -105,7 +105,7 @@ export function createInitialRouterState({
   // route learning nor segment cache state persists from SSR to client.
   if (location !== null && metadataVaryPath !== null) {
     // Learn the route pattern so we can predict it for future navigations.
-    const initialRouteEntry = discoverKnownRoute(
+    discoverKnownRoute(
       Date.now(),
       location.pathname,
       null, // nextUrl — initial render is never an interception
@@ -115,12 +115,9 @@ export function createInitialRouterState({
       initialCouldBeIntercepted,
       canonicalUrl,
       initialSupportsPerSegmentPrefetching,
-      false // hasDynamicRewrite
+      false, // hasDynamicRewrite
+      { outputExportFallbackBasePath }
     )
-    if (outputExportFallbackBasePath !== null) {
-      initialRouteEntry.outputExportFallbackBasePath =
-        outputExportFallbackBasePath
-    }
 
     // Write the initial seed data into the segment cache so subsequent
     // navigations to the initial page can serve cached segments instantly.

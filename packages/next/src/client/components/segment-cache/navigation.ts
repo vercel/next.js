@@ -437,7 +437,7 @@ async function navigateToUnknownRoute(
   // retrying after a tree mismatch (see dispatchRetryDueToTreeMismatch).
   const metadataVaryPath = navigationSeed.metadataVaryPath
   if (metadataVaryPath !== null) {
-    const discoveredRoute = discoverKnownRoute(
+    discoverKnownRoute(
       now,
       url.pathname,
       nextUrl,
@@ -447,12 +447,9 @@ async function navigateToUnknownRoute(
       couldBeIntercepted,
       createHrefFromUrl(canonicalUrl),
       supportsPerSegmentPrefetching,
-      false // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
+      false, // hasDynamicRewrite - not a retry, rewrite detection happens during traversal
+      { outputExportFallbackBasePath }
     )
-    if (outputExportFallbackBasePath !== null) {
-      discoveredRoute.outputExportFallbackBasePath =
-        outputExportFallbackBasePath
-    }
 
     if (staticStageData !== null) {
       const { response: staticStageResponse, isResponsePartial } =

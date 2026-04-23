@@ -697,8 +697,9 @@ export function deprecated_requestOptimisticRouteCacheEntry(
     supportsPerSegmentPrefetching:
       routeWithNoSearchParams.supportsPerSegmentPrefetching,
     hasInlinedSegments: routeWithNoSearchParams.hasInlinedSegments,
-    outputExportFallbackBasePath:
-      routeWithNoSearchParams.outputExportFallbackBasePath,
+    // Output export fallback always enables the new optimistic route matcher,
+    // so the deprecated search-param prediction path stays export-agnostic.
+    outputExportFallbackBasePath: null,
     hasDynamicRewrite: routeWithNoSearchParams.hasDynamicRewrite,
 
     // Override the rendered search with the optimistic value.
@@ -1949,7 +1950,7 @@ async function fetchOutputExportFallbackNavigationData(
   let fallbackResult: OutputExportFallbackResult
   if (isOutputExportMode) {
     const { fetchOutputExportFallbackResponse } =
-      (require('../../output-export-fallback') as typeof import('../../output-export-fallback'))
+      require('../../output-export-fallback') as typeof import('../../output-export-fallback')
     fallbackResult = await fetchOutputExportFallbackResponse(renderedUrl, {
       credentials: 'same-origin',
       headers,
@@ -2086,10 +2087,10 @@ async function fetchRouteOnCacheMissFromOutputExportFallback(
     couldBeIntercepted,
     createHrefFromUrl(renderedUrl),
     supportsPerSegmentPrefetching,
-    false
+    false,
+    { outputExportFallbackBasePath }
   )
   fulfilledEntry.hasInlinedSegments = true
-  fulfilledEntry.outputExportFallbackBasePath = outputExportFallbackBasePath
 
   if (!couldBeIntercepted) {
     const fulfilledVaryPath = getFulfilledRouteVaryPath(
@@ -3055,7 +3056,7 @@ async function fetchPrefetchResponse<T>(
   const contentType = response.headers.get('content-type') || ''
   if (isOutputExportMode) {
     const { isOutputExportFlightContentType } =
-      (require('../../output-export-fallback') as typeof import('../../output-export-fallback'))
+      require('../../output-export-fallback') as typeof import('../../output-export-fallback')
     if (!isOutputExportFlightContentType(contentType)) {
       return null
     }

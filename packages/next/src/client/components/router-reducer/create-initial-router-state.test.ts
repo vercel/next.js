@@ -83,7 +83,7 @@ describe('createInitialRouterState output export fallback', () => {
     mockDiscoverKnownRoute.mockReturnValue(discoveredRouteEntry)
   })
 
-  it('stores the learned fallback artifact base path on the hydrated route entry', () => {
+  it('passes the learned fallback artifact base path into route discovery', () => {
     createInitialRouterState({
       navigatedAt: Date.now(),
       initialRSCPayload,
@@ -93,8 +93,18 @@ describe('createInitialRouterState output export fallback', () => {
       outputExportFallbackBasePath: '/hydrated/__fallback',
     })
 
-    expect(discoveredRouteEntry.outputExportFallbackBasePath).toBe(
-      '/hydrated/__fallback'
+    expect(mockDiscoverKnownRoute).toHaveBeenCalledWith(
+      expect.any(Number),
+      '/hydrated/first/',
+      null,
+      null,
+      { path: '/hydrated/[thread]' },
+      '__PAGE__',
+      false,
+      '/hydrated/first/',
+      false,
+      false,
+      { outputExportFallbackBasePath: '/hydrated/__fallback' }
     )
   })
 
