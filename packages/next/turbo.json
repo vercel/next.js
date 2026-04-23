@@ -4,7 +4,37 @@
   "tasks": {
     "build": {
       "dependsOn": ["@next/bundle-analyzer-ui#build", "^build"],
+      "inputs": [
+        "src/**",
+        "taskfile*.js",
+        "next-runtime.webpack-config.js",
+        "next-devtools.webpack-config.js",
+        "webpack-plugins/**",
+        "tsconfig.json",
+        "tsconfig.build.json",
+        "package.json",
+        "errors.json",
+        "check-error-codes.js",
+        "!src/**/*.test.*",
+        "!src/**/*.stories.*",
+        "!src/**/*.md",
+        "!src/**/__snapshots__/**",
+        "!src/**/__fixtures__/**",
+        "!src/build/swc/generated-native.d.ts"
+      ],
       "outputs": ["dist/**"]
+    },
+    "build:types": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "src/**/*.ts",
+        "src/**/*.tsx",
+        "tsconfig.json",
+        "tsconfig.build.json",
+        "!src/**/*.test.*",
+        "!src/**/*.stories.*"
+      ],
+      "outputs": ["dist/**/*.d.ts"]
     }
   }
 }
