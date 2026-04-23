@@ -9,6 +9,7 @@ import {
   isOutputExportVaryParamsEnabled,
   needsOutputExportFallbackManifest,
 } from './output-export-dynamic-fallback'
+import { planOutputExportFallbackRoutes } from './output-export-fallback-routes'
 
 describe('output export dynamic fallback flags', () => {
   it('derives the fallback path contract from a static prefix', () => {
@@ -71,6 +72,66 @@ describe('output export dynamic fallback flags', () => {
         '/docs/[...slug]',
       ])
     ).toEqual([])
+  })
+
+  it('plans fallback route variants for shared exporter and adapter routing', () => {
+    expect(
+      planOutputExportFallbackRoutes({
+        '/docs/[...slug]': {
+          fallbackSourceRoute: '/docs/[...slug]',
+          fallbackRouteParams: [{ paramName: 'slug', paramType: 'catchall' }],
+        },
+        '/docs/[section]/[page]': {
+          fallbackSourceRoute: '/docs/[section]/[page]',
+          fallbackRouteParams: [
+            { paramName: 'section', paramType: 'dynamic' },
+            { paramName: 'page', paramType: 'dynamic' },
+          ],
+        },
+        '/blog/[slug]/comments': {
+          fallbackSourceRoute: '/blog/[slug]/comments',
+          fallbackRouteParams: [{ paramName: 'slug', paramType: 'dynamic' }],
+        },
+        '/static': {
+          fallbackSourceRoute: '/static',
+          fallbackRouteParams: [{ paramName: 'unused', paramType: 'dynamic' }],
+        },
+      })
+    ).toEqual([
+      {
+        fallbackRoute: '/blog/__fallback',
+        needsManifest: true,
+        entries: [
+          {
+            route: '/blog/[slug]/comments',
+            fallbackSourceRoute: '/blog/[slug]/comments',
+            fallbackRoute: '/blog/__fallback',
+            fallbackPath: '/blog/__fallback',
+            staticPrefix: 'blog',
+          },
+        ],
+      },
+      {
+        fallbackRoute: '/docs/__fallback',
+        needsManifest: true,
+        entries: [
+          {
+            route: '/docs/[section]/[page]',
+            fallbackSourceRoute: '/docs/[section]/[page]',
+            fallbackRoute: '/docs/__fallback',
+            fallbackPath: '/docs/__fallback/__route_0',
+            staticPrefix: 'docs',
+          },
+          {
+            route: '/docs/[...slug]',
+            fallbackSourceRoute: '/docs/[...slug]',
+            fallbackRoute: '/docs/__fallback',
+            fallbackPath: '/docs/__fallback/__route_1',
+            staticPrefix: 'docs',
+          },
+        ],
+      },
+    ])
   })
 
   it('enables export fallback only for output export with cache components', () => {

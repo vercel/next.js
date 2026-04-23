@@ -5,27 +5,14 @@ import {
   RSC_SEGMENT_SUFFIX,
   RSC_SUFFIX,
 } from '../../lib/constants'
+import { getOutputExportFallbackMetadataPath } from '../../lib/output-export-dynamic-fallback'
 import {
-  getOutputExportFallbackMetadataPath,
-  needsOutputExportFallbackManifest,
-  getOutputExportFallbackPath,
-  getOutputExportFallbackStaticPrefix,
-  getOutputExportFallbackVariantPath,
-} from '../../lib/output-export-dynamic-fallback'
+  planOutputExportFallbackRoutes,
+  type OutputExportDynamicRouteInfo,
+} from '../../lib/output-export-fallback-routes'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../../server/require'
-import { getSortedRoutes } from '../../shared/lib/router/utils'
 import { convertSegmentPathToStaticExportFilename } from '../../shared/lib/segment-cache/segment-value-encoding'
-
-type OutputExportDynamicRouteInfo = {
-  fallbackSourceRoute: string | undefined
-  fallbackRouteParams:
-    | ReadonlyArray<{
-        paramName: string
-        paramType: string
-      }>
-    | undefined
-}
 
 export type OutputExportFallbackArtifactVariant = {
   route: string
@@ -163,13 +150,11 @@ export function planOutputExportFallbackArtifacts(
   mapAppRouteToPage: Map<string, string>,
   distDir: string
 ): OutputExportFallbackArtifactPlan[] {
-  const fallbackEntriesByRoute = new Map<
+  const dynamicRoutesWithArtifacts: Record<
     string,
-    Array<{
-      dynamicRoute: string
-      orig: string
-    }>
-  >()
+    OutputExportDynamicRouteInfo
+  > = {}
+  const origByRoute = new Map<string, string>()
 
   for (const [dynamicRoute, prerenderInfo] of Object.entries(dynamicRoutes)) {
     if (
@@ -177,11 +162,6 @@ export function planOutputExportFallbackArtifacts(
       !prerenderInfo.fallbackRouteParams ||
       prerenderInfo.fallbackRouteParams.length === 0
     ) {
-      continue
-    }
-
-    const staticPrefix = getOutputExportFallbackStaticPrefix(dynamicRoute)
-    if (staticPrefix === null) {
       continue
     }
 
@@ -206,59 +186,21 @@ export function planOutputExportFallbackArtifacts(
       continue
     }
 
-    const fallbackRoute = getOutputExportFallbackPath(staticPrefix)
-    const entries = fallbackEntriesByRoute.get(fallbackRoute)
-    const entry = { dynamicRoute, orig }
-    if (entries) {
-      entries.push(entry)
-    } else {
-      fallbackEntriesByRoute.set(fallbackRoute, [entry])
-    }
+    dynamicRoutesWithArtifacts[dynamicRoute] = prerenderInfo
+    origByRoute.set(dynamicRoute, orig)
   }
 
-  return Array.from(fallbackEntriesByRoute.entries())
-    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([fallbackRoute, entries]) => {
-      if (entries.length === 1) {
-        return {
-          fallbackRoute,
-          needsManifest: needsOutputExportFallbackManifest(
-            entries[0].dynamicRoute
-          ),
-          variants: [
-            {
-              route: entries[0].dynamicRoute,
-              fallbackPath: fallbackRoute,
-              orig: entries[0].orig,
-            },
-          ],
-        }
-      }
-
-      const sortedDynamicRoutes = getSortedRoutes(
-        entries.map((entry) => entry.dynamicRoute)
-      )
-      const entriesByDynamicRoute = new Map(
-        entries.map((entry) => [entry.dynamicRoute, entry])
-      )
-      const variants = sortedDynamicRoutes.map((dynamicRoute, index) => {
-        const entry = entriesByDynamicRoute.get(dynamicRoute)!
-        return {
-          route: entry.dynamicRoute,
-          fallbackPath: getOutputExportFallbackVariantPath(
-            fallbackRoute,
-            index
-          ),
-          orig: entry.orig,
-        }
-      })
-
-      return {
-        fallbackRoute,
-        needsManifest: true,
-        variants,
-      }
+  return planOutputExportFallbackRoutes(dynamicRoutesWithArtifacts).map(
+    ({ fallbackRoute, needsManifest, entries }) => ({
+      fallbackRoute,
+      needsManifest,
+      variants: entries.map(({ route, fallbackPath }) => ({
+        route,
+        fallbackPath,
+        orig: origByRoute.get(route)!,
+      })),
     })
+  )
 }
 
 export async function emitOutputExportFallbackArtifacts(
