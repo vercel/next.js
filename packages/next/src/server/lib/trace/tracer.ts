@@ -176,14 +176,37 @@ type NextAttributeNames =
 type OTELAttributeNames = `http.${string}` | `net.${string}`
 type AttributeNames = NextAttributeNames | OTELAttributeNames
 
-/** we use this map to propagate attributes from nested spans to the top span */
-const rootSpanAttributesStore = new Map<
-  number,
-  Map<AttributeNames, AttributeValue | undefined>
->()
+/**
+ * We use this map to propagate attributes from nested spans to the top span.
+ *
+ * The store and the span id counter must live on `globalThis` via
+ * `Symbol.for` keys so they are singletons across the CJS and ESM copies of
+ * this module. `rootSpanIdKey` already resolves to a shared symbol (OTEL's
+ * `createContextKey` delegates to `Symbol.for`), so without these singletons
+ * each module realm would observe the same spanId through the OTEL context
+ * but look it up in its own empty Map, producing false-positive
+ * "Unexpected root span type" warnings when build templates loaded via a
+ * different module system (e.g. metadata resolution) inspect the root span.
+ * See #91831.
+ */
+const rootSpanAttributesStoreKey = Symbol.for('next.rootSpanAttributesStore')
+const rootSpanIdCounterKey = Symbol.for('next.tracerSpanIdCounter')
+type TracerGlobals = typeof globalThis & {
+  [rootSpanAttributesStoreKey]?: Map<
+    number,
+    Map<AttributeNames, AttributeValue | undefined>
+  >
+  [rootSpanIdCounterKey]?: { value: number }
+}
+const tracerGlobals = globalThis as TracerGlobals
+const rootSpanAttributesStore =
+  tracerGlobals[rootSpanAttributesStoreKey] ??
+  (tracerGlobals[rootSpanAttributesStoreKey] = new Map())
+const rootSpanIdCounter =
+  tracerGlobals[rootSpanIdCounterKey] ??
+  (tracerGlobals[rootSpanIdCounterKey] = { value: 0 })
 const rootSpanIdKey = api.createContextKey('next.rootSpanId')
-let lastSpanId = 0
-const getSpanId = () => lastSpanId++
+const getSpanId = () => rootSpanIdCounter.value++
 
 export interface ClientTraceDataEntry {
   key: string
