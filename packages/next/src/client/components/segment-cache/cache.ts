@@ -110,10 +110,11 @@ import { discoverKnownRoute, matchKnownRoute } from './optimistic-routes'
 import { convertServerPatchToFullTree, type NavigationSeed } from './navigation'
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
-import {
-  fetchOutputExportFallbackResponse,
-  isOutputExportFlightContentType,
-} from '../../output-export-fallback'
+
+type OutputExportFallbackModule = typeof import('../../output-export-fallback')
+type OutputExportFallbackResult = Awaited<
+  ReturnType<OutputExportFallbackModule['fetchOutputExportFallbackResponse']>
+>
 
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
@@ -1945,10 +1946,17 @@ async function fetchOutputExportFallbackNavigationData(
   headers: RequestHeaders,
   now: number
 ): Promise<OutputExportFallbackNavigationData | null> {
-  const fallbackResult = await fetchOutputExportFallbackResponse(renderedUrl, {
-    credentials: 'same-origin',
-    headers,
-  })
+  let fallbackResult: OutputExportFallbackResult
+  if (isOutputExportMode) {
+    const { fetchOutputExportFallbackResponse } =
+      (require('../../output-export-fallback') as typeof import('../../output-export-fallback'))
+    fallbackResult = await fetchOutputExportFallbackResponse(renderedUrl, {
+      credentials: 'same-origin',
+      headers,
+    })
+  } else {
+    return null
+  }
 
   if (fallbackResult === null) {
     return null
@@ -3046,6 +3054,8 @@ async function fetchPrefetchResponse<T>(
   // Check the content type
   const contentType = response.headers.get('content-type') || ''
   if (isOutputExportMode) {
+    const { isOutputExportFlightContentType } =
+      (require('../../output-export-fallback') as typeof import('../../output-export-fallback'))
     if (!isOutputExportFlightContentType(contentType)) {
       return null
     }
