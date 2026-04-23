@@ -356,6 +356,22 @@ impl Store {
     /// `[start, end]`. When more samples exist, groups of N consecutive
     /// samples are merged by taking the maximum memory value in each group.
     pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
+        self.memory_samples_for_range_with_ts(start, end)
+            .into_iter()
+            .map(|(_, mem)| mem)
+            .collect()
+    }
+
+    /// Like `memory_samples_for_range` but keeps the timestamps. Timestamps
+    /// are absolute store timestamps (same reference frame as span start/end).
+    /// When the raw slice exceeds `MAX_MEMORY_SAMPLES`, the timestamp reported
+    /// for each merged group is the timestamp of the sample whose memory
+    /// value was kept (the group's max).
+    pub fn memory_samples_for_range_with_ts(
+        &self,
+        start: Timestamp,
+        end: Timestamp,
+    ) -> Vec<(Timestamp, u64)> {
         // Binary search for the first sample >= start
         let lo = self.memory_samples.partition_point(|(ts, _)| *ts < start);
         // Binary search for the first sample > end
@@ -368,14 +384,15 @@ impl Store {
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, mem)| *mem).collect();
+            return slice.to_vec();
         }
 
-        // Merge groups of N samples, taking the max memory in each group.
+        // Merge groups of N samples, taking the max memory in each group and
+        // keeping the timestamp of that max sample.
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, mem)| *mem).max().unwrap())
+            .map(|chunk| *chunk.iter().max_by_key(|(_, mem)| *mem).unwrap())
             .collect()
     }
 
