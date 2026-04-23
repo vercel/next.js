@@ -7,7 +7,7 @@ import { RenderingMode } from '../rendering-mode'
 import { interopDefault } from '../../lib/interop-default'
 import type { RouteHas } from '../../lib/load-custom-routes'
 import { recursiveReadDir } from '../../lib/recursive-readdir'
-import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -52,10 +52,9 @@ import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
 import {
-  getOutputExportFallbackPath,
-  getOutputExportFallbackStaticPrefix,
-  getOutputExportFallbackVariantPath,
-} from '../../lib/output-export-dynamic-fallback'
+  planOutputExportFallbackRoutes,
+  type OutputExportDynamicRouteInfo,
+} from '../../lib/output-export-fallback-routes'
 
 interface SharedRouteFields {
   /**
@@ -1984,64 +1983,28 @@ export async function handleBuildComplete({
     }
 
     if (config.output === 'export') {
-      const fallbackEntriesByRoute = new Map<
+      const outputExportFallbackRoutes: Record<
         string,
-        Array<{
-          page: string
-          sourcePrefix: string
-        }>
-      >()
+        OutputExportDynamicRouteInfo
+      > = {}
 
       for (const route of routesManifest.dynamicRoutes) {
         const prerenderInfo = prerenderManifest.dynamicRoutes[route.page]
-        if (
-          !prerenderInfo?.fallbackSourceRoute ||
-          !prerenderInfo.fallbackRouteParams ||
-          prerenderInfo.fallbackRouteParams.length === 0
-        ) {
-          continue
-        }
-
-        const staticPrefix = getOutputExportFallbackStaticPrefix(route.page)
-        if (staticPrefix === null) {
-          continue
-        }
-
-        const fallbackRoute = getOutputExportFallbackPath(staticPrefix)
-        const entries = fallbackEntriesByRoute.get(fallbackRoute)
-        const entry = {
-          page: route.page,
-          sourcePrefix: getPublicExportPathname(
-            staticPrefix.length > 0 ? `/${staticPrefix}` : '/'
-          ),
-        }
-
-        if (entries) {
-          entries.push(entry)
-        } else {
-          fallbackEntriesByRoute.set(fallbackRoute, [entry])
+        if (prerenderInfo) {
+          outputExportFallbackRoutes[route.page] = prerenderInfo
         }
       }
 
-      const sortedFallbackEntries = Array.from(fallbackEntriesByRoute).flatMap(
-        ([fallbackRoute, entries]) => {
-          const sortedEntries =
-            entries.length === 1
-              ? entries
-              : getSortedRoutes(entries.map((entry) => entry.page)).map(
-                  (page) => entries.find((entry) => entry.page === page)!
-                )
-
-          return sortedEntries.map((entry, index) => ({
-            page: entry.page,
-            sourcePrefix: entry.sourcePrefix,
-            destination: getPublicExportPathname(
-              entries.length === 1
-                ? fallbackRoute
-                : getOutputExportFallbackVariantPath(fallbackRoute, index)
-            ),
-          }))
-        }
+      const sortedFallbackEntries = planOutputExportFallbackRoutes(
+        outputExportFallbackRoutes
+      ).flatMap(({ entries }) =>
+        entries.map((entry) => ({
+          page: entry.route,
+          sourcePrefix: getPublicExportPathname(
+            entry.staticPrefix.length > 0 ? `/${entry.staticPrefix}` : '/'
+          ),
+          destination: getPublicExportPathname(entry.fallbackPath),
+        }))
       )
 
       sortedFallbackEntries.sort((a, b) => {

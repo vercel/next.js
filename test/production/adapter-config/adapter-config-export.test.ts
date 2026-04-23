@@ -74,26 +74,44 @@ describe('adapter-config export', () => {
       rsc: expect.toBeObject(),
     })
 
-    const staticExportFallbackRoute = routing.dynamicRoutes.find(
-      (route) => route.destination === '/docs/isr-app/__fallback'
+    const staticExportFallbackRoutes = routing.dynamicRoutes.filter((route) =>
+      route.destination?.startsWith('/docs/isr-app/__fallback')
     )
-    expect(staticExportFallbackRoute).toEqual(
-      expect.objectContaining({
-        source: '/isr-app/[slug]',
-        destination: '/docs/isr-app/__fallback',
-        has: [
-          {
-            type: 'header',
-            key: 'accept',
-            value: '.*text/html.*',
-          },
-        ],
-      })
+    expect(staticExportFallbackRoutes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          source: '/isr-app/[slug]',
+          destination: '/docs/isr-app/__fallback/__route_0',
+          has: [
+            {
+              type: 'header',
+              key: 'accept',
+              value: '.*text/html.*',
+            },
+          ],
+        }),
+        expect.objectContaining({
+          source: '/isr-app/[slug]/comments',
+          destination: '/docs/isr-app/__fallback/__route_1',
+          has: [
+            {
+              type: 'header',
+              key: 'accept',
+              value: '.*text/html.*',
+            },
+          ],
+        }),
+      ])
     )
 
     const staticFilePathnames = new Set(
       outputs.staticFiles.map((output) => output.pathname)
     )
-    expect(staticFilePathnames.has('/docs/isr-app/__fallback')).toBe(true)
+    expect(staticFilePathnames.has('/docs/isr-app/__fallback/__route_0')).toBe(
+      true
+    )
+    expect(staticFilePathnames.has('/docs/isr-app/__fallback/__route_1')).toBe(
+      true
+    )
   })
 })
