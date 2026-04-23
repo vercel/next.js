@@ -6,7 +6,7 @@
       "dependsOn": ["@next/bundle-analyzer-ui#build", "^build"],
       "inputs": [
         "src/**",
-        "taskfile*.js",
+        "build-scripts/**",
         "next-runtime.webpack-config.js",
         "next-devtools.webpack-config.js",
         "webpack-plugins/**",
