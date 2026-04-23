@@ -32,11 +32,6 @@ pub async fn get_nodejs_runtime_code(
         rcstr!("shared-node/node-externals-utils.ts"),
         generate_source_map,
     );
-    let shared_node_wasm_utils_code = embed_static_code(
-        asset_context,
-        rcstr!("shared-node/node-wasm-utils.ts"),
-        generate_source_map,
-    );
 
     // Runtime base is shared between production and development
     let runtime_base_code = embed_static_code(
@@ -49,7 +44,6 @@ pub async fn get_nodejs_runtime_code(
     code.push_code(&*shared_runtime_utils_code.await?);
     code.push_code(&*shared_base_external_utils_code.await?);
     code.push_code(&*shared_node_external_utils_code.await?);
-    code.push_code(&*shared_node_wasm_utils_code.await?);
     code.push_code(&*runtime_base_code.await?);
 
     match runtime_type {

@@ -204,16 +204,6 @@ pub async fn get_browser_runtime_code(
             .await?,
         );
     }
-    if *environment.supports_wasm().await? {
-        code.push_code(
-            &*embed_static_code(
-                asset_context,
-                rcstr!("shared-node/node-wasm-utils.ts"),
-                generate_source_map,
-            )
-            .await?,
-        );
-    }
 
     for backend_code in runtime_backend_code {
         code.push_code(

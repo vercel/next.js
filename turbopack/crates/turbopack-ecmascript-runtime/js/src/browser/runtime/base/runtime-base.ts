@@ -68,19 +68,6 @@ interface RuntimeBackend {
    * Returns the same Promise for the same chunk URL.
    */
   loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
-  loadWebAssembly: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module,
-    importsObj: WebAssembly.Imports
-  ) => Promise<Exports>
-  loadWebAssemblyModule: (
-    sourceType: SourceType,
-    sourceData: SourceData,
-    wasmChunkPath: ChunkPath,
-    edgeModule: () => WebAssembly.Module
-  ) => Promise<WebAssembly.Module>
 }
 
 interface DevRuntimeBackend {
@@ -290,51 +277,37 @@ function exportUrl(
 browserContextPrototype.q = exportUrl
 
 /**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
+ * Returns the full chunk URL for a chunk path, including CHUNK_BASE_PATH prefix
+ * and ASSET_SUFFIX. Used by extracted worker/wasm modules.
  */
-function createWorker(
-  WorkerConstructor: { new (url: URL, options?: object): Worker },
-  entrypoint: ChunkPath,
-  moduleChunks: ChunkPath[],
-  workerOptions?: object
-): Worker {
-  const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
-
-  const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk))
-    .reverse()
-  const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
-  for (const globalName of WORKER_FORWARDED_GLOBALS) {
-    params.push((globalThis as Record<string, unknown>)[globalName])
-  }
-
-  const url = new URL(getChunkRelativeUrl(entrypoint), location.origin)
-  const paramsJson = JSON.stringify(params)
-  if (isSharedWorker) {
-    url.searchParams.set('params', paramsJson)
-  } else {
-    url.hash = '#params=' + encodeURIComponent(paramsJson)
-  }
-
-  // Remove type: "module" from options since our worker entrypoint is not a module
-  const options = workerOptions
-    ? { ...workerOptions, type: undefined }
-    : undefined
-  return new WorkerConstructor(url, options)
+function chunkUrl(chunkPath: ChunkPath): ChunkUrl {
+  return getChunkRelativeUrl(chunkPath)
 }
-browserContextPrototype.b = createWorker
+browserContextPrototype.w = chunkUrl
+
+/**
+ * Returns the ASSET_SUFFIX string. Used by extracted worker modules.
+ */
+function assetSuffix(): string {
+  return ASSET_SUFFIX
+}
+browserContextPrototype.X = assetSuffix
+
+/**
+ * Returns the list of worker-forwarded global names.
+ */
+function forwardedGlobals(): string[] {
+  return WORKER_FORWARDED_GLOBALS
+}
+browserContextPrototype.b = forwardedGlobals
+
+/**
+ * Resolves a chunk path. On browser, returns the path as-is (not applicable).
+ */
+function resolveChunkPath(chunkPath: string): string {
+  return chunkPath
+}
+browserContextPrototype.u = resolveChunkPath
 
 /**
  * Instantiates a runtime module.
@@ -435,33 +408,3 @@ function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
 function isCss(chunkUrl: ChunkUrl): boolean {
   return endsWithExtension(chunkUrl, '.css')
 }
-
-function loadWebAssembly(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  importsObj: WebAssembly.Imports
-): Promise<Exports> {
-  return BACKEND.loadWebAssembly(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule,
-    importsObj
-  )
-}
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  this: TurbopackBaseContext<Module>,
-  chunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-): Promise<WebAssembly.Module> {
-  return BACKEND.loadWebAssemblyModule(
-    SourceType.Parent,
-    this.m.id,
-    chunkPath,
-    edgeModule
-  )
-}
-contextPrototype.u = loadWebAssemblyModule

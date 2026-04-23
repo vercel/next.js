@@ -877,58 +877,6 @@ function _async_to_generator(fn) {
         });
     };
 }
-function _define_property(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {
-            value: value,
-            enumerable: true,
-            configurable: true,
-            writable: true
-        });
-    } else {
-        obj[key] = value;
-    }
-    return obj;
-}
-function _object_spread(target) {
-    for(var i = 1; i < arguments.length; i++){
-        var source = arguments[i] != null ? arguments[i] : {};
-        var ownKeys = Object.keys(source);
-        if (typeof Object.getOwnPropertySymbols === "function") {
-            ownKeys = ownKeys.concat(Object.getOwnPropertySymbols(source).filter(function(sym) {
-                return Object.getOwnPropertyDescriptor(source, sym).enumerable;
-            }));
-        }
-        ownKeys.forEach(function(key) {
-            _define_property(target, key, source[key]);
-        });
-    }
-    return target;
-}
-function ownKeys(object, enumerableOnly) {
-    var keys = Object.keys(object);
-    if (Object.getOwnPropertySymbols) {
-        var symbols = Object.getOwnPropertySymbols(object);
-        if (enumerableOnly) {
-            symbols = symbols.filter(function(sym) {
-                return Object.getOwnPropertyDescriptor(object, sym).enumerable;
-            });
-        }
-        keys.push.apply(keys, symbols);
-    }
-    return keys;
-}
-function _object_spread_props(target, source) {
-    source = source != null ? source : {};
-    if (Object.getOwnPropertyDescriptors) {
-        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
-    } else {
-        ownKeys(Object(source)).forEach(function(key) {
-            Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
-        });
-    }
-    return target;
-}
 function _ts_generator(thisArg, body) {
     var f, y, t, _ = {
         label: 0,
@@ -1282,62 +1230,30 @@ browserContextPrototype.P = resolveAbsolutePath;
 }
 browserContextPrototype.q = exportUrl;
 /**
- * Creates a worker by instantiating the given WorkerConstructor with the
- * appropriate URL and options.
- *
- * The entrypoint is a pre-compiled worker runtime file. The params configure
- * which module chunks to load and which module to run as the entry point.
- *
- * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...WORKER_FORWARDED_GLOBALS values]`
- *
- * @param WorkerConstructor The Worker or SharedWorker constructor
- * @param entrypoint URL path to the worker entrypoint chunk
- * @param moduleChunks list of module chunk paths to load
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
-    var isSharedWorker = WorkerConstructor.name === 'SharedWorker';
-    var chunkUrls = moduleChunks.map(function(chunk) {
-        return getChunkRelativeUrl(chunk);
-    }).reverse();
-    var params = [
-        chunkUrls,
-        ASSET_SUFFIX
-    ];
-    var _iteratorNormalCompletion = true, _didIteratorError = false, _iteratorError = undefined;
-    try {
-        for(var _iterator = WORKER_FORWARDED_GLOBALS[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true){
-            var globalName = _step.value;
-            params.push(globalThis[globalName]);
-        }
-    } catch (err) {
-        _didIteratorError = true;
-        _iteratorError = err;
-    } finally{
-        try {
-            if (!_iteratorNormalCompletion && _iterator.return != null) {
-                _iterator.return();
-            }
-        } finally{
-            if (_didIteratorError) {
-                throw _iteratorError;
-            }
-        }
-    }
-    var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
-    var paramsJson = JSON.stringify(params);
-    if (isSharedWorker) {
-        url.searchParams.set('params', paramsJson);
-    } else {
-        url.hash = '#params=' + encodeURIComponent(paramsJson);
-    }
-    // Remove type: "module" from options since our worker entrypoint is not a module
-    var options = workerOptions ? _object_spread_props(_object_spread({}, workerOptions), {
-        type: undefined
-    }) : undefined;
-    return new WorkerConstructor(url, options);
+ * Returns the full chunk URL for a chunk path, including CHUNK_BASE_PATH prefix
+ * and ASSET_SUFFIX. Used by extracted worker/wasm modules.
+ */ function chunkUrl(chunkPath) {
+    return getChunkRelativeUrl(chunkPath);
 }
-browserContextPrototype.b = createWorker;
+browserContextPrototype.w = chunkUrl;
+/**
+ * Returns the ASSET_SUFFIX string. Used by extracted worker modules.
+ */ function assetSuffix() {
+    return ASSET_SUFFIX;
+}
+browserContextPrototype.X = assetSuffix;
+/**
+ * Returns the list of worker-forwarded global names.
+ */ function forwardedGlobals() {
+    return WORKER_FORWARDED_GLOBALS;
+}
+browserContextPrototype.b = forwardedGlobals;
+/**
+ * Resolves a chunk path. On browser, returns the path as-is (not applicable).
+ */ function resolveChunkPath(chunkPath) {
+    return chunkPath;
+}
+browserContextPrototype.u = resolveChunkPath;
 /**
  * Instantiates a runtime module.
  */ function instantiateRuntimeModule(moduleId, chunkPath) {
@@ -1354,8 +1270,8 @@ function getPathFromScript(chunkScript) {
     if (typeof chunkScript === 'string') {
         return chunkScript;
     }
-    var chunkUrl = chunkScript.src;
-    var src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''));
+    var _$chunkUrl = chunkScript.src;
+    var src = decodeURIComponent(_$chunkUrl.replace(/[?#].*$/, ''));
     var path = src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src;
     return path;
 }
@@ -1410,14 +1326,6 @@ function isJs(chunkUrlOrPath) {
 function isCss(chunkUrl) {
     return endsWithExtension(chunkUrl, '.css');
 }
-function loadWebAssembly(chunkPath, edgeModule, importsObj) {
-    return BACKEND.loadWebAssembly(SourceType.Parent, this.m.id, chunkPath, edgeModule, importsObj);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, edgeModule) {
-    return BACKEND.loadWebAssemblyModule(SourceType.Parent, this.m.id, chunkPath, edgeModule);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /// <reference path="./runtime-base.ts" />
 /// <reference path="./dummy.ts" />
 var moduleCache = {};
@@ -1719,47 +1627,6 @@ var BACKEND;
      * has been loaded.
      */ loadChunkCached: function loadChunkCached(sourceType, chunkUrl) {
             return doLoadChunk(sourceType, chunkUrl);
-        },
-        loadWebAssembly: function loadWebAssembly(_sourceType, _sourceData, wasmChunkPath, _edgeModule, importsObj) {
-            return _async_to_generator(function() {
-                var req, instance;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.instantiateStreaming(req, importsObj)
-                            ];
-                        case 1:
-                            instance = _state.sent().instance;
-                            return [
-                                2,
-                                instance.exports
-                            ];
-                    }
-                });
-            })();
-        },
-        loadWebAssemblyModule: function loadWebAssemblyModule(_sourceType, _sourceData, wasmChunkPath, _edgeModule) {
-            return _async_to_generator(function() {
-                var req;
-                return _ts_generator(this, function(_state) {
-                    switch(_state.label){
-                        case 0:
-                            req = fetchWebAssembly(wasmChunkPath);
-                            return [
-                                4,
-                                WebAssembly.compileStreaming(req)
-                            ];
-                        case 1:
-                            return [
-                                2,
-                                _state.sent()
-                            ];
-                    }
-                });
-            })();
         }
     };
     function getOrCreateResolver(chunkUrl) {
@@ -1888,9 +1755,6 @@ var BACKEND;
         }
         resolver.loadingStarted = true;
         return resolver.promise;
-    }
-    function fetchWebAssembly(wasmChunkPath) {
-        return fetch(getChunkRelativeUrl(wasmChunkPath));
     }
 })();
 var chunksToRegister = globalThis["TURBOPACK"];

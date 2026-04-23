@@ -5,18 +5,34 @@ use indoc::{formatdoc, writedoc};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::{File, FileContent};
-use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
+use turbopack_core::{
+    asset::AssetContent, context::AssetContext, environment::ChunkLoading, source::Source,
+    virtual_source::VirtualSource,
+};
 use turbopack_ecmascript::utils::StringifyJs;
 
 use crate::{analysis::analyze, source::WebAssemblySource, wasm_edge_var_name};
+
+/// Determines the `@turbopack/wasm-*` module name based on the environment.
+async fn wasm_module_name(asset_context: Vc<Box<dyn AssetContext>>) -> Result<&'static str> {
+    let environment = asset_context.compile_time_info().environment();
+    let chunk_loading = &*environment.chunk_loading().await?;
+    Ok(match chunk_loading {
+        ChunkLoading::NodeJs => "@turbopack/wasm-node",
+        ChunkLoading::Edge => "@turbopack/wasm-edge",
+        ChunkLoading::Dom => "@turbopack/wasm-dom",
+    })
+}
 
 /// Create a javascript loader to instantiate the WebAssembly module with the
 /// necessary imports and exports to be processed by [turbopack_ecmascript].
 #[turbo_tasks::function]
 pub(crate) async fn instantiating_loader_source(
     source: Vc<WebAssemblySource>,
+    asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Source>>> {
     let analysis = analyze(source).await?;
+    let wasm_module = wasm_module_name(asset_context).await?;
 
     let mut code = String::new();
 
@@ -37,6 +53,11 @@ pub(crate) async fn instantiating_loader_source(
     }
     writeln!(imports_obj, "}}")?;
 
+    writeln!(
+        code,
+        "import {{ instantiateWebAssembly }} from {:?};",
+        wasm_module
+    )?;
     writeln!(code, "import wasmPath from \"WASM_PATH\";")?;
 
     writeln!(code)?;
@@ -44,7 +65,7 @@ pub(crate) async fn instantiating_loader_source(
     writedoc!(
         code,
         r#"
-            const {{ {exports} }} = await __turbopack_wasm__(wasmPath, () => {edgeVariable}, {imports});
+            const {{ {exports} }} = await instantiateWebAssembly(wasmPath, () => {edgeVariable}, {imports});
 
             export {{ {exports} }};
         "#,
@@ -66,15 +87,20 @@ pub(crate) async fn instantiating_loader_source(
 #[turbo_tasks::function]
 pub(crate) async fn compiling_loader_source(
     source: Vc<WebAssemblySource>,
+    asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<Box<dyn Source>>> {
+    let wasm_module = wasm_module_name(asset_context).await?;
+
     let code: RcStr = formatdoc! {
         r#"
+            import {{ compileWebAssembly }} from {:?};
             import wasmPath from "WASM_PATH";
 
-            const mod = await __turbopack_wasm_module__(wasmPath, () => {edgeVariable});
+            const mod = await compileWebAssembly(wasmPath, () => {edgeVariable});
 
             export default mod;
         "#,
+        wasm_module,
         edgeVariable = wasm_edge_var_name(Vc::upcast(source)).await?
     }
     .into();

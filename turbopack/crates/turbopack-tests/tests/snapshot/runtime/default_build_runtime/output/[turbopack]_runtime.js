@@ -640,31 +640,9 @@ const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
     return ABSOLUTE_ROOT;
 }
 Context.prototype.P = resolveAbsolutePath;
-/* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../shared/runtime/runtime-utils.ts" />
-function readWebAssemblyAsResponse(path) {
-    const { createReadStream } = require('fs');
-    const { Readable } = require('stream');
-    const stream = createReadStream(path);
-    // @ts-ignore unfortunately there's a slight type mismatch with the stream.
-    return new Response(Readable.toWeb(stream), {
-        headers: {
-            'content-type': 'application/wasm'
-        }
-    });
-}
-async function compileWebAssemblyFromPath(path) {
-    const response = readWebAssemblyAsResponse(path);
-    return await WebAssembly.compileStreaming(response);
-}
-async function instantiateWebAssemblyFromPath(path, importsObj) {
-    const response = readWebAssemblyAsResponse(path);
-    const { instance } = await WebAssembly.instantiateStreaming(response, importsObj);
-    return instance.exports;
-}
 /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
-/// <reference path="../../shared-node/node-wasm-utils.ts" />
 /// <reference path="./nodejs-globals.d.ts" />
 /**
  * Base Node.js runtime shared between production and development.
@@ -768,40 +746,30 @@ function loadChunkAsyncByUrl(chunkUrl) {
     return loadChunkAsync.call(this, path1);
 }
 contextPrototype.L = loadChunkAsyncByUrl;
-function loadWebAssembly(chunkPath, _edgeModule, imports) {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    return instantiateWebAssemblyFromPath(resolved, imports);
-}
-contextPrototype.w = loadWebAssembly;
-function loadWebAssemblyModule(chunkPath, _edgeModule) {
-    const resolved = path.resolve(RUNTIME_ROOT, chunkPath);
-    return compileWebAssemblyFromPath(resolved);
-}
-contextPrototype.u = loadWebAssemblyModule;
 /**
- * Creates a Node.js worker thread by instantiating the given WorkerConstructor
- * with the appropriate path and options, including forwarded globals.
- *
- * @param WorkerConstructor The Worker constructor from worker_threads
- * @param workerPath Path to the worker entry chunk
- * @param workerOptions options to pass to the Worker constructor (optional)
- */ function createWorker(WorkerConstructor, workerPath, workerOptions) {
-    // Build the forwarded globals object
-    const forwardedGlobals = {};
-    for (const name of WORKER_FORWARDED_GLOBALS){
-        forwardedGlobals[name] = globalThis[name];
-    }
-    // Merge workerData with forwarded globals
-    const existingWorkerData = workerOptions?.workerData || {};
-    const options = {
-        ...workerOptions,
-        workerData: {
-            ...typeof existingWorkerData === 'object' ? existingWorkerData : {},
-            __turbopack_globals__: forwardedGlobals
-        }
-    };
-    return new WorkerConstructor(workerPath, options);
+ * Returns the chunk path as-is. On Node.js, chunks are loaded by path.
+ */ function chunkUrl(chunkPath) {
+    return chunkPath;
 }
+contextPrototype.w = chunkUrl;
+/**
+ * Resolves a chunk path to an absolute filesystem path using RUNTIME_ROOT.
+ */ function resolveChunkPath(chunkPath) {
+    return path.resolve(RUNTIME_ROOT, chunkPath);
+}
+contextPrototype.u = resolveChunkPath;
+/**
+ * Returns the list of worker-forwarded global names.
+ */ function forwardedGlobals() {
+    return typeof WORKER_FORWARDED_GLOBALS !== 'undefined' ? WORKER_FORWARDED_GLOBALS : [];
+}
+contextPrototype.b = forwardedGlobals;
+/**
+ * Returns the asset suffix (empty string on Node.js).
+ */ function assetSuffix() {
+    return '';
+}
+contextPrototype.X = assetSuffix;
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/;
 /**
  * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
@@ -821,7 +789,6 @@ nodeContextPrototype.M = moduleFactories;
 // Cast moduleCache to ModuleWithDirection for production mode
 nodeContextPrototype.c = moduleCache;
 nodeContextPrototype.R = resolvePathFromModule;
-nodeContextPrototype.b = createWorker;
 nodeContextPrototype.C = clearChunkCache;
 function instantiateModule(id, sourceType, sourceData) {
     const moduleFactory = moduleFactories.get(id);

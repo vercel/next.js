@@ -64,7 +64,45 @@ pub async fn turbopack_runtime_import_map() -> Result<Vc<ImportMap>> {
     // Exact alias: @turbopack/base64
     import_map.insert_exact_alias(
         rcstr!("@turbopack/base64"),
-        ImportMapping::PrimaryAlternative(rcstr!("./shared/base64.ts"), Some(embed_root))
+        ImportMapping::PrimaryAlternative(rcstr!("./shared/base64.ts"), Some(embed_root.clone()))
+            .resolved_cell(),
+    );
+
+    // WebAssembly loading modules (per-environment)
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/wasm-node"),
+        ImportMapping::PrimaryAlternative(
+            rcstr!("./shared/wasm-node.ts"),
+            Some(embed_root.clone()),
+        )
+        .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/wasm-dom"),
+        ImportMapping::PrimaryAlternative(rcstr!("./shared/wasm-dom.ts"), Some(embed_root.clone()))
+            .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/wasm-edge"),
+        ImportMapping::PrimaryAlternative(
+            rcstr!("./shared/wasm-edge.ts"),
+            Some(embed_root.clone()),
+        )
+        .resolved_cell(),
+    );
+
+    // Worker creation modules (per-environment)
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/worker-browser"),
+        ImportMapping::PrimaryAlternative(
+            rcstr!("./shared/worker-browser.ts"),
+            Some(embed_root.clone()),
+        )
+        .resolved_cell(),
+    );
+    import_map.insert_exact_alias(
+        rcstr!("@turbopack/worker-node"),
+        ImportMapping::PrimaryAlternative(rcstr!("./shared/worker-node.ts"), Some(embed_root))
             .resolved_cell(),
     );
 

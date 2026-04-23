@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_input_09jmqs-._.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/[root-of-the-server]__1gnyf0f._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 module.exports = 'turbopack';
@@ -6,10 +6,47 @@ module.exports = 'turbopack';
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs (static in ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.q("/static/vercel.0kkt412gy5vj6.cjs");}),
+"[turbopack]/shared/worker-browser.ts [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+__turbopack_context__.s([
+    "createWorker",
+    ()=>createWorker
+]);
+/**
+ * Browser worker creation module.
+ * Only included when a Web Worker or SharedWorker is actually used.
+ */ 'use turbopack no side effects';
+function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
+    const isSharedWorker = WorkerConstructor.name === 'SharedWorker';
+    const chunkUrls = moduleChunks.map((chunk)=>/*TURBOPACK member replacement*/ __turbopack_context__.w(chunk)).reverse();
+    const params = [
+        chunkUrls,
+        /*TURBOPACK member replacement*/ __turbopack_context__.X()
+    ];
+    for (const globalName of /*TURBOPACK member replacement*/ __turbopack_context__.b()){
+        params.push(globalThis[globalName]);
+    }
+    const url = new URL(/*TURBOPACK member replacement*/ __turbopack_context__.w(entrypoint), location.origin);
+    const paramsJson = JSON.stringify(params);
+    if (isSharedWorker) {
+        url.searchParams.set('params', paramsJson);
+    } else {
+        url.hash = '#params=' + encodeURIComponent(paramsJson);
+    }
+    // Remove type: "module" from options since our worker entrypoint is not a module
+    const options = workerOptions ? {
+        ...workerOptions,
+        type: undefined
+    } : undefined;
+    return new WorkerConstructor(url, options);
+}
+}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/vercel.cjs [test] (ecmascript, worker loader)", ((__turbopack_context__) => {
 
+var createWorker = __turbopack_context__.r("[turbopack]/shared/worker-browser.ts [test] (ecmascript)").createWorker;
 __turbopack_context__.v(function(Ctor, opts) {
-    return __turbopack_context__.b(Ctor, "output/0uxq_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mni._.js", ["output/0_9x_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5._.js","output/0rv8_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_02p77ng._.js"], opts);
+    return createWorker(Ctor, "output/0uxq_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_output_0uy0mni._.js", ["output/0_9x_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_0j-fab5._.js","output/0rv8_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_02p77ng._.js"], opts);
 });
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/ignore-worker.cjs (static in ecmascript)", ((__turbopack_context__) => {
@@ -45,4 +82,4 @@ function foo(plugin) {
 }),
 ]);
 
-//# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_imports_ignore-comments_input_09jmqs-._.js.map
+//# sourceMappingURL=%5Broot-of-the-server%5D__1gnyf0f._.js.map

@@ -74,34 +74,6 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
     loadChunkCached(sourceType: SourceType, chunkUrl: ChunkUrl) {
       return doLoadChunk(sourceType, chunkUrl)
     },
-
-    async loadWebAssembly(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      wasmChunkPath: ChunkPath,
-      _edgeModule: () => WebAssembly.Module,
-      importsObj: WebAssembly.Imports
-    ): Promise<Exports> {
-      const req = fetchWebAssembly(wasmChunkPath)
-
-      const { instance } = await WebAssembly.instantiateStreaming(
-        req,
-        importsObj
-      )
-
-      return instance.exports
-    },
-
-    async loadWebAssemblyModule(
-      _sourceType: SourceType,
-      _sourceData: SourceData,
-      wasmChunkPath: ChunkPath,
-      _edgeModule: () => WebAssembly.Module
-    ): Promise<WebAssembly.Module> {
-      const req = fetchWebAssembly(wasmChunkPath)
-
-      return await WebAssembly.compileStreaming(req)
-    },
   }
 
   function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
@@ -228,9 +200,5 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
 
     resolver.loadingStarted = true
     return resolver.promise
-  }
-
-  function fetchWebAssembly(wasmChunkPath: ChunkPath) {
-    return fetch(getChunkRelativeUrl(wasmChunkPath))
   }
 })()

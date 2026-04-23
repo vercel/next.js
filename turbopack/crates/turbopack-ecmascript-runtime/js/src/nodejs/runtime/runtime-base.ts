@@ -3,7 +3,6 @@
 /// <reference path="../../shared/runtime/runtime-utils.ts" />
 /// <reference path="../../shared-node/base-externals-utils.ts" />
 /// <reference path="../../shared-node/node-externals-utils.ts" />
-/// <reference path="../../shared-node/node-wasm-utils.ts" />
 /// <reference path="./nodejs-globals.d.ts" />
 
 /**
@@ -143,58 +142,39 @@ function loadChunkAsyncByUrl<TModule extends Module>(
 }
 contextPrototype.L = loadChunkAsyncByUrl
 
-function loadWebAssembly(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return instantiateWebAssemblyFromPath(resolved, imports)
+/**
+ * Returns the chunk path as-is. On Node.js, chunks are loaded by path.
+ */
+function chunkUrl(chunkPath: ChunkPath): string {
+  return chunkPath
 }
-contextPrototype.w = loadWebAssembly
-
-function loadWebAssemblyModule(
-  chunkPath: ChunkPath,
-  _edgeModule: () => WebAssembly.Module
-) {
-  const resolved = path.resolve(RUNTIME_ROOT, chunkPath)
-
-  return compileWebAssemblyFromPath(resolved)
-}
-contextPrototype.u = loadWebAssemblyModule
+contextPrototype.w = chunkUrl
 
 /**
- * Creates a Node.js worker thread by instantiating the given WorkerConstructor
- * with the appropriate path and options, including forwarded globals.
- *
- * @param WorkerConstructor The Worker constructor from worker_threads
- * @param workerPath Path to the worker entry chunk
- * @param workerOptions options to pass to the Worker constructor (optional)
+ * Resolves a chunk path to an absolute filesystem path using RUNTIME_ROOT.
  */
-function createWorker(
-  WorkerConstructor: { new (path: string, options?: object): unknown },
-  workerPath: string,
-  workerOptions?: { workerData?: unknown; [key: string]: unknown }
-): unknown {
-  // Build the forwarded globals object
-  const forwardedGlobals: Record<string, unknown> = {}
-  for (const name of WORKER_FORWARDED_GLOBALS) {
-    forwardedGlobals[name] = (globalThis as Record<string, unknown>)[name]
-  }
-
-  // Merge workerData with forwarded globals
-  const existingWorkerData = workerOptions?.workerData || {}
-  const options = {
-    ...workerOptions,
-    workerData: {
-      ...(typeof existingWorkerData === 'object' ? existingWorkerData : {}),
-      __turbopack_globals__: forwardedGlobals,
-    },
-  }
-
-  return new WorkerConstructor(workerPath, options)
+function resolveChunkPath(chunkPath: string): string {
+  return path.resolve(RUNTIME_ROOT, chunkPath)
 }
+contextPrototype.u = resolveChunkPath
+
+/**
+ * Returns the list of worker-forwarded global names.
+ */
+function forwardedGlobals(): string[] {
+  return typeof WORKER_FORWARDED_GLOBALS !== 'undefined'
+    ? WORKER_FORWARDED_GLOBALS
+    : []
+}
+contextPrototype.b = forwardedGlobals
+
+/**
+ * Returns the asset suffix (empty string on Node.js).
+ */
+function assetSuffix(): string {
+  return ''
+}
+contextPrototype.X = assetSuffix
 
 const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**

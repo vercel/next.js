@@ -1,20 +1,22 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset,
+        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset, ModuleChunkItemIdExt,
         availability_info::AvailabilityInfo,
     },
     context::AssetContext,
+    environment::ChunkLoading,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::{ModuleReference, ModuleReferences},
-    resolve::ModuleResolveResult,
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    resolve::{ExportUsage, ModuleResolveResult, parse::Request},
 };
 
 use super::worker_type::WorkerType;
@@ -23,7 +25,7 @@ use crate::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
-    runtime_functions::{TURBOPACK_CREATE_WORKER, TURBOPACK_EXPORT_VALUE},
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::StringifyJs,
 };
 
@@ -50,6 +52,49 @@ impl WorkerLoaderModule {
             worker_type,
             asset_context,
         })
+    }
+
+    /// Resolves the `@turbopack/worker-*` helper module for the current environment.
+    #[turbo_tasks::function]
+    async fn worker_helper_module(&self) -> Result<Vc<Box<dyn Module>>> {
+        let environment = self.asset_context.compile_time_info().environment();
+        let chunk_loading = &*environment.chunk_loading().await?;
+        let helper_request: RcStr = match chunk_loading {
+            ChunkLoading::NodeJs => rcstr!("@turbopack/worker-node"),
+            ChunkLoading::Edge | ChunkLoading::Dom => rcstr!("@turbopack/worker-browser"),
+        };
+
+        let origin_path = self.inner.ident().path().owned().await?;
+        let request = Request::parse_string(helper_request.clone());
+        let resolve_options = self.asset_context.resolve_options(origin_path.clone());
+        let result = self.asset_context.resolve_asset(
+            origin_path,
+            request,
+            resolve_options,
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
+        );
+
+        let module = result.first_module().await?;
+        let Some(module) = *module else {
+            bail!(
+                "Could not resolve worker helper module '{}'",
+                helper_request
+            );
+        };
+        Ok(*module)
+    }
+
+    /// Gets the worker helper module as an EcmascriptChunkPlaceable.
+    #[turbo_tasks::function]
+    async fn worker_helper_placeable(
+        self: Vc<Self>,
+    ) -> Result<Vc<Box<dyn EcmascriptChunkPlaceable>>> {
+        let module = self.worker_helper_module().to_resolved().await?;
+        let Some(placeable) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
+        else {
+            bail!("Worker helper module was not processed into an EcmascriptChunkPlaceable");
+        };
+        Ok(*placeable)
     }
 
     #[turbo_tasks::function]
@@ -160,11 +205,25 @@ impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
         let this = self.await?;
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
+        let worker_ref =
             WorkerModuleReference::new(*ResolvedVc::upcast(this.inner), this.worker_type)
                 .to_resolved()
-                .await?,
-        )]))
+                .await?;
+
+        // Add a reference to the worker helper module so it's included in the chunk
+        let helper_module = self.worker_helper_module().to_resolved().await?;
+        let helper_ref = SingleChunkableModuleReference::new(
+            *helper_module,
+            rcstr!("worker helper"),
+            ExportUsage::all(),
+        )
+        .to_resolved()
+        .await?;
+
+        Ok(Vc::cell(vec![
+            ResolvedVc::upcast(worker_ref),
+            ResolvedVc::upcast(helper_ref),
+        ]))
     }
 
     #[turbo_tasks::function]
@@ -219,10 +278,9 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 inner_code: formatdoc! {
                     r#"
                         {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
+                            return Ctor;
                         }});
                     "#,
-                    worker_path = StringifyJs(&"a_fake_path_for_size_estimation"),
                 }
                 .into(),
                 options,
@@ -230,6 +288,10 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
             }
             .cell());
         }
+
+        // Get the worker helper module's chunk item ID for use in TURBOPACK_REQUIRE
+        let helper_placeable = self.worker_helper_placeable();
+        let helper_id = helper_placeable.chunk_item_id(chunking_context).await?;
 
         let code = match this.worker_type {
             WorkerType::WebWorker | WorkerType::SharedWebWorker => {
@@ -255,10 +317,12 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
 
                 formatdoc! {
                     r#"
+                        var createWorker = {TURBOPACK_REQUIRE}({helper_id}).createWorker;
                         {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, {entrypoint}, {chunks}, opts);
+                            return createWorker(Ctor, {entrypoint}, {chunks}, opts);
                         }});
                     "#,
+                    helper_id = StringifyJs(&helper_id),
                     entrypoint = StringifyJs(&entrypoint_path),
                     chunks = StringifyJs(&chunks_data),
                 }
@@ -288,10 +352,12 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // directory
                 formatdoc! {
                     r#"
+                        var createWorker = {TURBOPACK_REQUIRE}({helper_id}).createWorker;
                         {TURBOPACK_EXPORT_VALUE}(function(Ctor, opts) {{
-                            return {TURBOPACK_CREATE_WORKER}(Ctor, __dirname + "/" + {worker_path:#}, opts);
+                            return createWorker(Ctor, __dirname + "/" + {worker_path:#}, opts);
                         }});
                     "#,
+                    helper_id = StringifyJs(&helper_id),
                     worker_path = StringifyJs(entry_path.file_name()),
                 }
             }

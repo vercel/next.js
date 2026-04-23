@@ -63,15 +63,10 @@ type DynamicExport = (
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
-type LoadWebAssembly = (
-  wasmChunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-) => Exports
-type LoadWebAssemblyModule = (
-  wasmChunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-) => WebAssembly.Module
+type ChunkUrlResolver = (chunkPath: ChunkPath) => string
+type ChunkPathResolver = (chunkPath: string) => string
+type ForwardedGlobals = () => string[]
+type AssetSuffix = () => string
 
 type ModuleCache<M> = Record<ModuleId, M>
 // TODO properly type values here
@@ -97,11 +92,6 @@ type AsyncModule = (
 ) => void
 
 type ResolveAbsolutePath = (modulePath?: string) => string
-type GetWorkerURL = (
-  entrypoint: ChunkPath,
-  moduleChunks: ChunkPath[],
-  shared: boolean
-) => URL
 
 type ExternalRequire = (
   id: DependencySpecifier,
@@ -145,11 +135,12 @@ interface TurbopackBaseContext<M> {
   M: ModuleFactories
   l: LoadChunk
   L: LoadChunkByUrl
-  w: LoadWebAssembly
-  u: LoadWebAssemblyModule
+  w: ChunkUrlResolver
+  u: ChunkPathResolver
   P: ResolveAbsolutePath
   U: RelativeURL
-  b: GetWorkerURL
+  b: ForwardedGlobals
+  X: AssetSuffix
   x: ExternalRequire
   y: ExternalImport
   z: CommonJsRequire
