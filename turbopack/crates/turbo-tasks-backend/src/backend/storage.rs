@@ -66,7 +66,8 @@ impl Display for EvictionCounts {
         let skipped: usize = self.unevictable_reasons.iter().sum();
         write!(
             f,
-            "task_cache_evictions={},full={},data_and_meta={},data_only={},meta_only={},skipped={}",
+            "task_cache_evictions={},full={},data_and_meta={},data_only={},meta_only={},\
+             skipped={{total={}",
             self.key_evictions,
             self.full,
             self.data_and_meta,
@@ -75,13 +76,12 @@ impl Display for EvictionCounts {
             skipped,
         )?;
         for reason in UnevictableReason::ALL {
-            write!(
-                f,
-                ",{}={}",
-                reason.span_name(),
-                self.unevictable_reasons[reason.index()],
-            )?;
+            let count = self.unevictable_reasons[reason.index()];
+            if count != 0 {
+                write!(f, ",{}={count}", reason.span_name(),)?;
+            }
         }
+        write!(f, "}}")?;
         Ok(())
     }
 }

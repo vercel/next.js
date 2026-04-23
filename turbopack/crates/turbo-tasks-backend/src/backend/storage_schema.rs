@@ -456,8 +456,72 @@ pub enum UnevictableReason {
     Modified,
     /// The task is transient
     Transient,
-    // Keep `NothingToEvict` last: `COUNT` is derived from its discriminant.
-    NothingToEvict,
+    /// Nothing left to evict — the task has already been fully dropped and only
+    /// holds `current_session_clean` (the benign, expected state: keeps the
+    /// "skip re-read on restore" optimization).
+    NothingToEvictSessionCleanOnly,
+    /// Nothing left to evict and `prefetched` is still set. Unexpected:
+    /// `drop_partial` clears `prefetched`, so seeing this suggests a path that
+    /// sets `prefetched` after eviction without going through restore.
+    NothingToEvictPrefetched,
+    /// Nothing left to evict but `aggregated_current_session_clean_containers`
+    /// is populated — tracks clean-containers in the current session, not
+    /// cleared by `drop_partial`.
+    NothingToEvictAggregatedSessionClean,
+    /// Nothing left to evict but an `outdated_*` lazy field is populated
+    /// (outdated_collectibles / outdated_output_dependencies /
+    /// outdated_cell_dependencies / outdated_collectibles_dependencies).
+    /// These have `shrink_on_completion` so seeing them means completion
+    /// didn't clear them for some reason.
+    NothingToEvictOutdated,
+    /// Nothing left to evict but `transient_cell_data` is populated (cells
+    /// computed in memory that weren't persisted).
+    NothingToEvictTransientCellData,
+    /// Nothing left to evict but `in_progress_cells` is populated (partial
+    /// cell computation state).
+    NothingToEvictInProgressCells,
+    /// Nothing left to evict but some other transient lazy variant is present
+    /// (`activeness`, `in_progress`, `transient_task_type`). These should
+    /// have been caught by earlier evictability guards; seeing them here
+    /// means evictability's filter is inconsistent with reality.
+    NothingToEvictTransientOther,
+    /// Nothing left to evict but the inline `output_dependent` set holds a
+    /// transient TaskId — a reverse-reference from a transient subscriber.
+    NothingToEvictOutputDependent,
+    /// Nothing left to evict but the inline `output` field holds a transient
+    /// output value (references a transient task).
+    NothingToEvictOutputTransient,
+    /// Nothing left to evict but the inline `upper` counter map holds a
+    /// transient TaskId — a transient aggregation-tree parent.
+    NothingToEvictUpperTransient,
+    /// Nothing left to evict but a persistent aggregation-graph lazy field
+    /// (`Children`, `Followers`, `Collectibles`, `AggregatedCollectibles`,
+    /// `AggregatedDirtyContainers`, `CollectiblesDependents`) holds a
+    /// transient TaskId.
+    NothingToEvictAggregationResidue,
+    /// Nothing left to evict but a persistent outbound-dependency lazy field
+    /// (`OutputDependencies`, `CellDependencies`, `CollectiblesDependencies`)
+    /// holds a transient TaskId — "this task read something transient."
+    NothingToEvictDependencyResidue,
+    /// Nothing left to evict but `CellDependents` holds a transient TaskId —
+    /// "a transient task read this task's cells." Analogue of the inline
+    /// `output_dependent` bucket for cell readers.
+    NothingToEvictDependentResidue,
+    /// Nothing left to evict but a persistent lazy variant not covered by
+    /// the two groups above survived drop_partial. Shouldn't happen in
+    /// practice — fallback so we see if a new field leaks.
+    NothingToEvictPersistentResidueOther,
+    /// Nothing left to evict and `leaf_distance` is non-default. Unexpected —
+    /// updates go through a restore-triggering accessor.
+    NothingToEvictLeafDistance,
+    /// Nothing left to evict and `is_empty()` is true — the task should have
+    /// been erased by the eviction pass but wasn't. Bug.
+    NothingToEvictEmpty,
+    /// Nothing left to evict, fallback when none of the more specific
+    /// categories match. Likely multiple blockers or a field we haven't
+    /// categorized.
+    // Keep this last: `COUNT` is derived from its discriminant.
+    NothingToEvictOther,
 }
 
 impl UnevictableReason {
@@ -467,12 +531,28 @@ impl UnevictableReason {
         UnevictableReason::InProgress,
         UnevictableReason::Modified,
         UnevictableReason::Transient,
-        UnevictableReason::NothingToEvict,
+        UnevictableReason::NothingToEvictSessionCleanOnly,
+        UnevictableReason::NothingToEvictPrefetched,
+        UnevictableReason::NothingToEvictAggregatedSessionClean,
+        UnevictableReason::NothingToEvictOutdated,
+        UnevictableReason::NothingToEvictTransientCellData,
+        UnevictableReason::NothingToEvictInProgressCells,
+        UnevictableReason::NothingToEvictTransientOther,
+        UnevictableReason::NothingToEvictOutputDependent,
+        UnevictableReason::NothingToEvictOutputTransient,
+        UnevictableReason::NothingToEvictUpperTransient,
+        UnevictableReason::NothingToEvictAggregationResidue,
+        UnevictableReason::NothingToEvictDependencyResidue,
+        UnevictableReason::NothingToEvictDependentResidue,
+        UnevictableReason::NothingToEvictPersistentResidueOther,
+        UnevictableReason::NothingToEvictLeafDistance,
+        UnevictableReason::NothingToEvictEmpty,
+        UnevictableReason::NothingToEvictOther,
     ];
 
     /// Number of variants. Derived from the last variant's discriminant, so adding a
-    /// new variant before `NothingToEvict` stays correct automatically.
-    pub const COUNT: usize = (UnevictableReason::NothingToEvict as usize) + 1;
+    /// new variant before `NothingToEvictOther` stays correct automatically.
+    pub const COUNT: usize = (UnevictableReason::NothingToEvictOther as usize) + 1;
 
     #[inline]
     pub const fn index(self) -> usize {
@@ -483,10 +563,42 @@ impl UnevictableReason {
     /// of the other span fields in `evict_after_snapshot`.
     pub const fn span_name(self) -> &'static str {
         match self {
-            UnevictableReason::InProgress => "skipped_in_progress",
-            UnevictableReason::Modified => "skipped_modified",
-            UnevictableReason::Transient => "skipped_transient",
-            UnevictableReason::NothingToEvict => "skipped_nothing_to_evict",
+            UnevictableReason::InProgress => "in_progress",
+            UnevictableReason::Modified => "modified",
+            UnevictableReason::Transient => "transient",
+            UnevictableReason::NothingToEvictSessionCleanOnly => {
+                "nothing_to_evict_session_clean_only"
+            }
+            UnevictableReason::NothingToEvictPrefetched => "nothing_to_evict_prefetched",
+            UnevictableReason::NothingToEvictAggregatedSessionClean => {
+                "nothing_to_evict_aggregated_session_clean"
+            }
+            UnevictableReason::NothingToEvictOutdated => "nothing_to_evict_outdated",
+            UnevictableReason::NothingToEvictTransientCellData => {
+                "nothing_to_evict_transient_cell_data"
+            }
+            UnevictableReason::NothingToEvictInProgressCells => {
+                "nothing_to_evict_in_progress_cells"
+            }
+            UnevictableReason::NothingToEvictTransientOther => "nothing_to_evict_transient_other",
+            UnevictableReason::NothingToEvictOutputDependent => "nothing_to_evict_output_dependent",
+            UnevictableReason::NothingToEvictOutputTransient => "nothing_to_evict_output_transient",
+            UnevictableReason::NothingToEvictUpperTransient => "nothing_to_evict_upper_transient",
+            UnevictableReason::NothingToEvictAggregationResidue => {
+                "nothing_to_evict_aggregation_residue"
+            }
+            UnevictableReason::NothingToEvictDependencyResidue => {
+                "nothing_to_evict_dependency_residue"
+            }
+            UnevictableReason::NothingToEvictDependentResidue => {
+                "nothing_to_evict_dependent_residue"
+            }
+            UnevictableReason::NothingToEvictPersistentResidueOther => {
+                "nothing_to_evict_persistent_residue_other"
+            }
+            UnevictableReason::NothingToEvictLeafDistance => "nothing_to_evict_leaf_distance",
+            UnevictableReason::NothingToEvictEmpty => "nothing_to_evict_empty",
+            UnevictableReason::NothingToEvictOther => "nothing_to_evict_other",
         }
     }
 }
@@ -575,7 +687,7 @@ impl TaskStorage {
         if !flags.data_restored() && !flags.meta_restored() {
             return (
                 key_evictability,
-                ValueEvictability::Unevictable(UnevictableReason::NothingToEvict),
+                ValueEvictability::Unevictable(self.classify_nothing_to_evict()),
             );
         }
 
@@ -604,6 +716,168 @@ impl TaskStorage {
                 }
             },
         )
+    }
+
+    /// Classify why a task with `!data_restored && !meta_restored` is still in
+    /// the shard. Diagnostic helper for the eviction skip counters — probes each
+    /// residue source in priority order and returns the first match.
+    ///
+    /// The task has been through `drop_partial` (or was never restored), so
+    /// persistent storage should be empty; anything non-default here points at a
+    /// specific leak source.
+    fn classify_nothing_to_evict(&self) -> UnevictableReason {
+        let flags = &self.flags;
+
+        // If the task is actually empty, the eviction pass should have removed
+        // it. Flag this as a bug rather than letting it hide in another bucket.
+        if self.is_empty() {
+            return UnevictableReason::NothingToEvictEmpty;
+        }
+
+        // Inspect transient lazy variants in priority order. Persistent variants
+        // shouldn't be present after drop_partial — but filter_transient variants
+        // retain transient residue, and we classify those as inline-residue below
+        // since they're keyed on inline fields conceptually. Here we only care
+        // about variants that are inherently transient.
+        let mut has_aggregated_session_clean = false;
+        let mut has_outdated = false;
+        let mut has_in_progress_cells = false;
+        let mut has_cell_data_residue = false;
+        let mut has_other_transient = false;
+        let mut has_aggregation_residue = false;
+        let mut has_dependency_residue = false;
+        let mut has_dependent_residue = false;
+        let mut has_persistent_residue_other = false;
+        for field in &self.lazy {
+            match field {
+                LazyField::AggregatedCurrentSessionCleanContainerCount(_)
+                | LazyField::AggregatedCurrentSessionCleanContainers(_) => {
+                    has_aggregated_session_clean = true;
+                }
+                LazyField::OutdatedCollectibles(_)
+                | LazyField::OutdatedOutputDependencies(_)
+                | LazyField::OutdatedCellDependencies(_)
+                | LazyField::OutdatedCollectiblesDependencies(_) => {
+                    has_outdated = true;
+                }
+                LazyField::InProgressCells(_) => {
+                    has_in_progress_cells = true;
+                }
+                LazyField::CellData(_) => {
+                    // CellData is a persistent lazy field (data category) but
+                    // its bincode filters out non-persistable cells at encode
+                    // time. Those entries remain in memory across drop_partial,
+                    // so CellData variants legitimately survive eviction when
+                    // they hold transient cell values.
+                    has_cell_data_residue = true;
+                }
+                LazyField::Activeness(_)
+                | LazyField::InProgress(_)
+                | LazyField::TransientTaskType(_) => {
+                    has_other_transient = true;
+                }
+                // Aggregation-graph structure: upper/lower links, dirty
+                // propagation, collectibles.
+                LazyField::Children(_)
+                | LazyField::Followers(_)
+                | LazyField::AggregatedDirtyContainers(_)
+                | LazyField::Collectibles(_)
+                | LazyField::AggregatedCollectibles(_)
+                | LazyField::CollectiblesDependents(_) => {
+                    has_aggregation_residue = true;
+                }
+                // Outbound dependencies: what this task reads.
+                LazyField::OutputDependencies(_)
+                | LazyField::CellDependencies(_)
+                | LazyField::CollectiblesDependencies(_) => {
+                    has_dependency_residue = true;
+                }
+                // Reverse / inbound dependency: what reads this task's cells.
+                LazyField::CellDependents(_) => {
+                    has_dependent_residue = true;
+                }
+                _ => {
+                    // Catch-all: any other persistent variant survived
+                    // drop_partial. Shouldn't happen with current field set.
+                    if field.is_persistent() {
+                        has_persistent_residue_other = true;
+                    }
+                }
+            }
+        }
+
+        // Inline filter_transient residue: output_dependent, output, upper keep
+        // transient-keyed entries across drop_partial. These are inline so the
+        // lazy scan above doesn't see them. Classified independently so we can
+        // tell which of the three fields is leaking.
+        let has_output_dependent_residue = !self.output_dependent().is_empty();
+        let has_output_residue = self.get_output().is_some();
+        let has_upper_residue = !self.upper().is_empty();
+
+        // leaf_distance is inline direct with a default; non-default means it
+        // wasn't reset, which shouldn't happen on the post-eviction path.
+        let leaf_distance_nondefault = self
+            .get_leaf_distance()
+            .is_some_and(|ld| *ld != LeafDistance::default());
+
+        // Priority: more specific / more actionable first. Leaf_distance and
+        // persistent_residue_other are the two "shouldn't happen" signals.
+        if leaf_distance_nondefault {
+            return UnevictableReason::NothingToEvictLeafDistance;
+        }
+        if has_persistent_residue_other {
+            return UnevictableReason::NothingToEvictPersistentResidueOther;
+        }
+        // Report the three inline fields independently. If more than one is
+        // non-empty on the same task we pick one, but that overlap should be
+        // rare — the deltas across passes tell us which dominates.
+        if has_output_dependent_residue {
+            return UnevictableReason::NothingToEvictOutputDependent;
+        }
+        if has_upper_residue {
+            return UnevictableReason::NothingToEvictUpperTransient;
+        }
+        if has_output_residue {
+            return UnevictableReason::NothingToEvictOutputTransient;
+        }
+        if has_aggregation_residue {
+            return UnevictableReason::NothingToEvictAggregationResidue;
+        }
+        if has_dependent_residue {
+            return UnevictableReason::NothingToEvictDependentResidue;
+        }
+        if has_dependency_residue {
+            return UnevictableReason::NothingToEvictDependencyResidue;
+        }
+        if has_cell_data_residue {
+            return UnevictableReason::NothingToEvictTransientCellData;
+        }
+        if has_in_progress_cells {
+            return UnevictableReason::NothingToEvictInProgressCells;
+        }
+        if has_outdated {
+            return UnevictableReason::NothingToEvictOutdated;
+        }
+        if has_aggregated_session_clean {
+            return UnevictableReason::NothingToEvictAggregatedSessionClean;
+        }
+        if has_other_transient {
+            return UnevictableReason::NothingToEvictTransientOther;
+        }
+        if flags.prefetched() {
+            return UnevictableReason::NothingToEvictPrefetched;
+        }
+        // At this point only transient flags keep the task alive. The benign
+        // case is `current_session_clean` alone.
+        if flags.current_session_clean() {
+            let flag_bits = flags.0;
+            let mut only_session_clean_bits = TaskFlags::default();
+            only_session_clean_bits.set_current_session_clean(true);
+            if flag_bits == only_session_clean_bits.0 {
+                return UnevictableReason::NothingToEvictSessionCleanOnly;
+            }
+        }
+        UnevictableReason::NothingToEvictOther
     }
 }
 
