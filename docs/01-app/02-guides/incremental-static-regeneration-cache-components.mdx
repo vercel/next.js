@@ -15,8 +15,8 @@ related:
 [Incremental Static Regeneration (ISR)](/docs/app/glossary#incremental-static-regeneration-isr) with [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) lets you:
 
 - Prerender a subset of your dynamic routes at build time with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params)
-- For routes not included in that subset, prerender a static shell treating unknown params as runtime data
-- Serve something instantly for every route: either the prerendered page or the static shell
+- For routes not included in that subset, prerender a [**fallback shell**](/docs/app/api-reference/config/next-config-js/partialFallbacks) treating unknown params as runtime data
+- Serve something instantly for every route: either the prerendered page or the fallback shell
 - Progressively improve what visitors see for a given route as param values become known from real traffic
 
 If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router, this is the Cache Components equivalent.
