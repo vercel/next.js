@@ -1,7 +1,9 @@
 export default function () {}
 
-const dynamicPath = `/:foobar`
+function getDynamicPath() {
+  return `/:foobar`
+}
 
 export const config = {
-  matcher: ['/foo', dynamicPath],
+  matcher: ['/foo', getDynamicPath()],
 }
