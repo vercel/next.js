@@ -89,25 +89,14 @@
     "build:post-bundle": "node build-scripts/post-bundle.mjs",
     "build:types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "build:check-errors": "node check-error-codes.js",
-    "build:taskr": "taskr release",
-    "dev:taskr": "cross-env NEXT_SERVER_NO_MANGLE=1 taskr",
     "prepublishOnly": "cd ../../ && turbo run build",
     "types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
     "typescript": "tsec --noEmit",
     "ncc-compiled": "node build-scripts/ncc/index.mjs",
-    "ncc-compiled:taskr": "taskr ncc",
     "storybook": "BROWSER=none storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test-storybook": "test-storybook",
     "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
-  },
-  "taskr": {
-    "requires": [
-      "./taskfile-webpack.js",
-      "./taskfile-ncc.js",
-      "./taskfile-swc.js",
-      "./taskfile-watch.js"
-    ]
   },
   "dependencies": {
     "@next/env": "16.3.0-canary.2",
@@ -193,8 +182,6 @@
     "@storybook/test-runner": "0.21.0",
     "@swc/core": "1.11.24",
     "@swc/types": "0.1.7",
-    "@taskr/clear": "1.1.0",
-    "@taskr/esnext": "1.1.0",
     "@types/babel__code-frame": "7.0.6",
     "@types/babel__core": "7.20.5",
     "@types/babel__generator": "7.27.0",
@@ -346,7 +333,6 @@
     "style-loader": "4.0.0",
     "superstruct": "1.0.3",
     "tar": "7.5.11",
-    "taskr": "1.1.0",
     "terser": "5.27.0",
     "terser-webpack-plugin": "5.3.9",
     "text-table": "0.2.0",
