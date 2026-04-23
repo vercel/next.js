@@ -17,6 +17,7 @@ env:
   TURBOPACK_BENCH_PROGRESS: '1'
   NODE_LTS_VERSION: 20
   TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 jobs:
   test:
