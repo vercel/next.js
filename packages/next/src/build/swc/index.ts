@@ -1246,7 +1246,8 @@ function bindingToApi(
   return async function createProject(
     options: ProjectOptions,
     turboEngineOptions,
-    callbacks?: import('./types').TurbopackProjectCallbacks
+    callbacks?: import('./types').TurbopackProjectCallbacks,
+    daemon?: { __napiType: 'DaemonHandle' }
   ) {
     return new ProjectImpl(
       await binding.projectNew(
@@ -1257,7 +1258,8 @@ function bindingToApi(
             require('../../shared/lib/turbopack/internal-error') as typeof import('../../shared/lib/turbopack/internal-error')
           ).throwTurbopackInternalError,
           onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
-        }
+        },
+        daemon
       )
     )
   }
@@ -1387,7 +1389,8 @@ async function loadWasm(importPath = '') {
       createProject(
         _options: ProjectOptions,
         _turboEngineOptions?: TurboEngineOptions | undefined,
-        _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
+        _callbacks?: import('./types').TurbopackProjectCallbacks | undefined,
+        _daemon?: { __napiType: 'DaemonHandle' }
       ): Promise<Project> {
         throw new Error(
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
@@ -1413,6 +1416,18 @@ async function loadWasm(importPath = '') {
       databaseCompact(_path: string): Promise<void> {
         throw new Error(
           'Turbopack database compaction is not supported on this platform'
+        )
+      },
+      startTurbopackDaemon(_socketPath: string): Promise<void> {
+        throw new Error(
+          'Turbopack daemon is not supported on this platform because native bindings are not available.'
+        )
+      },
+      connectTurbopackDaemon(
+        _socketPath: string
+      ): Promise<{ __napiType: 'DaemonHandle' }> {
+        throw new Error(
+          'Turbopack daemon is not supported on this platform because native bindings are not available.'
         )
       },
     },
@@ -1650,6 +1665,12 @@ function loadNative(importPath?: string): Binding {
           customBindingsPath ?? bindingsPath!,
           false
         ),
+        startTurbopackDaemon(socketPath: string) {
+          return (customBindings ?? bindings).startTurbopackDaemon(socketPath)
+        },
+        connectTurbopackDaemon(socketPath: string) {
+          return (customBindings ?? bindings).connectTurbopackDaemon(socketPath)
+        },
         startTurbopackTraceServerHandle(traceFilePath, port) {
           return (customBindings ?? bindings).startTurbopackTraceServerHandle(
             traceFilePath,
@@ -1853,4 +1874,16 @@ export async function warnForEdgeRuntime(
   isProduction: boolean
 ): Promise<NapiSourceDiagnostic[]> {
   return getBindingsSync().rspack.warnForEdgeRuntime(source, isProduction)
+}
+
+/**
+ * Connects to the shared Turbopack daemon if `NEXT_TURBOPACK_DAEMON_SOCKET`
+ * is set in the environment. Returns `undefined` when running without a daemon.
+ */
+export async function connectDaemonFromEnv(
+  bindings: Binding
+): Promise<{ __napiType: 'DaemonHandle' } | undefined> {
+  const socketPath = process.env.NEXT_TURBOPACK_DAEMON_SOCKET
+  if (!socketPath) return undefined
+  return bindings.turbo.connectTurbopackDaemon(socketPath)
 }

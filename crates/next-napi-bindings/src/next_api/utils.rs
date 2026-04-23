@@ -75,26 +75,79 @@ impl<T> Deref for DetachedVc<T> {
 /// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
 //
 // TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
+enum RootTaskKind {
+    /// In-process root task backed by a local TurboTasks instance.
+    Local {
+        ctx: NextTurbopackContext,
+        task_id: TaskId,
+    },
+    /// Remote root task backed by a daemon subscription.
+    /// Currently unused — will be wired up when subscription forwarding
+    /// is implemented in the daemon server.
+    #[allow(dead_code)]
+    Remote {
+        client: next_api::ipc::client::DaemonClient,
+        callback_id: next_api::ipc::protocol::CallbackId,
+    },
+}
+
 pub struct RootTask {
-    turbopack_ctx: NextTurbopackContext,
-    task_id: Option<TaskId>,
+    kind: RootTaskKind,
+}
+
+impl RootTask {
+    pub fn local(turbopack_ctx: NextTurbopackContext, task_id: TaskId) -> Self {
+        RootTask {
+            kind: RootTaskKind::Local {
+                ctx: turbopack_ctx,
+                task_id,
+            },
+        }
+    }
+
+    /// TODO(multi-project): Used once subscription forwarding is implemented.
+    #[allow(dead_code)]
+    pub fn remote(
+        client: next_api::ipc::client::DaemonClient,
+        callback_id: next_api::ipc::protocol::CallbackId,
+    ) -> Self {
+        RootTask {
+            kind: RootTaskKind::Remote {
+                client,
+                callback_id,
+            },
+        }
+    }
 }
 
 impl Drop for RootTask {
     fn drop(&mut self) {
-        // TODO stop the root task
+        // Intentionally a no-op. JavaScript must call `root_task_dispose`
+        // explicitly (in a try/finally block). For local tasks, the task_id
+        // is silently leaked. For remote tasks, the daemon cleans up
+        // subscriptions when the connection drops.
     }
 }
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] root_task: External<RootTask>,
 ) -> napi::Result<()> {
-    if let Some(task) = root_task.task_id.take() {
-        root_task
-            .turbopack_ctx
-            .turbo_tasks()
-            .dispose_root_task(task);
+    match &root_task.kind {
+        RootTaskKind::Local { ctx, task_id } => {
+            ctx.turbo_tasks().dispose_root_task(*task_id);
+        }
+        RootTaskKind::Remote {
+            client,
+            callback_id,
+        } => {
+            // Send CancelSubscription to the daemon to stop the remote subscription.
+            let client = client.clone();
+            let callback_id = *callback_id;
+            tokio::spawn(async move {
+                let _ = client.cancel_subscription(callback_id).await;
+            });
+        }
     }
     Ok(())
 }
@@ -466,10 +519,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             }
         }
     });
-    Ok(External::new(RootTask {
-        turbopack_ctx: ctx,
-        task_id: Some(task_id),
-    }))
+    Ok(External::new(RootTask::local(ctx, task_id)))
 }
 
 // Await the source and return fatal issues if there are any, otherwise

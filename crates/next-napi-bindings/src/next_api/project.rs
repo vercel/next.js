@@ -413,9 +413,75 @@ impl From<NapiDefineEnv> for DefineEnv {
 }
 
 pub struct ProjectInstance {
-    turbopack_ctx: NextTurbopackContext,
-    container: ResolvedVc<ProjectContainer>,
+    turbopack_ctx: Option<NextTurbopackContext>,
+    container: Option<ResolvedVc<ProjectContainer>>,
     exit_receiver: tokio::sync::Mutex<Option<ExitReceiver>>,
+    /// When set, this project was created via the daemon IPC path.
+    remote: Option<RemoteProject>,
+}
+
+/// A project handle obtained from the daemon (IPC path).
+pub struct RemoteProject {
+    pub client: next_api::ipc::client::DaemonClient,
+    pub handle: next_api::ipc::protocol::OpaqueHandle,
+}
+
+impl RemoteProject {
+    /// Send a request to the daemon and return the result.
+    async fn call(
+        &self,
+        build_req: impl FnOnce(
+            next_api::ipc::protocol::CallId,
+        ) -> next_api::ipc::protocol::DaemonRequest,
+    ) -> napi::Result<next_api::ipc::protocol::DaemonResult> {
+        let call_id = self.client.next_call_id();
+        let req = build_req(call_id);
+        self.client
+            .call(req)
+            .await
+            .map_err(|e| napi::Error::from_reason(e.to_string()))
+    }
+
+    /// Send a request expecting a `DaemonResult::Unit` response.
+    async fn call_unit(
+        &self,
+        build_req: impl FnOnce(
+            next_api::ipc::protocol::CallId,
+        ) -> next_api::ipc::protocol::DaemonRequest,
+    ) -> napi::Result<()> {
+        match self.call(build_req).await? {
+            next_api::ipc::protocol::DaemonResult::Unit => Ok(()),
+            other => Err(napi::Error::from_reason(format!(
+                "Unexpected daemon response: expected Unit, got {other:?}"
+            ))),
+        }
+    }
+}
+
+impl ProjectInstance {
+    /// Returns the turbopack context. Panics if this is a remote project.
+    fn ctx(&self) -> &NextTurbopackContext {
+        self.turbopack_ctx
+            .as_ref()
+            .expect("turbopack_ctx not available on remote project")
+    }
+
+    /// Returns the container. Panics if this is a remote project.
+    fn container(&self) -> ResolvedVc<ProjectContainer> {
+        self.container
+            .expect("container not available on remote project")
+    }
+
+    /// Returns an error if this is a daemon-backed (remote) project.
+    /// Used to guard functions not yet forwarded over IPC.
+    fn require_local(&self, fn_name: &str) -> napi::Result<()> {
+        if self.remote.is_some() {
+            return Err(napi::Error::from_reason(format!(
+                "{fn_name} is not yet supported for daemon-backed projects"
+            )));
+        }
+        Ok(())
+    }
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -424,7 +490,55 @@ pub fn project_new(
     options: NapiProjectOptions,
     turbo_engine_options: NapiTurboEngineOptions,
     napi_callbacks: NapiNextTurbopackCallbacksJsObject,
+    #[napi(ts_arg_type = "{ __napiType: \"DaemonHandle\" } | undefined | null")] daemon: Option<
+        External<DaemonHandle>,
+    >,
 ) -> napi::Result<JsObject> {
+    // IPC path: forward to daemon if a daemon handle is provided
+    if let Some(daemon) = daemon {
+        // In the daemon path, napi_callbacks is intentionally unused — error
+        // telemetry callbacks are not forwarded to the daemon. Internal errors
+        // in daemon-backed projects are surfaced as plain napi::Error values.
+        return env.spawn_future(async move {
+            let dist_dir = options.dist_dir.to_string();
+            let opts: next_api::project::ProjectOptions = options.into();
+            let turbo_opts = next_api::ipc::protocol::TurboEngineOptions {
+                memory_limit: turbo_engine_options.memory_limit.map(|m| m as u64),
+                dependency_tracking: turbo_engine_options.dependency_tracking,
+                is_ci: turbo_engine_options.is_ci,
+                is_short_session: turbo_engine_options.is_short_session,
+                skip_compaction: turbo_engine_options.skip_compaction,
+            };
+            let call_id = daemon.client.next_call_id();
+            let req = next_api::ipc::protocol::DaemonRequest::ProjectNew {
+                call_id,
+                options: opts,
+                turbo_engine_options: turbo_opts,
+                dist_dir,
+            };
+            let result = daemon
+                .client
+                .call(req)
+                .await
+                .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+            match result {
+                next_api::ipc::protocol::DaemonResult::ProjectHandle(handle) => {
+                    Ok(External::new(ProjectInstance {
+                        turbopack_ctx: None,
+                        container: None,
+                        exit_receiver: tokio::sync::Mutex::new(None),
+                        remote: Some(RemoteProject {
+                            client: daemon.client.clone(),
+                            handle,
+                        }),
+                    }))
+                }
+                _ => Err(napi::Error::from_reason("Unexpected daemon response")),
+            }
+        });
+    }
+
+    // In-process path (existing implementation)
     let napi_callbacks = NapiNextTurbopackCallbacks::from_js(&env, napi_callbacks)?;
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
@@ -619,9 +733,10 @@ pub fn project_new(
             }
 
             Ok(External::new(ProjectInstance {
-                turbopack_ctx,
-                container,
+                turbopack_ctx: Some(turbopack_ctx),
+                container: Some(container),
                 exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
+                remote: None,
             }))
         }
         .instrument(tracing::info_span!("create project")),
@@ -710,9 +825,23 @@ pub async fn project_update(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     options: NapiPartialProjectOptions,
 ) -> napi::Result<()> {
-    let ctx = &project.turbopack_ctx;
+    if let Some(remote) = project.remote.as_ref() {
+        let handle = remote.handle;
+        let options = options.into();
+        remote
+            .call_unit(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectUpdate {
+                    call_id,
+                    project: handle,
+                    options,
+                },
+            )
+            .await?;
+        return Ok(());
+    }
+    let ctx = &project.ctx();
     let options = options.into();
-    let container = project.container;
+    let container = project.container();
 
     ctx.turbo_tasks()
         .run(async move { container.update(options).await })
@@ -726,11 +855,23 @@ pub async fn project_update(
 pub async fn project_invalidate_file_system_cache(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<()> {
+    if let Some(remote) = project.remote.as_ref() {
+        let handle = remote.handle;
+        remote
+            .call_unit(|call_id| {
+                next_api::ipc::protocol::DaemonRequest::ProjectInvalidateFileSystemCache {
+                    call_id,
+                    project: handle,
+                }
+            })
+            .await?;
+        return Ok(());
+    }
     tokio::task::spawn_blocking(move || {
         // TODO: Let the JS caller specify a reason? We need to limit the reasons to ones we know
         // how to generate a message for on the Rust side of the FFI.
         project
-            .turbopack_ctx
+            .ctx()
             .turbo_tasks()
             .backend()
             .backing_storage()
@@ -749,15 +890,28 @@ pub async fn project_invalidate_file_system_cache(
 pub async fn project_on_exit(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
+    if let Some(remote) = project.remote.as_ref() {
+        let handle = remote.handle;
+        let _ = remote
+            .call_unit(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectOnExit {
+                    call_id,
+                    project: handle,
+                },
+            )
+            .await;
+        return;
+    }
     project_on_exit_internal(&project).await
 }
 
 async fn project_on_exit_internal(project: &ProjectInstance) {
     let exit_receiver = project.exit_receiver.lock().await.take();
-    exit_receiver
-        .expect("`project.onExitSync` must only be called once")
-        .run_exit_handler()
-        .await;
+    if let Some(receiver) = exit_receiver {
+        receiver.run_exit_handler().await;
+    }
+    // Silently ignore double calls — can happen if both project_on_exit
+    // and project_shutdown are called by the JS side.
 }
 
 /// Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
@@ -770,7 +924,19 @@ async fn project_on_exit_internal(project: &ProjectInstance) {
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
-    project.turbopack_ctx.turbo_tasks().stop_and_wait().await;
+    if let Some(remote) = project.remote.as_ref() {
+        let handle = remote.handle;
+        let _ = remote
+            .call_unit(
+                |call_id| next_api::ipc::protocol::DaemonRequest::ProjectShutdown {
+                    call_id,
+                    project: handle,
+                },
+            )
+            .await;
+        return;
+    }
+    project.ctx().turbo_tasks().stop_and_wait().await;
     project_on_exit_internal(&project).await;
 }
 
@@ -1303,8 +1469,9 @@ pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
-    let ctx = &project.turbopack_ctx;
-    let container = project.container;
+    project.require_local("project_write_all_entrypoints_to_disk")?;
+    let ctx = &project.ctx();
+    let container = project.container();
     let tt = ctx.turbo_tasks();
 
     #[turbo_tasks::function(operation)]
@@ -1530,7 +1697,7 @@ pub async fn project_write_all_entrypoints_to_disk(
         result: if let Some(entrypoints) = entrypoints {
             Some(NapiEntrypoints::from_entrypoints_op(
                 &entrypoints,
-                &project.turbopack_ctx,
+                project.ctx(),
             )?)
         } else {
             None
@@ -1712,10 +1879,11 @@ async fn output_assets_operation(
 pub async fn project_entrypoints(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
-    let container = project.container;
+    project.require_local("project_entrypoints")?;
+    let container = project.container();
 
     let (entrypoints, issues, diags) = project
-        .turbopack_ctx
+        .ctx()
         .turbo_tasks()
         .run_once(async move {
             let entrypoints_with_issues_op = get_entrypoints_with_issues_operation(container);
@@ -1738,7 +1906,7 @@ pub async fn project_entrypoints(
     let result = match entrypoints {
         Some(entrypoints) => Some(NapiEntrypoints::from_entrypoints_op(
             &entrypoints,
-            &project.turbopack_ctx,
+            project.ctx(),
         )?),
         None => None,
     };
@@ -1756,8 +1924,9 @@ pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
-    let turbopack_ctx = project.turbopack_ctx.clone();
-    let container = project.container;
+    project.require_local("project_entrypoints_subscribe")?;
+    let turbopack_ctx = project.ctx().clone();
+    let container = project.container();
     subscribe(
         turbopack_ctx.clone(),
         func,
@@ -1848,14 +2017,15 @@ pub fn project_hmr_events(
     target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    project.require_local("project_hmr_events")?;
     let hmr_target = target
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
 
-    let container = project.container;
+    let container = project.container();
     let session = TransientInstance::new(());
     subscribe(
-        project.turbopack_ctx.clone(),
+        project.ctx().clone(),
         func,
         {
             let outer_chunk_name = chunk_name.clone();
@@ -1988,13 +2158,14 @@ pub fn project_hmr_chunk_names_subscribe(
     target: String,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
+    project.require_local("project_hmr_chunk_names_subscribe")?;
     let hmr_target = target
         .parse::<HmrTarget>()
         .map_err(napi::Error::from_reason)?;
 
-    let container = project.container;
+    let container = project.container();
     subscribe(
-        project.turbopack_ctx.clone(),
+        project.ctx().clone(),
         func,
         move || async move {
             let hmr_chunk_names_with_issues_op =
@@ -2089,12 +2260,13 @@ pub fn project_update_info_subscribe(
     aggregation_ms: u32,
     func: JsFunction,
 ) -> napi::Result<()> {
+    project.require_local("project_update_info_subscribe")?;
     let func: ThreadsafeFunction<UpdateMessage> = func.create_threadsafe_function(0, |ctx| {
         let message = ctx.value;
         Ok(vec![NapiUpdateMessage::from(message)])
     })?;
     tokio::spawn(async move {
-        let tt = project.turbopack_ctx.turbo_tasks();
+        let tt = project.ctx().turbo_tasks();
         loop {
             let update_info = tt
                 .aggregated_update_info(Duration::ZERO, Duration::ZERO)
@@ -2137,6 +2309,7 @@ pub fn project_compilation_events_subscribe(
     func: JsFunction,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
+    project.require_local("project_compilation_events_subscribe")?;
     let tsfn: ThreadsafeFunction<Arc<dyn CompilationEvent>> =
         func.create_threadsafe_function(0, |ctx| {
             let event: Arc<dyn CompilationEvent> = ctx.value;
@@ -2155,7 +2328,7 @@ pub fn project_compilation_events_subscribe(
         })?;
 
     tokio::spawn(async move {
-        let tt = project.turbopack_ctx.turbo_tasks();
+        let tt = project.ctx().turbo_tasks();
         let mut receiver = tt.subscribe_to_compilation_events(event_types);
         while let Some(msg) = receiver.recv().await {
             let status = tsfn.call(Ok(msg), ThreadsafeFunctionCallMode::Blocking);
@@ -2203,6 +2376,34 @@ pub struct StackFrame {
     /// 1-indexed, unlike source map tokens
     pub column: Option<u32>,
     pub method_name: Option<RcStr>,
+}
+
+impl From<StackFrame> for next_api::ipc::protocol::StackFrame {
+    fn from(f: StackFrame) -> Self {
+        next_api::ipc::protocol::StackFrame {
+            is_server: f.is_server,
+            is_ignored: f.is_ignored,
+            file: f.file,
+            original_file: f.original_file,
+            line: f.line,
+            column: f.column,
+            method_name: f.method_name,
+        }
+    }
+}
+
+impl From<next_api::ipc::protocol::StackFrame> for StackFrame {
+    fn from(f: next_api::ipc::protocol::StackFrame) -> Self {
+        StackFrame {
+            is_server: f.is_server,
+            is_ignored: f.is_ignored,
+            file: f.file,
+            original_file: f.original_file,
+            line: f.line,
+            column: f.column,
+            method_name: f.method_name,
+        }
+    }
 }
 
 #[turbo_tasks::value(transparent)]
@@ -2372,6 +2573,13 @@ pub async fn project_trace_source_operation(
     })))
 }
 
+/// Maps source-map operation errors to napi::Error. These operations are
+/// race-condition prone (source files may change or be deleted between the
+/// request and the lookup), so we don't use TurbopackInternalError.
+fn map_source_map_error(e: impl Into<anyhow::Error>) -> napi::Error {
+    napi::Error::from_reason(PrettyPrintError(&e.into()).to_string())
+}
+
 #[tracing::instrument(level = "info", name = "apply SourceMap to stack frame", skip_all)]
 #[napi]
 pub async fn project_trace_source(
@@ -2379,8 +2587,9 @@ pub async fn project_trace_source(
     frame: StackFrame,
     current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
-    let container = project.container;
-    let ctx = &project.turbopack_ctx;
+    project.require_local("project_trace_source")?;
+    let container = project.container();
+    let ctx = &project.ctx();
     ctx.turbo_tasks()
         .run(async move {
             let traced_frame = project_trace_source_operation(
@@ -2392,11 +2601,8 @@ pub async fn project_trace_source(
             .await?;
             Ok(ReadRef::into_owned(traced_frame))
         })
-        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
-        // source files may have changed or been deleted), so these probably aren't internal errors?
-        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+        .map_err(map_source_map_error)
 }
 
 #[tracing::instrument(level = "info", name = "get source content for asset", skip_all)]
@@ -2405,8 +2611,9 @@ pub async fn project_get_source_for_asset(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    let container = project.container;
-    let ctx = &project.turbopack_ctx;
+    project.require_local("project_get_source_for_asset")?;
+    let container = project.container();
+    let ctx = &project.ctx();
     ctx.turbo_tasks()
         .run(async move {
             #[turbo_tasks::function(operation)]
@@ -2428,11 +2635,8 @@ pub async fn project_get_source_for_asset(
 
             Ok(Some(source_content.content().to_str()?.into_owned()))
         })
-        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
-        // source files may have changed or been deleted), so these probably aren't internal errors?
-        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+        .map_err(map_source_map_error)
 }
 
 #[tracing::instrument(level = "info", name = "get SourceMap for asset", skip_all)]
@@ -2441,8 +2645,9 @@ pub async fn project_get_source_map(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
-    let container = project.container;
-    let ctx = &project.turbopack_ctx;
+    project.require_local("project_get_source_map")?;
+    let container = project.container();
+    let ctx = &project.ctx();
     ctx.turbo_tasks()
         .run(async move {
             let source_map = get_source_map_rope_operation(container, file_path)
@@ -2453,11 +2658,8 @@ pub async fn project_get_source_map(
             };
             Ok(Some(map.content().to_str()?.to_string()))
         })
-        // HACK: Don't use `TurbopackInternalError`, this function is race-condition prone (the
-        // source files may have changed or been deleted), so these probably aren't internal errors?
-        // Ideally we should differentiate.
         .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e.into()).to_string()))
+        .map_err(map_source_map_error)
 }
 
 #[napi]
@@ -2465,6 +2667,7 @@ pub fn project_get_source_map_sync(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     file_path: RcStr,
 ) -> napi::Result<Option<String>> {
+    project.require_local("project_get_source_map_sync")?;
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
     })
@@ -2475,9 +2678,10 @@ pub async fn project_write_analyze_data(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     app_dir_only: bool,
 ) -> napi::Result<TurbopackResult<()>> {
-    let container = project.container;
+    project.require_local("project_write_analyze_data")?;
+    let container = project.container();
     let (issues, diagnostics) = project
-        .turbopack_ctx
+        .ctx()
         .turbo_tasks()
         .run_once(async move {
             let analyze_data_op = write_analyze_data_with_issues_operation(container, app_dir_only);
@@ -2542,9 +2746,9 @@ async fn get_all_compilation_issues_operation(
 pub async fn project_get_all_compilation_issues(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<()>> {
-    let container = project.container;
+    let container = project.container();
     let (issues, diagnostics) = project
-        .turbopack_ctx
+        .ctx()
         .turbo_tasks()
         .run_once(async move {
             let op = get_all_compilation_issues_operation(container);
@@ -2578,4 +2782,30 @@ pub async fn turbopack_database_compact(path: String) -> napi::Result<()> {
     turbo_tasks_backend::compact_database(&PathBuf::from(path), &version_info, is_ci)
         .map_err(|e| napi::Error::from_reason(format!("Database compaction failed: {e}")))?;
     Ok(())
+}
+
+// ── Multi-project daemon support ──────────────────────────────────────────────
+
+/// Opaque handle wrapping a DaemonClient, passed as NAPI External.
+pub struct DaemonHandle {
+    pub client: next_api::ipc::client::DaemonClient,
+}
+
+/// Start the Turbopack daemon server. Blocks until the process is killed.
+/// Called by `next internal turbopack-daemon <socket-path>`.
+#[napi]
+pub async fn start_turbopack_daemon(socket_path: String) -> napi::Result<()> {
+    next_api::daemon::start_daemon(&socket_path)
+        .await
+        .map_err(|e| napi::Error::from_reason(e.to_string()))
+}
+
+/// Connect to a Turbopack daemon at socket_path.
+/// Returns an opaque External handle for use in subsequent NAPI calls.
+#[napi(ts_return_type = "Promise<{ __napiType: \"DaemonHandle\" }>")]
+pub async fn connect_turbopack_daemon(socket_path: String) -> napi::Result<External<DaemonHandle>> {
+    let client = next_api::ipc::client::DaemonClient::connect(&socket_path)
+        .await
+        .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    Ok(External::new(DaemonHandle { client }))
 }

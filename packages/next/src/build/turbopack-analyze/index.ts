@@ -3,7 +3,7 @@ import type { __ApiPreviewProps } from '../../server/api-utils'
 
 import path from 'path'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { createDefineEnv, loadBindings } from '../swc'
+import { connectDaemonFromEnv, createDefineEnv, loadBindings } from '../swc'
 import { isCI } from '../../server/ci-info'
 import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compilation-events'
 import { getSupportedBrowsers } from '../get-supported-browsers'
@@ -51,9 +51,13 @@ export async function turbopackAnalyze(
   const persistentCaching =
     config.experimental?.turbopackFileSystemCacheForBuild || false
   const rootPath = config.turbopack?.root || config.outputFileTracingRoot || dir
+
+  // Connect to daemon if socket path is provided via environment
+  const daemon = await connectDaemonFromEnv(bindings)
+
   const project = await bindings.turbo.createProject(
     {
-      rootPath: config.turbopack?.root || config.outputFileTracingRoot || dir,
+      rootPath: rootPath,
       projectPath: normalizePath(path.relative(rootPath, dir) || '.'),
       distDir,
       nextConfig: config,
@@ -97,7 +101,9 @@ export async function turbopackAnalyze(
       dependencyTracking: persistentCaching,
       isCi: isCI,
       isShortSession: true,
-    }
+    },
+    undefined,
+    daemon
   )
 
   try {

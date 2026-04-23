@@ -135,6 +135,18 @@ function parseValidInspectAddress(value: string): DebugAddress {
   return address
 }
 
+/**
+ * Lazily parses raw process.argv for --experimental-project groups using the
+ * multi-project helper. Even a single --experimental-project activates the
+ * shared Turbopack daemon.
+ */
+function getProjectGroups() {
+  if (!process.argv.includes('--experimental-project')) return []
+  const { parseProjectGroups } =
+    require('../lib/multi-project') as typeof import('../lib/multi-project')
+  return parseProjectGroups(process.argv)
+}
+
 const program = new NextRootCommand()
 
 program
@@ -216,6 +228,18 @@ program
       .choices(['all', 'overview'])
       .preset('all')
   )
+  .addOption(
+    new Option(
+      '--turbopack-daemon <socketPath>',
+      'Internal: connect to turbopack daemon'
+    ).hideHelp()
+  )
+  .addOption(
+    new Option(
+      '--experimental-project <dir>',
+      'Experimental: share a Turbopack daemon across multiple projects. Pass once per project directory. Actual parsing is done by getProjectGroups() from raw argv.'
+    ).hideHelp()
+  )
   .action((directory: string, options: NextBuildOptions) => {
     if (options.debugPrerender) {
       // @ts-expect-error not readonly
@@ -238,6 +262,14 @@ program
         options.internalTrace === 'all'
           ? 'turbo-tasks'
           : String(options.internalTrace)
+    }
+
+    // Multi-project detection: parse raw argv for --experimental-project groups
+    const projects = getProjectGroups()
+    if (projects.length >= 1) {
+      return import('../lib/multi-project.js').then((mod) =>
+        mod.runMultiProject('build', projects)
+      )
     }
 
     // ensure process exits after build completes so open handles/connections
@@ -372,6 +404,18 @@ program
       .choices(['all', 'overview'])
       .preset('all')
   )
+  .addOption(
+    new Option(
+      '--turbopack-daemon <socketPath>',
+      'Internal: connect to turbopack daemon'
+    ).hideHelp()
+  )
+  .addOption(
+    new Option(
+      '--experimental-project <dir>',
+      'Experimental: share a Turbopack daemon across multiple projects. Pass once per project directory. Actual parsing is done by getProjectGroups() from raw argv.'
+    ).hideHelp()
+  )
   .action(
     (directory: string, options: NextDevOptions, { _optionValueSources }) => {
       if (options.experimentalNextConfigStripTypes) {
@@ -392,6 +436,15 @@ program
             ? 'turbo-tasks'
             : String(options.internalTrace)
       }
+
+      // Multi-project detection: parse raw argv for --experimental-project groups
+      const projects = getProjectGroups()
+      if (projects.length >= 1) {
+        return import('../lib/multi-project.js').then((mod) =>
+          mod.runMultiProject('dev', projects)
+        )
+      }
+
       const portSource = _optionValueSources.port
       import('../cli/next-dev.js').then((mod) =>
         mod.nextDev(options, portSource, directory)
@@ -700,4 +753,13 @@ internal
   })
   .usage('[directory] [options]')
 
+internal
+  .command('turbopack-daemon', { hidden: true })
+  .description('Internal: run the shared Turbopack daemon process.')
+  .argument('<socketPath>', 'The socket path to listen on.')
+  .action((socketPath: string) => {
+    return import('../cli/internal/turbopack-daemon.js').then((mod) =>
+      mod.runTurbopackDaemon(socketPath)
+    )
+  })
 program.parse(process.argv)

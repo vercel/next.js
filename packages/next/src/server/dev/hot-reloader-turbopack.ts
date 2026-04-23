@@ -27,7 +27,12 @@ import type {
   NodeJsHmrUpdate,
   NodeJsPartialHmrUpdate,
 } from '../../build/swc/types'
-import { createDefineEnv, getBindingsSync, HmrTarget } from '../../build/swc'
+import {
+  connectDaemonFromEnv,
+  createDefineEnv,
+  getBindingsSync,
+  HmrTarget,
+} from '../../build/swc'
 import * as Log from '../../build/output/log'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
 import {
@@ -377,6 +382,9 @@ export async function createHotReloaderTurbopack(
     opts.nextConfig.turbopack?.root ||
     opts.nextConfig.outputFileTracingRoot ||
     projectPath
+  // Connect to daemon if socket path is provided via environment
+  const daemon = await connectDaemonFromEnv(bindings)
+
   const project = await bindings.turbo.createProject(
     {
       rootPath,
@@ -418,7 +426,9 @@ export async function createHotReloaderTurbopack(
     {
       memoryLimit: opts.nextConfig.experimental?.turbopackMemoryLimit,
       isShortSession: false,
-    }
+    },
+    undefined,
+    daemon
   )
   backgroundLogCompilationEvents(project, {
     eventTypes: [

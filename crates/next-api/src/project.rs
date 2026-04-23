@@ -372,7 +372,7 @@ pub struct ProjectOptions {
     pub server_hmr: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug, Encode, Decode)]
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
     /// a file outside this root will fail. Think of this as a chroot.

@@ -1,7 +1,7 @@
 [package]
 name = "next-api"
 version = "0.1.0"
-description = "TBD"
+description = "Next.js Turbopack API — project management, IPC daemon, and build orchestration"
 license = "MIT"
 edition = "2024"
 autobenches = false
@@ -36,6 +36,7 @@ tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fs = { workspace = true }
@@ -50,14 +51,13 @@ turbopack-node = { workspace = true, default-features = false }
 turbopack-nodejs = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-wasm = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
 urlencoding = { workspace = true }
 
 [dev-dependencies]
 turbo-tasks-malloc = { workspace = true }
-tokio = { workspace = true }
 tempfile = { workspace = true }
-turbo-tasks-backend = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
-vergen = { workspace = true }
+vergen-gitcl = { workspace = true }
