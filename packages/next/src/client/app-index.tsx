@@ -28,12 +28,6 @@ import type { StaticIndicatorState } from './dev/hot-reloader/app/hot-reloader-a
 import { createInitialRSCPayloadFromFallbackPrerender } from './flight-data-helpers'
 import { getDeploymentId } from '../shared/lib/deployment-id'
 import { setNavigationBuildId } from './navigation-build-id'
-import {
-  addOutputExportDataSuffix,
-  fetchOutputExportDataResponse,
-  fetchOutputExportFallbackResponse,
-  stripOutputExportDataSuffix,
-} from './output-export-fallback'
 
 /// <reference types="react-dom/experimental" />
 
@@ -52,11 +46,24 @@ const instantTestStaticFetch: Promise<Response> | undefined =
     ? (self.__next_instant_test as unknown as Promise<Response>)
     : undefined
 
+let outputExportFallbackBootstrap:
+  | typeof import('./output-export-fallback-bootstrap')
+  | null
+if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
+  outputExportFallbackBootstrap =
+    require('./output-export-fallback-bootstrap') as typeof import('./output-export-fallback-bootstrap')
+} else {
+  outputExportFallbackBootstrap = null
+}
+
+const outputExportFallbackState =
+  outputExportFallbackBootstrap?.getOutputExportFallbackState()
+
 const hasLockedStaticShell =
   Boolean(instantTestStaticFetch) ||
   // @ts-expect-error
   Boolean(window.__NEXT_CLIENT_RESUME) ||
-  Boolean(window.__NEXT_EXPORT_FALLBACK)
+  Boolean(outputExportFallbackState?.isFallback)
 
 const encoder = new TextEncoder()
 
@@ -86,16 +93,8 @@ declare global {
      */
     __next_r?: string
     __next_f: NextFlight
-    __NEXT_EXPORT_FALLBACK?: boolean
-    __NEXT_EXPORT_ORIGINAL_URL?: string
   }
 }
-
-const NEXT_EXPORT_ORIGINAL_URL_SESSION_KEY = '__NEXT_EXPORT_ORIGINAL_URL'
-const outputExportResumeUrl =
-  typeof window !== 'undefined' && window.__NEXT_EXPORT_ORIGINAL_URL
-    ? new URL(window.__NEXT_EXPORT_ORIGINAL_URL, window.location.href)
-    : undefined
 
 function nextServerDataCallback(seg: FlightSegment): void {
   if (seg[0] === 0) {
@@ -227,8 +226,8 @@ let initialFlightStreamForCache: ReadableStream<Uint8Array> | null = null
 if (
   process.env.__NEXT_CACHE_COMPONENTS &&
   process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS &&
-  !window.__NEXT_EXPORT_FALLBACK &&
-  !outputExportResumeUrl
+  !outputExportFallbackState?.isFallback &&
+  !outputExportFallbackState?.resumeUrl
 ) {
   const [forReact, forCache] = readable.tee()
   readable = forReact
@@ -275,70 +274,19 @@ if (instantTestStaticFetch) {
       initialRSCPayload
     )
   })
-} else if (window.__NEXT_EXPORT_FALLBACK) {
+} else if (
+  outputExportFallbackBootstrap &&
+  outputExportFallbackState?.isFallback
+) {
   // This must be checked before __NEXT_CLIENT_RESUME because
   // _fallback.html may be based on a PPR shell that also sets
   // __NEXT_CLIENT_RESUME. In export fallback mode, we always
   // fetch the correct route's RSC payload from the network.
-  initialServerResponse = (async () => {
-    const renderedUrl = new URL(window.location.href)
-    const fallbackResult = await fetchOutputExportFallbackResponse(
-      renderedUrl,
-      {
-        credentials: 'same-origin',
-      }
-    )
-
-    if (fallbackResult !== null) {
-      try {
-        sessionStorage.setItem(
-          NEXT_EXPORT_ORIGINAL_URL_SESSION_KEY,
-          renderedUrl.href
-        )
-      } catch {}
-
-      const fallbackDocumentUrl = stripOutputExportDataSuffix(
-        new URL(fallbackResult.response.url)
-      )
-
-      window.location.replace(fallbackDocumentUrl.href)
-      return await new Promise<InitialRSCPayload>(() => {})
-    }
-
-    const response =
-      (await fetchOutputExportDataResponse(
-        new URL('/_not-found', renderedUrl),
-        {
-          credentials: 'same-origin',
-        }
-      )) ??
-      (await fetch(
-        addOutputExportDataSuffix(new URL('/_not-found', renderedUrl)),
-        {
-          credentials: 'same-origin',
-        }
-      ))
-
-    const processedResponse = Promise.resolve(response)
-      .then(processFetch)
-      .then(({ response: processed }) => processed)
-
-    const fallbackInitialRSCPayload = await createFromFetch<InitialRSCPayload>(
-      processedResponse,
-      {
-        callServer,
-        findSourceMapURL,
-        debugChannel,
-        unstable_allowPartialStream: true,
-      }
-    )
-
-    return createInitialRSCPayloadFromFallbackPrerender(
-      await processedResponse,
-      fallbackInitialRSCPayload,
-      renderedUrl
-    )
-  })()
+  initialServerResponse =
+    outputExportFallbackBootstrap.createOutputExportFallbackInitialResponse({
+      createFromFetch,
+      debugChannel,
+    })
 } else if (
   // @ts-expect-error
   window.__NEXT_CLIENT_RESUME
@@ -349,8 +297,8 @@ if (instantTestStaticFetch) {
   const processedClientResumeFetch = Promise.resolve(clientResumeFetch)
     .then(processFetch)
     .then(({ response }) => response)
-  const exportOriginalUrl = outputExportResumeUrl
-  delete window.__NEXT_EXPORT_ORIGINAL_URL
+  const exportOriginalUrl = outputExportFallbackState?.resumeUrl
+  outputExportFallbackBootstrap?.clearOutputExportOriginalUrl()
   initialServerResponse = Promise.resolve(
     createFromFetch<InitialRSCPayload>(processedClientResumeFetch, {
       callServer,
@@ -508,7 +456,7 @@ export async function hydrate(
 
   if (
     document.documentElement.id === '__next_error__' ||
-    window.__NEXT_EXPORT_FALLBACK
+    outputExportFallbackState?.isFallback
   ) {
     let element = reactEl
     // Server rendering failed, fall back to client-side rendering
@@ -528,12 +476,13 @@ export async function hydrate(
     // Remove the visibility:hidden style injected by _fallback.html to
     // prevent flashing stale content. MutationObserver fires after React
     // commits its first render (replaces #__next children).
-    if (window.__NEXT_EXPORT_FALLBACK) {
-      const observer = new MutationObserver(() => {
-        document.getElementById('__next-export-fallback-style')?.remove()
-        observer.disconnect()
-      })
-      observer.observe(appElement, { childList: true })
+    if (
+      outputExportFallbackBootstrap &&
+      outputExportFallbackState?.isFallback
+    ) {
+      outputExportFallbackBootstrap.removeOutputExportFallbackStyleOnCommit(
+        appElement
+      )
     }
   } else {
     React.startTransition(() => {

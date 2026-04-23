@@ -38,7 +38,6 @@ import {
 } from '../../flight-data-helpers'
 import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 import { urlToUrlWithoutFlightMarker } from '../../route-params'
-import { fetchOutputExportFallbackResponse } from '../../output-export-fallback'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 import { getDeploymentId } from '../../../shared/lib/deployment-id'
 import { getNavigationBuildId } from '../../navigation-build-id'
@@ -213,52 +212,54 @@ export async function fetchServerResponse(
     let postponed = !!res.headers.get(NEXT_DID_POSTPONE_HEADER)
     let isFlightResponse = contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
 
-    if (process.env.NODE_ENV === 'production') {
-      if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-        if (!isFlightResponse) {
-          isFlightResponse = contentType.startsWith('text/plain')
-        }
-      }
-    }
-
     if (
       process.env.NODE_ENV === 'production' &&
-      process.env.__NEXT_CONFIG_OUTPUT === 'export' &&
-      (!isFlightResponse || !res.ok || !res.body)
+      process.env.__NEXT_CONFIG_OUTPUT === 'export'
     ) {
-      const fallbackResult = await fetchOutputExportFallbackResponse(
-        originalUrl,
-        {
-          credentials: 'same-origin',
-          headers,
-        }
-      )
+      if (!isFlightResponse) {
+        isFlightResponse = contentType.startsWith('text/plain')
+      }
 
-      if (fallbackResult !== null) {
-        usedOutputExportFallback = true
-        const fallbackFetch = await createFetch<NavigationFlightResponse>(
-          new URL(fallbackResult.response.url),
-          headers,
-          'auto',
-          false
+      if (!isFlightResponse || !res.ok || !res.body) {
+        const { fetchOutputExportFallbackResponse } =
+          require('../../output-export-fallback') as typeof import('../../output-export-fallback')
+
+        const fallbackResult = await fetchOutputExportFallbackResponse(
+          originalUrl,
+          {
+            credentials: 'same-origin',
+            headers,
+          }
         )
 
-        res = {
-          ...fallbackFetch,
-          redirected: false,
-          url: originalUrl.href,
+        if (fallbackResult !== null) {
+          usedOutputExportFallback = true
+          const fallbackFetch = await createFetch<NavigationFlightResponse>(
+            new URL(fallbackResult.response.url),
+            headers,
+            'auto',
+            false
+          )
+
+          res = {
+            ...fallbackFetch,
+            redirected: false,
+            url: originalUrl.href,
+          }
+          responseUrl = originalUrl
+          canonicalUrl = originalUrl
+          contentType = res.headers.get('content-type') || ''
+          interception = !!res.headers.get('vary')?.includes(NEXT_URL)
+          // Static export fallback payloads are partial-by-construction, but
+          // static hosts cannot attach the normal postpone header. Treat them as
+          // partial so Flight decoding accepts the closed stream and the router
+          // keeps the fallback shell suspended until dynamic holes resolve.
+          postponed = true
+          isFlightResponse = true
         }
-        responseUrl = originalUrl
-        canonicalUrl = originalUrl
-        contentType = res.headers.get('content-type') || ''
-        interception = !!res.headers.get('vary')?.includes(NEXT_URL)
-        // Static export fallback payloads are partial-by-construction, but
-        // static hosts cannot attach the normal postpone header. Treat them as
-        // partial so Flight decoding accepts the closed stream and the router
-        // keeps the fallback shell suspended until dynamic holes resolve.
-        postponed = true
-        isFlightResponse = true
       }
+    } else {
+      // Static export fallback discovery is erased from non-export bundles.
     }
 
     // If fetch returns something different than flight response handle it like a mpa navigation

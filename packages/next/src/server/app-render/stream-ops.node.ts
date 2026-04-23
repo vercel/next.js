@@ -798,7 +798,7 @@ export async function continueDynamicPrerender(
 
 export async function continueStaticFallbackPrerender(
   prerenderStream: AnyStream,
-  opts: import('./stream-ops.web').ContinueStaticPrerenderOptions
+  opts: import('./stream-ops.web').ContinueStaticFallbackPrerenderOptions
 ): Promise<AnyStream> {
   const webResult = await webContinueStaticFallbackPrerender(
     nodeReadableToWebReadableStream(prerenderStream),
