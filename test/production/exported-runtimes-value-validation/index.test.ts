@@ -88,7 +88,7 @@ describe('Exported runtimes value validation', () => {
       )
       expect(result.stderr).toEqual(
         expect.stringContaining(
-          'Unsupported template literal with expressions at "config.runtime".'
+          'Unsupported node type "BinaryExpression" at "config.runtime".'
         )
       )
     }
