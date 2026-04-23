@@ -24,6 +24,7 @@ env:
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
   TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 permissions:
   contents: read
