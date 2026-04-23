@@ -739,10 +739,17 @@ function createSegmentFromRouteTree(newRouteTree: RouteTree): Segment {
       return PAGE_SEGMENT_KEY
     }
     // This is based on equivalent logic in addSearchParamsIfPageSegment, used
-    // on the server.
-    const stringifiedQuery = JSON.stringify(
-      Object.fromEntries(new URLSearchParams(renderedSearch))
-    )
+    // on the server. We must preserve multi-value params (e.g. ?k=A&k=B) by
+    // using getAll() rather than Object.fromEntries(), which would collapse
+    // repeated keys and lose values — causing ?k=A&k=B to produce the same
+    // segment key as ?k=B and incorrectly reuse a stale cache node.
+    const urlSearchParams = new URLSearchParams(renderedSearch)
+    const queryObj: Record<string, string | string[]> = {}
+    for (const key of new Set(urlSearchParams.keys())) {
+      const vals = urlSearchParams.getAll(key)
+      queryObj[key] = vals.length === 1 ? vals[0] : vals
+    }
+    const stringifiedQuery = JSON.stringify(queryObj)
     return stringifiedQuery !== '{}'
       ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
       : PAGE_SEGMENT_KEY
