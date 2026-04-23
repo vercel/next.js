@@ -79,6 +79,7 @@ import {
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
+import { encodeCacheTagsHeaderValue } from '../../server/lib/cache-tags-header' with { 'turbopack-transition': 'next-server-utility' }
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { createInstantTestScriptInsertionTransformStream } from '../../server/stream-utils/node-web-streams-helper' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
@@ -1620,7 +1621,10 @@ export async function handler(
         // minimal mode while rendering a static page.
         const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
         if (isMinimalMode && isSSG && tags && typeof tags === 'string') {
-          res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
+          res.setHeader(
+            NEXT_CACHE_TAGS_HEADER,
+            encodeCacheTagsHeaderValue(tags)
+          )
         }
 
         const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
@@ -1681,6 +1685,13 @@ export async function handler(
 
         if (!isMinimalMode || !isSSG) {
           delete headers[NEXT_CACHE_TAGS_HEADER]
+        } else if (typeof headers[NEXT_CACHE_TAGS_HEADER] === 'string') {
+          // Encode before the iteration below writes it to the response, so
+          // non-ASCII characters in the stored tag value don't trip Node's
+          // header validation.
+          headers[NEXT_CACHE_TAGS_HEADER] = encodeCacheTagsHeaderValue(
+            headers[NEXT_CACHE_TAGS_HEADER] as string
+          )
         }
 
         for (let [key, value] of Object.entries(headers)) {
@@ -1703,7 +1714,7 @@ export async function handler(
       // minimal mode while rendering a static page.
       const tags = cachedData.headers?.[NEXT_CACHE_TAGS_HEADER]
       if (isMinimalMode && isSSG && tags && typeof tags === 'string') {
-        res.setHeader(NEXT_CACHE_TAGS_HEADER, tags)
+        res.setHeader(NEXT_CACHE_TAGS_HEADER, encodeCacheTagsHeaderValue(tags))
       }
 
       // If the request is a data request, then we shouldn't set the status code

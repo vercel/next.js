@@ -29,6 +29,7 @@ import {
 } from '../../server/web/utils'
 import { getCacheControlHeader } from '../../server/lib/cache-control'
 import { INFINITE_CACHE, NEXT_CACHE_TAGS_HEADER } from '../../lib/constants'
+import { encodeCacheTagsHeaderValue } from '../../server/lib/cache-tags-header'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
   CachedRouteKind,
@@ -488,6 +489,14 @@ export async function handler(
 
       if (!(isMinimalMode && isIsr)) {
         headers.delete(NEXT_CACHE_TAGS_HEADER)
+      } else {
+        // Encode before the value crosses the HTTP wire, so non-ASCII
+        // characters in the stored tag list don't trip Node's header
+        // validation.
+        const tags = headers.get(NEXT_CACHE_TAGS_HEADER)
+        if (typeof tags === 'string') {
+          headers.set(NEXT_CACHE_TAGS_HEADER, encodeCacheTagsHeaderValue(tags))
+        }
       }
 
       // If cache control is already set on the response we don't
