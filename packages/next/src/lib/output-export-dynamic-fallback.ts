@@ -1,3 +1,5 @@
+import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
+
 type OutputExportDynamicFallbackConfig = {
   output?: string
   cacheComponents?: boolean
@@ -37,16 +39,19 @@ export function getOutputExportFallbackVariantPath(
 export function getOutputExportFallbackStaticPrefix(
   routePath: string
 ): string | null {
-  const segments = routePath.split('/').filter(Boolean)
-  const firstDynamicIndex = segments.findIndex(
-    (segment) => segment.startsWith('[') && segment.endsWith(']')
+  const route = parseNormalizedAppRoute(routePath)
+  const firstDynamicIndex = route.segments.findIndex(
+    (segment) => segment.type === 'dynamic'
   )
 
   if (firstDynamicIndex === -1) {
     return null
   }
 
-  return segments.slice(0, firstDynamicIndex).join('/')
+  return route.segments
+    .slice(0, firstDynamicIndex)
+    .map((segment) => segment.name)
+    .join('/')
 }
 
 export function getOutputExportFallbackConflicts(

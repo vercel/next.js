@@ -33,6 +33,11 @@ describe('output export dynamic fallback flags', () => {
     expect(getOutputExportFallbackStaticPrefix('/org/acme/chat')).toBeNull()
   })
 
+  it('derives the static prefix before an intercepted dynamic segment', () => {
+    expect(getOutputExportFallbackStaticPrefix('/feed/(.)[id]')).toBe('feed')
+    expect(getOutputExportFallbackStaticPrefix('/(.)[id]')).toBe('')
+  })
+
   it('detects conflicting dynamic fallback routes that share one static prefix', () => {
     expect(
       getOutputExportFallbackConflicts([
