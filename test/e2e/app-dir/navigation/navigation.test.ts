@@ -280,6 +280,45 @@ describe('app dir - navigation', () => {
         expect(browser.eval('window.pageYOffset')).resolves.toEqual(0)
       )
     })
+
+    it('should scroll to the same hash when clicked multiple times', async () => {
+      // Test for issue #88986: clicking the same hash link multiple times should scroll each time
+      const browser = await next.browser('/hash-link-back-to-same-page')
+
+      // First click to hash-6
+      await browser.elementByCss('#link-to-6').click()
+      await retry(() =>
+        expect(browser.eval('window.pageYOffset')).resolves.toEqual(114)
+      )
+
+      // Manually scroll down to simulate user scrolling away
+      await browser.eval('window.scrollBy(0, 500)')
+      let scrollPos = await browser.eval('window.pageYOffset')
+      expect(scrollPos).toBeGreaterThan(114)
+
+      // Click the same hash link again - should scroll back to hash-6
+      await browser.elementByCss('#link-to-6').click()
+      await retry(() =>
+        expect(browser.eval('window.pageYOffset')).resolves.toEqual(114)
+      )
+
+      // Click hash-50
+      await browser.elementByCss('#link-to-50').click()
+      await retry(() =>
+        expect(browser.eval('window.pageYOffset')).resolves.toEqual(730)
+      )
+
+      // Manually scroll down again
+      await browser.eval('window.scrollBy(0, 500)')
+      scrollPos = await browser.eval('window.pageYOffset')
+      expect(scrollPos).toBeGreaterThan(730)
+
+      // Click the same hash link again - should scroll back to hash-50
+      await browser.elementByCss('#link-to-50').click()
+      await retry(() =>
+        expect(browser.eval('window.pageYOffset')).resolves.toEqual(730)
+      )
+    })
   })
 
   describe('relative hashes and queries', () => {
