@@ -125,8 +125,8 @@ function buildModuleScope(module: Module): Map<string, Node> {
     let declaration: Node | undefined
     if (isExportDeclaration(item)) {
       declaration = item.declaration
-    } else if (isVariableDeclaration(item as Node)) {
-      declaration = item as Node
+    } else if ((item as Node).type === 'VariableDeclaration') {
+      declaration = item as VariableDeclaration
     }
 
     if (!declaration || !isVariableDeclaration(declaration)) continue
@@ -152,7 +152,7 @@ function evaluateMethodCall(
   path?: string[]
 ): ExtractValueResult {
   if (Array.isArray(obj) && methodName === 'join') {
-    return { value: obj.join(...(args as [string?])) }
+    return { value: obj.join(args[0]) }
   }
 
   return {
@@ -295,7 +295,8 @@ function extractValue(
         const exprResult = extractValue(
           node.expressions[i],
           path,
-          scope
+          scope,
+          resolving
         )
         if ('unsupported' in exprResult) return exprResult
         result += String(exprResult.value)
@@ -311,7 +312,7 @@ function extractValue(
       }
     }
 
-    const objResult = extractValue(node.callee.object, path, scope)
+    const objResult = extractValue(node.callee.object, path, scope, resolving)
     if ('unsupported' in objResult) return objResult
 
     let methodName: string | undefined
@@ -333,7 +334,7 @@ function extractValue(
           path: formatCodePath(path),
         }
       }
-      const argResult = extractValue(arg.expression, path, scope)
+      const argResult = extractValue(arg.expression, path, scope, resolving)
       if ('unsupported' in argResult) return argResult
       args.push(argResult.value)
     }
@@ -345,7 +346,7 @@ function extractValue(
     isTsTypeAssertion(node) ||
     isTsConstAssertion(node)
   ) {
-    return extractValue(node.expression, undefined, scope)
+    return extractValue(node.expression, path, scope, resolving)
   } else {
     return {
       unsupported: `Unsupported node type "${node.type}"`,

@@ -315,6 +315,96 @@ describe('extractExportedConstValue', () => {
     })
   })
 
+  describe('edge cases', () => {
+    it('evaluates numeric expressions in template literals', () => {
+      // const version = 2
+      // export const config = { matcher: `/api/v${version}` }
+      const module = createModule([
+        constDeclaration('version', numericLiteral(2)),
+        constDeclaration(
+          'config',
+          objectExpression({
+            matcher: templateLiteral(['/api/v', ''], [identifier('version')]),
+          }),
+          true
+        ),
+      ])
+
+      const result = extractExportedConstValue(module, 'config')
+      expect(result).toEqual({ value: { matcher: '/api/v2' } })
+    })
+
+    it('evaluates Array.join() on an empty array', () => {
+      const module = createModule([
+        constDeclaration('empty', arrayExpression([])),
+        constDeclaration(
+          'config',
+          objectExpression({
+            value: callExpression(identifier('empty'), 'join', [stringLiteral('|')]),
+          }),
+          true
+        ),
+      ])
+
+      const result = extractExportedConstValue(module, 'config')
+      expect(result).toEqual({ value: { value: '' } })
+    })
+
+    it('resolves identifiers through multiple levels', () => {
+      // const a = b; const b = '/path'
+      // export const config = { matcher: a }
+      const module = createModule([
+        constDeclaration('a', identifier('b')),
+        constDeclaration('b', stringLiteral('/path')),
+        constDeclaration(
+          'config',
+          objectExpression({ matcher: identifier('a') }),
+          true
+        ),
+      ])
+
+      const result = extractExportedConstValue(module, 'config')
+      expect(result).toEqual({ value: { matcher: '/path' } })
+    })
+
+    it('evaluates Array.join() with numeric array values', () => {
+      const module = createModule([
+        constDeclaration(
+          'nums',
+          arrayExpression([numericLiteral(1), numericLiteral(2), numericLiteral(3)])
+        ),
+        constDeclaration(
+          'config',
+          objectExpression({
+            value: callExpression(identifier('nums'), 'join', [stringLiteral('|')]),
+          }),
+          true
+        ),
+      ])
+
+      const result = extractExportedConstValue(module, 'config')
+      expect(result).toEqual({ value: { value: '1|2|3' } })
+    })
+
+    it('handles mixed identifier and literal in template literal', () => {
+      // const prefix = 'api'
+      // export const config = { matcher: `/${prefix}-v1/:path*` }
+      const module = createModule([
+        constDeclaration('prefix', stringLiteral('api')),
+        constDeclaration(
+          'config',
+          objectExpression({
+            matcher: templateLiteral(['/', '-v1/:path*'], [identifier('prefix')]),
+          }),
+          true
+        ),
+      ])
+
+      const result = extractExportedConstValue(module, 'config')
+      expect(result).toEqual({ value: { matcher: '/api-v1/:path*' } })
+    })
+  })
+
   describe('i18n middleware matcher pattern', () => {
     it('evaluates the common i18n locale pattern', () => {
       // const locales = ['en', 'de', 'fr'] as const

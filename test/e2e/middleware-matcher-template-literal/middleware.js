@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-const segments = ['dashboard', 'settings'] as const
+const segments = ['dashboard', 'settings']
 
 export const config = {
   matcher: ['/', `/(${segments.join('|')})/:path*`],
