@@ -59,7 +59,7 @@ patchedDependencies:
     hash: 587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67
     path: patches/minizlib@3.1.0.patch
   npm-package-arg@13.0.1:
-    hash: 60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070
+    hash: 3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013
     path: patches/npm-package-arg@13.0.1.patch
   postcss-scss:
     hash: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
@@ -21036,7 +21036,7 @@ snapshots:
       make-fetch-happen: 15.0.2
       minimatch: 3.0.5
       multimatch: 5.0.0
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       npm-packlist: 10.0.3
       npm-registry-fetch: 19.1.0
       nx: 22.2.3(@swc/core@1.11.24(@swc/helpers@0.5.15))
@@ -21386,7 +21386,7 @@ snapshots:
       minimatch: 10.2.4
       nopt: 8.1.0
       npm-install-checks: 7.1.2
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       npm-pick-manifest: 11.0.3
       npm-registry-fetch: 19.1.0
       pacote: 21.0.4
@@ -29564,7 +29564,7 @@ snapshots:
   init-package-json@8.2.2:
     dependencies:
       '@npmcli/package-json': 7.0.2
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       promzard: 2.0.0
       read: 4.1.0
       semver: 7.7.3
@@ -31024,7 +31024,7 @@ snapshots:
       make-fetch-happen: 15.0.2
       minimatch: 3.0.5
       multimatch: 5.0.0
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       npm-packlist: 10.0.3
       npm-registry-fetch: 19.1.0
       nx: 22.2.3(@swc/core@1.11.24(@swc/helpers@0.5.15))
@@ -31083,7 +31083,7 @@ snapshots:
 
   libnpmaccess@10.0.3:
     dependencies:
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       npm-registry-fetch: 19.1.0
     transitivePeerDependencies:
       - supports-color
@@ -31098,7 +31098,7 @@ snapshots:
     dependencies:
       '@npmcli/package-json': 7.0.2
       ci-info: 4.0.0
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       npm-registry-fetch: 19.1.0
       proc-log: 5.0.0
       semver: 7.6.3
@@ -32921,7 +32921,7 @@ snapshots:
       semver: 7.6.3
       validate-npm-package-name: 6.0.2
 
-  npm-package-arg@13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070):
+  npm-package-arg@13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013):
     dependencies:
       hosted-git-info: 9.0.2
       proc-log: 5.0.0
@@ -32944,7 +32944,7 @@ snapshots:
     dependencies:
       npm-install-checks: 8.0.0
       npm-normalize-package-bin: 5.0.0
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       semver: 7.6.3
 
   npm-pick-manifest@9.1.0:
@@ -32962,7 +32962,7 @@ snapshots:
       minipass: 7.1.2
       minipass-fetch: 4.0.1
       minizlib: 3.1.0(patch_hash=587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67)
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       proc-log: 5.0.0
     transitivePeerDependencies:
       - supports-color
@@ -33454,7 +33454,7 @@ snapshots:
       cacache: 20.0.3
       fs-minipass: 3.0.3
       minipass: 7.1.2
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       npm-packlist: 10.0.3
       npm-pick-manifest: 10.0.0
       npm-registry-fetch: 19.1.0
@@ -33476,7 +33476,7 @@ snapshots:
       cacache: 20.0.3
       fs-minipass: 3.0.3
       minipass: 7.1.2
-      npm-package-arg: 13.0.1(patch_hash=60224f312822e7432d6a6532e12d2b052cf8d1f0c9cc3a5cf7b3d00446906070)
+      npm-package-arg: 13.0.1(patch_hash=3b7c893ddbf69560f6bab04baa7d5bee64a7ae606ec8496c381833c710352013)
       npm-packlist: 10.0.3
       npm-pick-manifest: 11.0.3
       npm-registry-fetch: 19.1.0

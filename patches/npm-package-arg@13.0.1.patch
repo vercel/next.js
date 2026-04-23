@@ -1,5 +1,5 @@
 diff --git a/lib/npa.js b/lib/npa.js
-index 50121b99efbe362de2770f97b98d8a79c327cb9e..dc6f8ff84b262bbf320e30ee9d6fbb1dbe0c1854 100644
+index 50121b99efbe362de2770f97b98d8a79c327cb9e..8fba56d604d90692e58e857a3e48f37385bd5379 100644
 --- a/lib/npa.js
 +++ b/lib/npa.js
 @@ -5,6 +5,7 @@ const isWindows = process.platform === 'win32'
@@ -10,7 +10,7 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..dc6f8ff84b262bbf320e30ee9d6fbb1d
  const { homedir } = require('node:os')
  const HostedGit = require('hosted-git-info')
  const semver = require('semver')
-@@ -78,6 +79,153 @@ function isAliasSpec (spec) {
+@@ -78,6 +79,137 @@ function isAliasSpec (spec) {
    return spec.toLowerCase().startsWith('npm:')
  }
  
@@ -21,13 +21,13 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..dc6f8ff84b262bbf320e30ee9d6fbb1d
 +  return spec.toLowerCase().startsWith('catalog:')
 +}
 +
-+// Cache parsed catalogs by absolute pnpm-workspace.yaml path.
++// Cache parsed catalogs by absolute pnpm-lock.yaml path.
 +const catalogCache = new Map()
 +
-+function findPnpmWorkspaceFile (startDir) {
++function findPnpmLockfile (startDir) {
 +  let dir = path.resolve(startDir)
 +  while (true) {
-+    const candidate = path.join(dir, 'pnpm-workspace.yaml')
++    const candidate = path.join(dir, 'pnpm-lock.yaml')
 +    if (fs.existsSync(candidate)) {
 +      return candidate
 +    }
@@ -39,84 +39,68 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..dc6f8ff84b262bbf320e30ee9d6fbb1d
 +  }
 +}
 +
-+// Minimal YAML extractor for the `catalog:` and `catalogs:` blocks of
-+// pnpm-workspace.yaml. Only supports the flat `name: version` shape that pnpm
-+// itself documents; anything exotic should be resolved by pnpm before reaching
-+// this code path.
-+function parseCatalogs (yamlPath) {
-+  if (catalogCache.has(yamlPath)) {
-+    return catalogCache.get(yamlPath)
++// Extract the top-level `catalogs:` block from pnpm-lock.yaml. The lockfile
++// format is strictly regular (2-space indent, no anchors/flow style under this
++// section), so a tiny line-based scanner is sufficient — dropping in a real
++// YAML dep inside npm-package-arg would be overkill.
++//
++// Shape we care about:
++//   catalogs:
++//     default:                     <- 2sp
++//       typescript:                <- 4sp
++//         specifier: 6.0.2         <- 6sp
++//         version: 6.0.2
++function parseCatalogs (lockPath) {
++  if (catalogCache.has(lockPath)) {
++    return catalogCache.get(lockPath)
 +  }
-+  const text = fs.readFileSync(yamlPath, 'utf8')
++  const text = fs.readFileSync(lockPath, 'utf8')
 +  const lines = text.split(/\r?\n/)
-+  const catalogs = { default: {} }
-+  let section = null // 'default' | string | null
-+  let sectionIndent = -1
-+  for (const rawLine of lines) {
-+    const line = rawLine.replace(/#.*$/, '').trimEnd()
-+    if (line === '') {
-+      continue
-+    }
-+    const topMatch = /^(catalog|catalogs):\s*$/.exec(line)
-+    if (topMatch) {
-+      section = topMatch[1] === 'catalog' ? 'default' : '__named__'
-+      sectionIndent = -1
++  const catalogs = Object.create(null)
++  let inCatalogs = false
++  let catalogName = null
++  let pkgName = null
++  for (const line of lines) {
++    if (!inCatalogs) {
++      if (line === 'catalogs:') {
++        inCatalogs = true
++      }
 +      continue
 +    }
 +    if (/^\S/.test(line)) {
-+      // back at the top level, leaving any catalog block
-+      section = null
++      // left the catalogs: block (next top-level key)
++      break
++    }
++    // Alternatives ordered longest-first so the regex engine picks the real
++    // indent depth rather than the first matching (shortest) alternative.
++    const match = /^( {6}| {4}| {2})(.*)$/.exec(line)
++    if (!match) {
 +      continue
 +    }
-+    if (section === null) {
-+      continue
-+    }
-+    const indentMatch = /^(\s+)(\S.*)$/.exec(line)
-+    if (!indentMatch) {
-+      continue
-+    }
-+    const indent = indentMatch[1].length
-+    const body = indentMatch[2]
-+    if (sectionIndent === -1) {
-+      sectionIndent = indent
-+    }
-+    if (section === 'default' && indent === sectionIndent) {
-+      const entry = /^("?)([^"\s:]+)\1\s*:\s*(.+?)\s*$/.exec(body)
-+      if (entry) {
-+        catalogs.default[entry[2]] = stripQuotes(entry[3])
-+      }
-+      continue
-+    }
-+    if (section === '__named__') {
-+      if (indent === sectionIndent) {
-+        // `catalogName:` header
-+        const header = /^("?)([^"\s:]+)\1\s*:\s*$/.exec(body)
-+        if (header) {
-+          section = header[2]
-+          catalogs[section] = {}
++    const indent = match[1].length
++    const body = match[2]
++    if (indent === 2) {
++      const header = /^([^\s:]+):\s*$/.exec(body)
++      if (header) {
++        catalogName = header[1]
++        pkgName = null
++        if (!catalogs[catalogName]) {
++          catalogs[catalogName] = Object.create(null)
 +        }
 +      }
-+      continue
-+    }
-+    // inside a named catalog
-+    if (indent > sectionIndent) {
-+      const entry = /^("?)([^"\s:]+)\1\s*:\s*(.+?)\s*$/.exec(body)
-+      if (entry) {
-+        catalogs[section][entry[2]] = stripQuotes(entry[3])
-+      }
-+    } else {
-+      // dedented back to the `catalogs:` level — either a new named catalog
-+      // header or we've left the block entirely. Re-enter the dispatcher on
-+      // the next iteration by resetting.
-+      section = '__named__'
-+      const header = /^("?)([^"\s:]+)\1\s*:\s*$/.exec(body)
++    } else if (indent === 4 && catalogName) {
++      const header = /^('?)([^'\s:]+)\1:\s*$/.exec(body)
 +      if (header) {
-+        section = header[2]
-+        catalogs[section] = {}
++        pkgName = header[2]
++      }
++    } else if (indent === 6 && catalogName && pkgName) {
++      const entry = /^version:\s*(.+?)\s*$/.exec(body)
++      if (entry) {
++        catalogs[catalogName][pkgName] = stripQuotes(entry[1])
 +      }
 +    }
 +  }
-+  catalogCache.set(yamlPath, catalogs)
++  catalogCache.set(lockPath, catalogs)
 +  return catalogs
 +}
 +
@@ -136,25 +120,25 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..dc6f8ff84b262bbf320e30ee9d6fbb1d
 +    )
 +  }
 +  const catalogName = spec.slice('catalog:'.length).trim() || 'default'
-+  const yamlPath = findPnpmWorkspaceFile(where || process.cwd())
-+  if (!yamlPath) {
++  const lockPath = findPnpmLockfile(where || process.cwd())
++  if (!lockPath) {
 +    throw Object.assign(
-+      new Error(`Cannot resolve "${name}@${spec}": no pnpm-workspace.yaml found from ${where}`),
-+      { code: 'ECATALOGNOWORKSPACE' }
++      new Error(`Cannot resolve "${name}@${spec}": no pnpm-lock.yaml found from ${where}. Run \`pnpm install\` to generate one.`),
++      { code: 'ECATALOGNOLOCKFILE' }
 +    )
 +  }
-+  const catalogs = parseCatalogs(yamlPath)
++  const catalogs = parseCatalogs(lockPath)
 +  const catalog = catalogs[catalogName]
 +  if (!catalog) {
 +    throw Object.assign(
-+      new Error(`Cannot resolve "${name}@${spec}": catalog "${catalogName}" not found in ${yamlPath}`),
++      new Error(`Cannot resolve "${name}@${spec}": catalog "${catalogName}" not found in ${lockPath}`),
 +      { code: 'ECATALOGMISSING' }
 +    )
 +  }
 +  const resolved = catalog[name]
 +  if (!resolved) {
 +    throw Object.assign(
-+      new Error(`Cannot resolve "${name}@${spec}": "${name}" not listed in catalog "${catalogName}" at ${yamlPath}`),
++      new Error(`Cannot resolve "${name}@${spec}": "${name}" not listed in catalog "${catalogName}" at ${lockPath}`),
 +      { code: 'ECATALOGENTRYMISSING' }
 +    )
 +  }
@@ -164,7 +148,7 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..dc6f8ff84b262bbf320e30ee9d6fbb1d
  function resolve (name, spec, where, arg) {
    const res = new Result({
      raw: arg,
-@@ -94,6 +242,12 @@ function resolve (name, spec, where, arg) {
+@@ -94,6 +226,12 @@ function resolve (name, spec, where, arg) {
      where = process.cwd()
    }
  
