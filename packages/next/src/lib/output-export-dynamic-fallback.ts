@@ -1,4 +1,5 @@
 import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
+import { getParamProperties } from '../shared/lib/router/utils/get-segment-param'
 
 type OutputExportDynamicFallbackConfig = {
   output?: string
@@ -17,17 +18,6 @@ type OutputExportFallbackConflict = {
 export type OutputExportFallbackManifestEntry = {
   route: string
   fallbackPath: string
-}
-
-function isCatchAllLikeSegment(segment: string): boolean {
-  return (
-    segment.startsWith('[...') ||
-    segment.startsWith('[[...') ||
-    segment.startsWith('(...)[') ||
-    segment.startsWith('(.)[') ||
-    segment.startsWith('(..)[') ||
-    segment.startsWith('(..)(..)[')
-  )
 }
 
 export function getOutputExportFallbackPath(staticPrefix: string): string {
@@ -66,20 +56,24 @@ export function getOutputExportFallbackStaticPrefix(
 }
 
 export function needsOutputExportFallbackManifest(routePath: string): boolean {
-  const segments = routePath.split('/').filter(Boolean)
-  const firstDynamicIndex = segments.findIndex(
-    (segment) => segment.startsWith('[') && segment.endsWith(']')
+  const route = parseNormalizedAppRoute(routePath)
+  const firstDynamicIndex = route.segments.findIndex(
+    (segment) => segment.type === 'dynamic'
   )
 
   if (firstDynamicIndex === -1) {
     return false
   }
 
-  if (segments.length - firstDynamicIndex <= 1) {
+  if (route.segments.length - firstDynamicIndex <= 1) {
     return false
   }
 
-  return !isCatchAllLikeSegment(segments[firstDynamicIndex])
+  const firstDynamicSegment = route.segments[firstDynamicIndex]
+  return (
+    firstDynamicSegment.type === 'dynamic' &&
+    !getParamProperties(firstDynamicSegment.param.paramType).repeat
+  )
 }
 
 export function getOutputExportFallbackConflicts(

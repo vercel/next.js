@@ -7,6 +7,7 @@ import {
   isOutputExportDynamicFallbackEnabled,
   isOutputExportOptimisticRoutingEnabled,
   isOutputExportVaryParamsEnabled,
+  needsOutputExportFallbackManifest,
 } from './output-export-dynamic-fallback'
 
 describe('output export dynamic fallback flags', () => {
@@ -36,6 +37,15 @@ describe('output export dynamic fallback flags', () => {
   it('derives the static prefix before an intercepted dynamic segment', () => {
     expect(getOutputExportFallbackStaticPrefix('/feed/(.)[id]')).toBe('feed')
     expect(getOutputExportFallbackStaticPrefix('/(.)[id]')).toBe('')
+  })
+
+  it('detects manifest needs for intercepted dynamic segments', () => {
+    expect(needsOutputExportFallbackManifest('/feed/(.)[id]/comments')).toBe(
+      true
+    )
+    expect(
+      needsOutputExportFallbackManifest('/feed/(.)[...slug]/comments')
+    ).toBe(false)
   })
 
   it('detects conflicting dynamic fallback routes that share one static prefix', () => {

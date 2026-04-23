@@ -59,6 +59,30 @@ function createOutputExportError(message: string): OutputExportError {
   return error
 }
 
+function formatOutputPath(outDir: string, filePath: string): string {
+  return `/${relative(outDir, filePath).split(sep).join('/')}`
+}
+
+function assertNoOutputExportPathCollision(
+  outDir: string,
+  filePaths: string[],
+  routePath: string
+): void {
+  const collisionPath = filePaths.find((filePath) => existsSync(filePath))
+  if (!collisionPath) {
+    return
+  }
+
+  throw createOutputExportError(
+    `The route "${routePath}" conflicts with the internal "__fallback" path used by dynamic route fallbacks in static export mode at "${formatOutputPath(
+      outDir,
+      collisionPath
+    )}". ` +
+      `Please rename this route or public file to something else.\n\n` +
+      `Learn more: https://nextjs.org/docs/app/guides/static-exports`
+  )
+}
+
 export async function copyExportedAppArtifacts({
   outDir,
   orig,
@@ -84,16 +108,38 @@ export async function copyExportedAppArtifacts({
   const jsonDest =
     subFolders && route !== '/index' ? folderJsonDest : flatJsonDest
 
-  if (
-    checkRouteCollision &&
-    [flatHtmlDest, flatJsonDest, folderHtmlDest, folderJsonDest].some((dest) =>
-      existsSync(dest)
-    )
-  ) {
-    throw createOutputExportError(
-      `The route "${routeCollisionPath ?? routePath}" conflicts with the internal "__fallback" path used by dynamic route fallbacks in static export mode. ` +
-        `Please rename this route to something else.\n\n` +
-        `Learn more: https://nextjs.org/docs/app/guides/static-exports`
+  const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
+  const segmentCopies: Array<{
+    src: string
+    dest: string
+  }> = []
+
+  if (existsSync(segmentsDir)) {
+    const segmentsDirDest = join(outDir, segmentsRoutePath)
+    const segmentPaths = await collectSegmentPaths(segmentsDir)
+    for (const segmentFileSrc of segmentPaths) {
+      const segmentPath =
+        '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
+      const segmentFilename =
+        convertSegmentPathToStaticExportFilename(segmentPath)
+      segmentCopies.push({
+        src: join(segmentsDir, segmentFileSrc),
+        dest: join(segmentsDirDest, segmentFilename),
+      })
+    }
+  }
+
+  if (checkRouteCollision) {
+    assertNoOutputExportPathCollision(
+      outDir,
+      [
+        flatHtmlDest,
+        flatJsonDest,
+        folderHtmlDest,
+        folderJsonDest,
+        ...segmentCopies.map(({ dest }) => dest),
+      ],
+      routeCollisionPath ?? routePath
     )
   }
 
@@ -102,22 +148,12 @@ export async function copyExportedAppArtifacts({
   await fs.copyFile(`${orig}.html`, htmlDest)
   await fs.copyFile(`${orig}${RSC_SUFFIX}`, jsonDest)
 
-  const segmentsDir = `${orig}${RSC_SEGMENTS_DIR_SUFFIX}`
-  if (existsSync(segmentsDir)) {
-    const segmentsDirDest = join(outDir, segmentsRoutePath)
-    const segmentPaths = await collectSegmentPaths(segmentsDir)
-    await Promise.all(
-      segmentPaths.map(async (segmentFileSrc) => {
-        const segmentPath =
-          '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
-        const segmentFilename =
-          convertSegmentPathToStaticExportFilename(segmentPath)
-        const segmentFileDest = join(segmentsDirDest, segmentFilename)
-        await fs.mkdir(dirname(segmentFileDest), { recursive: true })
-        await fs.copyFile(join(segmentsDir, segmentFileSrc), segmentFileDest)
-      })
-    )
-  }
+  await Promise.all(
+    segmentCopies.map(async ({ src, dest }) => {
+      await fs.mkdir(dirname(dest), { recursive: true })
+      await fs.copyFile(src, dest)
+    })
+  )
 
   return htmlDest
 }
@@ -237,6 +273,7 @@ export async function emitOutputExportFallbackArtifacts(
           outDir,
           getOutputExportFallbackMetadataPath(fallbackRoute)
         )
+        assertNoOutputExportPathCollision(outDir, [manifestPath], fallbackRoute)
         await fs.mkdir(dirname(manifestPath), { recursive: true })
         await fs.writeFile(
           manifestPath,
