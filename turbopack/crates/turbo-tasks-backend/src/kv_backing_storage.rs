@@ -1,5 +1,6 @@
 use std::{
     borrow::Borrow,
+    cmp::max,
     env,
     path::PathBuf,
     sync::{Arc, LazyLock, Mutex, PoisonError, Weak},
@@ -19,7 +20,8 @@ use crate::{
     GitVersionInfo,
     backend::{AnyOperation, SpecificTaskDataCategory, storage_schema::TaskStorage},
     backing_storage::{
-        BackingStorage, BackingStorageSealed, SnapshotItem, compute_task_type_hash_from_components,
+        BackingStorage, BackingStorageSealed, SnapshotItem, SnapshotMeta,
+        compute_task_type_hash_from_components,
     },
     database::{
         db_invalidation::{StartupCacheState, check_db_invalidation_and_cleanup, invalidate_db},
@@ -224,7 +226,11 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
         get(&self.inner.database).context("Unable to read uncompleted operations from database")
     }
 
-    fn save_snapshot<I>(&self, operations: Vec<Arc<AnyOperation>>, snapshots: Vec<I>) -> Result<()>
+    fn save_snapshot<I>(
+        &self,
+        operations: Vec<Arc<AnyOperation>>,
+        snapshots: Vec<I>,
+    ) -> Result<SnapshotMeta>
     where
         I: IntoIterator<Item = SnapshotItem> + Send + Sync,
     {
@@ -233,9 +239,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
 
         {
             let _span = tracing::trace_span!("update task data").entered();
-            let max_new_task_id =
+            let (max_new_task_id, data_items, meta_items, task_cache_items) =
                 parallel::map_collect_owned::<_, _, Result<Vec<_>>>(snapshots, |shard: I| {
                     let mut max_new_task_id = 0;
+                    let mut data_items = 0;
+                    let mut meta_items = 0;
+                    let mut task_cache_items = 0;
                     for SnapshotItem {
                         task_id,
                         meta,
@@ -251,6 +260,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(key),
                                 WriteBuffer::SmallVec(meta),
                             )?;
+                            meta_items += 1;
                         }
                         if let Some(data) = data {
                             batch.put(
@@ -258,6 +268,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(key),
                                 WriteBuffer::SmallVec(data),
                             )?;
+                            data_items += 1;
                         }
                         // Write task cache entry inline if this is a new task
                         if let Some(task_type_hash) = task_type_hash {
@@ -266,13 +277,14 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                                 WriteBuffer::Borrowed(&task_type_hash),
                                 WriteBuffer::Borrowed(key),
                             )?;
+                            task_cache_items += 1;
                             max_new_task_id = max_new_task_id.max(*task_id);
                         }
                     }
-                    Ok(max_new_task_id)
+                    Ok((max_new_task_id, data_items, meta_items, task_cache_items))
                 })?
                 .into_iter()
-                .max()
+                .reduce(|t1, t2| (max(t1.0, t2.0), t1.1 + t2.1, t1.2 + t2.2, t1.3 + t2.3))
                 .unwrap_or_default();
 
             let span = tracing::trace_span!("flush task data").entered();
@@ -294,7 +306,12 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorageSealed
                 let _span = tracing::trace_span!("commit").entered();
                 batch.commit().context("Unable to commit operations")?;
             }
-            Ok(())
+            Ok(SnapshotMeta {
+                data_items,
+                meta_items,
+                task_cache_items,
+                next_task_id,
+            })
         }
     }
 
