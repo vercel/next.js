@@ -249,10 +249,12 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
 
+      - name: Prepare corepack
+        if: ${{ matrix.os != 'windows' }}
+        run: npm i -g corepack@0.31
+
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: corepack enable
 
       # we always want to run this to set environment variables
       # (skip for docker builds - rust is already in the image)

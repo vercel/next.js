@@ -10,10 +10,13 @@
 #   - Ubuntu 20.04 (glibc 2.31 — broad compatibility baseline)
 #   - Clang/LLD for all compilation and linking via --target
 #   - GNU cross-sysroots via crossbuild-essential (Ubuntu multiarch)
-#   - musl sysroots from musl.cc (headers + libs only; clang/lld do the work)
+#   - musl sysroots from GHCR-hosted rust-musl-cross images
 #   - Node.js 20 (glibc-linked, used as build tool for all targets)
 #   - Rust nightly toolchain (pinned to match rust-toolchain.toml)
 #   - @napi-rs/cli for building native Node.js addons
+
+FROM ghcr.io/rust-cross/rust-musl-cross:x86_64-musl AS musl_x86_64
+FROM ghcr.io/rust-cross/rust-musl-cross:aarch64-musl AS musl_aarch64
 
 FROM ubuntu:20.04 AS builder
 
@@ -54,19 +57,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certifi
     crossbuild-essential-amd64 crossbuild-essential-arm64 \
     && rm -rf /var/lib/apt/lists/*
 
-# Download musl cross-toolchains from musl.cc for their sysroots
-# (headers, crt files, libc, libgcc). Clang + rust-lld handle compilation
-# and linking; we only need the target libraries.
-# Also copy GCC's crt files and libgcc into the sysroot lib dir — clang 10
-# doesn't search the --gcc-toolchain path for these files.
-# https://musl.cc/
-RUN cd /opt && \
-    for TRIPLE in aarch64-linux-musl x86_64-linux-musl; do \
-      wget -qO- "https://musl.cc/${TRIPLE}-cross.tgz" | tar xz && \
-      cp /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/crt*.o \
-         /opt/${TRIPLE}-cross/lib/gcc/${TRIPLE}/*/libgcc.a \
-         /opt/${TRIPLE}-cross/${TRIPLE}/lib/; \
-    done
+# Import prebuilt musl sysroots from the rust-musl-cross images and stage them
+# under /opt/*-cross for docker-native-build.sh. The symlinks provide the
+# target names that our clang --sysroot flags use, and libgcc/crt objects are
+# copied into the sysroot lib dir so clang/rust-lld can find them while linking.
+COPY --from=musl_x86_64 /usr/local/musl /opt/x86_64-linux-musl-cross
+COPY --from=musl_aarch64 /usr/local/musl /opt/aarch64-linux-musl-cross
+RUN ln -s x86_64-unknown-linux-musl /opt/x86_64-linux-musl-cross/x86_64-linux-musl && \
+    ln -s aarch64-unknown-linux-musl /opt/aarch64-linux-musl-cross/aarch64-linux-musl && \
+    cp /opt/x86_64-linux-musl-cross/lib/gcc/x86_64-unknown-linux-musl/*/crt*.o \
+       /opt/x86_64-linux-musl-cross/lib/gcc/x86_64-unknown-linux-musl/*/libgcc.a \
+       /opt/x86_64-linux-musl-cross/x86_64-linux-musl/lib/ && \
+    cp /opt/aarch64-linux-musl-cross/lib/gcc/aarch64-unknown-linux-musl/*/crt*.o \
+       /opt/aarch64-linux-musl-cross/lib/gcc/aarch64-unknown-linux-musl/*/libgcc.a \
+       /opt/aarch64-linux-musl-cross/aarch64-linux-musl/lib/
 
 # Install Rust — pinned nightly from rust-toolchain.toml
 # The COPY of rust-toolchain.toml ensures the image rebuilds when the toolchain changes.
