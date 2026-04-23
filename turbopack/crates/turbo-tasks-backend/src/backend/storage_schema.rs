@@ -17,7 +17,7 @@
 //! - `data` - Frequently changed bulk data (dependencies, cell data)
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
-use std::sync::Arc;
+use std::{hash::Hash, sync::Arc};
 
 use parking_lot::Mutex;
 use turbo_tasks::{
@@ -834,6 +834,27 @@ trait IsTransient {
     fn is_transient(&self) -> bool;
 }
 
+impl IsTransient for TaskId {
+    fn is_transient(&self) -> bool {
+        TaskId::is_transient(self)
+    }
+}
+
+impl IsTransient for CollectibleRef {
+    fn is_transient(&self) -> bool {
+        CollectibleRef::is_transient(self)
+    }
+}
+impl IsTransient for CollectiblesRef {
+    fn is_transient(&self) -> bool {
+        CollectiblesRef::is_transient(self)
+    }
+}
+impl IsTransient for OutputValue {
+    fn is_transient(&self) -> bool {
+        OutputValue::is_transient(self)
+    }
+}
 impl IsTransient for (TraitTypeId, TaskId) {
     fn is_transient(&self) -> bool {
         self.1.is_transient()
@@ -850,6 +871,65 @@ impl IsTransient for (CellRef, Option<u64>) {
     }
 }
 
+/// Helper trait for drop_partial implementation
+trait DropPartial {
+    /// Returns true if the value is now empty
+    fn drop_partial(&mut self) -> bool;
+}
+
+impl<T: IsTransient> DropPartial for Option<T> {
+    fn drop_partial(&mut self) -> bool {
+        self.take_if(|v| !v.is_transient());
+        self.is_none()
+    }
+}
+
+impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
+    fn drop_partial(&mut self) -> bool {
+        let start_len = self.len();
+        self.retain(|t| t.is_transient());
+        let end_len = self.len();
+        if end_len == 0 {
+            true
+        } else if end_len < start_len {
+            self.shrink_to_fit();
+            false
+        } else {
+            false
+        }
+    }
+}
+
+impl<K: IsTransient + Hash + Eq, V: Eq> DropPartial for CounterMap<K, V> {
+    fn drop_partial(&mut self) -> bool {
+        let start_len = self.len();
+        self.retain(|k, _v| k.is_transient());
+        let end_len = self.len();
+        if end_len == 0 {
+            true
+        } else if end_len < start_len {
+            self.shrink_to_fit();
+            false
+        } else {
+            false
+        }
+    }
+}
+impl<K: IsTransient + Hash + Eq, V: IsTransient> DropPartial for AutoMap<K, V> {
+    fn drop_partial(&mut self) -> bool {
+        let start_len = self.len();
+        self.retain(|k, v| k.is_transient() || v.is_transient());
+        let end_len = self.len();
+        if end_len == 0 {
+            true
+        } else if end_len < start_len {
+            self.shrink_to_fit();
+            false
+        } else {
+            false
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
     use std::mem::size_of;
