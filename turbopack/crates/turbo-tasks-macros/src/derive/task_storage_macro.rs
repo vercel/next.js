@@ -2967,7 +2967,20 @@ fn gen_drop_inline_field(field: &FieldInfo) -> TokenStream {
             self.#field_name = Default::default();
         };
     }
-    gen_drop_filter_transient(field, quote! { self.#field_name })
+    let target = quote! { self.#field_name };
+    if let StorageType::Direct = field.storage_type {
+        // the drop partial implementation resets to None so we don't need an assignment
+        quote! {
+            (#target).drop_partial();
+        }
+    } else {
+        quote! {
+            if !(#target).drop_partial() {
+                #target = Default::default();
+            }
+
+        }
+    }
 }
 
 /// Generate the match arm for a persistent lazy variant in `drop_partial`'s
@@ -2981,91 +2994,10 @@ fn gen_drop_lazy_match_arm(field: &FieldInfo) -> TokenStream {
     let variant_name = &field.variant_name;
     assert!(field.filter_transient || field.custom_drop_partial);
 
-    // Fields opting into `custom_drop_partial` delegate the whole decision to
-    // `FieldType::drop_partial(&mut v) -> bool`. The `bool` feeds straight
-    // into `retain_mut`'s keep/drop flag. The variant's inner type matches
-    // the declared field_type (the outer newtype, not `as_type`).
-    if field.custom_drop_partial {
-        let field_type = &field.field_type;
-        return quote! {
-            LazyField::#variant_name(v) => {
-                <#field_type>::drop_partial(v)
-            }
-        };
-    }
-
-    let body = {
-        let v = quote! { v };
-        if let StorageType::Direct = field.storage_type {
-            unreachable!("lazy direct fields with filter_transient are not supported");
-        }
-        let (any_pred, retain_call) = gen_transient_scan_exprs(field, &v);
-        quote! {
-            if !(#v).iter().any(#any_pred) {
-                false
-            } else {
-                #retain_call;
-                !(#v).is_empty()
-            }
-        }
-    };
     quote! {
         LazyField::#variant_name(v) => {
-            #body
+            v.drop_partial()
         }
-    }
-}
-
-/// Emit the check-then-drop-or-retain statement for a `filter_transient`
-/// inline field.
-///
-/// `target` is an lvalue expression for the field (e.g. `self.field_name`).
-///
-/// The generated code short-circuits on the hot path (no transient entries
-/// present → wholesale reset to default) and falls back to `retain` only when
-/// transient residue exists.
-fn gen_drop_filter_transient(field: &FieldInfo, target: TokenStream) -> TokenStream {
-    if let StorageType::Direct = field.storage_type {
-        // Inline direct filter_transient fields are `Option<T>` where `T` has
-        // `is_transient()`. Keep only `Some(v)` with `v.is_transient()`.
-        return quote! {
-            if !(#target).as_ref().is_some_and(|v| v.is_transient()) {
-                #target = None;
-            }
-        };
-    }
-    let (any_pred, retain_call) = gen_transient_scan_exprs(field, &target);
-    quote! {
-        if !(#target).iter().any(#any_pred) {
-            #target = Default::default();
-        } else {
-            #retain_call;
-        }
-    }
-}
-
-/// Shared closure shapes for "does this collection contain any transient
-/// entries?" and "retain only the transient entries".
-///
-/// `.iter()` and `.retain()` take different closure signatures for map types
-/// (tuple-reference vs two separate references), so both predicates are
-/// generated together per storage type. Returns `(any_pred, retain_call)`.
-fn gen_transient_scan_exprs(field: &FieldInfo, target: &TokenStream) -> (TokenStream, TokenStream) {
-    match field.storage_type {
-        StorageType::AutoSet => (
-            quote! { |k| k.is_transient() },
-            quote! { (#target).retain(|k| k.is_transient()) },
-        ),
-        StorageType::CounterMap => (
-            quote! { |(k, _)| k.is_transient() },
-            quote! { (#target).retain(|k, _| k.is_transient()) },
-        ),
-        StorageType::AutoMap => (
-            quote! { |(k, v)| k.is_transient() || v.is_transient() },
-            quote! { (#target).retain(|k, v| k.is_transient() || v.is_transient()) },
-        ),
-        StorageType::Direct => unreachable!("direct fields handled by caller"),
-        StorageType::Flag => unreachable!("flag fields cannot be filter_transient"),
     }
 }
 

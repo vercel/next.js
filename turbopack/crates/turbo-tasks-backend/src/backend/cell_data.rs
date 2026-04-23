@@ -62,6 +62,7 @@ impl CellData {
     /// Returns `true` if entries remain, so the caller can drop the whole
     /// `LazyField::CellData` variant when empty.
     pub fn drop_partial(&mut self) -> bool {
+        let len_start = self.len();
         self.0.retain(
             |cell_id, _| match registry::get_value_type(cell_id.type_id).persistence {
                 ValueTypePersistence::Persistable(_, _)
@@ -78,7 +79,13 @@ impl CellData {
                 }
             },
         );
-        !self.0.is_empty()
+        if self.0.is_empty() {
+            return false;
+        }
+        if self.len() < len_start {
+            self.shrink_to_fit();
+        }
+        true
     }
 }
 
