@@ -24,6 +24,12 @@ Choose the right checklist for the change(s) that you're making:
 - Telemetry added. In case of a feature if it's used or not.
 - Errors have a helpful link attached, see https://github.com/vercel/next.js/blob/canary/contributing.md
 
+### Signed commits
+
+- This repository requires verified commit signatures on protected branches.
+- If this pull request is blocked for unsigned commits, re-sign the commits and force-push the branch.
+- A `Signed-off-by` line in the commit message is not enough.
+
 
 ## For Maintainers
 
