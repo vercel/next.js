@@ -6,7 +6,7 @@ use std::{
 use hashbrown::HashMap;
 use turbo_rcstr::RcStr;
 
-use crate::timestamp::Timestamp;
+use crate::{lazy_sorted_vec::LazySortedVec, timestamp::Timestamp};
 
 pub type SpanIndex = NonZeroUsize;
 
@@ -21,7 +21,7 @@ pub struct Span {
 
     // This might change during writing:
     /// The list of events sorted by start time
-    pub events: Vec<SpanEvent>,
+    pub events: LazySortedVec<SpanEvent>,
     pub is_complete: bool,
 
     // These values are computed automatically:
@@ -42,19 +42,6 @@ pub struct Span {
     pub time_data: OnceLock<Box<SpanTimeData>>,
     pub extra: OnceLock<Box<SpanExtra>>,
     pub names: OnceLock<Box<SpanNames>>,
-}
-
-impl Span {
-    pub fn insert_event(&mut self, event: SpanEvent) {
-        // Insertion sort to insert sorted
-        let id = self.events.len();
-        self.events.push(event);
-        let mut current = id;
-        while current > 0 && self.events[current].start() < self.events[current - 1].start() {
-            self.events.swap(current, current - 1);
-            current -= 1;
-        }
-    }
 }
 
 #[derive(Default)]
@@ -139,6 +126,36 @@ impl SpanEvent {
             SpanEvent::SelfTime(self_time) => self_time.start,
             SpanEvent::Child { start, .. } => *start,
         }
+    }
+}
+
+impl PartialEq for SpanEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == std::cmp::Ordering::Equal
+    }
+}
+
+impl Eq for SpanEvent {}
+
+impl PartialOrd for SpanEvent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SpanEvent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.start()
+            .cmp(&other.start())
+            .then_with(|| match (self, other) {
+                (SpanEvent::SelfTime(_), SpanEvent::Child { .. }) => std::cmp::Ordering::Less,
+                (SpanEvent::Child { .. }, SpanEvent::SelfTime(_)) => std::cmp::Ordering::Greater,
+                (SpanEvent::SelfTime(a), SpanEvent::SelfTime(b)) => a.end.cmp(&b.end),
+                (
+                    SpanEvent::Child { start: _, index: a },
+                    SpanEvent::Child { start: _, index: b },
+                ) => a.cmp(b),
+            })
     }
 }
 

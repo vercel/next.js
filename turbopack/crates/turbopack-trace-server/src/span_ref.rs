@@ -182,21 +182,24 @@ impl<'a> SpanRef<'a> {
 
     /// Events sorted by start time, including self time and children.
     pub fn events(&self) -> impl DoubleEndedIterator<Item = SpanEventRef<'a>> {
-        self.span.events.iter().map(|event| match event {
-            SpanEvent::SelfTime(self_time) => SpanEventRef::SelfTime {
-                self_time: SpanEventSelfTimeRef {
-                    store: self.store,
-                    self_time,
+        self.span
+            .events
+            .iter()
+            .map(|event: &'a SpanEvent| match event {
+                SpanEvent::SelfTime(self_time) => SpanEventRef::SelfTime {
+                    self_time: SpanEventSelfTimeRef {
+                        store: self.store,
+                        self_time,
+                    },
                 },
-            },
-            SpanEvent::Child { index, .. } => SpanEventRef::Child {
-                span: SpanRef {
-                    span: &self.store.spans[index.get()],
-                    store: self.store,
-                    index: index.get(),
+                SpanEvent::Child { index, .. } => SpanEventRef::Child {
+                    span: SpanRef {
+                        span: &self.store.spans[index.get()],
+                        store: self.store,
+                        index: index.get(),
+                    },
                 },
-            },
-        })
+            })
     }
 
     /// Children sorted by start time, excluding self time.
@@ -290,7 +293,7 @@ impl<'a> SpanRef<'a> {
                 .span
                 .events
                 .par_iter()
-                .filter_map(|event| {
+                .filter_map(|event: &'a SpanEvent| {
                     if let SpanEvent::SelfTime(self_time) = event {
                         return Some(
                             SpanEventSelfTimeRef { store, self_time }.corrected_self_time(),
@@ -592,15 +595,6 @@ pub enum SpanEventRef<'a> {
 }
 
 impl SpanEventRef<'_> {
-    pub fn start(&self) -> Timestamp {
-        match self {
-            SpanEventRef::SelfTime {
-                self_time: event, ..
-            } => event.start(),
-            SpanEventRef::Child { span } => span.start(),
-        }
-    }
-
     pub fn total_time(&self) -> Timestamp {
         match self {
             SpanEventRef::SelfTime {

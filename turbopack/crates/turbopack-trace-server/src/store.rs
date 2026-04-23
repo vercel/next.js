@@ -46,7 +46,7 @@ fn new_root_span() -> Span {
         category: RcStr::default(),
         name: rcstr!("(root)"),
         args: vec![],
-        events: vec![],
+        events: Default::default(),
         is_complete: true,
         max_depth: OnceLock::new(),
         self_allocations: 0,
@@ -120,7 +120,7 @@ impl Store {
             category,
             name,
             args,
-            events: vec![],
+            events: vec![].into(),
             is_complete: false,
             max_depth: OnceLock::new(),
             self_allocations: 0,
@@ -152,7 +152,7 @@ impl Store {
             depth = CUT_OFF_DEPTH - 1;
         }
         if depth < CUT_OFF_DEPTH {
-            parent.insert_event(SpanEvent::Child { start, index: id });
+            parent.events.push(SpanEvent::Child { start, index: id });
         }
         parent.start = min(parent.start, start);
         let span = &mut self.spans[id.get()];
@@ -221,7 +221,7 @@ impl Store {
         outdated_spans.insert(span_index);
         time_data.self_time += end - start;
         time_data.self_end = max(time_data.self_end, end);
-        span.insert_event(SpanEvent::self_time(start, end));
+        span.events.push(SpanEvent::self_time(start, end));
         self.insert_self_time(start, end, span_index, outdated_spans);
     }
 
@@ -280,7 +280,7 @@ impl Store {
         let time_data = span.time_data_mut();
         time_data.self_time = self_time;
         time_data.self_end = self_end;
-        span.events = events;
+        span.events = events.into();
         span.start = start_time;
     }
 
@@ -301,15 +301,13 @@ impl Store {
         } else {
             &mut self.spans[0]
         };
-        if let Some(index) = old_parent.events.iter().position(
-            |event| matches!(event, SpanEvent::Child { index, .. } if *index == span_index),
-        ) {
-            old_parent.events.remove(index);
-        }
+        old_parent.events.retain_unordered(
+            |event: &SpanEvent| !matches!(event, SpanEvent::Child { index, .. } if *index == span_index),
+        );
 
         outdated_spans.insert(parent);
         let parent = &mut self.spans[parent.get()];
-        parent.insert_event(SpanEvent::Child {
+        parent.events.push(SpanEvent::Child {
             start: span_start,
             index: span_index,
         });
