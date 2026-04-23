@@ -120,9 +120,13 @@ async function runAction({
         // mark that we need to refresh after all actions complete
         actionQueue.needsRefresh = true
       }
-      // Still need to run remaining actions even for discarded actions
-      // to potentially trigger the refresh
-      runRemainingActions(actionQueue, setState)
+      // Do NOT call runRemainingActions for discarded nodes. The
+      // replacement node already owns actionQueue.pending and will
+      // advance the queue when it resolves. Calling runRemainingActions
+      // here would advance pending past the replacement while it's
+      // still in-flight, causing concurrent execution and state loss.
+      // The needsRefresh flag persists on the queue and will be picked
+      // up when the queue eventually empties.
       return
     }
 
@@ -135,6 +139,9 @@ async function runAction({
   // if the action is a promise, set up a callback to resolve it
   if (isThenable(actionResult)) {
     actionResult.then(handleResult, (err) => {
+      if (action.discarded) {
+        return
+      }
       runRemainingActions(actionQueue, setState)
       action.reject(err)
     })
@@ -194,11 +201,15 @@ function dispatchAction(
   ) {
     // Navigations (including back/forward) take priority over any pending actions.
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
-    actionQueue.pending.discarded = true
+    const discardedNode = actionQueue.pending
+    discardedNode.discarded = true
 
     // The rest of the current queue should still execute after this navigation.
     // (Note that it can't contain any earlier navigations, because we always put those into `actionQueue.pending` by calling `runAction`)
-    newAction.next = actionQueue.pending.next
+    newAction.next = discardedNode.next
+    // Sever the discarded node's link to the successor chain so it
+    // cannot be accidentally traversed from the discarded node.
+    discardedNode.next = null
 
     runAction({
       actionQueue,
