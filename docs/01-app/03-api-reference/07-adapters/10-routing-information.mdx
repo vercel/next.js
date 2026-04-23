@@ -21,6 +21,30 @@ Rewrite routes checked after filesystem route matching.
 
 Dynamic matchers generated from route segments such as `[slug]` and catch-all routes.
 
+For `output: 'export'`, this array can also include generated document-only fallback routes for unenumerated dynamic app paths. Those entries use the same route shape, set `destination` to an emitted `__fallback` shell, and include an `accept: text/html` `has` condition so internal RSC and data probes are not rewritten to HTML.
+
+Adapters should apply dynamic routes after checking emitted static files. That lets `/blog/first` keep serving prerendered HTML when it exists, while `/blog/new-post` can use `/blog/__fallback` instead of the broader `/_fallback.html` bootstrap.
+
+For hosts with declarative routing config, preserve the provided dynamic route order. For example:
+
+```json
+[
+  {
+    "source": "/blog/:slug",
+    "destination": "/blog/__fallback",
+    "has": [{ "type": "header", "key": "accept", "value": ".*text/html.*" }],
+    "continue": false
+  },
+  {
+    "source": "/:path*",
+    "destination": "/_fallback.html",
+    "continue": false
+  }
+]
+```
+
+The exact route syntax depends on the host. Use `sourceRegex` when the platform accepts regular expressions, or translate `source` into the platform's native path pattern. Keep normal static asset and prerendered file serving ahead of these generated fallback rules, and place any global `_fallback.html` catch-all after dynamic routes.
+
 ## `routing.onMatch`
 
 Routes that apply after a successful match, such as immutable cache headers for hashed static assets.

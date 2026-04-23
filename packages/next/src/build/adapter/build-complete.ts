@@ -7,7 +7,7 @@ import { RenderingMode } from '../rendering-mode'
 import { interopDefault } from '../../lib/interop-default'
 import type { RouteHas } from '../../lib/load-custom-routes'
 import { recursiveReadDir } from '../../lib/recursive-readdir'
-import { isDynamicRoute } from '../../shared/lib/router/utils'
+import { getSortedRoutes, isDynamicRoute } from '../../shared/lib/router/utils'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
@@ -51,6 +51,11 @@ import { sortSortableRoutes } from '../../shared/lib/router/utils/sortable-route
 import { defaultOverrides } from '../../server/require-hook'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { Bundler } from '../../lib/bundler'
+import {
+  getOutputExportFallbackPath,
+  getOutputExportFallbackStaticPrefix,
+  getOutputExportFallbackVariantPath,
+} from '../../lib/output-export-dynamic-fallback'
 
 interface SharedRouteFields {
   /**
@@ -1936,12 +1941,28 @@ export async function handleBuildComplete({
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
+    const staticExportFallbackDynamicRoutes: DynamicRouteItem[] = []
 
     const getDestinationQuery = (routeKeys: Record<string, string>) => {
       const items = Object.entries(routeKeys ?? {})
       if (items.length === 0) return ''
 
       return '?' + items.map(([key, value]) => `${value}=$${key}`).join('&')
+    }
+
+    const getPublicExportPathname = (pathname: string) => {
+      const publicPathname = addPathPrefix(pathname, config.basePath || '')
+      return publicPathname.length > 1 && publicPathname.endsWith('/')
+        ? publicPathname.slice(0, -1)
+        : publicPathname
+    }
+
+    const getDynamicRouteSourceRegex = (namedRegex: string) => {
+      const shouldLocalize = config.i18n
+      return namedRegex.replace(
+        '^',
+        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
+      )
     }
 
     const fallbackFalseHasCondition: RouteHas[] = [
@@ -1956,6 +1977,100 @@ export async function handleBuildComplete({
       },
     ]
 
+    const documentRequestHasCondition: RouteHas = {
+      type: 'header',
+      key: 'accept',
+      value: '.*text/html.*',
+    }
+
+    if (config.output === 'export') {
+      const fallbackEntriesByRoute = new Map<
+        string,
+        Array<{
+          page: string
+          sourcePrefix: string
+        }>
+      >()
+
+      for (const route of routesManifest.dynamicRoutes) {
+        const prerenderInfo = prerenderManifest.dynamicRoutes[route.page]
+        if (
+          !prerenderInfo?.fallbackSourceRoute ||
+          !prerenderInfo.fallbackRouteParams ||
+          prerenderInfo.fallbackRouteParams.length === 0
+        ) {
+          continue
+        }
+
+        const staticPrefix = getOutputExportFallbackStaticPrefix(route.page)
+        if (staticPrefix === null) {
+          continue
+        }
+
+        const fallbackRoute = getOutputExportFallbackPath(staticPrefix)
+        const entries = fallbackEntriesByRoute.get(fallbackRoute)
+        const entry = {
+          page: route.page,
+          sourcePrefix: getPublicExportPathname(
+            staticPrefix.length > 0 ? `/${staticPrefix}` : '/'
+          ),
+        }
+
+        if (entries) {
+          entries.push(entry)
+        } else {
+          fallbackEntriesByRoute.set(fallbackRoute, [entry])
+        }
+      }
+
+      const sortedFallbackEntries = Array.from(fallbackEntriesByRoute).flatMap(
+        ([fallbackRoute, entries]) => {
+          const sortedEntries =
+            entries.length === 1
+              ? entries
+              : getSortedRoutes(entries.map((entry) => entry.page)).map(
+                  (page) => entries.find((entry) => entry.page === page)!
+                )
+
+          return sortedEntries.map((entry, index) => ({
+            page: entry.page,
+            sourcePrefix: entry.sourcePrefix,
+            destination: getPublicExportPathname(
+              entries.length === 1
+                ? fallbackRoute
+                : getOutputExportFallbackVariantPath(fallbackRoute, index)
+            ),
+          }))
+        }
+      )
+
+      sortedFallbackEntries.sort((a, b) => {
+        const prefixDepthDelta =
+          b.sourcePrefix.split('/').filter(Boolean).length -
+          a.sourcePrefix.split('/').filter(Boolean).length
+
+        if (prefixDepthDelta !== 0) {
+          return prefixDepthDelta
+        }
+
+        return a.page < b.page ? -1 : a.page > b.page ? 1 : 0
+      })
+
+      for (const entry of sortedFallbackEntries) {
+        staticExportFallbackDynamicRoutes.push({
+          source: entry.page,
+          sourceRegex: getDynamicRouteSourceRegex(
+            getNamedRouteRegex(entry.page, {
+              prefixRouteKeys: true,
+            }).namedRegex
+          ),
+          destination: entry.destination,
+          has: [documentRequestHasCondition],
+          missing: undefined,
+        })
+      }
+    }
+
     for (const route of routesManifest.dynamicRoutes) {
       const shouldLocalize = config.i18n
 
@@ -1966,10 +2081,7 @@ export async function handleBuildComplete({
       const isFallbackFalse =
         prerenderManifest.dynamicRoutes[route.page]?.fallback === false
 
-      const sourceRegex = routeRegex.namedRegex.replace(
-        '^',
-        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
-      )
+      const sourceRegex = getDynamicRouteSourceRegex(routeRegex.namedRegex)
       const destination =
         path.posix.join(
           '/',
@@ -2124,6 +2236,7 @@ export async function handleBuildComplete({
       const combinedDynamicRoutes = [
         ...dynamicDataRoutes,
         ...dynamicSegmentRoutes,
+        ...staticExportFallbackDynamicRoutes,
         ...dynamicRoutes,
       ] satisfies Route[]
 
