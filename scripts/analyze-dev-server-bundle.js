@@ -51,7 +51,7 @@ const env = {
 }
 
 try {
-  execSync('npx taskr next_bundle_dev_server', {
+  execSync('node build-scripts/bundle.mjs next_bundle_server', {
     cwd: nextDir,
     stdio: verbose ? 'inherit' : 'pipe',
     env,
