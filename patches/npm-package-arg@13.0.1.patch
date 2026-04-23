@@ -1,5 +1,5 @@
 diff --git a/lib/npa.js b/lib/npa.js
-index 50121b99efbe362de2770f97b98d8a79c327cb9e..8fba56d604d90692e58e857a3e48f37385bd5379 100644
+index 50121b99efbe362de2770f97b98d8a79c327cb9e..c86eeddbc2c4d53abaf425bdb46e2a9093daedf3 100644
 --- a/lib/npa.js
 +++ b/lib/npa.js
 @@ -5,6 +5,7 @@ const isWindows = process.platform === 'win32'
@@ -10,7 +10,7 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..8fba56d604d90692e58e857a3e48f373
  const { homedir } = require('node:os')
  const HostedGit = require('hosted-git-info')
  const semver = require('semver')
-@@ -78,6 +79,137 @@ function isAliasSpec (spec) {
+@@ -78,6 +79,129 @@ function isAliasSpec (spec) {
    return spec.toLowerCase().startsWith('npm:')
  }
  
@@ -96,20 +96,12 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..8fba56d604d90692e58e857a3e48f373
 +    } else if (indent === 6 && catalogName && pkgName) {
 +      const entry = /^version:\s*(.+?)\s*$/.exec(body)
 +      if (entry) {
-+        catalogs[catalogName][pkgName] = stripQuotes(entry[1])
++        catalogs[catalogName][pkgName] = entry[1]
 +      }
 +    }
 +  }
 +  catalogCache.set(lockPath, catalogs)
 +  return catalogs
-+}
-+
-+function stripQuotes (value) {
-+  if ((value.startsWith('"') && value.endsWith('"')) ||
-+      (value.startsWith("'") && value.endsWith("'"))) {
-+    return value.slice(1, -1)
-+  }
-+  return value
 +}
 +
 +function resolveCatalogSpec (name, spec, where) {
@@ -148,7 +140,7 @@ index 50121b99efbe362de2770f97b98d8a79c327cb9e..8fba56d604d90692e58e857a3e48f373
  function resolve (name, spec, where, arg) {
    const res = new Result({
      raw: arg,
-@@ -94,6 +226,12 @@ function resolve (name, spec, where, arg) {
+@@ -94,6 +218,12 @@ function resolve (name, spec, where, arg) {
      where = process.cwd()
    }
  
