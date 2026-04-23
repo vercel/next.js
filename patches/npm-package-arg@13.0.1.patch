@@ -1,0 +1,179 @@
+diff --git a/lib/npa.js b/lib/npa.js
+index 50121b99efbe362de2770f97b98d8a79c327cb9e..dc6f8ff84b262bbf320e30ee9d6fbb1dbe0c1854 100644
+--- a/lib/npa.js
++++ b/lib/npa.js
+@@ -5,6 +5,7 @@ const isWindows = process.platform === 'win32'
+ const { URL } = require('node:url')
+ // We need to use path/win32 so that we get consistent results in tests, but this also means we need to manually convert backslashes to forward slashes when generating file: urls with paths.
+ const path = isWindows ? require('node:path/win32') : require('node:path')
++const fs = require('node:fs')
+ const { homedir } = require('node:os')
+ const HostedGit = require('hosted-git-info')
+ const semver = require('semver')
+@@ -78,6 +79,153 @@ function isAliasSpec (spec) {
+   return spec.toLowerCase().startsWith('npm:')
+ }
+ 
++function isCatalogSpec (spec) {
++  if (!spec) {
++    return false
++  }
++  return spec.toLowerCase().startsWith('catalog:')
++}
++
++// Cache parsed catalogs by absolute pnpm-workspace.yaml path.
++const catalogCache = new Map()
++
++function findPnpmWorkspaceFile (startDir) {
++  let dir = path.resolve(startDir)
++  while (true) {
++    const candidate = path.join(dir, 'pnpm-workspace.yaml')
++    if (fs.existsSync(candidate)) {
++      return candidate
++    }
++    const parent = path.dirname(dir)
++    if (parent === dir) {
++      return null
++    }
++    dir = parent
++  }
++}
++
++// Minimal YAML extractor for the `catalog:` and `catalogs:` blocks of
++// pnpm-workspace.yaml. Only supports the flat `name: version` shape that pnpm
++// itself documents; anything exotic should be resolved by pnpm before reaching
++// this code path.
++function parseCatalogs (yamlPath) {
++  if (catalogCache.has(yamlPath)) {
++    return catalogCache.get(yamlPath)
++  }
++  const text = fs.readFileSync(yamlPath, 'utf8')
++  const lines = text.split(/\r?\n/)
++  const catalogs = { default: {} }
++  let section = null // 'default' | string | null
++  let sectionIndent = -1
++  for (const rawLine of lines) {
++    const line = rawLine.replace(/#.*$/, '').trimEnd()
++    if (line === '') {
++      continue
++    }
++    const topMatch = /^(catalog|catalogs):\s*$/.exec(line)
++    if (topMatch) {
++      section = topMatch[1] === 'catalog' ? 'default' : '__named__'
++      sectionIndent = -1
++      continue
++    }
++    if (/^\S/.test(line)) {
++      // back at the top level, leaving any catalog block
++      section = null
++      continue
++    }
++    if (section === null) {
++      continue
++    }
++    const indentMatch = /^(\s+)(\S.*)$/.exec(line)
++    if (!indentMatch) {
++      continue
++    }
++    const indent = indentMatch[1].length
++    const body = indentMatch[2]
++    if (sectionIndent === -1) {
++      sectionIndent = indent
++    }
++    if (section === 'default' && indent === sectionIndent) {
++      const entry = /^("?)([^"\s:]+)\1\s*:\s*(.+?)\s*$/.exec(body)
++      if (entry) {
++        catalogs.default[entry[2]] = stripQuotes(entry[3])
++      }
++      continue
++    }
++    if (section === '__named__') {
++      if (indent === sectionIndent) {
++        // `catalogName:` header
++        const header = /^("?)([^"\s:]+)\1\s*:\s*$/.exec(body)
++        if (header) {
++          section = header[2]
++          catalogs[section] = {}
++        }
++      }
++      continue
++    }
++    // inside a named catalog
++    if (indent > sectionIndent) {
++      const entry = /^("?)([^"\s:]+)\1\s*:\s*(.+?)\s*$/.exec(body)
++      if (entry) {
++        catalogs[section][entry[2]] = stripQuotes(entry[3])
++      }
++    } else {
++      // dedented back to the `catalogs:` level — either a new named catalog
++      // header or we've left the block entirely. Re-enter the dispatcher on
++      // the next iteration by resetting.
++      section = '__named__'
++      const header = /^("?)([^"\s:]+)\1\s*:\s*$/.exec(body)
++      if (header) {
++        section = header[2]
++        catalogs[section] = {}
++      }
++    }
++  }
++  catalogCache.set(yamlPath, catalogs)
++  return catalogs
++}
++
++function stripQuotes (value) {
++  if ((value.startsWith('"') && value.endsWith('"')) ||
++      (value.startsWith("'") && value.endsWith("'"))) {
++    return value.slice(1, -1)
++  }
++  return value
++}
++
++function resolveCatalogSpec (name, spec, where) {
++  if (!name) {
++    throw Object.assign(
++      new Error(`Cannot resolve catalog spec "${spec}" without a package name`),
++      { code: 'ECATALOGNONAME' }
++    )
++  }
++  const catalogName = spec.slice('catalog:'.length).trim() || 'default'
++  const yamlPath = findPnpmWorkspaceFile(where || process.cwd())
++  if (!yamlPath) {
++    throw Object.assign(
++      new Error(`Cannot resolve "${name}@${spec}": no pnpm-workspace.yaml found from ${where}`),
++      { code: 'ECATALOGNOWORKSPACE' }
++    )
++  }
++  const catalogs = parseCatalogs(yamlPath)
++  const catalog = catalogs[catalogName]
++  if (!catalog) {
++    throw Object.assign(
++      new Error(`Cannot resolve "${name}@${spec}": catalog "${catalogName}" not found in ${yamlPath}`),
++      { code: 'ECATALOGMISSING' }
++    )
++  }
++  const resolved = catalog[name]
++  if (!resolved) {
++    throw Object.assign(
++      new Error(`Cannot resolve "${name}@${spec}": "${name}" not listed in catalog "${catalogName}" at ${yamlPath}`),
++      { code: 'ECATALOGENTRYMISSING' }
++    )
++  }
++  return resolved
++}
++
+ function resolve (name, spec, where, arg) {
+   const res = new Result({
+     raw: arg,
+@@ -94,6 +242,12 @@ function resolve (name, spec, where, arg) {
+     where = process.cwd()
+   }
+ 
++  if (isCatalogSpec(spec)) {
++    const rewritten = resolveCatalogSpec(name, spec, where)
++    res.rawSpec = rewritten
++    spec = rewritten
++  }
++
+   if (isFileSpec(spec)) {
+     return fromFile(res, where)
+   } else if (isAliasSpec(spec)) {
