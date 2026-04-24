@@ -61,4 +61,4 @@ jobs:
     permissions:
       pull-requests: write
     steps:
-      - uses: vercel/next.js/.github/actions/pr-auto-label@canary
+      - uses: vercel/next.js/.github/actions/pr-auto-label@123
