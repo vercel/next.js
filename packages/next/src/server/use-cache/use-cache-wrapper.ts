@@ -38,6 +38,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 
 import {
+  applyOwnerStack,
   getRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
@@ -628,6 +629,28 @@ function assertDefaultCacheLife(
   }
 }
 
+// The maximum time we allow a `'use cache'` entry to fill. After this, we
+// assume the fill is stalled — either on hanging input to the cached function,
+// or on hanging I/O inside of it — and de-opt with an error.
+//
+// For prerender, the effective value is clamped to 90% of the configured
+// `staticPageGenerationTimeout` so the cache-fill error surfaces before the
+// build worker kills the page. In dev (`request`), the configured
+// `experimental.useCacheTimeout` is used straight.
+function getUseCacheFillTimeoutMs(
+  workStore: WorkStore,
+  workUnitStoreType: 'prerender' | 'prerender-runtime' | 'request'
+): number {
+  const { useCacheTimeout, staticPageGenerationTimeout } = workStore
+
+  const effectiveTimeout =
+    workUnitStoreType === 'request'
+      ? useCacheTimeout
+      : Math.min(useCacheTimeout, staticPageGenerationTimeout * 0.9)
+
+  return effectiveTimeout * 1000
+}
+
 function generateCacheEntryWithCacheContext(
   workStore: WorkStore,
   cacheContext: CacheContext,
@@ -1051,18 +1074,20 @@ async function generateCacheEntryImpl(
   )
 
   let stream: ReadableStream<Uint8Array>
+  let devTimeoutSignal: AbortSignal | undefined
+  let devTimeoutTimer: ReturnType<typeof setTimeout> | undefined
 
   switch (outerWorkUnitStore.type) {
     case 'prerender-runtime':
     case 'prerender':
       const timeoutAbortController = new AbortController()
-      // If we're prerendering, we give you 50 seconds to fill a cache entry.
-      // Otherwise we assume you stalled on hanging input and de-opt. This needs
-      // to be lower than just the general timeout of 60 seconds.
-      const timer = setTimeout(() => {
-        workStore.invalidDynamicUsageError = timeoutError
-        timeoutAbortController.abort(timeoutError)
-      }, 50000)
+      const timer = setTimeout(
+        () => {
+          workStore.invalidDynamicUsageError = timeoutError
+          timeoutAbortController.abort(timeoutError)
+        },
+        getUseCacheFillTimeoutMs(workStore, outerWorkUnitStore.type)
+      )
 
       const dynamicAccessAbortSignal =
         dynamicAccessAsyncStorage.getStore()?.abortController.signal
@@ -1127,18 +1152,43 @@ async function generateCacheEntryImpl(
       }
       break
     case 'request':
-      // If we're filling caches for a staged render, make sure that
-      // it takes at least a task, so we'll always notice a cache miss between stages.
-      //
-      // TODO(restart-on-cache-miss): This is suboptimal.
-      // Ideally we wouldn't need to restart for microtasky caches,
-      // but the current logic for omitting short-lived caches only works correctly
-      // if we do a second render, so that's the best we can do until we refactor that.
-      if (
-        process.env.NODE_ENV === 'development' &&
-        outerWorkUnitStore.cacheSignal
-      ) {
+      // TODO: We should just check if the render is abandonable. This is
+      // relevant in restart-on-cache-miss in general, so when we implement that
+      // for cached navs, it'll also be needed in prod
+      if (process.env.__NEXT_DEV_SERVER && outerWorkUnitStore.cacheSignal) {
+        // If we're filling caches for a staged render, make sure that it takes
+        // at least a task, so we'll always notice a cache miss between stages.
+        //
+        // TODO(restart-on-cache-miss): This is suboptimal. Ideally we wouldn't
+        // need to restart for microtasky caches, but the current logic for
+        // omitting short-lived caches only works correctly if we do a second
+        // render, so that's the best we can do until we refactor that.
         await new Promise((resolve) => setTimeout(resolve))
+
+        // Start a cache-fill timeout so a hanging `'use cache'` entry surfaces
+        // the same error in dev as during prerender. Cleared when
+        // pendingCacheResult settles.
+        //
+        // Only skip the timeout when we're exactly in the Dynamic stage. That
+        // mirrors prerender, where caches guarded by e.g. `await connection()`
+        // aren't executed at all. We can't use `< RenderStage.Dynamic` here
+        // because `RenderStage.Abandoned` is numerically higher than Dynamic,
+        // but semantically it means the initial prospective render was aborted
+        // while caches are still pending — the outer flow then awaits
+        // `cacheSignal.cacheReady()`, so we need the timer to break a potential
+        // deadlock.
+        const stagedRendering = outerWorkUnitStore.stagedRendering
+        if (stagedRendering?.currentStage !== RenderStage.Dynamic) {
+          const devTimeoutAbortController = new AbortController()
+          devTimeoutSignal = devTimeoutAbortController.signal
+          devTimeoutTimer = setTimeout(
+            () => {
+              workStore.invalidDynamicUsageError = timeoutError
+              devTimeoutAbortController.abort(timeoutError)
+            },
+            getUseCacheFillTimeoutMs(workStore, outerWorkUnitStore.type)
+          )
+        }
       }
     // fallthrough
     case 'prerender-ppr':
@@ -1153,6 +1203,7 @@ async function generateCacheEntryImpl(
         {
           environmentName: 'Cache',
           filterStackFrame,
+          signal: devTimeoutSignal,
           temporaryReferences,
           onError: handleError,
         }
@@ -1171,7 +1222,11 @@ async function generateCacheEntryImpl(
     innerCacheStore,
     startTime,
     errors
-  )
+  ).finally(() => {
+    if (devTimeoutTimer !== undefined) {
+      clearTimeout(devTimeoutTimer)
+    }
+  })
 
   if (process.env.NODE_ENV === 'development') {
     // Name the stream for React DevTools.
@@ -1308,6 +1363,7 @@ export async function cache(
 
   const timeoutError = new UseCacheTimeoutError()
   Error.captureStackTrace(timeoutError, cache)
+  applyOwnerStack(timeoutError)
 
   const wrapAsInvalidDynamicUsageError = (
     error: Error,
@@ -2571,7 +2627,8 @@ export async function cache(
             // If this is stale, and we're not in a prerender (i.e. this is
             // dynamic render), then we should warm up the cache with a fresh
             // revalidated entry.
-            const result = await generateCacheEntry(
+            const revalidateCacheHandlerKey = cacheHandlerKey
+            const revalidatePromise = generateCacheEntry(
               workStore,
               // The background revalidation preserves the outer store for
               // reading (e.g. implicitTags) but skips propagation of cache life
@@ -2587,29 +2644,39 @@ export async function cache(
               fn,
               timeoutError
             )
+              .then(async (result) => {
+                if (result.type === 'cached') {
+                  const { stream: ignoredStream, pendingCacheResult } = result
 
-            if (result.type === 'cached') {
-              const { stream: ignoredStream, pendingCacheResult } = result
+                  const savedCacheResult = saveToResumeDataCache(
+                    prerenderResumeDataCache,
+                    serializedCacheKey,
+                    pendingCacheResult
+                  )
 
-              const savedCacheResult = saveToResumeDataCache(
-                prerenderResumeDataCache,
-                serializedCacheKey,
-                pendingCacheResult
-              )
+                  if (cacheHandler) {
+                    saveToCacheHandler(
+                      cacheHandler,
+                      workStore,
+                      id,
+                      serializedCacheKey,
+                      savedCacheResult,
+                      rootParams
+                    )
+                  }
 
-              if (cacheHandler) {
-                saveToCacheHandler(
-                  cacheHandler,
-                  workStore,
-                  id,
-                  serializedCacheKey,
-                  savedCacheResult,
-                  rootParams
+                  await ignoredStream.cancel()
+                }
+              })
+              .catch((error) => {
+                debug?.(
+                  'background cache revalidation failed for',
+                  revalidateCacheHandlerKey,
+                  error
                 )
-              }
-
-              await ignoredStream.cancel()
-            }
+              })
+            workStore.pendingRevalidateWrites ??= []
+            workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
         }
       }

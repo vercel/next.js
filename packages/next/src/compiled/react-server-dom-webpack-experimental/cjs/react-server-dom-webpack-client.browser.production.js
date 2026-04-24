@@ -9,8 +9,23 @@
  */
 
 "use strict";
-var ReactDOM = require("react-dom"),
-  decoderOptions = { stream: !0 },
+var ReactDOM = require("react-dom");
+function formatProdErrorMessage(code) {
+  var url = "https://react.dev/errors/" + code;
+  if (1 < arguments.length) {
+    url += "?args[]=" + encodeURIComponent(arguments[1]);
+    for (var i = 2; i < arguments.length; i++)
+      url += "&args[]=" + encodeURIComponent(arguments[i]);
+  }
+  return (
+    "Minified React error #" +
+    code +
+    "; visit " +
+    url +
+    " for the full message or use the non-minified dev environment for full errors and additional helpful warnings."
+  );
+}
+var decoderOptions = { stream: !0 },
   hasOwnProperty = Object.prototype.hasOwnProperty;
 function resolveClientReference(bundlerConfig, metadata) {
   if (bundlerConfig) {
@@ -19,12 +34,7 @@ function resolveClientReference(bundlerConfig, metadata) {
       moduleExports = bundlerConfig.name;
     else {
       bundlerConfig = moduleExports && moduleExports["*"];
-      if (!bundlerConfig)
-        throw Error(
-          'Could not find the module "' +
-            metadata[0] +
-            '" in the React Server Consumer Manifest. This is probably a bug in the React Server Components bundler.'
-        );
+      if (!bundlerConfig) throw Error(formatProdErrorMessage(588, metadata[0]));
       moduleExports = metadata[2];
     }
     return 4 === metadata.length
@@ -42,12 +52,7 @@ function resolveServerReference(bundlerConfig, id) {
     -1 !== idx &&
       ((name = id.slice(idx + 1)),
       (resolvedModuleData = bundlerConfig[id.slice(0, idx)]));
-    if (!resolvedModuleData)
-      throw Error(
-        'Could not find the module "' +
-          id +
-          '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
-      );
+    if (!resolvedModuleData) throw Error(formatProdErrorMessage(589, id));
   }
   return resolvedModuleData.async
     ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
@@ -263,9 +268,7 @@ function processReply(
           }
           if (void 0 !== temporaryReferences && modelRoot === value)
             return (modelRoot = null), "$T";
-          throw Error(
-            "React Element cannot be passed to Server Functions from the Client without a temporary reference set. Pass a TemporaryReferenceSet to the options."
-          );
+          throw Error(formatProdErrorMessage(510, ""));
         case REACT_LAZY_TYPE:
           parentReference = value._payload;
           var init = value._init;
@@ -428,9 +431,7 @@ function processReply(
         (null === key || null !== getPrototypeOf(key))
       ) {
         if (void 0 === temporaryReferences)
-          throw Error(
-            "Only plain objects, and a few built-ins, can be passed to Server Functions. Classes or null prototypes are not supported."
-          );
+          throw Error(formatProdErrorMessage(499, ""));
         return "$T";
       }
       return value;
@@ -469,9 +470,7 @@ function processReply(
         return (
           temporaryReferences.set(parentReference + ":" + key, value), "$T"
         );
-      throw Error(
-        "Client Functions cannot be passed directly to Server Functions. Only Functions passed from the Server can be passed back again."
-      );
+      throw Error(formatProdErrorMessage(469));
     }
     if ("symbol" === typeof value) {
       if (
@@ -483,16 +482,10 @@ function processReply(
         return (
           temporaryReferences.set(parentReference + ":" + key, value), "$T"
         );
-      throw Error(
-        "Symbols cannot be passed to a Server Function without a temporary reference set. Pass a TemporaryReferenceSet to the options."
-      );
+      throw Error(formatProdErrorMessage(517, ""));
     }
     if ("bigint" === typeof value) return "$n" + value.toString(10);
-    throw Error(
-      "Type " +
-        typeof value +
-        " is not supported as an argument to a Server Function."
-    );
+    throw Error(formatProdErrorMessage(472, typeof value));
   }
   function serializeModel(model, id) {
     "object" === typeof model &&
@@ -891,7 +884,7 @@ function fulfillReference(response, reference, value) {
         hasOwnProperty.call(value, name)
       )
         value = value[name];
-      else throw Error("Invalid reference.");
+      else throw Error(formatProdErrorMessage(570));
     }
     for (
       ;
@@ -1271,10 +1264,7 @@ function parseModelString(response, parentObject, key, value) {
       case "T":
         parentObject = "$" + value.slice(2);
         response = response._tempRefs;
-        if (null == response)
-          throw Error(
-            "Missing a temporary reference set but the RSC response returned a temporary reference. Pass a temporaryReference option with the set that was used with the reply."
-          );
+        if (null == response) throw Error(formatProdErrorMessage(511));
         return response.get(parentObject);
       case "Q":
         return (
@@ -1325,9 +1315,7 @@ function parseModelString(response, parentObject, key, value) {
   return value;
 }
 function missingCall() {
-  throw Error(
-    'Trying to call a function from "use server" but the callServer option was not implemented in your router runtime.'
-  );
+  throw Error(formatProdErrorMessage(466));
 }
 function ResponseInstance(
   bundlerConfig,
@@ -1492,10 +1480,7 @@ function startAsyncIterable(response, id, iterator) {
   iterable[ASYNC_ITERATOR] = function () {
     var nextReadIndex = 0;
     return createIterator(function (arg) {
-      if (void 0 !== arg)
-        throw Error(
-          "Values cannot be passed to next() of AsyncIterables passed to Client Components."
-        );
+      if (void 0 !== arg) throw Error(formatProdErrorMessage(524));
       if (nextReadIndex === buffer.length) {
         if (closed)
           return new ReactPromise(
@@ -1594,9 +1579,7 @@ function startAsyncIterable(response, id, iterator) {
   );
 }
 function resolveErrorProd() {
-  var error = Error(
-    "An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error."
-  );
+  var error = Error(formatProdErrorMessage(441));
   error.stack = "Error: " + error.message;
   return error;
 }
@@ -1753,9 +1736,7 @@ function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
     case 68:
     case 74:
     case 87:
-      throw Error(
-        "Failed to read a RSC payload created by a development version of React on the server while using a production version on the client. Always use matching versions on the server and the client."
-      );
+      throw Error(formatProdErrorMessage(504));
     case 82:
       startReadableStream(response, id, void 0);
       break;
@@ -1841,7 +1822,7 @@ function close(weakResponse) {
             null !== chunk.reason &&
             chunk.reason.close('"$undefined"');
       }))
-    : reportGlobalError(weakResponse, Error("Connection closed."));
+    : reportGlobalError(weakResponse, Error(formatProdErrorMessage(412)));
 }
 function createResponseFromOptions(options) {
   return new ResponseInstance(

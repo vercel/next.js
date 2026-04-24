@@ -1,19 +1,20 @@
 ---
-title: Preserving UI state across navigations
+title: How Next.js preserves UI state with Activity
 nav_title: Preserving UI state
-description: Learn how to control which UI state is preserved and which resets when navigating between pages.
+description: Learn how React's Activity component preserves UI state across navigations in Next.js and how to control what resets.
 related:
   title: Related
   description: Learn more about Cache Components and preserving UI state.
   links:
     - app/getting-started/caching
+    - app/guides/migrating-to-cache-components
 ---
 
 > **Good to know:** This guide assumes [Cache Components](/docs/app/getting-started/caching) is enabled. Enable it by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your Next config file.
 
 Before Cache Components, preserving page-level state across navigations required workarounds like hoisting state to a [shared layout](/docs/app/getting-started/layouts-and-pages#nesting-layouts) or using an external store. With Cache Components, Next.js preserves state and DOM out of the box.
 
-Instead of unmounting pages on navigation, Next.js hides them using React's [`<Activity>`](https://react.dev/reference/react/Activity) component. The DOM nodes stay in the document (hidden with `display: none`), so both React state and DOM state are preserved: form drafts, scroll positions, expanded `<details>` elements, video playback progress, and more.
+Instead of unmounting pages on navigation, Next.js hides them using React's [`<Activity>`](https://react.dev/reference/react/Activity) component. Activity keeps the DOM in the document (hidden with `display: none`), so both React state and DOM state are preserved: form drafts, scroll positions, expanded `<details>` elements, video playback progress, and more.
 
 Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 

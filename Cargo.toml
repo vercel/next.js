@@ -327,11 +327,11 @@ roaring = "0.10.10"
 rstest = "0.16.0"
 rustc-hash = "2.1.1"
 semver = "1.0.16"
-serde = { version = "1.0.217", features = ["derive"] }
-serde_json = "1.0.138"
-serde_path_to_error = "0.1.16"
-serde_qs = "0.13.0"
-serde_with = "3.12.0"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+serde_path_to_error = "0.1.20"
+serde_qs = "1.1.1"
+serde_with = "3.18.0"
 sha2 = "0.10.2"
 smallvec = { version = "1.15.1", features = [
   "serde",
@@ -350,7 +350,7 @@ thiserror = "1.0.48"
 thread_local = "1.1.8"
 tokio = "~1.47.3"
 tokio-util = { version = "0.7.13", features = ["io", "rt"] }
-tracing = "0.1.37"
+tracing = "0.1.44"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
 xxhash-rust = { version = "0.8.12", features = ["xxh3"] }

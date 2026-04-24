@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Normalize TURBO_API and TURBO_TOKEN: prefer runner .bashrc values,
+# Normalize TURBO_API and TURBO_TOKEN: prefer environment values and
 # fall back to Vercel's public API and the secret passed as an action input.
 if [ -z "${TURBO_API:-}" ]; then
   export TURBO_API="https://api.vercel.com"
@@ -18,7 +18,7 @@ if [ -z "${TURBO_TOKEN:-}" ]; then
 fi
 
 if [ -z "${TURBO_TEAM:-}" ]; then
-  export TURBO_TEAM="vercel"
+  export TURBO_TEAM="vtest314-next-adapter-e2e-tests"
   echo "TURBO_TEAM=${TURBO_TEAM}" >> "$GITHUB_ENV"
 fi
 
@@ -43,7 +43,8 @@ set_env() {
   echo "$1=$2" >> "$GITHUB_ENV"
 }
 
-set_env RUSTC_WRAPPER sccache
+# Temporary disable while we work out binstall issue
+#set_env RUSTC_WRAPPER sccache
 set_env SCCACHE_BASEDIRS "${INPUT_BASE_DIR:-${GITHUB_WORKSPACE}}"
 set_env CARGO_INCREMENTAL 0
 set_env SCCACHE_IDLE_TIMEOUT 0

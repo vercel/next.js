@@ -135,16 +135,10 @@ impl RawVc {
         }
     }
 
-    pub(crate) fn into_read(self, is_serializable_cell_content: bool) -> ReadRawVcFuture {
+    pub(crate) fn into_read(self) -> ReadRawVcFuture {
         // returns a custom future to have something concrete and sized
         // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self, Some(is_serializable_cell_content))
-    }
-
-    pub(crate) fn into_read_with_unknown_is_serializable_cell_content(self) -> ReadRawVcFuture {
-        // returns a custom future to have something concrete and sized
-        // this avoids boxing in IntoFuture
-        ReadRawVcFuture::new(self, None)
+        ReadRawVcFuture::new(self)
     }
 
     /// See [`crate::Vc::to_resolved`].
@@ -396,10 +390,6 @@ pub struct ReadRawVcFuture {
     resolve: ResolveRawVcFuture,
     /// Phase 2: options for the cell read once we have a [`RawVc::TaskCell`].
     read_cell_options: ReadCellOptions,
-    /// If `true`, the `is_serializable_cell_content` flag in `read_cell_options` is unknown at
-    /// construction time and must be determined lazily from the type registry once we reach the
-    /// [`RawVc::TaskCell`].
-    is_serializable_cell_content_unknown: bool,
     /// Phase 2: the resolved task and cell identity, set when phase 1 completes.
     resolved: Option<(TaskId, CellId)>,
     /// Phase 2: listener for the cell read wait.
@@ -407,14 +397,10 @@ pub struct ReadRawVcFuture {
 }
 
 impl ReadRawVcFuture {
-    pub(crate) fn new(vc: RawVc, is_serializable_cell_content: Option<bool>) -> Self {
+    pub(crate) fn new(vc: RawVc) -> Self {
         ReadRawVcFuture {
             resolve: ResolveRawVcFuture::new(vc),
-            read_cell_options: ReadCellOptions {
-                is_serializable_cell_content: is_serializable_cell_content.unwrap_or(false),
-                ..Default::default()
-            },
-            is_serializable_cell_content_unknown: is_serializable_cell_content.is_none(),
+            read_cell_options: ReadCellOptions::default(),
             resolved: None,
             listener: None,
         }
@@ -477,14 +463,6 @@ impl Future for ReadRawVcFuture {
         //
         // At this point `this.resolved` is `Some((task, index))`.
         let (task, index) = this.resolved.unwrap();
-
-        // Lazily resolve `is_serializable_cell_content` from the type registry on the first
-        // entry into phase 2, then clear the flag so subsequent polls skip this lookup.
-        if this.is_serializable_cell_content_unknown {
-            this.read_cell_options.is_serializable_cell_content =
-                get_value_type(index.type_id).bincode.is_some();
-            this.is_serializable_cell_content_unknown = false;
-        }
 
         let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
             loop {

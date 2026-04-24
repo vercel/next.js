@@ -13,8 +13,11 @@ env:
   VERCEL_ADAPTER_TEST_TEAM: vtest314-next-adapter-e2e-tests
   VERCEL_ADAPTER_TEST_TOKEN: ${{ secrets.VERCEL_ADAPTER_TEST_TOKEN }}
   NODE_LTS_VERSION: 20
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 run-name: test-e2e-project-reset (scheduled)
 

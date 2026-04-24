@@ -21,15 +21,14 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
-    ValueTypeId,
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskType, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
 
 use crate::{
-    backend::counter_map::CounterMap,
+    backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
@@ -286,13 +285,22 @@ struct TaskStorageSchema {
     // =========================================================================
     // CELL DATA (data)
     // =========================================================================
-    /// Persistent cell data (serializable).
-    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
-
-    /// Transient cell data (not serializable).
-    #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
-    transient_cell_data: AutoMap<CellId, SharedReference>,
+    /// Cell data for all cells, regardless of serialization mode.
+    ///
+    /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` whose
+    /// bincode impl filters out entries whose value type is not
+    /// `ValueTypePersistence::Persistable` at encode time (i.e. `SkipPersist`
+    /// or `SessionStateful`). Those entries stay in memory but are not
+    /// persisted — on restore the next read triggers the "cell index in range
+    /// but data missing" recompute path. `SessionStateful` value types are
+    /// identified on `ValueType::persistence` for future eviction handling.
+    #[field(
+        storage = "auto_map",
+        category = "data",
+        shrink_on_completion,
+        as_type = "AutoMap<CellId, SharedReference>"
+    )]
+    cell_data: CellData,
 
     /// Hash of transient cell data, persisted for hash-based change detection when
     /// transient data has been evicted from memory.

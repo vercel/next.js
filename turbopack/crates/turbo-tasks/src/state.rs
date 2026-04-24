@@ -123,7 +123,7 @@ impl<T> Drop for StateRef<'_, T> {
     }
 }
 
-mod parking_lot_mutex_bincode {
+pub mod parking_lot_mutex_bincode {
     use bincode::{
         BorrowDecode,
         de::{BorrowDecoder, Decoder},

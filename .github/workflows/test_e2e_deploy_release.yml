@@ -245,9 +245,11 @@ jobs:
           merge-multiple: true
 
       - name: Install datadog-ci
+        if: ${{ env.DATADOG_API_KEY != '' }}
         uses: ./.github/actions/setup-datadog-ci
 
       - name: Upload test report to datadog
+        if: ${{ env.DATADOG_API_KEY != '' }}
         run: |
           if [ -d ./test/test-junit-report ]; then
             DD_ENV=ci "$DATADOG_CI_PATH" junit upload --tags test.type:deploy --service nextjs ./test/test-junit-report
