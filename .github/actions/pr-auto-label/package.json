@@ -1,0 +1,17 @@
+{
+  "private": true,
+  "description": "Applies labels to a pull request based on changed files and author.",
+  "scripts": {
+    "build": "ncc build src/index.ts -m -o dist --license licenses.txt",
+    "types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "6.0.0",
+    "minimatch": "^9.0.9",
+    "typescript": "6.0.2"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.3"
+  }
+}

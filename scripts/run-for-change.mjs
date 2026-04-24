@@ -20,7 +20,7 @@ const CHANGE_ITEM_GROUPS = {
     'CODE_OF_CONDUCT.md',
     'readme.md',
     '.github/ISSUE_TEMPLATE',
-    '.github/labeler.json',
+    '.github/actions/pr-auto-label/src/config.json',
     '.github/pull_request_template.md',
     'packages/next-plugin-storybook/readme.md',
     'packages/next/license.md',

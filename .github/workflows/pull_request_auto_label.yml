@@ -1,0 +1,64 @@
+name: Pull Request Auto-Labeler
+
+# Runs on pull_request_target so the workflow has the permissions of the
+# base repository and can write labels on PRs opened from forks.
+#
+# `pull_request_target` is only risky when a workflow holding a
+# write-scoped token also executes PR-controlled content — e.g. checking
+# out the PR head and running its build/install scripts, or interpolating
+# PR text (titles, bodies, branch names) directly into shell commands.
+# This workflow does neither:
+#
+#   1. The action is referenced as `vercel/next.js/.github/actions/
+#      pr-auto-label@canary`, so GitHub Actions fetches the action bundle
+#      (with the labeler config inlined into it at build time) directly
+#      from the `canary` ref of this repo — independent of the PR's
+#      source or target branch. A fork PR cannot influence which code
+#      runs here. Pinning to `canary` (rather than the PR's base ref)
+#      also preserves the original `next-labeler-webhook` semantics:
+#      PRs targeting release branches are still labeled using the
+#      current canary rules.
+#   2. No PR-controlled code executes on the runner. We don't check out
+#      the PR, run `pnpm install` / `npm install`, or execute any script
+#      defined by the PR's `package.json`.
+#   3. No PR-controlled text is interpolated into `run:` scripts. The
+#      action reads `pull_request.user.login` and the list of changed
+#      files via the GitHub API — both authenticated by GitHub and not
+#      forgeable by the PR author — and passes them to the `octokit`
+#      client, not to a shell.
+#   4. `permissions` is scoped to the minimum needed: `pull-requests:
+#      write` to apply labels.
+#   5. `if: github.repository_owner == 'vercel'` prevents the workflow
+#      from running in unrelated forks of this repo.
+#
+# If you ever change this workflow to check out the PR head, install
+# dependencies from the PR, or interpolate PR-provided strings into a
+# shell command, revisit this threat model.
+on:
+  pull_request_target:
+    # `opened` covers new PRs (including drafts) and `synchronize` covers
+    # every subsequent push. Other lifecycle events (`reopened`,
+    # `ready_for_review`, `edited`) don't change the file list or the
+    # author, so there's nothing new to label.
+    types: [opened, synchronize]
+
+# Deny-by-default at the workflow level. The job below opts back in to
+# `pull-requests: write` — the minimum needed to apply labels.
+permissions: {}
+
+concurrency:
+  # `github.event.pull_request.number` is always set for
+  # `pull_request_target`, but fall back to the run ID if this workflow is
+  # ever extended to run on other events, to avoid collapsing unrelated
+  # runs into the same group.
+  group: pr-auto-label-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  label:
+    if: github.repository_owner == 'vercel'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: vercel/next.js/.github/actions/pr-auto-label@canary
