@@ -350,7 +350,7 @@ thiserror = "1.0.48"
 thread_local = "1.1.8"
 tokio = "~1.47.3"
 tokio-util = { version = "0.7.13", features = ["io", "rt"] }
-tracing = "0.1.37"
+tracing = "0.1.44"
 tracing-subscriber = "0.3.16"
 triomphe = { git = "https://github.com/sokra/triomphe", branch = "sokra/unstable" }
 xxhash-rust = { version = "0.8.12", features = ["xxh3"] }
