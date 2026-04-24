@@ -943,6 +943,16 @@ export async function handler(
         fetchMetrics,
       } = metadata
 
+      // Apply the `expireTime` fallback as soon as we have the render's
+      // `cacheControl`, so every downstream consumer (the cache stored via
+      // `incrementalCache.set`, the response Cache-Control header, the outgoing
+      // entry returned to `handleResponse`) sees a finalized `cacheControl`
+      // with a populated `expire`. This mirrors the build-time fallback in
+      // `next build` (see `build/index.ts`).
+      if (cacheControl && cacheControl.expire === undefined) {
+        cacheControl.expire = nextConfig.expireTime
+      }
+
       if (cacheTags) {
         headers[NEXT_CACHE_TAGS_HEADER] = cacheTags
       }
@@ -1605,7 +1615,7 @@ export async function handler(
 
             cacheControl = {
               revalidate: cacheEntry.cacheControl.revalidate,
-              expire: cacheEntry.cacheControl?.expire ?? nextConfig.expireTime,
+              expire: cacheEntry.cacheControl.expire,
             }
           }
           // Otherwise if the revalidate value is false, then we should use the

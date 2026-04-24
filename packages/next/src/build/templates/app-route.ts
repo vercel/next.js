@@ -387,7 +387,13 @@ export async function handler(
             const expire =
               typeof context.renderOpts.collectedExpire === 'undefined' ||
               context.renderOpts.collectedExpire >= INFINITE_CACHE
-                ? undefined
+                ? // Fall back to the global `expireTime` config when the
+                  // route didn't declare an explicit `expire` (e.g. via
+                  // `cacheLife`). This mirrors the build-time fallback in `next
+                  // build` (see `build/index.ts`) so cache entries and the
+                  // response Cache-Control header always agree on the route's
+                  // effective expire.
+                  nextConfig.expireTime
                 : context.renderOpts.collectedExpire
 
             // Create the cache entry for the response.
