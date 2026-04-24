@@ -77,7 +77,7 @@ pub async fn get_next_client_transforms_rules(
                         ExportFilter::StripDataExports,
                         enable_mdx_rs,
                         vec![],
-                        &*next_config.page_extensions().await?,
+                        &next_config.page_extensions().await?,
                     )
                     .await?,
                 );

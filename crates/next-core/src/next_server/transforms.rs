@@ -86,7 +86,7 @@ pub async fn get_next_server_transforms_rules(
                         vec![RuleCondition::ReferenceType(ReferenceTypeCondition::Entry(
                             Some(EntryReferenceSubType::PageData),
                         ))],
-                        &*next_config.page_extensions().await?,
+                        &next_config.page_extensions().await?,
                     )
                     .await?,
                 );
