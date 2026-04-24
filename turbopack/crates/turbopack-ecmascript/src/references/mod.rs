@@ -1799,6 +1799,7 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
         handler,
         origin,
         source,
+        &state.inner_assets,
         ignore_dynamic_requests,
         analysis,
         error_mode,
@@ -1815,6 +1816,7 @@ async fn handle_dynamic_import_with_linked_args(
     handler: &Handler,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     source: ResolvedVc<Box<dyn Source>>,
+    inner_assets: &Option<ReadRef<InnerAssets>>,
     ignore_dynamic_requests: bool,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     error_mode: ResolveErrorMode,
@@ -1858,6 +1860,16 @@ async fn handle_dynamic_import_with_linked_args(
                 return Ok(());
             }
         }
+
+        let resolve_override = if let Some(inner_assets) = &inner_assets
+            && let Some(req) = pat.as_constant_string()
+            && let Some(a) = inner_assets.get(req)
+        {
+            Some(*a)
+        } else {
+            None
+        };
+
         analysis.add_reference_code_gen(
             EsmAsyncAssetReference::new(
                 origin,
@@ -1867,6 +1879,7 @@ async fn handle_dynamic_import_with_linked_args(
                 error_mode,
                 import_externals,
                 export_usage,
+                resolve_override,
             ),
             ast_path.to_vec().into(),
         );
@@ -2158,6 +2171,7 @@ where
                 handler,
                 origin,
                 source,
+                &state.inner_assets,
                 ignore_dynamic_requests,
                 analysis,
                 error_mode,
