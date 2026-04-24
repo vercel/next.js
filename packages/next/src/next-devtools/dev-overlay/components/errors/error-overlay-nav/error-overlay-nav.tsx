@@ -108,7 +108,7 @@ export const styles = `
     }
   }
 
-  @media (max-width: 600px) {
+  @media (max-width: 768px) {
     [data-nextjs-error-overlay-nav] {
       background: var(--background-color);
       border-radius: var(--next-dialog-radius) var(--next-dialog-radius) 0 0;
@@ -120,8 +120,15 @@ export const styles = `
       .error-overlay-notch {
         border-radius: 0;
         border: 0;
+        height: var(--next-dialog-notch-height);
+        padding: 16px 12px 8px;
 
-        &[data-side="left"], &[data-side="right"] {
+        &[data-side="left"] {
+          border-radius: 0;
+          flex-shrink: 0;
+        }
+
+        &[data-side="right"] {
           border-radius: 0;
         }
 

@@ -74,6 +74,20 @@ export const styles = css`
     flex: 1 1 auto;
   }
 
+  @media (max-width: 768px) {
+    [data-nextjs-dialog-root] {
+      --next-dialog-notch-height: 50px;
+    }
+
+    [data-nextjs-dialog-root] [data-nextjs-scroll-fader][data-side='top'] {
+      top: calc(var(--next-dialog-notch-height) - 15px);
+    }
+
+    [data-nextjs-dialog-content] {
+      padding-top: calc(var(--next-dialog-padding) + 4px);
+    }
+  }
+
   @media (max-height: 812px) {
     [data-nextjs-dialog-overlay] {
       max-height: calc(100% - 15px);
