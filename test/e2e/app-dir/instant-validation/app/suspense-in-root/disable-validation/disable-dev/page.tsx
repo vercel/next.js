@@ -1,6 +1,9 @@
 import { connection } from 'next/server'
 
-export const unstable_instant = { unstable_disableDevValidation: true }
+export const unstable_instant = {
+  level: 'error',
+  unstable_disableDevValidation: true,
+}
 
 export default async function Page() {
   await connection()

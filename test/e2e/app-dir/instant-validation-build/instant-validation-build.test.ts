@@ -612,16 +612,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/params/invalid-param-not-provided/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
-           at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:24)
+           at <unknown> (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:48:24)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:47:3)
-         45 |
-         46 |   // We're not allowed to access params not in the samples.
-       > 47 |   ensureThrows(() => p.two)
+           at a (app/(default)/params/invalid-param-not-provided/[one]/[two]/page.tsx:48:3)
+         46 |
+         47 |   // We're not allowed to access params not in the samples.
+       > 48 |   ensureThrows(() => p.two)
             |                        ^
-         48 |
-         49 |   // TODO: test \`in\` and iteration
-         50 |   // assert.deepStrictEqual( {
+         49 |
+         50 |   // TODO: test \`in\` and iteration
+         51 |   // assert.deepStrictEqual( {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided/[one]/[two]".
@@ -641,16 +641,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/params/invalid-param-not-provided-caught/[one]/[two]" accessed param "two" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
-           at <unknown> (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:45:26)
+           at <unknown> (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:46:26)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:45:5)
-         43 |   try {
-         44 |     // We're not allowed to access params not in the samples.
-       > 45 |     ensureThrows(() => p.two, \`Expected accessing an undeclared param to throw\`)
+           at a (app/(default)/params/invalid-param-not-provided-caught/[one]/[two]/page.tsx:46:5)
+         44 |   try {
+         45 |     // We're not allowed to access params not in the samples.
+       > 46 |     ensureThrows(() => p.two, \`Expected accessing an undeclared param to throw\`)
             |                          ^
-         46 |   } catch (err) {
-         47 |     // We swallow the error. It should still be reported and fail the validation.
-         48 |   } {
+         47 |   } catch (err) {
+         48 |     // We swallow the error. It should still be reported and fail the validation.
+         49 |   } {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided-caught/[one]/[two]".
@@ -837,16 +837,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided" accessed root param "lang" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
-           at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:11)
+           at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:18:11)
            at a (ensure-error.ts:48:11)
-           at b (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:16:9)
-         15 |
-         16 |   await ensureRejects(
-       > 17 |     () => lang(),
+           at b (app/root-params/[lang]/invalid-root-param-not-provided/page.tsx:17:9)
+         16 |
+         17 |   await ensureRejects(
+       > 18 |     () => lang(),
             |           ^
-         18 |     \`Expected lang() to error if sample is not provided\`
-         19 |   )
-         20 |   return ( {
+         19 |     \`Expected lang() to error if sample is not provided\`
+         20 |   )
+         21 |   return ( {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/root-params/[lang]/invalid-root-param-not-provided".
@@ -866,16 +866,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/root-params/[lang]/invalid-root-param-not-provided-caught" accessed root param "lang" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`params\` object.
-           at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:13)
+           at <unknown> (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:19:13)
            at a (ensure-error.ts:48:11)
-           at b (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:17:11)
-         16 |   try {
-         17 |     await ensureRejects(
-       > 18 |       () => lang(),
+           at b (app/root-params/[lang]/invalid-root-param-not-provided-caught/page.tsx:18:11)
+         17 |   try {
+         18 |     await ensureRejects(
+       > 19 |       () => lang(),
             |             ^
-         19 |       \`Expected lang() to error if sample is not provided\`
-         20 |     )
-         21 |   } catch { {
+         20 |       \`Expected lang() to error if sample is not provided\`
+         21 |     )
+         22 |   } catch { {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/root-params/[lang]/invalid-root-param-not-provided-caught".

@@ -2,6 +2,7 @@ import type { Instant } from 'next'
 import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
+  level: 'error',
   samples: [{ params: { slug: 'hello' } }],
 }
 export const unstable_prefetch = 'force-runtime'

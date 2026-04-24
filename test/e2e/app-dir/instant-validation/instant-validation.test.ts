@@ -172,7 +172,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = true
+         > 3 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/missing-suspense-around-runtime/page.tsx (3:33)",
@@ -232,7 +232,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = true
+         > 3 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic/page.tsx (3:33)",
@@ -292,7 +292,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = true
+         > 4 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic/page.tsx (4:33)",
@@ -355,7 +355,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = true
+         > 4 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
@@ -415,7 +415,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = true
+         > 4 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/missing-suspense-around-dynamic-layout/layout.tsx (4:33)",
@@ -621,7 +621,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/suspense-too-high/page.tsx (3:33) @ unstable_instant
-         > 3 | export const unstable_instant = true
+         > 3 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/suspense-too-high/page.tsx (3:33)",
@@ -684,7 +684,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = true
+         > 4 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/suspense-too-high/page.tsx (4:33)",
@@ -1123,7 +1123,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = true
+         > 4 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-loading-above-route-group/(group)/page.tsx (4:33)",
@@ -1187,7 +1187,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33) @ unstable_instant
-         > 4 | export const unstable_instant = true
+         > 4 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-dynamic-layout-with-loading/layout.tsx (4:33)",
@@ -1264,7 +1264,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/blocking-layout/missing-suspense-around-dynamic/page.tsx (3:33)",
@@ -1352,7 +1352,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/invalid-blocking-inside-static/layout.tsx (1:33)",
@@ -1413,7 +1413,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/runtime/invalid-blocking-inside-runtime/layout.tsx (3:33)",
@@ -1477,7 +1477,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/@slot/layout.tsx (1:33)",
@@ -1539,7 +1539,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/foo/page.tsx (1:33)",
@@ -1601,7 +1601,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/missing-suspense-in-parallel-route/bar/page.tsx (1:33)",
@@ -1664,7 +1664,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/invalid-client-data-blocks-validation/page.tsx (1:33)",
@@ -1831,7 +1831,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-blocks-children/page.tsx (1:33)",
@@ -1937,7 +1937,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-error-in-node-modules-blocks-children/page.tsx (1:33)",
@@ -2004,7 +2004,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-csr-bailout-blocks-children/page.tsx (1:33)",
@@ -2100,7 +2100,7 @@ describe('instant validation', () => {
                "environmentLabel": "Server",
                "label": "Console Error",
                "source": "app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/static/invalid-client-error-in-parent-sibling/page.tsx (1:33)",
@@ -2254,7 +2254,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33) @ unstable_instant
-           >  8 | export const unstable_instant = true
+           >  8 | export const unstable_instant = { level: 'error' }
                 |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (8:33)",
@@ -2319,7 +2319,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33) @ unstable_instant
-           > 6 | export const unstable_instant = true
+           > 6 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-runtime/page.tsx (6:33)",
@@ -2420,7 +2420,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static/layout.tsx (3:33)",
@@ -2483,7 +2483,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-config-only/(group)/layout.tsx (3:33)",
@@ -2544,7 +2544,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-config-and-segment-config/(group)/layout.tsx (3:33)",
@@ -2606,7 +2606,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-segment-config-only/layout.tsx (3:33)",
@@ -2668,7 +2668,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-config-with-deeper-segment/(group)/layout.tsx (3:33)",
@@ -2730,7 +2730,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-deeper-segment-config/(group)/inner/layout.tsx (3:33)",
@@ -2799,7 +2799,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:33) @ unstable_instant
-           > 6 | export const unstable_instant = true
+           > 6 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/route-group-shared-boundary/(outer)/(inner)/page.tsx (6:33)",
@@ -2875,7 +2875,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/parallel-group-depths-deep-slot-hole/@slot/(g1)/(g2)/(g3)/page.tsx (1:33)",
@@ -2945,7 +2945,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:33) @ unstable_instant
-           > 1 | export const unstable_instant = true
+           > 1 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/parallel-group-depths-shallow-slot-hole/(b1)/(b2)/page.tsx (1:33)",
@@ -3016,7 +3016,7 @@ describe('instant validation', () => {
              {
                "label": "Caused by: Instant Validation",
                "source": "app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:33) @ unstable_instant
-         > 6 | export const unstable_instant = true
+         > 6 | export const unstable_instant = { level: 'error' }
              |                                 ^",
                "stack": [
                  "unstable_instant app/suspense-in-root/runtime/static-layout-above-runtime-config/inner/layout.tsx (6:33)",
@@ -3084,7 +3084,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/config-depth-preference/deeper/still/deep/page.tsx (3:33)",
@@ -3135,7 +3135,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:33) @ unstable_instant
-           > 3 | export const unstable_instant = true
+           > 3 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/config-depth-preference-slot-wins/deeper/@anotherSlot/still/deep/page.tsx (3:33)",
@@ -3199,7 +3199,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/config-children-preferred/page.tsx (4:33) @ unstable_instant
-           > 4 | export const unstable_instant = true
+           > 4 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/config-children-preferred/page.tsx (4:33)",
@@ -3264,7 +3264,7 @@ describe('instant validation', () => {
                {
                  "label": "Caused by: Instant Validation",
                  "source": "app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:33) @ unstable_instant
-           > 5 | export const unstable_instant = true
+           > 5 | export const unstable_instant = { level: 'error' }
                |                                 ^",
                  "stack": [
                    "unstable_instant app/suspense-in-root/static/cross-slot-blocking/inner/deep/page.tsx (5:33)",

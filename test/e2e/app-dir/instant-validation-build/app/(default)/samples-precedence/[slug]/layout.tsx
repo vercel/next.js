@@ -1,6 +1,7 @@
 import type { Instant } from 'next'
 
 export const unstable_instant: Instant = {
+  level: 'error',
   samples: [
     {
       params: {

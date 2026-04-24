@@ -1,4 +1,5 @@
 export const unstable_instant = {
+  level: 'error',
   // `usePathname` will error if we don't have a sample for `[id]`.
   samples: [{ params: { id: '123' } }],
 }

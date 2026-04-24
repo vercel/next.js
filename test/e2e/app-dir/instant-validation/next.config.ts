@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   experimental: {
     instant: {
-      defaultValidationLevel: 'error',
+      defaultValidationLevel: 'disabled',
     },
   },
   productionBrowserSourceMaps: true,

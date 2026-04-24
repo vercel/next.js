@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-export const unstable_instant = true
+export const unstable_instant = { level: 'error' }
 
 export default async function Slot2aPage() {
   await cookies()

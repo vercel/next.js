@@ -1,6 +1,6 @@
 import { ReactNode, Suspense } from 'react'
 
-export const unstable_instant = true
+export const unstable_instant = { level: 'error' }
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (

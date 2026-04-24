@@ -2,6 +2,7 @@ import type { Instant } from 'next'
 import { SearchParamsReader } from './search-params-reader'
 
 export const unstable_instant: Instant = {
+  level: 'error',
   samples: [
     {
       searchParams: {

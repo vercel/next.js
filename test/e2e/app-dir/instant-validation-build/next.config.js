@@ -5,7 +5,7 @@ const nextConfig = {
   cacheComponents: true,
   experimental: {
     instant: {
-      defaultValidationLevel: 'error',
+      defaultValidationLevel: 'disabled',
     },
   },
   typescript: {
