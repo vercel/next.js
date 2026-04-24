@@ -77,7 +77,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
-    reference_type::CommonJsReferenceSubType,
+    reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
         ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
         find_context_file,
@@ -479,6 +479,8 @@ struct AnalysisState<'a> {
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     // The import map from the eval context, used to match dep strings to import references.
     imports: &'a ImportMap,
+    // Resolve overrides for imports
+    inner_assets: Option<ReadRef<InnerAssets>>,
 }
 
 impl AnalysisState<'_> {
@@ -556,6 +558,12 @@ async fn analyze_ecmascript_module_internal(
     {
         analysis.ident = source.ident().to_string().owned().await?;
     }
+
+    let inner_assets = if let Some(assets) = raw_module.inner_assets {
+        Some(assets.await?)
+    } else {
+        None
+    };
 
     // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
@@ -756,6 +764,16 @@ async fn analyze_ecmascript_module_internal(
         let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
         for (i, r) in eval_context.imports.references().enumerate() {
             let mut should_add_evaluation = false;
+
+            let resolve_override = if let Some(inner_assets) = &inner_assets
+                && let Some(req) = r.module_path.as_str()
+                && let Some(a) = inner_assets.get(req)
+            {
+                Some(*a)
+            } else {
+                None
+            };
+
             let reference = EsmAssetReference::new(
                 module,
                 ResolvedVc::upcast(module),
@@ -799,6 +817,7 @@ async fn analyze_ecmascript_module_internal(
                     .unwrap_or_default(),
                 import_externals,
                 options.tree_shaking_mode,
+                resolve_override,
             )
             .resolved_cell();
 
@@ -972,6 +991,7 @@ async fn analyze_ecmascript_module_internal(
             is_esm,
             import_references: &import_references,
             imports: &eval_context.imports,
+            inner_assets,
         };
 
         enum Action {
@@ -1411,6 +1431,7 @@ async fn analyze_ecmascript_module_internal(
                                                 original_reference.import_usage.clone(),
                                                 original_reference.import_externals,
                                                 original_reference.tree_shaking_mode,
+                                                original_reference.resolve_override,
                                             )
                                             .resolved_cell()
                                         },
@@ -1778,6 +1799,7 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
         handler,
         origin,
         source,
+        &state.inner_assets,
         ignore_dynamic_requests,
         analysis,
         error_mode,
@@ -1794,6 +1816,7 @@ async fn handle_dynamic_import_with_linked_args(
     handler: &Handler,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     source: ResolvedVc<Box<dyn Source>>,
+    inner_assets: &Option<ReadRef<InnerAssets>>,
     ignore_dynamic_requests: bool,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     error_mode: ResolveErrorMode,
@@ -1837,6 +1860,16 @@ async fn handle_dynamic_import_with_linked_args(
                 return Ok(());
             }
         }
+
+        let resolve_override = if let Some(inner_assets) = &inner_assets
+            && let Some(req) = pat.as_constant_string()
+            && let Some(a) = inner_assets.get(req)
+        {
+            Some(*a)
+        } else {
+            None
+        };
+
         analysis.add_reference_code_gen(
             EsmAsyncAssetReference::new(
                 origin,
@@ -1846,6 +1879,7 @@ async fn handle_dynamic_import_with_linked_args(
                 error_mode,
                 import_externals,
                 export_usage,
+                resolve_override,
             ),
             ast_path.to_vec().into(),
         );
@@ -2137,6 +2171,7 @@ where
                 handler,
                 origin,
                 source,
+                &state.inner_assets,
                 ignore_dynamic_requests,
                 analysis,
                 error_mode,
@@ -2163,6 +2198,16 @@ where
                         return Ok(());
                     }
                 }
+
+                let resolve_override = if let Some(inner_assets) = &state.inner_assets
+                    && let Some(req) = pat.as_constant_string()
+                    && let Some(a) = inner_assets.get(req)
+                {
+                    Some(*a)
+                } else {
+                    None
+                };
+
                 analysis.add_reference_code_gen(
                     CjsRequireAssetReference::new(
                         origin,
@@ -2170,6 +2215,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        resolve_override,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2221,6 +2267,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        None,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2268,6 +2315,16 @@ where
                         return Ok(());
                     }
                 }
+
+                let resolve_override = if let Some(inner_assets) = &state.inner_assets
+                    && let Some(req) = pat.as_constant_string()
+                    && let Some(a) = inner_assets.get(req)
+                {
+                    Some(*a)
+                } else {
+                    None
+                };
+
                 analysis.add_reference_code_gen(
                     CjsRequireResolveAssetReference::new(
                         origin,
@@ -2275,6 +2332,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        resolve_override,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -3219,6 +3277,7 @@ async fn handle_free_var_reference(
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
+                        None,
                     )
                     .resolved_cell())
                 })

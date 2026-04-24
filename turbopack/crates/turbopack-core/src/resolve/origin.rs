@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, Upcast, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{ModuleResolveResult, options::ResolveOptions, parse::Request};
-use crate::{context::AssetContext, module::OptionModule, reference_type::ReferenceType};
+use crate::{context::AssetContext, reference_type::ReferenceType};
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
@@ -23,14 +23,6 @@ pub trait ResolveOrigin {
     /// subgraph.
     #[turbo_tasks::function]
     fn asset_context(self: Vc<Self>) -> Vc<Box<dyn AssetContext>>;
-
-    /// Get an inner asset form this origin that doesn't require resolving but
-    /// is directly attached
-    #[turbo_tasks::function]
-    fn get_inner_asset(self: Vc<Self>, request: Vc<Request>) -> Vc<OptionModule> {
-        let _ = request;
-        Vc::cell(None)
-    }
 
     /// Get the resolve options that apply for this origin.
     #[turbo_tasks::function]
@@ -62,18 +54,18 @@ impl<T> ResolveOriginExt for T
 where
     T: ResolveOrigin + Upcast<Box<dyn ResolveOrigin>>,
 {
-    fn resolve_asset(
+    async fn resolve_asset(
         self: Vc<Self>,
         request: Vc<Request>,
         options: Vc<ResolveOptions>,
         reference_type: ReferenceType,
-    ) -> impl Future<Output = Result<Vc<ModuleResolveResult>>> + Send {
-        resolve_asset(
-            Vc::upcast_non_strict(self),
-            request,
-            options,
+    ) -> Result<Vc<ModuleResolveResult>> {
+        Ok(self.asset_context().to_resolved().await?.resolve_asset(
+            self.origin_path().owned().await?,
+            *request.to_resolved().await?,
+            *options.to_resolved().await?,
             reference_type,
-        )
+        ))
     }
 
     fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>> {
@@ -85,27 +77,6 @@ where
             .cell(),
         )
     }
-}
-
-async fn resolve_asset(
-    resolve_origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    options: Vc<ResolveOptions>,
-    reference_type: ReferenceType,
-) -> Result<Vc<ModuleResolveResult>> {
-    if let Some(asset) = *resolve_origin.get_inner_asset(request).await? {
-        return Ok(*ModuleResolveResult::module(asset));
-    }
-    Ok(resolve_origin
-        .asset_context()
-        .to_resolved()
-        .await?
-        .resolve_asset(
-            resolve_origin.origin_path().owned().await?,
-            *request.to_resolved().await?,
-            *options.to_resolved().await?,
-            reference_type,
-        ))
 }
 
 /// A resolve origin for some path and context without additional modifications.
@@ -162,10 +133,5 @@ impl ResolveOrigin for ResolveOriginWithTransition {
         self.previous
             .asset_context()
             .with_transition(self.transition.clone())
-    }
-
-    #[turbo_tasks::function]
-    fn get_inner_asset(&self, request: Vc<Request>) -> Vc<OptionModule> {
-        self.previous.get_inner_asset(request)
     }
 }

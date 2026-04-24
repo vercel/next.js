@@ -91,14 +91,11 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects, OptionModule},
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
-    resolve::{
-        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
-        parse::Request,
-    },
+    resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
     source_map::GenerateSourceMap,
 };
@@ -976,19 +973,6 @@ impl ResolveOrigin for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         *self.asset_context
-    }
-
-    #[turbo_tasks::function]
-    async fn get_inner_asset(&self, request: Vc<Request>) -> Result<Vc<OptionModule>> {
-        Ok(Vc::cell(if let Some(inner_assets) = &self.inner_assets {
-            if let Some(request) = request.await?.request() {
-                inner_assets.await?.get(&request).copied()
-            } else {
-                None
-            }
-        } else {
-            None
-        }))
     }
 }
 

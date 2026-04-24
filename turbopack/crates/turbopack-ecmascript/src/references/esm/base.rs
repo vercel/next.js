@@ -333,6 +333,7 @@ pub struct EsmAssetReference {
     pub import_externals: bool,
     pub tree_shaking_mode: Option<TreeShakingMode>,
     pub is_pure_import: bool,
+    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl EsmAssetReference {
@@ -356,6 +357,7 @@ impl EsmAssetReference {
         import_usage: ImportUsage,
         import_externals: bool,
         tree_shaking_mode: Option<TreeShakingMode>,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         EsmAssetReference {
             module,
@@ -368,6 +370,7 @@ impl EsmAssetReference {
             import_externals,
             tree_shaking_mode,
             is_pure_import: false,
+            resolve_override,
         }
     }
 
@@ -381,6 +384,7 @@ impl EsmAssetReference {
         import_usage: ImportUsage,
         import_externals: bool,
         tree_shaking_mode: Option<TreeShakingMode>,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         EsmAssetReference {
             module,
@@ -393,6 +397,7 @@ impl EsmAssetReference {
             import_externals,
             tree_shaking_mode,
             is_pure_import: true,
+            resolve_override,
         }
     }
     pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
@@ -404,6 +409,9 @@ impl EsmAssetReference {
 impl ModuleReference for EsmAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        if let Some(resolved) = &self.resolve_override {
+            return Ok(*ModuleResolveResult::module(*resolved));
+        }
         let ty = if let Some(loader) = self.annotations.as_ref().and_then(|a| a.turbopack_loader())
         {
             // Resolve the loader path relative to the importing file
