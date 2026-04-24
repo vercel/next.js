@@ -698,56 +698,21 @@ pub struct ModuleGraph {
 
 #[turbo_tasks::value_impl]
 impl ModuleGraph {
+    /// Analyze the module graph and potentially remove unused references (by determining the used
+    /// exports and removing unused imports).
     #[turbo_tasks::function(operation)]
-    pub async fn from_single_graph(graph: OperationVc<SingleModuleGraph>) -> Result<Vc<Self>> {
-        let graph = Self::create(vec![graph], None)
-            .read_strongly_consistent()
-            .await?;
-        Ok(ReadRef::cell(graph))
-    }
-
-    #[turbo_tasks::function(operation)]
-    pub async fn from_graphs(graphs: Vec<OperationVc<SingleModuleGraph>>) -> Result<Vc<Self>> {
-        let graph = Self::create(graphs, None)
-            .read_strongly_consistent()
-            .await?;
-        Ok(ReadRef::cell(graph))
-    }
-
-    /// Analyze the module graph and remove unused references (by determining the used exports and
-    /// removing unused imports).
-    ///
-    /// In particular, this removes ModuleReference-s that list only unused exports in the
-    /// `import_usage()`
-    #[turbo_tasks::function(operation)]
-    pub async fn from_single_graph_without_unused_references(
-        graph: OperationVc<SingleModuleGraph>,
-        binding_usage: OperationVc<BindingUsageInfo>,
-    ) -> Result<Vc<Self>> {
-        let graph = Self::create(vec![graph], Some(binding_usage))
-            .read_strongly_consistent()
-            .await?;
-        Ok(ReadRef::cell(graph))
-    }
-
-    /// Analyze the module graph and remove unused references (by determining the used exports and
-    /// removing unused imports).
-    ///
-    /// In particular, this removes ModuleReference-s that list only unused exports in the
-    /// `import_usage()`
-    #[turbo_tasks::function(operation)]
-    pub async fn from_graphs_without_unused_references(
+    pub async fn from_graphs(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
-        binding_usage: OperationVc<BindingUsageInfo>,
+        binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<Self>> {
-        let graph = Self::create(graphs, Some(binding_usage))
+        let graph = Self::from_graphs_inner(graphs, binding_usage)
             .read_strongly_consistent()
             .await?;
         Ok(ReadRef::cell(graph))
     }
 
     #[turbo_tasks::function(operation)]
-    async fn create(
+    async fn from_graphs_inner(
         graphs: Vec<OperationVc<SingleModuleGraph>>,
         binding_usage: Option<OperationVc<BindingUsageInfo>>,
     ) -> Result<Vc<ModuleGraph>> {
@@ -2103,15 +2068,18 @@ pub mod tests {
                     false,
                 );
 
-                let module_graph = ModuleGraph::from_graphs(vec![
-                    parent_graph,
-                    SingleModuleGraph::new_with_entries_visited(
-                        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![a_module])]),
-                        VisitedModules::from_graph(parent_graph),
-                        false,
-                        false,
-                    ),
-                ])
+                let module_graph = ModuleGraph::from_graphs(
+                    vec![
+                        parent_graph,
+                        SingleModuleGraph::new_with_entries_visited(
+                            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![a_module])]),
+                            VisitedModules::from_graph(parent_graph),
+                            false,
+                            false,
+                        ),
+                    ],
+                    None,
+                )
                 .connect();
                 let child_graph = module_graph
                     .iter_graphs()
@@ -2366,7 +2334,9 @@ pub mod tests {
                 .await?
                 .into_iter()
                 .collect();
-            let module_graph = ModuleGraph::from_single_graph(graph).connect().await?;
+            let module_graph = ModuleGraph::from_graphs(vec![graph], None)
+                .connect()
+                .await?;
 
             Ok(SetupGraph {
                 module_graph,

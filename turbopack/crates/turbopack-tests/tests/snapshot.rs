@@ -460,7 +460,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         false,
         true,
     );
-    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(compute_binding_usage_info(
@@ -473,8 +473,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     if options.remove_unused_imports
         && let Some(binding_usage) = binding_usage
     {
-        module_graph =
-            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+        module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     }
     let module_graph = module_graph.connect();
 

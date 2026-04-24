@@ -753,11 +753,11 @@ impl PageEndpoint {
                 .await?;
 
             let graph = if remove_unused_imports {
-                let graph = ModuleGraph::from_graphs(graphs.clone());
+                let graph = ModuleGraph::from_graphs(graphs.clone(), None);
                 let binding_usage_info = compute_binding_usage_info(graph, true);
-                ModuleGraph::from_graphs_without_unused_references(graphs, binding_usage_info)
+                ModuleGraph::from_graphs(graphs, Some(binding_usage_info))
             } else {
-                ModuleGraph::from_graphs(graphs)
+                ModuleGraph::from_graphs(graphs, None)
             };
 
             Ok(graph.connect())

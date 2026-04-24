@@ -966,7 +966,7 @@ impl AppProject {
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
 
-                let base = ModuleGraph::from_graphs(graphs.clone());
+                let base = ModuleGraph::from_graphs(graphs.clone(), None);
                 let additional_entries = endpoint.additional_entries(base.connect());
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
@@ -991,20 +991,18 @@ impl AppProject {
                     .await?;
 
                 let (full, binding_usage_info) = if remove_unused_imports {
-                    let full_with_unused_references = ModuleGraph::from_graphs(graphs.clone());
+                    let full_with_unused_references =
+                        ModuleGraph::from_graphs(graphs.clone(), None);
                     let binding_usage_info = compute_binding_usage_info(
                         full_with_unused_references,
                         should_read_binding_usage,
                     );
                     (
-                        ModuleGraph::from_graphs_without_unused_references(
-                            graphs,
-                            binding_usage_info,
-                        ),
+                        ModuleGraph::from_graphs(graphs, Some(binding_usage_info)),
                         Some(binding_usage_info),
                     )
                 } else {
-                    (ModuleGraph::from_graphs(graphs), None)
+                    (ModuleGraph::from_graphs(graphs, None), None)
                 };
 
                 Ok(BaseAndFullModuleGraph {
