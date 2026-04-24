@@ -286,7 +286,7 @@ pub(crate) struct ProgramDeclUsage {
     // import -> immediate usage (top level decl)
     pub(crate) import_usages: FxHashMap<usize, DeclUsage>,
     // export name -> top level decl
-    pub(crate) exports: FxHashMap<Atom, Id>,
+    pub(crate) exports: FxHashMap<RcStr, Id>,
 }
 impl ProgramDeclUsage {
     fn compute_import_usage(&self) -> FxHashMap<usize, ImportUsage> {
@@ -326,7 +326,7 @@ impl ProgramDeclUsage {
                             self.exports
                                 .iter()
                                 .filter(|(_, id)| visited.contains(*id))
-                                .map(|(exported, _)| exported.as_str().into())
+                                .map(|(exported, _)| exported.clone())
                                 .collect(),
                         )
                     },
@@ -1013,20 +1013,20 @@ impl Visit for Analyzer<'_> {
                 self.data
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
-                self.data.exports_ids.insert(name, n.ident.to_id());
+                self.data.exports_ids.insert(name.clone(), n.ident.to_id());
                 self.program_decl_usage
                     .exports
-                    .insert(n.ident.sym.clone(), n.ident.to_id());
+                    .insert(name, n.ident.to_id());
             }
             Decl::Fn(n) => {
                 let name = RcStr::from(n.ident.sym.as_str());
                 self.data
                     .exports
                     .insert(name.clone(), Export::LocalBinding(name.clone(), false));
-                self.data.exports_ids.insert(name, n.ident.to_id());
+                self.data.exports_ids.insert(name.clone(), n.ident.to_id());
                 self.program_decl_usage
                     .exports
-                    .insert(n.ident.sym.clone(), n.ident.to_id());
+                    .insert(name, n.ident.to_id());
             }
             Decl::Var(..) => {
                 let ids: Vec<Id> = find_pat_ids(&n.decl);
@@ -1035,10 +1035,8 @@ impl Visit for Analyzer<'_> {
                     self.data
                         .exports
                         .insert(name.clone(), Export::LocalBinding(name.clone(), false));
-                    self.program_decl_usage
-                        .exports
-                        .insert(id.0.clone(), id.clone());
-                    self.data.exports_ids.insert(name, id);
+                    self.data.exports_ids.insert(name.clone(), id.clone());
+                    self.program_decl_usage.exports.insert(name, id);
                 }
             }
             Decl::Using(_) => {
@@ -1108,17 +1106,16 @@ impl Visit for Analyzer<'_> {
     fn visit_export_named_specifier(&mut self, n: &ExportNamedSpecifier) {
         self.data.has_exports = true;
 
-        let exported = n.exported.as_ref().unwrap_or(&n.orig).atom();
         let ModuleExportName::Ident(local) = &n.orig else {
             unreachable!("exporting a string should be impossible")
         };
+        let exported = RcStr::from(n.exported.as_ref().unwrap_or(&n.orig).atom().as_str());
         self.data
             .exports_ids
-            .insert(exported.as_str().into(), local.to_id());
-
+            .insert(exported.clone(), local.to_id());
         self.program_decl_usage
             .exports
-            .insert(exported.into_owned(), local.to_id());
+            .insert(exported, local.to_id());
         n.visit_children_with(self);
     }
 
