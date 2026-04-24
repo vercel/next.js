@@ -564,13 +564,16 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                 .into_iter()
                 .map(|module| {
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        Some(&program),
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                    );
+
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     ParseResult::resolved_cell(ParseResult::Ok {
                         program,
@@ -691,13 +694,15 @@ pub(crate) async fn part_of_module(
                     }));
 
                     let program = Program::Module(module);
-                    let eval_context = EvalContext::new(
-                        Some(&program),
-                        eval_context.unresolved_mark,
-                        eval_context.top_level_mark,
-                        eval_context.force_free_values.clone(),
-                        None,
-                    );
+                    let eval_context = GLOBALS.set(globals, || {
+                        EvalContext::new(
+                            Some(&program),
+                            eval_context.unresolved_mark,
+                            eval_context.top_level_mark,
+                            eval_context.force_free_values.clone(),
+                            None,
+                        )
+                    });
 
                     return Ok(ParseResult::Ok {
                         program,
