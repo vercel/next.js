@@ -29,6 +29,7 @@ use crate::{
     runtime_functions::TURBOPACK_CACHE,
 };
 
+/// Generic CommonJS reference that doesn't perform any codegen. Used for tracing
 #[turbo_tasks::value]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("generic commonjs {request}")]
@@ -224,6 +225,7 @@ pub struct CjsRequireResolveAssetReference {
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
     chunking_type_attribute: Option<SpecifiedChunkingType>,
+    resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl CjsRequireResolveAssetReference {
@@ -233,6 +235,7 @@ impl CjsRequireResolveAssetReference {
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
         chunking_type_attribute: Option<SpecifiedChunkingType>,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         CjsRequireResolveAssetReference {
             origin,
@@ -240,6 +243,7 @@ impl CjsRequireResolveAssetReference {
             issue_source,
             error_mode,
             chunking_type_attribute,
+            resolve_override,
         }
     }
 }
@@ -248,6 +252,10 @@ impl CjsRequireResolveAssetReference {
 impl ModuleReference for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        if let Some(resolved) = &self.resolve_override {
+            return *ModuleResolveResult::module(*resolved);
+        }
+
         cjs_resolve(
             *self.origin,
             *self.request,

@@ -2315,6 +2315,16 @@ where
                         return Ok(());
                     }
                 }
+
+                let resolve_override = if let Some(inner_assets) = &state.inner_assets
+                    && let Some(req) = pat.as_constant_string()
+                    && let Some(a) = inner_assets.get(req)
+                {
+                    Some(*a)
+                } else {
+                    None
+                };
+
                 analysis.add_reference_code_gen(
                     CjsRequireResolveAssetReference::new(
                         origin,
@@ -2322,6 +2332,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        resolve_override,
                     ),
                     ast_path.to_vec().into(),
                 );
