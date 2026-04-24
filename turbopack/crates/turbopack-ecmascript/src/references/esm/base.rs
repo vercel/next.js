@@ -69,60 +69,50 @@ pub enum ReferencedAssetIdent {
     },
     /// The given export (or namespace) should be imported and will be assigned to a new variable.
     Module {
+        /// The name of the variable that will hold the imported namespace. Cached from
+        /// `import_source.get_namespace_ident(..)` at resolution time so downstream sync
+        /// visitors can read it without re-entering the async layer.
+        namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
-        /// Describes what to import and the name of the variable it will be assigned to
-        /// (see `ImportSource::get_namespace_ident`).
+        /// Describes what to import to populate the variable that `namespace_ident` names.
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
         /// './inner'`), this is the final module in that chain, not the directly referenced
         /// asset — so the `.i(...)` call that initializes the variable loads the module whose
-        /// namespace the variable name claims to hold.
+        /// namespace `namespace_ident` claims to hold.
         import_source: ImportSource,
     },
 }
 
-/// The source to import when initializing a `ReferencedAssetIdent::Module` variable, together
-/// with the name of that variable.
+/// The source to import when initializing a `ReferencedAssetIdent::Module` variable.
 #[derive(Debug)]
 pub enum ImportSource {
     /// Import an in-graph module.
-    Module {
-        asset: ResolvedVc<Box<dyn Module>>,
-        namespace_ident: String,
-    },
+    Module { asset: ResolvedVc<Box<dyn Module>> },
     /// Import an external dependency. The emitting site decides between
     /// `__turbopack_external_import` and `__turbopack_external_require` based on its own
     /// `import_externals` flag.
-    External {
-        request: RcStr,
-        ty: ExternalType,
-        namespace_ident: String,
-    },
+    External { request: RcStr, ty: ExternalType },
 }
 
 impl ImportSource {
-    /// The name of the variable that will hold the imported namespace.
-    pub fn get_namespace_ident(&self) -> &str {
-        match self {
-            ImportSource::Module {
-                namespace_ident, ..
+    /// Compute the name of the variable that should hold the imported namespace.
+    pub async fn get_namespace_ident(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<String> {
+        Ok(match self {
+            ImportSource::Module { asset } => {
+                let id = asset.chunk_item_id(chunking_context).await?;
+                // There are a number of places in `next` that match on this prefix.
+                // See `packages/next/src/shared/lib/magic-identifier.ts`
+                magic_identifier::mangle(&format!("imported module {id}"))
             }
-            | ImportSource::External {
-                namespace_ident, ..
-            } => namespace_ident,
-        }
-    }
-
-    fn into_namespace_ident(self) -> String {
-        match self {
-            ImportSource::Module {
-                namespace_ident, ..
+            ImportSource::External { request, ty } => {
+                magic_identifier::mangle(&format!("{ty} external {request}"))
             }
-            | ImportSource::External {
-                namespace_ident, ..
-            } => namespace_ident,
-        }
+        })
     }
 }
 
@@ -130,10 +120,10 @@ impl ReferencedAssetIdent {
     pub fn into_module_namespace_ident(self) -> Option<(String, Option<SyntaxContext>)> {
         match self {
             ReferencedAssetIdent::Module {
+                namespace_ident,
                 ctxt,
-                import_source,
                 ..
-            } => Some((import_source.into_namespace_ident(), ctxt)),
+            } => Some((namespace_ident, ctxt)),
             ReferencedAssetIdent::LocalBinding { .. } => None,
         }
     }
@@ -146,16 +136,16 @@ impl ReferencedAssetIdent {
                 liveness: _,
             } => Either::Left(Ident::new(ident.as_str().into(), span, *ctxt)),
             ReferencedAssetIdent::Module {
+                namespace_ident,
                 ctxt,
                 export,
-                import_source,
+                import_source: _,
             } => {
-                let namespace_ident = import_source.get_namespace_ident();
                 if let Some(export) = export {
                     Either::Right(MemberExpr {
                         span,
                         obj: Box::new(Expr::Ident(Ident::new(
-                            namespace_ident.into(),
+                            namespace_ident.as_str().into(),
                             DUMMY_SP,
                             ctxt.unwrap_or_default(),
                         ))),
@@ -170,7 +160,7 @@ impl ReferencedAssetIdent {
                     })
                 } else {
                     Either::Left(Ident::new(
-                        namespace_ident.into(),
+                        namespace_ident.as_str().into(),
                         span,
                         ctxt.unwrap_or_default(),
                     ))
@@ -279,6 +269,7 @@ impl ReferencedAsset {
                                 .await?
                                 {
                                     Some(ReferencedAssetIdent::Module {
+                                        namespace_ident,
                                         // Overwrite the context. This import isn't
                                         // inserted in the module that uses the import,
                                         // but in the module containing the reexport
@@ -286,6 +277,7 @@ impl ReferencedAsset {
                                         export,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
+                                        namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
                                         import_source,
@@ -301,25 +293,28 @@ impl ReferencedAsset {
                     }
                 }
 
+                let import_source = ImportSource::Module {
+                    asset: ResolvedVc::upcast(*asset),
+                };
                 Some(ReferencedAssetIdent::Module {
+                    namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
                     export,
-                    import_source: ImportSource::Module {
-                        asset: ResolvedVc::upcast(*asset),
-                        namespace_ident: Self::get_ident_from_placeable(asset, chunking_context)
-                            .await?,
-                    },
+                    import_source,
                 })
             }
-            ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
-                ctxt: None,
-                export,
-                import_source: ImportSource::External {
+            ReferencedAsset::External(request, ty) => {
+                let import_source = ImportSource::External {
                     request: request.clone(),
                     ty: *ty,
-                    namespace_ident: magic_identifier::mangle(&format!("{ty} external {request}")),
-                },
-            }),
+                };
+                Some(ReferencedAssetIdent::Module {
+                    namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
+                    ctxt: None,
+                    export,
+                    import_source,
+                })
+            }
             ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
         })
     }
@@ -690,6 +685,7 @@ impl EsmAssetReference {
                                 // no need to import
                             }
                             Some(ReferencedAssetIdent::Module {
+                                namespace_ident,
                                 ctxt,
                                 export: _,
                                 import_source,
@@ -702,12 +698,12 @@ impl EsmAssetReference {
                                         Span::new(BytePos(start), BytePos(end))
                                     });
                                 let name = Ident::new(
-                                    import_source.get_namespace_ident().into(),
+                                    namespace_ident.into(),
                                     DUMMY_SP,
                                     ctxt.unwrap_or_default(),
                                 );
                                 let (key, mut call_expr) = match import_source {
-                                    ImportSource::Module { asset, .. } => {
+                                    ImportSource::Module { asset } => {
                                         let hoist_key = hoist_key
                                             .expect("ImportSource::Module implies Some asset");
                                         let id = asset.chunk_item_id(chunking_context).await?;
@@ -723,7 +719,6 @@ impl EsmAssetReference {
                                     ImportSource::External {
                                         request,
                                         ty: ExternalType::EcmaScriptModule,
-                                        ..
                                     } => {
                                         if !*chunking_context
                                             .environment()
@@ -754,7 +749,6 @@ impl EsmAssetReference {
                                     ImportSource::External {
                                         request,
                                         ty: ExternalType::CommonJs | ExternalType::Url,
-                                        ..
                                     } => {
                                         if !*chunking_context
                                             .environment()
