@@ -9,6 +9,8 @@ related:
     - app/api-reference/directives/use-cache
     - app/api-reference/config/next-config-js/cacheComponents
     - app/guides/preserving-ui-state
+    - app/api-reference/file-conventions/route-segment-config/instant
+    - app/guides/instant-navigation
 ---
 
 {/* AI agent hint: To ensure client-side navigations are instant with Cache Components, export `unstable_instant` from the route. See docs/01-app/02-guides/instant-navigation.mdx */}
@@ -295,7 +297,18 @@ Next.js requires you to explicitly handle components that can't complete during 
 
 ### Opting out of the static shell
 
-Placing a `<Suspense>` boundary with an empty fallback above the document body in your Root Layout causes the entire app to defer to request time. Because the fallback is empty, there is no static shell to send immediately, so every request blocks until the page is fully rendered. To limit this to specific routes, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout).
+When a segment's content all depends on runtime data (cookies, headers, or fresh-on-every-request queries) and none of it can be cached, there's nothing meaningful to put in a static shell. Set [`unstable_instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) on just that layout or page:
+
+```tsx filename="app/dashboard/layout.tsx"
+export const unstable_instant = false
+```
+
+The navigation blocks on the server for that segment, but the rest of the app keeps its static shells.
+
+<details>
+<summary>Opting the entire app out</summary>
+
+If you need to opt out at the app level (for example, during migration), wrap `<body>` in `<Suspense>` with an empty fallback in the root layout. This skips the static shell for every route because there is nothing to send immediately, so every request blocks until the page is fully rendered. Prefer `unstable_instant = false` on specific segments when possible.
 
 ```tsx filename="app/layout.tsx" highlight={1,10-12}
 import { Suspense } from 'react'
@@ -314,6 +327,10 @@ export default function RootLayout({
   )
 }
 ```
+
+To limit this to specific routes, use [multiple root layouts](/docs/app/api-reference/file-conventions/layout#root-layout).
+
+</details>
 
 > **Good to know**: This same pattern applies when `generateViewport` accesses uncached dynamic data. See [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for a detailed example.
 
@@ -416,3 +433,90 @@ async function CreatePost() {
 During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell along with the fallback UI for user preferences. Only the personalized preferences stream in at request time. When an admin publishes a new post, the [`updateTag`](/docs/app/getting-started/revalidating#updatetag) call immediately expires the blog posts cache so the next visitor sees it.
 
 > **Good to know:** `generateMetadata` and `generateViewport` track runtime data access separately from the page. See [Metadata with Cache Components](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [Viewport with Cache Components](/docs/app/api-reference/functions/generate-viewport#with-cache-components) for how to handle this.
+
+## Instant navigation
+
+To achieve instant navigations, wrap uncached or runtime data in a `<Suspense>` boundary as close as possible to where access happens. If every component in the tree either uses `use cache`, is static, or follows this rule, your application gets instant navigations out of the box.
+
+However, during migration to Cache Components, developing new features, or refactoring, Suspense boundaries can drift higher up the component tree into shared layouts or even the root layout. This results in less meaningful loading states and, at worst, blocking client-side transitions.
+
+Client-side navigations re-render from a shared layout down. A `<Suspense>` boundary above that shared layout will not help because it is above the re-render point. If a page reads uncached data without a local Suspense boundary, the server-side render must complete before any UI is shown, blocking the navigation.
+
+> **Good to know:** Cold caches are typically a one-time cost, not a permanent block. The documentation on instant navigations assumes caches are warm.
+
+### Inspecting loading states
+
+Open the Next.js DevTools and select **Instant Navs**. The **Page load** option refreshes the page and freezes it at the initial static UI that was generated for the route. The **Client navigation** option makes every link click show the prefetched UI instead of the full result. Page loads and client navigations can produce different shells because client-side hooks like `useSearchParams` resolve synchronously on client navigations but suspend on page loads.
+
+### Preventing Suspense drift
+
+The [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) route segment config opts a route into validation for instant navigations. Next.js checks, during development and at build time, that the caching structure produces an instant shell at every possible entry point into the route.
+
+In the example below, there is no `generateStaticParams`, so `id` is only known at request time. Awaiting `params` suspends, so each component needs its own `<Suspense>` boundary. Product details rarely change and are cached as a function of `id`. Inventory must be fresh and streams behind a fallback:
+
+```tsx filename="app/products/[id]/page.tsx" highlight={1-3}
+export const unstable_instant = {
+  samples: [{ params: { id: '1' } }],
+}
+
+import { Suspense } from 'react'
+
+export default async function ProductPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  return (
+    <div>
+      <Suspense fallback={<p>Loading product...</p>}>
+        {params.then(({ id }) => (
+          <ProductInfo id={id} />
+        ))}
+      </Suspense>
+      <Suspense fallback={<p>Checking availability...</p>}>
+        <Inventory params={params} />
+      </Suspense>
+    </div>
+  )
+}
+
+async function ProductInfo({ id }: { id: string }) {
+  'use cache'
+  const product = await fetchProduct(id)
+  return <h1>{product.name}</h1>
+}
+
+async function Inventory({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = await params
+  const inventory = await fetchInventory(id)
+  return <p>{inventory.count} in stock</p>
+}
+```
+
+The product name is cached and part of the instant shell. The inventory count streams behind a loading state. If either component would block navigation, `instant` flags it during development and at build time.
+
+To prevent regressions, the `@next/playwright` package includes an [`instant()`](/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper that lets you write e2e assertions for the fallback states that appear during instant navigations.
+
+### Static and runtime prefetching
+
+By default, components that read cookies or headers must be behind `<Suspense>`. They cannot be prefetched without the user's session data.
+
+Opt into runtime prefetching with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export. Next.js will then send prefetch requests with the user's actual cookies and headers, caching the response in the browser. Personalized content like a user's name or cart count can become part of the instant shell instead of streaming behind a loading state:
+
+```tsx filename="app/dashboard/layout.tsx"
+export const unstable_instant = {
+  samples: [
+    {
+      cookies: [{ name: 'session', value: 'abc123' }],
+    },
+  ],
+}
+
+export const unstable_prefetch = 'force-runtime'
+```
+
+See the [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for all configuration options, including incremental adoption with `instant = false` and the `instant()` testing API.
