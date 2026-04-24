@@ -314,13 +314,20 @@ impl VisitMut for TransformVisitor {
         class.visit_mut_children_with(self);
 
         // Only classes that extend a recognized Error class.
-        let extends_known_error = match class.super_class.as_deref() {
-            Some(Expr::Ident(ident)) => is_error_class_name(ident.sym.as_str()),
-            _ => false,
+        let super_class_name = match class.super_class.as_deref() {
+            Some(Expr::Ident(ident)) if is_error_class_name(ident.sym.as_str()) => {
+                ident.sym.as_str()
+            }
+            _ => return,
         };
-        if !extends_known_error {
-            return;
-        }
+
+        // `AggregateError(errors, message)` takes the message as the second
+        // argument. All other recognized error classes take it as the first.
+        let message_arg_index = if super_class_name == "AggregateError" {
+            1
+        } else {
+            0
+        };
 
         // Find the first constructor with a body.
         let ctor = class.body.iter_mut().find_map(|member| match member {
@@ -352,10 +359,10 @@ impl VisitMut for TransformVisitor {
                     ctxt,
                     ..
                 }) = &**expr
-                && let Some(first_arg) = args.first()
-                && first_arg.spread.is_none()
+                && let Some(message_arg) = args.get(message_arg_index)
+                && message_arg.spread.is_none()
             {
-                let message = stringify_new_error_arg(&first_arg.expr, &self.resolved_bindings);
+                let message = stringify_new_error_arg(&message_arg.expr, &self.resolved_bindings);
                 super_index = Some(i);
                 super_info = Some((*span, *ctxt, message));
                 break;
@@ -579,6 +586,12 @@ class UnknownMessage extends Error {
         super("Not in errors.json");
     }
 }
+
+class AggregateSubclass extends AggregateError {
+    constructor(errors) {
+        super(errors, "Timeout reached");
+    }
+}
 "#,
     // Output codes after transformed with plugin
     r#"
@@ -637,6 +650,16 @@ class SuperInIf extends Error {
 class UnknownMessage extends Error {
     constructor(){
         super("Not in errors.json");
+    }
+}
+class AggregateSubclass extends AggregateError {
+    constructor(errors){
+        super(errors, "Timeout reached");
+        Object.defineProperty(this, "__NEXT_ERROR_CODE", {
+            value: "E7",
+            enumerable: false,
+            configurable: true
+        });
     }
 }
 "#
