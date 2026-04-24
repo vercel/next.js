@@ -62,7 +62,7 @@ on:
         description: 'List of runner labels'
         required: false
         type: string
-        default: '["self-hosted", "linux", "x64", "metal"]'
+        default: '["ubuntu-latest-16-core-oss"]'
       buildNativeTarget:
         description: 'Target for build-native step'
         required: false
@@ -107,8 +107,11 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vtest314-next-e2e-tests'
-  TURBO_CACHE: 'remote:rw'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
@@ -152,7 +155,7 @@ jobs:
     steps:
       # enforce consistent line endings for git on windows
       - name: Configure git to use LF endings
-        if: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') }}
+        if: ${{ runner.os == 'Windows' }}
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
@@ -172,9 +175,10 @@ jobs:
       - name: Install fnm
         if: steps.check-fnm.outputs.found != 'true'
         run: |
+          export FNM_DIR="${HOME}/.local/share/fnm"
           curl -fsSL https://fnm.vercel.app/install | bash
-          export PATH="/home/runner/.local/share/fnm:$PATH"
-          echo "/home/runner/.local/share/fnm" >> $GITHUB_PATH
+          export PATH="$FNM_DIR:$PATH"
+          echo "$FNM_DIR" >> $GITHUB_PATH
           fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
 
       - name: Normalize input step names into path key
@@ -207,7 +211,7 @@ jobs:
           which node
           node --version
       - name: Prepare corepack
-        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        if: ${{ runner.os == 'Linux' }}
         run: |
           npm i -g corepack@0.31
       - run: corepack enable
@@ -271,7 +275,7 @@ jobs:
         uses: ./.github/actions/sccache
         if: ${{ runner.os != 'Windows' && ((inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
         with:
-          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Download pre-built native binary
         if: ${{ inputs.skipNativeBuild != 'yes' && inputs.uploadNativeArtifact == '' }}
@@ -279,7 +283,7 @@ jobs:
         continue-on-error: true
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') && 'next-swc-windows' || 'next-swc-linux' }}
+          name: ${{ runner.os == 'Windows' && 'next-swc-windows' || 'next-swc-linux' }}
           path: packages/next-swc/native/
 
       - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} ${TURBO_ARGS} --summarize -- --target ${{ inputs.buildNativeTarget }}
@@ -398,11 +402,11 @@ jobs:
           path: packages/next/dist/compiled/next-server/report.*.html
 
       - name: Install datadog-ci
-        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
         uses: ./.github/actions/setup-datadog-ci
 
       - name: Upload test report to datadog
-        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
         run: |
           # Add a `test.type` tag to distinguish between turbopack and next.js runs
           # Add a `nextjs.test_session.name` tag to help identify the job

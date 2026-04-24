@@ -24,8 +24,11 @@ env:
   # TODO: we should add the relevant envs later to to switch to strict mode
   TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 90 --summarize --log-order stream'
   NODE_LTS_VERSION: 20
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   # Without this environment variable, rust-lld will fail because some dependencies defaults to newer version of macOS by default.
   #
   # See https://doc.rust-lang.org/rustc/platform-support/apple-darwin.html#os-version for more details
@@ -180,12 +183,15 @@ jobs:
             build_task: build-native-release
             os:
               mac:
-                host: "['self-hosted', 'macos', 'arm64']"
-                arch: [x86_64, aarch64]
                 vendor: apple
                 sys: darwin
+                arch:
+                  x86_64:
+                    host: "['macos-15-intel']"
+                  aarch64:
+                    host: "['macos-15']"
               windows:
-                host: "['self-hosted', 'windows', 'x64']"
+                host: "['windows-latest-8-core-oss']"
                 vendor: pc
                 sys: windows
                 abi: msvc
@@ -193,7 +199,7 @@ jobs:
                   x86_64: {}
                   aarch64: {}
               linux:
-                host: "['self-hosted', 'linux', 'x64', 'metal']"
+                host: "['ubuntu-latest-16-core-oss']"
                 docker: next-swc-builder:latest
                 vendor: unknown
                 sys: linux
@@ -220,7 +226,7 @@ jobs:
 
     name: stable - ${{ matrix.target }} - node@20
     runs-on: ${{ fromJSON(matrix.host) }}
-    timeout-minutes: 45
+    timeout-minutes: ${{ matrix.os == 'mac' && 90 || 45 }}
     env:
       # Disable all build caches for production/staging/force-preview deploys
       NEXT_SKIP_BUILD_CACHE: ${{ contains(fromJSON('["production","staging","force-preview"]'), needs.deploy-target.outputs.value) && '1' || '' }}
@@ -246,10 +252,12 @@ jobs:
           node-version: ${{ env.NODE_LTS_VERSION }}
           check-latest: true
 
+      - name: Prepare corepack
+        if: ${{ matrix.os != 'windows' }}
+        run: npm i -g corepack@0.31
+
       - name: Setup corepack
-        run: |
-          npm i -g corepack@0.31
-          corepack enable
+        run: corepack enable
 
       # we always want to run this to set environment variables
       # (skip for docker builds - rust is already in the image)
@@ -295,7 +303,7 @@ jobs:
           docker run --rm \
             -e CI -e RUST_BACKTRACE -e CARGO_TERM_COLOR \
             -e CARGO_INCREMENTAL=0 -e CARGO_REGISTRIES_CRATES_IO_PROTOCOL \
-            ${{ env.NEXT_SKIP_BUILD_CACHE && ' ' || '-e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE=remote:rw' }} \
+            ${{ env.NEXT_SKIP_BUILD_CACHE && ' ' || '-e TURBO_API -e TURBO_TEAM -e TURBO_TOKEN -e TURBO_VERSION -e TURBO_CACHE=local:rw,remote:rw' }} \
             -e TARGET="${{ matrix.target }}" \
             -e ABI="${{ matrix.abi }}" \
             -e ARCH="${{ matrix.arch }}" \
@@ -386,11 +394,7 @@ jobs:
       matrix:
         target: [web, nodejs]
 
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+    runs-on: ubuntu-latest-16-core-oss
 
     steps:
       - uses: actions/checkout@v6
@@ -580,9 +584,11 @@ jobs:
           path: turbopack-bin-size
 
       - name: Install datadog-ci
+        if: ${{ env.DATADOG_API_KEY != '' }}
         uses: ./.github/actions/setup-datadog-ci
 
       - name: Upload to Datadog
+        if: ${{ env.DATADOG_API_KEY != '' }}
         run: |
           ls -al turbopack-bin-size
 

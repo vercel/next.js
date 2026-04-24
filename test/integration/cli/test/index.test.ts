@@ -831,9 +831,14 @@ describe('CLI Usage', () => {
 
     test('-p reserved', async () => {
       const TCP_MUX_PORT = 1
-      const { stderr, stdout } = await runAndCaptureOutput({
-        port: TCP_MUX_PORT,
-      })
+      const { stderr, stdout } = await runNextCommand(
+        [dirBasic, '-p', '' + TCP_MUX_PORT],
+        {
+          stdout: true,
+          stderr: true,
+          ignoreFail: true,
+        }
+      )
 
       expect(stdout).toMatch('')
       expect(stderr).toMatch(

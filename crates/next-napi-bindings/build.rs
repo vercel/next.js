@@ -4,7 +4,9 @@ use serde_json::Value;
 
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-env-changed=CI");
+    println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS");
     let is_ci = env::var("CI").is_ok_and(|value| !value.is_empty());
+    let is_macos_target = env::var("CARGO_CFG_TARGET_OS").is_ok_and(|value| value == "macos");
 
     let nextjs_version = {
         let package_json_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -68,12 +70,12 @@ fn main() -> anyhow::Result<()> {
         _ => println!("cargo:warning=`git rev-parse HEAD` failed"),
     }
 
-    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-    napi_build::setup();
+    if !is_macos_target {
+        napi_build::setup();
+    }
 
-    // This is a workaround for napi always including a GCC specific flag.
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    {
+    // This is a workaround for napi always including a GCC-specific flag on macOS.
+    if is_macos_target {
         println!("cargo:rerun-if-env-changed=DEBUG_GENERATED_CODE");
         println!("cargo:rerun-if-env-changed=TYPE_DEF_TMP_PATH");
         println!("cargo:rerun-if-env-changed=CARGO_CFG_NAPI_RS_CLI_VERSION");

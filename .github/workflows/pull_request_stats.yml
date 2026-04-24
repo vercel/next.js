@@ -18,8 +18,11 @@ env:
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
@@ -47,11 +50,7 @@ jobs:
       fail-fast: false
       matrix:
         bundler: [webpack, turbopack]
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+    runs-on: ubuntu-latest-16-core-oss
     steps:
       - uses: actions/checkout@v4
         with:

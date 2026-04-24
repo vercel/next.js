@@ -6,7 +6,7 @@ inputs:
     required: false
     default: ''
   turbo-token:
-    description: 'Fallback TURBO_TOKEN if not set in environment (e.g. from secrets.TURBO_REMOTE_CACHE_TOKEN)'
+    description: 'Fallback TURBO_TOKEN if not set in environment (e.g. from secrets.TURBO_TOKEN)'
     required: false
     default: ''
 runs:

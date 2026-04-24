@@ -4,7 +4,7 @@ on:
     inputs:
       runner:
         type: string
-        default: '["self-hosted", "linux", "x64", "metal"]'
+        default: '["ubuntu-latest-16-core-oss"]'
       os:
         type: string
         default: 'linux'
@@ -16,6 +16,8 @@ env:
   TURBOPACK_BENCH_COUNTS: '100'
   TURBOPACK_BENCH_PROGRESS: '1'
   NODE_LTS_VERSION: 20
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 jobs:
   test:
@@ -48,7 +50,7 @@ jobs:
       - name: Start sccache
         uses: ./.github/actions/sccache
         with:
-          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Build benchmarks for tests
         timeout-minutes: 120
