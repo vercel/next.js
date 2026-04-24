@@ -6,22 +6,21 @@ name: upload-preview-tarballs
 
 on:
   workflow_run:
-    workflows: [ "build-and-deploy" ]
-    types: [ completed ]
+    workflows: ['build-and-deploy']
+    types: [completed]
 
 env:
   NODE_LTS_VERSION: 20
 
 permissions:
   actions: read
+  contents: read
 
 jobs:
   upload:
     name: Upload preview tarballs to Blob
     runs-on: ubuntu-latest
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event != 'workflow_dispatch'
+    if: github.event.workflow_run.conclusion == 'success'
     environment: preview-builds
     steps:
       - name: Setup node
