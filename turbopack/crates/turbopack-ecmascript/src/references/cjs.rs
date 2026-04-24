@@ -11,6 +11,7 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
+    module::Module,
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
     resolve::{ModuleResolveResult, ResolveErrorMode, origin::ResolveOrigin, parse::Request},
@@ -86,6 +87,7 @@ pub struct CjsRequireAssetReference {
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
     chunking_type_attribute: Option<SpecifiedChunkingType>,
+    resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl CjsRequireAssetReference {
@@ -95,6 +97,7 @@ impl CjsRequireAssetReference {
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,
         chunking_type_attribute: Option<SpecifiedChunkingType>,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         CjsRequireAssetReference {
             origin,
@@ -102,6 +105,7 @@ impl CjsRequireAssetReference {
             issue_source,
             error_mode,
             chunking_type_attribute,
+            resolve_override,
         }
     }
 }
@@ -110,6 +114,10 @@ impl CjsRequireAssetReference {
 impl ModuleReference for CjsRequireAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        if let Some(resolved) = &self.resolve_override {
+            return *ModuleResolveResult::module(*resolved);
+        }
+
         cjs_resolve(
             *self.origin,
             *self.request,
