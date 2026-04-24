@@ -21,6 +21,7 @@ const RuntimeSampleSchema = z
 
 const InstantConfigObjectSchema = z
   .object({
+    level: z.enum(['warning', 'experimental-error']).optional(),
     samples: z.array(RuntimeSampleSchema).min(1).optional(),
     from: z.array(z.string()).optional(),
     unstable_disableValidation: z.literal(true).optional(),
@@ -58,6 +59,7 @@ export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // and thus cannot match the discriminated union type. If we figure out a better way we should
 // delete the __GenericInstantConfig member.
 interface __GenericInstantConfig {
+  level?: string
   samples?: Array<WideInstantSample>
   from?: string[]
   unstable_disableValidation?: boolean
@@ -73,6 +75,7 @@ type WideInstantSample = {
 }
 
 export interface InstantConfig {
+  level?: 'warning' | 'experimental-error'
   samples?: Array<InstantSample>
   from?: string[]
   unstable_disableValidation?: true

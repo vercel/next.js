@@ -4,6 +4,7 @@ import type {
   ExperimentalConfig,
   NextConfigComplete,
   PrefetchInliningConfig,
+  ValidationLevel,
 } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
@@ -96,6 +97,7 @@ export interface RenderOptsPartial {
   err?: Error | null
   basePath: string
   cacheComponents: boolean
+  validationLevel: ValidationLevel
   trailingSlash: boolean
   images: ImageConfigComplete
   supportsDynamicResponse: boolean
