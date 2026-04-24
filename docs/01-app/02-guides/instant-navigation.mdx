@@ -7,6 +7,7 @@ related:
   description: Explore the full instant API, caching, and revalidation.
   links:
     - app/api-reference/file-conventions/route-segment-config/instant
+    - app/api-reference/file-conventions/route-segment-config/prefetch
     - app/getting-started/caching
     - app/getting-started/revalidating
     - app/guides/prefetching
@@ -362,7 +363,7 @@ Generating the runtime shell costs **a server request per prefetchable link**, s
 
 > **Good to know:** A cold cache (first visit, or after expiration) means the server still has to compute the cached result. Users may see a loading spinner on that first navigation. Subsequent navigations are instant as long as the cache is warm.
 
-Take the dashboard layout that was opted out earlier. Instead of `instant = false`, enable validation with samples and opt into runtime prefetching with the `unstable_prefetch` export:
+Take the dashboard layout that was opted out earlier. Instead of `instant = false`, enable validation with samples and opt into runtime prefetching with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export:
 
 ```tsx filename="app/dashboard/layout.tsx"
 export const unstable_instant = {
@@ -446,6 +447,7 @@ For agents to see what their changes actually render, pair this with [`@vercel/n
 
 ## Next steps
 
-- [`instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for all configuration options, including the full `samples` reference and disable flags
+- [`unstable_instant` API reference](/docs/app/api-reference/file-conventions/route-segment-config/instant) for the full `samples` reference and disable flags
+- [`unstable_prefetch` API reference](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) for all prefetch modes
 - [Caching](/docs/app/getting-started/caching) for background on `use cache`, Suspense, and Partial Prerendering
 - [Revalidating](/docs/app/getting-started/revalidating) for how to expire cached data with `cacheLife` and `updateTag`

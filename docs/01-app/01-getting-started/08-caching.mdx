@@ -10,6 +10,7 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
     - app/guides/preserving-ui-state
     - app/api-reference/file-conventions/route-segment-config/instant
+    - app/api-reference/file-conventions/route-segment-config/prefetch
     - app/guides/instant-navigation
 ---
 
@@ -505,7 +506,7 @@ To prevent regressions, the `@next/playwright` package includes an [`instant()`]
 
 By default, components that read cookies or headers must be behind `<Suspense>`. They cannot be prefetched without the user's session data.
 
-Opt into runtime prefetching with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export. Next.js will then send prefetch requests with the user's actual cookies and headers, caching the response in the browser. Personalized content like a user's name or cart count can become part of the instant shell instead of streaming behind a loading state:
+Opt into runtime prefetching with the [`unstable_prefetch`](/docs/app/api-reference/file-conventions/route-segment-config/prefetch) export. Next.js will then send prefetch requests with the user's actual cookies and headers, caching the response in the browser. Personalized content like a user's name or cart count can become part of the instant shell instead of streaming behind a loading state:
 
 ```tsx filename="app/dashboard/layout.tsx"
 export const unstable_instant = {
