@@ -8,22 +8,6 @@ use swc_core::{
     quote,
 };
 
-fn build_page_extensions_regex<I, S>(page_extensions: I) -> String
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    let escaped: Vec<String> = page_extensions
-        .into_iter()
-        .map(|ext| regex::escape(ext.as_ref()))
-        .collect();
-    if escaped.is_empty() {
-        "(ts|js)x?".to_string()
-    } else {
-        format!("({})", escaped.join("|"))
-    }
-}
-
 #[derive(Debug)]
 pub struct DebugInstantStack {
     page_or_layout: Regex,
@@ -35,10 +19,23 @@ impl DebugInstantStack {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        let ext_pattern = build_page_extensions_regex(page_extensions);
-        let page_or_layout =
-            Regex::new(&format!(r"[\\/](page|layout|default)\.{ext_pattern}$")).unwrap();
-        Self { page_or_layout }
+        let mut result = String::from(r"[\\/](page|layout|default)\.");
+        let mut iter = page_extensions.into_iter();
+        if let Some(first) = iter.next() {
+            result.push('(');
+            result.push_str(&regex::escape(first.as_ref()));
+            for ext in iter {
+                result.push('|');
+                result.push_str(&regex::escape(ext.as_ref()));
+            }
+            result.push(')');
+        } else {
+            result.push_str("(ts|js)x?");
+        }
+        result.push('$');
+        Self {
+            page_or_layout: Regex::new(&result).unwrap(),
+        }
     }
     pub fn get_pass(&self, filepath: String) -> impl Pass + use<> {
         visit_mut_pass(DebugInstantStackPass {
