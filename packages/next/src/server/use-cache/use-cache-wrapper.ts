@@ -2665,7 +2665,7 @@ export async function cache(
                     )
                   }
 
-                  await ignoredStream.cancel()
+                  void ignoredStream.cancel().catch(() => {})
                 }
               })
               .catch((error) => {
