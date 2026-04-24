@@ -48,8 +48,17 @@ function writeCookieValue(value: InstantCookie): void {
   // then write back with the new value. This updates the same cookie
   // entry that the external actor created, regardless of how it was
   // scoped.
+  //
+  // Capture the current lockState and compare it in the callback so we
+  // only write if the lock we observed at call time is still held. This
+  // guards against two races: (a) the scope ended between get and set
+  // (lockState is now null), and (b) the scope ended and a new one was
+  // acquired in the same gap (lockState is a different object). In
+  // either case we must not write — doing so would leak stale state
+  // into the next scope or outlive the current one.
+  const lockAtCall = lockState
   cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((existing: any) => {
-    if (existing) {
+    if (existing && lockState === lockAtCall && lockAtCall !== null) {
       const options: any = {
         name: NEXT_INSTANT_TEST_COOKIE,
         value: JSON.stringify(value),
