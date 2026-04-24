@@ -201,7 +201,7 @@ Next.js maintains a small task queue, which prefetches in the following order:
 3. Newer links replace older ones
 4. Links scrolled off-screen are discarded
 
-The scheduler prioritizes likely navigations while minimizing unused downloads.
+The scheduler prioritizes likely navigations while minimizing unused downloads. Pending prefetches resume through the same queue when the app recovers from an offline period; see [Handling connectivity drops](/docs/app/guides/offline-support).
 
 ### Partial Prerendering (PPR)
 
