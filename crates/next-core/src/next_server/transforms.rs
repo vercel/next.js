@@ -38,8 +38,7 @@ pub async fn get_next_server_transforms_rules(
     let mut rules = vec![];
 
     let modularize_imports_config = next_config.modularize_imports();
-    let mdx_rs = next_config.mdx_rs().await?.is_some();
-    let page_extensions: &Vec<RcStr> = &*next_config.page_extensions().await?;
+    let mdx_rs: bool = next_config.mdx_rs().await?.is_some();
 
     if !foreign_code {
         rules.push(get_next_lint_transform_rule(mdx_rs).await?);
