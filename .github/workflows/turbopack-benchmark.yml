@@ -20,8 +20,11 @@ concurrency:
 env:
   CI: 1
   RUST_LOG: 'off'
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 permissions:
   contents: read
@@ -30,7 +33,7 @@ permissions:
 jobs:
   benchmark-small-apps:
     name: Benchmark Rust Crates (small apps)
-    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
+    runs-on: ubuntu-latest-16-core-oss
     steps:
       - uses: actions/checkout@v4
 
@@ -43,7 +46,7 @@ jobs:
       - name: Start sccache
         uses: ./.github/actions/sccache
         with:
-          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -65,7 +68,7 @@ jobs:
 
   benchmark-analyzer:
     name: Benchmark Rust Crates (analyzer)
-    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
+    runs-on: ubuntu-latest-16-core-oss
     steps:
       - uses: actions/checkout@v4
 
@@ -78,7 +81,7 @@ jobs:
       - name: Start sccache
         uses: ./.github/actions/sccache
         with:
-          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -101,7 +104,7 @@ jobs:
   benchmark-large:
     name: Benchmark Rust Crates (large)
     if: ${{ github.event.label.name == 'benchmark' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ['self-hosted', 'linux', 'x64', 'metal']
+    runs-on: ubuntu-latest-16-core-oss
     steps:
       - uses: actions/checkout@v4
 
@@ -114,7 +117,7 @@ jobs:
       - name: Start sccache
         uses: ./.github/actions/sccache
         with:
-          turbo-token: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Build the benchmark target(s)
         env:
