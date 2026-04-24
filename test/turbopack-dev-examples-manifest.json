@@ -146,7 +146,6 @@
   "with-rebass": true,
   "with-redis": true,
   "with-redux": true,
-  "with-reflexjs": true,
   "with-reflux": true,
   "with-rematch": true,
   "with-route-as-modal": true,
