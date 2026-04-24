@@ -329,6 +329,20 @@ impl VisitMut for TransformVisitor {
             0
         };
 
+        // Skip the injection if the class already declares `__NEXT_ERROR_CODE`
+        // itself. This respects manual overrides in classes whose code can't
+        // be derived statically from the `super(...)` message.
+        let declares_error_code = class.body.iter().any(|member| match member {
+            ClassMember::ClassProp(prop) => matches!(
+                &prop.key,
+                PropName::Ident(ident) if ident.sym.as_str() == "__NEXT_ERROR_CODE"
+            ),
+            _ => false,
+        });
+        if declares_error_code {
+            return;
+        }
+
         // Find the first constructor with a body.
         let ctor = class.body.iter_mut().find_map(|member| match member {
             ClassMember::Constructor(Constructor { body: Some(_), .. }) => {
@@ -592,6 +606,13 @@ class AggregateSubclass extends AggregateError {
         super(errors, "Timeout reached");
     }
 }
+
+class ManualErrorCode extends Error {
+    __NEXT_ERROR_CODE = 'Manual';
+    constructor(message) {
+        super(message);
+    }
+}
 "#,
     // Output codes after transformed with plugin
     r#"
@@ -660,6 +681,12 @@ class AggregateSubclass extends AggregateError {
             enumerable: false,
             configurable: true
         });
+    }
+}
+class ManualErrorCode extends Error {
+    __NEXT_ERROR_CODE = 'Manual';
+    constructor(message){
+        super(message);
     }
 }
 "#
