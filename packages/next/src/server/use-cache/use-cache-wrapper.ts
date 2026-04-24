@@ -2665,7 +2665,13 @@ export async function cache(
                     )
                   }
 
-                  await ignoredStream.cancel()
+                  // Don't await: on Node's Web Streams, cancelling one
+                  // branch of a tee() waits for the source to close, which
+                  // here means waiting for the background regeneration to
+                  // fully resolve. Awaiting couples the SWR branch to the
+                  // regen lifetime, defeating stale-while-revalidate on the
+                  // Node runtime. Fixes #93146.
+                  void ignoredStream.cancel().catch(() => {})
                 }
               })
               .catch((error) => {
