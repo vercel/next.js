@@ -1,6 +1,10 @@
 import { warnOnce } from 'next/dist/build/output/log'
 
 describe('build/output/log', () => {
+  it('intentionally fails for PR CI comment smoke test', () => {
+    expect('remove this before merging').toBe('intentional failure')
+  })
+
   it('warnOnce', () => {
     const original = console.warn
     try {

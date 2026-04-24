@@ -2,6 +2,7 @@ import MODERN_BROWSERSLIST_TARGET from './modern-browserslist-target'
 
 export { MODERN_BROWSERSLIST_TARGET }
 
+// Temporary smoke change for validating PR CI comment stats reporting.
 export type ValueOf<T> = Required<T>[keyof T]
 
 export const COMPILER_NAMES = {
