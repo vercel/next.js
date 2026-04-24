@@ -169,6 +169,7 @@
     "@types/trusted-types": "2.0.3",
     "@types/yargs": "16.0.11",
     "@vercel/agent-eval": "0.9.5",
+    "@vercel/blob": "2.3.2",
     "@vercel/devlow-bench": "workspace:*",
     "@vercel/kv": "3.0.0",
     "@vercel/og": "0.11.1",
