@@ -7,9 +7,9 @@ use turbo_tasks::{
 };
 
 use crate::backend::operation::{
-    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, Operation,
-    TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
-    get_uppers, is_aggregating_node,
+    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, TaskGuard,
+    aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number, get_uppers,
+    is_aggregating_node,
 };
 
 pub fn connect_children(
@@ -109,9 +109,15 @@ pub fn connect_children(
         }
 
         {
-            #[cfg(feature = "trace_task_completion")]
-            let _span = tracing::trace_span!("connect new children").entered();
-            queue.execute(ctx);
+            #[cfg(any(
+                feature = "trace_task_completion",
+                feature = "trace_aggregation_update_stats"
+            ))]
+            let _span = tracing::trace_span!("connect new children", stats = tracing::field::Empty)
+                .entered();
+            let _stats = queue.execute_with_stats(ctx);
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            _span.record("stats", tracing::field::debug(_stats));
         }
     }
 

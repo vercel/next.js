@@ -2350,12 +2350,19 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         span.record("immutable", is_immutable || is_now_immutable);
 
         if !queue.is_empty() || !old_edges.is_empty() {
-            #[cfg(feature = "trace_task_completion")]
-            let _span = tracing::trace_span!("remove old edges and prepare new children").entered();
+            #[cfg(any(
+                feature = "trace_task_completion",
+                feature = "trace_aggregation_update_stats"
+            ))]
+            let _span =
+                tracing::trace_span!("remove old edges and prepare new children", stats = Empty)
+                    .entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
             // be scheduled and executed again
-            CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
+            let _stats = CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            _span.record("stats", tracing::field::debug(_stats));
         }
 
         Some(TaskExecutionCompletePrepareResult {
