@@ -1081,7 +1081,10 @@ impl Visit for Analyzer<'_> {
             rcstr!("default"),
             Export::LocalBinding(RcStr::from(id.0.as_str()), false),
         );
-        self.data.exports_ids.insert(rcstr!("default"), id);
+        self.data.exports_ids.insert(rcstr!("default"), id.clone());
+        self.program_decl_usage
+            .exports
+            .insert(rcstr!("default"), id);
         n.visit_children_with(self);
     }
 
