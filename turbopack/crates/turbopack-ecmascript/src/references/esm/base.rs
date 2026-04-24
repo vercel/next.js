@@ -89,7 +89,9 @@ pub enum ReferencedAssetIdent {
 #[derive(Debug)]
 pub enum ImportSource {
     /// Import an in-graph module.
-    Module { asset: ResolvedVc<Box<dyn Module>> },
+    Module {
+        asset: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    },
     /// Import an external dependency. The emitting site decides between
     /// `__turbopack_external_import` and `__turbopack_external_require` based on its own
     /// `import_externals` flag.
@@ -104,10 +106,7 @@ impl ImportSource {
     ) -> Result<String> {
         Ok(match self {
             ImportSource::Module { asset } => {
-                let id = asset.chunk_item_id(chunking_context).await?;
-                // There are a number of places in `next` that match on this prefix.
-                // See `packages/next/src/shared/lib/magic-identifier.ts`
-                magic_identifier::mangle(&format!("imported module {id}"))
+                ReferencedAsset::get_ident_from_placeable(asset, chunking_context).await?
             }
             ImportSource::External { request, ty } => {
                 magic_identifier::mangle(&format!("{ty} external {request}"))
@@ -293,9 +292,7 @@ impl ReferencedAsset {
                     }
                 }
 
-                let import_source = ImportSource::Module {
-                    asset: ResolvedVc::upcast(*asset),
-                };
+                let import_source = ImportSource::Module { asset: *asset };
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
@@ -636,15 +633,11 @@ impl EsmAssetReference {
                 _ => {
                     let mut result = vec![];
 
-                    let (merged_index, hoist_key) =
-                        if let ReferencedAsset::Some(asset) = &*referenced_asset {
-                            (
-                                scope_hoisting_context.get_module_index(*asset),
-                                Some(asset.chunk_item_id(chunking_context).await?),
-                            )
-                        } else {
-                            (None, None)
-                        };
+                    let merged_index = if let ReferencedAsset::Some(asset) = &*referenced_asset {
+                        scope_hoisting_context.get_module_index(*asset)
+                    } else {
+                        None
+                    };
 
                     if let Some(merged_index) = merged_index {
                         // Insert a placeholder to inline the merged module at the right place
@@ -704,11 +697,9 @@ impl EsmAssetReference {
                                 );
                                 let (key, mut call_expr) = match import_source {
                                     ImportSource::Module { asset } => {
-                                        let hoist_key = hoist_key
-                                            .expect("ImportSource::Module implies Some asset");
                                         let id = asset.chunk_item_id(chunking_context).await?;
                                         (
-                                            hoist_key.to_string().into(),
+                                            id.to_string().into(),
                                             quote!(
                                                 "$turbopack_import($id)" as Expr,
                                                 turbopack_import: Expr = TURBOPACK_IMPORT.into(),
