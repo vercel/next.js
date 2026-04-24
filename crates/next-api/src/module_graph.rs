@@ -719,8 +719,8 @@ impl Issue for CssGlobalImportIssue {
     }
 
     async fn description(&self) -> Result<Option<StyledString>> {
-        let parent_path = self.parent_module.ident().path().owned().await?;
-        let module_path = self.module.ident().path().owned().await?;
+        let parent_path = self.parent_module.ident().await?.path.clone();
+        let module_path = self.module.ident().await?.path.clone();
         let relative_import_location = parent_path.parent();
 
         let import_path = match relative_import_location.get_relative_path_to(&module_path) {
@@ -756,7 +756,7 @@ impl Issue for CssGlobalImportIssue {
     }
 
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.parent_module.ident().path().owned().await
+        Ok(self.parent_module.ident().await?.path.clone())
     }
 
     fn stage(&self) -> IssueStage {
@@ -840,7 +840,7 @@ async fn validate_pages_css_imports_individual(
     candidates
         .into_iter()
         .map(async |issue| {
-            let path = issue.module.ident().path().await?;
+            let path = issue.module.ident().await?.path.clone();
             // We allow imports of global CSS files which are inside of `node_modules`.
             // We also allow data URL CSS imports (e.g. `data:text/css,...`) since they
             // are mostly tooling-generated and co-located with the importing components

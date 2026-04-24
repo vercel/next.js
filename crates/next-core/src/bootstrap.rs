@@ -33,7 +33,7 @@ pub async fn bootstrap(
     inner_assets: Vc<InnerAssets>,
     config: Vc<BootstrapConfig>,
 ) -> Result<Vc<Box<dyn EvaluatableAsset>>> {
-    let path = asset.ident().path().await?;
+    let path = asset.ident().await?.path.clone();
     let Some(path) = base_path.get_path_to(&path) else {
         turbobail!("asset {} is not in base path {base_path}", asset.ident())
     };
@@ -52,7 +52,12 @@ pub async fn bootstrap(
     let config_asset = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                asset.ident().path().await?.join("bootstrap-config.ts")?,
+                asset
+                    .ident()
+                    .await?
+                    .path
+                    .clone()
+                    .join("bootstrap-config.ts")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
                         config

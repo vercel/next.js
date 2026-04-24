@@ -82,7 +82,7 @@ impl MiddlewareEndpoint {
             )
             .module();
 
-        let userland_path = userland_module.ident().path().await?;
+        let userland_path = userland_module.ident().await?.path.clone();
         let is_proxy = userland_path.file_stem() == Some("proxy");
 
         let module = get_middleware_module(

@@ -36,8 +36,8 @@ impl SourceTransform for BytesSourceTransform {
         source: Vc<Box<dyn Source>>,
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
-        let ident = source.ident();
-        let path = ident.path().await?;
+        let ident = source.ident().owned().await?;
+        let path = ident.path.clone();
         let content = source.content().file_content().await?;
         let bytes = match &*content {
             FileContent::Content(data) => {
@@ -64,7 +64,10 @@ export default base64Decode({});
 
         // Rename to .mjs so module rules recognize it as ESM.
         // The inline source map ensures debuggers show the original file.
-        let new_ident = ident.rename_as(format!("{}.[bytes].mjs", path.path).into());
+        let new_ident = ident
+            .rename_as(&format!("{}.[bytes].mjs", path.path))
+            .await?
+            .into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

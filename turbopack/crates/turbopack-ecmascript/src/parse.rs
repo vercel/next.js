@@ -308,7 +308,7 @@ async fn parse_internal(
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path = source.ident().path().owned().await?;
+    let fs_path = source.ident().await?.path.clone();
     let ident = &*source.ident().to_string().await?;
     let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
     let content = match content.await {
@@ -648,7 +648,7 @@ struct ReadSourceIssue {
 #[turbo_tasks::value_impl]
 impl Issue for ReadSourceIssue {
     async fn file_path(&self) -> Result<FileSystemPath> {
-        self.source.file_path().owned().await
+        self.source.file_path().await
     }
 
     async fn title(&self) -> Result<StyledString> {
@@ -764,10 +764,11 @@ pub async fn parse_from_rope(
     node_env: RcStr,
 ) -> Result<Vc<ParseResult>> {
     let ident_vc = source.ident();
-    let fs_path = ident_vc.path().owned().await?;
+    let ident_ref = ident_vc.await?;
+    let fs_path = ident_ref.path.clone();
     let ident = &*ident_vc.to_string().await?;
     let file_path_hash = hash_xxh3_hash64(ident) as u128;
-    let query = ident_vc.await?.query.clone();
+    let query = ident_ref.query.clone();
     let transforms = &*transforms.await?;
     parse_file_content(
         rope,

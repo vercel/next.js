@@ -451,10 +451,17 @@ async fn build_internal(
                                 AssetIdent::from_path(
                                     build_output_root
                                         .join(
-                                            ecmascript.ident().path().await?.file_stem().unwrap(),
+                                            ecmascript
+                                                .ident()
+                                                .await?
+                                                .path
+                                                .clone()
+                                                .file_stem()
+                                                .unwrap(),
                                         )?
                                         .with_extension("entry.js"),
-                                ),
+                                )
+                                .into_vc(),
                                 ChunkGroup::Entry(
                                     [ResolvedVc::upcast(ecmascript)].into_iter().collect(),
                                 ),
@@ -469,8 +476,8 @@ async fn build_internal(
                                                 .join(
                                                     ecmascript
                                                         .ident()
-                                                        .path()
                                                         .await?
+                                                        .path
                                                         .file_stem()
                                                         .unwrap(),
                                                 )?

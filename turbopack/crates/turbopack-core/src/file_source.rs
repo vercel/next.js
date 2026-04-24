@@ -54,7 +54,7 @@ impl Source for FileSource {
         if !self.fragment.is_empty() {
             ident = ident.with_fragment(self.fragment.clone());
         }
-        ident
+        ident.into_vc()
     }
 
     #[turbo_tasks::function]

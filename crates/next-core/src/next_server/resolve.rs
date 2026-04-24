@@ -257,8 +257,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             break result_from_original_location;
         };
 
-        let path = result_from_original_location.ident().path().await?;
-        let file_type = get_file_type((*path).clone(), &path).await?;
+        let path = result_from_original_location.ident().await?.path.clone();
+        let file_type = get_file_type(path.clone(), &path).await?;
 
         let external_type = match (file_type, is_esm) {
             (FileType::UnsupportedExtension, _) => {
@@ -288,8 +288,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     node_resolve_options,
                 );
                 let resolves_equal = if let Some(result) = *node_resolved.first_source().await? {
-                    let cjs_path = result.ident().path().owned().await?;
-                    cjs_path == *path
+                    let cjs_path = result.ident().await?.path.clone();
+                    cjs_path == path
                 } else {
                     false
                 };
@@ -320,7 +320,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             }
         };
 
-        let target = result_from_original_location.ident().path().owned().await?;
+        let target = result_from_original_location.ident().await?.path.clone();
 
         Ok(ResolveResultOption::some(
             ResolveResult::primary(ResolveResultItem::External {

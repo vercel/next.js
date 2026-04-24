@@ -58,8 +58,8 @@ impl SourceTransform for JsonSourceTransform {
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;
-        let ident = source.ident();
-        let path = ident.path().await?;
+        let ident = source.ident().owned().await?;
+        let path = ident.path.clone();
         let content = source.content().file_content();
 
         // Parse the JSON to validate it and get the data
@@ -105,7 +105,7 @@ impl SourceTransform for JsonSourceTransform {
 
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error,
-                    path: ident.path().owned().await?,
+                    path: path.clone(),
                     title: StyledString::Text(rcstr!("Unable to make a module from invalid JSON"))
                         .resolved_cell(),
                     message: StyledString::Text(e.message.clone()).resolved_cell(),
@@ -128,7 +128,10 @@ impl SourceTransform for JsonSourceTransform {
             }
         };
 
-        let new_ident = ident.rename_as(format!("{}.[json].{}", path.path, extension).into());
+        let new_ident = ident
+            .rename_as(&format!("{}.[json].{}", path.path, extension))
+            .await?
+            .into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

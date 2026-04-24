@@ -656,7 +656,7 @@ impl ChunkingContext for BrowserChunkingContext {
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let source_path = original_asset_ident.path().await?;
+        let source_path = original_asset_ident.await?.path.clone();
         let basename = source_path.file_name();
         let ContentHashing::Direct { length } = this.asset_content_hashing;
         let hash = content
@@ -770,11 +770,17 @@ impl ChunkingContext for BrowserChunkingContext {
                 .await?;
 
             if this.enable_hot_module_replacement {
-                let mut ident = ident;
-                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                let ident = if let Some(input_availability_info_ident) =
+                    input_availability_info.ident().await?
                 {
-                    ident = ident.with_modifier(input_availability_info_ident);
-                }
+                    ident
+                        .owned()
+                        .await?
+                        .with_modifier(input_availability_info_ident)
+                        .into_vc()
+                } else {
+                    ident
+                };
                 let other_assets = Vc::cell(assets.clone());
                 assets.push(
                     self.generate_chunk_list_register_chunk(
@@ -850,11 +856,17 @@ impl ChunkingContext for BrowserChunkingContext {
             );
 
             if this.enable_hot_module_replacement {
-                let mut ident = ident;
-                if let Some(input_availability_info_ident) = input_availability_info.ident().await?
+                let ident = if let Some(input_availability_info_ident) =
+                    input_availability_info.ident().await?
                 {
-                    ident = ident.with_modifier(input_availability_info_ident);
-                }
+                    ident
+                        .owned()
+                        .await?
+                        .with_modifier(input_availability_info_ident)
+                        .into_vc()
+                } else {
+                    ident
+                };
                 assets.push(
                     self.generate_chunk_list_register_chunk(
                         ident,

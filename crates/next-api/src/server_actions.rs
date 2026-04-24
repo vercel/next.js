@@ -131,7 +131,9 @@ pub(crate) async fn build_server_actions_loader(
     let path = project_path.join(&format!(".next-internal/server/app{page_name}/actions.js"))?;
     let file = File::from(contents.build());
     let source = VirtualSource::new_with_ident(
-        AssetIdent::from_path(path).with_modifier(rcstr!("server actions loader")),
+        AssetIdent::from_path(path)
+            .with_modifier(rcstr!("server actions loader"))
+            .into_vc(),
         AssetContent::file(FileContent::Content(file).cell()),
     );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
@@ -190,7 +192,7 @@ async fn build_manifest(
         let filename = if !meta.source_path.is_empty() {
             meta.source_path.clone()
         } else {
-            let module_path = module.ident().path().await?;
+            let module_path = module.ident().await?.path.clone();
             module_path.to_string()
         };
 
@@ -243,8 +245,8 @@ pub async fn to_rsc_context(
     let source = FileSource::new_with_query(
         client_module
             .ident()
-            .path()
             .await?
+            .path
             .root()
             .await?
             .join(entry_path)?,

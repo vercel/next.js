@@ -602,8 +602,8 @@ impl IssueSource {
     }
 
     /// Returns the file path for the source file.
-    pub fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.ident().path()
+    pub async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.source.ident().await?.path.clone())
     }
 
     /// If this source implements `GenerateSourceMap`, returns an
@@ -1042,7 +1042,7 @@ impl PlainSource {
 
         Ok(PlainSource {
             ident: asset.ident().to_string().await?,
-            file_path: asset.ident().path().to_string().await?,
+            file_path: ReadRef::new_owned(asset.ident().await?.path.to_string_ref().await?),
             content,
         }
         .cell())

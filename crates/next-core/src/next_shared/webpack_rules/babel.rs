@@ -263,7 +263,7 @@ async fn detect_react_compiler_target(
         return Ok(None);
     };
 
-    let path = source.ident().path().await?;
+    let path = source.ident().await?.path.clone();
     let FileContent::Content(file) = &*path.read().await? else {
         return Ok(None);
     };
@@ -272,7 +272,7 @@ async fn detect_react_compiler_target(
         Ok(pkg) => pkg,
         Err(e) => {
             ReactPackageJsonParseIssue {
-                file_path: (*path).clone(),
+                file_path: path.clone(),
                 error: e.to_string().into(),
             }
             .resolved_cell()
@@ -352,7 +352,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         // the relative path should only ever fail to resolve when the `fs` is different, which
         // should only happen due to eventual consistency.
         project_path
-            .get_relative_path_to(&source.ident().path().await?.parent())
+            .get_relative_path_to(&source.ident().await?.path.clone().parent())
             .context("failed to resolve relative path for react compiler plugin")?,
     ))
 }

@@ -207,29 +207,34 @@ impl EcmascriptBrowserEvaluateChunk {
 
     #[turbo_tasks::function]
     async fn ident_for_path(&self) -> Result<Vc<AssetIdent>> {
-        let mut ident = self.ident.owned().await?;
-
-        ident.add_modifier(rcstr!("ecmascript browser evaluate chunk"));
+        let mut ident = self
+            .ident
+            .owned()
+            .await?
+            .with_modifier(rcstr!("ecmascript browser evaluate chunk"));
 
         let evaluatable_assets = self.evaluatable_assets.await?;
-        ident.modifiers.extend(
-            evaluatable_assets
-                .iter()
-                .map(|entry| entry.ident().to_string().owned())
-                .try_join()
-                .await?,
-        );
+        for name in evaluatable_assets
+            .iter()
+            .map(|entry| entry.ident().to_string().owned())
+            .try_join()
+            .await?
+        {
+            ident = ident.with_modifier(name);
+        }
 
-        ident.modifiers.extend(
-            self.other_chunks
-                .await?
-                .iter()
-                .map(|chunk| chunk.path().to_string().owned())
-                .try_join()
-                .await?,
-        );
+        for name in self
+            .other_chunks
+            .await?
+            .iter()
+            .map(|chunk| chunk.path().to_string().owned())
+            .try_join()
+            .await?
+        {
+            ident = ident.with_modifier(name);
+        }
 
-        Ok(AssetIdent::new(ident))
+        Ok(ident.into_vc())
     }
 
     #[turbo_tasks::function]
