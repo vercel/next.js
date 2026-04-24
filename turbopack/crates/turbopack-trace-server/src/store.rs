@@ -391,6 +391,11 @@ impl Store {
                 time_data.corrected_self_time.take();
                 time_data.corrected_total_time.take();
             }
+            for event in span.events.iter_mut_unordered() {
+                if let SpanEvent::SelfTime(self_time) = event {
+                    self_time.corrected_self_time.take();
+                }
+            }
             span.total_allocations.take();
             span.total_deallocations.take();
             span.total_persistent_allocations.take();

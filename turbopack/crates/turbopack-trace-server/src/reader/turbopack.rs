@@ -452,7 +452,6 @@ impl TurbopackFormat {
                 );
             }
             InternalRowType::End { ts: _ } => {
-                let id = id;
                 store.complete_span(id.unwrap());
             }
             InternalRowType::SelfTime { start, end } => {

@@ -24,6 +24,10 @@ impl<T> LazySortedVec<T> {
     pub fn retain_unordered(&mut self, f: impl FnMut(&T) -> bool) {
         self.vec.get_mut().retain(f);
     }
+
+    pub fn iter_mut_unordered(&mut self) -> std::slice::IterMut<'_, T> {
+        self.vec.get_mut().iter_mut()
+    }
 }
 
 impl<T: Ord> Deref for LazySortedVec<T> {
