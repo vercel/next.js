@@ -244,6 +244,12 @@ pub enum AggregationUpdateJob {
     },
     /// Notifies multiple upper tasks that one of its inner tasks has new followers.
     InnerOfUppersHasNewFollowers(Box<InnerOfUppersHasNewFollowersJob>),
+    /// Notifies an upper task that one of its inner tasks has lost a follower.
+    InnerOfUpperLostFollower {
+        upper_id: TaskId,
+        lost_follower_id: TaskId,
+        retry: u16,
+    },
     /// Notifies multiple upper tasks that one of its inner tasks has lost a follower.
     InnerOfUppersLostFollower {
         upper_ids: TaskIdVec,
@@ -1177,12 +1183,38 @@ impl AggregationUpdateQueue {
                     }
                     self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_id, 1);
                 }
+                AggregationUpdateJob::InnerOfUpperLostFollower {
+                    lost_follower_id,
+                    upper_id,
+                    retry,
+                } => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.lost_followers += 1;
+                        self.stats.inner_of_upper_lost_follower += 1;
+                    }
+                    self.inner_of_upper_lost_follower(ctx, lost_follower_id, upper_id, retry);
+                }
                 AggregationUpdateJob::InnerOfUppersLostFollowers(mut boxed) => {
                     let InnerOfUppersLostFollowersJob {
                         upper_ids,
                         lost_follower_ids,
                     } = &mut *boxed;
-                    if upper_ids.len() > lost_follower_ids.len() {
+                    let uppers = upper_ids.len();
+                    let followers = lost_follower_ids.len();
+                    if uppers == 1 && followers == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += 1;
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_ids[0],
+                            upper_ids[0],
+                            0,
+                        );
+                    } else if uppers > followers {
                         if let Some(lost_follower_id) = lost_follower_ids.pop() {
                             let upper_ids = if !lost_follower_ids.is_empty() {
                                 let upper_ids = upper_ids.clone();
@@ -1195,7 +1227,7 @@ impl AggregationUpdateQueue {
                             };
                             #[cfg(feature = "trace_aggregation_update_stats")]
                             {
-                                self.stats.lost_followers += upper_ids.len();
+                                self.stats.lost_followers += uppers;
                                 self.stats.inner_of_upper_lost_follower += 1;
                             }
                             self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, 0);
@@ -1212,7 +1244,7 @@ impl AggregationUpdateQueue {
                         };
                         #[cfg(feature = "trace_aggregation_update_stats")]
                         {
-                            self.stats.lost_followers += lost_follower_ids.len();
+                            self.stats.lost_followers += followers;
                             self.stats.inner_of_upper_lost_followers += 1;
                         }
                         self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, 0);
@@ -1223,24 +1255,52 @@ impl AggregationUpdateQueue {
                     lost_follower_id,
                     retry,
                 } => {
-                    #[cfg(feature = "trace_aggregation_update_stats")]
-                    {
-                        self.stats.lost_followers += upper_ids.len();
-                        self.stats.inner_of_uppers_lost_follower += 1;
+                    if upper_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += upper_ids.len();
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_id,
+                            upper_ids[0],
+                            retry,
+                        );
+                    } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += upper_ids.len();
+                            self.stats.inner_of_uppers_lost_follower += 1;
+                        }
+                        self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, retry);
                     }
-                    self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, retry);
                 }
                 AggregationUpdateJob::InnerOfUpperLostFollowers {
                     upper_id,
                     lost_follower_ids,
                     retry,
                 } => {
-                    #[cfg(feature = "trace_aggregation_update_stats")]
-                    {
-                        self.stats.lost_followers += lost_follower_ids.len();
-                        self.stats.inner_of_upper_lost_followers += 1;
+                    if lost_follower_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += lost_follower_ids.len();
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_ids[0],
+                            upper_id,
+                            retry,
+                        );
+                    } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += lost_follower_ids.len();
+                            self.stats.inner_of_upper_lost_followers += 1;
+                        }
+                        self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
                     }
-                    self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
                 }
                 AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
                     upper_ids,
@@ -1672,6 +1732,176 @@ impl AggregationUpdateQueue {
                 }
             },
         );
+    }
+
+    fn inner_of_upper_lost_follower(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        lost_follower_id: TaskId,
+        upper_id: TaskId,
+        mut retry: u16,
+    ) {
+        #[cfg(feature = "trace_aggregation_update")]
+        let _span = trace_span!("lost follower").entered();
+
+        // see documentation of `retry_loop` for more information why this is needed
+        let result = retry_loop(retry, || {
+            // STEP 1
+            let mut follower = ctx.task(
+                lost_follower_id,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+
+            // STEP 2
+            let mut is_upper = true;
+            let mut removed_upper = false;
+
+            // STEP 3
+            follower.update_upper(upper_id, |old| {
+                let Some(old) = old else {
+                    is_upper = false;
+                    return None;
+                };
+                if old == 1 {
+                    removed_upper = true;
+                    return None;
+                }
+                Some(old - 1)
+            });
+
+            // STEP 4
+            if is_upper {
+                if removed_upper {
+                    let data = AggregatedDataUpdate::from_task(&mut follower).invert();
+                    let followers = get_followers(&follower);
+                    drop(follower);
+
+                    // STEP 5
+                    if !data.is_empty() {
+                        // remove data from upper
+                        let mut upper = ctx.task(
+                            upper_id,
+                            // For performance reasons this should stay `Meta` and not `All`
+                            AGGREGATION_UPDATE_CATEGORY,
+                        );
+                        // STEP 6
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
+                        if !diff.is_empty() {
+                            let upper_ids = get_uppers(&upper);
+                            self.push(
+                                AggregatedDataUpdateJob {
+                                    upper_ids,
+                                    update: diff,
+                                }
+                                .into(),
+                            )
+                        }
+                    }
+                    // STEP 7
+                    if !followers.is_empty() {
+                        self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                            upper_id,
+                            lost_follower_ids: followers,
+                            retry: 0,
+                        });
+                    }
+                } else {
+                    drop(follower);
+                }
+
+                // STEP 8
+                return ControlFlow::Break(());
+            }
+
+            drop(follower);
+
+            // STEP 9
+            let mut upper = ctx.task(
+                upper_id,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+            let mut is_follower = true;
+            let mut removed_follower = false;
+
+            // STEP 10
+            upper.update_followers(lost_follower_id, |old| {
+                let Some(old) = old else {
+                    is_follower = false;
+                    return None;
+                };
+                if old == 1 {
+                    removed_follower = true;
+                    return None;
+                }
+                Some(old - 1)
+            });
+
+            // STEP 11
+            if is_follower {
+                if removed_follower {
+                    // STEP 12
+                    // May optimize the task
+                    if upper.followers_len().is_power_of_two() {
+                        self.push_optimize_task(upper_id);
+                    }
+
+                    // STEP 13
+                    let has_active_count = ctx.should_track_activeness()
+                        && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    let upper_ids = get_uppers(&upper);
+                    drop(upper);
+
+                    // STEP 14
+                    // update active count
+                    if has_active_count {
+                        self.push(AggregationUpdateJob::DecreaseActiveCount {
+                            task: lost_follower_id,
+                        });
+                    }
+
+                    // STEP 15
+                    // notify uppers about lost follower
+                    if !upper_ids.is_empty() {
+                        self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
+                            upper_ids,
+                            lost_follower_id,
+                            retry: 0,
+                        });
+                    }
+                } else {
+                    drop(upper);
+                }
+
+                // STEP 16
+                return ControlFlow::Break(());
+            }
+            ControlFlow::Continue(())
+        });
+
+        // STEP 17
+        if result.is_err() {
+            retry += 1;
+            if retry > MAX_RETRIES {
+                let lost_follower_description = ctx
+                    .task(lost_follower_id, TaskDataCategory::Data)
+                    .get_task_description();
+                let upper_description = ctx
+                    .task(upper_id, TaskDataCategory::Data)
+                    .get_task_description();
+                panic!(
+                    "inner_of_upper_lost_follower is not able to remove follower \
+                     {lost_follower_id} ({lost_follower_description}) from {upper_id} \
+                     {upper_description} as it doesn't exist as upper or follower edges",
+                );
+            }
+            self.push(AggregationUpdateJob::InnerOfUpperLostFollower {
+                upper_id,
+                lost_follower_id,
+                retry,
+            });
+        }
     }
 
     fn inner_of_uppers_lost_follower(
