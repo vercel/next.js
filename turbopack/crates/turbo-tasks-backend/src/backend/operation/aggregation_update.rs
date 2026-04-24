@@ -2710,7 +2710,7 @@ impl AggregationUpdateQueue {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!(
                 "update aggregation number",
-                task = ctx.get_task_description(task_id),
+                task = task.get_task_description(),
                 old,
                 aggregation_number
             )
