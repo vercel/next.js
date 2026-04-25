@@ -77,6 +77,7 @@ import {
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
   MIDDLEWARE_FILENAME,
@@ -452,9 +453,18 @@ async function startWatcher(
       staticMetadataFiles.clear()
       devPageFiles.clear()
 
-      const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
-        sortByPageExts(nextConfig.pageExtensions)
-      )
+      const discoveredPageFiles = pagesDir
+        ? await recursiveReadDir(pagesDir, {
+            pathnameFilter: validFileMatcher.isPageFile,
+            relativePathnames: false,
+          })
+        : []
+
+      const discoveredPageFileSet = new Set(discoveredPageFiles)
+
+      const sortedKnownFiles: string[] = [
+        ...new Set([...knownFiles.keys(), ...discoveredPageFiles]),
+      ].sort(sortByPageExts(nextConfig.pageExtensions))
 
       let proxyFilePath: string | undefined
       let middlewareFilePath: string | undefined
@@ -529,7 +539,8 @@ async function startWatcher(
         }
 
         if (
-          meta?.accuracy === undefined ||
+          (meta?.accuracy === undefined &&
+            !discoveredPageFileSet.has(fileName)) ||
           !validFileMatcher.isPageFile(fileName)
         ) {
           continue
