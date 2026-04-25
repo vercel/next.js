@@ -47,6 +47,11 @@ function isFetchPatched() {
   return (globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] === true
 }
 
+// Stores globalThis.fetch as it was immediately before patchFetch() wrapped it.
+// This preserves any userland/instrumentation wrappers (e.g. @vercel/otel) that
+// were applied after the initial module load but before patchFetch() ran.
+let prePatchFetch: typeof globalThis.fetch | undefined
+
 export function validateRevalidate(
   revalidateVal: unknown,
   route: string
@@ -1305,12 +1310,32 @@ export function patchFetch(options: PatchableModule) {
   // If we've already patched fetch, we should not patch it again.
   if (isFetchPatched()) return
 
+  // Snapshot fetch *before* we wrap it so unpatchFetch() can restore to this
+  // exact point. This preserves any instrumentation wrappers (e.g. @vercel/otel)
+  // that were applied to globalThis.fetch after process startup.
+  prePatchFetch = globalThis.fetch
+
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.
   const original = createDedupeFetch(globalThis.fetch)
 
   // Set the global fetch to the patched fetch.
   globalThis.fetch = createPatchedFetcher(original, options)
+}
+
+/**
+ * Removes only the Next.js patchFetch layer from globalThis.fetch, preserving
+ * any userland or instrumentation wrappers (e.g. @vercel/otel) that were
+ * present before patchFetch() ran.
+ *
+ * This is called during HMR so that patchFetch() can re-wrap on the next
+ * request without losing instrumentation layers.
+ */
+export function unpatchFetch() {
+  if (prePatchFetch) {
+    globalThis.fetch = prePatchFetch
+  }
+  ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
 }
 
 let currentTimeoutBoundary: null | Promise<void> = null

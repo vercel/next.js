@@ -45,7 +45,7 @@ import {
   type AppIsrManifestMessage,
 } from '../dev/hot-reloader-types'
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
-import { NEXT_PATCH_SYMBOL } from './patch-fetch'
+import { unpatchFetch } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
@@ -136,8 +136,6 @@ export async function initialize(opts: {
       }
     | undefined = undefined
 
-  let originalFetch = globalThis.fetch
-
   if (opts.dev) {
     const { Telemetry } =
       require('../../telemetry/storage') as typeof import('../../telemetry/storage')
@@ -151,11 +149,6 @@ export async function initialize(opts: {
 
     const { setupDevBundler } =
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
-
-    const resetFetch = () => {
-      globalThis.fetch = originalFetch
-      ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
-    }
 
     const setupDevBundlerSpan = opts.startServerSpan
       ? opts.startServerSpan.traceChild('setup-dev-bundler')
@@ -199,7 +192,7 @@ export async function initialize(opts: {
         turbo: !!process.env.TURBOPACK,
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
-        resetFetch,
+        resetFetch: unpatchFetch,
         serverFastRefresh: effectiveServerFastRefresh,
       })
     )
@@ -729,8 +722,6 @@ export async function initialize(opts: {
       require('next/dist/experimental/testmode/server') as typeof import('../../experimental/testmode/server')
     requestHandler = wrapRequestHandlerWorker(requestHandler)
     interceptTestApis()
-    // We treat the intercepted fetch as "original" fetch that should be reset to during HMR.
-    originalFetch = globalThis.fetch
   }
   requestHandlers[opts.dir] = requestHandler
 
