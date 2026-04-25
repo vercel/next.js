@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/preset_env_unknown_browserslist/input/index.js"],"sourcesContent":["// When browserslist-rs can't resolve the target (e.g. \"chrome 99999\"),\n// preset-env should treat it as `unknown_version` instead of enabling every\n// transform. Without the fix this panics: the generator transform has a\n// todo!() for **.\n\nasync function compute() {\n  return 10n ** 18n\n}\n\nconsole.log(compute())\n\nexport default 123\n"],"names":["compute","console","log"],"mappings":";;;;AAAA,uEAAuE;AACvE,4EAA4E;AAC5E,wEAAwE;AACxE,kBAAkB;AAElB,eAAeA;IACb,OAAO,GAAG,IAAI,GAAG;AACnB;AAEAC,QAAQC,GAAG,CAACF;uCAEG"}}]
+}
