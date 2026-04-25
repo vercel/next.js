@@ -467,7 +467,12 @@ async function startWatcher(
           continue
         }
 
-        const { name: fileBaseName, dir: fileDir } = path.parse(fileName)
+        const { base: fileBase, dir: fileDir } = path.parse(fileName)
+        // Use split('.')[0] instead of path.parse().name to handle compound
+        // pageExtensions like 'page.ts' where the file is 'proxy.page.ts'.
+        // path.parse().name returns 'proxy.page' (strips only the last ext),
+        // but we need 'proxy' (the first segment before any dot).
+        const fileBaseName = fileBase.split('.')[0]
 
         const isAtConventionLevel =
           fileDir === dir || fileDir === path.join(dir, 'src')
