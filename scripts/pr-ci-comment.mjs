@@ -480,7 +480,19 @@ async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
   }
 
   if (workflowRun.conclusion === 'cancelled') {
-    console.log('Stats workflow was cancelled, skipping')
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      STATS_COMMENT_MARKER,
+      '## Stats cancelled',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+      '## Stats from current PR',
+    ])
     return
   }
 
@@ -551,7 +563,20 @@ async function handleBuildAndTestWorkflow({
   }
 
   if (workflowRun.conclusion === 'cancelled') {
-    console.log('build-and-test was cancelled, skipping')
+    const sha = pr.headSha || workflowRun.head_sha
+    const body = [
+      TEST_COMMENT_MARKER,
+      '## Tests cancelled',
+      '',
+      `Commit: ${sha}`,
+      `[View workflow run](${workflowRun.html_url})`,
+      '',
+    ].join('\n')
+
+    await github.upsertIssueComment(pr.number, TEST_COMMENT_MARKER, body, [
+      '## Failing test suites',
+      '## Failing CI jobs',
+    ])
     return
   }
 
