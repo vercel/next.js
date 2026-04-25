@@ -95,6 +95,22 @@ impl Store {
         }
     }
 
+    /// Reclaim the per-Vec capacity slack that accumulated during streaming
+    /// ingestion. Intended to be called once when the reader transitions from
+    /// "initial bulk read" to "tailing a growing file" — late inserts after this
+    /// will trigger one more reallocation per affected span, which is bounded
+    /// and acceptable.
+    pub fn shrink_to_fit(&mut self) {
+        self.spans.shrink_to_fit();
+        for span in &mut self.spans {
+            span.events.shrink_to_fit();
+            span.args.shrink_to_fit();
+        }
+        self.memory_samples.shrink_to_fit();
+        // `Store::optimize` already calls `shrink_to_fit` on the self-time tree's
+        // internal entries, so we don't need to touch it here.
+    }
+
     pub fn has_time_info(&self) -> bool {
         self.self_time_tree
             .as_ref()

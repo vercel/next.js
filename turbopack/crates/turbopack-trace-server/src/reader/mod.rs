@@ -348,6 +348,18 @@ impl TraceReader {
                     (start.elapsed().as_millis() / 100) as f32 / 10.0
                 );
             }
+            // Reclaim Vec capacity slack from streaming ingestion. Late inserts
+            // (a tailing trace) will pay one reallocation per affected span,
+            // which is bounded and far cheaper than holding GBs of unused
+            // capacity for the lifetime of the viewer.
+            let shrink_start = Instant::now();
+            self.store.write().shrink_to_fit();
+            if total > MIN_INITIAL_REPORT_SIZE {
+                println!(
+                    "Shrunk store after initial read ({:.1}s)",
+                    shrink_start.elapsed().as_secs_f32()
+                );
+            }
         }
         loop {
             // No more data to read, sleep for a while to wait for more data
