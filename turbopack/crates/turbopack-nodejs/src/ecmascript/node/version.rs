@@ -9,7 +9,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::{CodeAndIds, EcmascriptChunkContent};
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
     pub(super) chunk_path: String,
     pub(super) chunk_items: Vec<ReadRef<CodeAndIds>>,

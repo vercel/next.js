@@ -48,6 +48,12 @@ export default function HomePage() {
       <a href="/search-params-page?foo=bar" id="plain-link-to-search-params">
         Go to search params page (MPA)
       </a>
+      <Link href="/client-fetch-page" id="link-to-client-fetch">
+        Go to client fetch page
+      </Link>
+      <a href="/client-fetch-page" id="plain-link-to-client-fetch">
+        Go to client fetch page (MPA)
+      </a>
     </div>
   )
 }

@@ -454,10 +454,28 @@ pub fn project_new(
     }
     let mut compress = Compression::None;
     if let Some(mut trace) = trace {
-        let internal_dir = PathBuf::from(&options.root_path)
-            .join(&options.project_path)
-            .join(".next-profiles");
-        let trace_file = internal_dir.join("trace-turbopack");
+        let trace_path_override = std::env::var_os("NEXT_TURBOPACK_TRACING_PATH")
+            .filter(|v| !v.is_empty())
+            .map(PathBuf::from);
+        let trace_file = if let Some(path) = trace_path_override {
+            if path.is_absolute() {
+                path
+            } else {
+                std::env::current_dir()
+                    .context("Unable to read current working directory")
+                    .unwrap()
+                    .join(path)
+            }
+        } else {
+            PathBuf::from(&options.root_path)
+                .join(&options.project_path)
+                .join(".next-profiles")
+                .join("trace-turbopack")
+        };
+        let trace_dir = trace_file
+            .parent()
+            .expect("Trace file path must have a parent directory")
+            .to_path_buf();
 
         println!("Turbopack tracing enabled with targets: {trace}");
         println!("  Note that this might have a small performance impact.");
@@ -496,8 +514,13 @@ pub fn project_new(
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
-        std::fs::create_dir_all(&internal_dir)
-            .context("Unable to create .next-profiles directory")
+        std::fs::create_dir_all(&trace_dir)
+            .with_context(|| {
+                format!(
+                    "Unable to create trace output directory {}",
+                    trace_dir.display()
+                )
+            })
             .unwrap();
         let (trace_writer, trace_writer_guard) = match compress {
             Compression::None => {
@@ -965,7 +988,7 @@ impl NapiEntrypoints {
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct EntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1000,14 +1023,14 @@ fn project_container_entrypoints_operation(
     container.entrypoints()
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct OperationResult {
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct AllWrittenEntrypointsWithIssues {
     entrypoints: Option<ReadRef<EntrypointsOperation>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1800,7 +1823,7 @@ pub fn project_entrypoints_subscribe(
     )
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1945,7 +1968,7 @@ struct HmrChunkNames {
     pub chunk_names: Vec<RcStr>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct HmrChunkNamesWithIssues {
     chunk_names: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,

@@ -8,12 +8,12 @@ use turbopack_core::{
     },
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects, OptionModule},
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     output::OutputAssetsWithReferenced,
     reference::{ModuleReferences, SingleChunkableModuleReference},
     reference_type::ReferenceType,
-    resolve::{ExportUsage, origin::ResolveOrigin, parse::Request},
+    resolve::{ExportUsage, origin::ResolveOrigin},
     source::{OptionSource, Source},
 };
 use turbopack_ecmascript::{
@@ -214,10 +214,5 @@ impl ResolveOrigin for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         *self.asset_context
-    }
-
-    #[turbo_tasks::function]
-    fn get_inner_asset(self: Vc<Self>, request: Vc<Request>) -> Vc<OptionModule> {
-        self.loader_as_resolve_origin().get_inner_asset(request)
     }
 }

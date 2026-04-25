@@ -930,5 +930,6 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    agentRules: config.agentRules,
   }
 }
