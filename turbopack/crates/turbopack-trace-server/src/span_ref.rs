@@ -571,20 +571,19 @@ impl<'a> SpanEventSelfTimeRef<'a> {
     }
 
     pub fn end(&self) -> Timestamp {
-        self.self_time.end
+        self.self_time.end()
     }
 
     pub fn corrected_self_time(&self) -> Timestamp {
         *self.self_time.corrected_self_time.get_or_init(|| {
-            let duration = self.self_time.end - self.self_time.start;
-            if !duration.is_zero() {
-                self.store.set_max_self_time_lookup(self.self_time.end);
-                self.store.self_time_tree.as_ref().map_or(duration, |tree| {
-                    tree.lookup_range_corrected_time(self.self_time.start, self.self_time.end)
-                })
-            } else {
-                Timestamp::ZERO
-            }
+            // `duration` is `NonZeroU64`, so zero-duration events are filtered
+            // at construction time (see `SpanEvent::self_time`).
+            let end = self.self_time.end();
+            let duration = Timestamp::from_value(self.self_time.duration.get());
+            self.store.set_max_self_time_lookup(end);
+            self.store.self_time_tree.as_ref().map_or(duration, |tree| {
+                tree.lookup_range_corrected_time(self.self_time.start, end)
+            })
         })
     }
 }

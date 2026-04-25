@@ -1,5 +1,5 @@
 use std::{
-    num::NonZeroUsize,
+    num::{NonZeroU64, NonZeroUsize},
     sync::{Arc, OnceLock},
 };
 
@@ -101,10 +101,21 @@ impl Span {
     }
 }
 
+/// Stores `duration` as `NonZeroU64` so the variant has a niche; combined with
+/// `Child`'s `NonZeroUsize` index, this lets the compiler pack `SpanEvent`
+/// without a separate discriminant byte (saving 8 bytes per event vs. an
+/// `end: Timestamp` layout). Callers must filter zero-duration self-time
+/// events before constructing — see [`SpanEvent::self_time`].
 pub struct SpanEventSelfTime {
     pub start: Timestamp,
-    pub end: Timestamp,
+    pub duration: NonZeroU64,
     pub corrected_self_time: OnceLock<Timestamp>,
+}
+
+impl SpanEventSelfTime {
+    pub fn end(&self) -> Timestamp {
+        Timestamp::from_value(*self.start + self.duration.get())
+    }
 }
 
 pub enum SpanEvent {
@@ -112,13 +123,21 @@ pub enum SpanEvent {
     Child { start: Timestamp, index: SpanIndex },
 }
 
+// 32 bytes = 8 (start) + 8 (duration) + 16 (OnceLock<Timestamp>) for the
+// SelfTime variant; the Child variant fits in 16 and uses the niche, so no
+// extra discriminant byte is needed.
+const _: () = assert!(std::mem::size_of::<SpanEvent>() == 32);
+
 impl SpanEvent {
-    pub fn self_time(start: Timestamp, end: Timestamp) -> Self {
-        Self::SelfTime(SpanEventSelfTime {
+    /// Constructs a `SelfTime` event from start and end timestamps. Returns `None`
+    /// if `end <= start` (zero or negative duration).
+    pub fn self_time(start: Timestamp, end: Timestamp) -> Option<Self> {
+        let duration = NonZeroU64::new(*end.saturating_sub(start))?;
+        Some(SpanEvent::SelfTime(SpanEventSelfTime {
             start,
-            end,
+            duration,
             corrected_self_time: OnceLock::new(),
-        })
+        }))
     }
 
     pub fn start(&self) -> Timestamp {
@@ -150,7 +169,7 @@ impl Ord for SpanEvent {
             .then_with(|| match (self, other) {
                 (SpanEvent::SelfTime(_), SpanEvent::Child { .. }) => std::cmp::Ordering::Less,
                 (SpanEvent::Child { .. }, SpanEvent::SelfTime(_)) => std::cmp::Ordering::Greater,
-                (SpanEvent::SelfTime(a), SpanEvent::SelfTime(b)) => a.end.cmp(&b.end),
+                (SpanEvent::SelfTime(a), SpanEvent::SelfTime(b)) => a.duration.cmp(&b.duration),
                 (
                     SpanEvent::Child { start: _, index: a },
                     SpanEvent::Child { start: _, index: b },
@@ -231,5 +250,40 @@ impl SpanBottomUp {
             self_persistent_allocations: OnceLock::new(),
             self_allocation_count: OnceLock::new(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn span_event_self_time_filters_zero_duration() {
+        let t = Timestamp::from_micros(100);
+        assert!(SpanEvent::self_time(t, t).is_none());
+        // end < start should also return None (saturating_sub clamps to 0).
+        assert!(SpanEvent::self_time(t, Timestamp::from_micros(50)).is_none());
+    }
+
+    #[test]
+    fn span_event_self_time_constructs_positive_duration() {
+        let start = Timestamp::from_micros(100);
+        let end = Timestamp::from_micros(150);
+        let event = SpanEvent::self_time(start, end).unwrap();
+        match event {
+            SpanEvent::SelfTime(self_time) => {
+                assert_eq!(self_time.start, start);
+                assert_eq!(self_time.duration.get(), *end - *start);
+                assert_eq!(self_time.end(), end);
+            }
+            SpanEvent::Child { .. } => panic!("expected SelfTime"),
+        }
+    }
+
+    #[test]
+    fn span_event_size_is_packed() {
+        // Backstop for the const assert; if this fails the const assert above
+        // would also fail, but having a test gives a clearer error message.
+        assert_eq!(std::mem::size_of::<SpanEvent>(), 32);
     }
 }
