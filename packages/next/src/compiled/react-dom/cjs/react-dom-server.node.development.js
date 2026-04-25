@@ -3711,10 +3711,10 @@
       childState.stylesheets.forEach(hoistStylesheetDependency, parentState);
       childState.suspenseyImages && (parentState.suspenseyImages = !0);
     }
-    function hasSuspenseyContent(hoistableState) {
-      return (
-        0 < hoistableState.stylesheets.size || hoistableState.suspenseyImages
-      );
+    function hasSuspenseyContent(hoistableState, flushingInShell) {
+      return flushingInShell
+        ? hoistableState.suspenseyImages
+        : 0 < hoistableState.stylesheets.size || hoistableState.suspenseyImages;
     }
     function getComponentNameFromType(type) {
       if (null == type) return null;
@@ -4578,7 +4578,7 @@
     function isEligibleForOutlining(request, boundary) {
       return (
         (500 < boundary.byteSize ||
-          hasSuspenseyContent(boundary.contentState) ||
+          hasSuspenseyContent(boundary.contentState, !1) ||
           boundary.defer) &&
         null === boundary.preamble
       );
@@ -7815,14 +7815,13 @@
               null !== row &&
                 hoistHoistables(row.hoistables, boundary.contentState),
               isEligibleForOutlining(request, boundary) ||
-                (boundary.fallbackAbortableTasks.forEach(
-                  abortTaskSoft,
-                  request
-                ),
+                (request.allPendingTasks++,
+                boundary.fallbackAbortableTasks.forEach(abortTaskSoft, request),
                 boundary.fallbackAbortableTasks.clear(),
                 null !== row &&
                   0 === --row.pendingTasks &&
-                  finishSuspenseListRow(request, row)),
+                  finishSuspenseListRow(request, row),
+                request.allPendingTasks--),
               0 === request.pendingRootTasks &&
                 null === request.trackedPostpones &&
                 null !== boundary.preamble &&
@@ -7849,8 +7848,10 @@
                     finishedTask(request, postponedBoundary, null, null);
                   }
               }
+              request.allPendingTasks++;
               0 === --boundary.pendingTasks &&
                 finishSuspenseListRow(request, boundary);
+              request.allPendingTasks--;
             }
           }
         else
@@ -8093,8 +8094,10 @@
                     untrackBoundary(request, boundary$jscomp$0);
                     var boundaryRow = boundary$jscomp$0.row;
                     null !== boundaryRow &&
+                      (request.allPendingTasks++,
                       0 === --boundaryRow.pendingTasks &&
-                      finishSuspenseListRow(request, boundaryRow);
+                        finishSuspenseListRow(request, boundaryRow),
+                      request.allPendingTasks--);
                     boundary$jscomp$0.parentFlushed &&
                       request.clientRenderedBoundaries.push(boundary$jscomp$0);
                     0 === request.pendingRootTasks &&
@@ -8313,7 +8316,7 @@
         !flushingPartialBoundaries &&
         isEligibleForOutlining(request, boundary) &&
         (flushedByteSize + boundary.byteSize > request.progressiveChunkSize ||
-          hasSuspenseyContent(boundary.contentState) ||
+          hasSuspenseyContent(boundary.contentState, flushingShell) ||
           boundary.defer)
       )
         (boundary.rootSegmentID = request.nextSegmentId++),
@@ -8598,7 +8601,9 @@
                 completedPreambleSegments++
               )
                 writeChunk(destination, bodyChunks[completedPreambleSegments]);
+            flushingShell = !0;
             flushSegment(request, destination, completedRootSegment, null);
+            flushingShell = !1;
             request.completedRootSegment = null;
             var renderState$jscomp$0 = request.renderState;
             if (
@@ -9000,11 +9005,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-6066c782-20260212" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-da9325b5-20260417" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-6066c782-20260212\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-da9325b5-20260417\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -9200,6 +9205,7 @@
         ["markerEnd", "marker-end"],
         ["markerMid", "marker-mid"],
         ["markerStart", "marker-start"],
+        ["maskType", "mask-type"],
         ["overlinePosition", "overline-position"],
         ["overlineThickness", "overline-thickness"],
         ["paintOrder", "paint-order"],
@@ -9615,6 +9621,7 @@
         markerwidth: "markerWidth",
         mask: "mask",
         maskcontentunits: "maskContentUnits",
+        masktype: "maskType",
         maskunits: "maskUnits",
         mathematical: "mathematical",
         mode: "mode",
@@ -10656,7 +10663,8 @@
       didWarnAboutGenerators = !1,
       didWarnAboutMaps = !1,
       flushedByteSize = 0,
-      flushingPartialBoundaries = !1;
+      flushingPartialBoundaries = !1,
+      flushingShell = !1;
     ensureCorrectIsomorphicReactVersion();
     ensureCorrectIsomorphicReactVersion();
     exports.prerender = function (children, options) {
@@ -11112,5 +11120,5 @@
         }
       };
     };
-    exports.version = "19.3.0-canary-6066c782-20260212";
+    exports.version = "19.3.0-canary-da9325b5-20260417";
   })();

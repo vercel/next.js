@@ -138,6 +138,7 @@ function getScripts(
     buildManifest,
     isDevelopment,
     assetQueryString,
+    mutableAssetQueryString,
     disableOptimizedLoading,
     crossOrigin,
   } = context
@@ -148,10 +149,15 @@ function getScripts(
   )
 
   return [...normalScripts, ...lowPriorityScripts].map((file) => {
+    // static/immutable/chunks/51e975e7b637a580.js should use the immutable id, while
+    // static/Yj152X97rfGgF7NPcJEZs/_ssgManifest.js should use the deployment id
+    const query = file.startsWith('static/immutable/chunks')
+      ? assetQueryString
+      : mutableAssetQueryString
     return (
       <script
         key={file}
-        src={`${assetPrefix}/_next/${encodeURIPath(file)}${assetQueryString}`}
+        src={`${assetPrefix}/_next/${encodeURIPath(file)}${query}`}
         nonce={props.nonce}
         async={!isDevelopment && disableOptimizedLoading}
         defer={!disableOptimizedLoading}
@@ -378,7 +384,7 @@ export class Head extends React.Component<HeadProps> {
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
       assetPrefix,
-      assetQueryString,
+      cssAssetQueryString,
       dynamicImports,
       dynamicCssManifest,
       crossOrigin,
@@ -416,7 +422,7 @@ export class Head extends React.Component<HeadProps> {
             rel="preload"
             href={`${assetPrefix}/_next/${encodeURIPath(
               file
-            )}${assetQueryString}`}
+            )}${cssAssetQueryString}`}
             as="style"
             crossOrigin={this.props.crossOrigin || crossOrigin}
           />
@@ -430,7 +436,7 @@ export class Head extends React.Component<HeadProps> {
           rel="stylesheet"
           href={`${assetPrefix}/_next/${encodeURIPath(
             file
-          )}${assetQueryString}`}
+          )}${cssAssetQueryString}`}
           crossOrigin={this.props.crossOrigin || crossOrigin}
           data-n-g={isUnmanagedFile ? undefined : isSharedFile ? '' : undefined}
           data-n-p={
@@ -583,7 +589,7 @@ export class Head extends React.Component<HeadProps> {
       optimizeCss,
       assetPrefix,
       nextFontManifest,
-      assetQueryString,
+      cssAssetQueryString,
     } = this.context
 
     const disableRuntimeJS = unstable_runtimeJS === false
@@ -653,7 +659,7 @@ export class Head extends React.Component<HeadProps> {
       nextFontManifest,
       dangerousAsPath,
       assetPrefix,
-      assetQueryString
+      cssAssetQueryString
     )
 
     const tracingMetadata = getTracedMetadata(

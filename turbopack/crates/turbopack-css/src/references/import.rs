@@ -8,7 +8,7 @@ use lightningcss::{
 };
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption},
+    chunk::{ChunkingContext, ChunkingType},
     issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext},
@@ -21,7 +21,7 @@ use crate::{
     references::css_resolve,
 };
 
-#[turbo_tasks::value(eq = "manual", serialization = "none", shared)]
+#[turbo_tasks::value(eq = "manual", serialization = "skip", shared)]
 #[derive(PartialEq)]
 pub enum ImportAttributes {
     LightningCss {
@@ -142,12 +142,11 @@ impl ModuleReference for ImportAssetReference {
         ))
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }
 

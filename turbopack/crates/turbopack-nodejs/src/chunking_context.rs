@@ -1,15 +1,18 @@
 use anyhow::{Context, Result, bail};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, ValueToString, ValueToStringRef, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::encode_hex;
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
         AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets,
-        MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
+        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
+        UrlBehavior,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -157,6 +160,16 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    pub fn asset_content_hashing(mut self, content_hashing: ContentHashing) -> Self {
+        self.chunking_context.asset_content_hashing = content_hashing;
+        self
+    }
+
+    pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
+        self.chunking_context.hash_salt = salt;
+        self
+    }
+
     /// Builds the chunking context.
     pub fn build(self) -> Vc<NodeJsChunkingContext> {
         NodeJsChunkingContext::cell(self.chunking_context)
@@ -227,6 +240,10 @@ pub struct NodeJsChunkingContext {
     debug_ids: bool,
     /// Global variable names to forward to workers (e.g. NEXT_DEPLOYMENT_ID)
     worker_forwarded_globals: Vec<RcStr>,
+    /// Content hashing for asset filenames.
+    asset_content_hashing: ContentHashing,
+    /// Salt mixed into chunk and asset content hashes. Empty string means no salt.
+    hash_salt: ResolvedVc<RcStr>,
 }
 
 impl NodeJsChunkingContext {
@@ -271,6 +288,8 @@ impl NodeJsChunkingContext {
                 chunking_configs: Default::default(),
                 debug_ids: false,
                 worker_forwarded_globals: vec![],
+                asset_content_hashing: ContentHashing::Direct { length: 13 },
+                hash_salt: ResolvedVc::cell(RcStr::default()),
             },
         }
     }
@@ -291,6 +310,11 @@ impl NodeJsChunkingContext {
     #[turbo_tasks::function]
     pub fn minify_type(&self) -> Vc<MinifyType> {
         self.minify_type.cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn hash_salt(&self) -> Vc<RcStr> {
+        *self.hash_salt
     }
 
     #[turbo_tasks::function]
@@ -454,30 +478,34 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     async fn asset_path(
-        &self,
-        content_hash: Vc<u64>,
+        self: Vc<Self>,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
+        let this = self.await?;
         let source_path = original_asset_ident.path().await?;
         let basename = source_path.file_name();
-        let content_hash = encode_hex(*content_hash.await?);
-        let asset_path = match source_path.extension_ref() {
+        let ContentHashing::Direct { length } = this.asset_content_hashing;
+        let hash = content
+            .content_hash(self.hash_salt(), HashAlgorithm::Xxh3Hash128Base38)
+            .await?;
+        let hash = hash
+            .as_ref()
+            .context("Missing content when trying to generate the content hash for static asset")?;
+        let short_hash = &hash[..length as usize];
+        let asset_path = match source_path.extension() {
             Some(ext) => format!(
-                "{basename}.{content_hash}.{ext}",
+                "{basename}.{short_hash}.{ext}",
                 basename = &basename[..basename.len() - ext.len() - 1],
-                content_hash = &content_hash[..8]
             ),
-            None => format!(
-                "{basename}.{content_hash}",
-                content_hash = &content_hash[..8]
-            ),
+            None => format!("{basename}.{short_hash}"),
         };
 
         let asset_root_path = tag
             .as_ref()
-            .and_then(|tag| self.asset_root_paths.get(tag))
-            .unwrap_or(&self.asset_root_path);
+            .and_then(|tag| this.asset_root_paths.get(tag))
+            .unwrap_or(&this.asset_root_path);
 
         Ok(asset_root_path.join(&asset_path)?.cell())
     }
@@ -543,7 +571,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     pub async fn entry_chunk_group(
         self: ResolvedVc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -551,15 +579,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     ) -> Result<Vc<EntryChunkGroupResult>> {
         let span = tracing::info_span!(
             "chunking",
-            name = display(path.value_to_string().await?),
+            name = display(path.to_string_ref().await?),
             chunking_type = "entry",
         );
         async move {
-            let evaluatable_assets_ref = evaluatable_assets.await?;
-            let entries = evaluatable_assets_ref
-                .iter()
-                .map(|&asset| ResolvedVc::upcast::<Box<dyn Module>>(asset));
-
+            let entries = chunk_group.entries();
             let MakeChunkGroupResult {
                 chunks,
                 mut referenced_output_assets,
@@ -585,16 +609,24 @@ impl ChunkingContext for NodeJsChunkingContext {
 
             referenced_output_assets.extend(extra_referenced_assets.await?.iter().copied());
 
-            let Some(module) = ResolvedVc::try_sidecast(*evaluatable_assets_ref.last().unwrap())
+            let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
             else {
                 bail!("module must be placeable in an ecmascript chunk");
             };
+
+            let evaluatable_assets = chunk_group
+                .entries()
+                .map(|entry| {
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry)
+                        .context("entry_chunk_group entries must be evaluatable")
+                })
+                .collect::<Result<Vec<_>>>()?;
 
             let asset = ResolvedVc::upcast(
                 EcmascriptBuildNodeEntryChunk::new(
                     path,
                     Vc::cell(other_chunks),
-                    evaluatable_assets,
+                    Vc::cell(evaluatable_assets),
                     *module,
                     Vc::cell(referenced_output_assets),
                     Vc::cell(references),

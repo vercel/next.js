@@ -5,25 +5,9 @@ version = "0.0.0"
 publish = false
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [features]
-# Instead of enabling all the plugin-related functionality by default, make it
-# overridable when built (i.e napi --build --features plugin). This is due to
-# some of transitive dependencies have features cannot be enabled at the same
-# time (i.e wasmer/default vs wasmer/js-default) while cargo merges all the
-# features at once.
-plugin = [
-    "swc_core/plugin_transform_host_native",
-    "swc_core/plugin_transform_host_native_filesystem_cache",
-    "swc_core/plugin_transform_host_native_shared_runtime",
-    "swc_core/plugin_backend_wasmer",
-    "next-custom-transforms/plugin",
-    "next-core/plugin",
-    "turbopack-ecmascript-plugins",
-    "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
-]
-
 image-webp = ["next-core/image-webp"]
 image-avif = ["next-core/image-avif"]
 # Enable all the available image codec support.
@@ -46,12 +30,9 @@ workspace = true
 
 [package.metadata.cargo-shear]
 ignored = [
-  # we need to set features on these packages when building for WASM, but we don't directly use them
-  "getrandom",
-  "iana-time-zone",
-  # the plugins feature needs to set a feature on this transitively depended-on package, we never
-  # directly import it
-  "turbopack-ecmascript-plugins",
+    # we need to set features on these packages when building for WASM, but we don't directly use them
+    "getrandom",
+    "iana-time-zone",
 ]
 
 [dependencies]
@@ -64,7 +45,8 @@ flate2 = { workspace = true }
 futures-util = { workspace = true }
 owo-colors = { workspace = true }
 napi = { workspace = true }
-napi-derive = "2"
+napi-derive = { workspace = true }
+next-code-frame = { workspace = true  }
 next-custom-transforms = { workspace = true }
 next-taskless = { workspace = true }
 rand = { workspace = true }
@@ -72,6 +54,7 @@ rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
 supports-hyperlinks = "3.1.0"
+terminal_size = { workspace = true }
 terminal_hyperlink = "0.1.0"
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -79,6 +62,7 @@ tracing-chrome = "0.7.2"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
+regex = { workspace = true }
 
 swc_core = { workspace = true, features = [
     "base",
@@ -99,32 +83,37 @@ swc_core = { workspace = true, features = [
     "ecma_transforms_typescript",
     "ecma_utils",
     "ecma_visit",
+    "__plugin_transform_host",
+    "__plugin_transform_host_schema_v1",
+    "plugin_transform_host_native_filesystem_cache",
 ] }
 
 # Dependencies for the native, non-wasm32 build.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lightningcss-napi = { workspace = true }
+lightningcss = { workspace = true }
+swc_plugin_backend_wasmtime = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-unix-path = { workspace = true }
-next-api = { workspace = true }
+next-api = { workspace = true, features = ["worker_pool"] }
 next-build = { workspace = true }
 next-core = { workspace = true }
 
 mdxjs = { workspace = true, features = ["serializable"] }
 
 turbo-tasks-malloc = { workspace = true, default-features = false, features = [
-    "custom_allocator"
+    "custom_allocator",
 ] }
 
 turbopack-core = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 turbopack-trace-server = { workspace = true }
-turbopack-ecmascript-plugins = { workspace = true, optional = true }
+turbopack-node = { workspace = true, default-features = false, features = ["worker_pool"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = "0.60"
@@ -145,8 +134,7 @@ tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
 anyhow = { workspace = true }
-napi-build = "2"
+napi-build = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 vergen-gitcl = { workspace = true }
-

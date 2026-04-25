@@ -1,4 +1,3 @@
-use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -37,16 +36,12 @@ impl OutputAssetsReference for StaticOutputAsset {}
 #[turbo_tasks::value_impl]
 impl OutputAsset for StaticOutputAsset {
     #[turbo_tasks::function]
-    async fn path(&self) -> Result<Vc<FileSystemPath>> {
-        let content = self.source.content();
-        let content_hash = content.content_hash().await?.context(
-            "Missing content when trying to generate the content hash for StaticOutputAsset",
-        )?;
-        Ok(self.chunking_context.asset_path(
-            Vc::cell(content_hash),
+    fn path(&self) -> Vc<FileSystemPath> {
+        self.chunking_context.asset_path(
+            self.source.content(),
             self.source.ident(),
             self.tag.clone(),
-        ))
+        )
     }
 }
 

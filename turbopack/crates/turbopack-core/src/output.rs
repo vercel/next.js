@@ -14,7 +14,7 @@ pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 
 #[turbo_tasks::value_trait]
 pub trait OutputAssetsReference {
-    /// References to other [OutputAsset]s from this [OutputAssetReference].
+    /// References to other [`OutputAsset`]s from this [`OutputAssetsReference`].
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<OutputAssetsWithReferenced> {
         OutputAssetsWithReferenced {
@@ -26,8 +26,10 @@ pub trait OutputAssetsReference {
     }
 }
 
-/// An asset that should be outputted, e. g. written to disk or served from a
-/// server.
+/// An asset that should be outputted, e. g. written to disk or served from a server.
+///
+/// For documentation about where this is used and how it fits into the rest of Turbopack, see
+/// [`crate::_layers`].
 #[turbo_tasks::value_trait]
 pub trait OutputAsset: Asset + OutputAssetsReference {
     /// The identifier of the [OutputAsset]. It's expected to be unique and
@@ -40,11 +42,6 @@ pub trait OutputAsset: Asset + OutputAssetsReference {
     #[turbo_tasks::function]
     fn path_string(self: Vc<Self>) -> Vc<RcStr> {
         self.path().to_string()
-    }
-
-    #[turbo_tasks::function]
-    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
-        Vc::cell(None)
     }
 }
 
@@ -140,7 +137,7 @@ impl OutputAssetsWithReferenced {
             self.assets
                 .await?
                 .into_iter()
-                .chain(self.referenced_assets.await?.into_iter())
+                .chain(self.referenced_assets.await?)
                 .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
                 .chain(
                     self.references
@@ -261,7 +258,7 @@ async fn get_referenced_assets(
         .assets
         .await?
         .into_iter()
-        .chain(refs.referenced_assets.await?.into_iter())
+        .chain(refs.referenced_assets.await?)
         .map(|&asset| ExpandOutputAssetsInput::Asset(asset))
         .chain(
             refs.references

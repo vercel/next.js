@@ -4,9 +4,11 @@ import {
   waitForRedbox,
   getRedboxCallStack,
   getRedboxCause,
+  getRedboxAggregateErrors,
   getRedboxComponentStack,
   getRedboxDescription,
   getRedboxEnvironmentLabel,
+  getRedboxErrorCode,
   getRedboxSource,
   getRedboxLabel,
   getRedboxTotalErrorCount,
@@ -75,7 +77,7 @@ interface ErrorSnapshotOptions {
 
 interface SanitizedCauseEntry {
   label: string | null
-  message: string | null
+  message?: string
   source: string | null
   stack: string[]
 }
@@ -83,9 +85,11 @@ interface SanitizedCauseEntry {
 export interface ErrorSnapshot {
   environmentLabel: string | null
   label: string | null
-  description: string | null
+  description?: string
   componentStack?: string
   cause?: SanitizedCauseEntry[]
+  aggregateErrors?: SanitizedCauseEntry[]
+  code?: string
   source: string | null
   stack: string[] | null
 }
@@ -191,6 +195,8 @@ async function createErrorSnapshot(
     stack,
     componentStack,
     cause,
+    aggregateErrors,
+    code,
   ] = await Promise.all([
     includeLabel ? getRedboxLabel(browser) : null,
     getRedboxEnvironmentLabel(browser),
@@ -199,6 +205,8 @@ async function createErrorSnapshot(
     getRedboxCallStack(browser),
     getRedboxComponentStack(browser),
     getRedboxCause(browser),
+    getRedboxAggregateErrors(browser),
+    getRedboxErrorCode(browser),
   ])
 
   // We don't need to test the codeframe logic everywhere.
@@ -239,9 +247,12 @@ async function createErrorSnapshot(
   const snapshot: ErrorSnapshot = {
     environmentLabel,
     label: label ?? '<FIXME-excluded-label>',
-    description: sanitizedDescription,
     source: focusedSource,
     stack: sanitizeStack(stack, next),
+  }
+
+  if (sanitizedDescription !== null) {
+    snapshot.description = sanitizedDescription
   }
 
   // Hydration diffs are only relevant to some specific errors
@@ -250,14 +261,38 @@ async function createErrorSnapshot(
     snapshot.componentStack = componentStack
   }
 
+  if (code !== null) {
+    snapshot.code = code
+  }
+
   // Error.cause chain is only relevant when present.
   if (cause !== null) {
-    snapshot.cause = cause.map((entry) => ({
-      label: entry.label,
-      message: entry.message,
-      source: focusSource(entry.source, next),
-      stack: sanitizeStack(entry.stack, next) ?? [],
-    }))
+    snapshot.cause = cause.map((entry) => {
+      const causeEntry: SanitizedCauseEntry = {
+        label: entry.label,
+        source: focusSource(entry.source, next),
+        stack: sanitizeStack(entry.stack, next) ?? [],
+      }
+      if (entry.message !== null) {
+        causeEntry.message = entry.message
+      }
+      return causeEntry
+    })
+  }
+
+  // AggregateError.errors are only relevant when present.
+  if (aggregateErrors !== null) {
+    snapshot.aggregateErrors = aggregateErrors.map((entry) => {
+      const aggEntry: SanitizedCauseEntry = {
+        label: entry.label,
+        source: focusSource(entry.source, next),
+        stack: sanitizeStack(entry.stack, next) ?? [],
+      }
+      if (entry.message !== null) {
+        aggEntry.message = entry.message
+      }
+      return aggEntry
+    })
   }
 
   return snapshot

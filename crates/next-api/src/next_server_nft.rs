@@ -142,7 +142,7 @@ impl Asset for ServerNftJsonAsset {
                 let DirectoryEntry::File(file) = entry else {
                     continue;
                 };
-                if file.extension() == "js" {
+                if file.extension() == Some("js") {
                     server_output_assets.push(
                         base_dir
                             .get_relative_path_to(file)
@@ -177,6 +177,7 @@ impl ServerNftJsonAsset {
 
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
+            false,
         ));
 
         let project_path = self.project.project_path().owned().await?;
@@ -200,17 +201,14 @@ impl ServerNftJsonAsset {
         // These are used by packages/next/src/server/require-hook.ts
         let shared_entries = ["styled-jsx", "styled-jsx/style", "styled-jsx/style.js"];
 
-        let cache_handler_entries = cache_handler
-            .into_iter()
-            .chain(cache_handlers.into_iter())
-            .map(|f| {
-                asset_context
-                    .process(
-                        Vc::upcast(FileSource::new(f.clone())),
-                        ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
-                    )
-                    .module()
-            });
+        let cache_handler_entries = cache_handler.into_iter().chain(cache_handlers).map(|f| {
+            asset_context
+                .process(
+                    Vc::upcast(FileSource::new(f.clone())),
+                    ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
+                )
+                .module()
+        });
 
         let entries = match self.ty {
             ServerNftType::Full => Either::Left(

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use next_taskless::NEVER_EXTERNAL_RE;
 use turbo_rcstr::{RcStr, rcstr};
@@ -8,8 +9,8 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
 };
 use turbopack_core::{
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
+    reference_type::{ReferenceType, ReferenceTypeCondition},
     resolve::{
         ExternalTraced, ExternalType, FindContextFileResult, ResolveResult, ResolveResultItem,
         ResolveResultOption, find_context_file,
@@ -155,8 +156,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         };
 
         let is_esm = self.import_externals
-            && ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Undefined)
-                .includes(&reference_type);
+            && ReferenceTypeCondition::EcmaScriptModules(None).includes(&reference_type);
 
         #[derive(Debug, Copy, Clone)]
         enum FileType {
@@ -172,7 +172,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         ) -> Result<FileType> {
             // node.js only supports these file extensions
             // mjs is an esm module and we can't bundle that yet
-            Ok(match raw_fs_path.extension_ref() {
+            Ok(match raw_fs_path.extension() {
                 Some("cjs" | "node" | "json") => FileType::CommonJs,
                 Some("mjs") => FileType::EcmaScriptModule,
                 Some("js") => {
@@ -241,7 +241,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     // have an extension in the request we try to append ".js"
                     // automatically
                     request_str.push_str(".js");
-                    request = request.append_path(rcstr!(".js")).resolve().await?;
+                    request = *request.append_path(rcstr!(".js")).to_resolved().await?;
                     continue;
                 }
                 // this can't resolve with node.js from the original location, so bundle it
@@ -373,46 +373,39 @@ struct ExternalizeIssue {
     reason: Vec<StyledString>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ExternalizeIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Line(vec![
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Line(vec![
             StyledString::Text(rcstr!("Package ")),
             StyledString::Code(self.package.clone()),
             StyledString::Text(rcstr!(" can't be external")),
-        ])
-        .cell()
+        ]))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("The request ")),
-                    StyledString::Code(self.request_str.clone()),
-                    StyledString::Text(rcstr!(" matches ")),
-                    StyledString::Code(rcstr!("serverExternalPackages")),
-                    StyledString::Text(rcstr!(" (or the default list).")),
-                ]),
-                StyledString::Line(self.reason.clone()),
-            ])
-            .resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("The request ")),
+                StyledString::Code(self.request_str.clone()),
+                StyledString::Text(rcstr!(" matches ")),
+                StyledString::Code(rcstr!("serverExternalPackages")),
+                StyledString::Text(rcstr!(" (or the default list).")),
+            ]),
+            StyledString::Line(self.reason.clone()),
+        ])))
     }
 }

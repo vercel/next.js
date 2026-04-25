@@ -12,7 +12,8 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbopack_core::asset::Asset;
+use turbo_tasks_hash::HashAlgorithm;
+use turbopack_core::asset::{Asset, no_hash_salt};
 
 pub(crate) mod analysis;
 pub(crate) mod loader;
@@ -25,8 +26,10 @@ pub mod source;
 pub async fn wasm_edge_var_name(asset: Vc<Box<dyn Asset>>) -> Result<Vc<RcStr>> {
     let hash = asset
         .content()
-        .content_hash()
-        .await?
+        .content_hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
+        .await?;
+    let hash = hash
+        .as_ref()
         .context("Missing content when trying to generate the content hash for a WASM asset")?;
-    Ok(Vc::cell(format!("wasm_{:08x}", hash).into()))
+    Ok(Vc::cell(format!("wasm_{}", hash).into()))
 }

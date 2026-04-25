@@ -30,6 +30,7 @@ describe('Client Navigation', () => {
       await browser.elementByCss('#empty-props').click()
       await expect(browser).toDisplayRedbox(`
        {
+         "code": "E1025",
          "description": ""EmptyInitialPropsPage.getInitialProps()" should resolve to an object. But found "null" instead.",
          "environmentLabel": null,
          "label": "Runtime Error",

@@ -3,9 +3,9 @@ import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
 
 export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ searchParams: { key: 'value' } }],
+  samples: [{ searchParams: { searchParam: 'value' } }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 

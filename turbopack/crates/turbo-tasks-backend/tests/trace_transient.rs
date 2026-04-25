@@ -21,20 +21,31 @@ Adder::add_method (read cell of type u64)
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trace_transient() {
     let result = run_once_without_cache_check(&REGISTRATION, async {
-        read_incorrect_task_input_operation(IncorrectTaskInput(
-            Adder::new(Vc::cell(()))
-                .add_method(Vc::cell(2), Vc::cell(3))
-                .to_resolved()
-                .await?,
-        ))
+        test_trace_transient_operation(
+            ResolvedVc::cell(()),
+            ResolvedVc::<u16>::cell(2),
+            ResolvedVc::<u32>::cell(3),
+        )
         .read_strongly_consistent()
-        .await?;
-        anyhow::Ok(())
+        .await
     })
     .await;
 
     let message = format!("{:#}", result.unwrap_err());
     assert!(message.contains(&EXPECTED_TRACE.to_string()));
+}
+
+#[turbo_tasks::function(operation)]
+async fn test_trace_transient_operation(
+    arg1: ResolvedVc<()>,
+    arg2: ResolvedVc<u16>,
+    arg3: ResolvedVc<u32>,
+) -> Result<Vc<u64>> {
+    let resolved = Adder::new(*arg1)
+        .add_method(*arg2, *arg3)
+        .to_resolved()
+        .await?;
+    Ok(read_incorrect_task_input(IncorrectTaskInput(resolved)))
 }
 
 #[turbo_tasks::value]
@@ -55,8 +66,8 @@ impl Adder {
     }
 }
 
-#[turbo_tasks::function(operation)]
-async fn read_incorrect_task_input_operation(value: IncorrectTaskInput) -> Result<Vc<u64>> {
+#[turbo_tasks::function]
+async fn read_incorrect_task_input(value: IncorrectTaskInput) -> Result<Vc<u64>> {
     Ok(Vc::cell(*value.0.await?))
 }
 

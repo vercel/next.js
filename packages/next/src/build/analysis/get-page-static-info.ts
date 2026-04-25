@@ -1,13 +1,10 @@
 import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
-import { promises as fs } from 'fs'
+import { readFileSync } from 'fs'
 import { relative } from 'path'
 import { LRUCache } from '../../server/lib/lru-cache'
-import {
-  extractExportedConstValue,
-  UnsupportedValueError,
-} from './extract-const-value'
+import { extractExportedConstValue } from './extract-const-value'
 import { parseModule } from './parse-module'
 import * as Log from '../output/log'
 import {
@@ -427,9 +424,9 @@ function validateMiddlewareProxyExports({
   }
 }
 
-async function tryToReadFile(filePath: string, shouldThrow: boolean) {
+function tryToReadFile(filePath: string, shouldThrow: boolean) {
   try {
-    return await fs.readFile(filePath, {
+    return readFileSync(filePath, {
       encoding: 'utf8',
     })
   } catch (error: any) {
@@ -568,7 +565,7 @@ const warnedUnsupportedValueMap = new LRUCache<boolean>(250, () => 1)
 function warnAboutUnsupportedValue(
   pageFilePath: string,
   page: string | undefined,
-  error: UnsupportedValueError
+  result: { unsupported: string; path?: string }
 ) {
   hadUnsupportedValue = true
   const isProductionBuild = process.env.NODE_ENV === 'production'
@@ -587,8 +584,8 @@ function warnAboutUnsupportedValue(
     `Next.js can't recognize the exported \`config\` field in ` +
     (page ? `route "${page}"` : `"${pageFilePath}"`) +
     ':\n' +
-    error.message +
-    (error.path ? ` at "${error.path}"` : '') +
+    result.unsupported +
+    (result.path ? ` at "${result.path}"` : '') +
     '.\n' +
     'Read More - https://nextjs.org/docs/messages/invalid-page-config'
 
@@ -615,7 +612,7 @@ export async function getAppPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<AppPageStaticInfo> {
-  const content = await tryToReadFile(pageFilePath, !isDev)
+  const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.APP,
@@ -648,23 +645,20 @@ export async function getAppPageStaticInfo({
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
     for (const property of exports) {
-      try {
-        exportedConfig[property] = extractExportedConstValue(ast, property)
-      } catch (e) {
-        if (e instanceof UnsupportedValueError) {
-          warnAboutUnsupportedValue(pageFilePath, page, e)
-        }
+      const result = extractExportedConstValue(ast, property)
+      if (result !== null && 'unsupported' in result) {
+        warnAboutUnsupportedValue(pageFilePath, page, result)
+      } else if (result !== null) {
+        exportedConfig[property] = result.value
       }
     }
   }
 
-  try {
-    exportedConfig.config = extractExportedConstValue(ast, 'config')
-  } catch (e) {
-    if (e instanceof UnsupportedValueError) {
-      warnAboutUnsupportedValue(pageFilePath, page, e)
-    }
-    // `export config` doesn't exist, or other unknown error thrown by swc, silence them
+  const configResult = extractExportedConstValue(ast, 'config')
+  if (configResult !== null && 'unsupported' in configResult) {
+    warnAboutUnsupportedValue(pageFilePath, page, configResult)
+  } else if (configResult !== null) {
+    exportedConfig.config = configResult.value
   }
 
   const route = normalizeAppPath(page)
@@ -684,9 +678,46 @@ export async function getAppPageStaticInfo({
     )
   }
 
+  // Prevent use client and unstable_instant in the same file.
+  if (directives?.has('client') && 'unstable_instant' in config) {
+    throw new Error(
+      `"unstable_instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+    )
+  }
+
   if ('unstable_instant' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
+    )
+  }
+
+  // Prevent use client and unstable_prefetch in the same file.
+  if (directives?.has('client') && 'unstable_prefetch' in config) {
+    throw new Error(
+      `"unstable_prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+    )
+  }
+
+  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
+    throw new Error(
+      `Route "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
+    )
+  }
+
+  // Prevent unstable_dynamicStaleTime in layouts.
+  if ('unstable_dynamicStaleTime' in config) {
+    const isLayout = /\/layout\.[^/]+$/.test(pageFilePath)
+    if (isLayout) {
+      throw new Error(
+        `"${page}" cannot use \`export const unstable_dynamicStaleTime\`. This config is only supported in page files, not layouts.`
+      )
+    }
+  }
+
+  // Prevent combining unstable_dynamicStaleTime and unstable_instant.
+  if ('unstable_dynamicStaleTime' in config && 'unstable_instant' in config) {
+    throw new Error(
+      `Page "${page}" cannot use both \`export const unstable_dynamicStaleTime\` and \`export const unstable_instant\`.`
     )
   }
 
@@ -711,7 +742,7 @@ export async function getPagesPageStaticInfo({
   isDev,
   page,
 }: GetPageStaticInfoParams): Promise<PagesPageStaticInfo> {
-  const content = await tryToReadFile(pageFilePath, !isDev)
+  const content = tryToReadFile(pageFilePath, !isDev)
   if (!content || !PARSE_PATTERN.test(content)) {
     return {
       type: PAGE_TYPES.PAGES,
@@ -742,23 +773,20 @@ export async function getPagesPageStaticInfo({
   const exportedConfig: Record<string, unknown> = {}
   if (exports) {
     for (const property of exports) {
-      try {
-        exportedConfig[property] = extractExportedConstValue(ast, property)
-      } catch (e) {
-        if (e instanceof UnsupportedValueError) {
-          warnAboutUnsupportedValue(pageFilePath, page, e)
-        }
+      const result = extractExportedConstValue(ast, property)
+      if (result !== null && 'unsupported' in result) {
+        warnAboutUnsupportedValue(pageFilePath, page, result)
+      } else if (result !== null) {
+        exportedConfig[property] = result.value
       }
     }
   }
 
-  try {
-    exportedConfig.config = extractExportedConstValue(ast, 'config')
-  } catch (e) {
-    if (e instanceof UnsupportedValueError) {
-      warnAboutUnsupportedValue(pageFilePath, page, e)
-    }
-    // `export config` doesn't exist, or other unknown error thrown by swc, silence them
+  const configResult = extractExportedConstValue(ast, 'config')
+  if (configResult !== null && 'unsupported' in configResult) {
+    warnAboutUnsupportedValue(pageFilePath, page, configResult)
+  } else if (configResult !== null) {
+    exportedConfig.config = configResult.value
   }
 
   // Validate the config.

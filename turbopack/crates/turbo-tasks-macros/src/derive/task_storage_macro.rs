@@ -69,6 +69,16 @@ struct FieldInfo {
     /// If true, drop this field entirely after execution completes if the task is immutable.
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
+    /// Optional override for the underlying map type, used when the field is a
+    /// newtype wrapping `AutoMap<K, V>` (or similar) so callers can inject
+    /// custom bincode / accessor behavior while the macro still generates map
+    /// accessors with the right key/value types.
+    ///
+    /// The newtype must `Deref`/`DerefMut` to the inner map so the generated
+    /// accessors (which call `.iter()`, `.insert()`, etc.) keep working.
+    ///
+    /// When absent, the macro parses the outer field type directly.
+    as_type: Option<Type>,
 }
 
 impl FieldInfo {
@@ -363,6 +373,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut use_default = false;
     let mut shrink_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
+    let mut as_type: Option<Type> = None;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -437,11 +448,28 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 });
                             }
                         }
+                        "as_type" => {
+                            if let Some(lit_str) = expect_string_literal(&nv.value, "as_type") {
+                                match syn::parse_str::<Type>(&lit_str.value()) {
+                                    Ok(ty) => as_type = Some(ty),
+                                    Err(err) => {
+                                        lit_str
+                                            .span()
+                                            .unwrap()
+                                            .error(format!(
+                                                "`as_type` must parse as a Rust type: {err}"
+                                            ))
+                                            .emit();
+                                    }
+                                }
+                            }
+                        }
                         other => {
                             meta.span()
                                 .unwrap()
                                 .error(format!(
-                                    "unknown attribute `{other}`, expected `storage` or `category`"
+                                    "unknown attribute `{other}`, expected `storage`, `category`, \
+                                     or `as_type`"
                                 ))
                                 .emit();
                         }
@@ -537,6 +565,38 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         }
     };
 
+    // Validate that shrink_on_completion and drop_on_completion_if_immutable are only used on
+    // collection types (auto_set, auto_map, counter_map) for inline fields.
+    // Lazy non-collection fields can still use drop_on_completion_if_immutable (removes from the
+    // lazy vec), but shrink_on_completion is meaningless for non-collection types.
+    let is_collection = matches!(
+        storage_type,
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+    );
+    if !is_collection {
+        if shrink_on_completion {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`shrink_on_completion` on field `{field_name}` has no effect: only \
+                     collection types (auto_set, auto_map, counter_map) support shrinking"
+                ))
+                .emit();
+        }
+        if inline && drop_on_completion_if_immutable {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`drop_on_completion_if_immutable` on inline field `{field_name}` has no \
+                     effect: only inline collection types (auto_set, auto_map, counter_map) \
+                     support dropping"
+                ))
+                .emit();
+        }
+    }
+
     FieldInfo {
         is_pub,
         field_name,
@@ -549,6 +609,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         use_default,
         shrink_on_completion,
         drop_on_completion_if_immutable,
+        as_type,
     }
 }
 
@@ -2270,7 +2331,12 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    let Some((key_type, value_type)) = extract_map_types(field_type, "AutoMap") else {
+    // If the field uses a newtype wrapper, `as_type` gives us the actual
+    // `AutoMap<K, V>` to extract key/value types from. Otherwise parse the
+    // declared field type directly.
+    let map_ty = field.as_type.as_ref().unwrap_or(field_type);
+
+    let Some((key_type, value_type)) = extract_map_types(map_ty, "AutoMap") else {
         return quote! {};
     };
 
@@ -2442,23 +2508,25 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 /// 4. For fields with `shrink_on_completion`: shrink or remove if empty
 /// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
 fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
-    // Generate shrink calls for inline collection fields with shrink_on_completion
-    let mut inline_shrinks = Vec::new();
+    // Generate cleanup calls for inline collection fields.
+    // Invalid attribute combinations (e.g. shrink/drop on non-collection fields) are rejected
+    // during parsing, so we can generate code unconditionally here.
+    let mut inline_cleanups = Vec::new();
     for field in grouped_fields.all_inline() {
         if field.is_flag() {
             continue;
         }
-        if !field.shrink_on_completion {
-            continue;
-        }
-        // Only collection types can be shrunk
-        let is_collection = matches!(
-            field.storage_type,
-            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
-        );
-        if is_collection {
-            let field_name = &field.field_name;
-            inline_shrinks.push(quote! {
+        let field_name = &field.field_name;
+        if field.drop_on_completion_if_immutable {
+            inline_cleanups.push(quote! {
+                if is_immutable {
+                    typed.#field_name = Default::default();
+                } else {
+                    typed.#field_name.shrink_to_fit();
+                }
+            });
+        } else if field.shrink_on_completion {
+            inline_cleanups.push(quote! {
                 typed.#field_name.shrink_to_fit();
             });
         }
@@ -2467,8 +2535,9 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
     // Generate match arms for lazy fields that have cleanup attributes
     let mut match_arms = Vec::new();
 
+    // Invalid attribute combinations (e.g. shrink on non-collection fields) are rejected
+    // during parsing, so we can simplify the match here.
     for field in grouped_fields.all_lazy() {
-        // Skip flags - they're in the bitfield, not the lazy vec
         if field.is_flag() {
             continue;
         }
@@ -2477,57 +2546,45 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         let shrink = field.shrink_on_completion;
         let drop_if_immutable = field.drop_on_completion_if_immutable;
 
-        // Skip fields with no cleanup attributes
         if !shrink && !drop_if_immutable {
             continue;
         }
 
-        // Determine whether this is a collection type that can be shrunk
         let is_collection = matches!(
             field.storage_type,
             StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
         );
 
         // Each arm returns bool: true = keep, false = remove
-        let arm_body = match (shrink, drop_if_immutable, is_collection) {
-            // shrink_on_completion + drop_on_completion_if_immutable + collection
-            (true, true, true) => quote! {
+        let arm_body = if drop_if_immutable && shrink && is_collection {
+            // Drop for immutable, shrink or remove-if-empty for mutable
+            quote! {
                 if is_immutable {
-                    false // drop for immutable tasks
+                    false
                 } else if c.is_empty() {
-                    false // remove empty
+                    false
                 } else {
                     c.shrink_to_fit();
-                    true // keep
+                    true
                 }
-            },
-            // shrink_on_completion only + collection
-            (true, false, true) => quote! {
+            }
+        } else if shrink && is_collection {
+            // Shrink or remove-if-empty
+            quote! {
                 if c.is_empty() {
-                    false // remove empty
+                    false
                 } else {
                     c.shrink_to_fit();
-                    true // keep
+                    true
                 }
-            },
-            // drop_on_completion_if_immutable only + collection
-            (false, true, true) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // shrink_on_completion + drop_on_completion_if_immutable + direct value
-            (true, true, false) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // shrink_on_completion only + direct value (unusual but handle it)
-            (true, false, false) => quote! {
-                true // keep (direct values don't need shrinking)
-            },
-            // drop_on_completion_if_immutable only + direct value
-            (false, true, false) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // No attributes (shouldn't reach here due to continue above)
-            (false, false, _) => unreachable!(),
+            }
+        } else if drop_if_immutable {
+            // Drop for immutable (works for both collection and direct values)
+            quote! {
+                !is_immutable
+            }
+        } else {
+            continue;
         };
 
         match_arms.push(quote! {
@@ -2551,8 +2608,8 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             let typed = self.typed_mut();
             let is_immutable = typed.flags.immutable();
 
-            // Shrink inline collection fields (always present, not in lazy vec)
-            #(#inline_shrinks)*
+            // Clean up inline collection fields (always present, not in lazy vec)
+            #(#inline_cleanups)*
 
             // swap_retain pattern: iterate with manual index, swap_remove to delete
             let mut i = 0;
@@ -3111,25 +3168,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
-    // Generate flags handling for clone - per category
-    let clone_meta_flags = if has_meta_flags {
-        quote! {
-            // Clone persisted meta flags
-            snapshot.flags.set_persisted_meta_bits(self.flags.persisted_meta_bits());
-        }
-    } else {
-        quote! {}
-    };
-
-    let clone_data_flags = if has_data_flags {
-        quote! {
-            // Clone persisted data flags
-            snapshot.flags.set_persisted_data_bits(self.flags.persisted_data_bits());
-        }
-    } else {
-        quote! {}
-    };
-
     let clone_all_flags = if has_any_flags {
         quote! {
             // Clone all persisted flags
@@ -3170,11 +3208,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     quote! {
         #[automatically_derived]
         impl TaskStorage {
-            /// Create a snapshot containing all persistent fields (both meta and data).
-            ///
-            /// This clones all persistent fields into a new TaskStorage, skipping
-            /// transient fields that may not be cloneable. Use this for the `Both`
-            /// snapshot case where both meta and data are dirty.
+            /// Create a snapshot containing all persistent fields
             pub fn clone_snapshot(&self) -> TaskStorage {
                 let mut snapshot = TaskStorage::new();
 
@@ -3186,60 +3220,15 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 #clone_all_flags
 
+                // Pre-allocate lazy vec (upper bound - some may be transient and skipped)
+                snapshot.lazy.reserve(self.lazy.len());
+
                 // Clone all persistent lazy fields (both meta and data)
                 for field in &self.lazy {
                     match field {
                         #(#clone_data_lazy_arms)*
                         #(#clone_meta_lazy_arms)*
                         // Skip transient fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
-            /// Create a snapshot containing only meta category fields for serialization.
-            ///
-            /// This clones only the persistent meta fields into a new TaskStorage,
-            /// which can then be serialized outside the lock.
-            pub fn clone_meta_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline meta fields
-                #(#clone_meta_inline)*
-
-                #clone_meta_flags
-
-                // Clone lazy meta fields (only persistent ones)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_meta_lazy_arms)*
-                        // Skip transient and data fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
-            /// Create a snapshot containing only data category fields for serialization.
-            ///
-            /// This clones only the persistent data fields into a new TaskStorage,
-            /// which can then be serialized outside the lock.
-            pub fn clone_data_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline data fields
-                #(#clone_data_inline)*
-
-                #clone_data_flags
-
-                // Clone lazy data fields (only persistent ones)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_data_lazy_arms)*
-                        // Skip transient and meta fields
                         _ => {}
                     }
                 }

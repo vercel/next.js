@@ -6,6 +6,7 @@ import { getTypeScriptConfiguration } from '../lib/typescript/getTypeScriptConfi
 import { readFileSync } from 'fs'
 import isError from '../lib/is-error'
 import { hasNecessaryDependencies } from '../lib/has-necessary-dependencies'
+import { codeFrameColumns } from '../shared/lib/errors/code-frame'
 
 let TSCONFIG_WARNED = false
 
@@ -23,19 +24,21 @@ export function parseJsonFile(filePath: string) {
     return JSON5.parse(contents)
   } catch (err) {
     if (!isError(err)) throw err
-    const { codeFrameColumns } =
-      require('next/dist/compiled/babel/code-frame') as typeof import('next/dist/compiled/babel/code-frame')
     const codeFrame = codeFrameColumns(
       String(contents),
       {
         start: {
-          line: (err as Error & { lineNumber?: number }).lineNumber || 0,
-          column: (err as Error & { columnNumber?: number }).columnNumber || 0,
+          line: (err as Error & { lineNumber?: number }).lineNumber || 1,
+          column:
+            (err as Error & { columnNumber?: number }).columnNumber ||
+            undefined,
         },
       },
-      { message: err.message, highlightCode: true }
+      { message: err.message, color: true }
     )
-    throw new Error(`Failed to parse "${filePath}":\n${codeFrame}`)
+    throw new Error(
+      `Failed to parse "${filePath}":\n${codeFrame ?? err.message}`
+    )
   }
 }
 
@@ -99,9 +102,18 @@ export default async function loadJsConfig(
       isImplicit: false,
     }
   } else {
-    if (implicitBaseurl) {
+    // TypeScript 5.0+: `pathsBasePath` is the directory of the tsconfig that
+    // defines `paths`. For paths inherited from an extended base tsconfig (e.g.
+    // a workspace-root tsconfig.base.json for nx monorepo), this is the base
+    // config's directory — not the app tsconfig dir. Using it ensures JsConfigPathsPlugin
+    // joins path-mapping values against the correct base so `baseUrl` is not required
+    // for path aliases to work in webpack.
+    const pathsBasePath: string | undefined =
+      jsConfig?.compilerOptions?.pathsBasePath
+    const effectiveBaseUrl = pathsBasePath ?? implicitBaseurl
+    if (effectiveBaseUrl) {
       resolvedBaseUrl = {
-        baseUrl: implicitBaseurl,
+        baseUrl: effectiveBaseUrl,
         isImplicit: true,
       }
     }

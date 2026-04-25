@@ -1,6 +1,4 @@
 #![feature(min_specialization)]
-#![feature(trait_alias)]
-#![feature(iter_intersperse)]
 #![feature(str_split_remainder)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
@@ -32,8 +30,8 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{Instrument, Level, Span, event, info_span};
 use turbo_tasks::{
-    NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, apply_effects,
-    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration,
+    Effects, NonLocalValue, OperationVc, PrettyPrintError, TurboTasksApi, Vc, run_once_with_reason,
+    take_effects, trace::TraceRawVcs, util::FormatDuration,
 };
 use turbopack_core::issue::{IssueReporter, IssueSeverity, handle_issues};
 
@@ -55,6 +53,21 @@ where
     fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
         self()
     }
+}
+
+#[turbo_tasks::value(serialization = "skip")]
+struct ContentSourceWithIssues {
+    source_op: OperationVc<Box<dyn ContentSource>>,
+    effects: Effects,
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_source_with_issues_operation(
+    source_op: OperationVc<Box<dyn ContentSource>>,
+) -> Result<Vc<ContentSourceWithIssues>> {
+    let _ = source_op.resolve().strongly_consistent().await?;
+    let effects = take_effects(source_op).await?;
+    Ok(ContentSourceWithIssues { source_op, effects }.cell())
 }
 
 #[derive(TraceRawVcs, Debug, NonLocalValue)]
@@ -187,8 +200,8 @@ impl DevServerBuilder {
                                 }
 
                                 println!("[404] {path} (WebSocket)");
-                                if path == "/_next/webpack-hmr" {
-                                    // Special-case requests to webpack-hmr as these are made by
+                                if path == "/_next/hmr" {
+                                    // Special-case requests to hmr as these are made by
                                     // Next.js clients built
                                     // without turbopack, which may be making requests in
                                     // development.
@@ -208,12 +221,13 @@ impl DevServerBuilder {
 
                             let uri = request.uri();
                             let path = uri.path().to_string();
-                            let source_op = source_provider.get_source();
-                            // HACK: Resolve `source` now so that we can get any issues on it
-                            let _ = source_op.resolve_strongly_consistent().await?;
-                            apply_effects(source_op).await?;
+                            let source_with_issues_op =
+                                get_source_with_issues_operation(source_provider.get_source());
+                            let ContentSourceWithIssues { source_op, effects } =
+                                &*source_with_issues_op.read_strongly_consistent().await?;
+                            effects.apply().await?;
                             handle_issues(
-                                source_op,
+                                source_with_issues_op,
                                 issue_reporter,
                                 IssueSeverity::Fatal,
                                 Some(&path),
@@ -224,12 +238,12 @@ impl DevServerBuilder {
                                 http::process_request_with_content_source(
                                     // HACK: pass `source` here (instead of `resolved_source`
                                     // because the underlying API wants to do it's own
-                                    // `resolve_strongly_consistent` call.
+                                    // `.resolve().strongly_consistent()` call.
                                     //
                                     // It's unlikely (the calls happen one-after-another), but this
                                     // could cause inconsistency between the reported issues and
                                     // the generated HTTP response.
-                                    source_op,
+                                    *source_op,
                                     request,
                                     issue_reporter,
                                 )

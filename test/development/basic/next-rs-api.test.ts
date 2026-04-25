@@ -232,12 +232,13 @@ async function main() {
     writeRoutesHashesManifest: false,
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
+    nextVersion: '0.0.0',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
   const entrypoints = (await entrypointsSubscription.next()).value;
 
-  const RUNS = 10000;
+  const RUNS = 1000;
   async function compileRoute(route) {
     const endpoint = route.endpoint ?? route.htmlEndpoint ?? route.pages[0].htmlEndpoint;
     if (!endpoint) {
@@ -391,6 +392,7 @@ describe('next.rs api', () => {
       writeRoutesHashesManifest: false,
       currentNodeJsVersion: '18.0.0',
       isPersistentCachingEnabled: false,
+      nextVersion: '0.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),

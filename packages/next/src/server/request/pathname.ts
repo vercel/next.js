@@ -1,7 +1,9 @@
-import type { WorkStore } from '../app-render/work-async-storage.external'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../app-render/work-async-storage.external'
 
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   type DynamicTrackingState,
 } from '../app-render/dynamic-rendering'
@@ -13,13 +15,19 @@ import {
   type PrerenderStoreModernServer,
   type PrerenderStorePPR,
 } from '../app-render/work-unit-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import {
+  delayUntilRuntimeStage,
+  makeHangingPromise,
+} from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 
 export function createServerPathnameForMetadata(
-  underlyingPathname: string,
-  workStore: WorkStore
+  underlyingPathname: string
 ): Promise<string> {
+  const workStore = workAsyncStorage.getStore()
+  if (!workStore) {
+    throw new InvariantError('Expected workStore to be initialized')
+  }
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     switch (workUnitStore.type) {
@@ -43,7 +51,10 @@ export function createServerPathnameForMetadata(
         throw new InvariantError(
           'createServerPathnameForMetadata should not be called in cache contexts.'
         )
-
+      case 'generate-static-params':
+        throw new InvariantError(
+          'createServerPathnameForMetadata should not be called inside generateStaticParams.'
+        )
       case 'prerender-runtime':
         return delayUntilRuntimeStage(
           workUnitStore,

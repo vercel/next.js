@@ -47,7 +47,9 @@ export default globalIgnores([
   'examples/with-typescript-graphql/lib/gql/',
   'test/development/basic/hmr/components/parse-error.js',
   'test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx',
+  'test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/page.tsx',
   'test/production/debug-build-path/fixtures/with-compile-error/app/broken/page.tsx',
+  'packages/next-swc/native/index.d.ts',
   'packages/next-swc/docs/assets/**/*',
   'test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.js',
   'test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js',
@@ -55,4 +57,8 @@ export default globalIgnores([
   'test/e2e/app-dir/app-external/app/mixed/import/mixed-mod.mjs',
   'turbopack/crates/*/tests/**/*',
   'turbopack/crates/*/js/src/compiled',
+  // Eval fixtures are deliberately imperfect code for agents to fix.
+  // EVAL.ts is still linted since it's not part of the fixture.
+  'evals/evals/*/**/*',
+  '!evals/evals/*/EVAL.ts',
 ])

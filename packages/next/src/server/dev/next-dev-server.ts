@@ -799,6 +799,8 @@ export default class DevServer extends Server {
           pathname,
           config: {
             pprConfig: this.nextConfig.experimental.ppr,
+            partialFallbacks:
+              this.nextConfig.experimental.partialFallbacks === true,
             configFileName,
             cacheComponents: Boolean(this.nextConfig.cacheComponents),
           },
@@ -817,6 +819,9 @@ export default class DevServer extends Server {
           nextConfigOutput: this.nextConfig.output,
           buildId: this.buildId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+          staticPageGenerationTimeout:
+            this.nextConfig.staticPageGenerationTimeout,
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult
@@ -852,9 +857,9 @@ export default class DevServer extends Server {
           }
 
           // Since generateStaticParams run on the background, when accessing the
-          // devFallbackParams during the render, it is still set to the previous
+          // fallbackParams during the render, it is still set to the previous
           // result from the cache. Therefore when the result has changed, re-render
-          // the Server Component to sync the devFallbackParams with the new result.
+          // the Server Component to sync the fallbackParams with the new result.
           if (
             isAppPath &&
             this.nextConfig.cacheComponents &&
@@ -909,6 +914,14 @@ export default class DevServer extends Server {
             existingManifest.routes[staticPath] = {} as any
           }
 
+          // Find the fallback route from the prerendered routes. This is
+          // the route whose pathname matches the page pattern (e.g.
+          // /dynamic-params/[slug]) and has fallback route params describing
+          // which params are unknown at build time.
+          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
+            (route) => route.pathname === pathname
+          )
+
           existingManifest.dynamicRoutes[pathname] = {
             dataRoute: null,
             dataRouteRegex: null,
@@ -917,8 +930,8 @@ export default class DevServer extends Server {
             fallbackExpire: undefined,
             fallbackHeaders: undefined,
             fallbackStatus: undefined,
-            fallbackRootParams: undefined,
-            fallbackRouteParams: undefined,
+            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
+            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
             fallbackSourceRoute: pathname,
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,

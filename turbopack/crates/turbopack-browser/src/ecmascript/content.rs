@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use either::Either;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent};
 use turbopack_core::{
     asset::AssetContent,
@@ -24,7 +24,7 @@ use crate::{
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
 };
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 pub struct EcmascriptBrowserChunkContent {
     pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
     pub(super) chunk: ResolvedVc<EcmascriptBrowserChunk>,
@@ -84,7 +84,7 @@ impl EcmascriptBrowserChunkContent {
                 let chunk_server_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
                     path
                 } else {
-                    bail!("chunk path {chunk_path} is not in output root {output_root}");
+                    turbobail!("chunk path {chunk_path} is not in output root {output_root}");
                 };
                 Either::Left(StringifyJs(chunk_server_path))
             }

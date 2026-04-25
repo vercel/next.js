@@ -48,7 +48,7 @@ import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
 import { filterInternalHeaders } from './server-ipc/utils'
-import { blockCrossSite } from './router-utils/block-cross-site'
+import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
 import {
@@ -90,7 +90,7 @@ export async function initialize(opts: {
   keepAliveTimeout?: number
   customServer?: boolean
   experimentalHttpsServer?: boolean
-  experimentalServerFastRefresh?: boolean
+  serverFastRefresh?: boolean
   startServerSpan?: Span
   quiet?: boolean
 }): Promise<ServerInitResult> {
@@ -164,6 +164,27 @@ export async function initialize(opts: {
     // In development, it's always the complete config.
     let developmentConfig = config as NextConfigComplete
 
+    // Resolve the effective serverFastRefresh value.
+    // Both default to enabled (true). CLI takes precedence over config.
+    const cliServerFastRefresh = opts.serverFastRefresh
+    const configServerFastRefresh =
+      developmentConfig.experimental?.turbopackServerFastRefresh
+    let effectiveServerFastRefresh: boolean | undefined
+    if (
+      cliServerFastRefresh !== undefined &&
+      configServerFastRefresh !== undefined &&
+      cliServerFastRefresh !== configServerFastRefresh
+    ) {
+      Log.warn(
+        `The CLI flag "${cliServerFastRefresh === false ? '--no-server-fast-refresh' : '--server-fast-refresh'}" conflicts with "experimental.turbopackServerFastRefresh: ${configServerFastRefresh}" in your Next.js config. The CLI flag will take precedence.`
+      )
+      effectiveServerFastRefresh = cliServerFastRefresh
+    } else {
+      // Default to true when neither CLI nor config specifies a value.
+      effectiveServerFastRefresh =
+        cliServerFastRefresh ?? configServerFastRefresh ?? true
+    }
+
     let developmentBundler = await setupDevBundlerSpan.traceAsyncFn(() =>
       setupDevBundler({
         // Passed here but the initialization of this object happens below, doing the initialization before the setupDev call breaks.
@@ -179,7 +200,7 @@ export async function initialize(opts: {
         port: opts.port,
         onDevServerCleanup: opts.onDevServerCleanup,
         resetFetch,
-        experimentalServerFastRefresh: opts.experimentalServerFastRefresh,
+        serverFastRefresh: effectiveServerFastRefresh,
       })
     )
 
@@ -355,7 +376,7 @@ export async function initialize(opts: {
       // handle hot-reloader first
       if (development) {
         if (
-          blockCrossSite(
+          blockCrossSiteDEV(
             req,
             res,
             development.config.allowedDevOrigins,
@@ -507,12 +528,7 @@ export async function initialize(opts: {
           matchedOutput.type === 'nextStaticFolder'
         ) {
           if (opts.dev && !isNextFont(parsedUrl.pathname)) {
-            res.setHeader(
-              'Cache-Control',
-              config.experimental.devCacheControlNoCache
-                ? 'no-cache, must-revalidate'
-                : 'no-store, must-revalidate'
-            )
+            res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(
               'Cache-Control',
@@ -835,7 +851,7 @@ export async function initialize(opts: {
 
       if (opts.dev && development && req.url) {
         if (
-          blockCrossSite(
+          blockCrossSiteDEV(
             req,
             socket,
             development.config.allowedDevOrigins,
@@ -861,7 +877,7 @@ export async function initialize(opts: {
         }
 
         const isHMRRequest = req.url.startsWith(
-          ensureLeadingSlash(`${hmrPrefix}/_next/webpack-hmr`)
+          ensureLeadingSlash(`${hmrPrefix}/_next/hmr`)
         )
 
         // only handle HMR requests if the basePath in the request
@@ -934,5 +950,6 @@ export async function initialize(opts: {
     distDir: config.distDir,
     experimentalFeatures,
     cacheComponents: config.cacheComponents,
+    agentRules: config.agentRules,
   }
 }

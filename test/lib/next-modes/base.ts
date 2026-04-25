@@ -54,6 +54,7 @@ export interface NextInstanceOpts {
   serverReadyPattern?: RegExp
   patchFileDelay?: number
   startServerTimeout?: number
+  disableAutoSkewProtection?: boolean
 }
 
 /**
@@ -68,7 +69,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.4";
+const nextjsReactPeerVersion = "19.2.5";
 
 export class NextInstance {
   protected files: ResolvedFileConfig
@@ -84,7 +85,6 @@ export class NextInstance {
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   public distDir: string
-  tmpRepoDir: string
   protected isStopping: Error | null = null
   protected isDestroyed: Error | null = null
   protected childProcess?: ChildProcess
@@ -138,6 +138,12 @@ export class NextInstance {
         )
       }
 
+      const skippedRelativePaths = new Set([
+        'package.json',
+        '.next',
+        '.next-profiles',
+        '.DS_Store',
+      ])
       await fs.cp(files.fsPath, testDir, {
         recursive: true,
         // By default Node.js turns relative symlinks into absolute symlinks.
@@ -147,12 +153,10 @@ export class NextInstance {
         // See https://nodejs.org/api/fs.html#fscpsrc-dest-options-callback
         verbatimSymlinks: true,
         filter(source) {
-          // we don't copy a package.json as it's manually written
-          // via the createNextInstall process
-          if (path.relative(files.fsPath, source) === 'package.json') {
-            return false
-          }
-          return true
+          const topLevel = path
+            .relative(files.fsPath, source)
+            .split(path.sep)[0]
+          return !skippedRelativePaths.has(topLevel)
         },
       })
     } else {
@@ -284,7 +288,7 @@ export class NextInstance {
                     ? // since we can't get the build id as a build artifact,
                       // add it in build logs
                       {
-                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + require("fs").readFileSync("${this.distDir}/BUILD_ID"))'`,
+                        'post-build': `node -e 'console.log("BUILD" + "_ID: " + fs.readFileSync("${this.distDir}/BUILD_ID") + "\\nDEPLOYMENT" + "_ID: " + process.env.NEXT_DEPLOYMENT_ID + "\\nNEXT_SUPPORTS_IMMUTABLE" + "_ASSETS: " + (process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS ? 1 : 0))'`,
                       }
                     : {}),
                   ...pkgScripts,
@@ -319,14 +323,13 @@ export class NextInstance {
             )
             await this.beforeInstall(parentSpan)
           } else {
-            const { tmpRepoDir } = await createNextInstall({
+            await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               subDir: this.subDir,
-              keepRepoDir: true,
               beforeInstall: async (span, installDir) => {
                 this.testDir = installDir
                 require('console').log(
@@ -335,7 +338,6 @@ export class NextInstance {
                 await this.beforeInstall(span)
               },
             })
-            this.tmpRepoDir = tmpRepoDir!
           }
         }
 
@@ -444,12 +446,13 @@ export class NextInstance {
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS) {
             process.env.__NEXT_CACHE_COMPONENTS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHE_COMPONENTS
           }
+          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
+            process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
+          }
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
             process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
           }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL) {
-            process.env.__NEXT_EXPERIMENTAL_DEBUG_CHANNEL = process.env.NEXT_PRIVATE_EXPERIMENTAL_DEBUG_CHANNEL
-          }
+
         `
           )
 
@@ -617,9 +620,6 @@ export class NextInstance {
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
         // Faster than `await fs.rm`. Benchmark before change.
         rmSync(this.testDir, { recursive: true, force: true })
-        if (this.tmpRepoDir) {
-          rmSync(this.tmpRepoDir, { recursive: true, force: true })
-        }
       }
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
@@ -637,6 +637,28 @@ export class NextInstance {
 
   public get buildId(): string {
     return ''
+  }
+
+  public get deploymentId(): string | undefined {
+    return undefined
+  }
+
+  public getDeploymentIdQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.deploymentId ? `${prefix}dpl=${this.deploymentId}` : ''
+  }
+
+  public get supportsImmutableAssets(): boolean {
+    return false
+  }
+
+  public get assetToken(): string | undefined {
+    return this.supportsImmutableAssets ? undefined : this.deploymentId
+  }
+
+  public getAssetQuery(ampersand: boolean = false): string | undefined {
+    const prefix = ampersand ? '&' : '?'
+    return this.assetToken ? `${prefix}dpl=${this.assetToken}` : ''
   }
 
   public get cliOutput(): string {

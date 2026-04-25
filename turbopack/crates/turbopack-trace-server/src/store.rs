@@ -6,6 +6,7 @@ use std::{
 };
 
 use rustc_hash::FxHashSet;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     self_time_tree::SelfTimeTree,
@@ -22,10 +23,19 @@ pub type SpanId = NonZeroUsize;
 /// at the cut-off depth (Flattening).
 const CUT_OFF_DEPTH: u32 = 80;
 
+/// A single memory usage sample: (timestamp, memory_bytes).
+/// Sorted by timestamp.
+type MemorySample = (Timestamp, u64);
+
+/// Maximum number of memory samples returned in a query result.
+const MAX_MEMORY_SAMPLES: usize = 200;
+
 pub struct Store {
     pub(crate) spans: Vec<Span>,
     pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
     max_self_time_lookup_time: AtomicU64,
+    /// Global sorted list of memory samples (timestamp, memory_bytes).
+    memory_samples: Vec<MemorySample>,
 }
 
 fn new_root_span() -> Span {
@@ -33,8 +43,8 @@ fn new_root_span() -> Span {
         parent: None,
         depth: 0,
         start: Timestamp::MAX,
-        category: "".into(),
-        name: "(root)".into(),
+        category: RcStr::default(),
+        name: rcstr!("(root)"),
         args: vec![],
         events: vec![],
         is_complete: true,
@@ -57,12 +67,17 @@ fn new_root_span() -> Span {
 impl Store {
     pub fn new() -> Self {
         Self {
-            spans: vec![new_root_span()],
+            spans: {
+                let mut v = Vec::with_capacity(131_072);
+                v.push(new_root_span());
+                v
+            },
             self_time_tree: env::var("NO_CORRECTED_TIME")
                 .ok()
                 .is_none()
                 .then(SelfTimeTree::new),
             max_self_time_lookup_time: AtomicU64::new(0),
+            memory_samples: Vec::new(),
         }
     }
 
@@ -73,6 +88,13 @@ impl Store {
             *tree = SelfTimeTree::new();
         }
         *self.max_self_time_lookup_time.get_mut() = 0;
+        self.memory_samples.clear();
+    }
+
+    pub fn optimize(&mut self) {
+        if let Some(tree) = self.self_time_tree.as_mut() {
+            tree.optimize();
+        }
     }
 
     pub fn has_time_info(&self) -> bool {
@@ -85,9 +107,9 @@ impl Store {
         &mut self,
         parent: Option<SpanIndex>,
         start: Timestamp,
-        category: String,
-        name: String,
-        args: Vec<(String, String)>,
+        category: RcStr,
+        name: RcStr,
+        args: Vec<(RcStr, RcStr)>,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
@@ -141,7 +163,7 @@ impl Store {
     pub fn add_args(
         &mut self,
         span_index: SpanIndex,
-        args: Vec<(String, String)>,
+        args: Vec<(RcStr, RcStr)>,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
         let span = &mut self.spans[span_index.get()];
@@ -176,7 +198,7 @@ impl Store {
     ) {
         if let Some(tree) = self.self_time_tree.as_mut() {
             if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
-                tree.for_each_in_range(start, end, |_, _, span| {
+                tree.for_each_in_range_optimize(start, end, &mut |_, _, span| {
                     outdated_spans.insert(*span);
                 });
             }
@@ -321,6 +343,45 @@ impl Store {
         outdated_spans.insert(span_index);
         span.self_deallocations += deallocation;
         span.self_deallocation_count += count;
+    }
+
+    pub fn add_memory_sample(&mut self, ts: Timestamp, memory: u64) {
+        // Samples arrive nearly sorted (roughly chronological from the trace
+        // writer), so an insertion-sort step is efficient: push to the end
+        // then swap backward until the timestamp ordering is restored.
+        self.memory_samples.push((ts, memory));
+        let mut i = self.memory_samples.len() - 1;
+        while i > 0 && self.memory_samples[i - 1].0 > ts {
+            self.memory_samples.swap(i, i - 1);
+            i -= 1;
+        }
+    }
+
+    /// Returns up to `MAX_MEMORY_SAMPLES` memory samples in the range
+    /// `[start, end]`. When more samples exist, groups of N consecutive
+    /// samples are merged by taking the maximum memory value in each group.
+    pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
+        // Binary search for the first sample >= start
+        let lo = self.memory_samples.partition_point(|(ts, _)| *ts < start);
+        // Binary search for the first sample > end
+        let hi = self.memory_samples.partition_point(|(ts, _)| *ts <= end);
+
+        let slice = &self.memory_samples[lo..hi];
+        let count = slice.len();
+        if count == 0 {
+            return Vec::new();
+        }
+
+        if count <= MAX_MEMORY_SAMPLES {
+            return slice.iter().map(|(_, mem)| *mem).collect();
+        }
+
+        // Merge groups of N samples, taking the max memory in each group.
+        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        slice
+            .chunks(n)
+            .map(|chunk| chunk.iter().map(|(_, mem)| *mem).max().unwrap())
+            .collect()
     }
 
     pub fn complete_span(&mut self, span_index: SpanIndex) {

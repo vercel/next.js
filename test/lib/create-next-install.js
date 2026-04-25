@@ -22,8 +22,6 @@ async function installDependencies(cwd, tmpDir) {
     'install',
     '--strict-peer-dependencies=false',
     '--no-frozen-lockfile',
-    // For the testing installation, use a separate cache directory
-    // to avoid local testing grows pnpm's default cache indefinitely with test packages.
     `--config.cacheDir=${tmpDir}`,
   ]
 
@@ -34,7 +32,10 @@ async function installDependencies(cwd, tmpDir) {
   await execa('pnpm', args, {
     cwd,
     stdio: ['ignore', 'inherit', 'inherit'],
-    env: process.env,
+    env: {
+      ...process.env,
+      npm_config_minimum_release_age: undefined,
+    },
   })
 }
 
@@ -44,12 +45,11 @@ async function installDependencies(cwd, tmpDir) {
  * @param {import('@next/telemetry').Span} param0.parentSpan
  * @param {object} [param0.dependencies]
  * @param {object | null} [param0.resolutions]
- * @param { ((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
+ * @param {((ctx: { dependencies: { [key: string]: string } }) => string) | string | null} [param0.installCommand]
  * @param {object} [param0.packageJson]
  * @param {string} [param0.subDir]
- * @param {boolean} [param0.keepRepoDir]
  * @param {(span: import('@next/telemetry').Span, installDir: string) => Promise<void>} [param0.beforeInstall]
- * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>, tmpRepoDir: string | undefined}>}
+ * @returns {Promise<{installDir: string, pkgPaths: Map<string, string>}>}
  */
 async function createNextInstall({
   parentSpan,
@@ -58,7 +58,6 @@ async function createNextInstall({
   installCommand = null,
   packageJson = {},
   subDir = '',
-  keepRepoDir = false,
   beforeInstall,
 }) {
   const tmpDir = await fs.realpath(process.env.NEXT_TEST_DIR || os.tmpdir())
@@ -72,7 +71,6 @@ async function createNextInstall({
         `next-install-${createTempId()}`,
         subDir
       )
-      let tmpRepoDir
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
@@ -83,7 +81,7 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        tmpRepoDir = path.join(tmpDir, `next-repo-${createTempId()}`, subDir)
+        const tmpRepoDir = path.join(tmpDir, `next-repo-${createTempId()}`, subDir)
         require('console').log('Creating temp repo dir', tmpRepoDir)
 
         for (const item of [
@@ -141,20 +139,16 @@ async function createNextInstall({
           }
         }
 
-        // log for clarity of which version we're using
         require('console').log({
           swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
           swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
 
-        pkgPaths = await rootSpan
-          .traceChild('linkPackages')
-          .traceAsyncFn((span) =>
-            linkPackages({
-              repoDir: tmpRepoDir,
-              parentSpan: span,
-            })
-          )
+        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
+          linkPackages({
+            repoDir: origRepoDir,
+          })
+        )
       }
 
       const combinedDependencies = {
@@ -168,6 +162,13 @@ async function createNextInstall({
 
       if (useRspack) {
         combinedDependencies['next-rspack'] = pkgPaths.get('next-rspack')
+      }
+
+      const workspacePkgOverrides = {}
+      for (const [name, tarballPath] of pkgPaths.entries()) {
+        if (!combinedDependencies[name]) {
+          workspacePkgOverrides[name] = tarballPath
+        }
       }
 
       const scripts = {
@@ -185,8 +186,21 @@ async function createNextInstall({
             scripts,
             dependencies: combinedDependencies,
             private: true,
-            // Add resolutions if provided.
-            ...(resolutions ? { resolutions } : {}),
+            overrides: {
+              ...workspacePkgOverrides,
+              ...(packageJson.overrides || {}),
+            },
+            pnpm: {
+              ...(packageJson.pnpm || {}),
+              overrides: {
+                ...workspacePkgOverrides,
+                ...(packageJson.pnpm?.overrides || {}),
+              },
+            },
+            resolutions: {
+              ...workspacePkgOverrides,
+              ...(resolutions || {}),
+            },
           },
           null,
           2
@@ -194,11 +208,9 @@ async function createNextInstall({
       )
 
       if (beforeInstall !== undefined) {
-        await rootSpan
-          .traceChild('beforeInstall')
-          .traceAsyncFn(async (span) => {
-            await beforeInstall(span, installDir)
-          })
+        await rootSpan.traceChild('beforeInstall').traceAsyncFn(async (span) => {
+          await beforeInstall(span, installDir)
+        })
       }
 
       if (installCommand) {
@@ -224,8 +236,6 @@ async function createNextInstall({
       }
 
       if (useRspack) {
-        // This is what the next-rspack plugin does.
-        // TODO: Load the plugin properly during test
         process.env.NEXT_RSPACK = 'true'
         process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
       }
@@ -233,7 +243,6 @@ async function createNextInstall({
       return {
         installDir,
         pkgPaths,
-        tmpRepoDir,
       }
     })
 }

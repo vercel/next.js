@@ -3,6 +3,7 @@ import type { ServerRuntime, SizeLimit } from '../../types'
 import type {
   ExperimentalConfig,
   NextConfigComplete,
+  PrefetchInliningConfig,
 } from '../../server/config-shared'
 import type { NextFontManifest } from '../../build/webpack/plugins/next-font-manifest-plugin'
 import type { ParsedUrlQuery } from 'querystring'
@@ -19,6 +20,8 @@ import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
 import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
+import type { PrefetchHints } from '../../shared/lib/app-router-types'
+import type { AnyStream } from './stream-ops'
 
 const dynamicParamTypesSchema = s.enums([
   'c',
@@ -108,17 +111,18 @@ export interface RenderOptsPartial {
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
   }
+  staticPageGenerationTimeout: number
   isOnDemandRevalidate?: boolean
   isPossibleServerAction?: boolean
   setCacheStatus?: (status: ServerCacheStatus, htmlRequestId: string) => void
   setIsrStatus?: (key: string, value: boolean | undefined) => void
   setReactDebugChannel?: (
-    debugChannel: { readable: ReadableStream<Uint8Array> },
+    debugChannel: { readable: AnyStream },
     htmlRequestId: string,
     requestId: string
   ) => void
   sendErrorsToBrowser?: (
-    errorsRscStream: ReadableStream<Uint8Array>,
+    errorsRscStream: AnyStream,
     htmlRequestId: string
   ) => void
   isBuildTimePrerendering?: boolean
@@ -160,7 +164,10 @@ export interface RenderOptsPartial {
     dynamicOnHover: boolean
     optimisticRouting: boolean
     inlineCss: boolean
+    prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    useCacheTimeout: number
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume
@@ -197,6 +204,12 @@ export interface RenderOptsPartial {
    */
   reactMaxHeadersLength: number | undefined
 
+  /**
+   * Per-route prefetch hints from prefetch-hints.json.
+   * Loaded at server startup from the build output.
+   */
+  prefetchHints?: Record<string, PrefetchHints>
+
   isStaticGeneration?: boolean
 
   /**
@@ -206,6 +219,13 @@ export interface RenderOptsPartial {
    * Prerendering those routes would catch any invalid dynamic accesses.
    */
   allowEmptyStaticShell?: boolean
+
+  /**
+   * When true, attempt to run build-time instant validation for this prerender.
+   * Only the first prerender per page sets this, since validation uses
+   * unstable_instant.samples and is independent of actual route params.
+   */
+  runInstantValidation?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

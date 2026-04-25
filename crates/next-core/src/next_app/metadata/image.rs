@@ -7,8 +7,9 @@ use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::AssetContent,
+    asset::{AssetContent, no_hash_salt},
     context::AssetContext,
     file_source::FileSource,
     module::Module,
@@ -31,21 +32,18 @@ async fn dynamic_image_metadata_with_generator_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
-    let hash_query = format!(
-        "?{:x}",
-        path.read()
-            .content_hash()
-            .await?
-            .context("metadata file not found")?
-    );
+    let hash = path
+        .read()
+        .content_hash(no_hash_salt(), HashAlgorithm::default())
+        .await?;
+    let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        let sizes = if ext == "svg" {
+        let sizes = if path.has_extension(".svg") {
             "any"
         } else {
             "${size.width}x${size.height}"
@@ -70,7 +68,7 @@ async fn dynamic_image_metadata_with_generator_source(
                     const data = {{
                         alt: imageMetadata.alt,
                         type: imageMetadata.contentType || 'image/png',
-                        url: imageUrl + (idParam ? ('/' + idParam) : '') + {hash_query},
+                        url: imageUrl + (idParam ? ('/' + idParam) : '') + '?' + {hash},
                     }}
                     const {{ size }} = imageMetadata
                     if (size) {{
@@ -87,11 +85,11 @@ async fn dynamic_image_metadata_with_generator_source(
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,
-        hash_query = StringifyJs(&hash_query),
+        hash = StringifyJs(&hash),
     };
 
     let file = File::from(code);
@@ -111,21 +109,18 @@ async fn dynamic_image_metadata_without_generator_source(
 ) -> Result<Vc<Box<dyn Source>>> {
     let stem = path.file_stem();
     let stem = stem.unwrap_or_default();
-    let ext = path.extension();
 
-    let hash_query = format!(
-        "?{:x}",
-        path.read()
-            .content_hash()
-            .await?
-            .context("metadata file not found")?
-    );
+    let hash = path
+        .read()
+        .content_hash(no_hash_salt(), HashAlgorithm::default())
+        .await?;
+    let hash = hash.as_ref().context("metadata file not found")?;
 
     let use_numeric_sizes = ty == "twitter" || ty == "openGraph";
     let sizes = if use_numeric_sizes {
         "data.width = size.width; data.height = size.height;".to_string()
     } else {
-        let sizes = if ext == "svg" {
+        let sizes = if path.has_extension(".svg") {
             "any"
         } else {
             "${size.width}x${size.height}"
@@ -148,7 +143,7 @@ async fn dynamic_image_metadata_without_generator_source(
                     const data = {{
                         alt: imageMetadata.alt,
                         type: imageMetadata.contentType || 'image/png',
-                        url: imageUrl + (idParam ? ('/' + idParam) : '') + {hash_query},
+                        url: imageUrl + (idParam ? ('/' + idParam) : '') + '?' + {hash},
                     }}
                     const {{ size }} = imageMetadata
                     if (size) {{
@@ -161,11 +156,11 @@ async fn dynamic_image_metadata_without_generator_source(
             }}
         "#,
         exported_fields_excluding_default = exported_fields_excluding_default,
-        resource_path = StringifyJs(&format!("./{stem}.{ext}")),
+        resource_path = StringifyJs(&format!("./{}", path.file_name())),
         pathname_prefix = StringifyJs(&page.to_string()),
         page_segment = StringifyJs(stem),
         sizes = sizes,
-        hash_query = StringifyJs(&hash_query),
+        hash = StringifyJs(&hash),
     };
 
     let file = File::from(code);
@@ -233,5 +228,5 @@ async fn collect_direct_exports(module: Vc<Box<dyn Module>>) -> Result<Vc<Vec<Rc
         return Ok(Vc::cell(exports.exports.keys().cloned().collect()));
     }
 
-    Ok(Vc::cell(Vec::new()))
+    Ok(Default::default())
 }

@@ -1,11 +1,11 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueDefault, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -72,12 +72,6 @@ pub struct VersionedContentMap {
     // FxIndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
     map_op_to_compute_entry: State<OutputOperationToComputeEntry>,
-}
-
-impl ValueDefault for VersionedContentMap {
-    fn value_default() -> Vc<Self> {
-        *VersionedContentMap::new()
-    }
 }
 
 impl VersionedContentMap {
@@ -209,8 +203,7 @@ impl VersionedContentMap {
                 generate_source_map.generate_source_map()
             })
         } else {
-            let path = path.value_to_string().await?;
-            bail!("no source map for path {}", path);
+            turbobail!("no source map for path {path}");
         }
     }
 

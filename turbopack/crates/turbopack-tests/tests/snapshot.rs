@@ -5,13 +5,13 @@ mod util;
 
 use std::{collections::VecDeque, fs, io, path::PathBuf};
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use dunce::canonicalize;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TurboTasks, ValueToString, Vc, apply_effects};
+use turbo_tasks::{Effects, OperationVc, ResolvedVc, TurboTasks, Vc, take_effects, turbofmt};
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
@@ -30,7 +30,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         ChunkingConfig, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssetExt,
-        EvaluatableAssets, MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
+        MinifyType, SourceMapSourceType, availability_info::AvailabilityInfo,
     },
     compile_time_defines,
     compile_time_info::{
@@ -50,11 +50,11 @@ use turbopack_core::{
         chunk_group_info::{ChunkGroup, ChunkGroupEntry},
     },
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
-    reference_type::{EntryReferenceSubType, ReferenceType, UrlReferenceSubType},
-    source::Source,
+    reference_type::{EntryReferenceSubType, ReferenceType, ReferenceTypeCondition},
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, EcmascriptInputTransform, TreeShakingMode, chunk::EcmascriptChunkType,
+    AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin, TreeShakingMode,
+    chunk::EcmascriptChunkType,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -222,30 +222,42 @@ async fn run(resource: PathBuf) -> Result<()> {
         noop_backing_storage(),
     ));
     tt.run_once(async move {
-        let emit_op = run_inner_operation(resource.to_str().unwrap().into());
-        emit_op.read_strongly_consistent().await?;
-        apply_effects(emit_op).await?;
+        #[turbo_tasks::function(operation)]
+        async fn inner_operation(resource: RcStr) -> Result<Vc<()>> {
+            let out_op = run_test_operation(resource);
+            let out_vc = out_op
+                .resolve()
+                .strongly_consistent()
+                .await?
+                .owned()
+                .await?;
+
+            let plain_issues = out_op
+                .peek_issues()
+                .get_plain_issues(IssueFilter::everything())
+                .await?;
+
+            snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
+                .await
+                .context("Unable to handle issues")?;
+            Ok(Vc::cell(()))
+        }
+
+        #[turbo_tasks::function(operation)]
+        async fn extract_effects(op: OperationVc<()>) -> Result<Vc<Effects>> {
+            let _ = op.resolve().strongly_consistent().await?;
+            Ok(take_effects(op).await?.cell())
+        }
+
+        extract_effects(inner_operation(resource.to_str().unwrap().into()))
+            .read_strongly_consistent()
+            .await?
+            .apply()
+            .await?;
 
         Ok(())
     })
     .await?;
-
-    Ok(())
-}
-
-#[turbo_tasks::function(operation)]
-async fn run_inner_operation(resource: RcStr) -> Result<()> {
-    let out_op = run_test_operation(resource);
-    let out_vc = out_op.resolve_strongly_consistent().await?.owned().await?;
-
-    let plain_issues = out_op
-        .peek_issues()
-        .get_plain_issues(IssueFilter::everything())
-        .await?;
-
-    snapshot_issues(plain_issues, out_vc.join("issues")?, &REPO_ROOT)
-        .await
-        .context("Unable to handle issues")?;
 
     Ok(())
 }
@@ -265,7 +277,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Err(_) => SnapshotOptions::default(),
         Ok(options_str) => parse_json_with_source_context(&options_str).unwrap(),
     };
-    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
+    let project_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(REPO_ROOT.clone()));
     let project_root = project_fs.root().owned().await?;
 
     let relative_path = test_path.strip_prefix(&*REPO_ROOT)?;
@@ -347,8 +359,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         .await?;
 
     let conditions = RuleCondition::All(vec![
-        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Url(
-            UrlReferenceSubType::Undefined,
+        RuleCondition::not(RuleCondition::ReferenceType(ReferenceTypeCondition::Url(
+            None,
         ))),
         RuleCondition::any(vec![
             RuleCondition::ResourcePathEndsWith(".js".into()),
@@ -363,13 +375,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             preprocess: ResolvedVc::cell(vec![]),
             main: ResolvedVc::cell(vec![
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    EmotionTransformer::new(&EmotionTransformConfig::default())
-                        .expect("Should be able to create emotion transformer"),
-                ) as _)),
-                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
-                    StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
-                ) as _)),
+                EcmascriptInputTransform::Plugin(emotion_transform_plugin().to_resolved().await?),
+                EcmascriptInputTransform::Plugin(
+                    styled_components_transform_plugin().to_resolved().await?,
+                ),
             ]),
             postprocess: ResolvedVc::cell(vec![]),
         }],
@@ -429,43 +438,29 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         Layer::new(rcstr!("test")),
     ));
 
-    let runtime_entries = maybe_load_env(asset_context, project_path.clone())
-        .await?
-        .map(|asset| EvaluatableAssets::one(asset.to_evaluatable(asset_context)));
-
     let entry_module = asset_context
         .process(
             Vc::upcast(FileSource::new(entry_asset)),
             ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
-    let (evaluatable_assets, entry_modules) = if let Some(ecmascript) =
-        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module.to_resolved().await?)
-    {
-        let evaluatable_assets = runtime_entries
-            .unwrap_or_else(EvaluatableAssets::empty)
-            .with_entry(*ecmascript);
-        (
-            evaluatable_assets,
-            evaluatable_assets
-                .await?
-                .iter()
-                .copied()
-                .map(ResolvedVc::upcast)
-                .collect::<Vec<_>>(),
-        )
-    } else {
-        // TODO convert into a serve-able asset
-        bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
-    };
+    let entry_modules: Vec<ResolvedVc<Box<dyn Module>>> =
+        maybe_load_env(asset_context, project_path.clone())
+            .await?
+            .into_iter()
+            .map(ResolvedVc::upcast)
+            .chain(std::iter::once(entry_module))
+            .collect();
 
     let single_graph = SingleModuleGraph::new_with_entries(
         ResolvedVc::cell(vec![ChunkGroupEntry::Entry(entry_modules.clone())]),
         false,
         true,
     );
-    let mut module_graph = ModuleGraph::from_single_graph(single_graph);
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
         Some(compute_binding_usage_info(
@@ -478,8 +473,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     if options.remove_unused_imports
         && let Some(binding_usage) = binding_usage
     {
-        module_graph =
-            ModuleGraph::from_single_graph_without_unused_references(single_graph, binding_usage);
+        module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     }
     let module_graph = module_graph.connect();
 
@@ -606,7 +600,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                             chunk_root_path
                                 .join(entry_module.ident().path().await?.file_stem().unwrap())?
                                 .with_extension("entry.js"),
-                            evaluatable_assets,
+                            ChunkGroup::Entry(entry_modules),
                             module_graph,
                             OutputAssets::empty(),
                             OutputAssets::empty(),
@@ -627,12 +621,10 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 
     let output_path = project_path.clone();
     while let Some(asset) = queue.pop_front() {
-        walk_asset(asset, &output_path, &mut seen, &mut queue)
-            .await
-            .context(format!(
-                "Failed to walk asset {}",
-                asset.path().to_string().await.context("to_string failed")?
-            ))?;
+        if let Err(error) = walk_asset(asset, &output_path, &mut seen, &mut queue).await {
+            // ast-grep-ignore: no-context-turbofmt
+            return Err(error.context(turbofmt!("Failed to walk asset {}", asset.path()).await?));
+        }
     }
 
     matches_expected(expected_paths, seen)
@@ -665,9 +657,9 @@ async fn walk_asset(
 }
 
 async fn maybe_load_env(
-    _context: Vc<Box<dyn AssetContext>>,
+    asset_context: Vc<Box<dyn AssetContext>>,
     path: FileSystemPath,
-) -> Result<Option<Vc<Box<dyn Source>>>> {
+) -> Result<Option<ResolvedVc<Box<dyn EvaluatableAsset>>>> {
     let dotenv_path = path.join("input/.env")?;
 
     if !dotenv_path.read().await?.is_content() {
@@ -675,6 +667,25 @@ async fn maybe_load_env(
     }
 
     let env = DotenvProcessEnv::new(None, dotenv_path.clone());
-    let asset = ProcessEnvAsset::new(dotenv_path, Vc::upcast(env));
-    Ok(Some(Vc::upcast(asset)))
+    let asset = ProcessEnvAsset::new(dotenv_path, Vc::upcast(env))
+        .to_evaluatable(asset_context)
+        .to_resolved()
+        .await?;
+
+    Ok(Some(asset))
+}
+
+#[turbo_tasks::function]
+fn emotion_transform_plugin() -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(
+        EmotionTransformer::new(&EmotionTransformConfig::default())
+            .expect("Should be able to create emotion transformer"),
+    ) as Box<dyn CustomTransformer + Send + Sync>)
+}
+
+#[turbo_tasks::function]
+fn styled_components_transform_plugin() -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(StyledComponentsTransformer::new(
+        &StyledComponentsTransformConfig::default(),
+    )) as Box<dyn CustomTransformer + Send + Sync>)
 }

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use either::Either;
 use itertools::Itertools;
 use turbo_rcstr::rcstr;
@@ -12,10 +13,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     file_source::FileSource,
     ident::AssetIdent,
-    issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString,
-    },
+    issue::{Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString},
     module::Module,
     module_graph::ModuleGraph,
     output::{OutputAssets, OutputAssetsWithReferenced},
@@ -129,8 +127,8 @@ async fn side_effects_from_package_json(
                 .map(|glob| async move {
                     Ok(match glob {
                         Either::Left(glob) => {
-                            match glob.resolve().await {
-                                Ok(glob) => Either::Left(glob),
+                            match glob.to_resolved().await {
+                                Ok(glob) => Either::Left(*glob),
                                 Err(err) => {
                                     Either::Right(SideEffectsInPackageJsonIssue {
                                         // TODO(PACK-4879): This should point at the buggy glob
@@ -187,40 +185,33 @@ struct SideEffectsInPackageJsonIssue {
     description: Option<StyledString>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for SideEffectsInPackageJsonIssue {
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Parse.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Parse
     }
 
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.source.file_path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.source.file_path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Invalid value for sideEffects in package.json")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Invalid value for sideEffects in package.json"
+        )))
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(
-            self.description
-                .as_ref()
-                .cloned()
-                .map(|s| s.resolved_cell()),
-        )
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(self.description.clone())
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source))
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.source)
     }
 }
 
@@ -293,6 +284,10 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
+    /// Returns whether this module should be split into separate locals and facade modules.
+    ///
+    /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
+    /// which allows the tree-shaking optimization to separate local definitions from re-exports.
     #[turbo_tasks::function]
     pub async fn split_locals_and_reexports(&self) -> Result<Vc<bool>> {
         Ok(match self {

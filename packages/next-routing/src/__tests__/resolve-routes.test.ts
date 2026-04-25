@@ -56,7 +56,7 @@ describe('resolveRoutes - beforeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/new-path')
+    expect(result.resolvedPathname).toBe('/new-path')
     expect(result.resolvedHeaders).toBeDefined()
   })
 
@@ -87,6 +87,41 @@ describe('resolveRoutes - beforeMiddleware', () => {
     expect(result.redirect).toBeDefined()
     expect(result.redirect?.status).toBe(301)
     expect(result.redirect?.url.pathname).toBe('/new')
+  })
+
+  it('should stop at first matching redirect headers route', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/en/redirect-1'),
+      routes: {
+        beforeMiddleware: [
+          {
+            sourceRegex: '^/en/redirect-1(?:/)?$',
+            status: 307,
+            headers: {
+              Location: '/somewhere/else',
+            },
+          },
+          {
+            sourceRegex: '^(?:/(en|fr|nl))/redirect-1(?:/)?$',
+            status: 307,
+            headers: {
+              Location: '/$1/somewhere/else',
+            },
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.status).toBe(307)
+    expect(result.redirect).toBeUndefined()
+    expect(result.resolvedHeaders?.get('location')).toBe('/somewhere/else')
   })
 
   it('should handle external rewrite in beforeMiddleware', async () => {
@@ -138,11 +173,233 @@ describe('resolveRoutes - beforeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/third')
+    expect(result.resolvedPathname).toBe('/third')
+  })
+})
+
+describe('resolveRoutes - case sensitivity', () => {
+  it('should match routes case-insensitively by default', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/rewrite-no-basePath'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [
+          {
+            sourceRegex: '^/rewrite-no-basepath(?:/)?$',
+            destination: 'https://example.vercel.sh/',
+          },
+        ],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.externalRewrite?.toString()).toBe(
+      'https://example.vercel.sh/'
+    )
+  })
+
+  it('should respect caseSensitive route matching when enabled', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/rewrite-no-basePath'),
+      routes: {
+        caseSensitive: true,
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [
+          {
+            sourceRegex: '^/rewrite-no-basepath(?:/)?$',
+            destination: 'https://example.vercel.sh/',
+          },
+        ],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.externalRewrite).toBeUndefined()
+    expect(result.redirect).toBeUndefined()
   })
 })
 
 describe('resolveRoutes - invokeMiddleware', () => {
+  it('should skip invokeMiddleware when middleware matchers are empty', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/no-matchers'),
+      pathnames: ['/no-matchers'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(middlewareMock).not.toHaveBeenCalled()
+    expect(result.resolvedPathname).toBe('/no-matchers')
+  })
+
+  it('should skip invokeMiddleware when middleware matchers do not match', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/no-match'),
+      pathnames: ['/no-match'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/middleware-only$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(middlewareMock).not.toHaveBeenCalled()
+    expect(result.resolvedPathname).toBe('/no-match')
+  })
+
+  it('should call invokeMiddleware when a middleware matcher matches', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/middleware-only'),
+      pathnames: ['/middleware-only'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/middleware-only$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('should call invokeMiddleware when a middleware matcher matches decoded pathname', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/vercel%20copy.svg'),
+      pathnames: ['/vercel copy.svg'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/vercel copy\\.svg$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('should skip invokeMiddleware when pathname decoding fails and encoded pathname does not match', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/%E0%A4%A'),
+      pathnames: ['/%E0%A4%A'],
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/decoded-only$',
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).not.toHaveBeenCalled()
+  })
+
+  it('should evaluate has conditions in middleware matchers', async () => {
+    const middlewareMock = jest.fn().mockResolvedValue({})
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/has-header'),
+      pathnames: ['/has-header'],
+      headers: new Headers({
+        'x-test': 'enabled',
+      }),
+      invokeMiddleware: middlewareMock,
+      routes: {
+        beforeMiddleware: [],
+        middlewareMatchers: [
+          {
+            sourceRegex: '^/has-header$',
+            has: [
+              {
+                type: 'header',
+                key: 'x-test',
+                value: 'enabled',
+              },
+            ],
+          },
+        ],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    await resolveRoutes(params)
+
+    expect(middlewareMock).toHaveBeenCalledTimes(1)
+  })
+
   it('should call invokeMiddleware with current URL and headers', async () => {
     const middlewareMock = jest.fn().mockResolvedValue({})
 
@@ -172,7 +429,7 @@ describe('resolveRoutes - invokeMiddleware', () => {
     const result = await resolveRoutes(params)
 
     expect(result.middlewareResponded).toBe(true)
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
   })
 
   it('should handle middleware redirect', async () => {
@@ -206,7 +463,7 @@ describe('resolveRoutes - invokeMiddleware', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/rewritten')
+    expect(result.resolvedPathname).toBe('/rewritten')
   })
 
   it('should handle middleware external rewrite', async () => {
@@ -223,24 +480,90 @@ describe('resolveRoutes - invokeMiddleware', () => {
     expect(result.externalRewrite?.toString()).toBe('https://external.com/api')
   })
 
-  it('should apply requestHeaders from middleware', async () => {
-    const newHeaders = new Headers({
+  it('should use requestHeaders from middleware for downstream routing without returning them', async () => {
+    const middlewareRequestHeaders = new Headers({
       'x-custom-header': 'middleware-value',
     })
 
     const params = createBaseParams({
       url: new URL('https://example.com/test'),
       invokeMiddleware: async () => ({
-        requestHeaders: newHeaders,
+        requestHeaders: middlewareRequestHeaders,
+      }),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/test$',
+            destination: '/internal',
+            has: [
+              {
+                type: 'header',
+                key: 'x-custom-header',
+                value: 'middleware-value',
+              },
+            ],
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/internal'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/internal')
+    expect(result.resolvedHeaders?.get('x-custom-header')).toBeNull()
+  })
+
+  it('should return middleware responseHeaders without leaking request headers', async () => {
+    const middlewareRequestHeaders = new Headers({
+      'x-internal-header': 'middleware-only',
+    })
+    const middlewareResponseHeaders = new Headers({
+      'x-response-header': 'response-value',
+    })
+
+    const params = createBaseParams({
+      url: new URL('https://example.com/test'),
+      headers: new Headers({
+        authorization: 'Bearer secret',
+      }),
+      invokeMiddleware: async () => ({
+        requestHeaders: middlewareRequestHeaders,
+        responseHeaders: middlewareResponseHeaders,
       }),
       pathnames: ['/test'],
     })
 
     const result = await resolveRoutes(params)
 
-    expect(result.resolvedHeaders?.get('x-custom-header')).toBe(
-      'middleware-value'
+    expect(result.resolvedPathname).toBe('/test')
+    expect(result.resolvedHeaders?.get('x-response-header')).toBe(
+      'response-value'
     )
+    expect(result.resolvedHeaders?.get('x-internal-header')).toBeNull()
+    expect(result.resolvedHeaders?.get('authorization')).toBeNull()
+  })
+
+  it('should not return initial request headers in resolvedHeaders', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/test'),
+      headers: new Headers({
+        authorization: 'Bearer secret',
+        'x-request-id': 'req-123',
+      }),
+      pathnames: ['/test'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/test')
+    expect(result.resolvedHeaders?.get('authorization')).toBeNull()
+    expect(result.resolvedHeaders?.get('x-request-id')).toBeNull()
   })
 })
 
@@ -266,7 +589,7 @@ describe('resolveRoutes - beforeFiles', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/internal-api/users')
+    expect(result.resolvedPathname).toBe('/internal-api/users')
   })
 
   it('should handle redirect in beforeFiles', async () => {
@@ -353,7 +676,7 @@ describe('resolveRoutes - beforeFiles', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/final')
+    expect(result.resolvedPathname).toBe('/final')
   })
 })
 
@@ -379,7 +702,7 @@ describe('resolveRoutes - afterFiles', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/404')
+    expect(result.resolvedPathname).toBe('/404')
   })
 
   it('should handle redirect in afterFiles', async () => {
@@ -456,7 +779,7 @@ describe('resolveRoutes - afterFiles', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/middle')
+    expect(result.resolvedPathname).toBe('/middle')
   })
 })
 
@@ -482,7 +805,7 @@ describe('resolveRoutes - fallback', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/default')
+    expect(result.resolvedPathname).toBe('/default')
   })
 
   it('should handle redirect in fallback', async () => {
@@ -565,7 +888,7 @@ describe('resolveRoutes - fallback', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/fallback-final')
+    expect(result.resolvedPathname).toBe('/fallback-final')
   })
 })
 
@@ -594,7 +917,7 @@ describe('resolveRoutes - routes without destination', () => {
     const result = await resolveRoutes(params)
 
     expect(result.resolvedHeaders?.get('x-custom-header')).toBe('value')
-    expect(result.matchedPathname).toBe('/headers-only')
+    expect(result.resolvedPathname).toBe('/headers-only')
   })
 
   it('should process routes with status only', async () => {
@@ -619,7 +942,7 @@ describe('resolveRoutes - routes without destination', () => {
     const result = await resolveRoutes(params)
 
     expect(result.status).toBe(418)
-    expect(result.matchedPathname).toBe('/status-only')
+    expect(result.resolvedPathname).toBe('/status-only')
   })
 
   it('should process multiple routes without destination in sequence', async () => {
@@ -655,7 +978,7 @@ describe('resolveRoutes - routes without destination', () => {
     expect(result.resolvedHeaders?.get('x-header-1')).toBe('1')
     expect(result.resolvedHeaders?.get('x-header-2')).toBe('2')
     expect(result.status).toBe(200)
-    expect(result.matchedPathname).toBe('/multi')
+    expect(result.resolvedPathname).toBe('/multi')
   })
 })
 
@@ -683,10 +1006,74 @@ describe('resolveRoutes - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/dynamic/[slug]')
+    expect(result.resolvedPathname).toBe('/dynamic/[slug]')
     expect(result.routeMatches).toEqual({
       '1': 'page',
       nxtPslug: 'page',
+    })
+  })
+
+  it('should prefer exact static resolvedPathname when both concrete and dynamic pathnames exist', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/blog/post-1'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/blog/(?<nxtPslug>[^/]+?)$',
+            destination: '/blog/[slug]?nxtPslug=$nxtPslug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/blog/[slug]', '/blog/post-1'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/blog/post-1')
+    expect(result.routeMatches).toBeUndefined()
+    expect(result.invocationTarget).toEqual({
+      pathname: '/blog/post-1',
+      query: {},
+    })
+  })
+
+  it('should replace missing optional dynamic placeholders with empty values', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/catch-all-optional'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex:
+              '^[/]?/catch-all-optional(?:/(?<nxtPslug>.+?))?(?:/)?$',
+            destination: '/catch-all-optional/[[...slug]]?nxtPslug=$nxtPslug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/catch-all-optional/[[...slug]]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/catch-all-optional/[[...slug]]')
+    expect(result.routeMatches).toEqual({})
+    expect(result.resolvedQuery).toEqual({
+      nxtPslug: '',
+    })
+    expect(result.invocationTarget).toEqual({
+      pathname: '/catch-all-optional',
+      query: {
+        nxtPslug: '',
+      },
     })
   })
 
@@ -711,7 +1098,7 @@ describe('resolveRoutes - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/posts/[year]/[slug]')
+    expect(result.resolvedPathname).toBe('/posts/[year]/[slug]')
     expect(result.routeMatches).toEqual({
       '1': '2024',
       '2': 'my-article',
@@ -741,7 +1128,7 @@ describe('resolveRoutes - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/docs/[...path]')
+    expect(result.resolvedPathname).toBe('/docs/[...path]')
     expect(result.routeMatches).toEqual({
       '1': 'getting-started/installation',
       path: 'getting-started/installation',
@@ -769,7 +1156,7 @@ describe('resolveRoutes - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBeUndefined()
+    expect(result.resolvedPathname).toBeUndefined()
   })
 
   it('should apply onMatch headers for dynamic routes', async () => {
@@ -800,7 +1187,120 @@ describe('resolveRoutes - dynamic routes', () => {
 
     const result = await resolveRoutes(params)
 
-    expect(result.matchedPathname).toBe('/api/[resource]')
+    expect(result.resolvedPathname).toBe('/api/[resource]')
     expect(result.resolvedHeaders?.get('x-matched')).toBe('true')
+  })
+
+  it('should apply onMatch headers using merged destination query for dynamic routes', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/blog/post-1?draft=1'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/blog/(?<slug>[^/]+?)$',
+            destination: '/blog/[slug]?slug=$slug',
+          },
+        ],
+        onMatch: [
+          {
+            sourceRegex: '^/blog/post-1$',
+            has: [
+              {
+                type: 'query',
+                key: 'slug',
+                value: 'post-1',
+              },
+            ],
+            headers: {
+              'x-slug-match': 'true',
+            },
+          },
+        ],
+        fallback: [],
+      },
+      pathnames: ['/blog/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/blog/[slug]')
+    expect(result.resolvedHeaders?.get('x-slug-match')).toBe('true')
+    expect(result.resolvedQuery).toEqual({
+      draft: '1',
+      slug: 'post-1',
+    })
+  })
+
+  it('should expose resolved query and invocation target for rewrite matches', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/rewrite-source?existing=1'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/rewrite-source$',
+            destination: '/rewrite-target?added=2',
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/rewrite-target'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/rewrite-target')
+    expect(result.resolvedQuery).toEqual({
+      existing: '1',
+      added: '2',
+    })
+    expect(result.invocationTarget).toEqual({
+      pathname: '/rewrite-target',
+      query: {
+        existing: '1',
+        added: '2',
+      },
+    })
+  })
+
+  it('should expose concrete invocation target for dynamic route matches', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/blog/post-1?draft=1'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [],
+        afterFiles: [],
+        dynamicRoutes: [
+          {
+            sourceRegex: '^/blog/(?<slug>[^/]+?)$',
+            destination: '/blog/[slug]?slug=$slug',
+          },
+        ],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/blog/[slug]'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/blog/[slug]')
+    expect(result.resolvedQuery).toEqual({
+      draft: '1',
+      slug: 'post-1',
+    })
+    expect(result.invocationTarget).toEqual({
+      pathname: '/blog/post-1',
+      query: {
+        draft: '1',
+        slug: 'post-1',
+      },
+    })
   })
 })

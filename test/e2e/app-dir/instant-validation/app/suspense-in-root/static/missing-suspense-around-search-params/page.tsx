@@ -1,4 +1,4 @@
-export const unstable_instant = { prefetch: 'static' }
+export const unstable_instant = { samples: [{ searchParams: { foo: 'bar' } }] }
 
 export default async function Page({ searchParams }) {
   const search = await searchParams

@@ -3,6 +3,7 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
+  injectWorkspacePackages: true
 
 importers:
 
@@ -75,7 +76,7 @@ importers:
         version: 7.8.0
       ai:
         specifier: ^3.4.14
-        version: 3.4.33(react@19.0.0)(sswr@2.2.0(svelte@5.46.1))(svelte@5.46.1)(vue@3.5.26(typescript@5.7.2))(zod@3.25.76)
+        version: 3.4.33(react@19.0.0)(sswr@2.2.0(svelte@5.46.1))(svelte@5.46.1)(vue@3.5.26(typescript@6.0.2))(zod@3.25.76)
       slack-block-builder:
         specifier: ^2.8.0
         version: 2.8.0
@@ -129,6 +130,25 @@ importers:
       typescript:
         specifier: 5.1.6
         version: 5.1.6
+
+  actions/pr-auto-label:
+    dependencies:
+      '@actions/core':
+        specifier: ^1.11.1
+        version: 1.11.1
+      '@actions/github':
+        specifier: 6.0.0
+        version: 6.0.0
+      minimatch:
+        specifier: ^9.0.9
+        version: 9.0.9
+      typescript:
+        specifier: 6.0.2
+        version: 6.0.2
+    devDependencies:
+      '@vercel/ncc':
+        specifier: ^0.38.3
+        version: 0.38.3
 
   actions/upload-turboyet-data:
     dependencies:
@@ -196,9 +216,6 @@ packages:
 
   '@actions/github@6.0.0':
     resolution: {integrity: sha512-alScpSVnYmjNEXboZjarjukQEzgCRmjMv6Xj47fsdnqGS73bjJNDpiiXmp8jr0UZLdUB6d9jW63IcmddUP+l0g==}
-
-  '@actions/http-client@2.2.0':
-    resolution: {integrity: sha512-q+epW0trjVUUHboliPb4UF9g2msf+w61b32tAkFEwL/IwP0DQWgbCMM0Hbe3e3WXSKz5VcUXbzJQgy8Hkra/Lg==}
 
   '@actions/http-client@2.2.3':
     resolution: {integrity: sha512-mx8hyJi/hjFvbPokCg4uRd4ZX78t+YyRPtnKWwIl+RzNaVuFpQHfmlGVfsKEJN8LwTCvL+DfVgAM04XaHkm6bA==}
@@ -302,10 +319,6 @@ packages:
   '@babel/types@7.28.5':
     resolution: {integrity: sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA==}
     engines: {node: '>=6.9.0'}
-
-  '@fastify/busboy@2.1.0':
-    resolution: {integrity: sha512-+KpH+QxZU7O4675t3mnkQKcZZg56u+K/Ct2K+N2AZYNVK8kyeo/bI18tI8aPm3tvNNRyTWfj6s5tnGNlcbQRsA==}
-    engines: {node: '>=14'}
 
   '@fastify/busboy@2.1.1':
     resolution: {integrity: sha512-vBZP4NlzfOlerQTnba4aqZoMhE/a9HY7HRqoOPaETQcSQuWEIyZMHGfVu6w9wGtGK5fED5qRs2DteVCjOH60sA==}
@@ -558,6 +571,9 @@ packages:
 
   brace-expansion@1.1.12:
     resolution: {integrity: sha512-9T9UjW3r0UW5c1Q7GTwllptXwhvYmEzFhzMfZ9H7FQWt+uZePjZPjBP/W1ZEyZ1twGWom5/56TF4lPcqjnDHcg==}
+
+  brace-expansion@2.1.0:
+    resolution: {integrity: sha512-TN1kCZAgdgweJhWWpgKYrQaMNHcDULHkWwQIspdtjV4Y5aurRdZpjAqn6yX3FPqTA9ngHCc4hJxMAMgGfve85w==}
 
   ccount@1.1.0:
     resolution: {integrity: sha512-vlNK021QdI7PNeiUh/lKkC/mNHHfV0m/Ad5JoI0TYtlBnJAslM/JIkm/tGC88bkLIwO6OQ5uV6ztS6kVAtCDlg==}
@@ -854,6 +870,10 @@ packages:
   minimatch@3.1.2:
     resolution: {integrity: sha512-J7p63hRiAjw1NDEww1W7i37+ByIrOWO5XQQAzZ3VOcL0PNybwpfmV/N05zFAzwQ9USyEcX6t3UO+K5aqBQOIHw==}
 
+  minimatch@9.0.9:
+    resolution: {integrity: sha512-OBwBN9AL4dqmETlpS2zasx+vTeWclWzkblfZk7KTA5j3jeOONz/tRCnZomUyvNg83wL5Zv9Ss6HMJXAgL8R2Yg==}
+    engines: {node: '>=16 || 14 >=14.17'}
+
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -1119,17 +1139,13 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
-  typescript@5.7.2:
-    resolution: {integrity: sha512-i5t66RHxDvVN40HfDd1PsEThGNnlMCMT3jMUuoh9/0TaqWevNontacunWyN02LA9/fIbEWlcHZcgTKb9QoaLfg==}
+  typescript@6.0.2:
+    resolution: {integrity: sha512-bGdAIrZ0wiGDo5l8c++HWtbaNCWTS4UTv7RaTH/ThVIgjkveJt83m74bBHMJkuCbslY8ixgLBVZJIOiQlQTjfQ==}
     engines: {node: '>=14.17'}
     hasBin: true
 
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
-
-  undici@5.28.2:
-    resolution: {integrity: sha512-wh1pHJHnUeQV5Xa8/kyQhO7WFa8M34l026L5P/+2TYiakvGy5Rdc8jWZVyG7ieht/0WgJLEd3kcU5gKx+6GC8w==}
-    engines: {node: '>=14.0'}
 
   undici@5.28.4:
     resolution: {integrity: sha512-72RFADWFqKmUb2hmmvNODKL3p9hcB6Gt2DOQMis1SEBaV6a4MH8soBvzg+95CYhCKPFedut2JY9bMfrDl9D23g==}
@@ -1271,15 +1287,10 @@ snapshots:
 
   '@actions/github@6.0.0':
     dependencies:
-      '@actions/http-client': 2.2.0
+      '@actions/http-client': 2.2.3
       '@octokit/core': 5.0.2
       '@octokit/plugin-paginate-rest': 9.1.5(@octokit/core@5.0.2)
       '@octokit/plugin-rest-endpoint-methods': 10.2.0(@octokit/core@5.0.2)
-
-  '@actions/http-client@2.2.0':
-    dependencies:
-      tunnel: 0.0.6
-      undici: 5.28.2
 
   '@actions/http-client@2.2.3':
     dependencies:
@@ -1357,13 +1368,13 @@ snapshots:
     optionalDependencies:
       zod: 3.25.76
 
-  '@ai-sdk/vue@0.0.59(vue@3.5.26(typescript@5.7.2))(zod@3.25.76)':
+  '@ai-sdk/vue@0.0.59(vue@3.5.26(typescript@6.0.2))(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider-utils': 1.0.22(zod@3.25.76)
       '@ai-sdk/ui-utils': 0.0.50(zod@3.25.76)
-      swrv: 1.1.0(vue@3.5.26(typescript@5.7.2))
+      swrv: 1.1.0(vue@3.5.26(typescript@6.0.2))
     optionalDependencies:
-      vue: 3.5.26(typescript@5.7.2)
+      vue: 3.5.26(typescript@6.0.2)
     transitivePeerDependencies:
       - zod
 
@@ -1379,8 +1390,6 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
-
-  '@fastify/busboy@2.1.0': {}
 
   '@fastify/busboy@2.1.1': {}
 
@@ -1630,17 +1639,17 @@ snapshots:
       '@vue/shared': 3.5.26
       csstype: 3.2.3
 
-  '@vue/server-renderer@3.5.26(vue@3.5.26(typescript@5.7.2))':
+  '@vue/server-renderer@3.5.26(vue@3.5.26(typescript@6.0.2))':
     dependencies:
       '@vue/compiler-ssr': 3.5.26
       '@vue/shared': 3.5.26
-      vue: 3.5.26(typescript@5.7.2)
+      vue: 3.5.26(typescript@6.0.2)
 
   '@vue/shared@3.5.26': {}
 
   acorn@8.15.0: {}
 
-  ai@3.4.33(react@19.0.0)(sswr@2.2.0(svelte@5.46.1))(svelte@5.46.1)(vue@3.5.26(typescript@5.7.2))(zod@3.25.76):
+  ai@3.4.33(react@19.0.0)(sswr@2.2.0(svelte@5.46.1))(svelte@5.46.1)(vue@3.5.26(typescript@6.0.2))(zod@3.25.76):
     dependencies:
       '@ai-sdk/provider': 0.0.26
       '@ai-sdk/provider-utils': 1.0.22(zod@3.25.76)
@@ -1648,7 +1657,7 @@ snapshots:
       '@ai-sdk/solid': 0.0.54(zod@3.25.76)
       '@ai-sdk/svelte': 0.0.57(svelte@5.46.1)(zod@3.25.76)
       '@ai-sdk/ui-utils': 0.0.50(zod@3.25.76)
-      '@ai-sdk/vue': 0.0.59(vue@3.5.26(typescript@5.7.2))(zod@3.25.76)
+      '@ai-sdk/vue': 0.0.59(vue@3.5.26(typescript@6.0.2))(zod@3.25.76)
       '@opentelemetry/api': 1.9.0
       eventsource-parser: 1.1.2
       json-schema: 0.4.0
@@ -1696,6 +1705,10 @@ snapshots:
     dependencies:
       balanced-match: 1.0.2
       concat-map: 0.0.1
+
+  brace-expansion@2.1.0:
+    dependencies:
+      balanced-match: 1.0.2
 
   ccount@1.1.0: {}
 
@@ -1991,6 +2004,10 @@ snapshots:
     dependencies:
       brace-expansion: 1.1.12
 
+  minimatch@9.0.9:
+    dependencies:
+      brace-expansion: 2.1.0
+
   nanoid@3.3.11: {}
 
   nanoid@3.3.6: {}
@@ -2199,9 +2216,9 @@ snapshots:
 
   swrev@4.0.0: {}
 
-  swrv@1.1.0(vue@3.5.26(typescript@5.7.2)):
+  swrv@1.1.0(vue@3.5.26(typescript@6.0.2)):
     dependencies:
-      vue: 3.5.26(typescript@5.7.2)
+      vue: 3.5.26(typescript@6.0.2)
 
   throttleit@2.1.0: {}
 
@@ -2221,14 +2238,9 @@ snapshots:
 
   typescript@5.1.6: {}
 
-  typescript@5.7.2:
-    optional: true
+  typescript@6.0.2: {}
 
   undici-types@5.26.5: {}
-
-  undici@5.28.2:
-    dependencies:
-      '@fastify/busboy': 2.1.0
 
   undici@5.28.4:
     dependencies:
@@ -2309,15 +2321,15 @@ snapshots:
       unist-util-stringify-position: 2.0.3
       vfile-message: 2.0.4
 
-  vue@3.5.26(typescript@5.7.2):
+  vue@3.5.26(typescript@6.0.2):
     dependencies:
       '@vue/compiler-dom': 3.5.26
       '@vue/compiler-sfc': 3.5.26
       '@vue/runtime-dom': 3.5.26
-      '@vue/server-renderer': 3.5.26(vue@3.5.26(typescript@5.7.2))
+      '@vue/server-renderer': 3.5.26(vue@3.5.26(typescript@6.0.2))
       '@vue/shared': 3.5.26
     optionalDependencies:
-      typescript: 5.7.2
+      typescript: 6.0.2
 
   web-namespaces@1.1.4: {}
 

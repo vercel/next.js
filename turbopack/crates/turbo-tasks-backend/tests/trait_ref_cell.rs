@@ -5,7 +5,10 @@
 use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{IntoTraitRef, Invalidator, TraitRef, Vc, get_invalidator, with_turbo_tasks};
+use turbo_tasks::{
+    Invalidator, TraitRef, Vc, get_invalidator,
+    unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
+};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -13,6 +16,7 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trait_ref() {
     run_once(&REGISTRATION, || async {
+        unmark_top_level_task_may_leak_eventually_consistent_state();
         let counter = Counter::cell(Counter {
             value: Mutex::new((0, Default::default())),
         });
@@ -61,7 +65,7 @@ async fn trait_ref() {
 #[derive(Copy, Clone)]
 struct CounterValue(usize);
 
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "skip", evict = "never", cell = "new", eq = "manual")]
 struct Counter {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     value: Mutex<(usize, HashSet<Invalidator>)>,

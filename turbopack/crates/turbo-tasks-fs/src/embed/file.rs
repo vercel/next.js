@@ -21,7 +21,7 @@ pub async fn content_from_relative_path(
 
     let disk_fs = DiskFileSystem::new(
         root_path.to_string_lossy().into(),
-        root_path.to_string_lossy().into(),
+        Vc::cell(root_path.to_string_lossy().into()),
     );
     disk_fs.await?.start_watching(None).await?;
 

@@ -254,7 +254,6 @@ export type RenderOptsPartial = {
   optimizeCss: any
   nextConfigOutput?: 'standalone' | 'export'
   nextScriptWorkers: any
-  assetQueryString?: string
   resolvedUrl?: string
   resolvedAsPath?: string
   setIsrStatus?: (key: string, value: boolean | undefined) => void
@@ -303,9 +302,14 @@ export type PagesSharedContext = {
   buildId: string
 
   /**
-   * The deployment ID if the user is deploying to a platform that provides one.
+   * See NextConfig.deploymentId
    */
-  deploymentId: string
+  deploymentId: string | undefined
+
+  /**
+   * NextConfig.deploymentId if experimental.supportsImmutableAssets is not true, otherwise undefined.
+   */
+  clientAssetToken: string | undefined
 
   /**
    * True if the user is using a custom server.
@@ -440,6 +444,16 @@ function serializeError(
   }
 }
 
+function getSafariCacheBusterQueryString(req: IncomingMessage): string {
+  if (process.env.__NEXT_DEV_SERVER) {
+    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
+    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
+      return `?ts=${Date.now()}`
+    }
+  }
+  return ''
+}
+
 export async function renderToHTMLImpl(
   req: IncomingMessage,
   res: ServerResponse,
@@ -453,29 +467,30 @@ export async function renderToHTMLImpl(
   // Adds support for reading `cookies` in `getServerSideProps` when SSR.
   setLazyProp({ req: req as any }, 'cookies', getCookieParser(req.headers))
 
+  // cssCacheBuster is a workaround for a Safari bug
+  // (https://bugs.webkit.org/show_bug.cgi?id=187726) where preloaded CSS
+  // resources are cached and not re-fetched on HMR. It must only be applied
+  // to CSS and font assets — not to script tags — because the Turbopack
+  // runtime infers ASSET_SUFFIX from the executing script's query string and
+  // leaks it onto all static asset URLs (including images), causing
+  // next/image validation errors.
+  // See https://github.com/vercel/next.js/issues/92118.
+  const cssCacheBuster = getSafariCacheBusterQueryString(req)
+
+  const mutableAssetQueryString = sharedContext.deploymentId
+    ? `?dpl=${sharedContext.deploymentId}`
+    : ''
+  const assetQueryString = sharedContext.clientAssetToken
+    ? `?dpl=${sharedContext.clientAssetToken}`
+    : ''
+  // cssAssetQueryString is assetQueryString with the cacheBuster prepended.
+  // Use this for CSS and font URLs; use assetQueryString for script URLs.
+  const cssAssetQueryString =
+    cssCacheBuster +
+    (sharedContext.clientAssetToken
+      ? `${cssCacheBuster ? '&' : '?'}dpl=${sharedContext.clientAssetToken}`
+      : '')
   const metadata: PagesRenderResultMetadata = {}
-
-  metadata.assetQueryString =
-    (process.env.__NEXT_DEV_SERVER && renderOpts.assetQueryString) || ''
-
-  if (process.env.__NEXT_DEV_SERVER && !metadata.assetQueryString) {
-    const userAgent = (req.headers['user-agent'] || '').toLowerCase()
-    if (userAgent.includes('safari') && !userAgent.includes('chrome')) {
-      // In dev we invalidate the cache by appending a timestamp to the resource URL.
-      // This is a workaround to fix https://github.com/vercel/next.js/issues/5860
-      // TODO: remove this workaround when https://bugs.webkit.org/show_bug.cgi?id=187726 is fixed.
-      // Note: The workaround breaks breakpoints on reload since the script url always changes,
-      // so we only apply it to Safari.
-      metadata.assetQueryString = `?ts=${Date.now()}`
-    }
-  }
-
-  // if deploymentId is provided we append it to all asset requests
-  if (sharedContext.deploymentId) {
-    metadata.assetQueryString += `${metadata.assetQueryString ? '&' : '?'}dpl=${
-      sharedContext.deploymentId
-    }`
-  }
 
   // don't modify original query object
   query = Object.assign({}, query)
@@ -499,8 +514,6 @@ export async function renderToHTMLImpl(
     expireTime,
   } = renderOpts
   const { App } = extra
-
-  const assetQueryString = metadata.assetQueryString
 
   let Document = extra.Document
 
@@ -1376,28 +1389,21 @@ export async function renderToHTMLImpl(
       | {}
       | Awaited<ReturnType<typeof loadDocumentInitialProps>>
 
-    const [rawStyledJsxInsertedHTML, content] = await Promise.all([
-      renderToString(styledJsxInsertedHTML()),
-      (async () => {
-        if (hasDocumentGetInitialProps) {
-          documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
-          if (documentInitialPropsRes === null) return null
-          const { docProps } = documentInitialPropsRes as any
-          return docProps.html
-        } else {
-          documentInitialPropsRes = {}
-          const stream = await renderShell(App, Component)
-          await stream.allReady
-          return streamToString(stream)
-        }
-      })(),
-    ])
-
-    if (content === null) {
-      return null
+    let content: string | null
+    if (hasDocumentGetInitialProps) {
+      documentInitialPropsRes = await loadDocumentInitialProps(renderShell)
+      if (documentInitialPropsRes === null) {
+        content = null
+      } else {
+        const { docProps } = documentInitialPropsRes as any
+        content = docProps.html
+      }
+    } else {
+      documentInitialPropsRes = {}
+      const stream = await renderShell(App, Component)
+      await stream.allReady
+      content = await streamToString(stream)
     }
-
-    const contentHTML = rawStyledJsxInsertedHTML + content
 
     // @ts-ignore: documentInitialPropsRes is set
     const { docProps } = (documentInitialPropsRes as any) || {}
@@ -1417,6 +1423,17 @@ export async function renderToHTMLImpl(
       styles = jsxStyleRegistry.styles()
       jsxStyleRegistry.flush()
     }
+
+    // Registry is now flushed; rawStyledJsxInsertedHTML will be empty.
+    const rawStyledJsxInsertedHTML = await renderToString(
+      styledJsxInsertedHTML()
+    )
+
+    if (content === null) {
+      return null
+    }
+
+    const contentHTML = rawStyledJsxInsertedHTML + content
 
     return {
       contentHTML,
@@ -1518,6 +1535,8 @@ export async function renderToHTMLImpl(
         : undefined,
     unstable_JsPreload: pageConfig.unstable_JsPreload,
     assetQueryString,
+    cssAssetQueryString,
+    mutableAssetQueryString,
     scriptLoader,
     locale,
     disableOptimizedLoading,

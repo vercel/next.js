@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::writedoc;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -48,7 +48,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
-            bail!("runtime path {runtime_path} is not in output root {output_root}");
+            turbobail!("runtime path {runtime_path} is not in output root {output_root}");
         };
 
         let mut code = CodeBuilder::default();
@@ -64,10 +64,10 @@ impl EcmascriptBuildNodeRuntimeChunk {
         writedoc!(
             code,
             r#"
-                const RUNTIME_PUBLIC_PATH = {};
-                const RELATIVE_ROOT_PATH = {};
-                const ASSET_PREFIX = {};
-                const WORKER_FORWARDED_GLOBALS = {};
+                var RUNTIME_PUBLIC_PATH = {};
+                var RELATIVE_ROOT_PATH = {};
+                var ASSET_PREFIX = {};
+                var WORKER_FORWARDED_GLOBALS = {};
             "#,
             StringifyJs(runtime_public_path),
             StringifyJs(output_root_to_root_path.as_str()),
@@ -83,7 +83,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
                     // Apply forwarded globals from workerData if running in a worker thread
                     if (typeof require !== 'undefined') {{
                         try {{
-                            const {{ workerData }} = require('worker_threads');
+                            var {{ workerData }} = require('worker_threads');
                             if (workerData?.__turbopack_globals__) {{
                                 Object.assign(globalThis, workerData.__turbopack_globals__);
                                 // Remove internal data so it's not visible to user code
@@ -97,10 +97,13 @@ impl EcmascriptBuildNodeRuntimeChunk {
             )?;
         }
 
+        let asset_context =
+            turbopack::get_runtime_asset_context(this.chunking_context.environment());
+
         match *this.chunking_context.runtime_type().await? {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
+                    asset_context,
                     RuntimeType::Development,
                     generate_source_map,
                 );
@@ -108,7 +111,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
-                    this.chunking_context.environment(),
+                    asset_context,
                     RuntimeType::Production,
                     generate_source_map,
                 );
