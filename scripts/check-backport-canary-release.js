@@ -4,6 +4,10 @@
 const fs = require('fs/promises')
 const path = require('path')
 const semver = require('semver')
+const {
+  getGitHubToken,
+  getGitHubTokenMissingMessage,
+} = require('./release-github-auth')
 
 const PUBLISH_RELEASE_JOB_NAME = 'Potentially publish release'
 const TRIGGER_RELEASE_WORKFLOW = 'trigger_release.yml'
@@ -132,11 +136,11 @@ async function main() {
     throw new Error('Missing --head-sha')
   }
 
-  const token = process.env.RELEASE_BOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN
+  const token = getGitHubToken() || process.env.GITHUB_TOKEN
   const repoFullName = process.env.GITHUB_REPOSITORY
 
   if (!token) {
-    throw new Error('Missing RELEASE_BOT_GITHUB_TOKEN or GITHUB_TOKEN')
+    throw new Error(`${getGitHubTokenMissingMessage()} or GITHUB_TOKEN`)
   }
 
   if (!repoFullName) {
