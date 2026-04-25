@@ -50,6 +50,9 @@ pub struct Span {
     pub names: OnceLock<SpanNames>,
 }
 
+/// Aggregated subtree-wide totals for a span. All five fields are computed
+/// together by walking the subtree once, then cached in `Span::totals`. They are
+/// invalidated together in `Store::invalidate_outdated_spans`.
 #[derive(Default)]
 pub struct SpanTotals {
     pub max_depth: u32,
@@ -195,6 +198,12 @@ pub enum SpanEvent {
 // SelfTime variant; the Child variant fits in 16 and uses the niche, so no
 // extra discriminant byte is needed.
 const _: () = assert!(std::mem::size_of::<SpanEvent>() == 32);
+
+// Sanity check on the consolidated totals layout. `OnceLock<T>` is roughly
+// `T` plus a small atomic state (~8 bytes); for `SpanTotals` (5 × u64 = 40
+// bytes, alignment 8), we expect ~48 bytes. If a refactor blows past 56 we
+// want to know.
+const _: () = assert!(std::mem::size_of::<OnceLock<SpanTotals>>() <= 56);
 
 impl SpanEvent {
     /// Constructs a `SelfTime` event from start and end timestamps. Returns `None`
