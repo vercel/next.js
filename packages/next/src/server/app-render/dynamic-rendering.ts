@@ -25,7 +25,7 @@ import type {
   WorkUnitStore,
   PrerenderStoreLegacy,
   PrerenderStoreModern,
-  PrerenderStoreModernRuntime,
+  ValidationStoreClient,
 } from '../app-render/work-unit-async-storage.external'
 
 // Once postpone is in stable we should switch to importing the postpone export directly
@@ -34,12 +34,11 @@ import React from 'react'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
-  getRuntimeStagePromise,
   throwForMissingRequestStore,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { makeHangingPromise, getRuntimeStage } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
@@ -48,8 +47,29 @@ import {
 } from '../../lib/framework/boundary-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
 import { BailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
+import {
+  createRuntimeBodyError,
+  createDynamicBodyError,
+  createDynamicOrRuntimeBodyError,
+  createRuntimeMetadataError,
+  createDynamicMetadataError,
+  createRuntimeViewportError,
+  createDynamicViewportError,
+  disallowedDynamicViewportMessage,
+  disallowedDynamicMetadataMessage,
+  logBuildDebugHint,
+} from './blocking-route-messages'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { INSTANT_VALIDATION_BOUNDARY_NAME } from './instant-validation/boundary-constants'
+import {
+  INSTANT_VALIDATION_BOUNDARY_NAME,
+  INSTANT_SLOT_MARKER_PREFIX,
+  INSTANT_SLOT_MARKER_SUFFIX,
+} from './instant-validation/boundary-constants'
+import {
+  type ValidationBoundaryTracking,
+  allRequiredBoundariesRendered,
+} from './instant-validation/boundary-tracking'
+import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -146,6 +166,7 @@ export function markCurrentScopeAsDynamic(
       case 'prerender-legacy':
       case 'prerender-ppr':
       case 'request':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -187,6 +208,8 @@ export function markCurrentScopeAsDynamic(
         if (process.env.NODE_ENV !== 'production') {
           workUnitStore.usedDynamic = true
         }
+        break
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -242,6 +265,8 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
     case 'prerender-legacy':
     case 'prerender-ppr':
     case 'prerender-client':
+    case 'validation-client':
+    case 'generate-static-params':
       break
     case 'request':
       if (process.env.NODE_ENV !== 'production') {
@@ -539,11 +564,15 @@ export function createHangingInputAbortSignal(
         // render the content of this cache as deeply as we can so that we can
         // suspend as deeply as possible in the tree or not at all if we don't
         // end up waiting for the input.
-        const runtimeStagePromise = getRuntimeStagePromise(workUnitStore)
-        if (runtimeStagePromise) {
-          runtimeStagePromise.then(() =>
-            scheduleOnNextTick(() => controller.abort())
-          )
+        if (
+          // eslint-disable-next-line no-restricted-syntax -- We are discriminating between two different refined types and don't need an addition exhaustive switch here
+          workUnitStore.type === 'prerender-runtime' &&
+          workUnitStore.stagedRendering
+        ) {
+          const { stagedRendering } = workUnitStore
+          stagedRendering
+            .waitForStage(getRuntimeStage(stagedRendering))
+            .then(() => scheduleOnNextTick(() => controller.abort()))
         } else {
           scheduleOnNextTick(() => controller.abort())
         }
@@ -551,12 +580,14 @@ export function createHangingInputAbortSignal(
 
       return controller.signal
     case 'prerender-client':
+    case 'validation-client':
     case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
+    case 'generate-static-params':
       return undefined
     default:
       workUnitStore satisfies never
@@ -565,7 +596,7 @@ export function createHangingInputAbortSignal(
 
 export function annotateDynamicAccess(
   expression: string,
-  prerenderStore: PrerenderStoreModern
+  prerenderStore: PrerenderStoreModern | ValidationStoreClient
 ) {
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
@@ -612,6 +643,11 @@ export function useDynamicRouteParams(expression: string) {
         }
         break
       }
+      case 'validation-client': {
+        // Don't check fallbackRouteParams here. We handle params that weren't
+        // provided in the samples using a proxy that throws when accessed.
+        break
+      }
       case 'prerender-runtime':
         throw new InvariantError(
           `\`${expression}\` was called during a runtime prerender. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
@@ -620,6 +656,10 @@ export function useDynamicRouteParams(expression: string) {
       case 'private-cache':
         throw new InvariantError(
           `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+        )
+      case 'generate-static-params':
+        throw new InvariantError(
+          `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
         )
       case 'prerender-legacy':
       case 'request':
@@ -645,6 +685,10 @@ export function useDynamicSearchParams(expression: string) {
   }
 
   switch (workUnitStore.type) {
+    case 'validation-client':
+      // During instant validation we try to behave as close to client as possible,
+      // so this shouldn't hang during SSR.
+      return
     case 'prerender-client': {
       React.use(
         makeHangingPromise(
@@ -672,6 +716,10 @@ export function useDynamicSearchParams(expression: string) {
     case 'private-cache':
       throw new InvariantError(
         `\`${expression}\` was called inside a cache scope. Next.js should be preventing ${expression} from being included in server components statically, but did not in this case.`
+      )
+    case 'generate-static-params':
+      throw new InvariantError(
+        `\`${expression}\` was called in \`generateStaticParams\`. Next.js should be preventing ${expression} from being included in server component files statically, but did not in this case.`
       )
     case 'request':
       return
@@ -710,9 +758,37 @@ const hasViewportRegex = new RegExp(
 )
 const hasOutletRegex = new RegExp(`\\n\\s+at ${OUTLET_BOUNDARY_NAME}[\\n\\s]`)
 
-const hasPrefetchValidationBoundaryRegex = new RegExp(
+const hasInstantValidationBoundaryRegex = new RegExp(
   `\\n\\s+at ${INSTANT_VALIDATION_BOUNDARY_NAME}[\\n\\s]`
 )
+const slotMarkerRegex = new RegExp(
+  `\\n\\s+at ${INSTANT_SLOT_MARKER_PREFIX}(\\d+)${INSTANT_SLOT_MARKER_SUFFIX}[\\n\\s]`
+)
+
+/** Look up the config factory for the slot this error belongs to.
+ * Checks the component stack for a slot marker (__next_instant_slot_N__)
+ * and returns the config at that index. Falls back to index 0 (root
+ * config) when no slot marker is found or the slot has no config. */
+function resolveInstantStack(
+  componentStack: string,
+  dynamicValidation: InstantValidationState
+): (() => Error) | null {
+  const { slotStacks } = dynamicValidation
+  if (slotStacks.length > 1) {
+    const match = slotMarkerRegex.exec(componentStack)
+    if (match) {
+      // Slot markers are 0-indexed in the component name but
+      // slotStacks is 1-indexed (index 0 is the root config).
+      const slotIndex = parseInt(match[1], 10) + 1
+      const slotStack = slotStacks[slotIndex]
+      if (slotStack != null) {
+        return slotStack
+      }
+    }
+  }
+  // Fall back to root config (index 0)
+  return slotStacks[0] ?? null
+}
 
 export function trackAllowedDynamicAccess(
   workStore: WorkStore,
@@ -746,18 +822,16 @@ export function trackAllowedDynamicAccess(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
     dynamicValidation.dynamicErrors.push(
       clientDynamic.syncDynamicErrorWithStack
     )
     return
   } else {
-    const message =
-      `Route "${workStore.route}": Uncached data was accessed outside of ` +
-      '<Suspense>. This delays the entire page from rendering, resulting in a ' +
-      'slow user experience. Learn more: ' +
-      'https://nextjs.org/docs/messages/blocking-route'
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = addErrorContext(
+      createDynamicOrRuntimeBodyError(workStore.route),
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   }
@@ -770,84 +844,211 @@ export enum DynamicHoleKind {
   Dynamic = 2,
 }
 
+/** Stores dynamic reasons used during an SSR render in instant validation. */
+export type InstantValidationState = {
+  hasDynamicMetadata: boolean
+  hasAllowedClientDynamicAboveBoundary: boolean
+  dynamicMetadata: null | Error
+  hasDynamicViewport: boolean
+  hasAllowedDynamic: boolean
+  dynamicErrors: Array<Error>
+  validationPreventingErrors: Array<Error>
+  thrownErrorsOutsideBoundary: Array<unknown>
+  /** Per-slot config factories. Index 0 is the root config (fallback).
+   * Indices 1+ correspond to slot marker components in the tree. */
+  slotStacks: Array<(() => Error) | null>
+}
+
+export function createInstantValidationState(
+  slotStacks: Array<(() => Error) | null>
+): InstantValidationState {
+  return {
+    hasDynamicMetadata: false,
+    hasAllowedClientDynamicAboveBoundary: false,
+    dynamicMetadata: null,
+    hasDynamicViewport: false,
+    hasAllowedDynamic: false,
+    dynamicErrors: [],
+    validationPreventingErrors: [],
+    thrownErrorsOutsideBoundary: [],
+    slotStacks,
+  }
+}
+
 export function trackDynamicHoleInNavigation(
   workStore: WorkStore,
   componentStack: string,
-  dynamicValidation: DynamicValidationState,
+  dynamicValidation: InstantValidationState,
   clientDynamic: DynamicTrackingState,
-  kind: DynamicHoleKind
+  kind: DynamicHoleKind,
+  boundaryState: ValidationBoundaryTracking
 ) {
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   }
+  // Resolve the config stack for this specific error. If the error
+  // is inside a slot marker, use that slot's config. Otherwise fall
+  // back to the default.
+  const effectiveCreateInstantStack = resolveInstantStack(
+    componentStack,
+    dynamicValidation
+  )
+
   if (hasMetadataRegex.test(componentStack)) {
-    const usageDescription =
+    const error = addErrorContext(
       kind === DynamicHoleKind.Runtime
-        ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments.`
-        : `Uncached data or \`connection()\` was accessed inside \`generateMetadata\`.`
-    const message = `Route "${workStore.route}": ${usageDescription} Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+        ? createRuntimeMetadataError(workStore.route)
+        : createDynamicMetadataError(workStore.route),
+      componentStack,
+      effectiveCreateInstantStack
+    )
     dynamicValidation.dynamicMetadata = error
     return
   }
   if (hasViewportRegex.test(componentStack)) {
-    const usageDescription =
+    const error = addErrorContext(
       kind === DynamicHoleKind.Runtime
-        ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`.`
-        : `Uncached data or \`connection()\` was accessed inside \`generateViewport\`.`
-    const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+        ? createRuntimeViewportError(workStore.route)
+        : createDynamicViewportError(workStore.route),
+      componentStack,
+      effectiveCreateInstantStack
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   }
 
-  // Check if we have a Suspense above the hole, but below the validation boundary.
-  // If we do, then this dynamic usage wouldn't block a navigation to this subtree.
-  // Conversely, if the nearest suspense is above the validation boundary, then this subtree would block.
-  //
-  // Note that in the component stack, children come before parents.
-  //
-  // Valid:
-  //   ...
-  //   at Suspense
-  //   ...
-  //   at __next_prefetch_validation_boundary__
-  //
-  // Invalid:
-  //   ...
-  //   at __next_prefetch_validation_boundary__
-  //   ...
-  //   at Suspense
-  //
-  const suspenseLocation = hasSuspenseRegex.exec(componentStack)
-  if (suspenseLocation) {
-    const boundaryLocation =
-      hasPrefetchValidationBoundaryRegex.exec(componentStack)
-    if (boundaryLocation) {
+  const boundaryLocation =
+    hasInstantValidationBoundaryRegex.exec(componentStack)
+  if (!boundaryLocation) {
+    // We don't see the validation boundary in the component stack,
+    // so this hole must be coming from a shared parent.
+    // Shared parents are fully resolved and don't have RSC holes,
+    // but they can still suspend in a client component during SSR.
+
+    // If we managed to render all the validation boundaries, that means
+    // that the client holes aren't blocking validation and we can disregard them.
+    // Note that we don't even care whether they have suspense or not.
+    if (allRequiredBoundariesRendered(boundaryState)) {
+      dynamicValidation.hasAllowedClientDynamicAboveBoundary = true
+      dynamicValidation.hasAllowedDynamic = true // Holes outside the boundary contribute to allowing dynamic metadata
+      return
+    } else {
+      // TODO(instant-validation) TODO(NAR-787)
+      // If shared parents blocked us from validating, we should only log
+      // the errors from the innermost (segments), i.e. omit layouts whose
+      // slots managed to render (because clearly they didn't block validation)
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because a Client Component in a parent segment prevented the page from rendering.`
+      const error = addErrorContext(
+        new Error(message),
+        componentStack,
+        effectiveCreateInstantStack
+      )
+      dynamicValidation.validationPreventingErrors.push(error)
+      return
+    }
+  } else {
+    // The hole originates inside the validation boundary.
+    //
+    // Check if we have a Suspense above the hole, but below the validation boundary.
+    // If we do, then this dynamic usage wouldn't block a navigation to this subtree.
+    // Conversely, if the nearest suspense is above the validation boundary, then this subtree would block.
+    //
+    // Note that in the component stack, children come before parents.
+    //
+    // Valid:
+    //   ...
+    //   at Suspense
+    //   ...
+    //   at __next_prefetch_validation_boundary__
+    //
+    // Invalid:
+    //   ...
+    //   at __next_prefetch_validation_boundary__
+    //   ...
+    //   at Suspense
+    //
+    const suspenseLocation = hasSuspenseRegex.exec(componentStack)
+    if (suspenseLocation) {
       if (suspenseLocation.index < boundaryLocation.index) {
         dynamicValidation.hasAllowedDynamic = true
         return
+      } else {
+        // invalid - fallthrough
       }
     }
   }
 
   if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
-    dynamicValidation.dynamicErrors.push(
-      clientDynamic.syncDynamicErrorWithStack
-    )
+    const syncError = clientDynamic.syncDynamicErrorWithStack
+    if (effectiveCreateInstantStack !== null && syncError.cause === undefined) {
+      syncError.cause = effectiveCreateInstantStack()
+    }
+    dynamicValidation.dynamicErrors.push(syncError)
     return
   }
 
-  const usageDescription =
+  const error = addErrorContext(
     kind === DynamicHoleKind.Runtime
-      ? `Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`.`
-      : `Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`.`
-  const message = `Route "${workStore.route}": ${usageDescription} This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
-  const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+      ? createRuntimeBodyError(workStore.route)
+      : createDynamicBodyError(workStore.route),
+    componentStack,
+    effectiveCreateInstantStack
+  )
   dynamicValidation.dynamicErrors.push(error)
   return
+}
+
+export function trackThrownErrorInNavigation(
+  workStore: WorkStore,
+  dynamicValidation: InstantValidationState,
+  thrownValue: unknown,
+  componentStack: string
+) {
+  const boundaryLocation =
+    hasInstantValidationBoundaryRegex.exec(componentStack)
+  if (!boundaryLocation) {
+    // There's no validation boundary on the component stack.
+    // This error may have blocked a boundary from rendering.
+
+    // Wrap the error to provide component context.
+    // This helps for errors from node_modules which would otherwise
+    // have no useful stack information due to ignore-listing,
+    // e.g. next/dynamic with `ssr: false`.
+    const error = addErrorContext(
+      new Error(
+        'An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.',
+        { cause: thrownValue }
+      ),
+      componentStack,
+      null
+    )
+    dynamicValidation.thrownErrorsOutsideBoundary.push(error)
+  } else {
+    // There's validation boundary on the component stack,
+    // so we know this error didn't block a validation boundary from rendering.
+    // However, this error might be hiding be hiding dynamic content that would
+    // cause validation to fail.
+    const suspenseLocation = hasSuspenseRegex.exec(componentStack)
+    if (suspenseLocation) {
+      if (suspenseLocation.index < boundaryLocation.index) {
+        // There's a Suspense below the validation boundary but above this error's location.
+        // This subtree can't fail instant validation because any potential
+        // dynamic holes would be guarded by the Suspense anyway,
+        // so we can allow this.
+        return
+      } else {
+        // invalid - fallthrough
+      }
+    }
+    const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because an error prevented the target segment from rendering.`
+    const error = addErrorContext(
+      new Error(message, { cause: thrownValue }),
+      componentStack,
+      null // TODO(instant-validation-build): conflicting use of cause
+    )
+    dynamicValidation.validationPreventingErrors.push(error)
+  }
 }
 
 export function trackDynamicHoleInRuntimeShell(
@@ -860,13 +1061,22 @@ export function trackDynamicHoleInRuntimeShell(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateMetadata\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = addErrorContext(
+      createDynamicMetadataError(workStore.route),
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
-    const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    // TODO(instant-validation): If the page only has holes caused by runtime data,
+    // we won't find out if there's a suspense-above-body and error for dynamic viewport
+    // even if there is in fact a suspense-above-body
+    const error = addErrorContext(
+      createDynamicViewportError(workStore.route),
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   } else if (
@@ -886,15 +1096,17 @@ export function trackDynamicHoleInRuntimeShell(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
     dynamicValidation.dynamicErrors.push(
       clientDynamic.syncDynamicErrorWithStack
     )
     return
   }
 
-  const message = `Route "${workStore.route}": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
-  const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+  const error = addErrorContext(
+    createDynamicBodyError(workStore.route),
+    componentStack,
+    null
+  )
   dynamicValidation.dynamicErrors.push(error)
   return
 }
@@ -909,13 +1121,19 @@ export function trackDynamicHoleInStaticShell(
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
   } else if (hasMetadataRegex.test(componentStack)) {
-    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateMetadata\` or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = addErrorContext(
+      createRuntimeMetadataError(workStore.route),
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicMetadata = error
     return
   } else if (hasViewportRegex.test(componentStack)) {
-    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed inside \`generateViewport\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = addErrorContext(
+      createRuntimeViewportError(workStore.route),
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   } else if (
@@ -935,14 +1153,16 @@ export function trackDynamicHoleInStaticShell(
     dynamicValidation.hasAllowedDynamic = true
     return
   } else if (clientDynamic.syncDynamicErrorWithStack) {
-    // This task was the task that called the sync error.
     dynamicValidation.dynamicErrors.push(
       clientDynamic.syncDynamicErrorWithStack
     )
     return
   } else {
-    const message = `Route "${workStore.route}": Runtime data such as \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route`
-    const error = createErrorWithComponentOrOwnerStack(message, componentStack)
+    const error = addErrorContext(
+      createRuntimeBodyError(workStore.route),
+      componentStack,
+      null
+    )
     dynamicValidation.dynamicErrors.push(error)
     return
   }
@@ -951,20 +1171,27 @@ export function trackDynamicHoleInStaticShell(
 /**
  * In dev mode, we prefer using the owner stack, otherwise the provided
  * component stack is used.
+ *
+ * Accepts an already-created Error so the SWC error-code plugin can see the
+ * `new Error(...)` call at each call site and auto-assign error codes.
  */
-function createErrorWithComponentOrOwnerStack(
-  message: string,
-  componentStack: string
+function addErrorContext(
+  error: Error,
+  componentStack: string,
+  createInstantStack: (() => Error) | null
 ) {
   const ownerStack =
     process.env.NODE_ENV !== 'production' && React.captureOwnerStack
       ? React.captureOwnerStack()
       : null
 
-  const error = new Error(message)
+  if (createInstantStack !== null) {
+    error.cause = createInstantStack()
+  }
   // TODO go back to owner stack here if available. This is temporarily using componentStack to get the right
   //
-  error.stack = error.name + ': ' + message + (ownerStack || componentStack)
+  error.stack =
+    error.name + ': ' + error.message + (ownerStack || componentStack)
   return error
 }
 
@@ -979,18 +1206,7 @@ export function logDisallowedDynamicError(
   error: Error
 ): void {
   console.error(error)
-
-  if (!workStore.dev) {
-    if (workStore.hasReadableErrorStacks) {
-      console.error(
-        `To get a more detailed stack trace and pinpoint the issue, start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.`
-      )
-    } else {
-      console.error(`To get a more detailed stack trace and pinpoint the issue, try one of the following:
-  - Start the app in development mode by running \`next dev\`, then open "${workStore.route}" in your browser to investigate the error.
-  - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.`)
-    }
-  }
+  logBuildDebugHint(workStore.route)
 }
 
 export function throwIfDisallowedDynamic(
@@ -1032,9 +1248,7 @@ export function throwIfDisallowedDynamic(
     // you need to opt into that by adding a Suspense boundary above the body
     // to indicate your are ok with fully dynamic rendering.
     if (dynamicValidation.hasDynamicViewport) {
-      console.error(
-        `Route "${workStore.route}" has a \`generateViewport\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) without explicitly allowing fully dynamic rendering. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
-      )
+      console.error(disallowedDynamicViewportMessage(workStore.route))
       throw new StaticGenBailoutError()
     }
 
@@ -1052,9 +1266,7 @@ export function throwIfDisallowedDynamic(
       dynamicValidation.hasAllowedDynamic === false &&
       dynamicValidation.hasDynamicMetadata
     ) {
-      console.error(
-        `Route "${workStore.route}" has a \`generateMetadata\` that depends on Request data (\`cookies()\`, etc...) or uncached external data (\`fetch(...)\`, etc...) when the rest of the route does not. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
-      )
+      console.error(disallowedDynamicMetadataMessage(workStore.route))
       throw new StaticGenBailoutError()
     }
   }
@@ -1109,27 +1321,65 @@ export function getStaticShellDisallowedDynamicReasons(
 export function getNavigationDisallowedDynamicReasons(
   workStore: WorkStore,
   prelude: PreludeState,
-  dynamicValidation: DynamicValidationState
+  dynamicValidation: InstantValidationState,
+  validationSampleTracking: InstantValidationSampleTracking | null,
+  boundaryState: ValidationBoundaryTracking
 ): Array<Error> {
-  // NOTE: We don't care about Suspense above body here
-  // TODO: Need to make sure the logic here actually makes sense
+  // If we have errors related to missing samples, those should take precedence over everything else.
+  if (validationSampleTracking) {
+    const { missingSampleErrors } = validationSampleTracking
+    if (missingSampleErrors.length > 0) {
+      return missingSampleErrors
+    }
+  }
 
+  const { validationPreventingErrors } = dynamicValidation
+  if (validationPreventingErrors.length > 0) {
+    return validationPreventingErrors
+  }
+
+  if (!allRequiredBoundariesRendered(boundaryState)) {
+    const { thrownErrorsOutsideBoundary } = dynamicValidation
+    const rootInstantStack = dynamicValidation.slotStacks[0]
+    if (thrownErrorsOutsideBoundary.length === 0) {
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering for an unknown reason.`
+      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return [error]
+    } else if (thrownErrorsOutsideBoundary.length === 1) {
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to the following error.`
+      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return [error, thrownErrorsOutsideBoundary[0] as Error]
+    } else {
+      const message = `Route "${workStore.route}": Could not validate \`unstable_instant\` because the target segment was prevented from rendering, likely due to one of the following errors.`
+      const error = rootInstantStack !== null ? rootInstantStack() : new Error()
+      error.name = 'Error'
+      error.message = message
+      return [error, ...(thrownErrorsOutsideBoundary as Error[])]
+    }
+  }
+
+  // NOTE: We don't care about Suspense above body here,
+  // we're only concerned with the validation boundary
   if (prelude !== PreludeState.Full) {
-    // We didn't have any sync bailouts but there may be user code which
-    // blocked the root. We would have captured these during the prerender
-    // and can log them here and then terminate the build/validating render
     const dynamicErrors = dynamicValidation.dynamicErrors
     if (dynamicErrors.length > 0) {
       return dynamicErrors
     }
 
     if (prelude === PreludeState.Empty) {
+      // If a client component suspended prevented us from rendering a shell
+      // but didn't block validation, we don't require a prelude.
+      if (dynamicValidation.hasAllowedClientDynamicAboveBoundary) {
+        return []
+      }
       // If we ever get this far then we messed up the tracking of invalid dynamic.
-      // We still adhere to the constraint that you must produce a shell but invite the
-      // user to report this as a bug in Next.js.
       return [
         new InvariantError(
-          `Route "${workStore.route}" did not produce a static shell and Next.js was unable to determine a reason.`
+          `Route "${workStore.route}" failed to render during instant validation and Next.js was unable to determine a reason.`
         ),
       ]
     }
@@ -1148,14 +1398,4 @@ export function getNavigationDisallowedDynamicReasons(
   }
   // We had a non-empty prelude and there are no dynamic holes
   return []
-}
-
-export function delayUntilRuntimeStage<T>(
-  prerenderStore: PrerenderStoreModernRuntime,
-  result: Promise<T>
-): Promise<T> {
-  if (prerenderStore.runtimeStagePromise) {
-    return prerenderStore.runtimeStagePromise.then(() => result)
-  }
-  return result
 }

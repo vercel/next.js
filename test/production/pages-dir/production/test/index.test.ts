@@ -8,6 +8,7 @@ import {
   getPageFileFromPagesManifest,
   check,
   fetchViaHTTP,
+  listClientChunks,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
 import {
@@ -15,7 +16,6 @@ import {
   PAGES_MANIFEST,
   REACT_LOADABLE_MANIFEST,
 } from 'next/constants'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 import path, { join, sep } from 'path'
 import dynamicImportTests from './dynamic'
 import processEnv from './process-env'
@@ -25,7 +25,7 @@ import { nextTestSetup } from 'e2e-utils'
 
 const glob = promisify(globOriginal)
 
-if (process.env.NEXT_TEST_WASM) {
+if (process.env.NEXT_TEST_WASM || process.env.NEXT_TEST_WASM_AFTER_JEST) {
   jest.setTimeout(120 * 1000)
 }
 
@@ -538,7 +538,7 @@ describe('Production Usage', () => {
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${encodeURI(file)}`,
+          `/_next/${encodeURI(file)}${next.getAssetQuery()}`,
           undefined,
           {
             method: 'GET',
@@ -561,7 +561,7 @@ describe('Production Usage', () => {
       for (const file of files) {
         const res = await fetchViaHTTP(
           `http://localhost:${next.appPort}`,
-          `/_next/${encodeURI(file)}`,
+          `/_next/${encodeURI(file)}${next.getAssetQuery()}`,
           undefined,
           {
             method: 'GET',
@@ -613,29 +613,28 @@ describe('Production Usage', () => {
         resources.add('/' + item)
       }
 
-      const cssStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
-        { pathnameFilter: (f) => /\.css$/.test(f) }
-      )
+      const assets = await listClientChunks(join(next.testDir, '.next'))
+
+      const cssStaticAssets = assets.filter((f) => /\.css$/.test(f))
       expect(cssStaticAssets.length).toBeGreaterThanOrEqual(1)
       if (!process.env.IS_TURBOPACK_TEST) {
         expect(cssStaticAssets[0]).toMatch(/[\\/]css[\\/]/)
       }
-      const mediaStaticAssets = await recursiveReadDir(
-        join(next.testDir, '.next', 'static'),
-        { pathnameFilter: (f) => /\.svg$/.test(f) }
-      )
+      const mediaStaticAssets = assets.filter((f) => /\.svg$/.test(f))
       expect(mediaStaticAssets.length).toBeGreaterThanOrEqual(1)
       if (!process.env.IS_TURBOPACK_TEST) {
         expect(mediaStaticAssets[0]).toMatch(/[\\/]media[\\/]/)
       }
       ;[...cssStaticAssets, ...mediaStaticAssets].forEach((asset) => {
-        resources.add(`/static${asset.replace(/\\+/g, '/')}`)
+        resources.add(`/${asset.replace(/\\+/g, '/')}`)
       })
 
       const responses = await Promise.all(
         [...resources].map((resource) =>
-          fetchViaHTTP(url, join('/_next', encodeURI(resource)))
+          fetchViaHTTP(
+            url,
+            `/_next/${encodeURI(resource)}${next.getAssetQuery()}`
+          )
         )
       )
 

@@ -1,17 +1,19 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    NonLocalValue, ResolvedVc, TaskInput, Upcast, Vc, trace::TraceRawVcs, turbobail,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
 use crate::{
-    asset::Asset,
+    asset::{Asset, AssetContent},
     chunk::{
-        ChunkItem, ChunkType, ChunkableModule, EvaluatableAssets,
-        availability_info::AvailabilityInfo, chunk_id_strategy::ModuleIdStrategy,
+        ChunkItem, ChunkType, ChunkableModule, availability_info::AvailabilityInfo,
+        chunk_id_strategy::ModuleIdStrategy,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -98,6 +100,9 @@ pub enum AssetSuffix {
 #[derive(Debug, Clone)]
 pub struct UrlBehavior {
     pub suffix: AssetSuffix,
+    /// Static suffix for contexts that cannot use dynamic JS expressions (e.g., CSS `url()`
+    /// references). Must be a constant string known at build time (e.g., `?dpl=<deployment_id>`).
+    pub static_suffix: ResolvedVc<Option<RcStr>>,
 }
 
 #[derive(
@@ -191,7 +196,7 @@ impl ChunkGroupResult {
                 self.assets
                     .await?
                     .into_iter()
-                    .chain(self.referenced_assets.await?.into_iter())
+                    .chain(self.referenced_assets.await?)
                     .copied()
                     .map(ExpandOutputAssetsInput::Asset)
                     .chain(
@@ -347,7 +352,7 @@ pub trait ChunkingContext {
     #[turbo_tasks::function]
     fn asset_path(
         self: Vc<Self>,
-        content_hash: RcStr,
+        content: Vc<AssetContent>,
         original_asset_ident: Vc<AssetIdent>,
         tag: Option<RcStr>,
     ) -> Vc<FileSystemPath>;
@@ -358,13 +363,9 @@ pub trait ChunkingContext {
     fn url_behavior(self: Vc<Self>, _tag: Option<RcStr>) -> Vc<UrlBehavior> {
         UrlBehavior {
             suffix: AssetSuffix::Inferred,
+            static_suffix: ResolvedVc::cell(None),
         }
         .cell()
-    }
-
-    #[turbo_tasks::function]
-    fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
     }
 
     #[turbo_tasks::function]
@@ -455,7 +456,7 @@ pub trait ChunkingContext {
     fn entry_chunk_group(
         self: Vc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -489,10 +490,7 @@ pub trait ChunkingContext {
     /// Returns the worker entrypoint for this chunking context.
     #[turbo_tasks::function]
     async fn worker_entrypoint(self: Vc<Self>) -> Result<Vc<Box<dyn OutputAsset>>> {
-        bail!(
-            "Worker entrypoint is not supported by {name}",
-            name = self.name().await?
-        );
+        turbobail!("Worker entrypoint is not supported by {}", self.name());
     }
 }
 pub trait ChunkingContextExt {
@@ -527,7 +525,7 @@ pub trait ChunkingContextExt {
     fn entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -539,7 +537,7 @@ pub trait ChunkingContextExt {
     fn root_entry_chunk_group(
         self: Vc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -550,7 +548,7 @@ pub trait ChunkingContextExt {
     fn root_entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -619,7 +617,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -628,7 +626,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         entry_chunk_group_asset(
             Vc::upcast_non_strict(self),
             path,
-            evaluatable_assets,
+            chunk_group,
             module_graph,
             extra_chunks,
             extra_referenced_assets,
@@ -639,14 +637,14 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_entry_chunk_group(
         self: Vc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
     ) -> Vc<EntryChunkGroupResult> {
         self.entry_chunk_group(
             path,
-            evaluatable_assets,
+            chunk_group,
             module_graph,
             extra_chunks,
             extra_referenced_assets,
@@ -657,7 +655,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
     fn root_entry_chunk_group_asset(
         self: Vc<Self>,
         path: FileSystemPath,
-        evaluatable_assets: Vc<EvaluatableAssets>,
+        chunk_group: ChunkGroup,
         module_graph: Vc<ModuleGraph>,
         extra_chunks: Vc<OutputAssets>,
         extra_referenced_assets: Vc<OutputAssets>,
@@ -665,7 +663,7 @@ impl<T: ChunkingContext + Send + Upcast<Box<dyn ChunkingContext>>> ChunkingConte
         entry_chunk_group_asset(
             Vc::upcast_non_strict(self),
             path,
-            evaluatable_assets,
+            chunk_group,
             module_graph,
             extra_chunks,
             extra_referenced_assets,
@@ -717,11 +715,10 @@ async fn relative_path_from_chunk_root_to_project_root(
     let output_root = chunking_context.output_root().await?;
     let chunk_to_output_root = chunk_root_path.get_relative_path_to(&output_root);
     let Some(chunk_to_output_root) = chunk_to_output_root else {
-        bail!(
-            "expected chunk_root_path: {chunk_root_path} to be inside of output_root: \
-             {output_root}",
-            chunk_root_path = chunk_root_path.value_to_string().await?,
-            output_root = output_root.value_to_string().await?
+        turbobail!(
+            "expected chunk_root_path: {} to be inside of output_root: {}",
+            chunking_context.chunk_root_path(),
+            chunking_context.output_root()
         );
     };
     let output_root_to_chunk_root_path = chunking_context.output_root_to_root_path().await?;
@@ -765,7 +762,7 @@ fn evaluated_chunk_group_assets(
 async fn entry_chunk_group_asset(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     path: FileSystemPath,
-    evaluatable_assets: Vc<EvaluatableAssets>,
+    chunk_group: ChunkGroup,
     module_graph: Vc<ModuleGraph>,
     extra_chunks: Vc<OutputAssets>,
     extra_referenced_assets: Vc<OutputAssets>,
@@ -774,7 +771,7 @@ async fn entry_chunk_group_asset(
     Ok(*chunking_context
         .entry_chunk_group(
             path,
-            evaluatable_assets,
+            chunk_group,
             module_graph,
             extra_chunks,
             extra_referenced_assets,

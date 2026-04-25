@@ -117,9 +117,10 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           const accumulator = createSegmentVaryParamsAccumulator()
           responseAccumulator.segments.add(accumulator)
           return accumulator
@@ -128,11 +129,12 @@ export function createVaryParamsAccumulator(): VaryParamsAccumulator | null {
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
+      case 'validation-client':
       case 'unstable-cache':
+      case 'generate-static-params':
         break
       default:
         workUnitStore satisfies never
@@ -146,20 +148,22 @@ export function getMetadataVaryParamsAccumulator(): VaryParamsAccumulator | null
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-runtime': {
+      case 'prerender-runtime':
+      case 'request': {
         const responseAccumulator = workUnitStore.varyParamsAccumulator
-        if (responseAccumulator !== null) {
+        if (responseAccumulator) {
           return responseAccumulator.head
         }
         return null
       }
       case 'prerender-ppr':
       case 'prerender-legacy':
-      case 'request':
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
+      case 'validation-client':
       case 'unstable-cache':
+      case 'generate-static-params':
         return null
       default:
         workUnitStore satisfies never
@@ -205,7 +209,9 @@ export function getRootParamsVaryParamsAccumulator(): VaryParamsAccumulator | nu
       case 'cache':
       case 'private-cache':
       case 'prerender-client':
+      case 'validation-client':
       case 'unstable-cache':
+      case 'generate-static-params':
         return null
       default:
         workUnitStore satisfies never
@@ -237,8 +243,47 @@ export function accumulateRootVaryParam(paramName: string): void {
 
 export function createVaryingParams(
   accumulator: VaryParamsAccumulator,
-  originalParamsObject: Params
+  originalParamsObject: Params,
+  optionalCatchAllParamName: string | null
 ): Params {
+  if (optionalCatchAllParamName !== null) {
+    // When there's an optional catch-all param with no value (e.g.,
+    // [[...slug]] at /), the param doesn't exist as a property on the params
+    // object. Use a Proxy to track all param access — both existing params
+    // and the missing optional param — including enumeration patterns like
+    // Object.keys(), spread, for...in, and `in` checks.
+    return new Proxy(originalParamsObject, {
+      get(target, prop, receiver) {
+        if (typeof prop === 'string') {
+          if (
+            prop === optionalCatchAllParamName ||
+            Object.prototype.hasOwnProperty.call(target, prop)
+          ) {
+            accumulateVaryParam(accumulator, prop)
+          }
+        }
+        return Reflect.get(target, prop, receiver)
+      },
+      has(target, prop) {
+        if (prop === optionalCatchAllParamName) {
+          accumulateVaryParam(accumulator, optionalCatchAllParamName)
+        }
+        return Reflect.has(target, prop)
+      },
+      ownKeys(target) {
+        // Enumerating the params object means the user's code may depend on
+        // which params are present, so conservatively track the optional
+        // param as accessed.
+        accumulateVaryParam(accumulator, optionalCatchAllParamName)
+        return Reflect.ownKeys(target)
+      },
+    })
+  }
+
+  // When there's no optional catch-all, all params exist as properties on the
+  // object, so we can use defineProperty getters instead of a Proxy. This is
+  // faster because the engine can optimize property access on regular objects
+  // more aggressively than Proxy trap calls.
   const underlyingParamsWithVarying: Params = {}
   for (const paramName in originalParamsObject) {
     Object.defineProperty(underlyingParamsWithVarying, paramName, {

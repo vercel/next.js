@@ -5,7 +5,7 @@ description: API Reference for the after function.
 
 `after` allows you to schedule work to be executed after a response (or prerender) is finished. This is useful for tasks and other side effects that should not block the response, such as logging and analytics.
 
-It can be used in [Server Components](/docs/app/getting-started/server-and-client-components) (including [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata)), [Server Functions](/docs/app/getting-started/updating-data), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Proxy](/docs/app/api-reference/file-conventions/proxy).
+It can be used in [Server Components](/docs/app/getting-started/server-and-client-components) (including [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata)), [Server Functions](/docs/app/getting-started/mutating-data), [Route Handlers](/docs/app/api-reference/file-conventions/route), and [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
 The function accepts a callback that will be executed after the response (or prerender) is finished:
 
@@ -37,7 +37,7 @@ export default function Layout({ children }) {
 }
 ```
 
-> **Good to know:** `after` is not a [Dynamic API](/docs/app/guides/caching#dynamic-rendering) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
+> **Good to know:** `after` is not a [Request-time API](/docs/app/glossary#request-time-apis) and calling it does not cause a route to become dynamic. If it's used within a static page, the callback will execute at build time, or whenever a page is revalidated.
 
 ## Reference
 
@@ -47,7 +47,7 @@ export default function Layout({ children }) {
 
 ### Duration
 
-`after` will run for the platform's default or configured max duration of your route. If your platform supports it, you can configure the timeout limit using the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config#maxduration) route segment config.
+`after` will run for the platform's default or configured max duration of your route. If your platform supports it, you can configure the timeout limit using the [`maxDuration`](/docs/app/api-reference/file-conventions/route-segment-config/maxDuration) route segment config.
 
 ## Good to know
 
@@ -59,9 +59,13 @@ export default function Layout({ children }) {
 
 ### With request APIs
 
-You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Functions](/docs/app/getting-started/updating-data) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
+Whether you can use request APIs like [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` depends on where `after` is called from.
 
-```ts filename="app/api/route.ts" highlight={2,7-9} switcher
+#### In Route Handlers and Server Functions
+
+You can call `cookies` and `headers` directly inside the `after` callback when used in [Route Handlers](/docs/app/api-reference/file-conventions/route) and [Server Functions](/docs/app/getting-started/mutating-data). This is useful for logging activity after a mutation or API request. For example:
+
+```ts filename="app/api/route.ts" highlight={2,10-16} switcher
 import { after } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import { logUserAction } from '@/app/utils'
@@ -72,9 +76,9 @@ export async function POST(request: Request) {
 
   // Log user activity for analytics
   after(async () => {
-    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const userAgent = (await headers()).get('user-agent') || 'unknown'
     const sessionCookie =
-      (await cookies().get('session-id'))?.value || 'anonymous'
+      (await cookies()).get('session-id')?.value || 'anonymous'
 
     logUserAction({ sessionCookie, userAgent })
   })
@@ -86,7 +90,7 @@ export async function POST(request: Request) {
 }
 ```
 
-```js filename="app/api/route.js" highlight={2,7-9} switcher
+```js filename="app/api/route.js" highlight={2,10-16} switcher
 import { after } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import { logUserAction } from '@/app/utils'
@@ -97,9 +101,9 @@ export async function POST(request) {
 
   // Log user activity for analytics
   after(async () => {
-    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const userAgent = (await headers()).get('user-agent') || 'unknown'
     const sessionCookie =
-      (await cookies().get('session-id'))?.value || 'anonymous'
+      (await cookies()).get('session-id')?.value || 'anonymous'
 
     logUserAction({ sessionCookie, userAgent })
   })
@@ -111,7 +115,123 @@ export async function POST(request) {
 }
 ```
 
-However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/getting-started/server-and-client-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Cache Components](/docs/app/getting-started/cache-components), but `after` runs after React's rendering lifecycle.
+#### In Server Components (pages and layouts)
+
+[Server Components](/docs/app/getting-started/server-and-client-components) (including pages, layouts, and `generateMetadata`) **cannot** use `cookies`, `headers`, or other Request-time APIs inside `after`. This is because Next.js needs to know which part of the component tree accesses request data to support [Partial Prerendering](/docs/app/glossary#partial-prerendering-ppr) and [Cache Components](/docs/app/getting-started/caching), but `after` runs after React's rendering lifecycle.
+
+If you need request data inside an `after` callback in a Server Component, read it beforehand and pass the values in:
+
+```tsx filename="app/page.tsx" highlight={8-10,12} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export default async function Page() {
+  // Read request data before `after` — this is allowed
+  // These calls will be read during the component's rendering lifecycle
+  const userAgent = (await headers()).get('user-agent') || 'unknown'
+  const sessionCookie =
+    (await cookies()).get('session-id')?.value || 'anonymous'
+
+  after(() => {
+    // Use the values read above
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return <h1>My Page</h1>
+}
+```
+
+```jsx filename="app/page.jsx" highlight={8-10,12} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export default async function Page() {
+  // Read request data before `after` — this is allowed
+  // These calls will be read during the component's rendering lifecycle
+  const userAgent = (await headers()).get('user-agent') || 'unknown'
+  const sessionCookie =
+    (await cookies()).get('session-id')?.value || 'anonymous'
+
+  after(() => {
+    // Use the values read above
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return <h1>My Page</h1>
+}
+```
+
+Calling `cookies()` or `headers()` inside the `after` callback in a Server Component will throw a runtime error.
+
+#### With Cache Components
+
+When using [Cache Components](/docs/app/getting-started/caching), components that access request data like `cookies` or `headers` must be wrapped in [`<Suspense>`](https://react.dev/reference/react/Suspense) so the rest of the page can be prerendered into a static shell.
+
+You can combine this pattern with `after` by reading request data in a dynamic component and passing it into `after`:
+
+```tsx filename="app/page.tsx" highlight={18-19,22-24} switcher
+import { Suspense } from 'react'
+import { after } from 'next/server'
+import { cookies } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export default function Page() {
+  return (
+    <>
+      <h1>Part of the static shell</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <DynamicContent />
+      </Suspense>
+    </>
+  )
+}
+
+async function DynamicContent() {
+  const sessionCookie =
+    (await cookies()).get('session-id')?.value || 'anonymous'
+
+  // Schedule work after the response is sent
+  after(() => {
+    logUserAction({ sessionCookie })
+  })
+
+  return <p>Your session: {sessionCookie}</p>
+}
+```
+
+```jsx filename="app/page.jsx" highlight={18-19,22-24} switcher
+import { Suspense } from 'react'
+import { after } from 'next/server'
+import { cookies } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export default function Page() {
+  return (
+    <>
+      <h1>Part of the static shell</h1>
+      <Suspense fallback={<p>Loading...</p>}>
+        <DynamicContent />
+      </Suspense>
+    </>
+  )
+}
+
+async function DynamicContent() {
+  const sessionCookie =
+    (await cookies()).get('session-id')?.value || 'anonymous'
+
+  // Schedule work after the response is sent
+  after(() => {
+    logUserAction({ sessionCookie })
+  })
+
+  return <p>Your session: {sessionCookie}</p>
+}
+```
+
+In this example, `<h1>` and the `<Suspense>` fallback are included in the static shell. `DynamicContent` reads the cookie during rendering and passes it into `after` via closure. Since `cookies()` is called _outside_ the `after` callback (during the component's render), this works correctly.
 
 ## Platform Support
 
@@ -177,7 +297,7 @@ const handler = (req, res) => {
 
 ## Version History
 
-| Version History | Description                  |
-| --------------- | ---------------------------- |
-| `v15.1.0`       | `after` became stable.       |
-| `v15.0.0-rc`    | `unstable_after` introduced. |
+| Version      | Changes                      |
+| ------------ | ---------------------------- |
+| `v15.1.0`    | `after` became stable.       |
+| `v15.0.0-rc` | `unstable_after` introduced. |

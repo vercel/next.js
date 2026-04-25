@@ -47,6 +47,7 @@ describe('fetch failures have good stack traces in edge runtime', () => {
         // eslint-disable-next-line jest/no-standalone-expect
         await expect(browser).toDisplayRedbox(`
          {
+           "code": "E394",
            "description": "fetch failed",
            "environmentLabel": null,
            "label": "Runtime TypeError",

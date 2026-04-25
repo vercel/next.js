@@ -12,7 +12,7 @@ use turbopack_core::{
     output::OutputAssets,
 };
 
-use crate::{operation::OptionEndpoint, paths::ServerPath, project::Project};
+use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
 
 #[derive(
     TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
@@ -64,6 +64,9 @@ pub trait Endpoint {
     }
     #[turbo_tasks::function]
     fn module_graphs(self: Vc<Self>) -> Vc<ModuleGraphs>;
+    /// The project this endpoint belongs to.
+    #[turbo_tasks::function]
+    fn project(self: Vc<Self>) -> Vc<Project>;
 }
 
 #[derive(
@@ -264,11 +267,11 @@ pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
-        server_paths: Vec<ServerPath>,
+        server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
     Edge {
-        server_paths: Vec<ServerPath>,
+        server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
     NotFound,

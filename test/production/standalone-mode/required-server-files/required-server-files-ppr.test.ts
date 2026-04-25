@@ -104,6 +104,7 @@ describe.skip('required server files app router', () => {
       /- Local:/,
       {
         ...process.env,
+        ...next.env,
         __NEXT_TEST_MODE: 'e2e',
         PORT: `${appPort}`,
         NEXT_PRIVATE_DEBUG_CACHE: '1',

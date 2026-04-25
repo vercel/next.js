@@ -24,6 +24,10 @@ type CacheLifeConfig = {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
+ * The second argument specifies a [`cacheLife`](https://nextjs.org/docs/app/api-reference/functions/cacheLife#reference) profile
+ * (e.g. `"max"`), or a `{ expire }` object. For immediate expiration in Server Actions, use
+ * [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag) instead.
+ *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
 export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
@@ -147,6 +151,10 @@ function revalidate(
         throw new Error(
           `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
         )
+      case 'generate-static-params':
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside \`generateStaticParams\` which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        )
       case 'prerender':
       case 'prerender-runtime':
         // cacheComponents Prerender
@@ -160,6 +168,7 @@ function revalidate(
           workUnitStore
         )
       case 'prerender-client':
+      case 'validation-client':
         throw new InvariantError(
           `${expression} must not be used within a client component. Next.js should be preventing ${expression} from being included in client components statically, but did not in this case.`
         )

@@ -1,7 +1,7 @@
 import { NextInstance, createNext } from 'e2e-utils'
 import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
+import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
 import type {
   Diagnostics,
   Issue,
@@ -232,12 +232,13 @@ async function main() {
     writeRoutesHashesManifest: false,
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
+    nextVersion: '0.0.0',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
   const entrypoints = (await entrypointsSubscription.next()).value;
 
-  const RUNS = 10000;
+  const RUNS = 1000;
   async function compileRoute(route) {
     const endpoint = route.endpoint ?? route.htmlEndpoint ?? route.pages[0].htmlEndpoint;
     if (!endpoint) {
@@ -391,6 +392,7 @@ describe('next.rs api', () => {
       writeRoutesHashesManifest: false,
       currentNodeJsVersion: '18.0.0',
       isPersistentCachingEnabled: false,
+      nextVersion: '0.0.0',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -667,12 +669,15 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project.hmrIdentifiersSubscribe().next()
+        const result = await project
+          .hmrChunkNamesSubscribe(HmrTarget.Client)
+          .next()
         expect(result.done).toBe(false)
-        const identifiers = result.value.identifiers
-        expect(identifiers).toHaveProperty('length', expect.toBePositive())
-        const subscriptions = identifiers.map((identifier) =>
-          project.hmrEvents(identifier)
+        const chunkNames = result.value.chunkNames
+        expect(chunkNames).toHaveProperty('length', expect.toBePositive())
+
+        const subscriptions = chunkNames.map((chunkName) =>
+          project.hmrEvents(chunkName, HmrTarget.Client)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -794,12 +799,12 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrIdentifiersSubscribe().next()
+    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
     expect(result.done).toBe(false)
-    const identifiers = result.value.identifiers
+    const chunkNames = result.value.chunkNames
 
-    const subscriptions = identifiers.map((identifier) =>
-      project.hmrEvents(identifier)
+    const subscriptions = chunkNames.map((chunkName) =>
+      project.hmrEvents(chunkName, HmrTarget.Client)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {

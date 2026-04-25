@@ -42,6 +42,7 @@ use swc_core::{
     common::{FilePathMapping, SourceMap},
 };
 
+pub mod code_frame;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod lockfile;
@@ -105,6 +106,7 @@ fn init() {
                     *cell = Some(Instant::now());
                 }
             });
+            TurboMalloc::thread_park();
         })
         .worker_threads(worker_threads)
         // Avoid a limit on threads to avoid deadlocks due to usage of block_in_place

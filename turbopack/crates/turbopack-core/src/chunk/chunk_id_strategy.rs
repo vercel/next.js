@@ -1,8 +1,9 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    turbobail,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 
@@ -61,7 +62,7 @@ impl ModuleIdStrategy {
                     ));
                 }
 
-                bail!("ModuleId not found for ident: {}", ident.to_string().await?);
+                turbobail!("ModuleId not found for ident: {}", ident);
             }
             ModuleIdFallback::Ident => Ok(ModuleId::String(ident.to_string().owned().await?)),
         }

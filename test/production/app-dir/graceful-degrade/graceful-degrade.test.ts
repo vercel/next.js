@@ -7,8 +7,8 @@ describe('graceful-degrade', () => {
   })
 
   // Delete client chunks to simulate chunk loading failure
-  beforeAll(() => {
-    deleteBrowserDynamicChunks(next)
+  beforeAll(async () => {
+    await deleteBrowserDynamicChunks(next)
   })
 
   it('should degrade to graceful error when chunk loading fails in ssr for bot', async () => {
@@ -31,7 +31,7 @@ describe('graceful-degrade', () => {
 
     // Do not contain the global error boundary text
     const bodyText = await originBody.text()
-    expect(bodyText).not.toMatch(/This page crashed/)
+    expect(bodyText).not.toMatch(/This page couldn\u2019t load/)
   })
 
   it('should preserve the ssr html when browser errors for bot', async () => {
@@ -48,7 +48,7 @@ describe('graceful-degrade', () => {
     expect(errors).toMatch(/Error: boom/)
 
     const bodyText = await browser.elementByCss('body').text()
-    expect(bodyText).not.toMatch(/This page crashed/)
+    expect(bodyText).not.toMatch(/This page couldn\u2019t load/)
     expect(bodyText).toMatch(/fine/)
   })
 })

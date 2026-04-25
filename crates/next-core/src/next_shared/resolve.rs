@@ -1,6 +1,7 @@
 use std::sync::LazyLock;
 
 use anyhow::Result;
+use async_trait::async_trait;
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
@@ -11,7 +12,7 @@ use turbo_tasks_fs::{
 use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueSeverity, IssueStage, StyledString},
     reference_type::ReferenceType,
     resolve::{
         ExternalTraced, ExternalType, ResolveResult, ResolveResultItem, ResolveResultOption,
@@ -56,155 +57,45 @@ pub struct InvalidImportModuleIssue {
     pub skip_context_message: bool,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidImportModuleIssue {
     fn severity(&self) -> IssueSeverity {
         IssueSeverity::Error
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Resolve.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Resolve
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Invalid import")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Invalid import")))
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        let raw_context = self.file_path.clone();
-
+    async fn description(&self) -> Result<Option<StyledString>> {
         let mut messages = self.messages.clone();
-
         if !self.skip_context_message {
             //[TODO]: how do we get the import trace?
+            messages.push(
+                format!(
+                    "The error was caused by importing '{}'",
+                    self.file_path.path
+                )
+                .into(),
+            );
+        }
+
+        Ok(Some(StyledString::Line(
             messages
-                .push(format!("The error was caused by importing '{}'", raw_context.path).into());
-        }
-
-        Ok(Vc::cell(Some(
-            StyledString::Line(
-                messages
-                    .iter()
-                    .map(|v| StyledString::Text(format!("{v}\n").into()))
-                    .collect::<Vec<StyledString>>(),
-            )
-            .resolved_cell(),
+                .iter()
+                .map(|v| StyledString::Text(format!("{v}\n").into()))
+                .collect::<Vec<StyledString>>(),
         )))
     }
-}
-
-/// A resolver plugin emits an error when specific context imports
-/// specified import requests. It doesn't detect if the import is correctly
-/// aliased or not unlike webpack-config does; Instead it should be correctly
-/// configured when each context sets up its resolve options.
-#[turbo_tasks::value]
-pub(crate) struct InvalidImportResolvePlugin {
-    root: FileSystemPath,
-    invalid_import: RcStr,
-    message: Vec<RcStr>,
-}
-
-#[turbo_tasks::value_impl]
-impl InvalidImportResolvePlugin {
-    #[turbo_tasks::function]
-    pub fn new(root: FileSystemPath, invalid_import: RcStr, message: Vec<RcStr>) -> Vc<Self> {
-        InvalidImportResolvePlugin {
-            root,
-            invalid_import,
-            message,
-        }
-        .cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl BeforeResolvePlugin for InvalidImportResolvePlugin {
-    #[turbo_tasks::function]
-    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition> {
-        BeforeResolvePluginCondition::from_modules(Vc::cell(vec![self.invalid_import.clone()]))
-    }
-
-    #[turbo_tasks::function]
-    fn before_resolve(
-        &self,
-        lookup_path: FileSystemPath,
-        _reference_type: ReferenceType,
-        _request: Vc<Request>,
-    ) -> Vc<ResolveResultOption> {
-        InvalidImportModuleIssue {
-            file_path: lookup_path,
-            messages: self.message.clone(),
-            // styled-jsx specific resolve error has its own message
-            skip_context_message: self.invalid_import == "styled-jsx",
-        }
-        .resolved_cell()
-        .emit();
-
-        ResolveResultOption::some(*ResolveResult::primary(ResolveResultItem::Error(
-            ResolvedVc::cell(self.message.join("\n").into()),
-        )))
-    }
-}
-
-/// Returns a resolve plugin if context have imports to `client-only`.
-/// Only the contexts that aliases `client-only` to
-/// `next/dist/compiled/client-only/error` should use this.
-pub(crate) fn get_invalid_client_only_resolve_plugin(
-    root: FileSystemPath,
-) -> Vc<InvalidImportResolvePlugin> {
-    InvalidImportResolvePlugin::new(
-        root,
-        rcstr!("client-only"),
-        vec![
-            "'client-only' cannot be imported from a Server Component module. It should only be \
-             used from a Client Component."
-                .into(),
-        ],
-    )
-}
-
-/// Returns a resolve plugin if context have imports to `server-only`.
-/// Only the contexts that aliases `server-only` to
-/// `next/dist/compiled/server-only/index` should use this.
-pub(crate) fn get_invalid_server_only_resolve_plugin(
-    root: FileSystemPath,
-) -> Vc<InvalidImportResolvePlugin> {
-    InvalidImportResolvePlugin::new(
-        root,
-        rcstr!("server-only"),
-        vec![
-            "'server-only' cannot be imported from a Client Component module. It should only be \
-             used from a Server Component."
-                .into(),
-        ],
-    )
-}
-
-/// Returns a resolve plugin if context have imports to `styled-jsx`.
-pub(crate) fn get_invalid_styled_jsx_resolve_plugin(
-    root: FileSystemPath,
-) -> Vc<InvalidImportResolvePlugin> {
-    InvalidImportResolvePlugin::new(
-        root,
-        rcstr!("styled-jsx"),
-        vec![
-            "'client-only' cannot be imported from a Server Component module. It should only be \
-             used from a Client Component."
-                .into(),
-            "The error was caused by using 'styled-jsx'. It only works in a Client Component but \
-             none of its parents are marked with \"use client\", so they're Server Components by \
-             default."
-                .into(),
-        ],
-    )
 }
 
 #[turbo_tasks::value]
@@ -249,14 +140,15 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
         // Replace '/esm/' with '/' to match the CJS version of the file.
         let specifier: RcStr = specifier.replace("/esm/", "/").into();
 
-        Ok(Vc::cell(Some(ResolveResult::primary(
-            ResolveResultItem::External {
+        Ok(Vc::cell(Some(
+            ResolveResult::primary(ResolveResultItem::External {
                 name: specifier.clone(),
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
                 target: None,
-            },
-        ))))
+            })
+            .resolved_cell(),
+        )))
     }
 }
 
@@ -328,9 +220,12 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             .await?
             .join(&format!("{base}/{resource_request}"))?;
 
-        Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
-            FileSource::new(new_path).to_resolved().await?,
-        )))))
+        Ok(Vc::cell(Some(
+            ResolveResult::source(ResolvedVc::upcast(
+                FileSource::new(new_path).to_resolved().await?,
+            ))
+            .resolved_cell(),
+        )))
     }
 }
 
@@ -430,8 +325,11 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
         let raw_fs_path = fs_path.clone();
         let modified_path = raw_fs_path.path.replace("next/dist/esm/", "next/dist/");
         let new_path = fs_path.root().await?.join(&modified_path)?;
-        Ok(Vc::cell(Some(ResolveResult::source(ResolvedVc::upcast(
-            FileSource::new(new_path).to_resolved().await?,
-        )))))
+        Ok(Vc::cell(Some(
+            ResolveResult::source(ResolvedVc::upcast(
+                FileSource::new(new_path).to_resolved().await?,
+            ))
+            .resolved_cell(),
+        )))
     }
 }

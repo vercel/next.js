@@ -22,7 +22,7 @@ function runTests(mode: 'server' | 'dev') {
   it('should load static unicode image', async () => {
     const src = await browser.elementById('static').getAttribute('src')
     expect(src).toMatch(
-      /_next%2Fstatic%2Fmedia%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD(.+)png/
+      /_next%2Fstatic%2F(immutable%2F)?media%2F%C3%A4%C3%B6%C3%BC%C5%A1%C4%8D%C5%99%C3%AD(.+)png/
     )
     const fullSrc = new URL(src, `http://localhost:${appPort}`)
     const res = await fetch(fullSrc)

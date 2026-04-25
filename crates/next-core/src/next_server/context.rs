@@ -27,7 +27,8 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+    AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
+    references::esm::UrlRewriteBehavior,
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -53,8 +54,7 @@ use crate::{
     next_shared::{
         resolve::{
             ModuleFeatureReportResolvePlugin, NextExternalResolvePlugin,
-            NextNodeSharedRuntimeResolvePlugin, get_invalid_client_only_resolve_plugin,
-            get_invalid_styled_jsx_resolve_plugin,
+            NextNodeSharedRuntimeResolvePlugin,
         },
         transforms::{
             EcmascriptTransformStage, emotion::get_emotion_transform_rule, get_ecma_transform_rule,
@@ -153,14 +153,6 @@ pub async fn get_server_resolve_options_context(
         ModuleFeatureReportResolvePlugin::new(project_path.clone())
             .to_resolved()
             .await?;
-    let invalid_client_only_resolve_plugin =
-        get_invalid_client_only_resolve_plugin(project_path.clone())
-            .to_resolved()
-            .await?;
-    let invalid_styled_jsx_client_only_resolve_plugin =
-        get_invalid_styled_jsx_resolve_plugin(project_path.clone())
-            .to_resolved()
-            .await?;
 
     // Always load these predefined packages as external.
     let mut external_packages: Vec<RcStr> = load_next_js_jsonc_file(
@@ -241,7 +233,7 @@ pub async fn get_server_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let mut before_resolve_plugins = match &ty {
+    let before_resolve_plugins = match &ty {
         ServerContextType::Pages { .. }
         | ServerContextType::AppSSR { .. }
         | ServerContextType::AppRSC { .. } => {
@@ -287,32 +279,6 @@ pub async fn get_server_resolve_options_context(
             ]
         }
     };
-
-    // Inject resolve plugin to assert incorrect import to client|server-only for
-    // the corresponding context. Refer https://github.com/vercel/next.js/blob/ad15817f0368ba154bed6d85320335d4b67b7348/packages/next/src/build/webpack-config.ts#L1205-L1235
-    // how it is applied in the webpack config.
-    // Unlike webpack which alias client-only -> runtime code -> build-time error
-    // code, we use resolve plugin to detect original import directly. This
-    // means each resolve plugin must be injected only for the context where the
-    // alias resolves into the error. The alias lives in here: https://github.com/vercel/next.js/blob/0060de1c4905593ea875fa7250d4b5d5ce10897d/packages/next-swc/crates/next-core/src/next_import_map.rs#L534
-    match ty {
-        ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
-            //noop
-        }
-        ServerContextType::AppRSC { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation { .. } => {
-            before_resolve_plugins.push(ResolvedVc::upcast(invalid_client_only_resolve_plugin));
-            before_resolve_plugins.push(ResolvedVc::upcast(
-                invalid_styled_jsx_client_only_resolve_plugin,
-            ));
-        }
-        ServerContextType::AppSSR { .. } => {
-            //[TODO] Build error in this context makes rsc-build-error.ts fail which expects runtime error code
-            // looks like webpack and turbopack have different order, webpack runs rsc transform first, turbopack triggers resolve plugin first.
-        }
-    }
 
     let resolve_options_context = ResolveOptionsContext {
         enable_node_modules: Some(root_dir.clone()),
@@ -374,6 +340,7 @@ pub async fn get_server_compile_time_info(
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
     report_system_env_inlining: Vc<IssueSeverity>,
+    hot_module_replacement_enabled: bool,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -393,6 +360,7 @@ pub async fn get_server_compile_time_info(
             .to_resolved()
             .await?,
     )
+    .hot_module_replacement_enabled(hot_module_replacement_enabled)
     .cell()
     .await
 }
@@ -479,13 +447,21 @@ pub async fn get_server_module_options_context(
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
+    let local_postcss_config = *next_config
+        .experimental_turbopack_local_postcss_config()
+        .await?;
+    let postcss_config_location = if local_postcss_config == Some(true) {
+        PostCssConfigLocation::LocalPathOrProjectPath
+    } else {
+        PostCssConfigLocation::ProjectPathOrLocalPath
+    };
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
             get_postcss_package_mapping(project_path.clone())
                 .to_resolved()
                 .await?,
         ),
-        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
+        config_location: postcss_config_location,
         ..Default::default()
     };
     let postcss_foreign_transform_options = PostCssTransformOptions {
@@ -592,6 +568,7 @@ pub async fn get_server_module_options_context(
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
+            enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             source_maps,
@@ -603,6 +580,7 @@ pub async fn get_server_module_options_context(
         css: CssOptionsContext {
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
+            lightningcss_features: *next_config.lightningcss_feature_flags().await?,
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -775,17 +753,18 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            let client_directive_transformer = ecmascript_client_reference_transition_name.map(
-                |ecmascript_client_reference_transition_name| {
-                    get_ecma_transform_rule(
-                        Box::new(ClientDirectiveTransformer::new(
-                            ecmascript_client_reference_transition_name,
-                        )),
+            let client_directive_transformer =
+                if let Some(name) = ecmascript_client_reference_transition_name {
+                    Some(get_ecma_transform_rule(
+                        client_directive_transform_plugin(name)
+                            .to_resolved()
+                            .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
-                    )
-                },
-            );
+                    ))
+                } else {
+                    None
+                };
 
             foreign_next_server_rules.extend(internal_custom_rules);
             foreign_next_server_rules.extend(client_directive_transformer.clone());
@@ -862,9 +841,9 @@ pub async fn get_server_module_options_context(
                 ecmascript_client_reference_transition_name
             {
                 common_next_server_rules.push(get_ecma_transform_rule(
-                    Box::new(ClientDirectiveTransformer::new(
-                        ecmascript_client_reference_transition_name,
-                    )),
+                    client_directive_transform_plugin(ecmascript_client_reference_transition_name)
+                        .to_resolved()
+                        .await?,
                     enable_mdx_rs.is_some(),
                     EcmascriptTransformStage::Preprocess,
                 ));
@@ -933,26 +912,28 @@ pub async fn get_server_module_options_context(
             app_dir,
             ecmascript_client_reference_transition_name,
         } => {
-            let custom_source_transform_rules: Vec<ModuleRule> = vec![
-                if let Some(ecmascript_client_reference_transition_name) =
-                    ecmascript_client_reference_transition_name
-                {
+            let directive_transform_rule =
+                if let Some(name) = ecmascript_client_reference_transition_name {
                     get_ecma_transform_rule(
-                        Box::new(ClientDirectiveTransformer::new(
-                            ecmascript_client_reference_transition_name,
-                        )),
+                        client_directive_transform_plugin(name)
+                            .to_resolved()
+                            .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
                     )
                 } else {
                     get_ecma_transform_rule(
-                        Box::new(ClientDisallowedDirectiveTransformer::new(
-                            "next/dist/client/use-client-disallowed.js".to_string(),
-                        )),
+                        client_disallowed_directive_transform_plugin(rcstr!(
+                            "next/dist/client/use-client-disallowed.js"
+                        ))
+                        .to_resolved()
+                        .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
                     )
-                },
+                };
+            let custom_source_transform_rules: Vec<ModuleRule> = vec![
+                directive_transform_rule,
                 get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
             ];
 
@@ -1016,6 +997,19 @@ pub async fn get_server_module_options_context(
     Ok(module_options_context)
 }
 
+#[turbo_tasks::function]
+fn client_directive_transform_plugin(transition_name: RcStr) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(ClientDirectiveTransformer::new(transition_name))
+        as Box<dyn CustomTransformer + Send + Sync>)
+}
+
+#[turbo_tasks::function]
+fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(ClientDisallowedDirectiveTransformer::new(
+        error_proxy_module.to_string(),
+    )) as Box<dyn CustomTransformer + Send + Sync>)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
@@ -1033,7 +1027,10 @@ pub struct ServerChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub client_root: FileSystemPath,
+    pub client_static_folder_name: RcStr,
     pub asset_prefix: RcStr,
+    pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1057,8 +1054,12 @@ pub async fn get_server_chunking_context_with_client_assets(
         nested_async_chunking,
         debug_ids,
         client_root,
+        client_static_folder_name,
         asset_prefix,
+        css_url_suffix,
+        hash_salt,
     } = options;
+    let css_url_suffix = css_url_suffix.to_resolved().await?;
 
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1070,7 +1071,9 @@ pub async fn get_server_chunking_context_with_client_assets(
         node_root_to_root_path,
         client_root.clone(),
         node_root.join("server/chunks/ssr")?,
-        client_root.join("static/media")?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
@@ -1079,8 +1082,13 @@ pub async fn get_server_chunking_context_with_client_assets(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix,
         },
     )
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: ResolvedVc::cell(None),
+    })
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -1095,6 +1103,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
@@ -1148,8 +1157,12 @@ pub async fn get_server_chunking_context(
         nested_async_chunking,
         debug_ids,
         client_root,
+        client_static_folder_name,
         asset_prefix,
+        css_url_suffix,
+        hash_salt,
     } = options;
+    let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
     // different server chunking contexts. OR the build chunking context should
@@ -1165,14 +1178,24 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .client_roots_override(rcstr!("client"), client_root.clone())
-    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_root_path_override(
+        rcstr!("client"),
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
+    )
     .asset_prefix_override(rcstr!("client"), asset_prefix)
     .url_behavior_override(
         rcstr!("client"),
         UrlBehavior {
             suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix,
         },
     )
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: ResolvedVc::cell(None),
+    })
     .minify_type(if *minify.await? {
         MinifyType::Minify {
             mangle: (!*no_mangling.await?).then_some(MangleType::OptimalSize),
@@ -1186,6 +1209,7 @@ pub async fn get_server_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 

@@ -9,6 +9,32 @@ const collectDiffs = require('./collect-diffs')
 const { statsAppDir, diffRepoDir } = require('../constants')
 const { calcStats } = require('../util/stats')
 
+// Location of the native binary that the workflow copies into the action dir.
+// From src/run/index.js → .github/actions/next-stats-action/native
+const nativeBinaryDir = path.join(__dirname, '../../native')
+
+// Sum the size of all *.node files in the action's native/ directory.
+async function getSwcBinarySize() {
+  try {
+    const entries = await fs.readdir(nativeBinaryDir)
+    let total = 0
+    let found = 0
+    for (const entry of entries) {
+      if (!entry.endsWith('.node')) continue
+      const stat = await fs.stat(path.join(nativeBinaryDir, entry))
+      if (stat.isFile()) {
+        total += stat.size
+        found++
+      }
+    }
+    if (found === 0) return null
+    return total
+  } catch (err) {
+    logger(`Unable to measure SWC binary size: ${err.message}`)
+    return null
+  }
+}
+
 // Number of iterations for build benchmarks to get stable median
 const BUILD_BENCHMARK_ITERATIONS = 5
 
@@ -57,6 +83,7 @@ async function runConfigs(
       let curStats = {
         General: {
           nodeModulesSize: null,
+          swcBinarySize: null,
         },
       }
 
@@ -83,6 +110,7 @@ async function runConfigs(
         curStats.General.nodeModulesSize = await getDirSize(
           path.join(statsAppDir, 'node_modules')
         )
+        curStats.General.swcBinarySize = await getSwcBinarySize()
       }
 
       // Run builds for selected bundler(s) and collect stats separately
@@ -284,19 +312,30 @@ async function linkPkgs(pkgDir = '', pkgPaths) {
 
   if (!pkgData.dependencies && !pkgData.devDependencies) return
 
-  for (const pkg of pkgPaths.keys()) {
-    const pkgPath = pkgPaths.get(pkg)
-
+  const overrides = {}
+  for (const [pkg, pkgPath] of pkgPaths.entries()) {
     if (pkgData.dependencies && pkgData.dependencies[pkg]) {
       pkgData.dependencies[pkg] = pkgPath
     } else if (pkgData.devDependencies && pkgData.devDependencies[pkg]) {
       pkgData.devDependencies[pkg] = pkgPath
+    } else {
+      overrides[pkg] = pkgPath
     }
   }
+
+  if (Object.keys(overrides).length > 0) {
+    pkgData.pnpm = {
+      ...(pkgData.pnpm || {}),
+      overrides: { ...(pkgData.pnpm?.overrides || {}), ...overrides },
+    }
+    pkgData.overrides = { ...(pkgData.overrides || {}), ...overrides }
+    pkgData.resolutions = { ...(pkgData.resolutions || {}), ...overrides }
+  }
+
   await fs.writeFile(pkgJsonPath, JSON.stringify(pkgData, null, 2), 'utf8')
 
   await exec(
-    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false`,
+    `cd ${pkgDir} && pnpm install --strict-peer-dependencies=false --package-import-method=copy`,
     false
   )
 }

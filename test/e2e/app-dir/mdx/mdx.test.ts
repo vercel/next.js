@@ -61,7 +61,7 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       it('should work with next/image', async () => {
         const $ = await next.render$('/image')
         expect($('img').attr('src')).toBe(
-          '/_next/image?url=%2Ftest.jpg&w=384&q=75'
+          `/_next/image?url=%2Ftest.jpg&w=384&q=75${next.getDeploymentIdQuery(true)}`
         )
       })
 

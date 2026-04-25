@@ -9,7 +9,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 
 /// <reference path="../base/globals.d.ts" />
-/// <reference path="../../../shared/runtime-utils.ts" />
+/// <reference path="../../../shared/runtime/runtime-utils.ts" />
 
 // Used in WebWorkers to tell the runtime about the chunk suffix
 declare var TURBOPACK_ASSET_SUFFIX: string
@@ -21,6 +21,7 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
 declare var ASSET_SUFFIX: string
+declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var WORKER_FORWARDED_GLOBALS: string[]
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
@@ -58,27 +59,6 @@ type ChunkList = {
   source: 'entry' | 'dynamic'
 }
 
-enum SourceType {
-  /**
-   * The module was instantiated because it was included in an evaluated chunk's
-   * runtime.
-   * SourceData is a ChunkPath.
-   */
-  Runtime = 0,
-  /**
-   * The module was instantiated because a parent module imported it.
-   * SourceData is a ModuleId.
-   */
-  Parent = 1,
-  /**
-   * The module was instantiated because it was included in a chunk's hot module
-   * update.
-   * SourceData is an array of ModuleIds or undefined.
-   */
-  Update = 2,
-}
-
-type SourceData = ChunkPath | ModuleId | ModuleId[] | undefined
 interface RuntimeBackend {
   registerChunk: (
     chunkPath: ChunkPath | ChunkScript,
@@ -115,31 +95,6 @@ contextPrototype.M = moduleFactories
 const availableModules: Map<ModuleId, Promise<any> | true> = new Map()
 
 const availableModuleChunks: Map<ChunkPath, Promise<any> | true> = new Map()
-
-function factoryNotAvailableMessage(
-  moduleId: ModuleId,
-  sourceType: SourceType,
-  sourceData: SourceData
-): string {
-  let instantiationReason
-  switch (sourceType) {
-    case SourceType.Runtime:
-      instantiationReason = `as a runtime entry of chunk ${sourceData}`
-      break
-    case SourceType.Parent:
-      instantiationReason = `because it was required from module ${sourceData}`
-      break
-    case SourceType.Update:
-      instantiationReason = 'because of an HMR update'
-      break
-    default:
-      invariant(
-        sourceType,
-        (sourceType) => `Unknown source type: ${sourceType}`
-      )
-  }
-  return `Module ${moduleId} was instantiated ${instantiationReason}, but the module factory is not available.`
-}
 
 function loadChunk(
   this: TurbopackBrowserBaseContext<Module>,
@@ -452,20 +407,33 @@ function getChunkFromRegistration(
   }
 }
 
-const regexJsUrl = /\.js(?:\?[^#]*)?(?:#.*)?$/
 /**
- * Checks if a given path/URL ends with .js, optionally followed by ?query or #fragment.
+ * Checks if a given path/URL ends with the given extension,
+ * optionally followed by ?query or #fragment.
  */
-function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
-  return regexJsUrl.test(chunkUrlOrPath)
+function endsWithExtension(
+  chunkUrlOrPath: ChunkUrl | ChunkPath,
+  ext: string
+): boolean {
+  // Find where the path ends (before query or fragment)
+  const q = chunkUrlOrPath.indexOf('?')
+  let end: number
+  if (q !== -1) {
+    end = q
+  } else {
+    const h = chunkUrlOrPath.indexOf('#')
+    end = h !== -1 ? h : chunkUrlOrPath.length
+  }
+  // Check if the path portion ends with the extension
+  return end >= ext.length && chunkUrlOrPath.startsWith(ext, end - ext.length)
 }
 
-const regexCssUrl = /\.css(?:\?[^#]*)?(?:#.*)?$/
-/**
- * Checks if a given path/URL ends with .css, optionally followed by ?query or #fragment.
- */
+function isJs(chunkUrlOrPath: ChunkUrl | ChunkPath): boolean {
+  return endsWithExtension(chunkUrlOrPath, '.js')
+}
+
 function isCss(chunkUrl: ChunkUrl): boolean {
-  return regexCssUrl.test(chunkUrl)
+  return endsWithExtension(chunkUrl, '.css')
 }
 
 function loadWebAssembly(

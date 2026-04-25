@@ -69,6 +69,16 @@ struct FieldInfo {
     /// If true, drop this field entirely after execution completes if the task is immutable.
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
+    /// Optional override for the underlying map type, used when the field is a
+    /// newtype wrapping `AutoMap<K, V>` (or similar) so callers can inject
+    /// custom bincode / accessor behavior while the macro still generates map
+    /// accessors with the right key/value types.
+    ///
+    /// The newtype must `Deref`/`DerefMut` to the inner map so the generated
+    /// accessors (which call `.iter()`, `.insert()`, etc.) keep working.
+    ///
+    /// When absent, the macro parses the outer field type directly.
+    as_type: Option<Type>,
 }
 
 impl FieldInfo {
@@ -363,6 +373,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut use_default = false;
     let mut shrink_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
+    let mut as_type: Option<Type> = None;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -437,11 +448,28 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 });
                             }
                         }
+                        "as_type" => {
+                            if let Some(lit_str) = expect_string_literal(&nv.value, "as_type") {
+                                match syn::parse_str::<Type>(&lit_str.value()) {
+                                    Ok(ty) => as_type = Some(ty),
+                                    Err(err) => {
+                                        lit_str
+                                            .span()
+                                            .unwrap()
+                                            .error(format!(
+                                                "`as_type` must parse as a Rust type: {err}"
+                                            ))
+                                            .emit();
+                                    }
+                                }
+                            }
+                        }
                         other => {
                             meta.span()
                                 .unwrap()
                                 .error(format!(
-                                    "unknown attribute `{other}`, expected `storage` or `category`"
+                                    "unknown attribute `{other}`, expected `storage`, `category`, \
+                                     or `as_type`"
                                 ))
                                 .emit();
                         }
@@ -537,6 +565,38 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         }
     };
 
+    // Validate that shrink_on_completion and drop_on_completion_if_immutable are only used on
+    // collection types (auto_set, auto_map, counter_map) for inline fields.
+    // Lazy non-collection fields can still use drop_on_completion_if_immutable (removes from the
+    // lazy vec), but shrink_on_completion is meaningless for non-collection types.
+    let is_collection = matches!(
+        storage_type,
+        StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
+    );
+    if !is_collection {
+        if shrink_on_completion {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`shrink_on_completion` on field `{field_name}` has no effect: only \
+                     collection types (auto_set, auto_map, counter_map) support shrinking"
+                ))
+                .emit();
+        }
+        if inline && drop_on_completion_if_immutable {
+            field_name
+                .span()
+                .unwrap()
+                .error(format!(
+                    "`drop_on_completion_if_immutable` on inline field `{field_name}` has no \
+                     effect: only inline collection types (auto_set, auto_map, counter_map) \
+                     support dropping"
+                ))
+                .emit();
+        }
+    }
+
     FieldInfo {
         is_pub,
         field_name,
@@ -549,6 +609,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         use_default,
         shrink_on_completion,
         drop_on_completion_if_immutable,
+        as_type,
     }
 }
 
@@ -1476,8 +1537,8 @@ fn generate_trait_accessor_methods(field: &FieldInfo) -> TokenStream {
                     #check_access
                     let current = self.typed().flags.#field_name();
                     if current != value {
-                        self.typed_mut().flags.#set_name(value);
                         #track_modification
+                        self.typed_mut().flags.#set_name(value);
                     }
                 }
             }
@@ -1533,8 +1594,6 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
                     // For fields with default semantics, always return Some(&mut self.field)
                     quote! {
                         #[doc = "Get a mutable reference to the field value."]
-                        #[doc = ""]
-                        #[doc = "Tracks modification pessimistically - assumes caller will mutate."]
                         fn #get_mut_name(&mut self) -> &mut #value_type {
                             #check_access
                             #track_modification
@@ -1571,6 +1630,67 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
         }
     };
 
+    let set_body = if field.is_transient() {
+        quote! {
+            #set_expr(value)
+        }
+    } else if field.lazy {
+        // For lazy fields, combine equality check and set into one operation to avoid
+        // double-scanning the lazy vec (get_expr scans via find_lazy, then set_expr
+        // scans again via set_lazy).
+        let extractor = field.lazy_extractor_closure();
+        let unwraper = field.lazy_unwrap_closure();
+        let constructor = field.lazy_constructor(quote! { value });
+        quote! {
+            if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
+                if old_ref == &value {
+                    return None;
+                }
+                #track_modification
+                let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #constructor);
+                Some((#unwraper)(old))
+            } else {
+                #track_modification
+                self.typed_mut().lazy.push(#constructor);
+                None
+            }
+        }
+    } else {
+        quote! {
+            if #get_expr.is_some_and(|old| old == &value) {
+                return None;
+            }
+            #track_modification
+            #set_expr(value)
+        }
+    };
+
+    let take_body = if field.is_transient() {
+        quote! {
+            #take_expr
+        }
+    } else if field.lazy {
+        // For lazy fields, combine existence check and take into one operation to avoid
+        // double-scanning the lazy vec (get_expr scans via find_lazy, then take_expr
+        // scans again via take_lazy).
+        let extractor = field.lazy_extractor_closure();
+        let unwraper = field.lazy_unwrap_closure();
+        quote! {
+            let (idx, _) = self.typed().find_lazy_ref(#extractor)?;
+            #track_modification
+            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
+        }
+    } else {
+        quote! {
+            if #get_expr.is_some() {
+                #track_modification
+                #take_expr
+            } else {
+                None
+            }
+        }
+    };
+
     quote! {
         #[doc = "Get a reference to the field value (if present)"]
         fn #get_name(&self) -> Option<&#value_type> {
@@ -1584,23 +1704,16 @@ fn generate_direct_accessors(field: &FieldInfo) -> TokenStream {
             #get_expr.is_some()
         }
 
-        #[doc = "Set the field value, returning the old value if present"]
+        #[doc = "Set the field value, returning the old value if present."]
         fn #set_name(&mut self, value: #value_type) -> Option<#value_type> {
             #check_access
-            #track_modification
-            #set_expr(value)
+            #set_body
         }
 
         #[doc = "Take the field value, clearing it"]
-        #[doc = ""]
-        #[doc = "Only tracks modification if there was a value to take."]
         fn #take_name(&mut self) -> Option<#value_type> {
             #check_access
-            let value = #take_expr;
-            if value.is_some() {
-                #track_modification
-            }
-            value
+            #take_body
         }
 
         #get_mut_accessor
@@ -1664,45 +1777,170 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
         quote! { #ref_expr.is_empty() }
     };
 
-    // Remove uses find_lazy_mut for lazy to avoid allocation.
-    let remove_body = if is_option {
-        let extractor = field.lazy_extractor_closure();
+    // For transient fields, track_modification is a no-op so skip all guards.
+    let remove_body;
+    let add_body;
+    let set_body;
+    let extend_body;
 
-        quote! {
-            let Some(set) = self.typed_mut().find_lazy_mut(#extractor) else {
-                return false;
+    if field.is_transient() {
+        remove_body = quote! {
+            #mut_expr.remove(item)
+        };
+        add_body = quote! {
+            #mut_expr.insert(item)
+        };
+        set_body = if is_option {
+            let unwraper = field.lazy_unwrap_closure();
+            let matches = field.lazy_matches_closure();
+            let ctor = field.lazy_constructor(quote! {set});
+            quote! {
+                self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
+            }
+        } else {
+            quote! {
+                let old = #take_expr;
+                *#mut_expr = set;
+                Some(old)
+            }
+        };
+        extend_body = quote! {
+            #mut_expr.extend(items);
+        };
+    } else {
+        // Remove: only track modification if the item exists.
+        // For lazy fields, find the index once and reuse it to avoid double-scanning.
+        remove_body = if is_option {
+            let extractor = field.lazy_extractor_closure();
+            quote! {
+                let Some((idx, val)) = self.typed().find_lazy_ref(#extractor) else {
+                    return false;
+                };
+                if !val.contains(item) {
+                    return false;
+                }
+                #track_modification
+                self.typed_mut().lazy_at_mut(idx, #extractor).remove(item)
+            }
+        } else {
+            quote! {
+                if !#ref_expr.contains(item) {
+                    return false;
+                }
+                #track_modification
+                #mut_expr.remove(item)
+            }
+        };
+
+        // Add: only track modification if the item is actually new.
+        // For lazy fields, use find_lazy_ref + lazy_at_mut to avoid double-scanning.
+        add_body = if is_option {
+            let extractor = field.lazy_extractor_closure();
+            let ctor = field.lazy_constructor(quote! { set });
+            quote! {
+                if let Some((idx, existing)) = self.typed().find_lazy_ref(#extractor) {
+                    if existing.contains(&item) {
+                        return false;
+                    }
+                    #track_modification
+                    self.typed_mut().lazy_at_mut(idx, #extractor).insert(item)
+                } else {
+                    #track_modification
+                    let mut set = <#field_type as Default>::default();
+                    set.insert(item);
+                    self.typed_mut().lazy.push(#ctor);
+                    true
+                }
+            }
+        } else {
+            quote! {
+                if #ref_expr.contains(&item) {
+                    return false;
+                }
+                #track_modification
+                #mut_expr.insert(item)
+            }
+        };
+
+        if is_option {
+            // For lazy fields, combine guard and set into one operation to avoid
+            // double-scanning the lazy vec (set_guard would scan via find_lazy,
+            // then set_lazy would scan again via position).
+            let extractor = field.lazy_extractor_closure();
+            let unwraper = field.lazy_unwrap_closure();
+            let ctor = field.lazy_constructor(quote! {set});
+            set_body = quote! {
+                if let Some((idx, old_ref)) = self.typed().find_lazy_ref(#extractor) {
+                    if old_ref == &set {
+                        return None;
+                    }
+                    #track_modification
+                    let old = std::mem::replace(&mut self.typed_mut().lazy[idx], #ctor);
+                    Some((#unwraper)(old))
+                } else {
+                    #track_modification
+                    self.typed_mut().lazy.push(#ctor);
+                    None
+                }
             };
-            let removed = set.remove(item);
-            if removed {
+        } else {
+            set_body = quote! {
+                if #ref_expr == &set {
+                    return None;
+                }
                 #track_modification
-            }
-            return removed;
-
+                let old = #take_expr;
+                *#mut_expr = set;
+                Some(old)
+            };
         }
-    } else {
-        quote! {
-            let removed = #mut_expr.remove(item);
-            if removed {
+
+        // Extend: use peekable iterator to avoid Vec allocation.
+        // For lazy fields, look up the set once via find_lazy_ref to avoid repeated scans.
+        extend_body = if is_option {
+            let extractor = field.lazy_extractor_closure();
+            let ctor = field.lazy_constructor(quote! { set });
+            quote! {
+                let mut iter = items.into_iter().peekable();
+                if let Some((idx, existing)) = self.typed().find_lazy_ref(#extractor) {
+                    // Skip items already in the set
+                    loop {
+                        match iter.peek() {
+                            None => return,
+                            Some(item) if existing.contains(item) => { iter.next(); }
+                            Some(_) => break,
+                        }
+                    }
+                    // Found a new item - track and extend using the known index
+                    #track_modification
+                    self.typed_mut().lazy_at_mut(idx, #extractor).extend(iter);
+                } else {
+                    // Set doesn't exist yet - if iterator is empty, nothing to do
+                    if iter.peek().is_none() {
+                        return;
+                    }
+                    #track_modification
+                    let set: #field_type = iter.collect();
+                    self.typed_mut().lazy.push(#ctor);
+                }
+            }
+        } else {
+            quote! {
+                let mut iter = items.into_iter().peekable();
+                // Skip items already in the set until we find a new one
+                loop {
+                    match iter.peek() {
+                        None => return,
+                        Some(item) if #ref_expr.contains(item) => { iter.next(); }
+                        Some(_) => break,
+                    }
+                }
+                // Found a new item - track modification and insert remaining items
                 #track_modification
+                #mut_expr.extend(iter);
             }
-            removed
-        }
-    };
-
-    let set_body = if is_option {
-        let unwraper = field.lazy_unwrap_closure();
-        let matches = field.lazy_matches_closure();
-        let ctor = field.lazy_constructor(quote! {set});
-        quote! {
-             self.typed_mut().set_lazy(#matches, #unwraper, #ctor)
-        }
-    } else {
-        quote! {
-            let old = #take_expr;
-            *#mut_expr = set;
-            Some(old)
-        }
-    };
+        };
+    }
 
     quote! {
         #[doc = "Check if the set contains an item"]
@@ -1713,30 +1951,18 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
 
         #[doc = "Add an item to the set."]
         #[doc = "Returns true if the item was newly added, false if it already existed."]
+        #[doc = "Only tracks modification if the item is actually added."]
         #[must_use]
         fn #add_name(&mut self, item: #element_type) -> bool {
             #check_access
-            let added = #mut_expr.insert(item);
-            if added {
-                #track_modification
-            }
-            added
+            #add_body
         }
 
         #[doc = "Add multiple items to the set from an iterator."]
         #[doc = "Only tracks modification if at least one item is actually added."]
         fn #extend_name(&mut self, items: impl IntoIterator<Item = #element_type>) {
             #check_access
-            let set = #mut_expr;
-            let mut any_added = false;
-            for item in items {
-                if set.insert(item) {
-                    any_added = true;
-                }
-            }
-            if any_added {
-                #track_modification
-            }
+            #extend_body
         }
 
         #[doc = "Remove an item from the set."]
@@ -1746,12 +1972,11 @@ fn generate_autoset_ops(field: &FieldInfo) -> TokenStream {
             #remove_body
         }
 
-        #[doc = "Remove multiple items from the set."]
-        #[doc = "Only tracks modification if at least one item is actually removed."]
+        #[doc = "Replace the entire set, returning the old set if present."]
+        #[doc = "Only tracks modification if the set actually changes."]
         fn #set_name(&mut self, set: #field_type) -> Option<#field_type>
         {
             #check_access
-            #track_modification
             #set_body
         }
 
@@ -1844,25 +2069,26 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 
     // Generate remove body - for lazy fields, we need to check if the map exists first
     // without allocating it. For inline fields, we can use the mut_expr directly.
-    let remove_body = if is_option {
-        // Lazy: use find_lazy_mut to avoid allocating, only track modification if something was
+    // Only track modification if the key exists (check before mutating).
+    // For transient fields, skip guards since track_modification is a no-op.
+    let remove_body = if field.is_transient() {
+        quote! {
+            #track_modification
+            #mut_expr.remove(key)
+        }
+    } else if is_option {
         let extractor = field.lazy_extractor_closure();
         quote! {
-            let map = self.typed_mut().find_lazy_mut(#extractor)?;
-            let result = map.remove(key);
-            if result.is_some() {
-                #track_modification
-            }
-            result
+            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
+            val.get(key)?;
+            #track_modification
+            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
         }
     } else {
-        // Inline: direct access, only track modification if something was removed
         quote! {
-            let result = #mut_expr.remove(key);
-            if result.is_some() {
-                #track_modification
-            }
-            result
+            self.#get_name(key)?;
+            #track_modification
+            #mut_expr.remove(key)
         }
     };
 
@@ -1890,6 +2116,19 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
     // Generate signed-type-specific methods only for i32
     let signed_methods = if is_signed {
         let update_positive_crossing_name = field.infixed_ident("update", "positive_crossing");
+        let update_positive_crossing_body = if field.is_transient() {
+            quote! {
+                #mut_expr.update_positive_crossing(key, delta)
+            }
+        } else {
+            quote! {
+                if delta == 0 {
+                    return false;
+                }
+                #track_modification
+                #mut_expr.update_positive_crossing(key, delta)
+            }
+        };
 
         quote! {
             #[doc = "Update a signed counter by the given delta."]
@@ -1897,12 +2136,108 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             #[must_use]
             fn #update_positive_crossing_name(&mut self, key: #key_type, delta: #value_type) -> bool {
                 #check_access
-                #track_modification
-                #mut_expr.update_positive_crossing(key, delta)
+                #update_positive_crossing_body
             }
         }
     } else {
         quote! {}
+    };
+
+    let update_count_body = if field.is_transient() {
+        quote! {
+            #mut_expr.update_count(key, delta)
+        }
+    } else {
+        quote! {
+            if delta == 0 {
+                return false;
+            }
+            #track_modification
+            #mut_expr.update_count(key, delta)
+        }
+    };
+
+    let update_counts_body = if field.is_transient() {
+        quote! {
+            let map = #mut_expr;
+            for key in keys {
+                map.update_count(key, delta);
+            }
+        }
+    } else {
+        quote! {
+            if delta == 0 {
+                return;
+            }
+            #track_modification
+            let map = #mut_expr;
+            for key in keys {
+                map.update_count(key, delta);
+            }
+        }
+    };
+
+    let update_and_get_body = if field.is_transient() {
+        quote! {
+            #mut_expr.update_and_get(key, delta)
+        }
+    } else {
+        quote! {
+            if delta == 0 {
+                return self.#get_name(&key).copied().unwrap_or_default();
+            }
+            #track_modification
+            #mut_expr.update_and_get(key, delta)
+        }
+    };
+
+    let update_with_body = if field.is_transient() {
+        quote! {
+            #mut_expr.update_with(key, f)
+        }
+    } else if is_option {
+        let extractor = field.lazy_extractor_closure();
+        let constructor = field.lazy_constructor(quote! {new_map});
+        quote! {
+            let (position, old_value) = if let Some((index, map)) = self.typed().find_lazy_ref(#extractor) {
+                // This copy is very cheap
+                (Some(index), map.get(&key).copied())
+            } else {
+                (None, None)
+            };
+            let new_value = f(old_value);
+            if old_value != new_value {
+                #track_modification
+                match new_value {
+                    Some(value) => {
+                        if let Some(position) = position {
+                            self.typed_mut().lazy_at_mut(position, #extractor).insert(key, value);
+                        } else {
+                            let mut new_map = CounterMap::default();
+                            new_map.insert(key, value);
+                            self.typed_mut().lazy.push(#constructor);
+                        }
+                    }
+                    None => {
+                        // the position must be available, otherwise `f` would have mapped None to None and thus the != check above would have failed.
+                        self.typed_mut().lazy_at_mut(position.unwrap(), #extractor).remove(&key);
+
+                    }
+                }
+            }
+        }
+    } else {
+        quote! {
+            let old = self.#get_name(&key).copied();
+            let new = f(old);
+            if old != new {
+                #track_modification
+                match new {
+                    Some(value) => { #mut_expr.insert(key, value); }
+                    None => { #mut_expr.remove(&key); }
+                }
+            }
+        }
     };
 
     quote! {
@@ -1917,26 +2252,20 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
         #[must_use]
         fn #update_count_name(&mut self, key: #key_type, delta: #value_type) -> bool {
             #check_access
-            #track_modification
-            #mut_expr.update_count(key, delta)
+            #update_count_body
         }
 
         #[doc = "Update multiple counters by the given delta."]
         #[doc = "More efficient than calling update_count in a loop."]
         fn #update_counts_name(&mut self, keys: impl Iterator<Item = #key_type>, delta: #value_type) {
             #check_access
-            #track_modification
-            let map = #mut_expr;
-            for key in keys {
-                map.update_count(key, delta);
-            }
+            #update_counts_body
         }
 
         #[doc = "Update a counter by the given delta and return the new value."]
         fn #update_and_get_name(&mut self, key: #key_type, delta: #value_type) -> #value_type {
             #check_access
-            #track_modification
-            #mut_expr.update_and_get(key, delta)
+            #update_and_get_body
         }
 
         #[doc = "Update a counter using a closure that receives the current value"]
@@ -1946,8 +2275,7 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
             F: FnOnce(Option<#value_type>) -> Option<#value_type>,
         {
             #check_access
-            #track_modification
-            #mut_expr.update_with(key, f)
+            #update_with_body
         }
 
         #[doc = "Add a new entry, panicking if the entry already exists."]
@@ -2003,7 +2331,12 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    let Some((key_type, value_type)) = extract_map_types(field_type, "AutoMap") else {
+    // If the field uses a newtype wrapper, `as_type` gives us the actual
+    // `AutoMap<K, V>` to extract key/value types from. Otherwise parse the
+    // declared field type directly.
+    let map_ty = field.as_type.as_ref().unwrap_or(field_type);
+
+    let Some((key_type, value_type)) = extract_map_types(map_ty, "AutoMap") else {
         return quote! {};
     };
 
@@ -2055,28 +2388,58 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 
     let take_expression = {
         let take_name = field.take_ident();
-        quote! {self.typed_mut().#take_name();}
+        quote! {self.typed_mut().#take_name()}
     };
 
     // Generate remove body - for lazy fields, avoid allocation if map doesn't exist.
-    // Using ? operator to early-return None if map doesn't exist.
-    let remove_body = if is_option {
+    // Only track modification if the key exists (check before mutating).
+    // For transient fields, skip guards since track_modification is a no-op.
+    let remove_body = if field.is_transient() {
+        quote! {
+            #mut_expr.remove(key)
+        }
+    } else if is_option {
         let extractor = field.lazy_extractor_closure();
         quote! {
-            let map = self.typed_mut().find_lazy_mut(#extractor)?;
-            let result = map.remove(key);
-            if result.is_some() {
-                #track_modification
-            }
-            result
+            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
+            val.get(key)?;
+            #track_modification
+            self.typed_mut().lazy_at_mut(idx, #extractor).remove(key)
         }
     } else {
         quote! {
-            let result = #mut_expr.remove(key);
-            if result.is_some() {
-                #track_modification
+            if !self.#has_entry_name(key) {
+                return None;
             }
-            result
+            #track_modification
+            #mut_expr.remove(key)
+        }
+    };
+
+    let take_body = if field.is_transient() {
+        quote! {
+            #take_expression
+        }
+    } else if is_option {
+        // For lazy fields, use find_lazy_ref to check existence and emptiness in one scan,
+        // then lazy_take_at to take by known index without re-scanning.
+        let extractor = field.lazy_extractor_closure();
+        let unwraper = field.lazy_unwrap_closure();
+        quote! {
+            let (idx, val) = self.typed().find_lazy_ref(#extractor)?;
+            if val.is_empty() {
+                return None;
+            }
+            #track_modification
+            Some(self.typed_mut().lazy_take_at(idx, #unwraper))
+        }
+    } else {
+        quote! {
+            if self.#is_empty_name() {
+                return None;
+            }
+            #track_modification
+            #take_expression
         }
     };
 
@@ -2110,14 +2473,10 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 
 
         #[doc = "Remove the full map and return it"]
-        #[doc = "Only tracks modification if an entry was actually removed."]
+        #[doc = "Only tracks modification if the map is non-empty."]
         fn #take_name(&mut self) -> Option<#field_type> {
             #check_access
-            let value = #take_expression;
-            if value.is_some() {
-                #track_modification
-            }
-            value
+            #take_body
         }
 
         #[doc = "Iterate over all key-value pairs in the map"]
@@ -2149,23 +2508,25 @@ fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
 /// 4. For fields with `shrink_on_completion`: shrink or remove if empty
 /// 5. For fields with `drop_on_completion_if_immutable` when task is immutable: remove
 fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStream {
-    // Generate shrink calls for inline collection fields with shrink_on_completion
-    let mut inline_shrinks = Vec::new();
+    // Generate cleanup calls for inline collection fields.
+    // Invalid attribute combinations (e.g. shrink/drop on non-collection fields) are rejected
+    // during parsing, so we can generate code unconditionally here.
+    let mut inline_cleanups = Vec::new();
     for field in grouped_fields.all_inline() {
         if field.is_flag() {
             continue;
         }
-        if !field.shrink_on_completion {
-            continue;
-        }
-        // Only collection types can be shrunk
-        let is_collection = matches!(
-            field.storage_type,
-            StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
-        );
-        if is_collection {
-            let field_name = &field.field_name;
-            inline_shrinks.push(quote! {
+        let field_name = &field.field_name;
+        if field.drop_on_completion_if_immutable {
+            inline_cleanups.push(quote! {
+                if is_immutable {
+                    typed.#field_name = Default::default();
+                } else {
+                    typed.#field_name.shrink_to_fit();
+                }
+            });
+        } else if field.shrink_on_completion {
+            inline_cleanups.push(quote! {
                 typed.#field_name.shrink_to_fit();
             });
         }
@@ -2174,8 +2535,9 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
     // Generate match arms for lazy fields that have cleanup attributes
     let mut match_arms = Vec::new();
 
+    // Invalid attribute combinations (e.g. shrink on non-collection fields) are rejected
+    // during parsing, so we can simplify the match here.
     for field in grouped_fields.all_lazy() {
-        // Skip flags - they're in the bitfield, not the lazy vec
         if field.is_flag() {
             continue;
         }
@@ -2184,57 +2546,45 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
         let shrink = field.shrink_on_completion;
         let drop_if_immutable = field.drop_on_completion_if_immutable;
 
-        // Skip fields with no cleanup attributes
         if !shrink && !drop_if_immutable {
             continue;
         }
 
-        // Determine whether this is a collection type that can be shrunk
         let is_collection = matches!(
             field.storage_type,
             StorageType::AutoSet | StorageType::AutoMap | StorageType::CounterMap
         );
 
         // Each arm returns bool: true = keep, false = remove
-        let arm_body = match (shrink, drop_if_immutable, is_collection) {
-            // shrink_on_completion + drop_on_completion_if_immutable + collection
-            (true, true, true) => quote! {
+        let arm_body = if drop_if_immutable && shrink && is_collection {
+            // Drop for immutable, shrink or remove-if-empty for mutable
+            quote! {
                 if is_immutable {
-                    false // drop for immutable tasks
+                    false
                 } else if c.is_empty() {
-                    false // remove empty
+                    false
                 } else {
                     c.shrink_to_fit();
-                    true // keep
+                    true
                 }
-            },
-            // shrink_on_completion only + collection
-            (true, false, true) => quote! {
+            }
+        } else if shrink && is_collection {
+            // Shrink or remove-if-empty
+            quote! {
                 if c.is_empty() {
-                    false // remove empty
+                    false
                 } else {
                     c.shrink_to_fit();
-                    true // keep
+                    true
                 }
-            },
-            // drop_on_completion_if_immutable only + collection
-            (false, true, true) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // shrink_on_completion + drop_on_completion_if_immutable + direct value
-            (true, true, false) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // shrink_on_completion only + direct value (unusual but handle it)
-            (true, false, false) => quote! {
-                true // keep (direct values don't need shrinking)
-            },
-            // drop_on_completion_if_immutable only + direct value
-            (false, true, false) => quote! {
-                !is_immutable // keep if mutable, drop if immutable
-            },
-            // No attributes (shouldn't reach here due to continue above)
-            (false, false, _) => unreachable!(),
+            }
+        } else if drop_if_immutable {
+            // Drop for immutable (works for both collection and direct values)
+            quote! {
+                !is_immutable
+            }
+        } else {
+            continue;
         };
 
         match_arms.push(quote! {
@@ -2258,8 +2608,8 @@ fn generate_cleanup_after_execution(grouped_fields: &GroupedFields) -> TokenStre
             let typed = self.typed_mut();
             let is_immutable = typed.flags.immutable();
 
-            // Shrink inline collection fields (always present, not in lazy vec)
-            #(#inline_shrinks)*
+            // Clean up inline collection fields (always present, not in lazy vec)
+            #(#inline_cleanups)*
 
             // swap_retain pattern: iterate with manual index, swap_remove to delete
             let mut i = 0;
@@ -2818,25 +3168,6 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     let restore_meta_inline = gen_restore_inline_for_category(grouped_fields, Category::Meta);
     let restore_data_inline = gen_restore_inline_for_category(grouped_fields, Category::Data);
 
-    // Generate flags handling for clone - per category
-    let clone_meta_flags = if has_meta_flags {
-        quote! {
-            // Clone persisted meta flags
-            snapshot.flags.set_persisted_meta_bits(self.flags.persisted_meta_bits());
-        }
-    } else {
-        quote! {}
-    };
-
-    let clone_data_flags = if has_data_flags {
-        quote! {
-            // Clone persisted data flags
-            snapshot.flags.set_persisted_data_bits(self.flags.persisted_data_bits());
-        }
-    } else {
-        quote! {}
-    };
-
     let clone_all_flags = if has_any_flags {
         quote! {
             // Clone all persisted flags
@@ -2877,11 +3208,7 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
     quote! {
         #[automatically_derived]
         impl TaskStorage {
-            /// Create a snapshot containing all persistent fields (both meta and data).
-            ///
-            /// This clones all persistent fields into a new TaskStorage, skipping
-            /// transient fields that may not be cloneable. Use this for the `Both`
-            /// snapshot case where both meta and data are dirty.
+            /// Create a snapshot containing all persistent fields
             pub fn clone_snapshot(&self) -> TaskStorage {
                 let mut snapshot = TaskStorage::new();
 
@@ -2893,60 +3220,15 @@ fn generate_snapshot_restore_methods(grouped_fields: &GroupedFields) -> TokenStr
 
                 #clone_all_flags
 
+                // Pre-allocate lazy vec (upper bound - some may be transient and skipped)
+                snapshot.lazy.reserve(self.lazy.len());
+
                 // Clone all persistent lazy fields (both meta and data)
                 for field in &self.lazy {
                     match field {
                         #(#clone_data_lazy_arms)*
                         #(#clone_meta_lazy_arms)*
                         // Skip transient fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
-            /// Create a snapshot containing only meta category fields for serialization.
-            ///
-            /// This clones only the persistent meta fields into a new TaskStorage,
-            /// which can then be serialized outside the lock.
-            pub fn clone_meta_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline meta fields
-                #(#clone_meta_inline)*
-
-                #clone_meta_flags
-
-                // Clone lazy meta fields (only persistent ones)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_meta_lazy_arms)*
-                        // Skip transient and data fields
-                        _ => {}
-                    }
-                }
-
-                snapshot
-            }
-
-            /// Create a snapshot containing only data category fields for serialization.
-            ///
-            /// This clones only the persistent data fields into a new TaskStorage,
-            /// which can then be serialized outside the lock.
-            pub fn clone_data_snapshot(&self) -> TaskStorage {
-                let mut snapshot = TaskStorage::new();
-
-                // Clone inline data fields
-                #(#clone_data_inline)*
-
-                #clone_data_flags
-
-                // Clone lazy data fields (only persistent ones)
-                for field in &self.lazy {
-                    match field {
-                        #(#clone_data_lazy_arms)*
-                        // Skip transient and meta fields
                         _ => {}
                     }
                 }

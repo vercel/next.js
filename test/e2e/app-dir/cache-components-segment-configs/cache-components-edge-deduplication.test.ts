@@ -1,20 +1,28 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// Only Turbopack runs the transform on the layout once in edge and non-edge contexts
-// so we only test this on Turbopack
-import {
-  waitForRedbox,
-  getRedboxDescription,
-  getRedboxSource,
-} from 'next-test-utils'
+import { waitForRedbox } from 'next-test-utils'
 
-// Filter out browser log lines from CLI output to avoid counting forwarded browser errors
-function filterBrowserLogs(output: string): string {
+// Filter CLI output to only keep Turbopack error header lines (starting with ⨯ or
+// standalone file:line:col) to accurately count error occurrences without counting
+// console.error, stack traces, or forwarded browser logs.
+function filterToErrorHeaders(output: string): string {
   return output
     .split('\n')
-    .filter((line) => !line.includes('[browser]'))
+    .filter(
+      (line) =>
+        !line.includes('[browser]') &&
+        !line.includes('console.error') &&
+        !line.includes('at <unknown>') &&
+        !line.includes('at Object.') &&
+        !line.includes('at DevServer.') &&
+        !line.includes('at DevBundlerService.') &&
+        !line.includes('at async ')
+    )
     .join('\n')
 }
+
+// Only Turbopack runs the transform on the layout once in edge and non-edge contexts
+// so we only test this on Turbopack
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'cache-components-edge-deduplication',
   () => {
@@ -38,32 +46,27 @@ function filterBrowserLogs(output: string): string {
       if (isNextDev) {
         const browser = await next.browser('/edge-with-layout/edge')
         waitForRedbox(browser)
-        const redbox = {
-          description: await getRedboxDescription(browser),
-          source: await getRedboxSource(browser),
-        }
-        expect(redbox.description).toMatchInlineSnapshot(
-          `"Ecmascript file had an error"`
-        )
-        expect(redbox.source).toMatchInlineSnapshot(`
-         "./app/edge-with-layout/edge/page.tsx (1:14)
-         Ecmascript file had an error
-         > 1 | export const runtime = 'edge'
-             |              ^^^^^^^
-           2 |
-           3 | export default function Page() {
-           4 |   return <div>Test page under app/</div>
-
-         Route segment config "runtime" is not compatible with \`nextConfig.cacheComponents\`. Please remove it."
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+           "environmentLabel": null,
+           "label": "Build Error",
+           "source": "./app/edge-with-layout/layout.tsx (1:14)
+         Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         > 1 | export const dynamic = 'force-dynamic'
+             |              ^^^^^^^",
+           "stack": [],
+         }
         `)
+
         // Count occurrences of the layout error at the specific location
         // Filter out browser logs to avoid counting forwarded browser errors
-        const filteredOutput = filterBrowserLogs(next.cliOutput)
+        const filteredOutput = filterToErrorHeaders(next.cliOutput)
         const layoutErrorMatches = filteredOutput.match(
           /\.\/app\/edge-with-layout\/layout\.tsx:1:14/g
         )
         // We don't show an error stack, just the individual error messages at each location
-        expect(layoutErrorMatches?.length).toBe(1)
+        expect(layoutErrorMatches.length).toBe(1)
       } else {
         // Check that both the layout and edge page errors appear
         expect(next.cliOutput).toContain('./app/edge-with-layout/layout.tsx')
@@ -80,7 +83,7 @@ function filterBrowserLogs(output: string): string {
         )
 
         // Should appear exactly twice: once in the formatted error message, once in the stack trace
-        expect(layoutErrorMatches?.length).toBe(2)
+        expect(layoutErrorMatches.length).toBe(2)
       }
     })
   }

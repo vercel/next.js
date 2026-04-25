@@ -1,17 +1,17 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
-use easy_error::{bail, Error};
+use easy_error::{Error, bail};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::{Atom, atom},
     common::{
+        DUMMY_SP,
         errors::HANDLER,
         pass::{Repeat, Repeated},
-        DUMMY_SP,
     },
     ecma::{
         ast::*,
-        visit::{noop_visit_mut_type, visit_mut_pass, VisitMut, VisitMutWith},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type, visit_mut_pass},
     },
 };
 
@@ -131,10 +131,10 @@ impl VisitMut for Analyzer<'_> {
     }
 
     fn visit_mut_export_named_specifier(&mut self, s: &mut ExportNamedSpecifier) {
-        if let ModuleExportName::Ident(id) = &s.orig {
-            if !SSG_EXPORTS.contains(&&*id.sym) {
-                self.add_ref(id.to_id());
-            }
+        if let ModuleExportName::Ident(id) = &s.orig
+            && !SSG_EXPORTS.contains(&&*id.sym)
+        {
+            self.add_ref(id.to_id());
         }
     }
 
@@ -145,10 +145,10 @@ impl VisitMut for Analyzer<'_> {
             }
 
             for decl in &d.decls {
-                if let Pat::Ident(id) = &decl.name {
-                    if !SSG_EXPORTS.contains(&&*id.id.sym) {
-                        self.add_ref(id.to_id());
-                    }
+                if let Pat::Ident(id) = &decl.name
+                    && !SSG_EXPORTS.contains(&&*id.id.sym)
+                {
+                    self.add_ref(id.to_id());
                 }
             }
         }
@@ -240,17 +240,15 @@ impl VisitMut for Analyzer<'_> {
             match &e.decl {
                 Decl::Fn(f) => {
                     // Drop getStaticProps.
-                    if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident) {
-                        if is_data_identifier {
-                            *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                        }
+                    if let Ok(is_data_identifier) = self.state.is_data_identifier(&f.ident)
+                        && is_data_identifier
+                    {
+                        *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                     }
                 }
 
-                Decl::Var(d) => {
-                    if d.decls.is_empty() {
-                        *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                    }
+                Decl::Var(d) if d.decls.is_empty() => {
+                    *s = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
                 }
                 _ => {}
             }
@@ -468,18 +466,17 @@ impl VisitMut for NextSsg {
                         | ModuleDecl::ExportDefaultDecl(..)
                         | ModuleDecl::ExportDefaultExpr(..),
                     ) = &item
+                        && let Some(var) = var.take()
                     {
-                        if let Some(var) = var.take() {
-                            new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                        new.push(ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(ExportDecl {
+                            span: DUMMY_SP,
+                            decl: Decl::Var(Box::new(VarDecl {
                                 span: DUMMY_SP,
-                                decl: Decl::Var(Box::new(VarDecl {
-                                    span: DUMMY_SP,
-                                    kind: VarDeclKind::Var,
-                                    decls: vec![var],
-                                    ..Default::default()
-                                })),
-                            })))
-                        }
+                                kind: VarDeclKind::Var,
+                                decls: vec![var],
+                                ..Default::default()
+                            })),
+                        })))
                     }
 
                     new.push(item);
@@ -545,52 +542,44 @@ impl VisitMut for NextSsg {
 
         if self.in_lhs_of_var {
             match p {
-                Pat::Ident(name) => {
-                    if self.should_remove(name.id.to_id()) {
-                        self.state.should_run_again = true;
-                        tracing::trace!(
-                            "Dropping var `{}{:?}` because it should be removed",
-                            name.id.sym,
-                            name.id.ctxt
-                        );
+                Pat::Ident(name) if self.should_remove(name.id.to_id()) => {
+                    self.state.should_run_again = true;
+                    tracing::trace!(
+                        "Dropping var `{}{:?}` because it should be removed",
+                        name.id.sym,
+                        name.id.ctxt
+                    );
 
+                    *p = Pat::Invalid(Invalid { span: DUMMY_SP });
+                }
+                Pat::Array(arr) if !arr.elems.is_empty() => {
+                    arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
+
+                    if arr.elems.is_empty() {
                         *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
                 }
-                Pat::Array(arr) => {
-                    if !arr.elems.is_empty() {
-                        arr.elems.retain(|e| !matches!(e, Some(Pat::Invalid(..))));
+                Pat::Object(obj) if !obj.props.is_empty() => {
+                    obj.props.retain_mut(|prop| match prop {
+                        ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
+                        ObjectPatProp::Assign(prop) => {
+                            if self.should_remove(prop.key.to_id()) {
+                                self.mark_as_candidate(&mut prop.value);
 
-                        if arr.elems.is_empty() {
-                            *p = Pat::Invalid(Invalid { span: DUMMY_SP });
-                        }
-                    }
-                }
-                Pat::Object(obj) => {
-                    if !obj.props.is_empty() {
-                        obj.props.retain_mut(|prop| match prop {
-                            ObjectPatProp::KeyValue(prop) => !prop.value.is_invalid(),
-                            ObjectPatProp::Assign(prop) => {
-                                if self.should_remove(prop.key.to_id()) {
-                                    self.mark_as_candidate(&mut prop.value);
-
-                                    false
-                                } else {
-                                    true
-                                }
+                                false
+                            } else {
+                                true
                             }
-                            ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
-                        });
-
-                        if obj.props.is_empty() {
-                            *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                         }
-                    }
-                }
-                Pat::Rest(rest) => {
-                    if rest.arg.is_invalid() {
+                        ObjectPatProp::Rest(prop) => !prop.arg.is_invalid(),
+                    });
+
+                    if obj.props.is_empty() {
                         *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                     }
+                }
+                Pat::Rest(rest) if rest.arg.is_invalid() => {
+                    *p = Pat::Invalid(Invalid { span: DUMMY_SP });
                 }
                 _ => {}
             }
@@ -599,12 +588,12 @@ impl VisitMut for NextSsg {
 
     #[allow(clippy::single_match)]
     fn visit_mut_stmt(&mut self, s: &mut Stmt) {
-        if let Stmt::Decl(Decl::Fn(f)) = s {
-            if self.should_remove(f.ident.to_id()) {
-                self.mark_as_candidate(&mut f.function);
-                *s = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
-                return;
-            }
+        if let Stmt::Decl(Decl::Fn(f)) = s
+            && self.should_remove(f.ident.to_id())
+        {
+            self.mark_as_candidate(&mut f.function);
+            *s = Stmt::Empty(EmptyStmt { span: DUMMY_SP });
+            return;
         }
 
         s.visit_mut_children_with(self);

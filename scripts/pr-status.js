@@ -1,4 +1,4 @@
-const { execSync } = require('child_process')
+const { execSync, execFileSync, spawn } = require('child_process')
 const fs = require('fs/promises')
 const path = require('path')
 
@@ -19,6 +19,30 @@ function exec(cmd) {
     console.error(error.stderr || error.message)
     throw error
   }
+}
+
+function execAsync(prog, args) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(prog, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const chunks = []
+    let stderr = ''
+    child.stdout.on('data', (chunk) => chunks.push(chunk))
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk
+    })
+    child.on('close', (code) => {
+      if (code !== 0) {
+        const error = new Error(`Command failed: ${prog} ${args.join(' ')}`)
+        error.stderr = stderr
+        reject(error)
+      } else {
+        resolve(Buffer.concat(chunks).toString('utf8').trim())
+      }
+    })
+    child.on('error', reject)
+  })
 }
 
 function execJson(cmd) {
@@ -83,6 +107,60 @@ function isBot(username) {
   return username.endsWith('-bot') || username.endsWith('[bot]')
 }
 
+/**
+ * Parses the build_and_test.yml workflow to extract env vars from afterBuild
+ * sections. Returns a map of job display name prefix → env var list.
+ */
+function getJobEnvVarsFromWorkflow() {
+  const workflowPath = path.join(
+    __dirname,
+    '..',
+    '.github',
+    'workflows',
+    'build_and_test.yml'
+  )
+  try {
+    const content = require('fs').readFileSync(workflowPath, 'utf8')
+    const envMap = {}
+    // Match job blocks: "  job-id:\n    name: display name\n" ... "afterBuild: |"
+    const jobRegex =
+      /^ {2}([\w-]+):\s*\n\s+name:\s*(.+)\n[\s\S]*?afterBuild:\s*\|\n([\s\S]*?)(?=\n\s+stepName:)/gm
+    let match
+    while ((match = jobRegex.exec(content)) !== null) {
+      const displayName = match[2].trim()
+      const afterBuild = match[3]
+      const exports = []
+      for (const line of afterBuild.split('\n')) {
+        const exportMatch = line.match(
+          /^\s*export\s+([\w]+)=["']?([^"'\s]+)["']?/
+        )
+        if (exportMatch) {
+          exports.push(`${exportMatch[1]}=${exportMatch[2]}`)
+        }
+      }
+      if (exports.length > 0) {
+        envMap[displayName] = exports
+      }
+    }
+    return envMap
+  } catch {
+    return {}
+  }
+}
+
+/**
+ * Given a job name like "test node streams prod (4/7) / build" and the env map,
+ * returns the relevant env vars or null.
+ */
+function getEnvVarsForJob(jobName, envMap) {
+  for (const [prefix, vars] of Object.entries(envMap)) {
+    if (jobName.startsWith(prefix)) {
+      return vars
+    }
+  }
+  return null
+}
+
 // ============================================================================
 // Data Fetching Functions
 // ============================================================================
@@ -138,35 +216,17 @@ function getRunMetadata(runId) {
   )
 }
 
+const FAILED_CONCLUSIONS = new Set(['failure', 'timed_out', 'startup_failure'])
+
 function getFailedJobs(runId) {
-  const failedJobs = []
-  let page = 1
-
-  while (true) {
-    const jqQuery = '.jobs[] | select(.conclusion == "failure") | {id, name}'
-    let output
-    try {
-      output = exec(
-        `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
-      )
-    } catch {
-      break
-    }
-
-    if (!output.trim()) break
-
-    const jobs = output
-      .split('\n')
-      .filter((line) => line.trim())
-      .map((line) => JSON.parse(line))
-
-    failedJobs.push(...jobs)
-
-    if (jobs.length < 100) break
-    page++
-  }
-
-  return failedJobs
+  // Fetch all jobs first, then filter for failures in JS.
+  // We can't use jq filtering during pagination because a page full of
+  // non-failure jobs produces empty jq output, which would incorrectly
+  // stop pagination before reaching later pages that contain failures.
+  const allJobs = getAllJobs(runId)
+  return allJobs
+    .filter((j) => FAILED_CONCLUSIONS.has(j.conclusion))
+    .map((j) => ({ id: j.id, name: j.name, conclusion: j.conclusion }))
 }
 
 function getAllJobs(runId) {
@@ -177,11 +237,38 @@ function getAllJobs(runId) {
     const jqQuery =
       '.jobs[] | {id, name, status, conclusion, started_at, completed_at}'
     let output
-    try {
-      output = exec(
-        `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
+    let lastError
+    // Retry up to 3 times for transient API errors (e.g. HTTP 502)
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        output = exec(
+          `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
+        )
+        lastError = null
+        break
+      } catch (error) {
+        lastError = error
+        if (attempt < 3) {
+          const delay = attempt * 2000
+          console.error(
+            `API request failed (attempt ${attempt}/3), retrying in ${delay / 1000}s...`
+          )
+          execSync(`sleep ${delay / 1000}`)
+        }
+      }
+    }
+    if (lastError) {
+      // If all retries failed on the first page, we have no data at all — throw
+      // so callers know the fetch failed instead of silently returning [].
+      if (page === 1) {
+        throw new Error(
+          `Failed to fetch jobs for run ${runId} after 3 attempts: ${lastError.message}`
+        )
+      }
+      // For later pages we already have partial data; warn and return what we have
+      console.error(
+        `Warning: Failed to fetch page ${page} of jobs after 3 attempts. Returning ${allJobs.length} jobs from previous pages.`
       )
-    } catch {
       break
     }
 
@@ -203,7 +290,7 @@ function getAllJobs(runId) {
 
 function categorizeJobs(jobs) {
   return {
-    failed: jobs.filter((j) => j.conclusion === 'failure'),
+    failed: jobs.filter((j) => FAILED_CONCLUSIONS.has(j.conclusion)),
     inProgress: jobs.filter((j) => j.status === 'in_progress'),
     queued: jobs.filter((j) => j.status === 'queued'),
     succeeded: jobs.filter((j) => j.conclusion === 'success'),
@@ -218,9 +305,12 @@ function getJobMetadata(jobId) {
   )
 }
 
-function getJobLogs(jobId) {
+async function getJobLogs(jobId) {
   try {
-    return exec(`gh api "repos/vercel/next.js/actions/jobs/${jobId}/logs"`)
+    return await execAsync('gh', [
+      'api',
+      `repos/vercel/next.js/actions/jobs/${jobId}/logs`,
+    ])
   } catch {
     return 'Logs not available'
   }
@@ -244,6 +334,7 @@ function getPRReviewThreads(prNumber) {
         pullRequest(number:${prNumber}) {
           reviewThreads(first:100) {
             nodes {
+              id
               isResolved
               path
               line
@@ -282,6 +373,117 @@ function getPRComments(prNumber) {
     return comments.filter((c) => !isBot(c.user))
   } catch {
     return []
+  }
+}
+
+// ============================================================================
+// Thread Interaction Functions
+// ============================================================================
+
+function replyToThread(threadId, body) {
+  body = ':robot: ' + body
+
+  // Step 1: Look up the PR number and first comment's databaseId from the
+  // thread's GraphQL node ID. The REST reply endpoint requires both.
+  const lookupQuery = `
+    query($id: ID!) {
+      node(id: $id) {
+        ... on PullRequestReviewThread {
+          pullRequest {
+            number
+          }
+          comments(first: 1) {
+            nodes {
+              databaseId
+            }
+          }
+        }
+      }
+    }
+  `
+  let prNumber, commentDatabaseId
+  try {
+    const lookupOutput = execFileSync(
+      'gh',
+      ['api', 'graphql', '-f', `query=${lookupQuery}`, '-f', `id=${threadId}`],
+      { encoding: 'utf8' }
+    ).trim()
+    const lookupData = JSON.parse(lookupOutput)
+    const thread = lookupData.data.node
+    if (!thread || !thread.pullRequest || !thread.comments?.nodes?.[0]) {
+      console.error(`Could not resolve thread node ID: ${threadId}`)
+      process.exit(1)
+    }
+    prNumber = thread.pullRequest.number
+    commentDatabaseId = thread.comments.nodes[0].databaseId
+  } catch (error) {
+    console.error(
+      'Failed to look up thread info:',
+      error.stderr || error.message
+    )
+    process.exit(1)
+  }
+
+  // Step 2: Post the reply via REST. Unlike the GraphQL mutation
+  // addPullRequestReviewThreadReply, this endpoint always publishes the reply
+  // immediately — it is never attached to a pending/draft review.
+  try {
+    const output = execFileSync(
+      'gh',
+      [
+        'api',
+        '--method',
+        'POST',
+        `/repos/vercel/next.js/pulls/${prNumber}/comments/${commentDatabaseId}/replies`,
+        '-f',
+        `body=${body}`,
+      ],
+      { encoding: 'utf8' }
+    ).trim()
+    const data = JSON.parse(output)
+    console.log(`Reply posted: ${data.html_url}`)
+  } catch (error) {
+    console.error('Failed to reply to thread:', error.stderr || error.message)
+    process.exit(1)
+  }
+}
+
+function resolveThread(threadId) {
+  const mutation = `
+    mutation($threadId: ID!) {
+      resolveReviewThread(input: {
+        threadId: $threadId
+      }) {
+        thread {
+          id
+          isResolved
+        }
+      }
+    }
+  `
+  try {
+    const output = execFileSync(
+      'gh',
+      [
+        'api',
+        'graphql',
+        '-f',
+        `query=${mutation}`,
+        '-f',
+        `threadId=${threadId}`,
+      ],
+      { encoding: 'utf8' }
+    ).trim()
+    const data = JSON.parse(output)
+    const thread = data.data.resolveReviewThread.thread
+    if (thread.isResolved) {
+      console.log(`Thread ${threadId} resolved successfully.`)
+    } else {
+      console.log('Warning: Thread may not have been resolved.')
+    }
+  } catch (error) {
+    console.error('Failed to resolve thread:', error.stderr || error.message)
+    process.exit(1)
   }
 }
 
@@ -413,7 +615,9 @@ function generateIndexMd(
   runMetadata,
   categorizedJobs,
   jobTestCounts,
-  reviewData
+  reviewData,
+  jobEnvMap,
+  flakyTests
 ) {
   const { failed, inProgress, queued, succeeded, cancelled, skipped } =
     categorizedJobs
@@ -488,11 +692,51 @@ function generateIndexMd(
       const testsStr = testCount
         ? `${testCount.failed}/${testCount.total}`
         : 'N/A'
+      const nameStr = escapeMarkdownTableCell(job.name)
+      const conclusionTag =
+        job.conclusion && job.conclusion !== 'failure'
+          ? ` (${job.conclusion})`
+          : ''
       lines.push(
-        `| ${job.id} | ${escapeMarkdownTableCell(job.name)} | ${duration} | ${testsStr} | [Details](job-${job.id}.md) |`
+        `| ${job.id} | ${nameStr}${conclusionTag} | ${duration} | ${testsStr} | [Details](job-${job.id}.md) |`
       )
     }
     lines.push('')
+
+    // Show env vars for failed jobs if they differ from defaults
+    if (jobEnvMap && Object.keys(jobEnvMap).length > 0) {
+      const jobEnvGroups = new Map()
+      for (const job of failed) {
+        const envVars = getEnvVarsForJob(job.name, jobEnvMap)
+        if (envVars) {
+          const key = envVars.join(', ')
+          if (!jobEnvGroups.has(key)) {
+            jobEnvGroups.set(key, [])
+          }
+          jobEnvGroups.get(key).push(job.name)
+        }
+      }
+      if (jobEnvGroups.size > 0) {
+        lines.push('### Job Environment Variables', '')
+        for (const [envStr, jobNames] of jobEnvGroups) {
+          const prefix = jobNames[0].replace(/ \(.*/, '')
+          lines.push(`**${prefix}**: \`${envStr}\``, '')
+        }
+      }
+    }
+
+    // Known flaky tests section
+    if (flakyTests && flakyTests.size > 0) {
+      lines.push('### Known Flaky Tests (failing on 2+ branches)', '')
+      lines.push(
+        'These tests also failed in recent CI runs across multiple different branches and are likely pre-existing flakes, not caused by this PR:',
+        ''
+      )
+      for (const testPath of [...flakyTests].sort()) {
+        lines.push(`- \`${testPath}\``)
+      }
+      lines.push('')
+    }
   }
 
   // In-progress jobs section (only when CI is running)
@@ -575,18 +819,23 @@ function generateIndexMd(
         '',
         `## Inline Review Comments (${reviewThreads.length} threads)`,
         '',
-        '| File | Line | Author | Replies | Status | Details |',
-        '|------|------|--------|---------|--------|---------|'
+        '| File | Line | Participants | Replies | Status | Details |',
+        '|------|------|--------------|---------|--------|---------|'
       )
 
       for (let i = 0; i < reviewThreads.length; i++) {
         const thread = reviewThreads[i]
         const line = thread.line || thread.startLine || 'N/A'
-        const author = thread.comments.nodes[0]?.author?.login || 'Unknown'
+        const participants = new Set()
+        for (const comment of thread.comments.nodes) {
+          if (comment.author?.login) participants.add(comment.author.login)
+        }
+        const participantsStr =
+          participants.size > 0 ? [...participants].join(', ') : 'Unknown'
         const replyCount = Math.max(0, thread.comments.nodes.length - 1)
         const status = thread.isResolved ? 'Resolved' : 'Open'
         lines.push(
-          `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${author} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
+          `| ${escapeMarkdownTableCell(thread.path)} | ${line} | ${participantsStr} | ${replyCount} | ${status} | [View](thread-${i + 1}.md) |`
         )
       }
     }
@@ -835,17 +1084,186 @@ function generateThreadMd(thread, index) {
     lines.push(`[View on GitHub](${comment.url})`, '', '---', '')
   }
 
+  // Add commands section
+  if (thread.id) {
+    lines.push('## Commands', '')
+    lines.push(
+      'Reply to this thread:',
+      '```',
+      `node scripts/pr-status.js reply-thread ${thread.id} "Your reply here"`,
+      '```',
+      ''
+    )
+    if (!thread.isResolved) {
+      lines.push(
+        'Resolve this thread:',
+        '```',
+        `node scripts/pr-status.js resolve-thread ${thread.id}`,
+        '```',
+        '',
+        'Reply and resolve in one step:',
+        '```',
+        `node scripts/pr-status.js reply-and-resolve-thread ${thread.id} "Your reply here"`,
+        '```',
+        ''
+      )
+    }
+  }
+
   return lines.join('\n')
+}
+
+// ============================================================================
+// Flaky Test Detection
+// ============================================================================
+
+/**
+ * Fetches recent failed CI runs across all branches and identifies tests that
+ * fail on multiple different branches (indicating flakiness, not branch-specific bugs).
+ * Excludes the current PR's branch to avoid self-matching.
+ * Returns a Set of test file paths that are likely flaky.
+ */
+async function getFlakyTests(currentBranch, runsToCheck = 5) {
+  console.log(
+    `Checking last ${runsToCheck} failed CI runs across all branches for known flaky tests...`
+  )
+
+  // Get recent failed build-and-test runs across ALL branches
+  const jqQuery = `.workflow_runs[] | select(.conclusion == "failure" or .conclusion == "timed_out") | {id, head_branch}`
+  let output
+  try {
+    output = exec(
+      `gh api "repos/vercel/next.js/actions/workflows/57419851/runs?status=completed&per_page=30" --jq '${jqQuery}'`
+    )
+  } catch {
+    console.log('  Could not fetch CI runs, skipping flaky check')
+    return new Set()
+  }
+
+  if (!output.trim()) {
+    console.log('  No failed runs found')
+    return new Set()
+  }
+
+  // Filter out the current branch and take up to runsToCheck
+  const allRuns = output
+    .split('\n')
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line))
+    .filter((run) => run.head_branch !== currentBranch)
+    .slice(0, runsToCheck)
+
+  if (allRuns.length === 0) {
+    console.log('  No failed runs from other branches found')
+    return new Set()
+  }
+
+  const branchCount = new Set(allRuns.map((r) => r.head_branch)).size
+  console.log(
+    `  Checking ${allRuns.length} runs from ${branchCount} different branches...`
+  )
+
+  // Fetch failed jobs for all runs in parallel
+  const runJobResults = await Promise.all(
+    allRuns.map(async (run) => {
+      try {
+        const jobsJq =
+          '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "startup_failure") | {id, name}'
+        const jobsOutput = exec(
+          `gh api "repos/vercel/next.js/actions/runs/${run.id}/jobs?per_page=100" --jq '${jobsJq}'`
+        )
+        if (!jobsOutput.trim()) return { run, jobs: [] }
+        const jobs = jobsOutput
+          .split('\n')
+          .filter((line) => line.trim())
+          .map((line) => JSON.parse(line))
+        // Skip runs with 20+ failed jobs (likely systemic, not flaky)
+        if (jobs.length > 20) return { run, jobs: [] }
+        return { run, jobs }
+      } catch {
+        return { run, jobs: [] }
+      }
+    })
+  )
+
+  // Collect all (job, branch) pairs, then fetch logs in parallel (batch of 5)
+  const jobBranchPairs = []
+  for (const { run, jobs } of runJobResults) {
+    for (const job of jobs) {
+      jobBranchPairs.push({ job, branch: run.head_branch })
+    }
+  }
+
+  console.log(`  Fetching logs for ${jobBranchPairs.length} failed jobs...`)
+
+  // Map: testPath → Set of branches where it failed
+  const testFailBranches = new Map()
+
+  // Process in batches of 5 to avoid overwhelming the API
+  const BATCH_SIZE = 5
+  for (let i = 0; i < jobBranchPairs.length; i += BATCH_SIZE) {
+    const batch = jobBranchPairs.slice(i, i + BATCH_SIZE)
+    const results = await Promise.all(
+      batch.map(async ({ job, branch }) => {
+        try {
+          const logs = await execAsync('gh', [
+            'api',
+            `repos/vercel/next.js/actions/jobs/${job.id}/logs`,
+          ])
+          return { logs, branch }
+        } catch {
+          return { logs: null, branch }
+        }
+      })
+    )
+
+    for (const { logs, branch } of results) {
+      if (!logs) continue
+      const testResults = extractTestOutputJson(logs)
+      for (const result of testResults) {
+        if (result.testResults) {
+          for (const tr of result.testResults) {
+            const hasFailed = tr.assertionResults?.some(
+              (a) => a.status === 'failed'
+            )
+            if (hasFailed) {
+              const shortPath = tr.name?.replace(/.*\/(test\/)/, '$1')
+              if (shortPath) {
+                if (!testFailBranches.has(shortPath)) {
+                  testFailBranches.set(shortPath, new Set())
+                }
+                testFailBranches.get(shortPath).add(branch)
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // A test is flaky if it fails on 2+ different branches
+  const flakyTestFiles = new Set()
+  for (const [testPath, branches] of testFailBranches) {
+    if (branches.size >= 2) {
+      flakyTestFiles.add(testPath)
+    }
+  }
+
+  console.log(
+    `  Found ${flakyTestFiles.size} flaky tests (failing on 2+ different branches)`
+  )
+  return flakyTestFiles
 }
 
 // ============================================================================
 // Main Function
 // ============================================================================
 
-async function main() {
-  // Parse CLI argument for PR number
-  const prNumberArg = process.argv[2]
-
+/**
+ * Runs the full PR status analysis and writes output files.
+ * Returns { runId, isRunInProgress } so the caller can decide whether to wait.
+ */
+async function runAnalysis(prNumberArg, skipFlakyCheck) {
   // Step 1: Delete and recreate output directory
   console.log('Cleaning output directory...')
   await fs.rm(OUTPUT_DIR, { recursive: true, force: true })
@@ -864,7 +1282,7 @@ async function main() {
 
   if (runs.length === 0) {
     console.log('No workflow runs found for this branch.')
-    process.exit(0)
+    return { runId: null, isRunInProgress: false }
   }
 
   // Find the most recent run (first in list)
@@ -972,10 +1390,11 @@ async function main() {
         runMetadata,
         emptyCategorizedJobs,
         {},
-        reviewData
+        reviewData,
+        {}
       )
     )
-    process.exit(0)
+    return { runId: latestRun.id, isRunInProgress: false }
   }
 
   if (hasNoFailedJobs && hasInProgressOrQueued) {
@@ -997,7 +1416,7 @@ async function main() {
     processedFailedJobs.push(jobMetadata)
 
     // Get job logs
-    const logs = getJobLogs(id)
+    const logs = await getJobLogs(id)
 
     // Extract test output JSON
     const testResults = extractTestOutputJson(logs)
@@ -1082,23 +1501,114 @@ async function main() {
     }
   }
 
-  // Step 8: Generate index.md
+  // Step 8: Check for known flaky tests across branches (skip with --skip-flaky-check)
+  let flakyTests = new Set()
+  if (!skipFlakyCheck) {
+    flakyTests = await getFlakyTests(branchInfo.branchName, 5)
+    if (flakyTests.size > 0) {
+      await fs.writeFile(
+        path.join(OUTPUT_DIR, 'flaky-tests.json'),
+        JSON.stringify([...flakyTests].sort(), null, 2)
+      )
+    }
+  }
+
+  // Step 9: Generate index.md
   console.log('Generating index.md...')
   // Update categorizedJobs.failed with full processed metadata
   const finalCategorizedJobs = {
     ...categorizedJobs,
     failed: processedFailedJobs,
   }
+  const jobEnvMap = getJobEnvVarsFromWorkflow()
   const indexMd = generateIndexMd(
     branchInfo,
     runMetadata,
     finalCategorizedJobs,
     jobTestCounts,
-    reviewData
+    reviewData,
+    jobEnvMap,
+    flakyTests
   )
   await fs.writeFile(path.join(OUTPUT_DIR, 'index.md'), indexMd)
 
   console.log(`\nDone! Output written to ${OUTPUT_DIR}/index.md`)
+  return { runId: latestRun.id, isRunInProgress }
+}
+
+async function main() {
+  // Dispatch subcommands
+  const subcommand = process.argv[2]
+
+  if (subcommand === 'reply-thread') {
+    const threadId = process.argv[3]
+    const body = process.argv[4]
+    if (!threadId || !body) {
+      console.error(
+        'Usage: node scripts/pr-status.js reply-thread <threadNodeId> <body>'
+      )
+      process.exit(1)
+    }
+    replyToThread(threadId, body)
+    return
+  }
+
+  if (subcommand === 'resolve-thread') {
+    const threadId = process.argv[3]
+    if (!threadId) {
+      console.error(
+        'Usage: node scripts/pr-status.js resolve-thread <threadNodeId>'
+      )
+      process.exit(1)
+    }
+    resolveThread(threadId)
+    return
+  }
+
+  if (subcommand === 'reply-and-resolve-thread') {
+    const threadId = process.argv[3]
+    const body = process.argv[4]
+    if (!threadId || !body) {
+      console.error(
+        'Usage: node scripts/pr-status.js reply-and-resolve-thread <threadNodeId> <body>'
+      )
+      process.exit(1)
+    }
+    replyToThread(threadId, body)
+    resolveThread(threadId)
+    return
+  }
+
+  // Parse CLI arguments
+  const args = process.argv.slice(2)
+  const waitFlag = args.includes('--wait')
+  const skipFlakyCheck = args.includes('--skip-flaky-check')
+  const prNumberArg = args.find((a) => !a.startsWith('--'))
+
+  // Run the initial analysis
+  const { runId, isRunInProgress } = await runAnalysis(
+    prNumberArg,
+    skipFlakyCheck
+  )
+
+  if (!runId) {
+    process.exit(0)
+  }
+
+  // If --wait and CI is still running, wait for completion then re-run
+  if (waitFlag && isRunInProgress) {
+    console.log('\nWaiting for CI to complete (gh run watch)...')
+    try {
+      execSync(`gh run watch ${runId} --compact -R vercel/next.js`, {
+        stdio: 'inherit',
+      })
+    } catch {
+      // gh run watch exits non-zero when the run fails, which is expected
+    }
+
+    console.log('\nCI completed. Re-running analysis...')
+    await runAnalysis(prNumberArg, skipFlakyCheck)
+  }
 }
 
 main().catch((err) => {

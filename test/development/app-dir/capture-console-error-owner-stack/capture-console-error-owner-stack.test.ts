@@ -12,6 +12,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "trigger an console <error>",
        "environmentLabel": null,
        "label": "Console Error",
@@ -32,6 +33,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -50,6 +52,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "trigger an console.error in render",
        "environmentLabel": null,
        "label": "Console Error",
@@ -68,6 +71,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
+       "code": "E394",
        "description": "ssr console error:client",
        "environmentLabel": null,
        "label": "Console Error",

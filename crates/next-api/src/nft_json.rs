@@ -1,12 +1,14 @@
 use std::collections::{BTreeSet, HashSet, VecDeque};
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
+    turbofmt,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, File, FileContent, FileSystem, FileSystemPath,
@@ -14,7 +16,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
 
@@ -286,11 +288,10 @@ impl Asset for NftJsonAsset {
                             &*current_path.get_type().await?,
                             FileSystemEntryType::Symlink
                         ) {
-                            bail!(
-                                "Encountered file inside of symlink in NFT list: {} is a symlink, \
-                                 but {} was created inside of it",
-                                current_path.value_to_string().await?,
-                                referenced_chunk_path.value_to_string().await?
+                            turbo_tasks::turbobail!(
+                                "Encountered file inside of symlink in NFT list: {current_path} \
+                                 is a symlink, but {referenced_chunk_path} was created inside of \
+                                 it"
                             );
                         }
 
@@ -307,12 +308,15 @@ impl Asset for NftJsonAsset {
                 ) {
                     Ok(specifier) => specifier,
                     Err(err) => {
-                        return Err(err.context(format!(
-                            "NftJsonAsset: cannot handle filepath '{chunk_path}' for \
-                             {referenced_chunk:?} it is not under the output_root: \
-                             '{output_root_ref}' or the project_root: '{project_root_ref}'",
-                            chunk_path = referenced_chunk_path.value_to_string().await?
-                        )));
+                        // ast-grep-ignore: no-context-turbofmt
+                        return Err(err.context(
+                            turbofmt!(
+                                "NftJsonAsset: cannot handle filepath '{referenced_chunk_path}' \
+                                 for {referenced_chunk:?} it is not under the output_root: \
+                                 '{output_root_ref}' or the project_root: '{project_root_ref}'",
+                            )
+                            .await?,
+                        ));
                     }
                 };
 
@@ -541,6 +545,7 @@ struct ForbiddenTracedFileIssue {
     path: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ForbiddenTracedFileIssue {
     fn severity(&self) -> IssueSeverity {
@@ -549,23 +554,21 @@ impl Issue for ForbiddenTracedFileIssue {
         IssueSeverity::Warning
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Misc.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Misc
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file.path()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.file.path().owned().await
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Encountered unexpected file in NFT list")).cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Encountered unexpected file in NFT list"
+        )))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
+    async fn description(&self) -> Result<Option<StyledString>> {
         let mut stack = vec![
             StyledString::Text(rcstr!(
                 "A file was traced that indicates that the whole project was traced \
@@ -622,7 +625,7 @@ impl Issue for ForbiddenTracedFileIssue {
             ])
         }
 
-        Ok(Vc::cell(Some(StyledString::Stack(stack).resolved_cell())))
+        Ok(Some(StyledString::Stack(stack)))
     }
 }
 

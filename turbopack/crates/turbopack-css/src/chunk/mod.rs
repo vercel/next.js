@@ -308,7 +308,7 @@ impl OutputAssetsReference for CssChunk {
                             .copied()
                             .chain(single_css_chunk.iter().copied())
                     })
-                    .chain(source_map.into_iter())
+                    .chain(source_map)
                     .collect(),
             ),
             referenced_assets: ResolvedVc::cell(
@@ -522,17 +522,10 @@ impl Introspectable for CssChunk {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, ValueToString)]
+#[value_to_string("css")]
 #[turbo_tasks::value]
 pub struct CssChunkType {}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CssChunkType {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("css"))
-    }
-}
 
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {

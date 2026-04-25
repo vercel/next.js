@@ -1,7 +1,14 @@
 import { getLayoutOrPageModule } from '../../lib/app-dir-module'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import { parseLoaderTree } from '../../../shared/lib/router/utils/parse-loader-tree'
-import type { AppSegmentConfig } from '../../../build/segment-config/app/app-segment-config'
+import type {
+  AppSegmentConfig,
+  InstantSample,
+} from '../../../build/segment-config/app/app-segment-config'
+import {
+  workAsyncStorage,
+  type WorkStore,
+} from '../work-async-storage.external'
 
 export async function anySegmentHasRuntimePrefetchEnabled(
   tree: LoaderTree
@@ -9,14 +16,10 @@ export async function anySegmentHasRuntimePrefetchEnabled(
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
   // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
-  const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+  const prefetchConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
     : undefined
-  const hasRuntimePrefetch =
-    instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
-  if (hasRuntimePrefetch) {
+  if (prefetchConfig === 'force-runtime') {
     return true
   }
 
@@ -46,10 +49,10 @@ export async function isPageAllowedToBlock(tree: LoaderTree): Promise<boolean> {
   // instant UI, so we should make sure that a static shell exists.
   // (even if it'd use runtime prefetching for client navs)
   if (instantConfig !== undefined) {
-    if (typeof instantConfig === 'object') {
-      return false
-    } else if (instantConfig === false) {
+    if (instantConfig === false) {
       return true
+    } else {
+      return false
     }
   }
 
@@ -70,18 +73,30 @@ type FoundSegmentWithConfig = {
   config: NonNullable<AppSegmentConfig['unstable_instant']>
 }
 
-export async function anySegmentNeedsInstantValidation(
-  rootTree: LoaderTree
+/**
+ * Checks if any segments in the loader tree have `instant` configs that need validating.
+ * NOTE: Client navigations call this multiple times, so we cache it.
+ * */
+// Shared helper (not exported, not cached — called by the cached wrappers)
+async function anySegmentNeedsInstantValidation(
+  rootTree: LoaderTree,
+  mode: 'dev' | 'build'
 ): Promise<boolean> {
   const segments = await findSegmentsWithInstantConfig(rootTree)
 
-  // Check if there's any configs with `prefetch: 'static'` or `mode: 'instant'`.
+  // Check if there's any non-false configs that need validation.
   // (If there's only `false`, there's no need to run validation).
   // If any segment has `unstable_disableValidation`, we skip validation for the whole tree.
   let needsValidation = false
   for (const { config } of segments) {
-    if (typeof config === 'object') {
-      if (config.unstable_disableValidation) {
+    if (config === true) {
+      needsValidation = true
+    } else if (typeof config === 'object') {
+      if (
+        config.unstable_disableValidation === true ||
+        (mode === 'dev' && config.unstable_disableDevValidation === true) ||
+        (mode === 'build' && config.unstable_disableBuildValidation === true)
+      ) {
         return false
       }
       // do not short-circuit, some other segment might still have `unstable_disableValidation`
@@ -91,32 +106,112 @@ export async function anySegmentNeedsInstantValidation(
   return needsValidation
 }
 
-export async function findSegmentsWithInstantConfig(
-  rootTree: LoaderTree
-): Promise<FoundSegmentWithConfig[]> {
-  const results: FoundSegmentWithConfig[] = []
+export const anySegmentNeedsInstantValidationInDev = cacheScopedToWorkStore(
+  async (rootTree: LoaderTree): Promise<boolean> =>
+    anySegmentNeedsInstantValidation(rootTree, 'dev')
+)
 
-  async function visit(tree: LoaderTree, path: string[]): Promise<void> {
-    const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
+export const anySegmentNeedsInstantValidationInBuild = cacheScopedToWorkStore(
+  async (rootTree: LoaderTree): Promise<boolean> =>
+    anySegmentNeedsInstantValidation(rootTree, 'build')
+)
 
-    // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
-    const instantConfig = layoutOrPageMod
-      ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
-      : undefined
-    if (instantConfig !== undefined) {
-      results.push({
-        path,
-        config: instantConfig,
-      })
+export const findSegmentsWithInstantConfig = cacheScopedToWorkStore(
+  async (rootTree: LoaderTree): Promise<FoundSegmentWithConfig[]> => {
+    const results: FoundSegmentWithConfig[] = []
+
+    async function visit(tree: LoaderTree, path: string[]): Promise<void> {
+      const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
+
+      // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
+      const instantConfig = layoutOrPageMod
+        ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+        : undefined
+      if (instantConfig !== undefined) {
+        results.push({
+          path,
+          config: instantConfig,
+        })
+      }
+
+      const { parallelRoutes } = parseLoaderTree(tree)
+      for (const parallelRouteKey in parallelRoutes) {
+        const childTree = parallelRoutes[parallelRouteKey]
+        await visit(childTree, [...path, parallelRouteKey])
+      }
     }
 
-    const { parallelRoutes } = parseLoaderTree(tree)
-    for (const parallelRouteKey in parallelRoutes) {
-      const childTree = parallelRoutes[parallelRouteKey]
-      await visit(childTree, [...path, parallelRouteKey])
+    await visit(rootTree, [])
+    return results
+  }
+)
+
+export const resolveInstantConfigSamplesForPage = async (
+  tree: LoaderTree
+): Promise<InstantSample[] | null> => {
+  const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
+
+  const instantConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+    : undefined
+
+  let samples: InstantSample[] | null = null
+  if (
+    instantConfig !== undefined &&
+    typeof instantConfig === 'object' &&
+    instantConfig.samples
+  ) {
+    samples = instantConfig.samples
+  }
+
+  // The samples from inner segments override samples from outer segments,
+  // i.e. a page overrides the samples from a layout.
+  // We do not perform any merging logic.
+  const { parallelRoutes } = parseLoaderTree(tree)
+  for (const parallelRouteKey in parallelRoutes) {
+    if (parallelRouteKey !== 'children') {
+      // TODO(instant-validation-build): do something with with samples from non-children slots?
+      continue
+    }
+    const childTree = parallelRoutes[parallelRouteKey]
+    const childSamples = await resolveInstantConfigSamplesForPage(childTree)
+    if (childSamples !== null) {
+      samples = childSamples
     }
   }
 
-  await visit(rootTree, [])
-  return results
+  return samples
+}
+
+/**
+ * A simple cache wrapper for 1-argument functions.
+ * The cache will live as long as the current WorkStore,
+ * i.e. it's scoped to a single request.
+ */
+function cacheScopedToWorkStore<TArg extends WeakKey, TRes>(
+  func: (arg: TArg) => TRes
+): (arg: TArg) => TRes {
+  const resultsPerWorkStore = new WeakMap<WorkStore, WeakMap<TArg, TRes>>()
+  return (arg: TArg): TRes => {
+    const workStore = workAsyncStorage.getStore()
+    if (!workStore) {
+      // No caching.
+      return func(arg)
+    }
+
+    let results = resultsPerWorkStore.get(workStore)
+    if (results && results.has(arg)) {
+      return results.get(arg)!
+    }
+
+    const result = func(arg)
+
+    if (!results) {
+      results = new WeakMap()
+      resultsPerWorkStore.set(workStore, results)
+    }
+    results.set(arg, result)
+
+    return result
+  }
 }

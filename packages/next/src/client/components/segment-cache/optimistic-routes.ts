@@ -36,7 +36,11 @@
  *
  * Current limitations (deopt to server resolution):
  * - Rewrites: Detected during traversal (tree not populated, but route cached)
- * - Intercepted routes: Routes using (.), (..), (...) patterns
+ * - Intercepted routes: The route tree varies by referrer (Next-Url header),
+ *   so we can't predict the correct structure from the URL alone. Patterns are
+ *   still stored during discovery (so the trie stays populated for non-
+ *   intercepted siblings), but matching bails out when the pattern is marked
+ *   as interceptable.
  */
 
 import type { DynamicParamTypesShort } from '../../../shared/lib/app-router-types'
@@ -45,9 +49,11 @@ import {
   EntryStatus,
   writeRouteIntoCache,
   fulfillRouteCacheEntry,
+  getCurrentRouteCacheVersion,
   type PendingRouteCacheEntry,
   createMetadataRouteTree,
 } from './cache'
+import { isValueExpired } from './cache-map'
 import { doesStaticSegmentAppearInURL } from '../../route-params'
 import type { NormalizedPathname, NormalizedSearch } from './cache-key'
 import {
@@ -133,6 +139,30 @@ type KnownRoutePart =
  */
 type ResolvedParams = Map<string, string | string[]>
 
+/**
+ * Read the pattern from a KnownRoutePart, evicting it if expired.
+ *
+ * This prevents stale patterns (e.g. from InliningHintsStale route entries
+ * with staleAt = -1) from being cloned into synthetic entries indefinitely.
+ * Once evicted, the pattern slot can be repopulated by the next
+ * discoverKnownRoute call with a fresh entry from a /_tree response.
+ */
+function readPattern(
+  now: number,
+  part: KnownRoutePart
+): FulfilledRouteCacheEntry | null {
+  const pattern = part.pattern
+  if (pattern === null) {
+    return null
+  }
+  if (isValueExpired(now, getCurrentRouteCacheVersion(), pattern)) {
+    // The pattern is expired. Null it out so the slot can be repopulated.
+    part.pattern = null
+    return null
+  }
+  return pattern
+}
+
 function createEmptyPart(): KnownRoutePart {
   return {
     staticChildren: null,
@@ -167,12 +197,13 @@ let knownRouteTreeRoot: KnownRoutePart = createEmptyPart()
 export function discoverKnownRoute(
   now: number,
   pathname: string,
+  nextUrl: string | null,
   pendingEntry: PendingRouteCacheEntry | null,
   routeTree: RouteTree,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  isPPREnabled: boolean,
+  supportsPerSegmentPrefetching: boolean,
   hasDynamicRewrite: boolean
 ): FulfilledRouteCacheEntry {
   const tree = routeTree
@@ -190,7 +221,7 @@ export function discoverKnownRoute(
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      supportsPerSegmentPrefetching
     )
     if (hasDynamicRewrite) {
       fulfilledEntry.hasDynamicRewrite = true
@@ -206,11 +237,12 @@ export function discoverKnownRoute(
       fulfilledEntry,
       now,
       pathname,
+      nextUrl,
       tree,
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled,
+      supportsPerSegmentPrefetching,
       hasDynamicRewrite
     )
     return fulfilledEntry
@@ -226,11 +258,12 @@ export function discoverKnownRoute(
     null,
     now,
     pathname,
+    nextUrl,
     tree,
     metadataVaryPath,
     couldBeIntercepted,
     canonicalUrl,
-    isPPREnabled,
+    supportsPerSegmentPrefetching,
     hasDynamicRewrite
   )
 }
@@ -281,11 +314,12 @@ function discoverKnownRoutePart(
   // These are passed through unchanged for entry creation at the leaf
   now: number,
   pathname: string,
+  nextUrl: string | null,
   fullTree: RouteTree,
   metadataVaryPath: PageVaryPath,
   couldBeIntercepted: boolean,
   canonicalUrl: string,
-  isPPREnabled: boolean,
+  supportsPerSegmentPrefetching: boolean,
   hasDynamicRewrite: boolean
 ): FulfilledRouteCacheEntry {
   const segment = routeTree.segment
@@ -321,11 +355,12 @@ function discoverKnownRoutePart(
       return writeRouteIntoCache(
         now,
         pathname as NormalizedPathname,
+        nextUrl,
         fullTree,
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        isPPREnabled
+        supportsPerSegmentPrefetching
       )
     }
 
@@ -399,11 +434,12 @@ function discoverKnownRoutePart(
         existingEntry,
         now,
         pathname,
+        nextUrl,
         fullTree,
         metadataVaryPath,
         couldBeIntercepted,
         canonicalUrl,
-        isPPREnabled,
+        supportsPerSegmentPrefetching,
         hasDynamicRewrite
       )
       // All parallel route branches share the same URL, so they should all
@@ -421,22 +457,24 @@ function discoverKnownRoutePart(
     return writeRouteIntoCache(
       now,
       pathname as NormalizedPathname,
+      nextUrl,
       fullTree,
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      supportsPerSegmentPrefetching
     )
   }
 
   // Reached a page node. Create/get the route cache entry and store as a
   // pattern. First, check if there's already a pattern for this route.
-  if (knownRoutePart.pattern !== null) {
+  const existingPattern = readPattern(now, knownRoutePart)
+  if (existingPattern !== null) {
     // If this route has a dynamic rewrite, mark the existing pattern.
     if (hasDynamicRewrite) {
-      knownRoutePart.pattern.hasDynamicRewrite = true
+      existingPattern.hasDynamicRewrite = true
     }
-    return knownRoutePart.pattern
+    return existingPattern
   }
 
   // Get or create the entry
@@ -450,11 +488,12 @@ function discoverKnownRoutePart(
     entry = writeRouteIntoCache(
       now,
       pathname as NormalizedPathname,
+      nextUrl,
       fullTree,
       metadataVaryPath,
       couldBeIntercepted,
       canonicalUrl,
-      isPPREnabled
+      supportsPerSegmentPrefetching
     )
   }
 
@@ -474,12 +513,14 @@ function discoverKnownRoutePart(
  * pattern, or null if no match is found (fall back to server resolution).
  */
 export function matchKnownRoute(
+  now: number,
   pathname: string,
   search: NormalizedSearch
 ): FulfilledRouteCacheEntry | null {
   const pathnameParts = pathname.split('/').filter((p) => p !== '')
   const resolvedParams: ResolvedParams = new Map()
   const match = matchKnownRoutePart(
+    now,
     knownRouteTreeRoot,
     pathnameParts,
     0,
@@ -493,8 +534,18 @@ export function matchKnownRoute(
   const matchedPart = match.part
   const pattern = match.pattern
 
-  // If the pattern could be intercepted, we can't safely use it for prediction
-  // because the route structure may vary based on the Next-Url header.
+  // If the pattern could be intercepted, we can't safely use it for prediction.
+  // Interception routes resolve to different route trees depending on the
+  // referrer (the Next-Url header), which means the same URL can map to
+  // different page components depending on where the navigation originated.
+  // Since the known route tree only stores a single pattern per URL shape, we
+  // can't distinguish between the intercepted and non-intercepted cases, so we
+  // bail out to server resolution.
+  //
+  // TODO: We could store interception behavior in the known route tree itself
+  // (e.g., which segments use interception markers and what they resolve to).
+  // With enough information embedded in the trie, we could match interception
+  // routes entirely on the client without a server round-trip.
   if (pattern.couldBeIntercepted) {
     return null
   }
@@ -535,7 +586,7 @@ export function matchKnownRoute(
     tree: reifiedTree,
     metadata: reifiedMetadata,
     couldBeIntercepted: pattern.couldBeIntercepted,
-    isPPREnabled: pattern.isPPREnabled,
+    supportsPerSegmentPrefetching: pattern.supportsPerSegmentPrefetching,
     hasDynamicRewrite: false,
     renderedSearch: search,
     ref: null,
@@ -571,6 +622,7 @@ type KnownRouteMatch = {
  * Returns null if no match found (caller should fall back to server).
  */
 function matchKnownRoutePart(
+  now: number,
   part: KnownRoutePart,
   pathnameParts: string[],
   partIndex: number,
@@ -588,7 +640,7 @@ function matchKnownRoutePart(
   if (part.staticChildren === null) {
     // The only safe match is a direct pattern when no URL parts remain.
     if (urlPart === null) {
-      const pattern = part.pattern
+      const pattern = readPattern(now, part)
       if (pattern !== null && !pattern.hasDynamicRewrite) {
         return { part, pattern }
       }
@@ -614,6 +666,7 @@ function matchKnownRoutePart(
         return null
       }
       const match = matchKnownRoutePart(
+        now,
         staticChild,
         pathnameParts,
         partIndex + 1,
@@ -622,8 +675,12 @@ function matchKnownRoutePart(
       if (match !== null) {
         return match
       }
-      // Static child exists but didn't match (e.g., wrong depth).
-      // Fall through to try dynamic.
+      // Static child is a real node (not a placeholder) but its subtree
+      // didn't match the remaining URL parts. This means the route exists
+      // in the static subtree but hasn't been fully discovered yet. Do not
+      // fall through to try the dynamic child — the static match is
+      // authoritative. Bail out to server resolution.
+      return null
     }
   }
 
@@ -632,7 +689,7 @@ function matchKnownRoutePart(
     const dynamicPart = part.dynamicChild
     const paramName = part.dynamicChildParamName
     const paramType = part.dynamicChildParamType
-    const dynamicPattern = dynamicPart.pattern
+    const dynamicPattern = readPattern(now, dynamicPart)
 
     switch (paramType) {
       case 'c':
@@ -646,7 +703,7 @@ function matchKnownRoutePart(
           return { part: dynamicPart, pattern: dynamicPattern }
         }
         break
-      case 'oc':
+      case 'oc': {
         // Optional catch-all [[...param]]: consumes 0+ URL parts
         if (dynamicPattern !== null && !dynamicPattern.hasDynamicRewrite) {
           if (urlPart !== null) {
@@ -655,12 +712,14 @@ function matchKnownRoutePart(
           }
           // urlPart is null - can match with zero parts, but a direct pattern
           // (e.g., page.tsx alongside [[...param]]) takes precedence.
-          if (part.pattern === null || part.pattern.hasDynamicRewrite) {
+          const directPattern = readPattern(now, part)
+          if (directPattern === null || directPattern.hasDynamicRewrite) {
             resolvedParams.set(paramName, [])
             return { part: dynamicPart, pattern: dynamicPattern }
           }
         }
         break
+      }
       case 'd':
         // Regular dynamic [param]: consumes exactly 1 URL part.
         // Unlike catch-all which terminates here, regular dynamic must
@@ -668,6 +727,7 @@ function matchKnownRoutePart(
         if (urlPart !== null) {
           resolvedParams.set(paramName, urlPart)
           return matchKnownRoutePart(
+            now,
             dynamicPart,
             pathnameParts,
             partIndex + 1,
@@ -695,7 +755,7 @@ function matchKnownRoutePart(
   // No children matched. If we've consumed all URL parts, check for a direct
   // pattern at this node (the route terminates here).
   if (urlPart === null) {
-    const pattern = part.pattern
+    const pattern = readPattern(now, part)
     if (pattern !== null && !pattern.hasDynamicRewrite) {
       return { part, pattern }
     }
@@ -797,9 +857,8 @@ function reifyRouteTree(
       segment: newSegment,
       refreshState: pattern.refreshState,
       slots: newSlots,
-      isRootLayout: pattern.isRootLayout,
-      hasLoadingBoundary: pattern.hasLoadingBoundary,
-      hasRuntimePrefetch: pattern.hasRuntimePrefetch,
+
+      prefetchHints: pattern.prefetchHints,
       isPage: true,
       varyPath: newVaryPath,
     }
@@ -814,9 +873,8 @@ function reifyRouteTree(
       segment: newSegment,
       refreshState: pattern.refreshState,
       slots: newSlots,
-      isRootLayout: pattern.isRootLayout,
-      hasLoadingBoundary: pattern.hasLoadingBoundary,
-      hasRuntimePrefetch: pattern.hasRuntimePrefetch,
+
+      prefetchHints: pattern.prefetchHints,
       isPage: false,
       varyPath: newVaryPath,
     }

@@ -1,4 +1,9 @@
-import type { Route, ResolveRoutesParams, ResolveRoutesResult } from './types'
+import type {
+  Route,
+  ResolveRoutesParams,
+  ResolveRoutesQuery,
+  ResolveRoutesResult,
+} from './types'
 import { checkHasConditions, checkMissingConditions } from './matchers'
 import {
   replaceDestination,
@@ -10,21 +15,61 @@ import {
 import { normalizeNextDataUrl, denormalizeNextDataUrl } from './next-data'
 import { detectLocale, detectDomainLocale, normalizeLocalePath } from './i18n'
 
+function getHeaderValueCaseInsensitive(
+  headers: Record<string, string>,
+  targetHeader: string
+): string | undefined {
+  const targetHeaderLower = targetHeader.toLowerCase()
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() === targetHeaderLower) {
+      return value
+    }
+  }
+  return undefined
+}
+
+function resolveRedirectLocationWithRequestQuery(
+  locationHeader: string,
+  requestUrl: URL
+): string {
+  if (!requestUrl.search) {
+    return locationHeader
+  }
+
+  try {
+    const resolvedLocation = new URL(locationHeader, requestUrl)
+    if (resolvedLocation.search) {
+      return locationHeader
+    }
+
+    resolvedLocation.search = requestUrl.search
+    if (resolvedLocation.origin !== requestUrl.origin) {
+      return resolvedLocation.toString()
+    }
+
+    return `${resolvedLocation.pathname}${resolvedLocation.search}${resolvedLocation.hash}`
+  } catch {
+    return locationHeader
+  }
+}
+
 /**
  * Attempts to match a route against the current URL and conditions
  */
 function matchRoute(
   route: Route,
   url: URL,
-  headers: Headers
+  headers: Headers,
+  caseSensitive: boolean
 ): {
   matched: boolean
   destination?: string
+  headers?: Record<string, string>
   regexMatches?: RegExpMatchArray
   hasCaptures?: Record<string, string>
 } {
   // Check if source regex matches the pathname
-  const regex = new RegExp(route.sourceRegex)
+  const regex = new RegExp(route.sourceRegex, caseSensitive ? '' : 'i')
   const regexMatches = url.pathname.match(regex)
 
   if (!regexMatches) {
@@ -47,10 +92,19 @@ function matchRoute(
   const destination = route.destination
     ? replaceDestination(route.destination, regexMatches, hasResult.captures)
     : undefined
+  const resolvedHeaders = route.headers
+    ? Object.fromEntries(
+        Object.entries(route.headers).map(([key, value]) => [
+          replaceDestination(key, regexMatches, hasResult.captures),
+          replaceDestination(value, regexMatches, hasResult.captures),
+        ])
+      )
+    : undefined
 
   return {
     matched: true,
     destination,
+    headers: resolvedHeaders,
     regexMatches,
     hasCaptures: hasResult.captures,
   }
@@ -62,8 +116,10 @@ function matchRoute(
 function processRoutes(
   routes: Route[],
   url: URL,
-  headers: Headers,
-  initialOrigin: string
+  requestHeaders: Headers,
+  responseHeaders: Headers,
+  initialOrigin: string,
+  caseSensitive: boolean
 ): {
   url: URL
   externalRewrite?: URL
@@ -78,12 +134,12 @@ function processRoutes(
   let currentStatus: number | undefined
 
   for (const route of routes) {
-    const match = matchRoute(route, currentUrl, headers)
+    const match = matchRoute(route, currentUrl, requestHeaders, caseSensitive)
 
     if (match.matched) {
-      if (route.headers) {
-        for (const [key, value] of Object.entries(route.headers)) {
-          headers.set(key, value)
+      if (match.headers) {
+        for (const [key, value] of Object.entries(match.headers)) {
+          responseHeaders.set(key, value)
         }
       }
 
@@ -91,13 +147,12 @@ function processRoutes(
         currentStatus = route.status
       }
 
-      if (match.destination) {
-        // Check if route has redirect status and Location/Refresh header
-        if (
-          isRedirectStatus(route.status) &&
-          route.headers &&
-          hasRedirectHeaders(route.headers)
-        ) {
+      if (
+        isRedirectStatus(route.status) &&
+        match.headers &&
+        hasRedirectHeaders(match.headers)
+      ) {
+        if (match.destination) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
             : applyDestination(currentUrl, match.destination)
@@ -113,6 +168,25 @@ function processRoutes(
           }
         }
 
+        const locationHeader = getHeaderValueCaseInsensitive(
+          match.headers,
+          'location'
+        )
+        if (locationHeader) {
+          responseHeaders.set(
+            'location',
+            resolveRedirectLocationWithRequestQuery(locationHeader, currentUrl)
+          )
+        }
+
+        return {
+          url: currentUrl,
+          stopped: true,
+          status: currentStatus,
+        }
+      }
+
+      if (match.destination) {
         // Check if it's an external rewrite
         if (isExternalDestination(match.destination)) {
           return {
@@ -157,18 +231,125 @@ function matchesPathname(
   return undefined
 }
 
+function matchesPathnameWithLocaleFallback({
+  pathname,
+  pathnames,
+  basePath,
+  i18n,
+}: {
+  pathname: string
+  pathnames: string[]
+  basePath: string
+  i18n?: ResolveRoutesParams['i18n']
+}): string | undefined {
+  const directMatch = matchesPathname(pathname, pathnames)
+  if (directMatch || !i18n) {
+    return directMatch
+  }
+
+  const withoutBasePath =
+    basePath && pathname.startsWith(basePath)
+      ? pathname.slice(basePath.length) || '/'
+      : pathname
+
+  for (const locale of i18n.locales) {
+    const localePrefix = `/${locale}`
+    if (
+      withoutBasePath !== localePrefix &&
+      !withoutBasePath.startsWith(`${localePrefix}/`)
+    ) {
+      continue
+    }
+
+    const withoutLocale =
+      withoutBasePath === localePrefix
+        ? '/'
+        : withoutBasePath.slice(localePrefix.length) || '/'
+    const localeFallbackPathname = basePath
+      ? `${basePath}${withoutLocale}`
+      : withoutLocale
+
+    const localeFallbackMatch = matchesPathname(
+      localeFallbackPathname,
+      pathnames
+    )
+    if (localeFallbackMatch) {
+      return localeFallbackMatch
+    }
+  }
+
+  return undefined
+}
+
+function isDynamicTemplatePathname(pathname: string): boolean {
+  return /\[[^/]+?\]/.test(pathname)
+}
+
+function toResolvedQuery(url: URL): ResolveRoutesQuery {
+  const query: ResolveRoutesQuery = {}
+  for (const [key, value] of url.searchParams.entries()) {
+    const existing = query[key]
+    if (existing === undefined) {
+      query[key] = value
+      continue
+    }
+    query[key] = Array.isArray(existing)
+      ? [...existing, value]
+      : [existing, value]
+  }
+  return query
+}
+
+function mergeDestinationQueryIntoUrl(url: URL, destination: string): URL {
+  const mergedUrl = new URL(url.toString())
+  const destinationSearch = destination.split('?')[1]
+  if (!destinationSearch) {
+    return mergedUrl
+  }
+
+  const destinationParams = new URLSearchParams(destinationSearch)
+  for (const [key, value] of destinationParams.entries()) {
+    mergedUrl.searchParams.set(key, value)
+  }
+  return mergedUrl
+}
+
+function withResolvedInvocationTarget({
+  result,
+  url,
+  resolvedPathname,
+  invocationPathname,
+}: {
+  result: ResolveRoutesResult
+  url: URL
+  resolvedPathname: string
+  invocationPathname: string
+}): ResolveRoutesResult {
+  const resolvedQuery = toResolvedQuery(url)
+  return {
+    ...result,
+    resolvedPathname,
+    resolvedQuery,
+    invocationTarget: {
+      pathname: invocationPathname,
+      query: resolvedQuery,
+    },
+  }
+}
+
 /**
  * Matches dynamic routes and extracts route parameters
  */
 function matchDynamicRoute(
   pathname: string,
-  route: Route
+  route: Route,
+  caseSensitive: boolean
 ): {
   matched: boolean
   params?: Record<string, string>
-  destinationPathname?: string
+  regexMatches?: RegExpMatchArray
 } {
-  const regex = new RegExp(route.sourceRegex)
+  const regex = new RegExp(route.sourceRegex, caseSensitive ? '' : 'i')
   const match = pathname.match(regex)
 
   if (!match) {
@@ -189,27 +370,26 @@ function matchDynamicRoute(
     Object.assign(params, match.groups)
   }
 
-  // Compute destination pathname by applying the destination template
-  let destinationPathname: string | undefined
-  if (route.destination) {
-    const replaced = replaceDestination(route.destination, match, {})
-    // Extract just the pathname part (before any query string)
-    const [pathPart] = replaced.split('?')
-    destinationPathname = pathPart
-  }
-
-  return { matched: true, params, destinationPathname }
+  return { matched: true, params, regexMatches: match }
 }
 
 /**
  * Applies headers from onMatch routes
  */
-function applyOnMatchHeaders(routes: Route[], headers: Headers): Headers {
-  const newHeaders = new Headers(headers)
+function applyOnMatchHeaders(
+  routes: Route[],
+  url: URL,
+  requestHeaders: Headers,
+  responseHeaders: Headers,
+  caseSensitive: boolean
+): Headers {
+  const newHeaders = new Headers(responseHeaders)
 
   for (const route of routes) {
-    if (route.headers) {
-      for (const [key, value] of Object.entries(route.headers)) {
+    const match = matchRoute(route, url, requestHeaders, caseSensitive)
+
+    if (match.matched && match.headers) {
+      for (const [key, value] of Object.entries(match.headers)) {
         newHeaders.set(key, value)
       }
     }
@@ -225,12 +405,15 @@ function checkDynamicRoutes(
   dynamicRoutes: Route[],
   url: URL,
   pathnames: string[],
-  headers: Headers,
+  requestHeaders: Headers,
+  responseHeaders: Headers,
   onMatchRoutes: Route[],
   basePath: string,
   buildId: string,
+  i18n: ResolveRoutesParams['i18n'],
   shouldNormalizeNextData?: boolean,
-  isDataUrl?: boolean
+  isDataUrl?: boolean,
+  caseSensitive: boolean = false
 ): {
   matched: boolean
   result?: ResolveRoutesResult
@@ -243,31 +426,59 @@ function checkDynamicRoutes(
   }
 
   for (const route of dynamicRoutes) {
-    const match = matchDynamicRoute(checkUrl.pathname, route)
+    const match = matchDynamicRoute(checkUrl.pathname, route, caseSensitive)
 
     if (match.matched) {
       // Check has/missing conditions
-      const hasResult = checkHasConditions(route.has, checkUrl, headers)
+      const hasResult = checkHasConditions(route.has, checkUrl, requestHeaders)
       const missingMatched = checkMissingConditions(
         route.missing,
         checkUrl,
-        headers
+        requestHeaders
       )
 
       if (hasResult.matched && missingMatched) {
+        const replacedDestination = route.destination
+          ? replaceDestination(
+              route.destination,
+              match.regexMatches || null,
+              hasResult.captures
+            )
+          : undefined
         // Check if the destination pathname (template path) is in the provided pathnames list
         // For dynamic routes, the destination contains the template path like /dynamic/[slug]
-        const pathnameToCheck = match.destinationPathname || checkUrl.pathname
-        const matchedPath = matchesPathname(pathnameToCheck, pathnames)
+        const pathnameToCheck = replacedDestination
+          ? replacedDestination.split('?')[0]
+          : checkUrl.pathname
+        const matchedPath = matchesPathnameWithLocaleFallback({
+          pathname: pathnameToCheck,
+          pathnames,
+          basePath,
+          i18n,
+        })
         if (matchedPath) {
-          const finalHeaders = applyOnMatchHeaders(onMatchRoutes, headers)
-          return {
-            matched: true,
+          const resolvedUrl = replacedDestination
+            ? mergeDestinationQueryIntoUrl(checkUrl, replacedDestination)
+            : checkUrl
+          const finalHeaders = applyOnMatchHeaders(
+            onMatchRoutes,
+            resolvedUrl,
+            requestHeaders,
+            responseHeaders,
+            caseSensitive
+          )
+          const result = withResolvedInvocationTarget({
             result: {
-              matchedPathname: matchedPath,
               routeMatches: match.params,
               resolvedHeaders: finalHeaders,
             },
+            url: resolvedUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: checkUrl.pathname,
+          })
+          return {
+            matched: true,
+            result,
             resetUrl: checkUrl, // Return the denormalized URL to reset to
           }
         }
@@ -276,6 +487,71 @@ function checkDynamicRoutes(
   }
 
   return { matched: false }
+}
+
+function shouldInvokeMiddlewareForRequest(
+  middlewareMatchers: Route[] | undefined,
+  url: URL,
+  requestHeaders: Headers,
+  caseSensitive: boolean
+): boolean {
+  const matchesMiddlewareMatchers = (candidatePathname: string): boolean => {
+    if (!middlewareMatchers || middlewareMatchers.length === 0) {
+      return false
+    }
+
+    for (const matcher of middlewareMatchers) {
+      const regex = new RegExp(matcher.sourceRegex, caseSensitive ? '' : 'i')
+      const regexMatches = candidatePathname.match(regex)
+      if (!regexMatches) {
+        continue
+      }
+
+      const hasResult = checkHasConditions(matcher.has, url, requestHeaders)
+      if (!hasResult.matched) {
+        continue
+      }
+
+      const missingMatched = checkMissingConditions(
+        matcher.missing,
+        url,
+        requestHeaders
+      )
+      if (!missingMatched) {
+        continue
+      }
+
+      return true
+    }
+
+    return false
+  }
+
+  // Preserve legacy behavior for callers that don't yet provide matchers.
+  if (middlewareMatchers === undefined) {
+    return true
+  }
+
+  if (middlewareMatchers.length === 0) {
+    return false
+  }
+
+  if (matchesMiddlewareMatchers(url.pathname)) {
+    return true
+  }
+
+  let decodedPathname = url.pathname
+  try {
+    decodedPathname = decodeURIComponent(url.pathname)
+  } catch {
+    return false
+  }
+
+  if (decodedPathname === url.pathname) {
+    return false
+  }
+
+  return matchesMiddlewareMatchers(decodedPathname)
 }
 
 export async function resolveRoutes(
@@ -293,11 +569,23 @@ export async function resolveRoutes(
     i18n,
   } = params
 
-  const { shouldNormalizeNextData } = routes
+  const { shouldNormalizeNextData, caseSensitive = false } = routes
 
   let currentUrl = new URL(initialUrl.toString())
-  let currentHeaders = new Headers(initialHeaders)
+  let currentRequestHeaders = new Headers(initialHeaders)
+  let currentResponseHeaders = new Headers()
   let currentStatus: number | undefined
+  let pendingLocaleRedirect:
+    | {
+        url: URL
+        status: number
+      }
+    | undefined
+  let pendingBeforeMiddlewareStop:
+    | {
+        status: number | undefined
+      }
+    | undefined
   const initialOrigin = initialUrl.origin
 
   // Check if the original URL is a data URL and normalize if so
@@ -320,9 +608,9 @@ export async function resolveRoutes(
     // Skip locale handling for _next and api routes
     if (!pathname.startsWith('/_next/') && !pathname.startsWith('/api/')) {
       const hostname = currentUrl.hostname
-      const cookieHeader = currentHeaders.get('cookie') || undefined
+      const cookieHeader = currentRequestHeaders.get('cookie') || undefined
       const acceptLanguageHeader =
-        currentHeaders.get('accept-language') || undefined
+        currentRequestHeaders.get('accept-language') || undefined
 
       // Detect locale from path first
       const pathLocaleResult = normalizeLocalePath(pathname, i18n.locales)
@@ -335,8 +623,14 @@ export async function resolveRoutes(
       // Determine target locale if locale detection is enabled
       let targetLocale = pathLocaleResult.detectedLocale || defaultLocale
 
-      if (i18n.localeDetection !== false && !localeInPath) {
-        // Full locale detection when no locale in path
+      // Match Next.js behavior: preferred-locale auto-detection redirects only
+      // on index requests, not on arbitrary non-locale pathnames.
+      const shouldDetectPreferredLocale =
+        i18n.localeDetection !== false &&
+        !localeInPath &&
+        pathLocaleResult.pathname === '/'
+
+      if (shouldDetectPreferredLocale) {
         const detectedResult = detectLocale({
           pathname,
           hostname,
@@ -366,12 +660,9 @@ export async function resolveRoutes(
               `${scheme}://${targetDomain.domain}${basePath}${localePrefix}${pathname}${currentUrl.search}`
             )
 
-            return {
-              redirect: {
-                url: redirectUrl,
-                status: 307,
-              },
-              resolvedHeaders: currentHeaders,
+            pendingLocaleRedirect = {
+              url: redirectUrl,
+              status: 307,
             }
           }
 
@@ -384,19 +675,16 @@ export async function resolveRoutes(
             const redirectUrl = new URL(currentUrl.toString())
             redirectUrl.pathname = `${basePath}/${targetLocale}${pathname}`
 
-            return {
-              redirect: {
-                url: redirectUrl,
-                status: 307,
-              },
-              resolvedHeaders: currentHeaders,
+            pendingLocaleRedirect = {
+              url: redirectUrl,
+              status: 307,
             }
           }
         }
       }
 
       // Prefix the locale internally for route resolution (without redirecting)
-      if (!localeInPath) {
+      if (!localeInPath && !pendingLocaleRedirect) {
         const localeToPrefix =
           targetLocale || domainLocale?.defaultLocale || i18n.defaultLocale
         currentUrl.pathname = `${basePath}/${localeToPrefix}${pathname}`
@@ -408,8 +696,10 @@ export async function resolveRoutes(
   const beforeMiddlewareResult = processRoutes(
     routes.beforeMiddleware,
     currentUrl,
-    currentHeaders,
-    initialOrigin
+    currentRequestHeaders,
+    currentResponseHeaders,
+    initialOrigin,
+    caseSensitive
   )
 
   if (beforeMiddlewareResult.status) {
@@ -419,7 +709,7 @@ export async function resolveRoutes(
   if (beforeMiddlewareResult.redirect) {
     return {
       redirect: beforeMiddlewareResult.redirect,
-      resolvedHeaders: currentHeaders,
+      resolvedHeaders: currentResponseHeaders,
       status: currentStatus,
     }
   }
@@ -427,55 +717,112 @@ export async function resolveRoutes(
   if (beforeMiddlewareResult.externalRewrite) {
     return {
       externalRewrite: beforeMiddlewareResult.externalRewrite,
-      resolvedHeaders: currentHeaders,
+      resolvedHeaders: currentResponseHeaders,
+      status: currentStatus,
+    }
+  }
+
+  if (beforeMiddlewareResult.stopped) {
+    pendingBeforeMiddlewareStop = {
       status: currentStatus,
     }
   }
 
   currentUrl = beforeMiddlewareResult.url
 
+  let middlewareInvocationUrl = currentUrl
+
   // Denormalize before invoking middleware if this was originally a data URL
   if (isDataUrl && shouldNormalizeNextData) {
-    currentUrl = denormalizeNextDataUrl(currentUrl, basePath, buildId)
+    middlewareInvocationUrl = denormalizeNextDataUrl(
+      currentUrl,
+      basePath,
+      buildId
+    )
   }
 
-  // Invoke middleware
-  const middlewareResult = await invokeMiddleware({
-    url: currentUrl,
-    headers: currentHeaders,
-    requestBody,
-  })
+  const shouldInvokeMiddleware = shouldInvokeMiddlewareForRequest(
+    routes.middlewareMatchers,
+    currentUrl,
+    currentRequestHeaders,
+    caseSensitive
+  )
 
-  // Check if middleware sent the response body
-  if (middlewareResult.bodySent) {
-    return { middlewareResponded: true }
-  }
+  if (shouldInvokeMiddleware) {
+    // Invoke middleware
+    const middlewareResult = await invokeMiddleware({
+      url: middlewareInvocationUrl,
+      headers: currentRequestHeaders,
+      requestBody,
+    })
 
-  // Apply request headers from middleware
-  if (middlewareResult.requestHeaders) {
-    currentHeaders = new Headers(middlewareResult.requestHeaders)
-  }
+    // Check if middleware sent the response body
+    if (middlewareResult.bodySent) {
+      return { middlewareResponded: true }
+    }
 
-  // Handle middleware redirect
-  if (middlewareResult.redirect) {
-    currentHeaders.set('Location', middlewareResult.redirect.url.toString())
-    return {
-      resolvedHeaders: currentHeaders,
-      status: middlewareResult.redirect.status,
+    // Apply request headers from middleware
+    if (middlewareResult.requestHeaders) {
+      currentRequestHeaders = new Headers(middlewareResult.requestHeaders)
+    }
+
+    // Apply response headers from middleware
+    if (middlewareResult.responseHeaders) {
+      middlewareResult.responseHeaders.forEach((value, key) => {
+        if (key.toLowerCase() === 'set-cookie') {
+          currentResponseHeaders.append(key, value)
+        } else {
+          currentResponseHeaders.set(key, value)
+        }
+      })
+    }
+
+    // Handle middleware redirect
+    if (middlewareResult.redirect) {
+      if (!currentResponseHeaders.has('location')) {
+        currentResponseHeaders.set(
+          'Location',
+          middlewareResult.redirect.url.toString()
+        )
+      }
+      return {
+        resolvedHeaders: currentResponseHeaders,
+        status: middlewareResult.redirect.status,
+      }
+    }
+
+    // Handle middleware rewrite
+    if (middlewareResult.rewrite) {
+      currentUrl = middlewareResult.rewrite
+
+      // Check if it's an external rewrite
+      if (currentUrl.origin !== initialOrigin) {
+        return {
+          externalRewrite: currentUrl,
+          resolvedHeaders: currentResponseHeaders,
+          status: currentStatus,
+        }
+      }
     }
   }
 
-  // Handle middleware rewrite
-  if (middlewareResult.rewrite) {
-    currentUrl = middlewareResult.rewrite
+  if (pendingLocaleRedirect) {
+    if (!currentResponseHeaders.has('location')) {
+      currentResponseHeaders.set(
+        'location',
+        pendingLocaleRedirect.url.toString()
+      )
+    }
+    return {
+      redirect: pendingLocaleRedirect,
+      resolvedHeaders: currentResponseHeaders,
+    }
+  }
 
-    // Check if it's an external rewrite
-    if (currentUrl.origin !== initialOrigin) {
-      return {
-        externalRewrite: currentUrl,
-        resolvedHeaders: currentHeaders,
-        status: currentStatus,
-      }
+  if (pendingBeforeMiddlewareStop) {
+    return {
+      resolvedHeaders: currentResponseHeaders,
+      status: pendingBeforeMiddlewareStop.status,
     }
   }
 
@@ -488,8 +835,10 @@ export async function resolveRoutes(
   const beforeFilesResult = processRoutes(
     routes.beforeFiles,
     currentUrl,
-    currentHeaders,
-    initialOrigin
+    currentRequestHeaders,
+    currentResponseHeaders,
+    initialOrigin,
+    caseSensitive
   )
 
   if (beforeFilesResult.status) {
@@ -499,7 +848,7 @@ export async function resolveRoutes(
   if (beforeFilesResult.redirect) {
     return {
       redirect: beforeFilesResult.redirect,
-      resolvedHeaders: currentHeaders,
+      resolvedHeaders: currentResponseHeaders,
       status: currentStatus,
     }
   }
@@ -507,7 +856,14 @@ export async function resolveRoutes(
   if (beforeFilesResult.externalRewrite) {
     return {
       externalRewrite: beforeFilesResult.externalRewrite,
-      resolvedHeaders: currentHeaders,
+      resolvedHeaders: currentResponseHeaders,
+      status: currentStatus,
+    }
+  }
+
+  if (beforeFilesResult.stopped) {
+    return {
+      resolvedHeaders: currentResponseHeaders,
       status: currentStatus,
     }
   }
@@ -522,45 +878,120 @@ export async function resolveRoutes(
   // Check if pathname matches any provided pathnames (pathnames are in denormalized form)
   let matchedPath = matchesPathname(currentUrl.pathname, pathnames)
   if (matchedPath) {
-    // Check if any dynamic route also matches to extract parameters
     for (const route of routes.dynamicRoutes) {
-      const match = matchDynamicRoute(currentUrl.pathname, route)
+      const match = matchDynamicRoute(currentUrl.pathname, route, caseSensitive)
 
-      if (match.matched) {
-        // Check has/missing conditions
-        const hasResult = checkHasConditions(
-          route.has,
-          currentUrl,
-          currentHeaders
-        )
-        const missingMatched = checkMissingConditions(
-          route.missing,
-          currentUrl,
-          currentHeaders
-        )
+      if (!match.matched) {
+        continue
+      }
 
-        if (hasResult.matched && missingMatched) {
-          const finalHeaders = applyOnMatchHeaders(
-            routes.onMatch,
-            currentHeaders
+      const hasResult = checkHasConditions(
+        route.has,
+        currentUrl,
+        currentRequestHeaders
+      )
+      const missingMatched = checkMissingConditions(
+        route.missing,
+        currentUrl,
+        currentRequestHeaders
+      )
+
+      if (!hasResult.matched || !missingMatched) {
+        continue
+      }
+
+      const replacedDestination = route.destination
+        ? replaceDestination(
+            route.destination,
+            match.regexMatches || null,
+            hasResult.captures
           )
-          return {
-            matchedPathname: matchedPath,
+        : undefined
+      const pathnameToCheck = replacedDestination
+        ? replacedDestination.split('?')[0]
+        : currentUrl.pathname
+      const dynamicMatchedPath = matchesPathnameWithLocaleFallback({
+        pathname: pathnameToCheck,
+        pathnames,
+        basePath,
+        i18n,
+      })
+      if (!dynamicMatchedPath) {
+        // When a dynamic route rewrites to a non-template/static destination
+        // that isn't part of pathnames, preserve route params for the currently
+        // matched concrete pathname.
+        if (isDynamicTemplatePathname(pathnameToCheck)) {
+          continue
+        }
+
+        const resolvedUrl = replacedDestination
+          ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
+          : currentUrl
+        const finalHeaders = applyOnMatchHeaders(
+          routes.onMatch,
+          resolvedUrl,
+          currentRequestHeaders,
+          currentResponseHeaders,
+          caseSensitive
+        )
+        return withResolvedInvocationTarget({
+          result: {
             routeMatches: match.params,
             resolvedHeaders: finalHeaders,
             status: currentStatus,
-          }
-        }
+          },
+          url: resolvedUrl,
+          resolvedPathname: matchedPath,
+          invocationPathname: currentUrl.pathname,
+        })
       }
+
+      const shouldUseDynamicMatch =
+        dynamicMatchedPath === matchedPath ||
+        isDynamicTemplatePathname(matchedPath)
+      if (!shouldUseDynamicMatch) {
+        continue
+      }
+
+      const resolvedUrl = replacedDestination
+        ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
+        : currentUrl
+      const finalHeaders = applyOnMatchHeaders(
+        routes.onMatch,
+        resolvedUrl,
+        currentRequestHeaders,
+        currentResponseHeaders,
+        caseSensitive
+      )
+      return withResolvedInvocationTarget({
+        result: {
+          routeMatches: match.params,
+          resolvedHeaders: finalHeaders,
+          status: currentStatus,
+        },
+        url: resolvedUrl,
+        resolvedPathname: dynamicMatchedPath,
+        invocationPathname: currentUrl.pathname,
+      })
     }
 
     // No dynamic route matched, return without route matches
-    const finalHeaders = applyOnMatchHeaders(routes.onMatch, currentHeaders)
-    return {
-      matchedPathname: matchedPath,
-      resolvedHeaders: finalHeaders,
-      status: currentStatus,
-    }
+    const finalHeaders = applyOnMatchHeaders(
+      routes.onMatch,
+      currentUrl,
+      currentRequestHeaders,
+      currentResponseHeaders,
+      caseSensitive
+    )
+    return withResolvedInvocationTarget({
+      result: {
+        resolvedHeaders: finalHeaders,
+        status: currentStatus,
+      },
+      url: currentUrl,
+      resolvedPathname: matchedPath,
+      invocationPathname: currentUrl.pathname,
+    })
   }
 
   // Normalize again before processing afterFiles if this was originally a data URL
@@ -570,12 +1001,17 @@ export async function resolveRoutes(
 
   // Process afterFiles routes
   for (const route of routes.afterFiles) {
-    const match = matchRoute(route, currentUrl, currentHeaders)
+    const match = matchRoute(
+      route,
+      currentUrl,
+      currentRequestHeaders,
+      caseSensitive
+    )
 
     if (match.matched) {
-      if (route.headers) {
-        for (const [key, value] of Object.entries(route.headers)) {
-          currentHeaders.set(key, value)
+      if (match.headers) {
+        for (const [key, value] of Object.entries(match.headers)) {
+          currentResponseHeaders.set(key, value)
         }
       }
 
@@ -587,8 +1023,8 @@ export async function resolveRoutes(
         // Check if route has redirect status and Location/Refresh header
         if (
           isRedirectStatus(route.status) &&
-          route.headers &&
-          hasRedirectHeaders(route.headers)
+          match.headers &&
+          hasRedirectHeaders(match.headers)
         ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
@@ -599,7 +1035,7 @@ export async function resolveRoutes(
               url: redirectUrl,
               status: route.status!,
             },
-            resolvedHeaders: currentHeaders,
+            resolvedHeaders: currentResponseHeaders,
             status: currentStatus,
           }
         }
@@ -608,7 +1044,7 @@ export async function resolveRoutes(
         if (isExternalDestination(match.destination)) {
           return {
             externalRewrite: new URL(match.destination),
-            resolvedHeaders: currentHeaders,
+            resolvedHeaders: currentResponseHeaders,
             status: currentStatus,
           }
         }
@@ -620,7 +1056,7 @@ export async function resolveRoutes(
         if (currentUrl.origin !== initialOrigin) {
           return {
             externalRewrite: currentUrl,
-            resolvedHeaders: currentHeaders,
+            resolvedHeaders: currentResponseHeaders,
             status: currentStatus,
           }
         }
@@ -630,12 +1066,15 @@ export async function resolveRoutes(
           routes.dynamicRoutes,
           currentUrl,
           pathnames,
-          currentHeaders,
+          currentRequestHeaders,
+          currentResponseHeaders,
           routes.onMatch,
           basePath,
           buildId,
+          i18n,
           shouldNormalizeNextData,
-          isDataUrl
+          isDataUrl,
+          caseSensitive
         )
         if (dynamicResult.matched && dynamicResult.result) {
           // Reset URL to the denormalized version if it matched
@@ -660,13 +1099,20 @@ export async function resolveRoutes(
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
-            currentHeaders
+            pathnameCheckUrl,
+            currentRequestHeaders,
+            currentResponseHeaders,
+            caseSensitive
           )
-          return {
-            matchedPathname: matchedPath,
-            resolvedHeaders: finalHeaders,
-            status: currentStatus,
-          }
+          return withResolvedInvocationTarget({
+            result: {
+              resolvedHeaders: finalHeaders,
+              status: currentStatus,
+            },
+            url: pathnameCheckUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: pathnameCheckUrl.pathname,
+          })
         }
       }
     }
@@ -674,37 +1120,61 @@ export async function resolveRoutes(
 
   // Check dynamic routes
   for (const route of routes.dynamicRoutes) {
-    const match = matchDynamicRoute(currentUrl.pathname, route)
+    const match = matchDynamicRoute(currentUrl.pathname, route, caseSensitive)
 
     if (match.matched) {
       // Check has/missing conditions
       const hasResult = checkHasConditions(
         route.has,
         currentUrl,
-        currentHeaders
+        currentRequestHeaders
       )
       const missingMatched = checkMissingConditions(
         route.missing,
         currentUrl,
-        currentHeaders
+        currentRequestHeaders
       )
 
       if (hasResult.matched && missingMatched) {
+        const replacedDestination = route.destination
+          ? replaceDestination(
+              route.destination,
+              match.regexMatches || null,
+              hasResult.captures
+            )
+          : undefined
         // Check if the destination pathname (template path) is in the provided pathnames list
         // For dynamic routes, the destination contains the template path like /dynamic/[slug]
-        const pathnameToCheck = match.destinationPathname || currentUrl.pathname
-        matchedPath = matchesPathname(pathnameToCheck, pathnames)
+        const pathnameToCheck = replacedDestination
+          ? replacedDestination.split('?')[0]
+          : currentUrl.pathname
+        matchedPath = matchesPathnameWithLocaleFallback({
+          pathname: pathnameToCheck,
+          pathnames,
+          basePath,
+          i18n,
+        })
         if (matchedPath) {
+          const resolvedUrl = replacedDestination
+            ? mergeDestinationQueryIntoUrl(currentUrl, replacedDestination)
+            : currentUrl
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
-            currentHeaders
+            resolvedUrl,
+            currentRequestHeaders,
+            currentResponseHeaders,
+            caseSensitive
           )
-          return {
-            matchedPathname: matchedPath,
-            routeMatches: match.params,
-            resolvedHeaders: finalHeaders,
-            status: currentStatus,
-          }
+          return withResolvedInvocationTarget({
+            result: {
+              routeMatches: match.params,
+              resolvedHeaders: finalHeaders,
+              status: currentStatus,
+            },
+            url: resolvedUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: currentUrl.pathname,
+          })
         }
       }
     }
@@ -712,12 +1182,17 @@ export async function resolveRoutes(
 
   // Process fallback routes
   for (const route of routes.fallback) {
-    const match = matchRoute(route, currentUrl, currentHeaders)
+    const match = matchRoute(
+      route,
+      currentUrl,
+      currentRequestHeaders,
+      caseSensitive
+    )
 
     if (match.matched) {
-      if (route.headers) {
-        for (const [key, value] of Object.entries(route.headers)) {
-          currentHeaders.set(key, value)
+      if (match.headers) {
+        for (const [key, value] of Object.entries(match.headers)) {
+          currentResponseHeaders.set(key, value)
         }
       }
 
@@ -729,8 +1204,8 @@ export async function resolveRoutes(
         // Check if route has redirect status and Location/Refresh header
         if (
           isRedirectStatus(route.status) &&
-          route.headers &&
-          hasRedirectHeaders(route.headers)
+          match.headers &&
+          hasRedirectHeaders(match.headers)
         ) {
           const redirectUrl = isExternalDestination(match.destination)
             ? new URL(match.destination)
@@ -741,7 +1216,7 @@ export async function resolveRoutes(
               url: redirectUrl,
               status: route.status!,
             },
-            resolvedHeaders: currentHeaders,
+            resolvedHeaders: currentResponseHeaders,
             status: currentStatus,
           }
         }
@@ -750,7 +1225,7 @@ export async function resolveRoutes(
         if (isExternalDestination(match.destination)) {
           return {
             externalRewrite: new URL(match.destination),
-            resolvedHeaders: currentHeaders,
+            resolvedHeaders: currentResponseHeaders,
             status: currentStatus,
           }
         }
@@ -762,7 +1237,7 @@ export async function resolveRoutes(
         if (currentUrl.origin !== initialOrigin) {
           return {
             externalRewrite: currentUrl,
-            resolvedHeaders: currentHeaders,
+            resolvedHeaders: currentResponseHeaders,
             status: currentStatus,
           }
         }
@@ -772,12 +1247,15 @@ export async function resolveRoutes(
           routes.dynamicRoutes,
           currentUrl,
           pathnames,
-          currentHeaders,
+          currentRequestHeaders,
+          currentResponseHeaders,
           routes.onMatch,
           basePath,
           buildId,
+          i18n,
           shouldNormalizeNextData,
-          isDataUrl
+          isDataUrl,
+          caseSensitive
         )
         if (dynamicResult.matched && dynamicResult.result) {
           // Reset URL to the denormalized version if it matched
@@ -802,13 +1280,20 @@ export async function resolveRoutes(
         if (matchedPath) {
           const finalHeaders = applyOnMatchHeaders(
             routes.onMatch,
-            currentHeaders
+            pathnameCheckUrl,
+            currentRequestHeaders,
+            currentResponseHeaders,
+            caseSensitive
           )
-          return {
-            matchedPathname: matchedPath,
-            resolvedHeaders: finalHeaders,
-            status: currentStatus,
-          }
+          return withResolvedInvocationTarget({
+            result: {
+              resolvedHeaders: finalHeaders,
+              status: currentStatus,
+            },
+            url: pathnameCheckUrl,
+            resolvedPathname: matchedPath,
+            invocationPathname: pathnameCheckUrl.pathname,
+          })
         }
       }
     }
@@ -816,7 +1301,7 @@ export async function resolveRoutes(
 
   // No match found
   return {
-    resolvedHeaders: currentHeaders,
+    resolvedHeaders: currentResponseHeaders,
     status: currentStatus,
   }
 }

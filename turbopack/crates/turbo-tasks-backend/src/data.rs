@@ -1,6 +1,7 @@
 use std::{
     fmt::{self, Debug, Display},
     pin::Pin,
+    sync::Arc,
 };
 
 use anyhow::Result;
@@ -9,9 +10,11 @@ use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 use turbo_tasks::{
     CellId, RawVc, TaskExecutionReason, TaskId, TaskPriority, TraitTypeId,
-    backend::{TransientTaskRoot, TurboTasksExecutionError},
+    backend::TransientTaskRoot,
     event::{Event, EventDescription, EventListener},
 };
+
+use crate::error::TaskError;
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -78,8 +81,9 @@ impl CollectiblesRef {
 pub enum OutputValue {
     Cell(CellRef),
     Output(TaskId),
-    Error(TurboTasksExecutionError),
+    Error(Arc<TaskError>),
 }
+
 impl OutputValue {
     /// Returns true if this output value references a transient task.
     ///

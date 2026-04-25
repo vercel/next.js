@@ -2,13 +2,11 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(btree_cursors)] // needed for the `InvalidatorMap` and watcher, reduces time complexity
 #![feature(io_error_more)]
-#![feature(iter_advance_by)]
 #![feature(min_specialization)]
 // if `normalize_lexically` isn't eventually stabilized, we can copy the implementation from the
 // stdlib into our source tree
 #![feature(normalize_lexically)]
 #![feature(trivial_bounds)]
-#![feature(downcast_unchecked)]
 // Junction points are used on Windows. We could use a third-party crate for this if the junction
 // API isn't eventually stabilized.
 #![cfg_attr(windows, feature(junction_point))]
@@ -36,7 +34,8 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     env,
-    fmt::{self, Debug, Display, Formatter},
+    error::Error as StdError,
+    fmt::{self, Debug, Formatter},
     fs::FileType,
     future::Future,
     io::{self, BufRead, BufReader, ErrorKind, Read, Write as _},
@@ -63,11 +62,15 @@ use tokio::{
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    ApplyEffectsContext, Completion, InvalidationReason, Invalidator, NonLocalValue, ReadRef,
-    ResolvedVc, TaskInput, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, effect,
-    mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak,
+    Completion, Effect, EffectStateStorage, InvalidationReason, NonLocalValue, ReadRef, ResolvedVc,
+    TaskInput, TurboTasksApi, ValueToString, ValueToStringRef, Vc, debug::ValueDebugFormat,
+    emit_effect, mark_session_dependent, parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
+    turbofmt,
 };
-use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
+use turbo_tasks_hash::{
+    DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
+    hash_xxh3_hash128,
+};
 use turbo_unix_path::{
     get_parent_path, get_relative_path_to, join_path, normalize_path, sys_to_unix, unix_to_sys,
 };
@@ -76,9 +79,10 @@ use crate::{
     attach::AttachedFileSystem,
     glob::Glob,
     invalidation::Write,
-    invalidator_map::{InvalidatorMap, WriteContent},
+    invalidator_map::InvalidatorMap,
     json::UnparsableJson,
     mutex_map::MutexMap,
+    path_map::OrderedPathMapExt,
     read_glob::{read_glob, track_glob},
     retry::{can_retry, retry_blocking, retry_blocking_custom},
     rope::{Rope, RopeReader},
@@ -86,19 +90,6 @@ use crate::{
     watcher::DiskWatcher,
 };
 pub use crate::{read_glob::ReadGlobResult, virtual_fs::VirtualFileSystem};
-
-/// A (somewhat arbitrary) filename limit that we should try to keep output file names below.
-///
-/// For the sake of consistency, this is a fixed constant that is likely to be safe across all
-/// platforms.
-///
-/// Different operating systems have different limits on file name and file path. See
-/// [`validate_path_length`] for details. Because this only accounts for a single path segment, and
-/// not the total path length, this cannot not guarantee a full file path is safe.
-///
-/// To ensure file names are kept within this limit, call
-/// [`FileSystemPath::truncate_file_name_with_hash`].
-pub const MAX_SAFE_FILE_NAME_LENGTH: usize = 200;
 
 /// Validate the path, returning the valid path, a modified-but-now-valid path, or bailing with an
 /// error.
@@ -249,12 +240,6 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: FileSystemPath) -> Vc<FileMeta>;
 }
 
-#[derive(Default)]
-struct DiskFileSystemApplyContext {
-    /// A cache of already created directories to avoid creating them multiple times.
-    created_directories: FxHashSet<PathBuf>,
-}
-
 #[derive(TraceRawVcs, ValueDebugFormat, NonLocalValue, Encode, Decode)]
 struct DiskFileSystemInner {
     pub name: RcStr,
@@ -296,6 +281,9 @@ struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip, default = "Handle::current")]
     tokio_handle: Handle,
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip)]
+    effect_state_storage: EffectStateStorage,
 }
 
 impl DiskFileSystemInner {
@@ -325,48 +313,44 @@ impl DiskFileSystemInner {
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_read_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_read_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
-            self.invalidator_map
-                .insert(path.to_owned(), invalidator, None);
-            self.watcher.ensure_watched_file(path, self.root_path())?;
+            self.invalidator_map.insert(path.to_owned(), invalidator);
+            self.watcher
+                .ensure_watched_file(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
 
-    /// registers the path as an invalidator for the current task,
-    /// has to be called within a turbo-tasks function. It removes and returns
-    /// the current list of invalidators.
-    fn register_write_invalidator(
-        &self,
-        path: &Path,
-        invalidator: Invalidator,
-        write_content: WriteContent,
-    ) -> Result<Vec<(Invalidator, Option<WriteContent>)>> {
+    /// After an effect writes to a path, invalidate any read tasks tracking that path so they
+    /// re-read the updated content. This is necessary because the file watcher may not be active
+    /// (e.g., in tests or build-only scenarios).
+    fn invalidate_from_write(&self, full_path: &Path) {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        let invalidators = invalidator_map.entry(path.to_owned()).or_default();
-        let old_invalidators = invalidators
-            .extract_if(|i, old_write_content| {
-                i == &invalidator
-                    || old_write_content
-                        .as_ref()
-                        .is_none_or(|old| old != &write_content)
-            })
-            .filter(|(i, _)| i != &invalidator)
-            .collect::<Vec<_>>();
-        invalidators.insert(invalidator, Some(write_content));
-        drop(invalidator_map);
-        self.watcher.ensure_watched_file(path, self.root_path())?;
-        Ok(old_invalidators)
+        if let Some(invalidators) = invalidator_map.remove(full_path) {
+            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+                return;
+            };
+            let _guard = self.tokio_handle.enter();
+            let reason = Write {
+                path: full_path.to_string_lossy().into_owned(),
+            };
+            for invalidator in invalidators {
+                invalidator.invalidate_with_reason(&*turbo_tasks, reason.clone());
+            }
+        }
     }
 
     /// registers the path as an invalidator for the current task,
     /// has to be called within a turbo-tasks function
-    fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
+    async fn register_dir_invalidator(&self, path: &Path) -> Result<()> {
         if let Some(invalidator) = turbo_tasks::get_invalidator() {
             self.dir_invalidator_map
-                .insert(path.to_owned(), invalidator, None);
-            self.watcher.ensure_watched_dir(path, self.root_path())?;
+                .insert(path.to_owned(), invalidator);
+            self.watcher
+                .ensure_watched_dir(path, self.root_path())
+                .await?;
         }
         Ok(())
     }
@@ -389,7 +373,7 @@ impl DiskFileSystemInner {
         let invalidators = invalidator_map
             .into_iter()
             .chain(dir_invalidator_map)
-            .flat_map(|(_, invalidators)| invalidators.into_keys())
+            .flat_map(|(_, invalidators)| invalidators.into_iter())
             .collect::<Vec<_>>();
         parallel::for_each_owned(invalidators, |invalidator| {
             invalidator.invalidate(&*turbo_tasks)
@@ -417,7 +401,7 @@ impl DiskFileSystemInner {
             .flat_map(|(path, invalidators)| {
                 let reason_for_path = reason(&path);
                 invalidators
-                    .into_keys()
+                    .into_iter()
                     .map(move |i| (reason_for_path.clone(), i))
             })
             .collect::<Vec<_>>();
@@ -426,33 +410,73 @@ impl DiskFileSystemInner {
         });
     }
 
-    fn invalidate_from_write(
+    /// Invalidates tracked files/directories for `paths` and their children.
+    /// Also invalidates tracked directory reads for all parent directories to
+    /// account for file creations/deletions under the deferred subtree.
+    fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
         &self,
-        full_path: &Path,
-        invalidators: Vec<(Invalidator, Option<WriteContent>)>,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
     ) {
-        if !invalidators.is_empty() {
-            let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
-                return;
-            };
-            let _guard = self.tokio_handle.enter();
+        let _span =
+            tracing::info_span!("invalidate filesystem paths", name = &*self.root).entered();
+        let Some(turbo_tasks) = self.turbo_tasks.upgrade() else {
+            return;
+        };
+        let _guard = self.tokio_handle.enter();
 
-            if let Some(path) = format_absolute_fs_path(full_path, &self.name, self.root_path()) {
-                if invalidators.len() == 1 {
-                    let (invalidator, _) = invalidators.into_iter().next().unwrap();
-                    invalidator.invalidate_with_reason(&*turbo_tasks, Write { path });
-                } else {
-                    invalidators.into_iter().for_each(|(invalidator, _)| {
-                        invalidator
-                            .invalidate_with_reason(&*turbo_tasks, Write { path: path.clone() });
-                    });
-                }
-            } else {
-                invalidators.into_iter().for_each(|(invalidator, _)| {
-                    invalidator.invalidate(&*turbo_tasks);
-                });
+        let mut invalidator_map = self.invalidator_map.lock().unwrap();
+        let mut dir_invalidator_map = self.dir_invalidator_map.lock().unwrap();
+        let mut invalidators = Vec::new();
+        let mut parent_dirs_to_invalidate = FxHashSet::default();
+
+        for path in paths {
+            let mut current_parent = path.parent();
+            while let Some(parent) = current_parent {
+                parent_dirs_to_invalidate.insert(parent.to_path_buf());
+                current_parent = parent.parent();
+            }
+
+            for (invalidated_path, path_invalidators) in
+                invalidator_map.extract_path_with_children(&path)
+            {
+                let reason_for_path = reason(&invalidated_path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_iter()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
+            }
+
+            for (invalidated_path, path_invalidators) in
+                dir_invalidator_map.extract_path_with_children(&path)
+            {
+                let reason_for_path = reason(&invalidated_path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_iter()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
             }
         }
+
+        for path in parent_dirs_to_invalidate {
+            if let Some(path_invalidators) = dir_invalidator_map.remove(&path) {
+                let reason_for_path = reason(&path);
+                invalidators.extend(
+                    path_invalidators
+                        .into_iter()
+                        .map(|invalidator| (reason_for_path.clone(), invalidator)),
+                );
+            }
+        }
+
+        drop(invalidator_map);
+        drop(dir_invalidator_map);
+
+        parallel::for_each_owned(invalidators, |(reason, invalidator)| {
+            invalidator.invalidate_with_reason(&*turbo_tasks, reason)
+        });
     }
 
     #[tracing::instrument(level = "info", name = "start filesystem watching", skip_all, fields(path = %self.root))]
@@ -470,31 +494,15 @@ impl DiskFileSystemInner {
             .await?;
 
         self.watcher
-            .start_watching(self.clone(), report_invalidation_reason, poll_interval)?;
+            .start_watching(self.clone(), report_invalidation_reason, poll_interval)
+            .await?;
 
-        Ok(())
-    }
-
-    async fn create_directory(self: &Arc<Self>, directory: &Path) -> Result<()> {
-        let already_created = ApplyEffectsContext::with_or_insert_with(
-            DiskFileSystemApplyContext::default,
-            |fs_context| fs_context.created_directories.contains(directory),
-        );
-        if !already_created {
-            retry_blocking(|| std::fs::create_dir_all(directory))
-                .instrument(tracing::info_span!("create directory", name = ?directory))
-                .concurrency_limited(&self.write_semaphore)
-                .await?;
-            ApplyEffectsContext::with(|fs_context: &mut DiskFileSystemApplyContext| {
-                fs_context
-                    .created_directories
-                    .insert(directory.to_path_buf())
-            });
-        }
         Ok(())
     }
 }
 
+#[derive(Clone, ValueToString)]
+#[value_to_string(self.inner.name)]
 #[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
@@ -520,6 +528,15 @@ impl DiskFileSystem {
         self.inner.invalidate_with_reason(reason);
     }
 
+    pub fn invalidate_path_and_children_with_reason<R: InvalidationReason + Clone>(
+        &self,
+        paths: impl IntoIterator<Item = PathBuf>,
+        reason: impl Fn(&Path) -> R + Sync,
+    ) {
+        self.inner
+            .invalidate_path_and_children_with_reason(paths, reason);
+    }
+
     pub async fn start_watching(&self, poll_interval: Option<Duration>) -> Result<()> {
         self.inner
             .start_watching_internal(false, poll_interval)
@@ -535,8 +552,8 @@ impl DiskFileSystem {
             .await
     }
 
-    pub fn stop_watching(&self) {
-        self.inner.watcher.stop_watching();
+    pub async fn stop_watching(&self) {
+        self.inner.watcher.stop_watching().await;
     }
 
     /// Try to convert [`Path`] to [`FileSystemPath`]. Return `None` if the file path leaves the
@@ -623,7 +640,7 @@ impl DiskFileSystem {
     /// * `name` - Name of the filesystem.
     /// * `root` - Path to the given filesystem's root. Should be
     ///   [canonicalized][std::fs::canonicalize].
-    pub fn new(name: RcStr, root: RcStr) -> Vc<Self> {
+    pub fn new(name: RcStr, root: Vc<RcStr>) -> Vc<Self> {
         Self::new_internal(name, root, Vec::new())
     }
 
@@ -635,7 +652,11 @@ impl DiskFileSystem {
     ///   [canonicalized][std::fs::canonicalize].
     /// * `denied_paths` - Paths within this filesystem that are not allowed to be accessed or
     ///   navigated into.  These must be normalized, non-empty and relative to the fs root.
-    pub fn new_with_denied_paths(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
+    pub fn new_with_denied_paths(
+        name: RcStr,
+        root: Vc<RcStr>,
+        denied_paths: Vec<RcStr>,
+    ) -> Vc<Self> {
         for denied_path in &denied_paths {
             debug_assert!(!denied_path.is_empty(), "denied_path must not be empty");
             debug_assert!(
@@ -650,7 +671,12 @@ impl DiskFileSystem {
 #[turbo_tasks::value_impl]
 impl DiskFileSystem {
     #[turbo_tasks::function]
-    fn new_internal(name: RcStr, root: RcStr, denied_paths: Vec<RcStr>) -> Vc<Self> {
+    async fn new_internal(
+        name: RcStr,
+        root: Vc<RcStr>,
+        denied_paths: Vec<RcStr>,
+    ) -> Result<Vc<Self>> {
+        let root = root.owned().await?;
         let instance = DiskFileSystem {
             inner: Arc::new(DiskFileSystemInner {
                 name,
@@ -665,10 +691,11 @@ impl DiskFileSystem {
                 denied_paths,
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
+                effect_state_storage: EffectStateStorage::default(),
             }),
         };
 
-        Self::cell(instance)
+        Ok(Self::cell(instance))
     }
 }
 
@@ -690,7 +717,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let content = match retry_blocking(|| File::from_path(&full_path))
@@ -702,6 +729,7 @@ impl FileSystem for DiskFileSystem {
             Err(e) if e.kind() == ErrorKind::NotFound || e.kind() == ErrorKind::InvalidFilename => {
                 FileContent::NotFound
             }
+            // ast-grep-ignore: no-context-format
             Err(e) => return Err(anyhow!(e).context(format!("reading file {full_path:?}"))),
         };
         Ok(content.cell())
@@ -717,7 +745,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_dir_invalidator(&full_path)?;
+        self.inner.register_dir_invalidator(&full_path).await?;
 
         // we use the sync std function here as it's a lot faster (600%) in node-file-trace
         let read_dir = match retry_blocking(|| std::fs::read_dir(&full_path))
@@ -734,6 +762,7 @@ impl FileSystem for DiskFileSystem {
                 return Ok(RawDirectoryContent::not_found());
             }
             Err(e) => {
+                // ast-grep-ignore: no-context-format
                 return Err(anyhow!(e).context(format!("reading dir {full_path:?}")));
             }
         };
@@ -806,7 +835,7 @@ impl FileSystem for DiskFileSystem {
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let link_path = match retry_blocking(|| std::fs::read_link(&full_path))
@@ -893,126 +922,174 @@ impl FileSystem for DiskFileSystem {
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
-            bail!(
-                "Cannot write to denied path: {}",
-                fs_path.value_to_string().await?
-            );
+            turbobail!("Cannot write to denied path: {fs_path}");
         }
         let full_path = self.to_sys_path(&fs_path);
 
-        let content = content.await?;
+        // Persist the file content so it is stored in the persistent cache.
+        // Since FileContent uses serialization = "hash", persisting it here ensures the full
+        // content is available in the persistent cache (via PersistedFileContent) and does not
+        // require recomputing the content on cache restore — avoiding unnecessary downstream
+        // recomputation.
+        let content = content.persist().await?;
 
         let inner = self.inner.clone();
-        let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
-            let full_path = validate_path_length(&full_path)?;
+        #[derive(TraceRawVcs, NonLocalValue)]
+        struct WriteEffect {
+            full_path: PathBuf,
+            inner: Arc<DiskFileSystemInner>,
+            content: ReadRef<PersistedFileContent>,
+            content_hash: u128,
+        }
 
-            let _lock = inner.lock_path(&full_path).await;
+        impl Effect for WriteEffect {
+            type Error = AnyhowWrapper;
+            type Value = u128;
 
-            // Track the file, so that we will rewrite it if it ever changes.
-            let old_invalidators = invalidator
-                .map(|invalidator| {
-                    inner.register_write_invalidator(
-                        &full_path,
-                        invalidator,
-                        WriteContent::File(content.clone()),
-                    )
-                })
-                .transpose()?
-                .unwrap_or_default();
-
-            // We perform an untracked comparison here, so that this write is not dependent
-            // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
-            // be freed immediately. Given this is an output file, it's unlikely any Turbo
-            // code will need to read the file from disk into a Vc<FileContent>, so we're
-            // not wasting cycles.
-            let compare = content
-                .streaming_compare(&full_path)
-                .instrument(tracing::info_span!("read file before write", name = ?full_path))
-                .concurrency_limited(&inner.read_semaphore)
-                .await?;
-            if compare == FileComparison::Equal {
-                if !old_invalidators.is_empty() {
-                    for (invalidator, write_content) in old_invalidators {
-                        inner.invalidator_map.insert(
-                            full_path.clone().into_owned(),
-                            invalidator,
-                            write_content,
-                        );
-                    }
-                }
-                return Ok(());
+            fn key(&self) -> Vec<u8> {
+                self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            match &*content {
-                FileContent::Content(..) => {
-                    let create_directory = compare == FileComparison::Create;
-                    if create_directory && let Some(parent) = full_path.parent() {
-                        inner.create_directory(parent).await.with_context(|| {
-                            format!(
-                                "failed to create directory {parent:?} for write to {full_path:?}",
-                            )
-                        })?;
-                    }
+            fn value(&self) -> &u128 {
+                &self.content_hash
+            }
 
-                    let content = content.clone();
-                    retry_blocking(|| {
-                        let mut f = std::fs::File::create(&full_path)?;
-                        let FileContent::Content(file) = &*content else {
-                            unreachable!()
-                        };
-                        std::io::copy(&mut file.read(), &mut f)?;
-                        #[cfg(unix)]
-                        f.set_permissions(file.meta.permissions.into())?;
-                        f.flush()?;
+            fn state_storage(&self) -> &EffectStateStorage {
+                &self.inner.effect_state_storage
+            }
 
-                        static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
-                            std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
-                                .is_some_and(|v| v == "1" || v == "true")
-                        });
-                        if *WRITE_VERSION {
-                            let mut full_path = full_path.clone().into_owned();
-                            let hash = hash_xxh3_hash64(file);
-                            let ext = full_path.extension();
-                            let ext = if let Some(ext) = ext {
-                                format!("{:016x}.{}", hash, ext.to_string_lossy())
-                            } else {
-                                format!("{hash:016x}")
+            async fn apply(&self) -> Result<(), AnyhowWrapper> {
+                self.apply_inner().await.map_err(AnyhowWrapper::from)
+            }
+        }
+
+        impl WriteEffect {
+            async fn apply_inner(&self) -> anyhow::Result<()> {
+                let full_path = validate_path_length(&self.full_path)?;
+
+                let _lock = self.inner.lock_path(&full_path).await;
+
+                // We perform an untracked comparison here, so that this write is not dependent
+                // on a read's Vc<FileContent> (and the memory it holds). Our untracked read can
+                // be freed immediately. Given this is an output file, it's unlikely any Turbo
+                // code will need to read the file from disk into a Vc<FileContent>, so we're
+                // not wasting cycles.
+                let compare = self
+                    .content
+                    .streaming_compare(&full_path)
+                    .instrument(tracing::info_span!("read file before write", name = ?full_path))
+                    .concurrency_limited(&self.inner.read_semaphore)
+                    .await?;
+                if compare == FileComparison::Equal {
+                    return Ok(());
+                }
+
+                match &*self.content {
+                    PersistedFileContent::Content(..) => {
+                        let content = self.content.clone();
+                        let full_path = full_path.into_owned();
+                        async {
+                            let do_write = || {
+                                let content = content.clone();
+                                let full_path = full_path.clone();
+                                let span = tracing::info_span!("write file", name = ?full_path);
+                                retry_blocking(move || {
+                                    let mut f = std::fs::File::create(&full_path)?;
+                                    let PersistedFileContent::Content(file) = &*content else {
+                                        unreachable!()
+                                    };
+                                    std::io::copy(&mut file.read(), &mut f)?;
+                                    #[cfg(unix)]
+                                    f.set_permissions(file.meta.permissions.into())?;
+                                    f.flush()?;
+
+                                    static WRITE_VERSION: LazyLock<bool> = LazyLock::new(|| {
+                                        std::env::var_os("TURBO_ENGINE_WRITE_VERSION")
+                                            .is_some_and(|v| v == "1" || v == "true")
+                                    });
+                                    if *WRITE_VERSION {
+                                        let mut full_path = full_path.clone();
+                                        let hash = hash_xxh3_hash64(file);
+                                        let ext = full_path.extension();
+                                        let ext = if let Some(ext) = ext {
+                                            format!("{:016x}.{}", hash, ext.to_string_lossy())
+                                        } else {
+                                            format!("{hash:016x}")
+                                        };
+                                        full_path.set_extension(ext);
+                                        let mut f = std::fs::File::create(&full_path)?;
+                                        std::io::copy(&mut file.read(), &mut f)?;
+                                        #[cfg(unix)]
+                                        f.set_permissions(file.meta.permissions.into())?;
+                                        f.flush()?;
+                                    }
+                                    Ok::<(), io::Error>(())
+                                })
+                                .instrument(span)
                             };
-                            full_path.set_extension(ext);
-                            let mut f = std::fs::File::create(&full_path)?;
-                            std::io::copy(&mut file.read(), &mut f)?;
-                            #[cfg(unix)]
-                            f.set_permissions(file.meta.permissions.into())?;
-                            f.flush()?;
-                        }
-                        Ok::<(), io::Error>(())
-                    })
-                    .instrument(tracing::info_span!("write file", name = ?full_path))
-                    .concurrency_limited(&inner.write_semaphore)
-                    .await
-                    .with_context(|| format!("failed to write to {full_path:?}"))?;
-                }
-                FileContent::NotFound => {
-                    retry_blocking(|| std::fs::remove_file(&full_path))
-                        .instrument(tracing::info_span!("remove file", name = ?full_path))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .or_else(|err| {
-                            if err.kind() == ErrorKind::NotFound {
-                                Ok(())
-                            } else {
-                                Err(err)
+
+                            match do_write().await {
+                                Err(e) if e.kind() == ErrorKind::NotFound => {
+                                    // The parent directory doesn't exist. Create it and retry once.
+                                    if let Some(parent) = full_path.parent() {
+                                        retry_blocking(|| std::fs::create_dir_all(parent))
+                                            .instrument(tracing::info_span!(
+                                                "create directory",
+                                                name = ?parent
+                                            ))
+                                            .await
+                                            .with_context(|| {
+                                                format!(
+                                                    "failed to create directory {parent:?} for \
+                                                     write to {full_path:?}",
+                                                )
+                                            })?;
+                                    }
+                                    do_write().await.with_context(|| {
+                                        format!("failed to write to {full_path:?}")
+                                    })?;
+                                }
+                                result => {
+                                    result.with_context(|| {
+                                        format!("failed to write to {full_path:?}")
+                                    })?;
+                                }
                             }
-                        })
-                        .with_context(|| format!("removing {full_path:?} failed"))?;
+                            anyhow::Ok(())
+                        }
+                        .concurrency_limited(&self.inner.write_semaphore)
+                        .await?;
+                    }
+                    PersistedFileContent::NotFound => {
+                        retry_blocking(|| std::fs::remove_file(&full_path))
+                            .instrument(tracing::info_span!("remove file", name = ?full_path))
+                            .concurrency_limited(&self.inner.write_semaphore)
+                            .await
+                            .or_else(|err| {
+                                if err.kind() == ErrorKind::NotFound {
+                                    Ok(())
+                                } else {
+                                    Err(err)
+                                }
+                            })
+                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                    }
                 }
+
+                // Invalidate any read tasks tracking this path so they re-read the new content
+                self.inner.invalidate_from_write(&self.full_path);
+
+                Ok(())
             }
+        }
 
-            inner.invalidate_from_write(&full_path, old_invalidators);
-
-            Ok(())
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
+        emit_effect(WriteEffect {
+            full_path,
+            inner,
+            content,
+            content_hash,
         });
 
         Ok(())
@@ -1026,208 +1103,275 @@ impl FileSystem for DiskFileSystem {
 
         // Check if path is denied - if so, return an error
         if self.inner.is_path_denied(&fs_path) {
-            bail!(
-                "Cannot write link to denied path: {}",
-                fs_path.value_to_string().await?
-            );
+            turbobail!("Cannot write link to denied path: {fs_path}");
         }
 
         let content = target.await?;
 
         let full_path = self.to_sys_path(&fs_path);
         let inner = self.inner.clone();
-        let invalidator = turbo_tasks::get_invalidator();
 
-        effect(async move {
-            let full_path = validate_path_length(&full_path)?;
+        #[derive(TraceRawVcs, NonLocalValue)]
+        struct WriteLinkEffect {
+            full_path: PathBuf,
+            inner: Arc<DiskFileSystemInner>,
+            content: ReadRef<LinkContent>,
+            content_hash: u128,
+        }
 
-            let _lock = inner.lock_path(&full_path).await;
+        impl Effect for WriteLinkEffect {
+            type Error = AnyhowWrapper;
+            type Value = u128;
 
-            let old_invalidators = invalidator
-                .map(|invalidator| {
-                    inner.register_write_invalidator(
-                        &full_path,
-                        invalidator,
-                        WriteContent::Link(content.clone()),
-                    )
-                })
-                .transpose()?
-                .unwrap_or_default();
-
-            enum OsSpecificLinkContent {
-                Link {
-                    #[cfg(windows)]
-                    is_directory: bool,
-                    target: PathBuf,
-                },
-                NotFound,
-                Invalid,
+            fn key(&self) -> Vec<u8> {
+                self.full_path.as_os_str().as_encoded_bytes().to_vec()
             }
 
-            let os_specific_link_content = match &*content {
-                LinkContent::Link { target, link_type } => {
-                    let is_directory = link_type.contains(LinkType::DIRECTORY);
-                    let target_path = if link_type.contains(LinkType::ABSOLUTE) {
-                        Path::new(&inner.root).join(unix_to_sys(target).as_ref())
-                    } else {
-                        let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
-                        if cfg!(windows) && is_directory {
-                            // Windows junction points must always be stored as absolute
-                            full_path
-                                .parent()
-                                .unwrap_or(&full_path)
-                                .join(relative_target)
+            fn value(&self) -> &u128 {
+                &self.content_hash
+            }
+
+            fn state_storage(&self) -> &EffectStateStorage {
+                &self.inner.effect_state_storage
+            }
+
+            async fn apply(&self) -> Result<(), AnyhowWrapper> {
+                self.apply_inner().await.map_err(AnyhowWrapper::from)
+            }
+        }
+
+        impl WriteLinkEffect {
+            async fn apply_inner(&self) -> anyhow::Result<()> {
+                let full_path = validate_path_length(&self.full_path)?;
+
+                let _lock = self.inner.lock_path(&full_path).await;
+
+                enum OsSpecificLinkContent {
+                    Link {
+                        #[cfg(windows)]
+                        is_directory: bool,
+                        target: PathBuf,
+                    },
+                    NotFound,
+                    Invalid,
+                }
+
+                let os_specific_link_content = match &*self.content {
+                    LinkContent::Link { target, link_type } => {
+                        let is_directory = link_type.contains(LinkType::DIRECTORY);
+                        let target_path = if link_type.contains(LinkType::ABSOLUTE) {
+                            Path::new(&self.inner.root).join(unix_to_sys(target).as_ref())
                         } else {
-                            relative_target
+                            let relative_target = PathBuf::from(unix_to_sys(target).as_ref());
+                            if cfg!(windows) && is_directory {
+                                // Windows junction points must always be stored as absolute
+                                full_path
+                                    .parent()
+                                    .unwrap_or(&full_path)
+                                    .join(relative_target)
+                            } else {
+                                relative_target
+                            }
+                        };
+                        OsSpecificLinkContent::Link {
+                            #[cfg(windows)]
+                            is_directory,
+                            target: target_path,
                         }
-                    };
+                    }
+                    LinkContent::Invalid => OsSpecificLinkContent::Invalid,
+                    LinkContent::NotFound => OsSpecificLinkContent::NotFound,
+                };
+
+                let old_content = match retry_blocking(|| std::fs::read_link(&full_path))
+                    .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
+                    .concurrency_limited(&self.inner.read_semaphore)
+                    .await
+                {
+                    Ok(res) => Some((res.is_absolute(), res)),
+                    Err(_) => None,
+                };
+                let is_equal = match (&os_specific_link_content, &old_content) {
+                    (
+                        OsSpecificLinkContent::Link { target, .. },
+                        Some((old_is_absolute, old_target)),
+                    ) => target == old_target && target.is_absolute() == *old_is_absolute,
+                    (OsSpecificLinkContent::NotFound, None) => true,
+                    _ => false,
+                };
+                if is_equal {
+                    return Ok(());
+                }
+
+                match os_specific_link_content {
                     OsSpecificLinkContent::Link {
+                        target,
                         #[cfg(windows)]
                         is_directory,
-                        target: target_path,
-                    }
-                }
-                LinkContent::Invalid => OsSpecificLinkContent::Invalid,
-                LinkContent::NotFound => OsSpecificLinkContent::NotFound,
-            };
+                        ..
+                    } => {
+                        let full_path = full_path.into_owned();
 
-            let old_content = match retry_blocking(|| std::fs::read_link(&full_path))
-                .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
-                .concurrency_limited(&inner.read_semaphore)
-                .await
-            {
-                Ok(res) => Some((res.is_absolute(), res)),
-                Err(_) => None,
-            };
-            let is_equal = match (&os_specific_link_content, &old_content) {
-                (
-                    OsSpecificLinkContent::Link { target, .. },
-                    Some((old_is_absolute, old_target)),
-                ) => target == old_target && target.is_absolute() == *old_is_absolute,
-                (OsSpecificLinkContent::NotFound, None) => true,
-                _ => false,
-            };
-            if is_equal {
-                if !old_invalidators.is_empty() {
-                    for (invalidator, write_content) in old_invalidators {
-                        inner.invalidator_map.insert(
-                            full_path.clone().into_owned(),
-                            invalidator,
-                            write_content,
-                        );
-                    }
-                }
-                return Ok(());
-            }
+                        #[derive(thiserror::Error, Debug)]
+                        #[error("{msg}: {source}")]
+                        struct SymlinkCreationError {
+                            msg: &'static str,
+                            #[source]
+                            source: io::Error,
+                        }
 
-            match os_specific_link_content {
-                OsSpecificLinkContent::Link {
-                    target,
-                    #[cfg(windows)]
-                    is_directory,
-                    ..
-                } => {
-                    let full_path = full_path.into_owned();
-
-                    let create_directory = old_content.is_none();
-                    if create_directory && let Some(parent) = full_path.parent() {
-                        inner.create_directory(parent).await.with_context(|| {
-                            format!(
-                                "failed to create directory {parent:?} for write link to \
-                                 {full_path:?}",
-                            )
-                        })?;
-                    }
-
-                    #[derive(thiserror::Error, Debug)]
-                    #[error("{msg}: {source}")]
-                    struct SymlinkCreationError {
-                        msg: &'static str,
-                        #[source]
-                        source: io::Error,
-                    }
-
-                    let mut has_old_content = old_content.is_some();
-                    let try_create_link = || {
-                        if has_old_content {
-                            // Remove existing symlink before creating a new one. On Unix,
-                            // symlink(2) fails with EEXIST if the link already exists instead of
-                            // overwriting it. Windows has similar behavior with junction points.
-                            remove_symbolic_link_dir_helper(&full_path).map_err(|err| {
+                        let mut has_old_content = old_content.is_some();
+                        let try_create_link = || {
+                            if has_old_content {
+                                // Remove existing symlink before creating a new one. On Unix,
+                                // symlink(2) fails with EEXIST if the link already exists instead
+                                // of overwriting it. Windows has similar behavior with junction
+                                // points.
+                                remove_symbolic_link_dir_helper(&full_path).map_err(|err| {
+                                    SymlinkCreationError {
+                                        msg: "removal of existing symbolic link or junction point \
+                                              failed",
+                                        source: err,
+                                    }
+                                })?;
+                                has_old_content = false;
+                            }
+                            #[cfg(not(windows))]
+                            let io_result = std::os::unix::fs::symlink(&target, &full_path);
+                            #[cfg(windows)]
+                            let io_result = if is_directory {
+                                std::os::windows::fs::junction_point(&target, &full_path)
+                            } else {
+                                std::os::windows::fs::symlink_file(&target, &full_path)
+                            };
+                            io_result.map_err(|err| {
+                                if err.kind() == ErrorKind::AlreadyExists {
+                                    // try to remove the symlink on the next iteration of the loop
+                                    has_old_content = true;
+                                }
                                 SymlinkCreationError {
-                                    msg: "removal of existing symbolic link or junction point \
-                                          failed",
+                                    msg: "creation of a new symbolic link or junction point failed",
                                     source: err,
                                 }
-                            })?;
-                            has_old_content = false;
+                            })
+                        };
+                        fn can_retry_link(err: &SymlinkCreationError) -> bool {
+                            err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
                         }
-                        #[cfg(not(windows))]
-                        let io_result = std::os::unix::fs::symlink(&target, &full_path);
-                        #[cfg(windows)]
-                        let io_result = if is_directory {
-                            std::os::windows::fs::junction_point(&target, &full_path)
-                        } else {
-                            std::os::windows::fs::symlink_file(&target, &full_path)
+                        let err_context = || {
+                            #[cfg(not(windows))]
+                            let message = format!(
+                                "failed to create symlink at {full_path:?} pointing to {target:?}"
+                            );
+                            #[cfg(windows)]
+                            let message = if is_directory {
+                                format!(
+                                    "failed to create junction point at {full_path:?} pointing to \
+                                     {target:?}"
+                                )
+                            } else {
+                                format!(
+                                    "failed to create symlink at {full_path:?} pointing to \
+                                     {target:?}\n\
+                                    (Note: creating file symlinks on Windows require developer \
+                                     mode or admin permissions: \
+                                     https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
+                                )
+                            };
+                            message
                         };
-                        io_result.map_err(|err| {
-                            if err.kind() == ErrorKind::AlreadyExists {
-                                // try to remove the symlink on the next iteration of the loop
-                                has_old_content = true;
-                            }
-                            SymlinkCreationError {
-                                msg: "creation of a new symbolic link or junction point failed",
-                                source: err,
-                            }
-                        })
-                    };
-                    fn can_retry_link(err: &SymlinkCreationError) -> bool {
-                        err.source.kind() == ErrorKind::AlreadyExists || can_retry(&err.source)
-                    }
-                    let err_context = || {
-                        #[cfg(not(windows))]
-                        let message = format!(
-                            "failed to create symlink at {full_path:?} pointing to {target:?}"
-                        );
-                        #[cfg(windows)]
-                        let message = if is_directory {
-                            format!(
-                                "failed to create junction point at {full_path:?} pointing to \
-                                 {target:?}"
-                            )
-                        } else {
-                            format!(
-                                "failed to create symlink at {full_path:?} pointing to {target:?}\n\
-                                (Note: creating file symlinks on Windows require developer mode or \
-                                admin permissions: \
-                                https://learn.microsoft.com/en-us/windows/advanced-settings/developer-mode)",
-                            )
-                        };
-                        message
-                    };
-                    retry_blocking_custom(try_create_link, can_retry_link)
-                        .instrument(tracing::info_span!(
-                            "write symlink",
-                            name = ?full_path,
-                            target = ?target,
-                        ))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .with_context(err_context)?;
-                }
-                OsSpecificLinkContent::Invalid => {
-                    bail!("invalid symlink target: {full_path:?}")
-                }
-                OsSpecificLinkContent::NotFound => {
-                    retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
-                        .instrument(tracing::info_span!("remove symlink", name = ?full_path))
-                        .concurrency_limited(&inner.write_semaphore)
-                        .await
-                        .with_context(|| format!("removing {full_path:?} failed"))?;
-                }
-            }
+                        async {
+                            let write_result =
+                                retry_blocking_custom(try_create_link, can_retry_link)
+                                    .instrument(tracing::info_span!(
+                                        "write symlink",
+                                        name = ?full_path,
+                                        target = ?target,
+                                    ))
+                                    .await;
 
-            Ok(())
+                            match write_result {
+                                Err(ref e) if e.source.kind() == ErrorKind::NotFound => {
+                                    // Parent directory doesn't exist. Create it and retry once.
+                                    if let Some(parent) = full_path.parent() {
+                                        retry_blocking(|| std::fs::create_dir_all(parent))
+                                            .instrument(tracing::info_span!(
+                                                "create directory",
+                                                name = ?parent
+                                            ))
+                                            .await
+                                            .with_context(|| {
+                                                format!(
+                                                    "failed to create directory {parent:?} for \
+                                                     write link to {full_path:?}",
+                                                )
+                                            })?;
+                                    }
+                                    // After the first attempt, any pre-existing link was already
+                                    // removed (has_old_content is now false), so just create.
+                                    retry_blocking_custom(
+                                        || {
+                                            #[cfg(not(windows))]
+                                            let io_result =
+                                                std::os::unix::fs::symlink(&target, &full_path);
+                                            #[cfg(windows)]
+                                            let io_result = if is_directory {
+                                                std::os::windows::fs::junction_point(
+                                                    &target, &full_path,
+                                                )
+                                            } else {
+                                                std::os::windows::fs::symlink_file(
+                                                    &target, &full_path,
+                                                )
+                                            };
+                                            io_result.map_err(|err| SymlinkCreationError {
+                                                msg: "creation of a new symbolic link or junction \
+                                                      point failed",
+                                                source: err,
+                                            })
+                                        },
+                                        |e: &SymlinkCreationError| can_retry(&e.source),
+                                    )
+                                    .instrument(tracing::info_span!(
+                                        "write symlink",
+                                        name = ?full_path,
+                                        target = ?target,
+                                    ))
+                                    .await
+                                    .with_context(err_context)?;
+                                }
+                                result => result.with_context(err_context)?,
+                            }
+                            anyhow::Ok(())
+                        }
+                        .concurrency_limited(&self.inner.write_semaphore)
+                        .await?;
+                    }
+                    OsSpecificLinkContent::Invalid => {
+                        bail!("invalid symlink target: {full_path:?}");
+                    }
+                    OsSpecificLinkContent::NotFound => {
+                        retry_blocking(|| remove_symbolic_link_dir_helper(&full_path))
+                            .instrument(tracing::info_span!("remove symlink", name = ?full_path))
+                            .concurrency_limited(&self.inner.write_semaphore)
+                            .await
+                            .with_context(|| format!("removing {full_path:?} failed"))?;
+                    }
+                }
+
+                // Invalidate any read tasks tracking this path so they re-read the new content
+                self.inner.invalidate_from_write(&self.full_path);
+
+                Ok(())
+            }
+        }
+
+        let content_hash = u128::from_le_bytes(hash_xxh3_hash128(&*content));
+        emit_effect(WriteLinkEffect {
+            full_path,
+            inner,
+            content,
+            content_hash,
         });
         Ok(())
     }
@@ -1239,13 +1383,10 @@ impl FileSystem for DiskFileSystem {
 
         // Check if path is denied - if so, return an error (metadata shouldn't be readable)
         if self.inner.is_path_denied(&fs_path) {
-            bail!(
-                "Cannot read metadata from denied path: {}",
-                fs_path.value_to_string().await?
-            );
+            turbobail!("Cannot read metadata from denied path: {fs_path}");
         }
 
-        self.inner.register_read_invalidator(&full_path)?;
+        self.inner.register_read_invalidator(&full_path).await?;
 
         let _lock = self.inner.lock_path(&full_path).await;
         let meta = retry_blocking(|| std::fs::metadata(&full_path))
@@ -1289,33 +1430,25 @@ fn remove_symbolic_link_dir_helper(path: &Path) -> io::Result<()> {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for DiskFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(self.inner.name.clone())
-    }
-}
-
-#[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Hash, TaskInput)]
+#[turbo_tasks::value(shared)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
     pub path: RcStr,
 }
 
-impl FileSystemPath {
-    /// Mimics `ValueToString::to_string`.
-    pub fn value_to_string(&self) -> Vc<RcStr> {
-        value_to_string(self.clone())
+impl ValueToStringRef for FileSystemPath {
+    async fn to_string_ref(&self) -> Result<RcStr> {
+        turbofmt!("[{}]/{}", self.fs, self.path).await
     }
 }
 
-#[turbo_tasks::function]
-async fn value_to_string(path: FileSystemPath) -> Result<Vc<RcStr>> {
-    Ok(Vc::cell(
-        format!("[{}]/{}", path.fs.to_string().await?, path.path).into(),
-    ))
+#[turbo_tasks::value_impl]
+impl ValueToString for FileSystemPath {
+    #[turbo_tasks::function]
+    async fn to_string(&self) -> Result<Vc<RcStr>> {
+        Ok(Vc::cell(self.to_string_ref().await?))
+    }
 }
 
 impl FileSystemPath {
@@ -1388,7 +1521,7 @@ impl FileSystemPath {
 
     /// Returns true if this path has the given extension
     ///
-    /// slightly faster than `self.extension_ref() == Some(extension)` as we can simply match a
+    /// slightly faster than `self.extension() == Some(extension)` as we can simply match a
     /// suffix
     pub fn has_extension(&self, extension: &str) -> bool {
         debug_assert!(!extension.contains('/') && extension.starts_with('.'));
@@ -1396,7 +1529,7 @@ impl FileSystemPath {
     }
 
     /// Returns the extension (without a leading `.`)
-    pub fn extension_ref(&self) -> Option<&str> {
+    pub fn extension(&self) -> Option<&str> {
         let (_, extension) = self.split_extension();
         extension
     }
@@ -1477,9 +1610,8 @@ impl FileSystemPath {
         FileSystemPath { fs, path }
     }
 
-    /// Adds a subpath to the current path. The /-separate path argument might
-    /// contain ".." or "." segments, but it must not leave the root of the
-    /// filesystem.
+    /// Adds a subpath to the current path. The /-separated `path` argument might contain ".." or
+    /// "." segments, but it must not leave the root of the filesystem.
     pub fn join(&self, path: &str) -> Result<Self> {
         if let Some(path) = join_path(&self.path, path) {
             Ok(Self::new_normalized(self.fs, path.into()))
@@ -1492,7 +1624,7 @@ impl FileSystemPath {
         }
     }
 
-    /// Adds a suffix to the filename. [path] must not contain `/`.
+    /// Adds a suffix to the filename. `path` must not contain `/`.
     pub fn append(&self, path: &str) -> Result<Self> {
         if path.contains('/') {
             bail!(
@@ -1507,12 +1639,12 @@ impl FileSystemPath {
         ))
     }
 
-    /// Adds a suffix to the basename of the filename. [appending] must not
-    /// contain `/`. Extension will stay intact.
+    /// Adds a suffix to the basename of the file path. `appending` must not contain `/`. The [file
+    /// extension][FileSystemPath::extension] will stay intact.
     pub fn append_to_stem(&self, appending: &str) -> Result<Self> {
         if appending.contains('/') {
             bail!(
-                "FileSystemPath(\"{}\").append_to_stem(\"{}\") must not append '/'",
+                "FileSystemPath({:?}).append_to_stem({:?}) must not append '/'",
                 self.path,
                 appending,
             )
@@ -1552,14 +1684,15 @@ impl FileSystemPath {
         None
     }
 
-    /// DETERMINISM: Result is in random order. Either sort result or do not depend
-    /// on the order.
+    /// DETERMINISM: Result is in random order. Either sort the result or do not depend on the
+    /// order.
     pub fn read_glob(&self, glob: Vc<Glob>) -> Vc<ReadGlobResult> {
         read_glob(self.clone(), glob)
     }
 
-    // Tracks all files and directories matching the glob
-    // Follows symlinks as though they were part of the original hierarchy.
+    // Tracks all files and directories matching the glob using the filesystem watcher. Follows
+    // symlinks as though they were part of the original hierarchy. The returned [`Vc`] will be
+    // invalidated if a file or directory changes.
     pub fn track_glob(&self, glob: Vc<Glob>, include_dot_files: bool) -> Vc<Completion> {
         track_glob(self.clone(), glob, include_dot_files)
     }
@@ -1572,10 +1705,6 @@ impl FileSystemPath {
 impl FileSystemPath {
     pub fn fs(&self) -> Vc<Box<dyn FileSystem>> {
         *self.fs
-    }
-
-    pub fn extension(&self) -> &str {
-        self.extension_ref().unwrap_or_default()
     }
 
     pub fn is_inside(&self, other: &FileSystemPath) -> bool {
@@ -1618,9 +1747,9 @@ impl FileSystemPath {
     }
 }
 
-impl Display for FileSystemPath {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.path)
+impl std::fmt::Display for FileSystemPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.path)
     }
 }
 
@@ -1640,7 +1769,7 @@ pub async fn rebase(
     } else {
         let base_path = [&old_base.path, "/"].concat();
         if !fs_path.path.starts_with(&base_path) {
-            bail!(
+            turbobail!(
                 "rebasing {fs_path} from {old_base} onto {new_base} doesn't work because it's not \
                  part of the source path",
             );
@@ -1717,7 +1846,7 @@ impl FileSystemPath {
         let result = &(*self.realpath_with_links().await?);
         match &result.path_result {
             Ok(path) => Ok(path.clone()),
-            Err(error) => Err(anyhow::anyhow!(error.as_error_message(self, result))),
+            Err(error) => bail!("{}", error.as_error_message(self, result).await?),
         }
     }
 
@@ -1764,14 +1893,6 @@ impl FileSystemPath {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for FileSystemPath {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        self.value_to_string()
-    }
-}
-
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
 pub struct RealPathResult {
@@ -1791,22 +1912,33 @@ pub enum RealPathResultError {
 
 impl RealPathResultError {
     /// Formats the error message
-    pub fn as_error_message(&self, orig: &FileSystemPath, result: &RealPathResult) -> String {
-        match self {
-            RealPathResultError::TooManySymlinks => format!(
-                "Symlink {orig} leads to too many other symlinks ({len} links)",
-                len = result.symlinks.len()
-            ),
+    pub async fn as_error_message(
+        &self,
+        orig: &FileSystemPath,
+        result: &RealPathResult,
+    ) -> Result<RcStr> {
+        Ok(match self {
+            RealPathResultError::TooManySymlinks => {
+                let len = result.symlinks.len();
+                turbofmt!("Symlink {orig} leads to too many other symlinks ({len} links)").await?
+            }
             RealPathResultError::CycleDetected => {
-                format!("Symlink {orig} is in a symlink loop: {:?}", result.symlinks)
+                // symlinks is Vec<FileSystemPath> — format with Debug since
+                // turbofmt can't resolve a whole Vec asynchronously.
+                let symlinks_dbg = format!(
+                    "{:?}",
+                    result.symlinks.iter().map(|s| &s.path).collect::<Vec<_>>()
+                );
+                turbofmt!("Symlink {orig} is in a symlink loop: {symlinks_dbg}").await?
             }
             RealPathResultError::Invalid => {
-                format!("Symlink {orig} is invalid, it points out of the filesystem root")
+                turbofmt!("Symlink {orig} is invalid, it points out of the filesystem root").await?
             }
             RealPathResultError::NotFound => {
-                format!("Symlink {orig} is invalid, it points at a file that doesn't exist")
+                turbofmt!("Symlink {orig} is invalid, it points at a file that doesn't exist")
+                    .await?
             }
-        }
+        })
     }
 }
 
@@ -1857,8 +1989,8 @@ impl From<std::fs::Permissions> for Permissions {
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+#[turbo_tasks::value(shared, serialization = "hash")]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub enum FileContent {
     Content(File),
     NotFound,
@@ -1870,35 +2002,39 @@ impl From<File> for FileContent {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum FileComparison {
-    Create,
-    Equal,
-    NotEqual,
+/// A persisted version of [`FileContent`] that stores the full file content in the task cache.
+///
+/// [`FileContent`] uses `serialization = "hash"`, so only a hash is kept in the persistent cache.
+/// When reading the file content back from the cache, the hash is compared to detect changes, but
+/// the actual data is not available. `PersistedFileContent` provides the full data so that
+/// [`DiskFileSystem::write`] can retrieve it without re-reading from disk.
+#[turbo_tasks::value(shared)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
+pub enum PersistedFileContent {
+    Content(File),
+    NotFound,
 }
 
-impl FileContent {
-    /// Performs a comparison of self's data against a disk file's streamed
-    /// read.
+impl PersistedFileContent {
+    /// Performs a comparison of self's data against a disk file's streamed read.
     async fn streaming_compare(&self, path: &Path) -> Result<FileComparison> {
         let old_file =
             extract_disk_access(retry_blocking(|| std::fs::File::open(path)).await, path)?;
         let Some(old_file) = old_file else {
             return Ok(match self {
-                FileContent::NotFound => FileComparison::Equal,
+                PersistedFileContent::NotFound => FileComparison::Equal,
                 _ => FileComparison::Create,
             });
         };
         // We know old file exists, does the new file?
-        let FileContent::Content(new_file) = self else {
+        let PersistedFileContent::Content(new_file) = self else {
             return Ok(FileComparison::NotEqual);
         };
 
         let old_meta = extract_disk_access(retry_blocking(|| old_file.metadata()).await, path)?;
         let Some(old_meta) = old_meta else {
             // If we failed to get meta, then the old file has been deleted between the
-            // handle open. In which case, we just pretend the file never
-            // existed.
+            // handle open. In which case, we just pretend the file never existed.
             return Ok(FileComparison::Create);
         };
         // If the meta is different, we need to rewrite the file to update it.
@@ -1935,6 +2071,13 @@ impl FileContent {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FileComparison {
+    Create,
+    Equal,
+    NotEqual,
+}
+
 bitflags! {
   #[derive(
     Default,
@@ -1956,7 +2099,7 @@ bitflags! {
 /// creating a new link, we always create junction points, because symlink creation may fail if
 /// Windows "developer mode" is not enabled and we're running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
-#[derive(Debug)]
+#[derive(Debug, DeterministicHash)]
 pub enum LinkContent {
     /// A valid symbolic link pointing to `target`.
     ///
@@ -1967,7 +2110,7 @@ pub enum LinkContent {
     ///
     /// We don't use the [`FileSystemPath`] to store the target, because the [`FileSystemPath`] is
     /// always normalized. In [`FileSystemPath::write_symbolic_link_dir`] we need to compare
-    /// `target` with the value returned by [`sys::fs::read_link`].
+    /// `target` with the value returned by [`std::fs::read_link`].
     Link {
         target: RcStr,
         link_type: LinkType,
@@ -2298,13 +2441,44 @@ impl FileContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn hash(self: Vc<Self>) -> Result<Vc<u64>> {
-        Ok(Vc::cell(hash_xxh3_hash64(&self.await?)))
+    pub async fn hash(&self) -> Result<Vc<u64>> {
+        Ok(Vc::cell(hash_xxh3_hash64(self)))
+    }
+
+    /// Converts this [`FileContent`] into a [`PersistedFileContent`] by cloning.
+    ///
+    /// Use this in contexts where the full file content must be serialized to the persistent
+    /// task cache (e.g., in [`DiskFileSystem::write`]).
+    #[turbo_tasks::function]
+    pub fn persist(&self) -> Vc<PersistedFileContent> {
+        match self {
+            FileContent::Content(file) => PersistedFileContent::Content(file.clone()).cell(),
+            FileContent::NotFound => PersistedFileContent::NotFound.cell(),
+        }
+    }
+
+    /// Compared to [FileContent::hash], this hashes only the bytes of the file content and
+    /// nothing else, returning `None` if the file does not exist.
+    ///
+    /// If `salt` is non-empty it is written into the hasher before the file bytes in a single
+    /// pass. An empty salt produces the same result as hashing without a prefix.
+    #[turbo_tasks::function]
+    pub async fn content_hash(
+        &self,
+        salt: Vc<RcStr>,
+        algorithm: HashAlgorithm,
+    ) -> Result<Vc<Option<RcStr>>> {
+        match self {
+            FileContent::Content(file) => Ok(Vc::cell(Some(
+                deterministic_hash(&salt.await?, file.content().content_hash(), algorithm).into(),
+            ))),
+            FileContent::NotFound => Ok(Vc::cell(None)),
+        }
     }
 }
 
 /// A file's content interpreted as a JSON value.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileJsonContent {
     Content(Value),
     Unparsable(Box<UnparsableJson>),
@@ -2321,8 +2495,8 @@ impl ValueToString for FileJsonContent {
     fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.to_string().into())),
-            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+            FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),
+            FileJsonContent::NotFound => bail!("File not found"),
         }
     }
 }
@@ -2333,8 +2507,8 @@ impl FileJsonContent {
     pub async fn content(self: Vc<Self>) -> Result<Vc<Value>> {
         match &*self.await? {
             FileJsonContent::Content(json) => Ok(Vc::cell(json.clone())),
-            FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-            FileJsonContent::NotFound => Err(anyhow!("File not found")),
+            FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {}", e),
+            FileJsonContent::NotFound => bail!("File not found"),
         }
     }
 }
@@ -2375,7 +2549,7 @@ impl FileLine {
     }
 }
 
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum FileLinesContent {
     Lines(#[turbo_tasks(trace_ignore)] Vec<FileLine>),
     Unparsable,
@@ -2411,7 +2585,7 @@ impl DirectoryEntry {
                 Ok(path) => path,
                 Err(error) => {
                     return Ok(DirectoryEntry::Error(
-                        error.as_error_message(symlink, result).into(),
+                        error.as_error_message(symlink, result).await?,
                     ));
                 }
             };
@@ -2420,10 +2594,11 @@ impl DirectoryEntry {
                 FileSystemEntryType::File => DirectoryEntry::File(real_path.clone()),
                 // Happens if the link is to a non-existent file
                 FileSystemEntryType::NotFound => DirectoryEntry::Error(
-                    format!("Symlink {symlink} points at {real_path} which does not exist").into(),
+                    turbofmt!("Symlink {symlink} points at {real_path} which does not exist")
+                        .await?,
                 ),
                 // This is caused by eventual consistency
-                FileSystemEntryType::Symlink => bail!(
+                FileSystemEntryType::Symlink => turbobail!(
                     "Symlink {symlink} points at a symlink but realpath_with_links returned a path"
                 ),
                 _ => self,
@@ -2538,6 +2713,8 @@ impl DirectoryContent {
     }
 }
 
+#[derive(ValueToString)]
+#[value_to_string("null")]
 #[turbo_tasks::value(shared)]
 pub struct NullFileSystem;
 
@@ -2559,26 +2736,14 @@ impl FileSystem for NullFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) -> Vc<()> {
-        Vc::default()
-    }
+    fn write(&self, _fs_path: FileSystemPath, _content: Vc<FileContent>) {}
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Vc<()> {
-        Vc::default()
-    }
+    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) {}
 
     #[turbo_tasks::function]
     fn metadata(&self, _fs_path: FileSystemPath) -> Vc<FileMeta> {
         FileMeta::default().cell()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for NullFileSystem {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("null"))
     }
 }
 
@@ -2742,12 +2907,48 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathResult>>
     .cell())
 }
 
+/// Wrapper to convert [`anyhow::Error`] to `impl std::error::Error` for use in [`Effect::apply`].
+// TODO(bgw): use a structured error type instead of anyhow for write/write_link
+#[derive(TraceRawVcs, NonLocalValue)]
+pub(crate) struct AnyhowWrapper(anyhow::Error);
+
+impl fmt::Display for AnyhowWrapper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(&self.0, f)
+    }
+}
+
+impl fmt::Debug for AnyhowWrapper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(&self.0, f)
+    }
+}
+
+impl StdError for AnyhowWrapper {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
+        self.0.source()
+    }
+}
+
+impl From<anyhow::Error> for AnyhowWrapper {
+    fn from(err: anyhow::Error) -> Self {
+        AnyhowWrapper(err)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
+    use turbo_tasks::{Effects, OperationVc, Vc, take_effects};
     use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
     use super::*;
+
+    #[turbo_tasks::function(operation)]
+    async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Effects>> {
+        let _ = op.resolve().strongly_consistent().await?;
+        Ok(take_effects(op).await?.cell())
+    }
 
     #[test]
     fn test_get_relative_path_to() {
@@ -2841,90 +3042,102 @@ mod tests {
             noop_backing_storage(),
         ));
         tt.run_once(async {
-            let fs_vc =
-                DiskFileSystem::new(rcstr!("temp"), RcStr::from(sys_root.to_str().unwrap()))
-                    .to_resolved()
-                    .await?;
-            let fs = fs_vc.await?;
-            let fs_root_path = fs_vc.root().await?;
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &Path::new("relative").join("directory"),
-                    /* relative_to */ None,
-                )
-                .unwrap()
-                .path,
-                "relative/directory"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &sys_root
-                        .join("absolute")
-                        .join("directory")
-                        .join("..")
-                        .join("normalized_path"),
-                    /* relative_to */ Some(&fs_root_path.join("ignored").unwrap()),
-                )
-                .unwrap()
-                .path,
-                "absolute/normalized_path"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    Path::new("child"),
-                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
-                )
-                .unwrap()
-                .path,
-                "parent/child"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &Path::new("..").join("parallel_dir"),
-                    /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
-                )
-                .unwrap()
-                .path,
-                "parallel_dir"
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &Path::new("relative")
-                        .join("..")
-                        .join("..")
-                        .join("leaves_root"),
-                    /* relative_to */ None,
-                ),
-                None
-            );
-
-            assert_eq!(
-                fs.try_from_sys_path(
-                    fs_vc,
-                    &sys_root
-                        .join("absolute")
-                        .join("..")
-                        .join("..")
-                        .join("leaves_root"),
-                    /* relative_to */ None,
-                ),
-                None
-            );
+            assert_try_from_sys_path_operation(RcStr::from(sys_root.to_str().unwrap()))
+                .read_strongly_consistent()
+                .await?;
 
             anyhow::Ok(())
         })
         .await
         .unwrap();
+    }
+
+    #[turbo_tasks::function(operation)]
+    async fn assert_try_from_sys_path_operation(sys_root: RcStr) -> anyhow::Result<()> {
+        let sys_root = Path::new(sys_root.as_str());
+        let fs_vc = DiskFileSystem::new(
+            rcstr!("temp"),
+            Vc::cell(RcStr::from(sys_root.to_str().unwrap())),
+        )
+        .to_resolved()
+        .await?;
+        let fs = fs_vc.await?;
+        let fs_root_path = fs_vc.root().await?;
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &Path::new("relative").join("directory"),
+                /* relative_to */ None,
+            )
+            .unwrap()
+            .path,
+            "relative/directory"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &sys_root
+                    .join("absolute")
+                    .join("directory")
+                    .join("..")
+                    .join("normalized_path"),
+                /* relative_to */ Some(&fs_root_path.join("ignored").unwrap()),
+            )
+            .unwrap()
+            .path,
+            "absolute/normalized_path"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                Path::new("child"),
+                /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+            )
+            .unwrap()
+            .path,
+            "parent/child"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &Path::new("..").join("parallel_dir"),
+                /* relative_to */ Some(&fs_root_path.join("parent").unwrap()),
+            )
+            .unwrap()
+            .path,
+            "parallel_dir"
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &Path::new("relative")
+                    .join("..")
+                    .join("..")
+                    .join("leaves_root"),
+                /* relative_to */ None,
+            ),
+            None
+        );
+
+        assert_eq!(
+            fs.try_from_sys_path(
+                fs_vc,
+                &sys_root
+                    .join("absolute")
+                    .join("..")
+                    .join("..")
+                    .join("leaves_root"),
+                /* relative_to */ None,
+            ),
+            None
+        );
+
+        Ok(())
     }
 
     #[cfg(test)]
@@ -2934,15 +3147,16 @@ mod tests {
             io::Write,
         };
 
-        use rand::{Rng, SeedableRng};
+        use rand::{RngExt, SeedableRng};
         use turbo_rcstr::{RcStr, rcstr};
-        use turbo_tasks::{ResolvedVc, Vc, apply_effects};
+        use turbo_tasks::{ResolvedVc, Vc};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
+        use super::extract_effects_operation;
         use crate::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
 
         #[turbo_tasks::function(operation)]
-        async fn test_write_link_effect(
+        async fn test_write_link_effect_operation(
             fs: ResolvedVc<DiskFileSystem>,
             path: FileSystemPath,
             target: RcStr,
@@ -3001,15 +3215,21 @@ mod tests {
             ));
 
             tt.run_once(async move {
-                let fs = DiskFileSystem::new(rcstr!("test"), root)
-                    .to_resolved()
+                let fs = disk_file_system_operation(root)
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
-                let root_path = fs.root().owned().await?;
+                let root_path = disk_file_system_root(fs);
 
-                let write_result =
-                    test_write_link_effect(fs, root_path.clone(), rcstr!("subdir-a"));
-                write_result.read_strongly_consistent().await?;
-                apply_effects(write_result).await?;
+                extract_effects_operation(test_write_link_effect_operation(
+                    fs,
+                    root_path.clone(),
+                    rcstr!("subdir-a"),
+                ))
+                .read_strongly_consistent()
+                .await?
+                .apply()
+                .await?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "foo");
                 assert_eq!(
@@ -3018,9 +3238,15 @@ mod tests {
                 );
 
                 // Write the same links again but with different targets
-                let write_result = test_write_link_effect(fs, root_path, rcstr!("subdir-b"));
-                write_result.read_strongly_consistent().await?;
-                apply_effects(write_result).await?;
+                extract_effects_operation(test_write_link_effect_operation(
+                    fs,
+                    root_path,
+                    rcstr!("subdir-b"),
+                ))
+                .read_strongly_consistent()
+                .await?
+                .apply()
+                .await?;
 
                 assert_eq!(read_to_string(path.join("symlink-file")).unwrap(), "bar");
                 assert_eq!(
@@ -3041,12 +3267,14 @@ mod tests {
 
         #[turbo_tasks::function(operation)]
         fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
-            DiskFileSystem::new(rcstr!("test"), fs_root)
+            DiskFileSystem::new(rcstr!("test"), Vc::cell(fs_root))
         }
 
-        #[turbo_tasks::function(operation)]
-        fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSystemPath> {
-            fs.root()
+        fn disk_file_system_root(fs: ResolvedVc<DiskFileSystem>) -> FileSystemPath {
+            FileSystemPath {
+                fs: ResolvedVc::upcast(fs),
+                path: rcstr!(""),
+            }
         }
 
         #[turbo_tasks::function(operation)]
@@ -3100,35 +3328,43 @@ mod tests {
 
             tt.run_once(async move {
                 let fs = disk_file_system_operation(root)
-                    .resolve_strongly_consistent()
+                    .resolve()
+                    .strongly_consistent()
                     .await?;
-                let root_path = disk_file_system_root_operation(fs)
-                    .resolve_strongly_consistent()
-                    .await?
-                    .owned()
-                    .await?;
+                let root_path = disk_file_system_root(fs);
                 let symlinks_dir = root_path.join("_symlinks")?;
 
                 let initial_updates: Vec<(usize, usize)> =
                     (0..STRESS_SYMLINK_COUNT).map(|i| (i, 0)).collect();
-                let initial_op =
-                    write_symlink_stress_batch(fs, symlinks_dir.clone(), initial_updates);
-                initial_op.read_strongly_consistent().await?;
-                apply_effects(initial_op).await?;
+                extract_effects_operation(write_symlink_stress_batch(
+                    fs,
+                    symlinks_dir.clone(),
+                    initial_updates,
+                ))
+                .read_strongly_consistent()
+                .await?
+                .apply()
+                .await?;
 
                 let mut rng = rand::rngs::SmallRng::seed_from_u64(0);
                 for _ in 0..STRESS_ITERATIONS {
-                    let updates: Vec<(usize, usize)> = (0..STRESS_PARALLELISM)
-                        .map(|_| {
-                            let symlink_idx = rng.random_range(0..STRESS_SYMLINK_COUNT);
-                            let target_idx = rng.random_range(0..STRESS_TARGET_COUNT);
-                            (symlink_idx, target_idx)
-                        })
-                        .collect();
+                    let mut updates_map = rustc_hash::FxHashMap::default();
+                    for _ in 0..STRESS_PARALLELISM {
+                        let symlink_idx = rng.random_range(0..STRESS_SYMLINK_COUNT);
+                        let target_idx = rng.random_range(0..STRESS_TARGET_COUNT);
+                        updates_map.insert(symlink_idx, target_idx);
+                    }
+                    let updates: Vec<(usize, usize)> = updates_map.into_iter().collect();
 
-                    let write_op = write_symlink_stress_batch(fs, symlinks_dir.clone(), updates);
-                    write_op.read_strongly_consistent().await?;
-                    apply_effects(write_op).await?;
+                    extract_effects_operation(write_symlink_stress_batch(
+                        fs,
+                        symlinks_dir.clone(),
+                        updates,
+                    ))
+                    .read_strongly_consistent()
+                    .await?
+                    .apply()
+                    .await?;
                 }
 
                 anyhow::Ok(())
@@ -3144,11 +3380,13 @@ mod tests {
     #[cfg(test)]
     mod denied_path_tests {
         use std::{
-            fs::{File, create_dir_all},
+            fs::{File, create_dir_all, read_to_string},
             io::Write,
+            path::Path,
         };
 
         use turbo_rcstr::{RcStr, rcstr};
+        use turbo_tasks::{Effects, Vc, take_effects};
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{
@@ -3204,15 +3442,13 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read() {
-            let (_scratch, root, denied_path) = setup_test_fs();
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-
-            tt.run_once(async {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test 1: Reading allowed file should work
@@ -3248,6 +3484,19 @@ mod tests {
                     "denied directory should return NotFound"
                 );
 
+                Ok(())
+            }
+
+            let (_scratch, root, denied_path) = setup_test_fs();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                test_operation(root, denied_path)
+                    .read_strongly_consistent()
+                    .await?;
+
                 anyhow::Ok(())
             })
             .await
@@ -3256,15 +3505,13 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_dir() {
-            let (_scratch, root, denied_path) = setup_test_fs();
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-
-            tt.run_once(async {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test: read_dir on root should not include denied_dir
@@ -3299,6 +3546,19 @@ mod tests {
                     "denied_dir read_dir should return NotFound"
                 );
 
+                Ok(())
+            }
+
+            let (_scratch, root, denied_path) = setup_test_fs();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                test_operation(root, denied_path)
+                    .read_strongly_consistent()
+                    .await?;
+
                 anyhow::Ok(())
             })
             .await
@@ -3307,15 +3567,13 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_denied_path_read_glob() {
-            let (_scratch, root, denied_path) = setup_test_fs();
-            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-                BackendOptions::default(),
-                noop_backing_storage(),
-            ));
-
-            tt.run_once(async {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+            #[turbo_tasks::function(operation)]
+            async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
                 // Test: read_glob with ** should not reveal denied files
@@ -3354,67 +3612,129 @@ mod tests {
                     "allowed_dir/file.txt should be found"
                 );
 
-                anyhow::Ok(())
-            })
-            .await
-            .unwrap();
-        }
-
-        #[turbo_tasks::function(operation)]
-        async fn write_file(path: FileSystemPath, contents: RcStr) -> anyhow::Result<()> {
-            path.write(
-                FileContent::Content(TurboFile::from_bytes(contents.to_string().into_bytes()))
-                    .cell(),
-            )
-            .await?;
-            Ok(())
-        }
-
-        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-        async fn test_denied_path_write() {
-            use turbo_tasks::apply_effects;
+                Ok(())
+            }
 
             let (_scratch, root, denied_path) = setup_test_fs();
             let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
                 BackendOptions::default(),
                 noop_backing_storage(),
             ));
-
             tt.run_once(async {
-                let fs =
-                    DiskFileSystem::new_with_denied_paths(rcstr!("test"), root, vec![denied_path]);
+                test_operation(root, denied_path)
+                    .read_strongly_consistent()
+                    .await?;
+
+                anyhow::Ok(())
+            })
+            .await
+            .unwrap();
+        }
+
+        #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+        async fn test_denied_path_write() {
+            #[turbo_tasks::function(operation)]
+            async fn write_file_operation(
+                path: FileSystemPath,
+                contents: RcStr,
+            ) -> anyhow::Result<()> {
+                path.write(
+                    FileContent::Content(TurboFile::from_bytes(contents.to_string().into_bytes()))
+                        .cell(),
+                )
+                .await?;
+                Ok(())
+            }
+
+            /// Writes the allowed file and captures effects to be applied at
+            /// the top level.
+            #[turbo_tasks::function(operation)]
+            async fn write_allowed_file_operation(
+                root: RcStr,
+                denied_path: RcStr,
+                file_path: RcStr,
+                contents: RcStr,
+            ) -> anyhow::Result<Vc<Effects>> {
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
+                let root_path = fs.root().await?;
+                let allowed_file = root_path.join(&file_path)?;
+                let write_op = write_file_operation(allowed_file, contents);
+                write_op.read_strongly_consistent().await?;
+                Ok(take_effects(write_op).await?.cell())
+            }
+
+            #[turbo_tasks::function(operation)]
+            async fn test_denied_writes_operation(
+                root: RcStr,
+                denied_path: RcStr,
+                denied_file: RcStr,
+                nested_denied_file: RcStr,
+            ) -> anyhow::Result<()> {
+                let fs = DiskFileSystem::new_with_denied_paths(
+                    rcstr!("test"),
+                    Vc::cell(root),
+                    vec![denied_path],
+                );
                 let root_path = fs.root().await?;
 
-                // Test 1: Writing to allowed directory should work
-                let allowed_file = root_path.join("allowed_dir/new_file.txt")?;
-                let write_result = write_file(allowed_file.clone(), rcstr!("test content"));
-                write_result.read_strongly_consistent().await?;
-                apply_effects(write_result).await?;
-
-                // Verify it was written
-                let read_content = allowed_file.read().await?;
-                assert!(
-                    matches!(&*read_content, FileContent::Content(_)),
-                    "allowed file write should succeed"
-                );
-
-                // Test 2: Writing to denied directory should fail
-                let denied_file = root_path.join("denied_dir/forbidden.txt")?;
-                let write_result = write_file(denied_file, rcstr!("forbidden"));
-                let result = write_result.read_strongly_consistent().await;
+                let path = root_path.join(&denied_file)?;
+                let result = write_file_operation(path, rcstr!("forbidden"))
+                    .read_strongly_consistent()
+                    .await;
                 assert!(
                     result.is_err(),
                     "writing to denied path should return an error"
                 );
 
-                // Test 3: Writing to nested denied path should fail
-                let nested_denied = root_path.join("denied_dir/nested/file.txt")?;
-                let write_result = write_file(nested_denied, rcstr!("nested"));
-                let result = write_result.read_strongly_consistent().await;
+                let path = root_path.join(&nested_denied_file)?;
+                let result = write_file_operation(path, rcstr!("nested"))
+                    .read_strongly_consistent()
+                    .await;
                 assert!(
                     result.is_err(),
                     "writing to nested denied path should return an error"
                 );
+
+                Ok(())
+            }
+
+            let (_scratch, root, denied_path) = setup_test_fs();
+            let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+                BackendOptions::default(),
+                noop_backing_storage(),
+            ));
+            tt.run_once(async {
+                const ALLOWED_FILE: &str = "allowed_dir/new_file.txt";
+                const TEST_CONTENT: &str = "test content";
+
+                // Test 1: Writing to allowed directory should work
+                let effects = write_allowed_file_operation(
+                    root.clone(),
+                    denied_path.clone(),
+                    RcStr::from(ALLOWED_FILE),
+                    RcStr::from(TEST_CONTENT),
+                )
+                .read_strongly_consistent()
+                .await?;
+                effects.apply().await?;
+
+                // Verify the file was written to disk
+                let content = read_to_string(Path::new(root.as_str()).join(ALLOWED_FILE))?;
+                assert_eq!(content, TEST_CONTENT, "allowed file write should succeed");
+
+                // Tests 2 & 3: Writing to denied paths should fail
+                test_denied_writes_operation(
+                    root,
+                    denied_path,
+                    RcStr::from("denied_dir/forbidden.txt"),
+                    RcStr::from("denied_dir/nested/file.txt"),
+                )
+                .read_strongly_consistent()
+                .await?;
 
                 anyhow::Ok(())
             })

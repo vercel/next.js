@@ -13,6 +13,7 @@ default = []
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
 task_id_details = []
+verify_determinism = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.
@@ -34,7 +35,6 @@ event-listener = "5.4.0"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 inventory = { workspace = true }
-once_cell = { workspace = true }
 parking_lot = { workspace = true, features = ["serde"]}
 pin-project-lite = { workspace = true }
 rayon = { workspace = true }

@@ -1,4 +1,4 @@
-/// <reference path="../shared/runtime-utils.ts" />
+/// <reference path="../shared/runtime/runtime-utils.ts" />
 
 /// A 'base' utilities to support runtime can have externals.
 /// Currently this is for node.js / edge runtime both.

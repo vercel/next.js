@@ -32,19 +32,6 @@ impl IssueFilePathContentSource {
         }
         .cell()
     }
-
-    #[turbo_tasks::function]
-    pub fn new_description(
-        description: RcStr,
-        source: ResolvedVc<Box<dyn ContentSource>>,
-    ) -> Vc<Self> {
-        IssueFilePathContentSource {
-            file_path: None,
-            description,
-            source,
-        }
-        .cell()
-    }
 }
 
 #[turbo_tasks::value_impl]

@@ -15,12 +15,16 @@ import {
   NEXTJS_HYDRATION_ERROR_LINK,
 } from '../../shared/react-19-hydration-error'
 import type { ReadyRuntimeError } from '../utils/get-error-by-type'
-import { useFrames } from '../utils/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 import type { HydrationErrorState } from '../../shared/hydration-error'
 import { useActiveRuntimeError } from '../hooks/use-active-runtime-error'
 import { formatCodeFrame } from '../components/code-frame/parse-code-frame'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+import { InstantGuidance } from '../components/instant/instant-guidance'
+import { CodeFrame } from '../components/code-frame/code-frame'
+import { ErrorOverlayCallStack } from '../components/errors/error-overlay-call-stack/error-overlay-call-stack'
+import { ErrorCause } from './runtime-error/error-cause'
+import { useFrames } from '../utils/get-error-by-type'
 
 interface ErrorsProps extends ErrorBaseProps {
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
@@ -53,6 +57,11 @@ function GenericErrorDescription({ error }: { error: Error }) {
   let message = error.message
   if (message.startsWith(envPrefix)) {
     message = message.slice(envPrefix.length)
+  }
+
+  message = message.trim()
+  if (!message) {
+    return null
   }
 
   return (
@@ -221,8 +230,8 @@ function BlockingPageLoadErrorDescription({
             Viewport metadata needs to be available on page load so accessing
             data that comes from a user Request while producing it prevents
             Next.js from prerendering an initial UI.
-            <code>cookies()</code>, <code>headers()</code>, and{' '}
-            <code>searchParams</code>, are examples of Runtime data that can
+            <code>cookies()</code>, <code>headers()</code>, <code>params</code>,
+            and <code>searchParams</code> are examples of Runtime data that can
             only come from a user request.
           </p>
           <h4>To fix this:</h4>
@@ -360,9 +369,9 @@ function BlockingPageLoadErrorDescription({
         <p>
           This delays the entire page from rendering, resulting in a slow user
           experience. Next.js uses this error to ensure your app loads instantly
-          on every navigation. <code>cookies()</code>, <code>headers()</code>,
-          and <code>searchParams</code>, are examples of Runtime data that can
-          only come from a user request.
+          on every navigation. <code>cookies()</code>, <code>headers()</code>,{' '}
+          <code>params</code>, and <code>searchParams</code> are examples of
+          Runtime data that can only come from a user request.
         </p>
         <h4>To fix this:</h4>
         <p className="nextjs__blocking_page_load_error_fix_option">
@@ -438,6 +447,9 @@ export function getErrorTypeLabel(
   errorDetails: ErrorDetails
 ): ErrorOverlayLayoutProps['errorType'] {
   if (errorDetails.type === 'blocking-route') {
+    if (errorDetails.refinement === '') {
+      return `Instant`
+    }
     return `Blocking Route`
   }
   if (errorDetails.type === 'dynamic-metadata') {
@@ -542,15 +554,70 @@ function getHydrationErrorDetails(
   }
 }
 
+function InstantRuntimeError({
+  error,
+  variant,
+  dialogResizerRef,
+}: {
+  error: ReadyRuntimeError
+  variant: 'runtime' | 'navigation'
+  dialogResizerRef: React.RefObject<HTMLDivElement | null>
+}) {
+  const frames = useFrames(error)
+
+  const firstFrame = useMemo(() => {
+    const idx = frames.findIndex(
+      (entry) =>
+        !entry.ignored &&
+        Boolean(entry.originalCodeFrame) &&
+        Boolean(entry.originalStackFrame)
+    )
+    return frames[idx] ?? null
+  }, [frames])
+
+  return (
+    <>
+      {firstFrame && (
+        <CodeFrame
+          stackFrame={firstFrame.originalStackFrame!}
+          codeFrame={firstFrame.originalCodeFrame!}
+        />
+      )}
+
+      <InstantGuidance variant={variant} />
+
+      {frames.length > 0 && (
+        <ErrorOverlayCallStack
+          dialogResizerRef={dialogResizerRef}
+          frames={frames}
+        />
+      )}
+
+      {/* Instant errors are always single errors, never AggregateError.
+          Each blocking data access is tracked individually via
+          dynamicValidation.dynamicErrors and surfaced one at a time. */}
+      {error.cause && (
+        <ErrorCause cause={error.cause} dialogResizerRef={dialogResizerRef} />
+      )}
+    </>
+  )
+}
+
+function isRuntimeVariant(message: string): boolean {
+  // Discriminates between `createRuntimeBodyError` and `createDynamicBodyError`
+  return (
+    message.includes('encountered runtime data') &&
+    !message.includes('encountered uncached data')
+  )
+}
+
 function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   const isBlockingPageLoadError = error.message.includes('/blocking-route')
 
   if (isBlockingPageLoadError) {
-    const isRuntimeData = error.message.includes('cookies()')
-
     return {
       type: 'blocking-route',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: '',
     }
   }
@@ -559,10 +626,9 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
     '/next-prerender-dynamic-metadata'
   )
   if (isDynamicMetadataError) {
-    const isRuntimeData = error.message.includes('cookies()')
     return {
       type: 'dynamic-metadata',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
     }
   }
 
@@ -570,10 +636,9 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
     '/next-prerender-dynamic-viewport'
   )
   if (isBlockingViewportError) {
-    const isRuntimeData = error.message.includes('cookies()')
     return {
       type: 'blocking-route',
-      variant: isRuntimeData ? 'runtime' : 'navigation',
+      variant: isRuntimeVariant(error.message) ? 'runtime' : 'navigation',
       refinement: 'generateViewport',
     }
   }
@@ -600,21 +665,7 @@ export function Errors({
     setActiveIndex,
   } = useActiveRuntimeError({ runtimeErrors, getSquashedHydrationErrorDetails })
 
-  // Get parsed frames data
-  const frames = useFrames(activeError)
-
-  const firstFrame = useMemo(() => {
-    const firstFirstPartyFrameIndex = frames.findIndex(
-      (entry) =>
-        !entry.ignored &&
-        Boolean(entry.originalCodeFrame) &&
-        Boolean(entry.originalStackFrame)
-    )
-
-    return frames[firstFirstPartyFrameIndex] ?? null
-  }, [frames])
-
-  const generateErrorInfo = useCallback(() => {
+  const generateErrorInfo = useCallback(async () => {
     if (!activeError) return ''
 
     const parts: string[] = []
@@ -636,37 +687,58 @@ export function Errors({
     if (message) {
       parts.push(`## Error Message\n${message}`)
     }
-    // Append call stack
-    if (frames.length > 0) {
-      const visibleFrames = frames.filter((frame) => !frame.ignored)
-      if (visibleFrames.length > 0) {
-        const stackLines = visibleFrames
-          .map((frame) => {
-            if (frame.originalStackFrame) {
-              const { methodName, file, line1, column1 } =
-                frame.originalStackFrame
-              return `    at ${methodName} (${file}:${line1}:${column1})`
-            } else if (frame.sourceStackFrame) {
-              const { methodName, file, line1, column1 } =
-                frame.sourceStackFrame
-              return `    at ${methodName} (${file}:${line1}:${column1})`
-            }
-            return ''
-          })
-          .filter(Boolean)
 
-        if (stackLines.length > 0) {
-          parts.push(`\n${stackLines.join('\n')}`)
+    const frames = await Promise.race([
+      activeError.frames(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+    ])
+
+    // Append call stack
+    if (frames === null) {
+      parts.push(
+        'Unable to retrieve stack frames for this error. Falling back to unsourcemapped stack\n\n' +
+          error.stack
+      )
+    } else {
+      if (frames.length > 0) {
+        const visibleFrames = frames.filter((frame) => !frame.ignored)
+        if (visibleFrames.length > 0) {
+          const stackLines = visibleFrames
+            .map((frame) => {
+              if (frame.originalStackFrame) {
+                const { methodName, file, line1, column1 } =
+                  frame.originalStackFrame
+                return `    at ${methodName} (${file}:${line1}:${column1})`
+              } else if (frame.sourceStackFrame) {
+                const { methodName, file, line1, column1 } =
+                  frame.sourceStackFrame
+                return `    at ${methodName} (${file}:${line1}:${column1})`
+              }
+              return ''
+            })
+            .filter(Boolean)
+
+          if (stackLines.length > 0) {
+            parts.push(`\n${stackLines.join('\n')}`)
+          }
         }
       }
-    }
 
-    // 3. Code Frame (decoded)
-    if (firstFrame?.originalCodeFrame) {
-      const decodedCodeFrame = stripAnsi(
-        formatCodeFrame(firstFrame.originalCodeFrame)
+      // 3. Code Frame (decoded)
+      const firstFirstPartyFrameIndex = frames.findIndex(
+        (entry) =>
+          !entry.ignored &&
+          Boolean(entry.originalCodeFrame) &&
+          Boolean(entry.originalStackFrame)
       )
-      parts.push(`## Code Frame\n${decodedCodeFrame}`)
+
+      const firstFrame = frames[firstFirstPartyFrameIndex] ?? null
+      if (firstFrame?.originalCodeFrame) {
+        const decodedCodeFrame = stripAnsi(
+          formatCodeFrame(firstFrame.originalCodeFrame)
+        )
+        parts.push(`## Code Frame\n${decodedCodeFrame}`)
+      }
     }
 
     // Format as markdown error info
@@ -675,7 +747,7 @@ export function Errors({
 Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\n`
 
     return errorInfo
-  }, [activeError, errorType, firstFrame, frames, props.versionInfo])
+  }, [activeError, errorType, props.versionInfo])
 
   if (isLoading) {
     // TODO: better loading state
@@ -740,6 +812,37 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
       }
       break
     case 'blocking-route':
+      if (errorDetails.refinement === '') {
+        return (
+          <ErrorOverlayLayout
+            errorCode={errorCode}
+            errorType={errorType}
+            errorMessage={
+              errorDetails.variant === 'runtime'
+                ? 'Next.js encountered runtime data during the initial render.'
+                : 'Next.js encountered uncached data during the initial render.'
+            }
+            onClose={isServerError ? undefined : onClose}
+            debugInfo={debugInfo}
+            error={error}
+            runtimeErrors={runtimeErrors}
+            activeIdx={activeIdx}
+            setActiveIndex={setActiveIndex}
+            dialogResizerRef={dialogResizerRef}
+            generateErrorInfo={generateErrorInfo}
+            {...props}
+          >
+            <Suspense fallback={<div data-nextjs-error-suspended />}>
+              <InstantRuntimeError
+                key={activeError.id.toString()}
+                error={activeError}
+                variant={errorDetails.variant}
+                dialogResizerRef={dialogResizerRef}
+              />
+            </Suspense>
+          </ErrorOverlayLayout>
+        )
+      }
       errorMessage = (
         <BlockingPageLoadErrorDescription
           variant={errorDetails.variant}

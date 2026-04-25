@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, TraitRef, TryJoinIterExt, Vc};
-use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_hex};
+use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::version::{Version, VersionedContentMerger};
 
 type VersionTraitRef = TraitRef<Box<dyn Version>>;
@@ -9,7 +9,7 @@ type VersionTraitRef = TraitRef<Box<dyn Version>>;
 /// The version of a [`EcmascriptDevChunkListContent`].
 ///
 /// [`EcmascriptDevChunkListContent`]: super::content::EcmascriptDevChunkListContent
-#[turbo_tasks::value(serialization = "none", shared)]
+#[turbo_tasks::value(serialization = "skip", shared)]
 pub(super) struct EcmascriptDevChunkListVersion {
     /// A map from chunk path to its version.
     #[turbo_tasks(trace_ignore)]
@@ -31,8 +31,9 @@ impl Version for EcmascriptDevChunkListVersion {
             let mut by_path = self
                 .by_path
                 .iter()
+                .map(|(path, version)| (path, TraitRef::cell(version.clone())))
                 .map(|(path, version)| async move {
-                    let id = TraitRef::cell(version.clone()).id().owned().await?;
+                    let id = version.id().owned().await?;
                     Ok((path, id))
                 })
                 .try_join()
@@ -44,9 +45,7 @@ impl Version for EcmascriptDevChunkListVersion {
             let mut by_merger = self
                 .by_merger
                 .iter()
-                .map(|(_merger, version)| async move {
-                    TraitRef::cell(version.clone()).id().owned().await
-                })
+                .map(|(_merger, version)| TraitRef::cell(version.clone()).id().owned())
                 .try_join()
                 .await?;
             by_merger.sort();
@@ -63,7 +62,7 @@ impl Version for EcmascriptDevChunkListVersion {
             hasher.write_value(id);
         }
         let hash = hasher.finish();
-        let hex_hash = encode_hex(hash);
-        Ok(Vc::cell(hex_hash.into()))
+        let hash = encode_base64(hash);
+        Ok(Vc::cell(hash.into()))
     }
 }

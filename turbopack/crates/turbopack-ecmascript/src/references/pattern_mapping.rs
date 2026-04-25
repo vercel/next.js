@@ -101,7 +101,7 @@ impl SinglePatternMapping {
         match self {
             Self::Invalid => {
                 quote!(
-                    "(() => { throw new Error('could not resolve \"' + $arg + '\" into a module'); })()" as Expr,
+                    "(() => {throw new Error('could not resolve \"' + $arg + '\" into a module');})()" as Expr,
                     arg: Expr = key_expr.into_owned()
                 )
             }
@@ -140,7 +140,7 @@ impl SinglePatternMapping {
         match self {
             Self::Invalid => {
                 let error = quote_expr!(
-                    "() => { throw new Error('could not resolve \"' + $arg + '\" into a module'); }",
+                    "() => {throw new Error('could not resolve \"' + $arg + '\" into a module');}",
                     arg: Expr = key_expr.into_owned()
                 );
                 Expr::Call(CallExpr {
@@ -237,19 +237,13 @@ fn create_context_map(
 ) -> Expr {
     let props = map
         .iter()
-        .map(|(k, v)| {
-            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                key: PropName::Str(k.as_str().into()),
+        .map(|(k, v)| {PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {key: PropName::Str(k.as_str().into()),
                 value: quote_expr!(
-                        "{ id: () => $id, module: () => $module }",
+                        "{id: () => $id, module: () => $module}",
                         id: Expr = v.create_id(Cow::Borrowed(key_expr)),
-                        module: Expr = match import_mode {
-                            ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
-                            ImportMode::Import { import_externals } => v.create_import(Cow::Borrowed(key_expr), import_externals),
-                        },
-                    ),
-            })))
-        })
+                        module: Expr = match import_mode {ImportMode::Require => v.create_require(Cow::Borrowed(key_expr)),
+                            ImportMode::Import {import_externals} => v.create_import(Cow::Borrowed(key_expr), import_externals),},
+                    ),})))})
         .collect();
 
     Expr::Object(ObjectLit {
@@ -324,8 +318,15 @@ async fn to_single_pattern_mapping(
                 "unknown module type".to_string(),
             ));
         }
-        ModuleResolveResultItem::Error(str) => {
-            return Ok(SinglePatternMapping::Unresolvable(str.await?.to_string()));
+        ModuleResolveResultItem::Error(issue) => {
+            return Ok(SinglePatternMapping::Unresolvable(
+                issue
+                    .into_trait_ref()
+                    .await?
+                    .title()
+                    .await?
+                    .to_unstyled_string(),
+            ));
         }
         ModuleResolveResultItem::OutputAsset(_)
         | ModuleResolveResultItem::Empty

@@ -39,6 +39,16 @@ export interface RenderResumeDataCache {
    * enforce immutability.
    */
   readonly decryptedBoundArgs: Omit<DecryptedBoundArgsCacheStore, 'set'>
+
+  /**
+   * Serialized cache keys that were intentionally skipped during the
+   * prospective prerender (e.g. because the cached function accessed fallback
+   * params or other dynamic data). During the final prerender, a key in this
+   * set is returned as a hanging promise early, without attempting to look up
+   * or generate a cache entry. Optional because this field is intentionally not
+   * serialized and won't be present in deserialized caches.
+   */
+  readonly dynamicCacheKeys?: ReadonlySet<string>
 }
 
 /**
@@ -74,6 +84,20 @@ export interface PrerenderResumeDataCache {
    * operations to build the cache during pre-rendering.
    */
   readonly decryptedBoundArgs: DecryptedBoundArgsCacheStore
+
+  /**
+   * Tracks serialized cache keys that were intentionally skipped during the
+   * prospective prerender (e.g. because the cached function accessed fallback
+   * params or other dynamic data). During the final prerender, a key in this
+   * set is returned as a hanging promise early, without attempting to look up
+   * or generate a cache entry.
+   *
+   * This is intentionally not serialized. It is only used in-memory within a
+   * single prerender cycle (prospective to final). During the resume at request
+   * time, a cache miss for a dynamic key should generate a fresh entry rather
+   * than being short-circuited.
+   */
+  readonly dynamicCacheKeys: Set<string>
 }
 
 type ResumeStoreSerialized = {
@@ -147,12 +171,27 @@ export async function stringifyResumeDataCache(
  *
  * @returns A new empty PrerenderResumeDataCache instance
  */
-export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
-  return {
-    cache: new Map(),
-    fetch: new Map(),
-    encryptedBoundArgs: new Map(),
-    decryptedBoundArgs: new Map(),
+export function createPrerenderResumeDataCache(
+  source?: PrerenderResumeDataCache | RenderResumeDataCache
+): PrerenderResumeDataCache {
+  if (source) {
+    return {
+      cache: new Map(source.cache),
+      fetch: new Map(source.fetch),
+      encryptedBoundArgs: new Map(source.encryptedBoundArgs),
+      decryptedBoundArgs: new Map(source.decryptedBoundArgs),
+      dynamicCacheKeys: source.dynamicCacheKeys
+        ? new Set(source.dynamicCacheKeys)
+        : new Set(),
+    }
+  } else {
+    return {
+      cache: new Map(),
+      fetch: new Map(),
+      encryptedBoundArgs: new Map(),
+      decryptedBoundArgs: new Map(),
+      dynamicCacheKeys: new Set(),
+    }
   }
 }
 

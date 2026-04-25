@@ -17,7 +17,7 @@ name: Code Freeze
 
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.5.5
+  TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -42,6 +42,7 @@ jobs:
       - name: tune linux network
         run: sudo ethtool -K eth0 tx off rx off
 
-      - run: node ./scripts/code-freeze.js --type ${{ github.event.inputs.type }}
+      - run: node ./scripts/code-freeze.js --type "${INPUT_TYPE}"
         env:
           CODE_FREEZE_TOKEN: ${{ secrets.CODE_FREEZE_TOKEN }}
+          INPUT_TYPE: ${{ github.event.inputs.type }}

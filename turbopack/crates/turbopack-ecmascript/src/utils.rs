@@ -263,6 +263,37 @@ impl From<SyntaxContext> for AstSyntaxContext {
     }
 }
 
+/// Generates an inline source map comment that maps back to the original file in a trivial way
+///
+/// This is useful for source transforms that convert non-JS files (like text or binary files)
+/// into ES modules. The inline source map ensures that debuggers and error stacks show
+/// the original file path rather than the generated code.
+///
+/// # Arguments
+/// * `original_path` - The path to the original file (used in source map's "sources" field)
+/// * `original_content` - The original file content (used in source map's "sourcesContent" field)
+///
+/// # Returns
+/// An inline source map comment (e.g., `//# sourceMappingURL=data:application/json;base64,...`)
+pub fn inline_source_map_comment(original_path: &str, original_content: &str) -> String {
+    let source_map = serde_json::json!({
+        "version": 3,
+        "sources": [format!("turbopack:///{}", original_path)],
+        "sourcesContent": [original_content],
+        "names": [],
+        // Maps 0:0 in the output code to 0:0 in the original. Sufficient for
+        // bundle analyzers to attribute the bytes in the output chunks
+        "mappings": "AAAA",
+    });
+
+    let source_map_base64 = data_encoding::BASE64.encode(source_map.to_string().as_bytes());
+
+    format!(
+        "//# sourceMappingURL=data:application/json;base64,{}",
+        source_map_base64
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use turbo_rcstr::rcstr;
@@ -293,5 +324,30 @@ mod tests {
                 ]
             ))
         );
+    }
+
+    #[test]
+    fn test_inline_source_map_comment() {
+        use super::inline_source_map_comment;
+
+        let comment = inline_source_map_comment("test.txt", "hello");
+
+        assert!(comment.starts_with("//# sourceMappingURL=data:application/json;base64,"));
+
+        // Verify the source map is valid JSON when decoded
+        let source_map_part = comment
+            .split("base64,")
+            .nth(1)
+            .expect("should have base64 part");
+        let decoded = data_encoding::BASE64
+            .decode(source_map_part.as_bytes())
+            .expect("should decode");
+        let json: serde_json::Value =
+            serde_json::from_slice(&decoded).expect("should be valid JSON");
+
+        assert_eq!(json["version"], 3);
+        assert_eq!(json["sources"][0], "turbopack:///test.txt");
+        assert_eq!(json["sourcesContent"][0], "hello");
+        assert_eq!(json["mappings"], "AAAA");
     }
 }

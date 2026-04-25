@@ -110,7 +110,7 @@ export type MetadataResolver = (
   dir: string,
   filename: string,
   extensions: readonly string[]
-) => Promise<string | undefined>
+) => Promise<string[]>
 
 export type AppDirModules = {
   readonly [moduleKey in ValueOf<typeof FILE_TYPES>]?: ModuleTuple
@@ -427,11 +427,10 @@ async function createTreeCodeFromPath(
       // earlier logic (such as children$ and page$). These should never appear in the loader tree, and
       // should instead be the corresponding segment keys (ie `__PAGE__`) or the `children` parallel route.
       parallelSegmentKey =
-        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT
-          ? '(slot)'
-          : parallelSegmentKey === PAGE_SEGMENT
-            ? PAGE_SEGMENT_KEY
-            : parallelSegmentKey
+        parallelSegmentKey === PARALLEL_VIRTUAL_SEGMENT ||
+        parallelSegmentKey === PAGE_SEGMENT
+          ? '(__SLOT__)'
+          : parallelSegmentKey
 
       const normalizedParallelKey = normalizeParallelKey(parallelKey)
       let subtreeCode: string | undefined
@@ -962,22 +961,18 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     const dirname = absolutePath.slice(0, filenameIndex)
     const filename = absolutePath.slice(filenameIndex + 1)
 
-    let result: string | undefined
+    const checks = await Promise.all(
+      extensions.map(async (ext) => {
+        const absolutePathWithExtension = `${absolutePath}${ext}`
+        const exists = await fileExistsInDirectory(dirname, `${filename}${ext}`)
+        // Call `addMissingDependency` for all files even if they didn't match,
+        // because they might be added or removed during development.
+        this.addMissingDependency(absolutePathWithExtension)
+        return exists ? absolutePathWithExtension : undefined
+      })
+    )
 
-    for (const ext of extensions) {
-      const absolutePathWithExtension = `${absolutePath}${ext}`
-      if (
-        !result &&
-        (await fileExistsInDirectory(dirname, `${filename}${ext}`))
-      ) {
-        result = absolutePathWithExtension
-      }
-      // Call `addMissingDependency` for all files even if they didn't match,
-      // because they might be added or removed during development.
-      this.addMissingDependency(absolutePathWithExtension)
-    }
-
-    return result
+    return checks.find((result) => result)
   }
 
   const metadataResolver: MetadataResolver = async (
@@ -987,21 +982,20 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
   ) => {
     const absoluteDir = createAbsolutePath(appDir, dirname)
 
-    let result: string | undefined
+    const checks = await Promise.all(
+      exts.map(async (ext) => {
+        // Compared to `resolver` above the exts do not have the `.` included already, so it's added here.
+        const filenameWithExt = `${filename}.${ext}`
+        const absolutePathWithExtension = `${absoluteDir}${path.sep}${filenameWithExt}`
+        const exists = await fileExistsInDirectory(dirname, filenameWithExt)
+        // Call `addMissingDependency` for all files even if they didn't match,
+        // because they might be added or removed during development.
+        this.addMissingDependency(absolutePathWithExtension)
+        return exists ? absolutePathWithExtension : undefined
+      })
+    )
 
-    for (const ext of exts) {
-      // Compared to `resolver` above the exts do not have the `.` included already, so it's added here.
-      const filenameWithExt = `${filename}.${ext}`
-      const absolutePathWithExtension = `${absoluteDir}${path.sep}${filenameWithExt}`
-      if (!result && (await fileExistsInDirectory(dirname, filenameWithExt))) {
-        result = absolutePathWithExtension
-      }
-      // Call `addMissingDependency` for all files even if they didn't match,
-      // because they might be added or removed during development.
-      this.addMissingDependency(absolutePathWithExtension)
-    }
-
-    return result
+    return checks.filter((result) => result !== undefined)
   }
 
   if (isAppRouteRoute(name)) {

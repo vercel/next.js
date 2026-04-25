@@ -4,23 +4,53 @@
 
 Use Graphite (`gt`) instead of git for ALL branch and commit operations in this repository.
 
-## Forbidden Git Commands
+## Use `gt` Instead of `git`
 
-NEVER use these git commands directly:
+All git commands work with `gt`. Always use `gt` instead of `git`:
 
-- `git push` → use `gt submit --no-edit`
-- `git branch` → use `gt create`
+```bash
+gt add <files>       # instead of git add
+gt commit            # instead of git commit
+gt status            # instead of git status
+gt diff              # instead of git diff
+# etc.
+```
+
+For branch/push operations, use the Graphite-specific commands:
+
+- `gt create <branch-name> -m "message"` instead of `git branch` + `git commit`
+- `gt submit --no-edit` instead of `git push`
 
 ## Graphite Commands
 
 | Command                                | Description                                 |
 | -------------------------------------- | ------------------------------------------- |
+| `gt add <files>`                       | Stage files for commit                      |
 | `gt create <branch-name> -m "message"` | Create a new branch with commit             |
 | `gt modify -a --no-edit`               | Stage all and amend current branch's commit |
 | `gt checkout <branch>`                 | Switch branches                             |
 | `gt sync`                              | Sync and restack all branches               |
 | `gt submit --no-edit`                  | Push and create/update PRs                  |
 | `gt log short`                         | View stack status                           |
+
+## Creating a New Branch with Changes
+
+**CRITICAL**: Always stage changes BEFORE running `gt create`. The command format is:
+
+```bash
+gt add <files>                               # Stage changes FIRST
+gt create <branch-name> -m "commit message"  # Then create branch with commit
+```
+
+If you run `gt create` without staged changes, it creates an empty branch with no commit. Then `gt modify -a --no-edit` will fail because there's no commit to amend.
+
+**If you accidentally created an empty branch:**
+
+```bash
+gt add <files>
+gt commit -m "commit message"    # Create initial commit
+gt submit --no-edit              # Then submit
+```
 
 ## Creating PRs with Descriptions
 
@@ -35,13 +65,12 @@ gh pr edit <pr-number> --body "Place description here"
 
 - Graphite force-pushes everything - old commits only recoverable via reflog
 - Never have uncommitted changes when switching branches - they get lost during restack
-- Never use `git stash` with Graphite - causes conflicts when `gt modify` restacks
-- Never use `git checkout HEAD -- <file>` after editing - silently restores unfixed version
-- Always use `gt checkout` (not `git checkout`) to switch branches
+- Never use `gt stash` with Graphite - causes conflicts when `gt modify` restacks
+- Never use `gt checkout HEAD -- <file>` after editing - silently restores unfixed version
 - `gt modify --no-edit` with unstaged/untracked files stages ALL changes
 - `gt sync` pulls FROM remote, doesn't push TO remote
 - `gt modify` restacks children locally but doesn't push them
-- Always verify with `git status -sb` after stack operations
+- Always verify with `gt status -sb` after stack operations
 
 ## Safe Multi-Branch Fix Workflow
 
@@ -49,19 +78,25 @@ gh pr edit <pr-number> --body "Place description here"
 gt checkout parent-branch
 # make edits
 gt modify -a --no-edit        # Stage all, amend, restack children
-git show HEAD -- <files>      # VERIFY fix is in commit
+gt show HEAD -- <files>       # VERIFY fix is in commit
 gt submit --no-edit           # Push immediately
 
 gt checkout child-branch      # Already restacked from gt modify
 # make edits
 gt modify -a --no-edit
-git show HEAD -- <files>      # VERIFY
+gt show HEAD -- <files>       # VERIFY
 gt submit --no-edit
 ```
 
-## Checklist
+## Checklist for Creating a PR
 
-- [ ] Using `gt` commands instead of `git push`/`git branch`
+1. [ ] Stage changes: `gt add <files>`
+2. [ ] Create branch with commit: `gt create <branch-name> -m "message"`
+3. [ ] Push and create PR: `gt submit --no-edit`
+4. [ ] Add PR description using `.github/pull_request_template.md` format: `gh pr edit <pr-number> --body "..."`
+
+## General Safety Checklist
+
+- [ ] Always use `gt` instead of `git`
 - [ ] No uncommitted changes before switching branches
-- [ ] Verified changes with `git status -sb` after stack operations
-- [ ] PR description follows `.github/pull_request_template.md` format
+- [ ] Verify with `gt status -sb` after stack operations

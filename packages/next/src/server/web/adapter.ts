@@ -159,7 +159,7 @@ export async function adapter(
   const flightHeaders = new Map()
 
   // Headers should only be stripped for middleware
-  if (!isEdgeRendering) {
+  if (!isEdgeRendering && !process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
     for (const header of FLIGHT_HEADERS) {
       const value = requestHeaders.get(header)
       if (value !== null) {
@@ -178,7 +178,9 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeURL).toString(),
+    input: process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+      ? normalizeURL.toString()
+      : stripInternalSearchParams(normalizeURL).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -300,11 +302,21 @@ export async function adapter(
               renderOpts: {
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
+                // Proxy doesn't do static generation, so this value does not
+                // apply here. 0 is a sentinel: if something ever reads it,
+                // it'll surface loudly instead of silently using a misleading
+                // default.
+                staticPageGenerationTimeout: 0,
                 cacheComponents: false,
                 experimental: {
                   isRoutePPREnabled: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
+                  // Proxy doesn't fill Cache Components entries, so this value
+                  // is never read. 0 is a sentinel: if something ever reads it,
+                  // the cache fill will time out immediately and surface the
+                  // bug.
+                  useCacheTimeout: 0,
                 },
                 supportsDynamicResponse: true,
                 waitUntil,

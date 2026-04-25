@@ -144,7 +144,10 @@ impl NextFontGoogleReplacer {
             )
             .cell()),
         ).to_resolved().await?;
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(js_asset))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(js_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -336,7 +339,10 @@ impl NextFontGoogleCssModuleReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(css_asset))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(css_asset)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -454,7 +460,9 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
             fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
                 .await?
         else {
-            return Ok(ImportMapResult::Result(ResolveResult::unresolvable()).cell());
+            return Ok(
+                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
+            );
         };
 
         let font_source = VirtualSource::new(
@@ -464,7 +472,10 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
         .to_resolved()
         .await?;
 
-        Ok(ImportMapResult::Result(ResolveResult::source(ResolvedVc::upcast(font_source))).cell())
+        Ok(ImportMapResult::Result(
+            ResolveResult::source(ResolvedVc::upcast(font_source)).resolved_cell(),
+        )
+        .cell())
     }
 }
 
@@ -718,18 +729,21 @@ async fn get_mock_stylesheet(
     let response_path = Path::new(&mocked_responses_path);
     let mock_fs = Vc::upcast::<Box<dyn FileSystem>>(DiskFileSystem::new(
         rcstr!("mock"),
-        response_path
-            .parent()
-            .context("Must be valid path")?
-            .to_str()
-            .context("Must exist")?
-            .into(),
+        Vc::cell(
+            response_path
+                .parent()
+                .context("Must be valid path")?
+                .to_str()
+                .context("Must exist")?
+                .into(),
+        ),
     ));
 
     let ExecutionContext {
         env,
         project_path: _,
         chunking_context,
+        node_backend,
     } = *execution_context.await?;
     let asset_context = node_evaluate_asset_context(
         execution_context,
@@ -759,12 +773,15 @@ async fn get_mock_stylesheet(
         )
         .module();
 
-    let entries = get_evaluate_entries(mocked_response_asset, asset_context, None);
-    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-        entries.graph_entries().to_resolved().await?,
-        false,
-        false,
-    ));
+    let entries = get_evaluate_entries(mocked_response_asset, asset_context, *node_backend, None);
+    let module_graph = ModuleGraph::from_graphs(
+        vec![SingleModuleGraph::new_with_entries(
+            entries.graph_entries().to_resolved().await?,
+            false,
+            false,
+        )],
+        None,
+    );
     let module_graph = module_graph.connect();
 
     let root = mock_fs.root().owned().await?;
@@ -772,6 +789,7 @@ async fn get_mock_stylesheet(
         entries,
         root,
         *env,
+        *node_backend,
         loader_source,
         *chunking_context,
         module_graph,

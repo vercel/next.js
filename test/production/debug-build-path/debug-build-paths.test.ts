@@ -5,7 +5,6 @@ describe('debug-build-paths', () => {
   describe('default fixture', () => {
     const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/default'),
-      skipDeployment: true,
       skipStart: true,
     })
 
@@ -225,6 +224,32 @@ describe('debug-build-paths', () => {
         expect(buildResult.cliOutput).toContain('○ /foo')
         expect(buildResult.cliOutput).not.toContain('/with-type-error')
       })
+
+      it('should build routes inside route groups', async () => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'app/(group)/**/page.tsx'],
+        })
+        expect(buildResult.exitCode).toBe(0)
+        expect(buildResult.cliOutput).toContain('Route (app)')
+        // Route groups are stripped from the path, so /nested instead of /(group)/nested
+        expect(buildResult.cliOutput).toContain('/nested')
+        // Should not build other routes
+        expect(buildResult.cliOutput).not.toContain('○ /about')
+        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      })
+
+      it('should build routes with parallel routes', async () => {
+        const buildResult = await next.build({
+          args: ['--debug-build-paths', 'app/parallel-test/**/page.tsx'],
+        })
+        expect(buildResult.exitCode).toBe(0)
+        expect(buildResult.cliOutput).toContain('Route (app)')
+        // Parallel route segments (@sidebar) are stripped from the path
+        expect(buildResult.cliOutput).toContain('/parallel-test')
+        // Should not build other routes
+        expect(buildResult.cliOutput).not.toContain('○ /about')
+        expect(buildResult.cliOutput).not.toContain('○ /dashboard')
+      })
     })
 
     describe('typechecking with debug-build-paths', () => {
@@ -257,7 +282,6 @@ describe('debug-build-paths', () => {
   describe('with-compile-error fixture', () => {
     const { next, skipped } = nextTestSetup({
       files: path.join(__dirname, 'fixtures/with-compile-error'),
-      skipDeployment: true,
       skipStart: true,
     })
 

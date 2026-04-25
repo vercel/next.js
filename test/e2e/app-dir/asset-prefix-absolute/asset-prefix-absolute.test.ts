@@ -15,8 +15,11 @@ describe('app-dir absolute assetPrefix', () => {
     for (const script of $('script').toArray()) {
       const { src } = script.attribs
       if (
-        src?.includes(
+        src?.startsWith(
           'https://example.vercel.sh/custom-asset-prefix/_next/static'
+        ) ||
+        src?.startsWith(
+          'https://example.vercel.sh/custom-asset-prefix/_next/static/immutable'
         )
       ) {
         bundles.push(src)
@@ -27,7 +30,7 @@ describe('app-dir absolute assetPrefix', () => {
 
     for (const src of bundles) {
       // Remove hostname to check if pathname is still used for serving the bundles
-      const bundlePathWithoutHost = decodeURI(new URL(src).pathname)
+      const bundlePathWithoutHost = decodeURI(new URL(src).href)
       const { status } = await next.fetch(bundlePathWithoutHost)
 
       expect(status).toBe(200)

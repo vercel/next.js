@@ -1,4 +1,5 @@
 import { computeChangedPath } from './compute-changed-path'
+import { PrefetchHint } from '../../../shared/lib/app-router-types'
 
 describe('computeChangedPath', () => {
   it('should return the correct path', () => {
@@ -27,7 +28,7 @@ describe('computeChangedPath', () => {
           },
           undefined,
           undefined,
-          true,
+          PrefetchHint.IsRootLayout,
         ],
         [
           '',
@@ -52,7 +53,7 @@ describe('computeChangedPath', () => {
           },
           undefined,
           undefined,
-          true,
+          PrefetchHint.IsRootLayout,
         ]
       )
     ).toBe('/')

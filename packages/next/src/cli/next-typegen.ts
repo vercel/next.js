@@ -9,16 +9,16 @@ import { printAndExit } from '../server/lib/utils'
 import { PHASE_PRODUCTION_BUILD } from '../shared/lib/constants'
 import { getProjectDir } from '../lib/get-project-dir'
 import { findPagesDir } from '../lib/find-pages-dir'
-import { verifyTypeScriptSetup } from '../lib/verify-typescript-setup'
+import { verifyAndRunTypeScript } from '../lib/verify-typescript-setup'
 import { discoverRoutes } from '../build/route-discovery'
 
 import {
   createRouteTypesManifest,
   writeRouteTypesManifest,
   writeValidatorFile,
-  writeRouteTypesEntryFile,
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
+import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
 import { installBindings } from '../build/swc/install-bindings'
 
 export type NextTypegenOptions = {
@@ -43,25 +43,25 @@ const nextTypegen = async (
 
   const strictRouteTypes = Boolean(nextConfig.experimental.strictRouteTypes)
 
-  await verifyTypeScriptSetup({
+  await verifyAndRunTypeScript({
     dir: baseDir,
     distDir: nextConfig.distDir,
-    distDirRoot: nextConfig.distDirRoot,
     strictRouteTypes,
-    typeCheckPreflight: false,
+    shouldRunTypeCheck: false,
     tsconfigPath: nextConfig.typescript.tsconfigPath,
+    typedRoutes: Boolean(nextConfig.typedRoutes),
     disableStaticImages: nextConfig.images.disableStaticImages,
     hasAppDir: !!appDir,
     hasPagesDir: !!pagesDir,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
+    rootParams:
+      !!nextConfig.experimental.rootParams || !!nextConfig.cacheComponents,
   })
 
   console.log('Generating route types...')
 
-  // Actual type files go to route-types.d.ts (not routes.d.ts)
-  // routes.d.ts is reserved for the entry file
-  const routeTypesFilePath = join(distDir, 'types', 'route-types.d.ts')
+  const routeTypesFilePath = join(distDir, 'types', 'routes.d.ts')
   const validatorFilePath = join(distDir, 'types', 'validator.ts')
   await mkdir(join(distDir, 'types'), { recursive: true })
 
@@ -115,19 +115,11 @@ const nextTypegen = async (
   const cacheLifeFilePath = join(distDir, 'types', 'cache-life.d.ts')
   writeCacheLifeTypes(nextConfig.cacheLife, cacheLifeFilePath)
 
-  // Write the entry file at {distDirRoot}/types/routes.d.ts
-  // This ensures next-env.d.ts has a consistent import path
-  const entryFilePath = join(
-    baseDir,
-    nextConfig.distDirRoot,
-    'types',
-    'routes.d.ts'
+  await writeRootParamsTypes(
+    routeTypesManifest,
+    join(distDir, 'types', 'root-params.d.ts'),
+    nextConfig
   )
-  const actualTypesDir = join(distDir, 'types')
-  await writeRouteTypesEntryFile(entryFilePath, actualTypesDir, {
-    strictRouteTypes,
-    typedRoutes: Boolean(nextConfig.typedRoutes),
-  })
 
   console.log('✓ Types generated successfully')
 }

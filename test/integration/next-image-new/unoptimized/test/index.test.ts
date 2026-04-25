@@ -21,16 +21,16 @@ function runTests(url: string, mode: 'dev' | 'server') {
     const browser = await webdriver(appPort, url)
     expect(
       await browser.elementById('internal-image').getAttribute('src')
-    ).toBe('/test.png')
+    ).toMatch(/\/test.png(\?dpl=.*)?/)
     expect(
       await browser.elementById('static-image').getAttribute('src')
     ).toMatch(/test(.*)jpg/)
     expect(
       await browser.elementById('external-image').getAttribute('src')
     ).toBe('https://image-optimization-test.vercel.app/test.jpg')
-    expect(await browser.elementById('eager-image').getAttribute('src')).toBe(
-      '/test.webp'
-    )
+    expect(
+      await browser.elementById('eager-image').getAttribute('src')
+    ).toMatch(/\/test.webp(\?dpl=.*)?/)
 
     expect(
       await browser.elementById('internal-image').getAttribute('srcset')
@@ -66,16 +66,16 @@ function runTests(url: string, mode: 'dev' | 'server') {
 
     expect(
       await browser.elementById('internal-image').getAttribute('src')
-    ).toBe('/test.png')
+    ).toMatch(/\/test.png(\?dpl=.*)?/)
     expect(
       await browser.elementById('static-image').getAttribute('src')
     ).toMatch(/test(.*)jpg/)
     expect(
       await browser.elementById('external-image').getAttribute('src')
     ).toBe('https://image-optimization-test.vercel.app/test.jpg')
-    expect(await browser.elementById('eager-image').getAttribute('src')).toBe(
-      '/test.webp'
-    )
+    expect(
+      await browser.elementById('eager-image').getAttribute('src')
+    ).toMatch(/\/test.webp(\?dpl=.*)?/)
 
     expect(
       await browser.elementById('internal-image').getAttribute('srcset')

@@ -4,17 +4,18 @@ use std::{
     future::IntoFuture,
     hash::{Hash, Hasher},
     marker::PhantomData,
-    mem::transmute,
     ops::Deref,
+    slice,
 };
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 
+#[cfg(debug_assertions)]
+use crate::debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString};
 use crate::{
     RawVc, Upcast, UpcastStrict, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
-    debug::{ValueDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
     vc::Vc,
 };
@@ -47,6 +48,12 @@ use crate::{
 ///    still use [`Vc`], but when the function is called, the [`Vc`] will be resolved.
 ///
 /// 3. Given a [`Vc`], use [`.to_resolved().await?`][Vc::to_resolved].
+///
+///
+/// ## Reading a `ResolvedVc`
+///
+/// Even though a `Vc` may be resolved as a `ResolvedVc`, we must still use `.await?` to read it's
+/// value, as the value could be invalidated or cache-evicted.
 ///
 ///
 /// ## Equality & Hashing
@@ -240,15 +247,16 @@ where
     /// Cheaply converts a Vec of resolved Vcs to a Vec of Vcs.
     pub fn deref_vec(vec: Vec<ResolvedVc<T>>) -> Vec<Vc<T>> {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
+        let (ptr, len, capacity) = vec.into_raw_parts();
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<Vec<ResolvedVc<T>>, Vec<Vc<T>>>(vec) }
+        unsafe { Vec::from_raw_parts(ptr as *mut Vc<T>, len, capacity) }
     }
 
     /// Cheaply converts a slice of resolved Vcs to a slice of Vcs.
-    pub fn deref_slice(slice: &[ResolvedVc<T>]) -> &[Vc<T>] {
+    pub fn deref_slice(s: &[ResolvedVc<T>]) -> &[Vc<T>] {
         debug_assert!(size_of::<ResolvedVc<T>>() == size_of::<Vc<T>>());
         // Safety: The memory layout of `ResolvedVc<T>` and `Vc<T>` is the same.
-        unsafe { transmute::<&[ResolvedVc<T>], &[Vc<T>]>(slice) }
+        unsafe { slice::from_raw_parts(s.as_ptr() as *const Vc<T>, s.len()) }
     }
 }
 
@@ -271,7 +279,9 @@ where
             <K as VcValueTrait>::get_trait_type_id() != <T as VcValueTrait>::get_trait_type_id(),
             "Attempted to cast a type {} to itself, which is pointless. Use the value directly \
              instead.",
-            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id()).global_name
+            crate::registry::get_trait(<T as VcValueTrait>::get_trait_type_id())
+                .ty
+                .global_name
         );
         // `RawVc::TaskCell` already contains all the type information needed to check this
         // sidecast, so we don't need to read the underlying cell!
@@ -341,6 +351,7 @@ where
     }
 }
 
+#[cfg(debug_assertions)]
 impl<T> ValueDebugFormat for ResolvedVc<T>
 where
     T: UpcastStrict<Box<dyn ValueDebug>> + Send + Sync + ?Sized,

@@ -1,8 +1,8 @@
-*anonymous function 116* (const after eval) = (...) => 3
+*anonymous function 116* = (...) => 3
 
 *anonymous function 339* = (...) => 3
 
-*arrow function 11* (const after eval) = (...) => 1
+*arrow function 11* = (...) => 1
 
 *arrow function 214* = (...) => 1
 
@@ -12,11 +12,11 @@
 
 *arrow function 299* = (...) => 2
 
-*arrow function 30* (const after eval) = (...) => 2
+*arrow function 30* = (...) => 2
 
-*arrow function 50* (const after eval) = (...) => 1
+*arrow function 50* = (...) => 1
 
-*arrow function 83* (const after eval) = (...) => 2
+*arrow function 83* = (...) => 2
 
 a (const after eval) = *arrow function 11*
 

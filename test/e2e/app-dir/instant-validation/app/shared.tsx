@@ -1,5 +1,20 @@
 import { cacheLife } from 'next/cache'
+import Link from 'next/link'
 import { setTimeout } from 'timers/promises'
+
+export function DebugLinks({ href }: { href: string }) {
+  return (
+    <span>
+      <span>{href}</span>{' '}
+      <Link data-link-type="soft" href={href}>
+        [SPA]
+      </Link>{' '}
+      <a data-link-type="hard" href={href}>
+        [MPA]
+      </a>
+    </span>
+  )
+}
 
 export async function uncachedIO() {
   await setTimeout(0)

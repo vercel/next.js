@@ -206,7 +206,7 @@ On the initial load, both Server and Client Components run on the server to gene
 
 **Client Components:**
 
-- Run on the server during pre-rendering, but must follow the same security assumptions as code running in the browser.
+- Run on the server during prerendering, but must follow the same security assumptions as code running in the browser.
 - Must not access privileged data or server-only modules.
 
 This ensures the app is secure by default, but it's possible to accidentally expose private data through how data is fetched or passed to components.
@@ -239,6 +239,16 @@ This prevents the tainted objects or values from being passed to the client. How
 
 To prevent server-only code from being executed on the client, you can mark a module with the [`server-only`](https://www.npmjs.com/package/server-only) package:
 
+```ts filename="lib/data.ts"
+import 'server-only'
+
+//...
+```
+
+This ensures that proprietary code or internal business logic stays on the server by causing a build error if the module is imported in the client environment.
+
+Next.js handles `server-only` imports internally. The contents of these packages from NPM are not used. However, if your linting rules flag extraneous dependencies, you may install them to avoid issues.
+
 ```bash package="npm"
 npm install server-only
 ```
@@ -255,13 +265,7 @@ pnpm add server-only
 bun add server-only
 ```
 
-```ts filename="lib/data.ts"
-import 'server-only'
-
-//...
-```
-
-This ensures that proprietary code or internal business logic stays on the server by causing a build error if the module is imported in the client environment.
+Read more about `server-only` in the [preventing environment poisoning](/docs/app/getting-started/server-and-client-components#preventing-environment-poisoning) section.
 
 ## Mutating Data
 
@@ -269,7 +273,7 @@ Next.js handles mutations with [Server Actions](https://react.dev/reference/rsc/
 
 ### Built-in Server Actions Security features
 
-By default, when a Server Action is created and exported, it creates a public HTTP endpoint and should be treated with the same security assumptions and authorization checks. This means, even if a Server Action or utility function is not imported elsewhere in your code, it's still publicly accessible.
+By default, when a Server Action is created and exported, it is reachable via a direct POST request, not just through your application's UI. This means, even if a Server Action or utility function is not imported elsewhere in your code, it can still be called externally.
 
 To improve security, Next.js has the following built-in features:
 
@@ -279,7 +283,7 @@ To improve security, Next.js has the following built-in features:
 > **Good to know**:
 >
 > The IDs are created during compilation and are cached for a maximum of 14 days. They will be regenerated when a new build is initiated or when the build cache is invalidated.
-> This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions like public HTTP endpoints.
+> This security improvement reduces the risk in cases where an authentication layer is missing. However, you should still treat Server Actions as reachable via direct POST requests and verify authentication and authorization inside each one.
 
 ```jsx
 // app/actions.js
@@ -326,24 +330,146 @@ export default async function Page() {
 
 ### Authentication and authorization
 
-You should always ensure that a user is authorized to perform an action. For example:
+A page-level authentication check does not extend to the Server Actions defined within it. Always re-verify inside the action:
+
+```tsx filename="app/admin/page.tsx" highlight={13,14,15,16}
+import { auth } from '@/lib/auth'
+import { redirect } from 'next/navigation'
+
+export default async function AdminPage() {
+  const session = await auth()
+  if (!session?.user?.isAdmin) {
+    redirect('/login')
+  }
+
+  return (
+    <form
+      action={async () => {
+        'use server'
+        const session = await auth()
+        if (!session?.user?.isAdmin) {
+          throw new Error('Unauthorized')
+        }
+        await db.record.deleteMany()
+      }}
+    >
+      <button>Delete Records</button>
+    </form>
+  )
+}
+```
+
+The highlighted `auth()` check inside the action is critical. The page-level redirect on line 6 controls which UI is rendered, but the Server Action is a separate entry point and must verify the caller on its own.
+
+Beyond authentication (is the user logged in?), remember to check **authorization** (does this user have permission to act on this specific resource?). This prevents [Insecure Direct Object Reference (IDOR)](https://cheatsheetseries.owasp.org/cheatsheets/Insecure_Direct_Object_Reference_Prevention_Cheat_Sheet.html) vulnerabilities:
 
 ```tsx filename="app/actions.ts"
 'use server'
 
-import { auth } from './lib'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
 
-export function addItem() {
-  const { user } = auth()
-  if (!user) {
-    throw new Error('You must be signed in to perform this action')
+export async function deletePost(postId: string) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
   }
 
-  // ...
+  const post = await db.post.findUnique({ where: { id: postId } })
+
+  // Check that the user owns this resource
+  if (post.authorId !== session.user.id) {
+    throw new Error('Forbidden')
+  }
+
+  await db.post.delete({ where: { id: postId } })
 }
 ```
 
 Learn more about [Authentication](/docs/app/guides/authentication) in Next.js.
+
+### Using a Data Access Layer for mutations
+
+Just as we recommend a [Data Access Layer](#data-access-layer) for reading data, you can apply the same pattern to mutations. This keeps authentication, authorization, and database logic in a dedicated `server-only` module, while `"use server"` actions stay thin.
+
+```ts filename="data/posts.ts"
+import 'server-only'
+
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+
+export async function deletePost(postId: string) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+
+  const post = await db.post.findUnique({ where: { id: postId } })
+
+  if (post.authorId !== session.user.id) {
+    throw new Error('Forbidden')
+  }
+
+  await db.post.delete({ where: { id: postId } })
+}
+```
+
+The `"use server"` action then delegates to the DAL:
+
+```ts filename="app/actions.ts"
+'use server'
+
+import { deletePost } from '@/data/posts'
+import { revalidatePath } from 'next/cache'
+
+export async function deletePostAction(postId: string) {
+  await deletePost(postId) // Auth + authz happen inside the DAL
+  revalidatePath('/posts')
+}
+```
+
+> **Good to know:** You can use `import 'server-only'` in both the Data Access Layer and the `"use server"` file itself. Both work when the action is imported into a Client Component (for example, to pass it to `useActionState`), because `"use server"` modules are resolved in a server-only webpack layer.
+
+### Controlling return values
+
+Server Action return values are serialized and sent to the client. Only return what the UI needs, not raw database records.
+
+```tsx filename="app/actions.ts"
+'use server'
+
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+
+// BAD: Returns the full database record, which may include
+// internal fields the client should not see.
+export async function updateUser(data: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+  return db.user.update({
+    where: { id: session.user.id },
+    data: { name: data.get('name') as string },
+  })
+}
+
+// GOOD: Returns only what the client needs.
+export async function updateUserSafe(data: FormData) {
+  const session = await auth()
+  if (!session?.user) {
+    throw new Error('Unauthorized')
+  }
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { name: data.get('name') as string },
+  })
+  return { success: true }
+}
+```
+
+### Rate limiting
+
+For expensive operations (sending emails, writing to a database), consider adding rate limiting to prevent abuse. See the [Rate limiting](/docs/app/guides/backend-for-frontend#rate-limiting) example in the Backend for Frontend guide.
 
 ### Closures and encryption
 
@@ -399,9 +525,15 @@ However, for this to happen, the captured variables are sent to the client and b
 
 When **self-hosting** your Next.js application across multiple servers, each server instance may end up with a different encryption key, leading to potential inconsistencies.
 
-To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key. This variable **must** be AES-GCM encrypted.
+To mitigate this, you can overwrite the encryption key using the `process.env.NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` environment variable. Specifying this variable ensures that your encryption keys are persistent across builds, and all server instances use the same key.
 
-This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. You should consider standard security practices such key rotation and signing.
+The key must be a base64-encoded value whose decoded length matches a valid AES key size (16, 24, or 32 bytes). Next.js generates 32-byte keys by default. You can generate a compatible key using your platform’s cryptographic tools, for example:
+
+```bash
+openssl rand -base64 32
+```
+
+This is an advanced use case where consistent encryption behavior across multiple deployments is critical for your application. Follow standard security practices such as key rotation and signing. See the [Self-Hosting guide](/docs/app/guides/self-hosting#server-functions-encryption-key) for deployment-specific considerations.
 
 ### Allowed origins (advanced)
 
@@ -467,6 +599,6 @@ If you're doing an audit of a Next.js project, here are a few things we recommen
 
 - **Data Access Layer:** Is there an established practice for an isolated Data Access Layer? Verify that database packages and environment variables are not imported outside the Data Access Layer.
 - **`"use client"` files:** Are the Component props expecting private data? Are the type signatures overly broad?
-- **`"use server"` files:** Are the Action arguments validated in the action or inside the Data Access Layer? Is the user re-authorized inside the action?
+- **`"use server"` files:** Are the Action arguments validated in the action or inside the Data Access Layer? Is the user re-authorized inside the action? Does the action check ownership of the resource (authorization, not just authentication)? Are return values filtered to only what the client needs? Is database access delegated to a `server-only` Data Access Layer?
 - **`/[param]/.`** Folders with brackets are user input. Are params validated?
 - **`proxy.ts` and `route.ts`:** Have a lot of power. Spend extra time auditing these using traditional techniques. Perform Penetration Testing or Vulnerability Scanning regularly or in alignment with your team's software development lifecycle.

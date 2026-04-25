@@ -29,18 +29,12 @@ describe('instant validation - opting out of static shells', () => {
   })
 })
 
-describe.each([
-  { debugChannelEnabled: true, description: 'with debug channel' },
-  { debugChannelEnabled: false, description: 'without debug channel' },
-])('instant validation - $description', ({ debugChannelEnabled }) => {
+describe('instant validation', () => {
   describe('requires a static shell if a below a static layout page is configured as blocking', () => {
     const { next, skipped, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
       skipStart: true,
       skipDeployment: true,
-      env: {
-        REACT_DEBUG_CHANNEL: debugChannelEnabled ? '1' : '',
-      },
     })
     if (skipped) return
 
@@ -51,21 +45,10 @@ describe.each([
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-         To fix this, you can either:
-
-         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-         or
-
-         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-         Learn more: https://nextjs.org/docs/messages/blocking-route",
+           "code": "E1164",
+           "description": "Next.js encountered uncached data during the initial render.",
            "environmentLabel": "Server",
-           "label": "Blocking Route",
+           "label": "Instant",
            "source": "app/blocking-page-below-static/page.tsx (6:19) @ Page
          > 6 |   await connection()
              |                   ^",
@@ -86,9 +69,7 @@ describe.each([
       })
       it('errors during build', () => {
         expect(didBuildError).toBe(true)
-        expect(next.cliOutput).toContain(
-          'Uncached data was accessed outside of <Suspense>'
-        )
+        expect(next.cliOutput).toContain('during the initial render')
       })
     }
   })
