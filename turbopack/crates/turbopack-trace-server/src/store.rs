@@ -10,7 +10,7 @@ use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     self_time_tree::SelfTimeTree,
-    span::{Span, SpanEvent, SpanIndex},
+    span::{Span, SpanArgs, SpanEvent, SpanIndex},
     span_ref::SpanRef,
     timestamp::Timestamp,
 };
@@ -45,7 +45,7 @@ fn new_root_span() -> Span {
         start: Timestamp::MAX,
         category: RcStr::default(),
         name: rcstr!("(root)"),
-        args: vec![],
+        args: SpanArgs::new(),
         events: Default::default(),
         is_complete: true,
         max_depth: OnceLock::new(),
@@ -109,7 +109,7 @@ impl Store {
         start: Timestamp,
         category: RcStr,
         name: RcStr,
-        args: Vec<(RcStr, RcStr)>,
+        args: SpanArgs,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();

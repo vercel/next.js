@@ -4,11 +4,18 @@ use std::{
 };
 
 use hashbrown::HashMap;
+use smallvec::SmallVec;
 use turbo_rcstr::RcStr;
 
 use crate::{lazy_sorted_vec::LazySortedVec, timestamp::Timestamp};
 
 pub type SpanIndex = NonZeroUsize;
+
+/// Storage for `Span::args`. Most spans have 0–1 args (typically just the
+/// `name` key for `turbo_tasks::function` spans), so inlining one entry
+/// avoids a heap allocation in the common case. With one inline slot plus
+/// the workspace's `union` feature, this is the same 24 bytes as a `Vec`.
+pub type SpanArgs = SmallVec<[(RcStr, RcStr); 1]>;
 
 pub struct Span {
     // These values won't change after creation:
@@ -17,7 +24,7 @@ pub struct Span {
     pub start: Timestamp,
     pub category: RcStr,
     pub name: RcStr,
-    pub args: Vec<(RcStr, RcStr)>,
+    pub args: SpanArgs,
 
     // This might change during writing:
     /// The list of events sorted by start time
