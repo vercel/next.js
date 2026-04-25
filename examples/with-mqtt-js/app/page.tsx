@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useRef } from "react";
-import type { MqttClient } from "mqtt";
 import useMqtt from "@/lib/useMqtt";
 
 export default function Home() {
@@ -22,19 +21,8 @@ export default function Home() {
     },
   ]);
 
-  const mqttClientRef = useRef<MqttClient | null>(null);
-  const setMqttClient = (client: MqttClient) => {
-    mqttClientRef.current = client;
-  };
-  useMqtt({
-    uri: process.env.NEXT_PUBLIC_MQTT_URI,
-    options: {
-      username: process.env.NEXT_PUBLIC_MQTT_USERNAME,
-      password: process.env.NEXT_PUBLIC_MQTT_PASSWORD,
-      clientId: process.env.NEXT_PUBLIC_MQTT_CLIENTID,
-    },
+  const mqttClient = useMqtt({
     topicHandlers: incomingMessageHandlers.current,
-    onConnectedHandler: (client) => setMqttClient(client),
   });
 
   const publishMessages = (client: any) => {
@@ -56,7 +44,7 @@ export default function Home() {
       {incomingMessages.map((m) => (
         <p key={Math.random()}>{m.payload.toString()}</p>
       ))}
-      <button onClick={() => publishMessages(mqttClientRef.current)}>
+      <button onClick={() => publishMessages(mqttClient)}>
         Publish Test Messages
       </button>
       <button onClick={() => clearMessages()}>Clear Test Messages</button>
