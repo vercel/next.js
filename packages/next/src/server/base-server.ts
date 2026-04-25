@@ -2281,7 +2281,14 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' ||
+        isSSG ||
+        // In dev mode pages are never pre-rendered to HTML strings, so the
+        // `typeof components.Component === 'string'` check above doesn't
+        // catch plain pages (no getStaticProps / getServerSideProps). Pages
+        // with getServerSideProps intentionally accept non-GET/HEAD methods
+        // because the server-side handler receives `req` and can act on it.
+        (!isAppPath && !hasServerProps))
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
