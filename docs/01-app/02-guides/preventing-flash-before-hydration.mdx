@@ -4,7 +4,7 @@ nav_title: Preventing Flash
 description: Learn how to correct server-rendered content before the browser paints, avoiding visible flash when the page hydrates.
 ---
 
-User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, timezone, theme, persisted interactions) needs to be updated before the user sees it.
+User preferences, browser settings, and client-side storage aren't available during server rendering. The server emits a reasonable default, but any UI that depends on client-only state (locale, time zone, theme, persisted interactions) needs to be updated before the user sees it.
 
 Some common approaches to this problem:
 
@@ -26,7 +26,7 @@ Use Chrome DevTools [Sensors](https://developer.chrome.com/docs/devtools/sensors
 
 ## Dates and formatting
 
-A UTC timestamp like `2026-06-15T18:00:00Z` represents a fixed point in time, but how it is formatted for display depends on the user's locale and timezone. `toLocaleDateString()` and `Intl.DateTimeFormat` on the server use the server's settings, which may not match the user's.
+A UTC timestamp like `2026-06-15T18:00:00Z` represents a fixed point in time, but how it is formatted for display depends on the user's locale and time zone. `toLocaleDateString()` and `Intl.DateTimeFormat` on the server use the server's settings, which may not match the user's.
 
 ### The problem
 
@@ -454,7 +454,7 @@ The inline script and the lazy `useState` initializer both read from `localStora
 
 ### Why not read from headers or cookies at request time?
 
-Reading `Accept-Language` with `await headers()` lets the server format per-request. With Cache Components, you can wrap just the date in a Suspense fallback so the rest of the page stays static. But you'd need to show a fallback instead of immediate content, and `Accept-Language` doesn't include timezone information.
+Reading `Accept-Language` with `await headers()` lets the server format per-request. With Cache Components, you can wrap just the date in a Suspense fallback so the rest of the page stays static. But you'd need to show a fallback instead of immediate content, and `Accept-Language` doesn't include time zone information.
 
 ## Next steps
 
