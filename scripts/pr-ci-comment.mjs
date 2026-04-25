@@ -562,24 +562,6 @@ async function handleBuildAndTestWorkflow({
     return
   }
 
-  if (workflowRun.conclusion === 'cancelled') {
-    const sha = pr.headSha || workflowRun.head_sha
-    const body = [
-      TEST_COMMENT_MARKER,
-      '## Tests cancelled',
-      '',
-      `Commit: ${sha}`,
-      `[View workflow run](${workflowRun.html_url})`,
-      '',
-    ].join('\n')
-
-    await github.upsertIssueComment(pr.number, TEST_COMMENT_MARKER, body, [
-      '## Failing test suites',
-      '## Failing CI jobs',
-    ])
-    return
-  }
-
   if (workflowRun.conclusion === 'success') {
     const body = [
       TEST_COMMENT_MARKER,
