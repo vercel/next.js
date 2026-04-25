@@ -48,8 +48,17 @@ function writeCookieValue(value: InstantCookie): void {
   // then write back with the new value. This updates the same cookie
   // entry that the external actor created, regardless of how it was
   // scoped.
+  //
+  // Capture the current lockState and compare it in the callback so we
+  // only write if the lock we observed at call time is still held. This
+  // guards against two races: (a) the scope ended between get and set
+  // (lockState is now null), and (b) the scope ended and a new one was
+  // acquired in the same gap (lockState is a different object). In
+  // either case we must not write — doing so would leak stale state
+  // into the next scope or outlive the current one.
+  const lockAtCall = lockState
   cookieStore.get(NEXT_INSTANT_TEST_COOKIE).then((existing: any) => {
-    if (existing) {
+    if (existing && lockState === lockAtCall && lockAtCall !== null) {
       const options: any = {
         name: NEXT_INSTANT_TEST_COOKIE,
         value: JSON.stringify(value),
@@ -66,9 +75,18 @@ function writeCookieValue(value: InstantCookie): void {
 type NavigationLockState = {
   promise: Promise<void>
   resolve: () => void
+  // The pre-lock `window.fetch`, captured at `acquireLock` time and
+  // restored at `releaseLock`. Internal Next.js code reads this via
+  // `getPreLockFetch` to bypass the override we install on `window.fetch`
+  // during a lock scope.
+  fetch: typeof fetch
 }
 
 let lockState: NavigationLockState | null = null
+
+export function getPreLockFetch(): typeof fetch | null {
+  return lockState !== null ? lockState.fetch : null
+}
 
 function acquireLock(): void {
   if (lockState !== null) {
@@ -78,14 +96,61 @@ function acquireLock(): void {
   const promise = new Promise<void>((r) => {
     resolve = r
   })
-  lockState = { promise, resolve: resolve! }
+  lockState = { promise, resolve: resolve!, fetch: window.fetch }
+
+  // Install the fetch blocker. We only intercept `window.fetch` for the
+  // duration of the lock so that — outside of a testing scope — user-
+  // installed overrides of `window.fetch` are untouched.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    window.fetch = globalFetchOverride
+  }
 }
 
 function releaseLock(): void {
-  if (lockState !== null) {
-    lockState.resolve()
-    lockState = null
+  if (lockState === null) {
+    return
   }
+  // Restore the pre-lock `window.fetch` before resolving the lock promise
+  // so any fetches queued on the promise see the restored fetch.
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    window.fetch = lockState.fetch
+  }
+  const { resolve } = lockState
+  lockState = null
+  resolve()
+}
+
+/**
+ * Global fetch override
+ *
+ * While the navigation lock is active, we install this as `window.fetch` so
+ * out-of-band client-side fetches (e.g. `fetch('/api/data')` inside a
+ * useEffect) are blocked until the lock is released. Next.js internals
+ * bypass the override by importing `fetch` from `./fetch`, which reads the
+ * captured pre-lock fetch via `getPreLockFetch`.
+ *
+ * NOTE: This override only affects environments where the Instant Navigation
+ * Testing API is enabled. It has no impact on live production behavior.
+ */
+export function globalFetchOverride(
+  input: RequestInfo | URL,
+  init?: RequestInit
+): Promise<Response> {
+  if (lockState === null) {
+    // Lock is not active. Fall through to the global fetch — we reach this
+    // only if a caller captured a reference to this function during a lock
+    // scope and invoked it after release.
+    return fetch(input, init)
+  }
+  // Block user-initiated fetches until the lock is released, then dispatch
+  // through the fetch captured at acquire time. Reading from `lockState`
+  // (rather than `window.fetch`) pins to the capture even if `window.fetch`
+  // is reassigned after release.
+  const currentLock = lockState
+  return currentLock.promise.then(() => {
+    const preLockFetch = currentLock.fetch
+    return preLockFetch(input, init)
+  })
 }
 
 /**
