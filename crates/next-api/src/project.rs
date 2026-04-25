@@ -1852,7 +1852,7 @@ impl Project {
 
         let middleware = self.find_middleware();
         let middleware = if let FindContextFileResult::Found(fs_path, _) = &*middleware.await? {
-            let is_proxy = fs_path.file_stem() == Some("proxy");
+            let is_proxy = fs_path.file_name().split('.').next() == Some("proxy");
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
                 is_proxy,
@@ -2028,7 +2028,7 @@ impl Project {
             .as_ref()
             .map(|_| AppProject::client_transition_name());
 
-        let is_proxy = fs_path.file_stem() == Some("proxy");
+        let is_proxy = fs_path.file_name().split('.').next() == Some("proxy");
         let config = parse_segment_config_from_source(
             source,
             if is_proxy {
