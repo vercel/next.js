@@ -7,7 +7,6 @@ const {
   getGitHubToken,
   getGitHubTokenMissingMessage,
   verifyGitHubApiAccess,
-  verifyDisposableGitWrites,
 } = require('./release-github-auth')
 
 const SEMVER_TYPES = ['patch', 'minor', 'major']
@@ -16,8 +15,6 @@ async function main() {
   const args = process.argv
   const releaseType = args[args.indexOf('--release-type') + 1]
   const semverType = args[args.indexOf('--semver-type') + 1]
-  const dryRun = args.includes('--dry-run')
-  const verifyGitWrites = args.includes('--verify-git-writes')
   const isCanary = releaseType === 'canary'
   const isReleaseCandidate = releaseType === 'release-candidate'
   const isBeta = releaseType === 'beta'
@@ -65,19 +62,7 @@ async function main() {
     'release lookup'
   )
 
-  if (verifyGitWrites) {
-    if (!dryRun) {
-      console.log(`Ignoring --verify-git-writes without --dry-run`)
-    } else {
-      await verifyDisposableGitWrites()
-    }
-  }
-
-  console.log(
-    `Running pnpm release-${isCanary ? 'canary' : 'stable'}${
-      dryRun ? ' dry run' : ''
-    }...`
-  )
+  console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
   const preleaseType =
     semverType === 'major'
       ? 'premajor'
@@ -93,10 +78,7 @@ async function main() {
         ? `pnpm lerna version ${preleaseType} --preid beta --force-publish -y`
         : `pnpm lerna version ${semverType} --force-publish -y`
 
-  if (dryRun) {
-    command +=
-      ' --no-push --allow-branch release-app-dry-run/** --allow-branch release-app-dry-run-with-writes/**'
-  } else if (isCanary || isReleaseCandidate || isBeta) {
+  if (isCanary || isReleaseCandidate || isBeta) {
     command += ' && pnpm release --pre --skip-questions --show-url'
   }
 
@@ -108,13 +90,7 @@ async function main() {
   child.stdout?.pipe(process.stdout)
   child.stderr?.pipe(process.stderr)
   await child
-  if (dryRun) {
-    console.log(
-      'Release dry run is finished. No release commits, tags, or GitHub releases were pushed.'
-    )
-  } else {
-    console.log('Release process is finished')
-  }
+  console.log('Release process is finished')
 }
 
 main()

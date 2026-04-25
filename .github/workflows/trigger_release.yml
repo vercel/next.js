@@ -1,13 +1,4 @@
 on:
-  push:
-    branches:
-      - 'release-app-dry-run/**'
-      - 'release-app-dry-run-with-writes/**'
-    paths:
-      - '.github/workflows/trigger_release.yml'
-      - 'scripts/start-release.js'
-      - 'scripts/release-github-auth.js'
-
   schedule:
     # run every day at 23:15
     - cron: '15 23 * * *'
@@ -34,16 +25,6 @@ on:
 
       force:
         description: create a new release even if there are no new commits
-        default: false
-        type: boolean
-
-      dryRun:
-        description: validate release auth and local versioning without pushing commits, tags, or releases
-        default: false
-        type: boolean
-
-      verifyGitWrites:
-        description: create and delete disposable refs during a dry run
         default: false
         type: boolean
 
@@ -137,20 +118,10 @@ jobs:
 
       - run: pnpm install
 
-      - run: |
-          args=(--release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}")
-          if [[ "${RELEASE_DRY_RUN}" == "true" ]]; then
-            args+=(--dry-run)
-          fi
-          if [[ "${VERIFY_GIT_WRITES}" == "true" ]]; then
-            args+=(--verify-git-writes)
-          fi
-          node ./scripts/start-release.js "${args[@]}"
+      - run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
-          RELEASE_DRY_RUN: ${{ github.event_name == 'push' || github.event.inputs.dryRun == 'true' }}
-          VERIFY_GIT_WRITES: ${{ (github.event_name == 'push' && startsWith(github.ref_name, 'release-app-dry-run-with-writes/')) || (github.event_name == 'workflow_dispatch' && github.event.inputs.verifyGitWrites == 'true') }}
           INPUT_RELEASETYPE: ${{ github.event.inputs.releaseType || 'canary' }}
           INPUT_SEMVERTYPE: ${{ github.event.inputs.semverType }}

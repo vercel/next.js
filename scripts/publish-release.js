@@ -15,7 +15,6 @@ const {
 const cwd = process.cwd()
 
 ;(async function () {
-  const dryRun = process.argv.includes('--dry-run')
   let isCanary = true
   let isReleaseCandidate = false
   let isBeta = false
@@ -179,11 +178,6 @@ const cwd = process.cwd()
           return
         }
 
-        if (dryRun) {
-          console.log(`[dry-run] Would un-draft canary release ${version}`)
-          return
-        }
-
         const undraftRes = await fetch(release.url, {
           headers: ghHeaders,
           method: 'PATCH',
@@ -202,29 +196,6 @@ const cwd = process.cwd()
         console.error(`Failed to undraft release`, err)
       }
     }
-  }
-
-  if (dryRun) {
-    const publicPackages = []
-
-    for (const packageDir of packageDirs) {
-      const pkgJson = JSON.parse(
-        await fs.promises.readFile(
-          path.join(packagesDir, packageDir, 'package.json'),
-          'utf-8'
-        )
-      )
-
-      if (!pkgJson.private) {
-        publicPackages.push(packageDir)
-      }
-    }
-
-    console.log(
-      `[dry-run] Would publish ${publicPackages.length} packages as "${tag}" dist tag.`
-    )
-    await undraft()
-    return
   }
 
   const results = await Promise.allSettled(

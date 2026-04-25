@@ -48,42 +48,6 @@ async function configureGitHubAuth(token) {
   })
 }
 
-async function verifyDisposableGitWrites(
-  prefix = 'github-app-release-dry-run'
-) {
-  const runId = process.env.GITHUB_RUN_ID || String(Date.now())
-  const runAttempt = process.env.GITHUB_RUN_ATTEMPT
-    ? `-${process.env.GITHUB_RUN_ATTEMPT}`
-    : ''
-  const suffix = `${runId}${runAttempt}`
-  const branchName = `${prefix}/${suffix}`
-  const tagName = `${prefix}-${suffix}`
-
-  console.log(`Verifying disposable git branch write: ${branchName}`)
-  await execa('git', ['push', 'origin', `HEAD:refs/heads/${branchName}`], {
-    stdio: 'inherit',
-  })
-  await execa('git', ['push', 'origin', `:refs/heads/${branchName}`], {
-    stdio: 'inherit',
-  })
-
-  console.log(`Verifying disposable git tag write: ${tagName}`)
-  await execa('git', ['tag', '-f', tagName, 'HEAD'], { stdio: 'inherit' })
-  try {
-    await execa('git', ['push', 'origin', `refs/tags/${tagName}`], {
-      stdio: 'inherit',
-    })
-    await execa('git', ['push', 'origin', `:refs/tags/${tagName}`], {
-      stdio: 'inherit',
-    })
-  } finally {
-    await execa('git', ['tag', '-d', tagName], {
-      stdio: 'inherit',
-      reject: false,
-    })
-  }
-}
-
 async function verifyGitHubApiAccess(token, path, label) {
   const response = await fetch(`https://api.github.com${path}`, {
     headers: {
@@ -107,5 +71,4 @@ module.exports = {
   getGitHubToken,
   getGitHubTokenMissingMessage,
   verifyGitHubApiAccess,
-  verifyDisposableGitWrites,
 }

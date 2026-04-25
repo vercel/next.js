@@ -10,11 +10,6 @@ on:
   pull_request:
     types: [opened, synchronize]
   workflow_dispatch:
-    inputs:
-      dryRunReleasePublish:
-        description: validate release publish decisions without publishing packages or patching GitHub releases
-        default: false
-        type: boolean
 
 concurrency:
   # Limit concurrent runs to 1 per PR,
@@ -501,10 +496,10 @@ jobs:
           path: ${{ runner.temp }}/preview-tarballs/*
 
   publishRelease:
-    if: ${{ needs.deploy-target.outputs.value == 'production' || (github.event_name == 'workflow_dispatch' && github.event.inputs.dryRunReleasePublish == 'true') }}
+    if: ${{ needs.deploy-target.outputs.value == 'production' }}
     name: Potentially publish release
     runs-on: ubuntu-latest
-    environment: ${{ needs.deploy-target.outputs.release_environment || 'release-canary' }}
+    environment: ${{ needs.deploy-target.outputs.release_environment }}
     needs:
       - deploy-target
       - build
@@ -564,16 +559,9 @@ jobs:
           permission-contents: write
 
       - run: ./scripts/publish-native.js
-        if: ${{ !(github.event_name == 'workflow_dispatch' && github.event.inputs.dryRunReleasePublish == 'true') }}
-      - run: |
-          args=()
-          if [[ "${RELEASE_DRY_RUN}" == "true" ]]; then
-            args+=(--dry-run)
-          fi
-          ./scripts/publish-release.js "${args[@]}"
+      - run: ./scripts/publish-release.js
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
-          RELEASE_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dryRunReleasePublish == 'true' }}
 
   buildPassed:
     needs: ['deploy-target', 'build', 'build-wasm', 'build-native']
