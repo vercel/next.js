@@ -8,7 +8,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use tokio::sync::Mutex as TokioMutex;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ReadRef, TurboTasksApi, Vc};
+use turbo_tasks::{ReadRef, Vc};
 use turbo_tasks_fetch::{
     __test_only_reqwest_client_cache_clear, __test_only_reqwest_client_cache_len,
     FetchClientConfig, FetchErrorKind, FetchIssue,
@@ -299,12 +299,6 @@ async fn errors_on_404() {
     .unwrap()
 }
 
-/// Helper: create a TT instance for fetch tests. When `initial` is true, clears the cache
-/// directory first (cold start). When false, reuses existing cache (warm restore).
-fn create_fetch_tt(name: &str, initial: bool) -> Arc<dyn TurboTasksApi> {
-    REGISTRATION.create_turbo_tasks(name, initial)
-}
-
 #[turbo_tasks::function(operation)]
 async fn fetch_body(url: RcStr) -> Result<Vc<RcStr>> {
     let client_vc = FetchClientConfig {
@@ -339,7 +333,7 @@ async fn ttl_invalidates_within_session() {
         .create_async()
         .await;
 
-    let tt = create_fetch_tt("ttl_invalidates_within_session", true);
+    let tt = REGISTRATION.create_turbo_tasks("ttl_invalidates_within_session", true);
     let body = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
@@ -400,7 +394,7 @@ async fn ttl_invalidates_on_session_restore() {
         .await;
 
     // Session 1: fetch and cache
-    let tt = create_fetch_tt("ttl_invalidates_on_session_restore", true);
+    let tt = REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", true);
     let body = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
@@ -431,7 +425,7 @@ async fn ttl_invalidates_on_session_restore() {
     // invalidates `fetch_inner` asynchronously, which triggers a second round of execution.
     // We need to read twice: the first read returns the stale cached value, then wait for the
     // timer-triggered re-execution to settle.
-    let tt = create_fetch_tt("ttl_invalidates_on_session_restore", false);
+    let tt = REGISTRATION.create_turbo_tasks("ttl_invalidates_on_session_restore", false);
     turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
@@ -459,6 +453,13 @@ async fn ttl_invalidates_on_session_restore() {
     tt.stop_and_wait().await;
 }
 
+#[turbo_tasks::function(operation)]
+async fn fetch_is_err(url: RcStr) -> Result<Vc<bool>> {
+    let client_vc = FetchClientConfig::default().cell();
+    let result = &*client_vc.fetch(url, None).await?;
+    Ok(Vc::cell(result.is_err()))
+}
+
 /// Test that fetch errors are retried on session restore.
 ///
 /// 1. Server returns connection refused (error)
@@ -481,16 +482,10 @@ async fn errors_retried_on_session_restore() {
         .create_async()
         .await;
 
-    let tt = create_fetch_tt("errors_retried_on_session_restore", true);
+    let tt = REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", true);
     let is_err = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
-            #[turbo_tasks::function(operation)]
-            async fn fetch_is_err(url: RcStr) -> Result<Vc<bool>> {
-                let client_vc = FetchClientConfig::default().cell();
-                let result = &*client_vc.fetch(url, None).await?;
-                Ok(Vc::cell(result.is_err()))
-            }
             let is_err = *fetch_is_err(url).read_strongly_consistent().await?;
             Ok(is_err)
         }
@@ -508,17 +503,11 @@ async fn errors_retried_on_session_restore() {
         .create_async()
         .await;
 
-    let tt = create_fetch_tt("errors_retried_on_session_restore", false);
+    let tt = REGISTRATION.create_turbo_tasks("errors_retried_on_session_restore", false);
     let is_err = turbo_tasks::run_once(tt.clone(), {
         let url = url.clone();
         async move {
-            #[turbo_tasks::function(operation)]
-            async fn fetch_is_err2(url: RcStr) -> Result<Vc<bool>> {
-                let client_vc = FetchClientConfig::default().cell();
-                let result = &*client_vc.fetch(url, None).await?;
-                Ok(Vc::cell(result.is_err()))
-            }
-            let is_err = *fetch_is_err2(url).read_strongly_consistent().await?;
+            let is_err = *fetch_is_err(url).read_strongly_consistent().await?;
             Ok(is_err)
         }
     })

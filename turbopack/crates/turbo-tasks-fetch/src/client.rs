@@ -33,13 +33,13 @@ pub struct FetchClientConfig {
     /// Minimum cache TTL in seconds. Responses with a `Cache-Control: max-age` shorter than this
     /// will be clamped to this value. This prevents pathologically short timeouts from causing an
     /// invalidation bomb. Defaults to 1 hour.
-    pub min_cache_control_secs: u64,
+    pub min_cache_control: Duration,
 }
 
 impl Default for FetchClientConfig {
     fn default() -> Self {
         Self {
-            min_cache_control_secs: 60 * 60,
+            min_cache_control: Duration::from_secs(60 * 60),
         }
     }
 }
@@ -102,7 +102,7 @@ impl FetchClientConfig {
 
 /// Invalidation was caused by a max-age deadline returned by a server
 #[derive(PartialEq, Eq, Hash)]
-pub(crate) struct HttpTimeout {}
+pub(crate) struct HttpTimeout;
 
 impl InvalidationReason for HttpTimeout {
     fn kind(&self) -> Option<StaticOrArc<dyn InvalidationReasonKind>> {
@@ -116,7 +116,7 @@ impl Display for HttpTimeout {
     }
 }
 
-/// Invalidation kind for [Write]
+/// Invalidation kind for [HttpTimeout]
 #[derive(PartialEq, Eq, Hash)]
 struct HttpTimeoutKind;
 
@@ -128,7 +128,7 @@ impl InvalidationReasonKind for HttpTimeoutKind {
         reasons: &FxIndexSet<StaticOrArc<dyn InvalidationReason>>,
         f: &mut Formatter<'_>,
     ) -> std::fmt::Result {
-        write!(f, "{} fetches timed out", reasons.len(),)
+        write!(f, "{} fetches timed out", reasons.len())
     }
 }
 
@@ -158,7 +158,7 @@ impl FetchClientConfig {
     ) -> Result<Vc<FetchInnerResult>> {
         let url_ref = &*url;
         let this = self.await?;
-        let min_cache_control_secs = this.min_cache_control_secs;
+        let min_cache_control_secs = this.min_cache_control;
         let response_result: reqwest::Result<(HttpResponse, Option<u64>)> = async move {
             let reqwest_client = this.try_get_cached_reqwest_client()?;
 
@@ -195,21 +195,21 @@ impl FetchClientConfig {
         match response_result {
             Ok((resp, max_age_secs)) => {
                 if let Some(max_age_secs) = max_age_secs {
-                    let max_age_secs = max(max_age_secs, min_cache_control_secs);
+                    let max_age_secs = max(max_age_secs, min_cache_control_secs.as_secs());
                     let deadline_secs = {
                         // Transform the relative offset to an absolute deadline so it can be
                         // cached.
-                        let now = SystemTime::now()
+                        SystemTime::now()
                             .duration_since(SystemTime::UNIX_EPOCH)
-                            .expect("system clock is before UNIX epoch")
-                            .as_secs();
-                        now + max_age_secs
+                            // If the system clock is borked, just don't respect deadlines
+                            .ok()
+                            .map(|d| d.as_secs() + max_age_secs)
                     };
                     let invalidator = turbo_tasks::get_invalidator();
                     Ok(FetchInnerResult {
                         result: ResolvedVc::cell(Ok(resp.resolved_cell())),
                         invalidator,
-                        deadline_secs: Some(deadline_secs),
+                        deadline_secs,
                     }
                     .cell())
                 } else {
@@ -231,7 +231,6 @@ impl FetchClientConfig {
                     result: ResolvedVc::cell(Err(
                         FetchError::from_reqwest_error(&err, &url).resolved_cell()
                     )),
-
                     invalidator: None,
                     deadline_secs: None,
                 }
@@ -271,26 +270,27 @@ impl FetchClientConfig {
             && let (Some(deadline_secs), Some(invalidator)) = (deadline_secs, invalidator)
         {
             // transform absolute deadline back to a relative duration for the sleep call
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .expect("system clock is before UNIX epoch")
-                .as_secs();
-            let remaining = Duration::from_secs(deadline_secs.saturating_sub(now));
-            // NOTE: in the case where the deadline is expired on session start this timeout will
-            // immediately invalidate and race with us returning.  This is basically fine since in
-            // the most common case the actual fetch result is identical so this gives us a kind of
-            // 'stale while revalidate' feature.
-            // alternatively we could synchronously invalidate and re-execute `fetch-inner` but that
-            // simply adds latency in the common case where our fetch is identical.
-            // NOTE(2): if for some reason `fetch` is re-executed but `fetch-inner` isn't we could
-            // end up with multiple timers.  Currently there is no known case where this could
-            // happen, if it somehow does we could end up with redundant invalidations and
-            // re-fetches.  The solution is to detect this with a mutable hash map on
-            // FetchClientConfig to track outstanding timers and cancel them.
-            turbo_tasks::spawn(async move {
-                tokio::time::sleep(remaining).await;
-                invalidator.invalidate_with_reason(&*turbo_tasks::turbo_tasks(), HttpTimeout {});
-            });
+            // IF the system clock is broken, just don't bother.
+            if let Ok(now) = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH) {
+                let remaining = Duration::from_secs(deadline_secs.saturating_sub(now.as_secs()));
+                // NOTE: in the case where the deadline is expired on session start this timeout
+                // will immediately invalidate and race with us returning.  This is
+                // basically fine since in the most common case the actual fetch
+                // result is identical so this gives us a kind of 'stale while
+                // revalidate' feature. alternatively we could synchronously
+                // invalidate and re-execute `fetch-inner` but that simply adds
+                // latency in the common case where our fetch is identical. NOTE(2):
+                // if for some reason `fetch` is re-executed but `fetch-inner` isn't we could
+                // end up with multiple timers.  Currently there is no known case where this could
+                // happen, if it somehow does we could end up with redundant invalidations and
+                // re-fetches.  The solution is to detect this with a mutable hash map on
+                // FetchClientConfig to track outstanding timers and cancel them.
+                turbo_tasks::spawn(async move {
+                    tokio::time::sleep(remaining).await;
+                    invalidator
+                        .invalidate_with_reason(&*turbo_tasks::turbo_tasks(), HttpTimeout {});
+                });
+            }
         }
 
         Ok(*result)
