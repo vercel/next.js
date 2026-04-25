@@ -29,6 +29,15 @@ export default function HomePage() {
       <Link href="/dynamic-params/hello" id="link-to-static-dynamic-params">
         Go to static dynamic params page
       </Link>
+      <Link href="/ungenerated-params/anything" id="link-to-ungenerated-params">
+        Go to ungenerated params page
+      </Link>
+      <Link
+        href="/ungenerated-params-runtime/anything"
+        id="link-to-ungenerated-params-runtime"
+      >
+        Go to ungenerated params runtime page
+      </Link>
       <Link href="/search-params-page?foo=bar" id="link-to-search-params">
         Go to search params page
       </Link>

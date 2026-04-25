@@ -15,7 +15,7 @@ import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
 
-type InstantNavCookieState = 'pending' | 'mpa' | 'spa'
+type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
 type InstantCookie =
   // pending (waiting to capture)
@@ -30,6 +30,9 @@ type InstantCookie =
     ]
 
 function parseCookieValue(raw: string): InstantNavCookieState {
+  if (raw === '') {
+    return 'empty'
+  }
   try {
     const parsed = JSON.parse(raw)
     if (Array.isArray(parsed) && parsed.length >= 3) {
@@ -187,16 +190,14 @@ export function startListeningForInstantNavigationCookie(): void {
         if (cookie.name === NEXT_INSTANT_TEST_COOKIE) {
           const state = parseCookieValue(cookie.value ?? '')
 
-          if (state !== 'pending') {
-            // Captured value — our own transition. Ignore.
-            return
+          if (state === 'pending') {
+            // External actor starting a new lock scope.
+            if (lockState !== null) {
+              releaseLock()
+            }
+            acquireLock()
           }
-
-          // Pending value — external actor starting a new lock scope.
-          if (lockState !== null) {
-            releaseLock()
-          }
-          acquireLock()
+          // Captured value (our own transition) or empty. Ignore.
           return
         }
       }
@@ -246,7 +247,37 @@ export function updateCapturedSPAToTree(
  */
 export function isNavigationLocked(): boolean {
   if (process.env.__NEXT_EXPOSE_TESTING_API) {
-    return lockState !== null
+    if (lockState !== null) {
+      return true
+    }
+
+    // If `lockState` is null, fall back to reading the test cookie
+    // synchronously from `document.cookie`. This accounts for a small race
+    // between `cookieStore.set(...)` and its corresponding `change` event.
+    // During that gap `lockState` is still null even though the cookie
+    // indicates a new lock scope is starting.
+    if (typeof document === 'undefined') {
+      return false
+    }
+    const allCookies = document.cookie
+    if (!allCookies.includes(NEXT_INSTANT_TEST_COOKIE)) {
+      // Fast bail-out: in almost every navigation the test cookie is not
+      // set at all.
+      return false
+    }
+    const target = NEXT_INSTANT_TEST_COOKIE + '='
+    for (const segment of allCookies.split(';')) {
+      const trimmed = segment.trim()
+      if (
+        trimmed.startsWith(target) &&
+        parseCookieValue(trimmed.slice(target.length)) === 'pending'
+      ) {
+        // The cookie was set by an external actor but the change event was not
+        // yet dispatched. Acquire the lock synchronously.
+        acquireLock()
+        return true
+      }
+    }
   }
   return false
 }
