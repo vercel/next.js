@@ -78,7 +78,7 @@ export default page
     )
     const { exitCode } = await next.build()
     expect(exitCode).toBe(0)
-    await next.start()
+    await next.start({ skipBuild: true })
 
     try {
       const res = await next.fetch('/err')
@@ -107,7 +107,7 @@ export default page
     expect(cliOutput).not.toContain('rendered 500')
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
 
-    await next.start()
+    await next.start({ skipBuild: true })
     try {
       const res = await next.fetch('/err')
       expect(res.status).toBe(500)
@@ -150,7 +150,7 @@ export default page
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(true)
 
     const outputBeforeStart = next.cliOutput.length
-    await next.start()
+    await next.start({ skipBuild: true })
     try {
       await next.render('/err')
       expect(next.cliOutput.substring(outputBeforeStart)).not.toContain(
@@ -170,7 +170,7 @@ export default page
     expect(next.cliOutput).not.toMatch(gip500Err)
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(true)
 
-    await next.start()
+    await next.start({ skipBuild: true })
     try {
       const browser = await next.browser('/err?hello=world')
       const initialTitle = await browser.eval('document.title')
@@ -225,7 +225,7 @@ export default page
     expect(next.cliOutput).not.toMatch(gip500Err)
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
 
-    await next.start()
+    await next.start({ skipBuild: true })
     try {
       const res = await next.fetch('/err')
       expect(res.status).toBe(500)
@@ -311,7 +311,7 @@ export default page
     expect(next.cliOutput).not.toMatch(gip500Err)
     expect(await next.hasFile('.next/server/pages/500.html')).toBe(false)
 
-    await next.start()
+    await next.start({ skipBuild: true })
     try {
       const res = await next.fetch('/err')
       expect(res.status).toBe(500)
