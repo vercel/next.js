@@ -512,6 +512,52 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
+  it('does not bake dynamic route params into the instant shell when no generateStaticParams is defined', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-ungenerated-params')
+
+      // Suspense fallback is visible in the instant shell
+      const fallback = page.locator(
+        '[data-testid="ungenerated-params-fallback"]'
+      )
+      await fallback.waitFor({ state: 'visible' })
+
+      // The resolved param value must not be present in the shell
+      const paramValue = page.locator('[data-testid="ungenerated-param-value"]')
+      expect(await paramValue.count()).toBe(0)
+    })
+
+    // After the instant scope exits, the param value streams in normally
+    const paramValue = page.locator('[data-testid="ungenerated-param-value"]')
+    await paramValue.waitFor({ state: 'visible' })
+    expect(await paramValue.textContent()).toContain('slug: anything')
+  })
+
+  it('does include dynamic route params in the instant shell when runtime prefetching is enabled', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-ungenerated-params-runtime')
+
+      // The param value IS in the shell because the route opts into runtime
+      // prefetching, so the prefetch resolves `slug` rather than returning
+      // the generic fallback.
+      const paramValue = page.locator(
+        '[data-testid="ungenerated-param-runtime-value"]'
+      )
+      await paramValue.waitFor({ state: 'visible' })
+      expect(await paramValue.textContent()).toContain('slug: anything')
+
+      // Suspense fallback is NOT visible
+      const fallback = page.locator(
+        '[data-testid="ungenerated-params-runtime-fallback"]'
+      )
+      expect(await fallback.count()).toBe(0)
+    })
+  })
+
   // In dev mode, hover/intent-based prefetches should not send requests
   // that produce stale segment data. If a hover prefetch caches the route
   // with resolved runtime data before the instant lock is acquired, params

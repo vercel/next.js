@@ -130,13 +130,7 @@ class GitHubClient {
     )
   }
 
-  async upsertIssueComment(
-    issueNumber,
-    marker,
-    body,
-    fallbackHeadings = [],
-    { createIfMissing = true } = {}
-  ) {
+  async upsertIssueComment(issueNumber, marker, body, fallbackHeadings = []) {
     body = fitComment(body)
 
     const comments = await this.listIssueComments(issueNumber)
@@ -152,19 +146,10 @@ class GitHubClient {
     })
 
     if (this.dryRun) {
-      if (!existing && !createIfMissing) {
-        console.log(`[dry-run] No existing comment found for #${issueNumber}`)
-        return
-      }
       console.log(
         `[dry-run] ${existing ? 'Would update' : 'Would create'} comment for #${issueNumber}`
       )
       console.log(body)
-      return
-    }
-
-    if (!existing && !createIfMissing) {
-      console.log(`No existing comment found for #${issueNumber}, skipping`)
       return
     }
 
@@ -479,15 +464,10 @@ async function handleBuildAndTestWorkflow({
       '',
     ].join('\n')
 
-    await github.upsertIssueComment(
-      pr.number,
-      TEST_COMMENT_MARKER,
-      body,
-      ['## Failing test suites', '## Failing CI jobs'],
-      {
-        createIfMissing: false,
-      }
-    )
+    await github.upsertIssueComment(pr.number, TEST_COMMENT_MARKER, body, [
+      '## Failing test suites',
+      '## Failing CI jobs',
+    ])
     return
   }
 
