@@ -603,3 +603,115 @@ impl SpanEventRef<'_> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use rustc_hash::FxHashSet;
+    use turbo_rcstr::RcStr;
+
+    use crate::{span::SpanArgs, span_ref::SpanRef, store::Store, timestamp::Timestamp};
+
+    fn span_ref<'a>(store: &'a Store, idx: crate::span::SpanIndex) -> SpanRef<'a> {
+        SpanRef {
+            span: &store.spans[idx.get()],
+            store,
+            index: idx.get(),
+        }
+    }
+
+    #[test]
+    fn totals_aggregate_subtree() {
+        let mut store = Store::new();
+        let mut outdated = FxHashSet::default();
+
+        // root → a → b
+        // root → c
+        let a = store.add_span(
+            None,
+            Timestamp::from_micros(0),
+            RcStr::default(),
+            RcStr::from("a"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        let b = store.add_span(
+            Some(a),
+            Timestamp::from_micros(1),
+            RcStr::default(),
+            RcStr::from("b"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        let c = store.add_span(
+            None,
+            Timestamp::from_micros(2),
+            RcStr::default(),
+            RcStr::from("c"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+
+        // Use values large enough that the 32-byte/4-allocation tracing
+        // overhead subtraction in `self_allocations()` / `self_allocation_count()`
+        // doesn't dominate.
+        store.add_allocation(a, 1000, 10, &mut outdated);
+        store.add_allocation(b, 500, 5, &mut outdated);
+        store.add_allocation(c, 200, 2, &mut outdated);
+
+        let a_ref = span_ref(&store, a);
+        let b_ref = span_ref(&store, b);
+        let c_ref = span_ref(&store, c);
+
+        // Sanity: per-span self_* values reflect the saturating overhead subtraction.
+        assert_eq!(a_ref.self_allocations(), 1000 - 32);
+        assert_eq!(b_ref.self_allocations(), 500 - 32);
+        assert_eq!(c_ref.self_allocations(), 200 - 32);
+
+        // Totals are the recursive subtree sum of self_*.
+        assert_eq!(
+            a_ref.total_allocations(),
+            a_ref.self_allocations() + b_ref.self_allocations()
+        );
+        assert_eq!(b_ref.total_allocations(), b_ref.self_allocations());
+        assert_eq!(c_ref.total_allocations(), c_ref.self_allocations());
+
+        // span_count is 1 + child count.
+        assert_eq!(a_ref.total_span_count(), 2);
+        assert_eq!(b_ref.total_span_count(), 1);
+        assert_eq!(c_ref.total_span_count(), 1);
+
+        // total_allocation_count similarly.
+        assert_eq!(
+            a_ref.total_allocation_count(),
+            a_ref.self_allocation_count() + b_ref.self_allocation_count()
+        );
+    }
+
+    #[test]
+    fn totals_invalidate_and_recompute() {
+        let mut store = Store::new();
+        let mut outdated = FxHashSet::default();
+        let s = store.add_span(
+            None,
+            Timestamp::from_micros(0),
+            RcStr::default(),
+            RcStr::from("s"),
+            SpanArgs::new(),
+            &mut outdated,
+        );
+        store.add_allocation(s, 1000, 10, &mut outdated);
+
+        // Cache the totals.
+        let before = span_ref(&store, s).total_allocations();
+        assert_eq!(before, 1000 - 32);
+
+        // Add more allocations and invalidate.
+        let mut outdated = FxHashSet::default();
+        store.add_allocation(s, 200, 2, &mut outdated);
+        store.invalidate_outdated_spans(&outdated);
+
+        // After invalidation, the cached totals must be recomputed from new self_*.
+        let after = span_ref(&store, s).total_allocations();
+        assert_eq!(after, 1200 - 32);
+    }
+}
