@@ -54,7 +54,7 @@ pub fn build_bottom_up_graph<'a>(
     let mut current_iterators: Vec<Box<dyn Iterator<Item = SpanRef<'_>>>> =
         vec![Box::new(spans.flat_map(|span| span.children()))];
 
-    let mut current_path: Vec<((&'_ str, &'_ str), SpanIndex)> = vec![];
+    let mut current_path: Vec<((RcStr, RcStr), SpanIndex)> = vec![];
     while let Some(mut iter) = current_iterators.pop() {
         if let Some(child) = iter.next() {
             current_iterators.push(iter);
@@ -62,27 +62,27 @@ pub fn build_bottom_up_graph<'a>(
             let (category, name) = child.group_name();
             let (_, mut bottom_up) = roots
                 .raw_entry_mut()
-                .from_key(&StringTupleRef(category, name))
+                .from_key(&StringTupleRef(category.as_str(), name.as_str()))
                 .or_insert_with(|| {
                     (
-                        (RcStr::from(category), RcStr::from(name)),
+                        (category.clone(), name.clone()),
                         SpanBottomUpBuilder::new(child.index()),
                     )
                 });
             bottom_up.self_spans.push(child.index());
-            let mut prev = None;
-            for &((category, title), example_span) in current_path.iter().rev().take(max_depth) {
+            let mut prev: Option<(&RcStr, &RcStr)> = None;
+            for ((category, title), example_span) in current_path.iter().rev().take(max_depth) {
                 if prev == Some((category, title)) {
                     continue;
                 }
                 let (_, child_bottom_up) = bottom_up
                     .children
                     .raw_entry_mut()
-                    .from_key(&StringTupleRef(category, title))
+                    .from_key(&StringTupleRef(category.as_str(), title.as_str()))
                     .or_insert_with(|| {
                         (
-                            (RcStr::from(category), RcStr::from(title)),
-                            SpanBottomUpBuilder::new(example_span),
+                            (category.clone(), title.clone()),
+                            SpanBottomUpBuilder::new(*example_span),
                         )
                     });
                 child_bottom_up.self_spans.push(child.index());

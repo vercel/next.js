@@ -4,6 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use turbo_rcstr::RcStr;
+
 use crate::{
     FxIndexMap,
     span::{SpanBottomUp, SpanGraphEvent},
@@ -54,11 +56,11 @@ impl<'a> SpanBottomUpRef<'a> {
         self.bottom_up.self_spans.len()
     }
 
-    pub fn group_name(&self) -> (&'a str, &'a str) {
+    pub fn group_name(&self) -> (RcStr, RcStr) {
         self.first_span().group_name()
     }
 
-    pub fn nice_name(&self) -> (&'a str, &'a str) {
+    pub fn nice_name(&self) -> (RcStr, RcStr) {
         if self.count() == 1 {
             self.example_span().nice_name()
         } else {
@@ -89,7 +91,8 @@ impl<'a> SpanBottomUpRef<'a> {
                     let mut queue = VecDeque::with_capacity(8);
                     for child in self.spans() {
                         let name = child.group_name();
-                        let (list, recursive_list) = map.entry(name).or_default();
+                        let (list, recursive_list) =
+                            map.entry((name.0.clone(), name.1.clone())).or_default();
                         list.push(child.index());
                         queue.push_back(child);
                         while let Some(child) = queue.pop_front() {

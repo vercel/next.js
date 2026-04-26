@@ -5,6 +5,7 @@ use std::{
 };
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use turbo_rcstr::RcStr;
 
 use crate::{
     FxIndexMap,
@@ -36,7 +37,7 @@ impl<'a> SpanGraphRef<'a> {
         unsafe { SpanId::new_unchecked((self.first_span().index << 1) | 1) }
     }
 
-    pub fn nice_name(&self) -> (&str, &str) {
+    pub fn nice_name(&self) -> (RcStr, RcStr) {
         if self.count() == 1 {
             self.first_span().nice_name()
         } else {
@@ -93,7 +94,7 @@ impl<'a> SpanGraphRef<'a> {
                     for span in span.children() {
                         let name = span.group_name();
                         if name != self_group {
-                            let (list, recursive_list) = map.entry(name).or_default();
+                            let (list, recursive_list) = map.entry(name.clone()).or_default();
                             list.push(span.index());
                             queue.push_back(span);
                             while let Some(child) = queue.pop_front() {

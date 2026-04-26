@@ -5,6 +5,7 @@ use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
+use turbo_rcstr::RcStr;
 
 use crate::{
     server::ViewRect,
@@ -641,7 +642,7 @@ impl Viewer {
                                 SortMode::Name => {
                                     Either::Left(bottom_up.sorted_by_cached_key(|child| {
                                         let (cat, title) = child.nice_name();
-                                        (title.to_string(), cat.to_string())
+                                        (title, cat)
                                     }))
                                 }
                                 SortMode::ExecutionOrder => Either::Right(bottom_up),
@@ -701,7 +702,9 @@ impl Viewer {
                                 Either::Left(span.events().sorted_by_cached_key(|child| {
                                     let (cat, title) = match child {
                                         SpanEventRef::Child { span } => span.nice_name(),
-                                        SpanEventRef::SelfTime { .. } => ("", ""),
+                                        SpanEventRef::SelfTime { .. } => {
+                                            (RcStr::default(), RcStr::default())
+                                        }
                                     };
                                     (title.to_string(), cat.to_string())
                                 }))
@@ -735,15 +738,14 @@ impl Viewer {
                                     Reverse(value_mode.value_from_graph_event(child))
                                 }))
                             }
-                            SortMode::Name => {
-                                Either::Left(span.graph().sorted_by_cached_key(|child| {
-                                    let (cat, title) = match child {
-                                        SpanGraphEventRef::Child { graph } => graph.nice_name(),
-                                        SpanGraphEventRef::SelfTime { .. } => ("", ""),
-                                    };
-                                    (title.to_string(), cat.to_string())
-                                }))
-                            }
+                            SortMode::Name => Either::Left(span.graph().sorted_by_cached_key(
+                                |child| match child {
+                                    SpanGraphEventRef::Child { graph } => graph.nice_name(),
+                                    SpanGraphEventRef::SelfTime { .. } => {
+                                        (RcStr::default(), RcStr::default())
+                                    }
+                                },
+                            )),
                             SortMode::ExecutionOrder => Either::Right(span.graph()),
                         };
                         for event in events {
@@ -794,7 +796,7 @@ impl Viewer {
                                 SortMode::Name => {
                                     Either::Left(bottom_up.sorted_by_cached_key(|child| {
                                         let (cat, title) = child.nice_name();
-                                        (title.to_string(), cat.to_string())
+                                        (title, cat)
                                     }))
                                 }
                                 SortMode::ExecutionOrder => Either::Right(bottom_up),
@@ -824,7 +826,7 @@ impl Viewer {
                                 SortMode::Name => {
                                     Either::Left(bottom_up.sorted_by_cached_key(|child| {
                                         let (cat, title) = child.nice_name();
-                                        (title.to_string(), cat.to_string())
+                                        (title, cat)
                                     }))
                                 }
                                 SortMode::ExecutionOrder => {
@@ -855,7 +857,7 @@ impl Viewer {
                             SortMode::Name => Either::Left(
                                 span_graph.root_spans().sorted_by_cached_key(|child| {
                                     let (cat, title) = child.nice_name();
-                                    (title.to_string(), cat.to_string())
+                                    (title, cat)
                                 }),
                             ),
                             SortMode::ExecutionOrder => Either::Right(
@@ -886,7 +888,9 @@ impl Viewer {
                                 Either::Left(span_graph.events().sorted_by_cached_key(|child| {
                                     let (cat, title) = match child {
                                         SpanGraphEventRef::Child { graph } => graph.nice_name(),
-                                        SpanGraphEventRef::SelfTime { .. } => ("", ""),
+                                        SpanGraphEventRef::SelfTime { .. } => {
+                                            (RcStr::default(), RcStr::default())
+                                        }
                                     };
                                     (title.to_string(), cat.to_string())
                                 }))
@@ -932,7 +936,7 @@ impl Viewer {
                             SortMode::Name => {
                                 Either::Left(bottom_up.children().sorted_by_cached_key(|child| {
                                     let (cat, title) = child.nice_name();
-                                    (title.to_string(), cat.to_string())
+                                    (title, cat)
                                 }))
                             }
                             SortMode::ExecutionOrder => Either::Right(bottom_up.children()),
@@ -960,7 +964,7 @@ impl Viewer {
                             SortMode::Name => {
                                 Either::Left(bottom_up.spans().sorted_by_cached_key(|child| {
                                     let (cat, title) = child.nice_name();
-                                    (title.to_string(), cat.to_string())
+                                    (title, cat)
                                 }))
                             }
                             SortMode::ExecutionOrder => Either::Right(

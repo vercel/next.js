@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Result, bail};
 use serde::{Deserialize, Serialize};
 use tungstenite::{Message, accept};
+use turbo_rcstr::RcStr;
 
 use crate::{
     store::SpanId,
@@ -41,8 +42,8 @@ pub enum ServerToClientMessage {
         deallocations: u64,
         allocation_count: u64,
         persistent_allocations: u64,
-        args: Vec<(String, String)>,
-        path: Vec<String>,
+        args: Vec<(RcStr, RcStr)>,
+        path: Vec<RcStr>,
         memory_samples: Vec<u64>,
     },
 }
@@ -281,14 +282,12 @@ fn handle_connection(
                                 let deallocations = span.total_deallocations();
                                 let allocation_count = span.total_allocation_count();
                                 let persistent_allocations = span.total_persistent_allocations();
-                                let args = span
-                                    .args()
-                                    .map(|(k, v)| (k.to_string(), v.to_string()))
-                                    .collect();
+                                let args =
+                                    span.args().map(|(k, v)| (k.clone(), v.clone())).collect();
                                 let mut path = Vec::new();
                                 let mut current = span;
                                 while let Some(parent) = current.parent() {
-                                    path.push(parent.nice_name().1.to_string());
+                                    path.push(parent.nice_name().1.clone());
                                     current = parent;
                                 }
                                 path.reverse();

@@ -249,7 +249,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 filtered.sort_by(|a, b| {
                     let (a_cat, a_title) = a.nice_name();
                     let (b_cat, b_title) = b.nice_name();
-                    a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
+                    a_title.cmp(&b_title).then_with(|| a_cat.cmp(&b_cat))
                 });
             }
             SortMode::ExecutionOrder => {}
@@ -262,7 +262,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             .map(|graph| {
                 let first = graph.first_span();
                 let (cat, title) = graph.nice_name();
-                let name = format_span_name(cat, title);
+                let name = format_span_name(&cat, &title);
                 let count = graph.count() as u64;
                 let total_cpu = *graph.total_time();
                 let total_corrected = *graph.corrected_total_time();
@@ -342,7 +342,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                 filtered.sort_by(|a, b| {
                     let (a_cat, a_title) = a.nice_name();
                     let (b_cat, b_title) = b.nice_name();
-                    a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
+                    a_title.cmp(&b_title).then_with(|| a_cat.cmp(&b_cat))
                 });
             }
             SortMode::ExecutionOrder => {}
@@ -354,7 +354,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             .into_iter()
             .map(|span| {
                 let (cat, title) = span.nice_name();
-                let name = format_span_name(cat, title);
+                let name = format_span_name(&cat, &title);
                 let span_start = *span.start();
                 let span_end = *span.end();
                 let rel_start = (span_start as i64) - (parent_start as i64);
