@@ -68,7 +68,6 @@ import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
-import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
@@ -775,9 +774,9 @@ async function exportAppImpl(
       worker = staticWorker
     } else {
       worker = createStaticWorker(nextConfig, {
-        debuggerPortOffset: getNextBuildDebuggerPortOffset({
-          kind: 'export-page',
-        }),
+        // Port offset 0: export-page workers get the first debugger port after
+        // the parent process (base + 1 + 0).
+        debuggerPortOffset: 0,
         numberOfWorkers: options.numWorkers,
         progress,
       })
@@ -1041,7 +1040,7 @@ async function exportAppImpl(
   }
 
   if (!staticWorker && worker) {
-    await worker.end()
+    await worker.shutdown()
   }
 
   return collector

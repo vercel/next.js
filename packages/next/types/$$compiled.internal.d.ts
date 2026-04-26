@@ -496,10 +496,6 @@ declare module 'next/dist/compiled/@mswjs/interceptors/ClientRequest' {
   export * from '@mswjs/interceptors/ClientRequest'
 }
 
-declare module 'next/dist/compiled/jest-worker' {
-  export * from 'jest-worker'
-}
-
 // TODO: Use tsconfig#paths instead
 declare module 'next/dist/compiled/next-devtools'
 

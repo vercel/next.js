@@ -83,7 +83,8 @@ describe('build-output-prerender', () => {
              - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /client/page: /client, exiting the build."
+
+           > Export encountered an error on /client/page: /client, exiting the build."
           `)
         } else {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -93,7 +94,8 @@ describe('build-output-prerender', () => {
              - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
            Error occurred prerendering page "/client". Read more: https://nextjs.org/docs/messages/prerender-error
-           Export encountered an error on /client/page: /client, exiting the build."
+
+           > Export encountered an error on /client/page: /client, exiting the build."
           `)
         }
       })
@@ -431,14 +433,13 @@ function getPrerenderOutput(cliOutput: string): string {
       continue
     }
 
-    if (line.includes('Next.js build worker exited')) {
-      break
-    }
-
     if (foundPrerenderingLine && !line.includes('Generating static pages')) {
       lines.push(
         line.replace(/at \w+ \(.next[^)]+\)/, 'at x (<next-dist-dir>)')
       )
+      if (line.includes('exiting the build')) {
+        break
+      }
     }
   }
 

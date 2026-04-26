@@ -1,6 +1,6 @@
 import path from 'path'
 
-import { Worker } from '../../lib/worker'
+import { Worker } from '../../lib/worker/index'
 import { NextBuildContext } from '../build-context'
 import { exportTraceState, recordTraceEvents } from '../../trace'
 
@@ -10,11 +10,10 @@ async function turbopackBuildWithWorker(): ReturnType<
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
+      workerName: 'Next.js turbopack build worker',
       exposedMethods: ['workerMain', 'waitForShutdown'],
       enableWorkerThreads: true,
-      debuggerPortOffset: -1,
-      isolatedMemory: false,
-      numWorkers: 1,
+      maxWorkers: 1,
       maxRetries: 0,
       forkOptions: {
         env: {
@@ -47,12 +46,14 @@ async function turbopackBuildWithWorker(): ReturnType<
     return {
       // destroy worker when Turbopack has shutdown so it's not sticking around using memory
       // We need to wait for shutdown to make sure filesystem cache is flushed
-      shutdownPromise: worker.waitForShutdown().then(({ debugTraceEvents }) => {
-        if (debugTraceEvents) {
-          recordTraceEvents(debugTraceEvents)
-        }
-        worker.end()
-      }),
+      shutdownPromise: worker
+        .waitForShutdown()
+        .then(async ({ debugTraceEvents }) => {
+          if (debugTraceEvents) {
+            recordTraceEvents(debugTraceEvents)
+          }
+          await worker.shutdown()
+        }),
       buildTraceContext,
       duration,
     }

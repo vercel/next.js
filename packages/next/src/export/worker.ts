@@ -68,6 +68,26 @@ class ExportPageError extends Error {
   code = 'NEXT_EXPORT_PAGE_ERROR'
 }
 
+/**
+ * Set to true when prerenderEarlyExit fires. Suppresses logging from other
+ * pages that are concurrently in-flight so the user only sees the first error.
+ */
+let isEarlyExiting = false
+
+/**
+ * Saved reference to the real console.error. When isEarlyExiting is set we
+ * replace console.error with a no-op so that render-time logging from
+ * concurrent pages (e.g. logDisallowedDynamicError) is silenced.
+ */
+let realConsoleError: typeof console.error = console.error
+
+function setEarlyExiting(): void {
+  isEarlyExiting = true
+  // Silence all further console.error output so concurrent pages don't
+  // produce noise after the first failure has been reported.
+  console.error = () => {}
+}
+
 async function exportPageImpl(
   input: ExportPageInput,
   fileWriter: MultiFileWriter
@@ -352,6 +372,13 @@ export async function exportPages(
   await installBindings()
   installCodeFrameSupport()
 
+  // Reset per-call so the flag doesn't leak across sequential batches.
+  // Restore console.error first (realConsoleError is still the original captured
+  // at module load; reassigning it here would overwrite it with the no-op set by
+  // setEarlyExiting() if a previous batch triggered an early exit).
+  console.error = realConsoleError
+  isEarlyExiting = false
+
   const {
     exportPaths,
     dir,
@@ -486,10 +513,20 @@ export async function exportPages(
           }
           // If prerenderEarlyExit is enabled, we'll exit the build immediately.
           if (nextConfig.experimental.prerenderEarlyExit) {
-            console.error(
+            // If another page already triggered an early exit, this page's
+            // promise was abandoned by the outer Promise.all. Throwing here
+            // would produce an unhandled rejection, so return silently instead.
+            if (isEarlyExiting) {
+              return { result: undefined, path, page, pageKey }
+            }
+            // Suppress output from any concurrently-running pages so the user
+            // only sees the error from the first failing page.
+            setEarlyExiting()
+            const exportError = new Error(
               `Export encountered an error on ${pageKey}, exiting the build.`
             )
-            process.exit(1)
+            ;(exportError as any).code = 'NEXT_EXPORT_ERROR'
+            throw exportError
           } else {
             // Otherwise, this is a no-op. The build will continue, and a summary of failed pages will be displayed at the end.
           }
@@ -583,31 +620,39 @@ async function exportPage(
       return { error: result.error, duration: Date.now() - start }
     }
   } catch (err) {
-    console.error(
-      `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
-    )
+    if (!isEarlyExiting) {
+      console.error(
+        `Error occurred prerendering page "${input.exportPath.path}". Read more: https://nextjs.org/docs/messages/prerender-error`
+      )
 
-    // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
-    // a framework signal
-    if (!isBailoutToCSRError(err)) {
-      // A static generation bailout error is a framework signal to fail static generation but
-      // and will encode a reason in the error message. If there is a message, we'll print it.
-      // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
-      // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
-      if (isStaticGenBailoutError(err)) {
-        if (err.message) {
-          console.error(`Error: ${err.message}`)
+      // bailoutToCSRError errors should not leak to the user as they are not actionable; they're
+      // a framework signal
+      if (!isBailoutToCSRError(err)) {
+        // A static generation bailout error is a framework signal to fail static generation but
+        // and will encode a reason in the error message. If there is a message, we'll print it.
+        // Otherwise there's nothing to show as we don't want to leak an error internal error stack to the user.
+        // TODO: Always log the full error. ignore-listing will take care of hiding internal stacks.
+        if (isStaticGenBailoutError(err)) {
+          if (err.message) {
+            console.error(`Error: ${err.message}`)
+          }
+        } else {
+          console.error(err)
         }
-      } else {
-        console.error(err)
       }
     }
 
     return { error: true, duration: Date.now() - start }
   }
 
-  // Notify the parent process that we processed a page (used by the progress activity indicator)
-  process.send?.([3, { type: 'activity' }])
+  // Notify the parent process that we processed a page (used by the progress activity indicator).
+  // Wrap in try/catch: if the IPC channel closed because the pool already propagated a
+  // NEXT_EXPORT_ERROR, the send throws ERR_IPC_CHANNEL_CLOSED — treat it as a no-op.
+  try {
+    process.send?.([3, { type: 'activity' }])
+  } catch {
+    // Channel already closed; nothing to do.
+  }
 
   // Otherwise we can return the result.
   return {
@@ -629,7 +674,12 @@ process.on('unhandledRejection', (err: unknown) => {
     return
   }
 
-  console.error(err)
+  // Suppress errors from concurrent pages when an early exit is in progress.
+  if (isEarlyExiting) {
+    return
+  }
+
+  realConsoleError(err)
 })
 
 process.on('rejectionHandled', () => {
@@ -642,12 +692,15 @@ const FATAL_UNHANDLED_NEXT_API_EXIT_CODE = 78
 
 process.on('uncaughtException', (err) => {
   if (isDynamicUsageError(err)) {
-    console.error(
+    realConsoleError(
       'A Next.js API that uses exceptions to signal framework behavior was uncaught. This suggests improper usage of a Next.js API. The original error is printed below and the build will now exit.'
     )
-    console.error(err)
+    realConsoleError(err)
     process.exit(FATAL_UNHANDLED_NEXT_API_EXIT_CODE)
+  } else if (isEarlyExiting) {
+    // Suppress uncaught exceptions (e.g. ERR_IPC_CHANNEL_CLOSED) from
+    // concurrent pages when an early exit is already in progress.
   } else {
-    console.error(err)
+    realConsoleError(err)
   }
 })

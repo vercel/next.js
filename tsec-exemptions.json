@@ -23,5 +23,8 @@
     "packages/next/src/client/script.tsx",
     "packages/next/src/client/app-bootstrap.ts"
   ],
-  "ban-trustedtypes-createpolicy": ["packages/next/src/client/trusted-types.ts"]
+  "ban-trustedtypes-createpolicy": [
+    "packages/next/src/client/trusted-types.ts"
+  ],
+  "ban-eval-calls": ["packages/next/src/lib/worker/worker-child-common.ts"]
 }

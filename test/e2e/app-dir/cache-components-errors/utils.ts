@@ -84,7 +84,10 @@ export function getDeterministicOutput(
       continue
     }
 
-    if (line.includes('Next.js build worker exited')) {
+    if (line.includes('exiting the build')) {
+      if (foundStartingLine) {
+        lines.push(line)
+      }
       break
     }
 
