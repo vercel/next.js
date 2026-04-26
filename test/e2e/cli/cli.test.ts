@@ -892,8 +892,20 @@ describe('CLI Usage', () => {
 
     test('-p reserved', async () => {
       const TCP_MUX_PORT = 1
-      const { stderr, stdout } = await runAndCaptureOutput({
-        port: TCP_MUX_PORT,
+      // Don't pre-bind a server to port 1 here: Next.js rejects reserved
+      // ports during CLI argument parsing, before attempting to bind, so the
+      // pre-bind step is unnecessary and would also fail on CI where binding
+      // privileged ports (< 1024) requires root.
+      let stdout = ''
+      let stderr = ''
+      await next.runCommand(['dev', next.testDir, '-p', String(TCP_MUX_PORT)], {
+        ignoreFail: true,
+        onStdout: (msg) => {
+          stdout += msg
+        },
+        onStderr: (msg) => {
+          stderr += msg
+        },
       })
 
       expect(stdout).toMatch('')
