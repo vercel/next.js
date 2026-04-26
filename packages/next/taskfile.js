@@ -1959,6 +1959,9 @@ export async function ncc_zod_validation_error(task, opts) {
 
 externals['web-vitals'] = 'next/dist/compiled/web-vitals'
 export async function ncc_web_vitals(task, opts) {
+  const compiledDir = join(__dirname, 'src/compiled/web-vitals')
+  const webVitalsDir = resolve(resolveFrom(__dirname, 'web-vitals'), '../..')
+
   await task
     .source(
       relative(
@@ -1969,6 +1972,29 @@ export async function ncc_web_vitals(task, opts) {
     // web-vitals@3.0.0 is pure ESM, compile to CJS for pre-compiled
     .ncc({ packageName: 'web-vitals', externals, target: 'es5', esm: false })
     .target('src/compiled/web-vitals')
+
+  await rmrf(join(compiledDir, 'attribution'))
+  await rmrf(join(compiledDir, 'types'))
+  for (const file of glob.sync('*.d.ts', { cwd: compiledDir })) {
+    await rmrf(join(compiledDir, file))
+  }
+
+  const typeFiles = glob.sync(
+    'dist/modules/{*.d.ts,attribution/*.d.ts,types/**/*.d.ts}',
+    { cwd: webVitalsDir }
+  )
+  for (const file of typeFiles) {
+    const outputFile = join(compiledDir, file.replace(/^dist\/modules\//, ''))
+    await fs.mkdir(dirname(outputFile), { recursive: true })
+    const content = await fs.readFile(join(webVitalsDir, file), 'utf8')
+    await fs.writeFile(outputFile, content.replace(/[ \t]+$/gm, ''))
+  }
+
+  const pkg = await readJson(join(compiledDir, 'package.json'))
+  await writeJson(join(compiledDir, 'package.json'), {
+    ...pkg,
+    types: './index.d.ts',
+  })
 }
 externals['web-vitals-attribution'] =
   'next/dist/compiled/web-vitals-attribution'
