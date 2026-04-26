@@ -74,9 +74,11 @@ export default defineRule({
     const [customPagesDirectory] = ruleOptions
 
     const rootDirs = getRootDirs(context)
-    const nextSettings = context.settings.next || {}
+    const nextSettings = context.settings.next as
+      | { pageExtensions?: string[] }
+      | undefined
     const pageExtensions =
-      nextSettings.pageExtensions || ALLOWED_PAGE_EXTENSIONS
+      nextSettings?.pageExtensions || ALLOWED_PAGE_EXTENSIONS
 
     const pagesDirs = (
       customPagesDirectory
