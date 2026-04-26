@@ -38,18 +38,23 @@ pub struct Span {
     pub self_deallocations: u64,
     pub self_deallocation_count: u64,
 
-    // These values are computed when accessed (and maybe deleted during writing):
-    pub max_depth: OnceLock<u32>,
-    pub total_allocations: OnceLock<u64>,
-    pub total_deallocations: OnceLock<u64>,
-    pub total_persistent_allocations: OnceLock<u64>,
-    pub total_span_count: OnceLock<u64>,
-    pub total_allocation_count: OnceLock<u64>,
-
-    // More nested fields, but memory lazily allocated
+    // These values are computed when accessed (and maybe deleted during writing).
+    // Bundling the subtree totals into a single OnceLock pays a small cost on
+    // partial reads in exchange for a much-reduced lock count per Span.
+    pub totals: OnceLock<SpanTotals>,
     pub time_data: OnceLock<Box<SpanTimeData>>,
     pub extra: OnceLock<Box<SpanExtra>>,
     pub names: OnceLock<Box<SpanNames>>,
+}
+
+#[derive(Default)]
+pub struct SpanTotals {
+    pub max_depth: u32,
+    pub allocations: u64,
+    pub deallocations: u64,
+    pub persistent_allocations: u64,
+    pub allocation_count: u64,
+    pub span_count: u64,
 }
 
 #[derive(Default)]

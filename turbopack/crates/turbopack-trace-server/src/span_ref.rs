@@ -15,7 +15,7 @@ use crate::{
     bottom_up::build_bottom_up_graph,
     span::{
         Span, SpanEvent, SpanEventSelfTime, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames,
-        SpanTimeData,
+        SpanTimeData, SpanTotals,
     },
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
@@ -236,54 +236,52 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    pub fn total_allocations(&self) -> u64 {
-        *self.span.total_allocations.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_allocations())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_allocations()
+    /// Compute (or fetch) the bundled subtree totals. All six totals share a
+    /// single `OnceLock`, so the first call walks the subtree once and fills
+    /// every field; subsequent calls return cached values. Children's bundles
+    /// are computed recursively, so depth-many calls happen once per subtree
+    /// regardless of which field is queried first.
+    fn totals(&self) -> &'a SpanTotals {
+        self.span.totals.get_or_init(|| {
+            let mut t = SpanTotals {
+                max_depth: 0,
+                allocations: self.self_allocations(),
+                deallocations: self.self_deallocations(),
+                persistent_allocations: self.self_persistent_allocations(),
+                allocation_count: self.self_allocation_count(),
+                span_count: 1,
+            };
+            for child in self.children() {
+                let c = child.totals();
+                t.max_depth = max(t.max_depth, c.max_depth + 1);
+                t.allocations += c.allocations;
+                t.deallocations += c.deallocations;
+                t.persistent_allocations += c.persistent_allocations;
+                t.allocation_count += c.allocation_count;
+                t.span_count += c.span_count;
+            }
+            t
         })
+    }
+
+    pub fn total_allocations(&self) -> u64 {
+        self.totals().allocations
     }
 
     pub fn total_deallocations(&self) -> u64 {
-        *self.span.total_deallocations.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_deallocations())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_deallocations()
-        })
+        self.totals().deallocations
     }
 
     pub fn total_persistent_allocations(&self) -> u64 {
-        *self.span.total_persistent_allocations.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_persistent_allocations())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_persistent_allocations()
-        })
+        self.totals().persistent_allocations
     }
 
     pub fn total_allocation_count(&self) -> u64 {
-        *self.span.total_allocation_count.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_allocation_count())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + self.self_allocation_count()
-        })
+        self.totals().allocation_count
     }
 
     pub fn total_span_count(&self) -> u64 {
-        *self.span.total_span_count.get_or_init(|| {
-            self.children()
-                .map(|child| child.total_span_count())
-                .reduce(|a, b| a + b)
-                .unwrap_or_default()
-                + 1
-        })
+        self.totals().span_count
     }
 
     pub fn corrected_self_time(&self) -> Timestamp {
@@ -319,12 +317,7 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn max_depth(&self) -> u32 {
-        *self.span.max_depth.get_or_init(|| {
-            self.children()
-                .map(|child| child.max_depth() + 1)
-                .max()
-                .unwrap_or_default()
-        })
+        self.totals().max_depth
     }
 
     pub fn graph(&self) -> impl Iterator<Item = SpanGraphEventRef<'a>> + '_ {
