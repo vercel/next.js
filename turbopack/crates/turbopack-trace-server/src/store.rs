@@ -120,7 +120,7 @@ impl Store {
             category,
             name,
             args,
-            events: vec![].into(),
+            events: Default::default(),
             is_complete: false,
             max_depth: OnceLock::new(),
             self_allocations: 0,

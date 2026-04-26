@@ -11,10 +11,9 @@ use crate::{lazy_sorted_vec::LazySortedVec, timestamp::Timestamp};
 
 pub type SpanIndex = NonZeroUsize;
 
-/// Storage for `Span::args`. Most spans have 0–1 args (typically just the
+/// Storage for `Span::args` ~32% of spans have <=1 arg (typically just the
 /// `name` key for `turbo_tasks::function` spans), so inlining one entry
-/// avoids a heap allocation in the common case. With one inline slot plus
-/// the workspace's `union` feature, this is the same 24 bytes as a `Vec`.
+/// avoids a heap allocation in this common case.
 pub type SpanArgs = SmallVec<[(RcStr, RcStr); 1]>;
 
 pub struct Span {
@@ -27,7 +26,9 @@ pub struct Span {
     pub args: SpanArgs,
 
     // This might change during writing:
-    /// The list of events sorted by start time
+    /// The list of events sorted by start time. Backed by a SmallVec so leaf
+    /// spans (~69%, typically just one self-time event) don't pay a heap
+    /// allocation.
     pub events: LazySortedVec<SpanEvent>,
     pub is_complete: bool,
 
