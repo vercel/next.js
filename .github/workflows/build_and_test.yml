@@ -63,6 +63,50 @@ jobs:
           )
         }}
 
+  pr-ci-metadata:
+    name: Upload PR CI metadata
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write PR metadata
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          mkdir -p pr-ci-metadata
+          node <<'NODE'
+          const fs = require('fs')
+
+          fs.writeFileSync(
+            'pr-ci-metadata/pr.json',
+            JSON.stringify(
+              {
+                number: Number(process.env.PR_NUMBER),
+                headSha: process.env.PR_HEAD_SHA,
+                headRef: process.env.PR_HEAD_REF,
+                headRepo: process.env.PR_HEAD_REPO,
+                baseRef: process.env.PR_BASE_REF,
+                isFork: process.env.PR_IS_FORK === 'true',
+              },
+              null,
+              2
+            )
+          )
+          NODE
+
+      - name: Upload PR metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-ci-metadata
+          path: pr-ci-metadata/pr.json
+          retention-days: 1
+
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
