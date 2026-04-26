@@ -268,14 +268,37 @@ function createRenderSearchParams(
   isRuntimePrefetchable: boolean
 ): Promise<SearchParams> {
   if (workStore.forceStatic) {
-    // When using forceStatic we override all other logic and always just return an empty
-    // dictionary object.
     return Promise.resolve({})
   } else {
+    if (workStore.isDraftMode) {
+      const params: SearchParams = {}
+      if (requestStore.url.search) {
+        const searchParams = new URLSearchParams(requestStore.url.search)
+        for (const [key, value] of searchParams.entries()) {
+          if (params[key]) {
+            if (Array.isArray(params[key])) {
+              ;(params[key] as string[]).push(value)
+            } else {
+              params[key] = [params[key] as string, value]
+            }
+          } else {
+            params[key] = value
+          }
+        }
+      }
+
+      if (requestStore.asyncApiPromises) {
+        const searchParamsPromise = (
+          isRuntimePrefetchable
+            ? requestStore.asyncApiPromises.earlySharedSearchParamsParent
+            : requestStore.asyncApiPromises.sharedSearchParamsParent
+        ).then(() => params)
+        return searchParamsPromise
+      }
+      return Promise.resolve().then(() => params)
+    }
+
     if (process.env.NODE_ENV === 'development') {
-      // Semantically we only need the dev tracking when running in `next dev`
-      // but since you would never use next dev with production NODE_ENV we use this
-      // as a proxy so we can statically exclude this code from production builds.
       return makeUntrackedSearchParamsWithDevWarnings(
         underlyingSearchParams,
         workStore,

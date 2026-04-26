@@ -6,25 +6,16 @@ import type { NextRequest } from '../web/spec-extension/request'
 
 import {
   COOKIE_NAME_PRERENDER_BYPASS,
+  COOKIE_NAME_PRERENDER_DATA,
   checkIsOnDemandRevalidate,
 } from '../api-utils'
 import type { __ApiPreviewProps } from '../api-utils'
 
 export class DraftModeProvider {
-  /**
-   * @internal - this declaration is stripped via `tsc --stripInternal`
-   */
   private _isEnabled: boolean
-
-  /**
-   * @internal - this declaration is stripped via `tsc --stripInternal`
-   */
   private readonly _previewModeId: string | undefined
-
-  /**
-   * @internal - this declaration is stripped via `tsc --stripInternal`
-   */
   private readonly _mutableCookies: ResponseCookies
+  private _data: any = null
 
   constructor(
     previewProps: __ApiPreviewProps | undefined,
@@ -32,23 +23,29 @@ export class DraftModeProvider {
     cookies: ReadonlyRequestCookies,
     mutableCookies: ResponseCookies
   ) {
-    // The logic for draftMode() is very similar to tryGetPreviewData()
-    // but Draft Mode does not have any data associated with it.
     const isOnDemandRevalidate =
       previewProps &&
       checkIsOnDemandRevalidate(req, previewProps).isOnDemandRevalidate
 
     const cookieValue = cookies.get(COOKIE_NAME_PRERENDER_BYPASS)?.value
+    const dataCookie = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
 
     this._isEnabled = Boolean(
       !isOnDemandRevalidate &&
         cookieValue &&
         previewProps &&
         (cookieValue === previewProps.previewModeId ||
-          // In dev mode, the cookie can be actual hash value preview id but the preview props can still be `development-id`.
           (process.env.NODE_ENV !== 'production' &&
             previewProps.previewModeId === 'development-id'))
     )
+
+    if (this._isEnabled && dataCookie) {
+      try {
+        this._data = JSON.parse(dataCookie)
+      } catch {
+        this._data = null
+      }
+    }
 
     this._previewModeId = previewProps?.previewModeId
     this._mutableCookies = mutableCookies
@@ -58,7 +55,11 @@ export class DraftModeProvider {
     return this._isEnabled
   }
 
-  enable() {
+  get data() {
+    return this._data
+  }
+
+  enable(data?: any) {
     if (!this._previewModeId) {
       throw new Error(
         'Invariant: previewProps missing previewModeId this should never happen'
@@ -74,13 +75,22 @@ export class DraftModeProvider {
       path: '/',
     })
 
+    if (data !== undefined) {
+      this._data = data
+      this._mutableCookies.set({
+        name: COOKIE_NAME_PRERENDER_DATA,
+        value: JSON.stringify(data),
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+        secure: process.env.NODE_ENV !== 'development',
+        path: '/',
+      })
+    }
+
     this._isEnabled = true
   }
 
   disable() {
-    // To delete a cookie, set `expires` to a date in the past:
-    // https://tools.ietf.org/html/rfc6265#section-4.1.1
-    // `Max-Age: 0` is not valid, thus ignored, and the cookie is persisted.
     this._mutableCookies.set({
       name: COOKIE_NAME_PRERENDER_BYPASS,
       value: '',
@@ -91,6 +101,17 @@ export class DraftModeProvider {
       expires: new Date(0),
     })
 
+    this._mutableCookies.set({
+      name: COOKIE_NAME_PRERENDER_DATA,
+      value: '',
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
+      path: '/',
+      expires: new Date(0),
+    })
+
     this._isEnabled = false
+    this._data = null
   }
 }

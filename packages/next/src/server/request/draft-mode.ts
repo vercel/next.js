@@ -33,7 +33,6 @@ export function draftMode(): Promise<DraftMode> {
 
   switch (workUnitStore.type) {
     case 'prerender-runtime':
-      // TODO(runtime-ppr): does it make sense to delay this? normally it's always microtasky
       return delayUntilRuntimeStage(
         workUnitStore,
         createOrGetCachedDraftMode(workUnitStore.draftMode, workStore)
@@ -44,9 +43,6 @@ export function draftMode(): Promise<DraftMode> {
     case 'cache':
     case 'private-cache':
     case 'unstable-cache':
-      // Inside of `"use cache"` or `unstable_cache`, draft mode is available if
-      // the outmost work unit store is a request store (or a runtime prerender),
-      // and if draft mode is enabled.
       const draftModeProvider = getDraftModeProviderForCacheScope(
         workStore,
         workUnitStore
@@ -56,12 +52,10 @@ export function draftMode(): Promise<DraftMode> {
         return createOrGetCachedDraftMode(draftModeProvider, workStore)
       }
 
-    // Otherwise, we fall through to providing an empty draft mode.
     // eslint-disable-next-line no-fallthrough
     case 'prerender':
     case 'prerender-ppr':
     case 'prerender-legacy':
-      // Return empty draft mode
       return createOrGetCachedDraftMode(null, workStore)
     case 'prerender-client':
     case 'validation-client': {
@@ -134,28 +128,35 @@ function createDraftModeWithDevWarnings(
 }
 
 class DraftMode {
-  /**
-   * @internal - this declaration is stripped via `tsc --stripInternal`
-   */
   private readonly _provider: null | DraftModeProvider
 
   constructor(provider: null | DraftModeProvider) {
     this._provider = provider
   }
+
   get isEnabled() {
     if (this._provider !== null) {
       return this._provider.isEnabled
     }
     return false
   }
-  public enable() {
-    // We have a store we want to track dynamic data access to ensure we
-    // don't statically generate routes that manipulate draft mode.
+
+  // Getter for draft data
+  get data() {
+    if (this._provider !== null) {
+      return this._provider.data
+    }
+    return null
+  }
+
+  // Enable with optional data parameter
+  public enable(data?: any) {
     trackDynamicDraftMode('draftMode().enable()', this.enable)
     if (this._provider !== null) {
-      this._provider.enable()
+      this._provider.enable(data)
     }
   }
+
   public disable() {
     trackDynamicDraftMode('draftMode().disable()', this.disable)
     if (this._provider !== null) {
@@ -163,6 +164,7 @@ class DraftMode {
     }
   }
 }
+
 const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
   createDraftModeAccessError
 )
@@ -184,8 +186,6 @@ function trackDynamicDraftMode(expression: string, constructorOpt: Function) {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    // We have a store we want to track dynamic data access to ensure we
-    // don't statically generate routes that manipulate draft mode.
     if (workUnitStore?.phase === 'after') {
       throw new Error(
         `Route ${workStore.route} used "${expression}" inside \`after()\`. The enabled status of \`draftMode()\` can be read inside \`after()\` but you cannot enable or disable \`draftMode()\`. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`

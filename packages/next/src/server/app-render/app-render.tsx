@@ -2490,35 +2490,102 @@ async function renderToHTMLOrFlightImpl(
   const { isStaticGeneration } = workStore
 
   // ============================================
-  // 🔧 FIX: Draft Mode + dynamic APIs on static pages
-  // Issue: https://github.com/vercel/next.js/issues/92562
+  // 🔧 FIX: Draft Mode + dynamic APIs on static pages (Vercel Production)
   // ============================================
 
-  // Detect Draft Mode using BOTH official methods:
-  // 1. __prerender_bypass cookie (primary, official)
-  // 2. x-nextjs-draft-mode header (internal, used by Next.js)
   const draftModeCookie = req.cookies?.['__prerender_bypass']
   const isDraftModeEnabled =
     (typeof draftModeCookie === 'string' && draftModeCookie.length > 0) ||
     req.headers['x-nextjs-draft-mode'] === '1'
 
   if (isDraftModeEnabled && isStaticGeneration) {
-    // Safely override the readonly restriction using a mapped type.
-    // This is the recommended pattern in TypeScript for temporarily
-    // mutating a readonly property without affecting the global interface.
-    // It's used elsewhere in the Next.js codebase for similar scenarios.
     type MutableWorkStore = {
       -readonly [K in keyof WorkStore]: WorkStore[K]
     }
     const mutableWorkStore = workStore as MutableWorkStore
     mutableWorkStore.isStaticGeneration = false
     mutableWorkStore.forceDynamic = true
+    mutableWorkStore.isDraftMode = true
 
-    // Helpful debug logging in development mode only
+    const workUnitStore = workUnitAsyncStorage.getStore()
+    if (workUnitStore) {
+      switch (workUnitStore.type) {
+        case 'prerender':
+        case 'prerender-ppr':
+        case 'prerender-legacy':
+        case 'prerender-runtime':
+        case 'prerender-client':
+        case 'validation-client': {
+          const mutablePrerender = workUnitStore as unknown as {
+            revalidate: number
+            expire: number
+            stale: number
+            dynamicTracking?: {
+              dynamicAccesses: Array<{ expression: string; stack?: string }>
+            }
+          }
+
+          mutablePrerender.revalidate = 0
+          mutablePrerender.expire = 0
+          mutablePrerender.stale = 0
+
+          if (mutablePrerender.dynamicTracking) {
+            mutablePrerender.dynamicTracking.dynamicAccesses.push({
+              expression: 'draftMode.enable()',
+              stack: new Error().stack,
+            })
+          }
+          break
+        }
+
+        case 'request': {
+          const mutableRequest = workUnitStore as unknown as {
+            usedDynamic: boolean
+          }
+          mutableRequest.usedDynamic = true
+          break
+        }
+
+        case 'cache':
+        case 'private-cache':
+        case 'unstable-cache':
+        case 'generate-static-params':
+          break
+
+        default:
+          const _exhaustiveCheck: never = workUnitStore
+          break
+      }
+    }
+
+    const urlParts = req.url?.split('?')
+    if (urlParts && urlParts[1]) {
+      const newQuery: NextParsedUrlQuery = {}
+      urlParts[1].split('&').forEach((param) => {
+        const [key, value] = param.split('=')
+        if (key && value !== undefined) {
+          const decodedKey = decodeURIComponent(key)
+          const decodedValue = decodeURIComponent(value)
+          if (newQuery[decodedKey]) {
+            if (Array.isArray(newQuery[decodedKey])) {
+              ;(newQuery[decodedKey] as string[]).push(decodedValue)
+            } else {
+              newQuery[decodedKey] = [
+                newQuery[decodedKey] as string,
+                decodedValue,
+              ]
+            }
+          } else {
+            newQuery[decodedKey] = decodedValue
+          }
+        }
+      })
+      query = newQuery
+    }
+
     if (process.env.NODE_ENV === 'development') {
-      const currentPagePath = pagePath || workStore?.page || 'unknown'
       console.log(
-        `[Next.js] Draft Mode on static page: ${currentPagePath}. Switching to dynamic render.`
+        `[Next.js] Draft Mode enabled for ${pagePath}, switching to dynamic render.`
       )
     }
   }
