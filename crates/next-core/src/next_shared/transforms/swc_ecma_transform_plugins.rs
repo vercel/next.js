@@ -1,13 +1,37 @@
 use anyhow::Result;
-#[allow(unused_imports)]
+use bincode::{Decode, Encode};
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::ModuleRule;
-#[allow(unused_imports)]
 use turbopack_core::{context::AssetContext, resolve::origin::ResolveOrigin};
+use turbopack_ecmascript::{CustomTransformer, TransformPlugin};
 
 use crate::next_config::NextConfig;
+
+/// A wrapper around [`serde_json::Value`] that implements [`turbo_tasks::TaskInput`].
+///
+/// [`serde_json::Value`] does not implement [`std::hash::Hash`], so we implement it manually by
+/// hashing the serialized JSON string.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Encode, Decode)]
+pub struct JsonValue(#[bincode(with = "turbo_bincode::serde_self_describing")] serde_json::Value);
+
+impl std::hash::Hash for JsonValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        serde_json::to_string(&self.0)
+            .expect("JSON serialization should never fail")
+            .hash(state);
+    }
+}
+
+// Manual impl because `serde_json::Value` doesn't implement `TaskInput`, but `JsonValue` can
+// never contain any `Vc` types, so `is_transient` is always `false`.
+impl turbo_tasks::TaskInput for JsonValue {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
 
 pub async fn get_swc_ecma_transform_plugin_rule(
     next_config: Vc<NextConfig>,
@@ -15,30 +39,19 @@ pub async fn get_swc_ecma_transform_plugin_rule(
 ) -> Result<Option<ModuleRule>> {
     let plugin_configs = next_config.experimental_swc_plugins().await?;
     if !plugin_configs.is_empty() {
-        #[cfg(feature = "plugin")]
-        {
-            let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
-            get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
-        }
-
-        #[cfg(not(feature = "plugin"))]
-        {
-            let _ = project_path; // To satisfy lint
-            Ok(None)
-        }
+        let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
+        get_swc_ecma_transform_rule_impl(project_path, &plugin_configs, enable_mdx_rs).await
     } else {
         Ok(None)
     }
 }
 
 /// A resolve origin without any asset_context, intended for handle_resolve_error
-#[cfg(feature = "plugin")]
 #[turbo_tasks::value]
 pub struct DummyResolveOrigin {
     origin_path: FileSystemPath,
 }
 
-#[cfg(feature = "plugin")]
 #[turbo_tasks::value_impl]
 impl DummyResolveOrigin {
     #[turbo_tasks::function]
@@ -47,7 +60,6 @@ impl DummyResolveOrigin {
     }
 }
 
-#[cfg(feature = "plugin")]
 #[turbo_tasks::value_impl]
 impl ResolveOrigin for DummyResolveOrigin {
     #[turbo_tasks::function]
@@ -61,7 +73,6 @@ impl ResolveOrigin for DummyResolveOrigin {
     }
 }
 
-#[cfg(feature = "plugin")]
 pub async fn get_swc_ecma_transform_rule_impl(
     project_path: FileSystemPath,
     plugin_configs: &[(RcStr, serde_json::Value)],
@@ -72,12 +83,11 @@ pub async fn get_swc_ecma_transform_rule_impl(
     use turbo_tasks_fs::FileContent;
     use turbopack_core::{
         asset::Asset,
+        module::Module,
         reference_type::{CommonJsReferenceSubType, ReferenceType},
-        resolve::{handle_resolve_error, parse::Request, resolve},
+        resolve::{ResolveErrorMode, error::handle_resolve_error, parse::Request, resolve},
     };
-    use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::{
-        SwcEcmaTransformPluginsTransformer, SwcPluginModule,
-    };
+    use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::SwcPluginModule;
     use turbopack_resolve::{
         resolve::resolve_options, resolve_options_context::ResolveOptionsContext,
     };
@@ -119,7 +129,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     Vc::upcast(DummyResolveOrigin::new(project_path.clone())),
                     request,
                     resolve_options,
-                    false,
+                    ResolveErrorMode::Error,
                     // TODO proper error location
                     None,
                 )
@@ -133,7 +143,14 @@ pub async fn get_swc_ecma_transform_rule_impl(
                     return Ok(None);
                 };
 
-                let content = &*plugin_module.content().file_content().await?;
+                let Some(plugin_source) = &*plugin_module.source().await? else {
+                    turbo_tasks::turbobail!(
+                        "Expected source for plugin module: {}",
+                        plugin_module.ident()
+                    );
+                };
+
+                let content = &*plugin_source.content().file_content().await?;
                 let FileContent::Content(file) = content else {
                     bail!("Expected file content for plugin module");
                 };
@@ -141,7 +158,7 @@ pub async fn get_swc_ecma_transform_rule_impl(
                 Ok(Some((
                     SwcPluginModule::new(name.clone(), file.content().to_bytes().to_vec())
                         .resolved_cell(),
-                    config.clone(),
+                    JsonValue(config.clone()),
                 )))
             }
         })
@@ -149,8 +166,25 @@ pub async fn get_swc_ecma_transform_rule_impl(
         .await?;
 
     Ok(Some(get_ecma_transform_rule(
-        Box::new(SwcEcmaTransformPluginsTransformer::new(plugins)),
+        swc_ecma_transform_plugins_transform_plugin(plugins)
+            .to_resolved()
+            .await?,
         enable_mdx_rs,
         EcmascriptTransformStage::Main,
     )))
+}
+
+#[turbo_tasks::function]
+fn swc_ecma_transform_plugins_transform_plugin(
+    plugins: Vec<(
+        ResolvedVc<
+            turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::SwcPluginModule,
+        >,
+        JsonValue,
+    )>,
+) -> Vc<TransformPlugin> {
+    use turbopack_ecmascript_plugins::transform::swc_ecma_transform_plugins::SwcEcmaTransformPluginsTransformer;
+    Vc::cell(Box::new(SwcEcmaTransformPluginsTransformer::new(
+        plugins.into_iter().map(|(m, v)| (m, v.0)).collect(),
+    )) as Box<dyn CustomTransformer + Send + Sync>)
 }

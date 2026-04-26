@@ -146,15 +146,38 @@ const API_DOCS: Record<
       '`maxDuration` allows you to set max default execution time for your function. If it is not specified, the default value is dependent on your deployment platform and plan.',
     link: 'https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config#maxduration',
   },
-  unstable_prefetch: {
-    description: `Specifies the default prefetching behavior for this segment. This configuration is currently under development and will change.`,
+  unstable_instant: {
+    description: `Enables instant navigation validation for this segment. This configuration is currently under development and will change.`,
     link: '(docs coming soon)',
-    type: 'object',
+    type: 'true | object | false',
     // TODO: ideally, we'd validate the config object somehow, but this is difficult to do
     // with the way this plugin is currently structured.
     // For now, since we don't provide an `options` here, we won't do any validation in
     // `getSemanticDiagnosticsForExportVariableStatement` below, and only provide hover a tooltip + autocomplete.
-    insertText: 'unstable_prefetch = { mode: "static" };',
+    insertText: 'unstable_instant = true;',
+  },
+  unstable_prefetch: {
+    description: `Controls prefetching behavior for this segment. This configuration is currently under development and will change.`,
+    link: '(docs coming soon)',
+    type: `"auto" | "force-disabled" | "force-static" | "force-runtime"`,
+    options: {
+      auto: 'Default. Framework decides based on instant validation and segment configuration. You do not need to set this explicitly.',
+      'force-disabled': 'Never prefetch this segment.',
+      'force-static': 'Always prefetch this segment statically.',
+      'force-runtime': 'Always prefetch this segment at runtime.',
+    },
+    insertText: `unstable_prefetch = 'force-runtime';`,
+  },
+  unstable_dynamicStaleTime: {
+    description: `Controls how long the client-side router cache retains dynamic page data (in seconds). Pages only — not allowed in layouts. Cannot be combined with \`unstable_instant\`.`,
+    link: '(docs coming soon)',
+    type: 'number',
+    isValid: (value: string) => {
+      return Number(value.replace(/_/g, '')) >= 0
+    },
+    getHint: (value: any) => {
+      return `Set the dynamic stale time to \`${value}\` seconds.`
+    },
   },
 }
 

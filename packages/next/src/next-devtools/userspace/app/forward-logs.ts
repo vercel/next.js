@@ -1,7 +1,3 @@
-import {
-  getOwnerStack,
-  setOwnerStackIfAvailable,
-} from './errors/stitched-error'
 import { getErrorSource } from '../../../shared/lib/error-source'
 import { getIsTerminalLoggingEnabled } from './terminal-logging-config'
 import {
@@ -12,120 +8,12 @@ import {
   type LogMethod,
   patchConsoleMethod,
 } from '../../shared/forward-logs-shared'
-import {
-  preLogSerializationClone,
-  logStringify,
-  safeStringifyWithDepth,
-} from './forward-logs-utils'
-
-// Client-side file logger for browser logs
-class ClientFileLogger {
-  private logEntries: Array<{
-    timestamp: string
-    level: string // log level
-    message: string // log message
-  }> = []
-
-  private formatTimestamp(): string {
-    const now = new Date()
-    const hours = now.getHours().toString().padStart(2, '0')
-    const minutes = now.getMinutes().toString().padStart(2, '0')
-    const seconds = now.getSeconds().toString().padStart(2, '0')
-    const milliseconds = now.getMilliseconds().toString().padStart(3, '0')
-
-    return `${hours}:${minutes}:${seconds}.${milliseconds}`
-  }
-
-  log(level: string, args: any[]): void {
-    if (isReactServerReplayedLog(args)) {
-      return
-    }
-
-    // Format the args into a message string
-    const message = args
-      .map((arg) => {
-        if (typeof arg === 'string') return arg
-        if (typeof arg === 'number' || typeof arg === 'boolean')
-          return String(arg)
-        if (arg === null) return 'null'
-        if (arg === undefined) return 'undefined'
-        // Handle DOM nodes - only log the tag name to avoid React proxied elements
-        if (arg instanceof Element) {
-          return `<${arg.tagName.toLowerCase()}>`
-        }
-        return safeStringifyWithDepth(arg)
-      })
-      .join(' ')
-
-    const logEntry = {
-      timestamp: this.formatTimestamp(),
-      level: level.toUpperCase(),
-      message,
-    }
-    this.logEntries.push(logEntry)
-
-    // Schedule flush when new log is added
-    scheduleLogFlush()
-  }
-  getLogs(): Array<{ timestamp: string; level: string; message: string }> {
-    return [...this.logEntries]
-  }
-
-  clear(): void {
-    this.logEntries = []
-  }
-}
-
-const clientFileLogger = new ClientFileLogger()
-
-// Set up flush-based sending of client file logs
-let logFlushTimeout: NodeJS.Timeout | null = null
-let heartbeatInterval: NodeJS.Timeout | null = null
-
-const scheduleLogFlush = () => {
-  if (logFlushTimeout) {
-    clearTimeout(logFlushTimeout)
-  }
-
-  logFlushTimeout = setTimeout(() => {
-    sendClientFileLogs()
-    logFlushTimeout = null
-  }, 100) // Send after 100ms (much faster with debouncing)
-}
-
-const cancelLogFlush = () => {
-  if (logFlushTimeout) {
-    clearTimeout(logFlushTimeout)
-    logFlushTimeout = null
-  }
-}
-
-const startHeartbeat = () => {
-  if (heartbeatInterval) return
-
-  heartbeatInterval = setInterval(() => {
-    if (logQueue.socket && logQueue.socket.readyState === WebSocket.OPEN) {
-      try {
-        // Send a ping to keep the connection alive
-        logQueue.socket.send(JSON.stringify({ event: 'ping' }))
-      } catch (error) {
-        // Connection might be closed, stop heartbeat
-        stopHeartbeat()
-      }
-    } else {
-      stopHeartbeat()
-    }
-  }, 5000) // Send ping every 5 seconds
-}
-
-const stopHeartbeat = () => {
-  if (heartbeatInterval) {
-    clearInterval(heartbeatInterval)
-    heartbeatInterval = null
-  }
-}
+import { preLogSerializationClone, logStringify } from './forward-logs-utils'
+import { getOwnerStack } from './errors/stitched-error'
 
 const isTerminalLoggingEnabled = getIsTerminalLoggingEnabled()
+const shouldForwardLogs =
+  isTerminalLoggingEnabled || !!process.env.__NEXT_MCP_SERVER
 
 const methods: Array<LogMethod> = [
   'log',
@@ -178,30 +66,22 @@ const serializeEntries = (entries: Array<ClientLogEntry>) =>
     }
   })
 
-// Function to send client file logs to server
-const sendClientFileLogs = () => {
-  if (!logQueue.socket || logQueue.socket.readyState !== WebSocket.OPEN) {
+const flushBufferedEntries = (socket: WebSocket) => {
+  if (logQueue.entries.length === 0) {
     return
   }
 
-  const logs = clientFileLogger.getLogs()
-  if (logs.length === 0) {
-    return
-  }
+  const payload = JSON.stringify({
+    event: 'browser-logs',
+    entries: serializeEntries(logQueue.entries),
+    router: logQueue.router,
+    // needed for source mapping, we just assign the sourceType from the last error for the whole batch
+    sourceType: logQueue.sourceType,
+  })
 
-  try {
-    const payload = JSON.stringify({
-      event: 'client-file-logs',
-      logs: logs,
-    })
-
-    logQueue.socket.send(payload)
-  } catch (error) {
-    console.error(error)
-  } finally {
-    // Clear logs regardless of send success to prevent memory leaks
-    clientFileLogger.clear()
-  }
+  socket.send(payload)
+  logQueue.entries = []
+  logQueue.sourceType = undefined
 }
 
 // Combined state and public API
@@ -241,20 +121,7 @@ export const logQueue: {
 
       // just incase
       try {
-        const payload = JSON.stringify({
-          event: 'browser-logs',
-          entries: serializeEntries(logQueue.entries),
-          router: logQueue.router,
-          // needed for source mapping, we just assign the sourceType from the last error for the whole batch
-          sourceType: logQueue.sourceType,
-        })
-
-        socket.send(payload)
-        logQueue.entries = []
-        logQueue.sourceType = undefined
-
-        // Also send client file logs
-        sendClientFileLogs()
+        flushBufferedEntries(socket)
       } catch {
         // error (make sure u don't infinite loop)
         /* noop */
@@ -264,7 +131,7 @@ export const logQueue: {
   onSocketReady: (socket: WebSocket) => {
     // When MCP or terminal logging is enabled, we enable the socket connection,
     // otherwise it will not proceed.
-    if (!isTerminalLoggingEnabled && !process.env.__NEXT_MCP_SERVER) {
+    if (!shouldForwardLogs) {
       return
     }
     if (socket.readyState !== WebSocket.OPEN) {
@@ -276,35 +143,11 @@ export const logQueue: {
     logQueue.cancelFlush?.()
     logQueue.socket = socket
 
-    // Add socket event listeners to track connection state
-    socket.addEventListener('close', () => {
-      cancelLogFlush()
-      stopHeartbeat()
-    })
-
-    // Only send terminal logs if enabled
-    if (isTerminalLoggingEnabled) {
-      try {
-        const payload = JSON.stringify({
-          event: 'browser-logs',
-          entries: serializeEntries(logQueue.entries),
-          router: logQueue.router,
-          sourceType: logQueue.sourceType,
-        })
-
-        socket.send(payload)
-        logQueue.entries = []
-        logQueue.sourceType = undefined
-      } catch {
-        /** noop just incase */
-      }
+    try {
+      flushBufferedEntries(socket)
+    } catch {
+      /** noop just incase */
     }
-
-    // Always send client file logs when socket is ready
-    sendClientFileLogs()
-
-    // Start heartbeat to keep connection alive
-    startHeartbeat()
   },
 }
 
@@ -328,26 +171,21 @@ const stringifyUserArg = (
 }
 
 const createErrorArg = (error: Error) => {
-  const stack = stackWithOwners(error)
   return {
     kind: 'formatted-error-arg' as const,
     prefix: error.message ? `${error.name}: ${error.message}` : `${error.name}`,
-    stack,
+    stack: getErrorStackWithOwnerStack(error),
   }
 }
 
 const createLogEntry = (level: LogMethod, args: any[]) => {
-  // Always log to client file logger with args (formatting done inside log method)
-  clientFileLogger.log(level, args)
-
-  // Only forward to terminal if enabled
-  if (!isTerminalLoggingEnabled) {
+  if (!shouldForwardLogs) {
     return
   }
 
   // do not abstract this, it implicitly relies on which functions call it. forcing the inlined implementation makes you think about callers
   // error capture stack trace maybe
-  const stack = stackWithOwners(new Error())
+  const stack = getErrorStack(new Error())
   const stackLines = stack?.split('\n')
   const cleanStack = stackLines?.slice(3).join('\n') // this is probably ignored anyways
   const entry: ConsoleEntry<unknown> = {
@@ -369,10 +207,12 @@ const createLogEntry = (level: LogMethod, args: any[]) => {
 }
 
 export const forwardErrorLog = (args: any[]) => {
-  // Always log to client file logger with args (formatting done inside log method)
-  clientFileLogger.log('error', args)
-  // Only forward to terminal if enabled
-  if (!isTerminalLoggingEnabled) {
+  // Skip React server replayed logs - they were already logged on the server
+  if (isReactServerReplayedLog(args)) {
+    return
+  }
+
+  if (!shouldForwardLogs) {
     return
   }
 
@@ -389,7 +229,7 @@ export const forwardErrorLog = (args: any[]) => {
    *
    * do not abstract this, it implicitly relies on which functions call it. forcing the inlined implementation makes you think about callers
    */
-  const stack = stackWithOwners(new Error())
+  const stack = getErrorStack(new Error())
   const stackLines = stack?.split('\n')
   const cleanStack = stackLines?.slice(3).join('\n')
 
@@ -426,29 +266,27 @@ const createUncaughtErrorEntry = (
   logQueue.scheduleLogSend(entry)
 }
 
-const stackWithOwners = (error: Error) => {
-  let ownerStack = ''
-  setOwnerStackIfAvailable(error)
-  ownerStack = getOwnerStack(error) || ''
-  const stack = (error.stack || '') + ownerStack
-  return stack
+const getErrorStack = (error: Error) => {
+  return error.stack || ''
+}
+
+// Get error stack with owner stack appended for source mapping on the server
+const getErrorStackWithOwnerStack = (error: Error) => {
+  const errorStack = getErrorStack(error)
+  const ownerStack = getOwnerStack(error)
+  return ownerStack ? `${errorStack}\n${ownerStack}` : errorStack
 }
 
 export function logUnhandledRejection(reason: unknown) {
-  // Always log to client file logger
-  const message =
-    reason instanceof Error
-      ? `${reason.name}: ${reason.message}`
-      : JSON.stringify(reason)
-  clientFileLogger.log('error', [`unhandledRejection: ${message}`])
-
-  // Only forward to terminal if enabled
-  if (!isTerminalLoggingEnabled) {
+  if (!shouldForwardLogs) {
     return
   }
 
   if (reason instanceof Error) {
-    createUnhandledRejectionErrorEntry(reason, stackWithOwners(reason))
+    createUnhandledRejectionErrorEntry(
+      reason,
+      getErrorStackWithOwnerStack(reason)
+    )
     return
   }
   createUnhandledRejectionNonErrorEntry(reason)
@@ -533,17 +371,15 @@ const isReactServerReplayedLog = (args: any[]) => {
 }
 
 export function forwardUnhandledError(error: Error) {
-  // Always log to client file logger
-  clientFileLogger.log('error', [
-    `uncaughtError: ${error.name}: ${error.message}`,
-  ])
-
-  // Only forward to terminal if enabled
-  if (!isTerminalLoggingEnabled) {
+  if (!shouldForwardLogs) {
     return
   }
 
-  createUncaughtErrorEntry(error.name, error.message, stackWithOwners(error))
+  createUncaughtErrorEntry(
+    error.name,
+    error.message,
+    getErrorStackWithOwnerStack(error)
+  )
 }
 
 // TODO: this router check is brittle, we need to update based on the current router the user is using
@@ -573,12 +409,4 @@ export const initializeDebugLogForwarding = (router: 'app' | 'pages'): void => {
   } catch {}
   logQueue.router = router
   isPatched = true
-
-  // Cleanup on page unload
-  window.addEventListener('beforeunload', () => {
-    cancelLogFlush()
-    stopHeartbeat()
-    // Send any remaining logs before page unloads
-    sendClientFileLogs()
-  })
 }

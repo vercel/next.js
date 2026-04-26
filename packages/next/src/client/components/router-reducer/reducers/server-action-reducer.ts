@@ -15,6 +15,7 @@ import {
   NEXT_REQUEST_ID_HEADER,
 } from '../../app-router-headers'
 import { UnrecognizedActionError } from '../../unrecognized-action-error'
+import { fetch } from '../../segment-cache/fetch'
 
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -29,6 +30,7 @@ import type {
   ReducerState,
   ServerActionAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import { assignLocation } from '../../../assign-location'
 import { createHrefFromUrl } from '../create-href-from-url'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
@@ -45,14 +47,18 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from '../../../../shared/lib/server-reference-info'
-import { revalidateEntireCache } from '../../segment-cache/cache'
+import { invalidateEntirePrefetchCache } from '../../segment-cache/cache'
+import { startRevalidationCooldown } from '../../segment-cache/scheduler'
 import { getDeploymentId } from '../../../../shared/lib/deployment-id'
+import { getNavigationBuildId } from '../../../navigation-build-id'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../../lib/constants'
 import {
   completeHardNavigation,
   convertServerPatchToFullTree,
   navigateToKnownRoute,
   navigate,
 } from '../../segment-cache/navigation'
+import { discoverKnownRoute } from '../../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../../segment-cache/cache-key'
 import {
   ActionDidNotRevalidate,
@@ -62,7 +68,11 @@ import {
 } from '../../../../shared/lib/action-revalidation-kind'
 import { isExternalURL } from '../../app-router-utils'
 import { FreshnessPolicy } from '../ppr-navigations'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import { processFetch } from '../fetch-server-response'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
 const createFromFetch =
   createFromFetchBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromFetch']
@@ -71,10 +81,7 @@ let createDebugChannel:
   | typeof import('../../../dev/debug-channel').createDebugChannel
   | undefined
 
-if (
-  process.env.NODE_ENV !== 'production' &&
-  process.env.__NEXT_REACT_DEBUG_CHANNEL
-) {
+if (process.env.__NEXT_DEV_SERVER && process.env.__NEXT_REACT_DEBUG_CHANNEL) {
   createDebugChannel = (
     require('../../../dev/debug-channel') as typeof import('../../../dev/debug-channel')
   ).createDebugChannel
@@ -91,22 +98,18 @@ type FetchServerActionResult = {
   actionFlightData: NormalizedFlightData[] | string | undefined
   actionFlightDataRenderedSearch: NormalizedSearch | undefined
   isPrerender: boolean
+  couldBeIntercepted: boolean
 }
 
 async function fetchServerAction(
   state: ReadonlyReducerState,
   nextUrl: ReadonlyReducerState['nextUrl'],
-  { actionId, actionArgs }: ServerActionAction
+  action: ServerActionAction
 ): Promise<FetchServerActionResult> {
+  const { actionId, actionArgs } = action
   const temporaryReferences = createTemporaryReferenceSet()
   const info = extractInfoFromServerReferenceId(actionId)
-
-  // TODO: Currently, we're only omitting unused args for the experimental "use
-  // cache" functions. Once the server reference info byte feature is stable, we
-  // should apply this to server actions as well.
-  const usedArgs =
-    info.type === 'use-cache' ? omitUnusedArgs(actionArgs, info) : actionArgs
-
+  const usedArgs = omitUnusedArgs(actionArgs, info)
   const body = await encodeReply(usedArgs, { temporaryReferences })
 
   const headers: Record<string, string> = {
@@ -126,7 +129,7 @@ async function fetchServerAction(
     headers[NEXT_URL] = nextUrl
   }
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (process.env.__NEXT_DEV_SERVER) {
     if (self.__next_r) {
       headers[NEXT_HTML_REQUEST_ID_HEADER] = self.__next_r
     }
@@ -139,7 +142,33 @@ async function fetchServerAction(
       .toString(16)
   }
 
-  const res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+  let res: Response
+  try {
+    res = await fetch(state.canonicalUrl, { method: 'POST', headers, body })
+    // If the fetch succeeds while we're in the offline state, notify the
+    // offline module so it can short-circuit the polling loop.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { notifyOnline } =
+        require('../../offline') as typeof import('../../offline')
+      notifyOnline()
+    }
+  } catch (err) {
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError, getOffline, waitForConnection } =
+        require('../../offline') as typeof import('../../offline')
+      if (checkOfflineError(err)) {
+        // It's safe to replay the action because the fetch rejection
+        // means the request never reached the server — there are no
+        // side effects to duplicate.
+        const offline = getOffline()
+        if (offline !== null) {
+          await waitForConnection(offline)
+        }
+        return fetchServerAction(state, nextUrl, action)
+      }
+    }
+    throw err
+  }
 
   // Handle server actions that the server didn't recognize.
   const unrecognizedActionHeader = res.headers.get(NEXT_ACTION_NOT_FOUND_HEADER)
@@ -208,10 +237,18 @@ async function fetchServerAction(
   let actionResult: FetchServerActionResult['actionResult']
   let actionFlightData: FetchServerActionResult['actionFlightData']
   let actionFlightDataRenderedSearch: FetchServerActionResult['actionFlightDataRenderedSearch']
+  let couldBeIntercepted: boolean = false
 
   if (isRscResponse) {
+    // Server action redirect responses carry the Flight data of the redirect
+    // target, which may be prerendered with a completeness marker byte
+    // prepended. Strip it before passing to Flight.
+    const responsePromise = redirectLocation
+      ? processFetch(res).then(({ response: r }) => r)
+      : Promise.resolve(res)
+
     const response: ActionFlightResponse = await createFromFetch(
-      Promise.resolve(res),
+      responsePromise,
       {
         callServer,
         findSourceMapURL,
@@ -222,10 +259,31 @@ async function fetchServerAction(
 
     // An internal redirect can send an RSC response, but does not have a useful `actionResult`.
     actionResult = redirectLocation ? undefined : response.a
-    const maybeFlightData = normalizeFlightData(response.f)
-    if (maybeFlightData !== '') {
-      actionFlightData = maybeFlightData
-      actionFlightDataRenderedSearch = response.q as NormalizedSearch
+    couldBeIntercepted = response.i
+
+    // Check if the response build ID matches the client build ID.
+    // In a multi-zone setup, when a server action triggers a redirect,
+    // the server pre-fetches the redirect target as RSC. If the redirect
+    // target is served by a different Next.js zone (different build), the
+    // pre-fetched RSC data will have a foreign build ID. We must discard
+    // the flight data in that case so the redirect triggers an MPA
+    // navigation (full page load) instead of trying to apply the foreign
+    // RSC payload — which would result in a blank page.
+    const responseBuildId =
+      res.headers.get(NEXT_NAV_DEPLOYMENT_ID_HEADER) ?? response.b
+    if (
+      responseBuildId !== undefined &&
+      responseBuildId !== getNavigationBuildId()
+    ) {
+      // Build ID mismatch — discard the flight data. The redirect will
+      // still be processed, and the absence of flight data will cause an
+      // MPA navigation via completeHardNavigation().
+    } else {
+      const maybeFlightData = normalizeFlightData(response.f)
+      if (maybeFlightData !== '') {
+        actionFlightData = maybeFlightData
+        actionFlightDataRenderedSearch = response.q as NormalizedSearch
+      }
     }
   } else {
     // An external redirect doesn't contain RSC data.
@@ -242,6 +300,7 @@ async function fetchServerAction(
     redirectType,
     revalidationKind,
     isPrerender,
+    couldBeIntercepted,
   }
 }
 
@@ -278,6 +337,8 @@ export function serverActionReducer(
       actionFlightDataRenderedSearch: flightDataRenderedSearch,
       redirectLocation,
       redirectType,
+      isPrerender,
+      couldBeIntercepted,
     }) => {
       if (revalidationKind !== ActionDidNotRevalidate) {
         // There was either a revalidation or a refresh, or maybe both.
@@ -291,11 +352,19 @@ export function serverActionReducer(
         // (ie, due to a navigation, before the action completed)
         action.didRevalidate = true
 
-        // If there was a revalidation, evict the entire prefetch cache.
+        // If there was a revalidation, evict the prefetch cache.
         // TODO: Evict only segments with matching tags and/or paths.
+        // TODO: We should only invalidate the route cache if cookies were
+        // mutated, since route trees may vary based on cookies. For now we
+        // invalidate both caches until we have a way to detect cookie
+        // mutations on the client.
         if (revalidationKind === ActionDidRevalidateStaticAndDynamic) {
-          revalidateEntireCache(nextUrl, state.tree)
+          invalidateEntirePrefetchCache(nextUrl, state.tree)
         }
+
+        // Start a cooldown before re-prefetching to allow CDN cache
+        // propagation.
+        startRevalidationCooldown()
       }
 
       const navigateType = redirectType || 'push'
@@ -379,7 +448,7 @@ export function serverActionReducer(
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
-      const shouldScroll = true
+      const scrollBehavior = ScrollBehavior.Default
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
@@ -399,12 +468,34 @@ export function serverActionReducer(
         // subset of the data needed to render the new page, we'll initiate a
         // new fetch, like we would for a normal navigation.
         const redirectCanonicalUrl = createHrefFromUrl(redirectUrl)
+        const now = Date.now()
+        // TODO: Store the dynamic stale time on the top-level state so it's
+        // known during restores and refreshes.
         const redirectSeed = convertServerPatchToFullTree(
+          now,
           currentFlightRouterState,
           flightData,
-          flightDataRenderedSearch
+          flightDataRenderedSearch,
+          UnknownDynamicStaleTime
         )
-        const now = Date.now()
+
+        // Learn the route pattern so we can predict it for future navigations.
+        const metadataVaryPath = redirectSeed.metadataVaryPath
+        if (metadataVaryPath !== null) {
+          discoverKnownRoute(
+            now,
+            redirectUrl.pathname,
+            nextUrl,
+            null, // No pending entry
+            redirectSeed.routeTree,
+            metadataVaryPath,
+            couldBeIntercepted,
+            redirectCanonicalUrl,
+            isPrerender,
+            false // hasDynamicRewrite
+          )
+        }
+
         return navigateToKnownRoute(
           now,
           state,
@@ -417,8 +508,13 @@ export function serverActionReducer(
           currentFlightRouterState,
           freshnessPolicy,
           nextUrl,
-          shouldScroll,
+          scrollBehavior,
           navigateType,
+          null,
+          // Server action redirects don't use route prediction - we already
+          // have the route tree from the server response. If a mismatch occurs
+          // during dynamic data fetch, the retry handler will traverse the
+          // known route tree to mark the entry as having a dynamic rewrite.
           null
         )
       }
@@ -434,7 +530,7 @@ export function serverActionReducer(
         currentFlightRouterState,
         nextUrl,
         freshnessPolicy,
-        shouldScroll,
+        scrollBehavior,
         navigateType
       )
     },

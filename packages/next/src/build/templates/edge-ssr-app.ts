@@ -9,7 +9,7 @@ import { IncrementalCache } from '../../server/lib/incremental-cache'
 import * as pageMod from 'VAR_USERLAND'
 
 import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../server/lib/trace/tracer'
 import { WebNextRequest, WebNextResponse } from '../../server/base-http/web'
@@ -32,6 +32,7 @@ import type { RequestMeta } from '../../server/request-meta'
 
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT_RAW:cacheHandlerImports
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -85,10 +86,12 @@ async function requestHandler(
     interceptionRoutePatterns,
     routerServerContext,
     deploymentId,
+    clientAssetToken,
   } = prepareResult
 
   // Initialize the cache handlers interface.
-  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const isPossibleServerAction = getIsPossibleServerAction(req)
   const botType = getBotType(req.headers.get('User-Agent') || '')
@@ -106,6 +109,8 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
+      deploymentId,
+      clientAssetToken,
     },
     fallbackRouteParams: null,
 
@@ -141,23 +146,30 @@ async function requestHandler(
       trailingSlash: nextConfig.trailingSlash,
       images: nextConfig.images,
       previewProps: prerenderManifest.preview,
-      deploymentId,
       enableTainting: nextConfig.experimental.taint,
       htmlLimitedBots: nextConfig.htmlLimitedBots,
       reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
       multiZoneDraftMode: false,
       cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       basePath: nextConfig.basePath,
       serverActions: nextConfig.experimental.serverActions,
+      logServerFunctions:
+        typeof nextConfig.logging === 'object' &&
+        Boolean(nextConfig.logging.serverFunctions),
       cacheComponents: Boolean(nextConfig.cacheComponents),
       experimental: {
         isRoutePPREnabled: false,
         expireTime: nextConfig.expireTime,
         staleTimes: nextConfig.experimental.staleTimes,
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
+        optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        cachedNavigations: Boolean(nextConfig.experimental.cachedNavigations),
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),
         clientParamParsingOrigins:
@@ -193,7 +205,6 @@ async function requestHandler(
           silenceLog,
           routerServerContext
         ),
-      dev: pageRouteModule.isDev,
     },
   }
   let finalStatus = 200

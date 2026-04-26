@@ -1,6 +1,6 @@
 use std::future::IntoFuture;
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result};
 use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
@@ -14,10 +14,7 @@ use turbo_tasks::{Completion, ResolvedVc, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{
-        ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
-        availability_info::AvailabilityInfo,
-    },
+    chunk::{ChunkingContextExt, EntryChunkGroupResult, availability_info::AvailabilityInfo},
     context::AssetContext,
     module::Module,
     module_graph::{
@@ -33,7 +30,7 @@ use turbopack_core::{
 use crate::{
     nft_json::NftJsonAsset,
     paths::{
-        all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
+        all_asset_paths, all_paths_in_root, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
@@ -93,6 +90,7 @@ impl MiddlewareEndpoint {
             self.project.project_path().owned().await?,
             userland_module,
             is_proxy,
+            self.project.next_config(),
         );
 
         if matches!(self.runtime, NextRuntime::NodeJs) {
@@ -133,21 +131,16 @@ impl MiddlewareEndpoint {
         let userland_module = self.entry_module().to_resolved().await?;
         let module_graph = this.project.module_graph(*userland_module);
 
-        let Some(module) = ResolvedVc::try_downcast(userland_module) else {
-            bail!("Entry module must be evaluatable");
-        };
-
         let EntryChunkGroupResult { asset: chunk, .. } = *chunking_context
-            .entry_chunk_group(
+            .root_entry_chunk_group(
                 this.project
                     .node_root()
                     .await?
                     .join("server/middleware.js")?,
-                Vc::cell(vec![module]),
+                ChunkGroup::Entry(vec![userland_module]),
                 module_graph,
                 OutputAssets::empty(),
                 OutputAssets::empty(),
-                AvailabilityInfo::root(),
             )
             .await?;
         Ok(*chunk)
@@ -261,10 +254,18 @@ impl MiddlewareEndpoint {
 
             let node_root = this.project.node_root().owned().await?;
             let node_root_value = node_root.clone();
+            let edge_chunk_group_ref = edge_chunk_group.await?;
+            let edge_assets = edge_chunk_group_ref.assets.await?;
 
             let file_paths_from_root =
-                get_js_paths_from_root(&node_root_value, &edge_chunk_group.await?.assets.await?)
-                    .await?;
+                get_js_paths_from_root(&node_root_value, &edge_assets).await?;
+            let entrypoint_asset = *edge_assets
+                .last()
+                .context("expected assets for edge middleware endpoint")?;
+            let entrypoint = node_root_value
+                .get_path_to(&*entrypoint_asset.path().await?)
+                .context("expected edge middleware asset to be within node root")?
+                .into();
 
             let mut output_assets = edge_chunk_group.all_assets().owned().await?;
 
@@ -292,6 +293,7 @@ impl MiddlewareEndpoint {
                 assets: paths_to_bindings(all_assets),
                 name: rcstr!("middleware"),
                 page: rcstr!("/"),
+                entrypoint,
                 regions,
                 matchers: matchers.clone(),
                 env: this.project.edge_env().owned().await?,
@@ -341,7 +343,9 @@ impl Endpoint for MiddlewareEndpoint {
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root().owned().await?;
-                let server_paths = all_server_paths(output_assets, node_root).owned().await?;
+                let server_paths = all_asset_paths(output_assets, node_root, None)
+                    .owned()
+                    .await?;
 
                 // Middleware could in theory have a client path (e.g. `new URL`).
                 let client_relative_root = this.project.client_relative_path().owned().await?;
@@ -396,5 +400,10 @@ impl Endpoint for MiddlewareEndpoint {
             .to_resolved()
             .await?;
         Ok(Vc::cell(vec![module_graph]))
+    }
+
+    #[turbo_tasks::function]
+    fn project(&self) -> Vc<Project> {
+        *self.project
     }
 }

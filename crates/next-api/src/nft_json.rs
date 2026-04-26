@@ -1,12 +1,14 @@
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::{BTreeSet, HashSet, VecDeque};
 
 use anyhow::{Result, bail};
+use async_trait::async_trait;
 use serde_json::json;
 use tracing::{Instrument, Level, Span};
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
+    turbofmt,
 };
 use turbo_tasks_fs::{
     DirectoryEntry, File, FileContent, FileSystem, FileSystemPath,
@@ -14,6 +16,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
 
@@ -76,9 +79,6 @@ impl OutputAsset for NftJsonAsset {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OutputSpecifier(Option<RcStr>);
-
 fn get_output_specifier(
     path_ref: &FileSystemPath,
     ident_folder: &FileSystemPath,
@@ -97,9 +97,8 @@ fn get_output_specifier(
             .get_relative_path_to(path_ref)
             .unwrap());
     }
-
     // This should effectively be unreachable
-    bail!("NftJsonAsset: cannot handle filepath {path_ref}");
+    bail!("NftJsonAsset: cannot handle filepath '{path_ref}'");
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -151,10 +150,16 @@ impl Asset for NftJsonAsset {
         );
         async move {
             let mut result: BTreeSet<RcStr> = BTreeSet::new();
+            let project_path = this.project.project_path().owned().await?;
 
             let output_root_ref = this.project.output_fs().root().await?;
             let project_root_ref = this.project.project_fs().root().await?;
             let next_config = this.project.next_config();
+            let next_config_path = this
+                .project
+                .next_config()
+                .config_file_path(project_path.clone())
+                .await?;
 
             let output_file_tracing_includes = &*next_config.output_file_tracing_includes().await?;
             let output_file_tracing_excludes = &*next_config.output_file_tracing_excludes().await?;
@@ -177,7 +182,6 @@ impl Asset for NftJsonAsset {
                 .chain(std::iter::once(chunk))
                 .collect();
 
-            let project_path = this.project.project_path().owned().await?;
             let exclude_glob = if let Some(route) = &this.page_name {
                 if let Some(excludes_config) = output_file_tracing_excludes {
                     let mut combined_excludes = BTreeSet::new();
@@ -234,13 +238,11 @@ impl Asset for NftJsonAsset {
                 None
             };
 
+            let entries = Vc::cell(entries);
             // Collect base assets first
-            let all_assets = all_assets_from_entries_filtered(
-                Vc::cell(entries),
-                Some(client_root),
-                exclude_glob,
-            )
-            .await?;
+            let all_assets =
+                all_assets_from_entries_filtered(entries, Some(client_root.clone()), exclude_glob)
+                    .await?;
 
             for referenced_chunk in all_assets.iter().copied() {
                 if chunk.eq(&referenced_chunk) {
@@ -248,6 +250,19 @@ impl Asset for NftJsonAsset {
                 }
 
                 let referenced_chunk_path = referenced_chunk.path().await?;
+
+                if referenced_chunk_path == next_config_path {
+                    // If next.config.js was traced, assume that the whole project was traced
+                    // (unintentionally). Print a message in this case to avoid deploying
+                    // unnecessary files.
+                    error_unexpected_file(
+                        entries,
+                        Some(client_root.clone()),
+                        exclude_glob,
+                        *referenced_chunk,
+                    )
+                    .await?;
+                }
 
                 if referenced_chunk_path.has_extension(".map") {
                     continue;
@@ -273,11 +288,10 @@ impl Asset for NftJsonAsset {
                             &*current_path.get_type().await?,
                             FileSystemEntryType::Symlink
                         ) {
-                            bail!(
-                                "Encountered file inside of symlink in NFT list: {} is a symlink, \
-                                 but {} was created inside of it",
-                                current_path.value_to_string().await?,
-                                referenced_chunk_path.value_to_string().await?
+                            turbo_tasks::turbobail!(
+                                "Encountered file inside of symlink in NFT list: {current_path} \
+                                 is a symlink, but {referenced_chunk_path} was created inside of \
+                                 it"
                             );
                         }
 
@@ -285,13 +299,26 @@ impl Asset for NftJsonAsset {
                     }
                 }
 
-                let specifier = get_output_specifier(
+                let specifier = match get_output_specifier(
                     &referenced_chunk_path,
                     &ident_folder,
                     &ident_folder_in_project_fs,
                     &output_root_ref,
                     &project_root_ref,
-                )?;
+                ) {
+                    Ok(specifier) => specifier,
+                    Err(err) => {
+                        // ast-grep-ignore: no-context-turbofmt
+                        return Err(err.context(
+                            turbofmt!(
+                                "NftJsonAsset: cannot handle filepath '{referenced_chunk_path}' \
+                                 for {referenced_chunk:?} it is not under the output_root: \
+                                 '{output_root_ref}' or the project_root: '{project_root_ref}'",
+                            )
+                            .await?,
+                        ));
+                    }
+                };
 
                 result.insert(specifier);
             }
@@ -434,6 +461,172 @@ pub async fn all_assets_from_entries_filtered(
             .map(|n| n.0)
             .collect(),
     ))
+}
+
+#[turbo_tasks::function]
+pub async fn error_unexpected_file(
+    entries: Vc<OutputAssets>,
+    client_root: Option<FileSystemPath>,
+    exclude_glob: Option<Vc<Glob>>,
+    referenced_chunk: ResolvedVc<Box<dyn OutputAsset>>,
+) -> Result<()> {
+    let exclude_glob = if let Some(exclude_glob) = exclude_glob {
+        Some(exclude_glob.await?)
+    } else {
+        None
+    };
+    let emit_spans = tracing::enabled!(Level::INFO);
+    let map = AdjacencyMap::new()
+        .visit(
+            entries
+                .await?
+                .iter()
+                .map(async |asset| {
+                    Ok((
+                        *asset,
+                        if emit_spans {
+                            // INVALIDATION: we don't need to invalidate the list of assets when
+                            // the span name changes
+                            Some(asset.path_string().untracked().await?)
+                        } else {
+                            None
+                        },
+                    ))
+                })
+                .try_join()
+                .await?,
+            OutputAssetFilteredVisit {
+                client_root,
+                exclude_glob,
+                emit_spans,
+            },
+        )
+        .await
+        .completed()?;
+
+    let reversed = map.reversed();
+
+    let mut path = vec![];
+    // Find any path from the referenced chunk back to one of the roots
+    {
+        let mut visited = HashSet::new();
+        let mut current = (
+            referenced_chunk,
+            if emit_spans {
+                // INVALIDATION: we don't need to invalidate the list of assets when
+                // the span name changes
+                Some(referenced_chunk.path_string().untracked().await?)
+            } else {
+                None
+            },
+        );
+        while let Some((from, _)) = reversed.get(&current).and_then(|mut edges| edges.next()) {
+            current = from.clone();
+            if !visited.insert(current.0) {
+                break;
+            }
+            path.push(current.0);
+        }
+    }
+
+    ForbiddenTracedFileIssue {
+        file: referenced_chunk,
+        path,
+    }
+    .resolved_cell()
+    .emit();
+
+    Ok(())
+}
+
+#[turbo_tasks::value(shared)]
+struct ForbiddenTracedFileIssue {
+    file: ResolvedVc<Box<dyn OutputAsset>>,
+    path: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for ForbiddenTracedFileIssue {
+    fn severity(&self) -> IssueSeverity {
+        // Ideally this would be an error, but for now we keep it a warning to avoid breaking
+        // existing apps
+        IssueSeverity::Warning
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Misc
+    }
+
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        self.file.path().owned().await
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Encountered unexpected file in NFT list"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut stack = vec![
+            StyledString::Text(rcstr!(
+                "A file was traced that indicates that the whole project was traced \
+                 unintentionally. Somewhere in the import trace below, there are:"
+            )),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("- filesystem operations (like ")),
+                StyledString::Code(rcstr!("path.join")),
+                StyledString::Text(rcstr!(", ")),
+                StyledString::Code(rcstr!("path.resolve")),
+                StyledString::Text(rcstr!(" or ")),
+                StyledString::Code(rcstr!("fs.readFile")),
+                StyledString::Text(rcstr!("), or")),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("- very dynamic requires (like ")),
+                StyledString::Code(rcstr!("require('./' + foo)")),
+                StyledString::Text(rcstr!(").")),
+            ]),
+            StyledString::Text(rcstr!("To resolve this, you can")),
+            StyledString::Text(rcstr!("- remove them if possible, or")),
+            StyledString::Text(rcstr!("- only use them in development, or")),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!(
+                    "- make sure they are statically scoped to some subfolder: "
+                )),
+                StyledString::Code(rcstr!("path.join(process.cwd(), 'data', bar)")),
+                StyledString::Text(rcstr!(", or")),
+            ]),
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("- add ignore comments: ")),
+                StyledString::Code(rcstr!(
+                    "path.join(/*turbopackIgnore: true*/ process.cwd(), bar)"
+                )),
+            ]),
+        ];
+
+        if self.path.len() > 1 {
+            stack.extend([
+                StyledString::Text(rcstr!("")),
+                StyledString::Text(
+                    format!(
+                        "Output asset trace:\n{}",
+                        self.path
+                            .iter()
+                            .rev()
+                            .map(async |a| Ok(format!("  {}", a.path_string().await?)))
+                            .try_join()
+                            .await?
+                            .join("\n")
+                    )
+                    .into(),
+                ),
+            ])
+        }
+
+        Ok(Some(StyledString::Stack(stack)))
+    }
 }
 
 struct OutputAssetFilteredVisit {

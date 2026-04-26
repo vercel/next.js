@@ -36,8 +36,6 @@ import {
   type ResponseGenerator,
 } from '../../server/response-cache'
 
-import * as userland from 'VAR_USERLAND'
-
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
 // an empty string.
@@ -59,7 +57,26 @@ const routeModule = new AppRouteRouteModule({
   relativeProjectDir: process.env.__NEXT_RELATIVE_PROJECT_DIR || '',
   resolvedPagePath: 'VAR_RESOLVED_PAGE_PATH',
   nextConfigOutput,
-  userland,
+  // Always use a lazy require factory so that:
+  // - In dev: devRequestTimingInternalsEnd is set before userland executes,
+  //   correctly attributing module load time to application-code rather than
+  //   framework internals.
+  // - In all modes: async modules (route files with top-level await) are
+  //   handled correctly — require() returns a Promise for such modules, which
+  //   ensureUserland() awaits before the first request is handled. Eagerly
+  //   calling require() would pass that Promise directly to the constructor
+  //   and break _initFromUserland().
+  userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
+  // In Turbopack dev mode, also provide a synchronous per-request getter so
+  // server HMR updates are picked up without re-executing the entry chunk.
+  // Using require() (synchronous) avoids adding async overhead that would be
+  // incorrectly attributed to application-code time in devRequestTiming.
+  ...(process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER
+    ? {
+        getUserland: () =>
+          require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
+      }
+    : {}),
 })
 
 // Pull out the exports that we need to expose from the module. This should
@@ -160,7 +177,7 @@ export async function handler(
 
     if (prerenderInfo) {
       if (prerenderInfo.fallback === false && !isPrerendered) {
-        if (nextConfig.experimental.adapterPath) {
+        if (nextConfig.adapterPath) {
           return await render404()
         }
         throw new NoFallbackError()
@@ -203,18 +220,36 @@ export async function handler(
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
+  const isWrappedByNextServer = Boolean(
+    routerServerContext?.isWrappedByNextServer
+  )
+  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
+
+  const incrementalCache =
+    getRequestMeta(req, 'incrementalCache') ||
+    (await routeModule.getIncrementalCache(
+      req,
+      nextConfig,
+      prerenderManifest,
+      isMinimalMode
+    ))
+
+  incrementalCache?.resetRequestCache()
+  ;(globalThis as any).__incrementalCache = incrementalCache
 
   const context: AppRouteRouteHandlerContext = {
     params,
-    prerenderManifest,
+    previewProps: prerenderManifest.preview,
     renderOpts: {
       experimental: {
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       },
       cacheComponents: Boolean(nextConfig.cacheComponents),
       supportsDynamicResponse,
-      incrementalCache: getRequestMeta(req, 'incrementalCache'),
+      incrementalCache,
       cacheLifeProfiles: nextConfig.cacheLife,
+      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
       waitUntil: ctx.waitUntil,
       onClose: (cb) => {
         res.on('close', cb)
@@ -247,6 +282,7 @@ export async function handler(
   )
 
   try {
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) => {
       return routeModule.handle(nextReq, context).finally(() => {
         if (!span) return
@@ -274,22 +310,24 @@ export async function handler(
           return
         }
 
-        const route = rootSpanAttributes.get('next.route')
-        if (route) {
-          const name = `${method} ${route}`
+        const route = rootSpanAttributes.get('next.route') || normalizedSrcPage
+        const name = `${method} ${route}`
 
-          span.setAttributes({
-            'next.route': route,
-            'http.route': route,
-            'next.span_name': name,
-          })
-          span.updateName(name)
-        } else {
-          span.updateName(`${method} ${srcPage}`)
+        span.setAttributes({
+          'next.route': route,
+          'http.route': route,
+          'next.span_name': name,
+        })
+        span.updateName(name)
+
+        // Propagate http.route to the parent span if one exists (e.g.
+        // a platform-created HTTP span in adapter deployments).
+        if (parentSpan && parentSpan !== span) {
+          parentSpan.setAttribute('http.route', route)
+          parentSpan.updateName(name)
         }
       })
     }
-    const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
     const handleResponse = async (currentSpan?: Span) => {
       const responseGenerator: ResponseGenerator = async ({
@@ -479,22 +517,27 @@ export async function handler(
 
     // TODO: activeSpan code path is for when wrapped by
     // next-server can be removed when this is no longer used
-    if (activeSpan) {
+    if (isWrappedByNextServer && activeSpan) {
       await handleResponse(activeSpan)
     } else {
-      await tracer.withPropagatedContext(req.headers, () =>
-        tracer.trace(
-          BaseServerSpan.handleRequest,
-          {
-            spanName: `${method} ${srcPage}`,
-            kind: SpanKind.SERVER,
-            attributes: {
-              'http.method': method,
-              'http.target': req.url,
+      parentSpan = tracer.getActiveScopeSpan()
+      await tracer.withPropagatedContext(
+        req.headers,
+        () =>
+          tracer.trace(
+            BaseServerSpan.handleRequest,
+            {
+              spanName: `${method} ${srcPage}`,
+              kind: SpanKind.SERVER,
+              attributes: {
+                'http.method': method,
+                'http.target': req.url,
+              },
             },
-          },
-          handleResponse
-        )
+            handleResponse
+          ),
+        undefined,
+        !isWrappedByNextServer
       )
     }
   } catch (err) {

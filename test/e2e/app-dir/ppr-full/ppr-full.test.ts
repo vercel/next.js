@@ -2,7 +2,7 @@ import { nextTestSetup, isNextStart } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { links } from './components/links'
 import cheerio from 'cheerio'
-import { retry } from 'next-test-utils'
+import { getCacheHeader, retry } from 'next-test-utils'
 import { computeCacheBustingSearchParam } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
 type Page = {
@@ -47,18 +47,18 @@ const pages: Page[] = [
   },
 ]
 
-const addCacheBustingSearchParam = (
+const addCacheBustingSearchParam = async (
   pathname: string,
   headers: Record<string, string | string[] | undefined>
 ) => {
-  const cacheKey = computeCacheBustingSearchParam(
+  const cacheKey = await computeCacheBustingSearchParam(
     headers['next-router-prefetch'] ? '1' : '0',
     headers['next-router-segment-prefetch'],
     headers['next-router-state-tree'],
     headers['next-url']
   )
 
-  if (cacheKey === null) {
+  if (cacheKey.length === 0) {
     return pathname
   }
 
@@ -192,7 +192,7 @@ describe.skip('ppr-full', () => {
           if (isNextDeploy) {
             expect(cacheControl).toEqual('public, max-age=0, must-revalidate')
           } else if (isNextDev) {
-            expect(cacheControl).toEqual('no-store, must-revalidate')
+            expect(cacheControl).toEqual('no-cache, must-revalidate')
           } else if (dynamic === false || dynamic === 'force-static') {
             expect(cacheControl).toEqual(
               revalidate === undefined
@@ -582,7 +582,7 @@ describe.skip('ppr-full', () => {
               rsc: '1',
               'next-router-prefetch': '1',
             }
-            const urlWithCacheBusting = addCacheBustingSearchParam(
+            const urlWithCacheBusting = await addCacheBustingSearchParam(
               pathname,
               headers
             )
@@ -608,11 +608,7 @@ describe.skip('ppr-full', () => {
               )
             }
 
-            if (!isNextDeploy) {
-              expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-            } else {
-              expect(res.headers.get('x-vercel-cache')).toBe('HIT')
-            }
+            expect(getCacheHeader(res)).toBe('HIT')
           })
         })
 
@@ -623,7 +619,7 @@ describe.skip('ppr-full', () => {
             'next-router-prefetch': '1',
             'X-Test-Input': unexpected,
           }
-          const urlWithCacheBusting = addCacheBustingSearchParam(
+          const urlWithCacheBusting = await addCacheBustingSearchParam(
             pathname,
             headers
           )
@@ -643,7 +639,7 @@ describe.skip('ppr-full', () => {
       describe.each(pages)('for $pathname', ({ pathname, dynamic }) => {
         it('should have correct headers', async () => {
           const headers = { rsc: '1' }
-          const urlWithCacheBusting = addCacheBustingSearchParam(
+          const urlWithCacheBusting = await addCacheBustingSearchParam(
             pathname,
             headers
           )
@@ -662,9 +658,7 @@ describe.skip('ppr-full', () => {
           ])
 
           if (isNextDeploy) {
-            expect(res.headers.get('x-vercel-cache')).toMatch(
-              /MISS|HIT|PRERENDER/
-            )
+            expect(getCacheHeader(res)).toMatch(/MISS|HIT|PRERENDER/)
           } else {
             expect(res.headers.get('x-nextjs-cache')).toEqual(null)
           }
@@ -677,7 +671,7 @@ describe.skip('ppr-full', () => {
               rsc: '1',
               'X-Test-Input': expected,
             }
-            const urlWithCacheBusting = addCacheBustingSearchParam(
+            const urlWithCacheBusting = await addCacheBustingSearchParam(
               pathname,
               headers
             )
@@ -697,7 +691,7 @@ describe.skip('ppr-full', () => {
               rsc: '1',
               'X-Test-Input': unexpected,
             }
-            const urlWithCacheBusting = addCacheBustingSearchParam(
+            const urlWithCacheBusting = await addCacheBustingSearchParam(
               pathname,
               headers
             )

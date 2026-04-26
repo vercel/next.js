@@ -32,6 +32,7 @@ import RenderResult, {
   type AppPageRenderResultMetadata,
 } from '../render-result'
 import type { WorkStore } from '../app-render/work-async-storage.external'
+import { actionAsyncStorage } from '../app-render/action-async-storage.external'
 import { FlightRenderResult } from './flight-render-result'
 import {
   filterReqHeaders,
@@ -57,18 +58,24 @@ import {
   getServerModuleMap,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
+import { normalizeFilePath } from './segment-explorer-path'
+import { extractInfoFromServerReferenceId } from '../../shared/lib/server-reference-info'
+import type { ServerActionLogInfo } from '../dev/server-action-logger'
 import { RedirectStatusCode } from '../../client/components/redirect-status-code'
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { executeRevalidates } from '../revalidation-utils'
-import { getRequestMeta } from '../request-meta'
-import { setCacheBustingSearchParam } from '../../client/components/router-reducer/set-cache-busting-search-param'
+import { addRequestMeta, getRequestMeta } from '../request-meta'
+import { setCacheBustingSearchParamWithHash } from '../../client/components/router-reducer/set-cache-busting-search-param'
 import {
   ActionDidNotRevalidate,
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
+import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+
+const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -395,19 +402,15 @@ async function createRedirectRenderResult(
     forwardedHeaders.delete(ACTION_HEADER)
 
     try {
-      setCacheBustingSearchParam(fetchUrl, {
-        [NEXT_ROUTER_PREFETCH_HEADER]: forwardedHeaders.get(
-          NEXT_ROUTER_PREFETCH_HEADER
-        )
+      const cacheBustingSearchParam = await computeCacheBustingSearchParam(
+        forwardedHeaders.get(NEXT_ROUTER_PREFETCH_HEADER)
           ? ('1' as const)
           : undefined,
-        [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ??
-          undefined,
-        [NEXT_ROUTER_STATE_TREE_HEADER]:
-          forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
-        [NEXT_URL]: forwardedHeaders.get(NEXT_URL) ?? undefined,
-      })
+        forwardedHeaders.get(NEXT_ROUTER_SEGMENT_PREFETCH_HEADER) ?? undefined,
+        forwardedHeaders.get(NEXT_ROUTER_STATE_TREE_HEADER) ?? undefined,
+        forwardedHeaders.get(NEXT_URL) ?? undefined
+      )
+      setCacheBustingSearchParamWithHash(fetchUrl, cacheBustingSearchParam)
 
       const response = await fetch(fetchUrl, {
         method: 'GET',
@@ -611,9 +614,14 @@ export async function handleAction({
   workStore.fetchCache = 'default-no-store'
 
   const originHeader = req.headers['origin']
-  const originDomain =
-    typeof originHeader === 'string' && originHeader !== 'null'
-      ? new URL(originHeader).host
+  const originHost =
+    typeof originHeader === 'string'
+      ? // 'null' is a valid origin e.g. from privacy-sensitive contexts like sandboxed iframes.
+        // However, these contexts can still send along credentials like cookies,
+        // so we need to check if they're allowed cross-origin requests.
+        originHeader === 'null'
+        ? 'null'
+        : new URL(originHeader).host
       : undefined
   const host = parseHostHeader(req.headers)
 
@@ -626,15 +634,17 @@ export async function handleAction({
   }
   // This is to prevent CSRF attacks. If `x-forwarded-host` is set, we need to
   // ensure that the request is coming from the same host.
-  if (!originDomain) {
-    // This might be an old browser that doesn't send `host` header. We ignore
-    // this case.
+  if (!originHost) {
+    // This is a handcrafted request without an origin or a request from an unsafe browser.
+    // We'll let this through but log a warning.
+    // We can't guard against unsafe browsers and handcrafted requests can't contain
+    // user credentials that haven't been shared willingly.
     warning = 'Missing `origin` header from a forwarded Server Actions request.'
-  } else if (!host || originDomain !== host.value) {
+  } else if (!host || originHost !== host.value) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
-    if (isCsrfOriginAllowed(originDomain, serverActions?.allowedOrigins)) {
+    if (isCsrfOriginAllowed(originHost, serverActions?.allowedOrigins)) {
       // Ignore it
     } else {
       if (host) {
@@ -645,7 +655,7 @@ export async function handleAction({
           }\` header with value \`${limitUntrustedHeaderValueForLogs(
             host.value
           )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
-            originDomain
+            originHost
           )}\` from a forwarded Server Actions request. Aborting the action.`
         )
       } else {
@@ -693,8 +703,6 @@ export async function handleAction({
     'Cache-Control',
     'no-cache, no-store, max-age=0, must-revalidate'
   )
-
-  const { actionAsyncStorage } = ComponentMod
 
   const actionWasForwarded = Boolean(req.headers['x-action-forwarded'])
 
@@ -1080,6 +1088,44 @@ export async function handleAction({
             actionId!
           ]
 
+        // Log server action call in development when enabled
+        let logInfo: ServerActionLogInfo | null = null
+        const { type: actionType } = extractInfoFromServerReferenceId(actionId!)
+        if (
+          process.env.NODE_ENV === 'development' &&
+          ctx.renderOpts.logServerFunctions &&
+          // TODO: For now, skip logging for 'use cache' Server Functions as the
+          // output needs more work, or a different approach entirely.
+          actionType !== 'use-cache'
+        ) {
+          const serverActionsManifest = getServerActionsManifest()
+          const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
+          const actionInfo = serverActionsManifest[runtime]?.[actionId!]
+
+          if (actionInfo) {
+            const isInlineAction =
+              actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+
+            const projectDir =
+              ctx.renderOpts.dir ||
+              (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
+            const location = normalizeFilePath(projectDir, actionInfo.filename)
+
+            // Format function name for display
+            let functionName: string
+            if (isInlineAction) {
+              functionName = '<inline action>'
+            } else if (actionInfo.exportedName === 'default') {
+              functionName = 'default'
+            } else {
+              functionName = actionInfo.exportedName || '<action>'
+            }
+
+            logInfo = { functionName, args: boundActionArguments, location }
+          }
+        }
+
+        const startTime = performance.now()
         const { actionResult, skipPageRendering } =
           await executeActionAndPrepareForRender(
             actionHandler,
@@ -1089,6 +1135,16 @@ export async function handleAction({
             actionWasForwarded
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
+            if (logInfo) {
+              // Store server action log info to be logged after the request log
+              const duration = Math.round(performance.now() - startTime)
+              addRequestMeta(req, 'devServerActionLog', {
+                functionName: logInfo.functionName,
+                args: logInfo.args,
+                location: logInfo.location,
+                duration,
+              })
+            }
           })
 
         // For form actions, we need to continue rendering the page.
@@ -1222,6 +1278,12 @@ export async function handleAction({
   }
 }
 
+/**
+ * Limit on the number of arguments passed to a server action. This prevents
+ * stack overflow during `action.apply()` from malicious requests.
+ */
+const SERVER_ACTION_ARGS_LIMIT = 1000
+
 async function executeActionAndPrepareForRender<
   TFn extends (...args: any[]) => Promise<any>,
 >(
@@ -1236,6 +1298,12 @@ async function executeActionAndPrepareForRender<
 }> {
   requestStore.phase = 'action'
   let skipPageRendering = actionWasForwarded
+
+  if (args.length > SERVER_ACTION_ARGS_LIMIT) {
+    throw new Error(
+      `Server Action arguments list is too long (${args.length}). Maximum allowed is ${SERVER_ACTION_ARGS_LIMIT}.`
+    )
+  }
 
   try {
     const actionResult = await workUnitAsyncStorage.run(requestStore, () =>

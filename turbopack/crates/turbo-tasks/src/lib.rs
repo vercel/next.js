@@ -1,65 +1,38 @@
-//! A task scheduling and caching system that is focused on incremental
-//! execution.
-//!
-//! It defines 4 primitives:
-//! - **[Functions][macro@crate::function]:** Units of execution, invalidation, and reexecution.
-//! - **[Values][macro@crate::value]:** Data created, stored, and returned by functions.
-//! - **[Traits][macro@crate::value_trait]:** Traits that define a set of functions on values.
-//! - **[Collectibles][crate::TurboTasks::emit_collectible]:** Values emitted in functions that
-//!   bubble up the call graph and can be collected in parent functions.
-//!
-//! It also defines some derived elements from that:
-//! - **[Tasks][book-tasks]:** An instance of a function together with its arguments.
-//! - **[Cells][book-cells]:** The locations associated with tasks where values are stored. The
-//!   contents of a cell can change after the reexecution of a function.
-//! - **[`Vc`s ("Value Cells")][Vc]:** A reference to a cell or a return value of a function.
-//!
-//! A [`Vc`] can be read to get [a read-only reference][ReadRef] to the stored data, representing a
-//! snapshot of that cell at that point in time.
-//!
-//! On execution of functions, `turbo-tasks` will track which [`Vc`]s are read. Once any of these
-//! change, `turbo-tasks` will invalidate the task created from the function's execution and it will
-//! eventually be scheduled and reexecuted.
-//!
-//! Collectibles go through a similar process.
-//!
-//! [book-cells]: https://turbopack-rust-docs.vercel.sh/turbo-engine/cells.html
-//! [book-tasks]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html
-
+#![doc = include_str!("../README.md")]
 #![feature(trivial_bounds)]
 #![feature(min_specialization)]
-#![feature(try_trait_v2)]
 #![deny(unsafe_op_in_unsafe_fn)]
 #![feature(error_generic_member_access)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
-#![feature(never_type)]
-#![feature(downcast_unchecked)]
 #![feature(ptr_metadata)]
 #![feature(sync_unsafe_cell)]
 #![feature(async_fn_traits)]
+#![feature(impl_trait_in_assoc_type)]
+#![feature(const_type_name)]
 
 pub mod backend;
 mod capture_future;
 mod collectibles;
 mod completion;
 pub mod debug;
-mod display;
+#[doc = include_str!("../FORMATTING.md")]
+pub mod display;
 pub mod duration_span;
+mod dyn_task_inputs;
 mod effect;
+mod error;
 pub mod event;
 pub mod graph;
 mod id;
 mod id_factory;
 mod invalidation;
 mod join_iter_ext;
-mod key_value_pair;
 pub mod keyed;
-pub mod keyed_read_ref;
 #[doc(hidden)]
 pub mod macro_helpers;
-mod magic_any;
 mod manager;
+pub mod mapped_read_ref;
 mod marker_trait;
 pub mod message_queue;
 mod native_function;
@@ -68,6 +41,7 @@ mod output;
 pub mod panic_hooks;
 pub mod parallel;
 pub mod primitives;
+mod priority_runner;
 mod raw_vc;
 mod read_options;
 mod read_ref;
@@ -94,49 +68,54 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_macros::{TaskInput, function, value_impl};
+pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
 pub use crate::{
     capture_future::TurboTasksPanic,
     collectibles::CollectiblesSource,
     completion::{Completion, Completions},
-    display::ValueToString,
-    effect::{ApplyEffectsContext, Effects, apply_effects, effect, get_effects},
+    display::{ValueToString, ValueToStringRef},
+    dyn_task_inputs::{
+        DynTaskInputs, OwnedStackDynTaskInputs, StackDynTaskInputs, StackDynTaskInputsSlot,
+    },
+    effect::{Effect, EffectError, EffectStateStorage, Effects, emit_effect, take_effects},
+    error::PrettyPrintError,
     id::{ExecutionId, LocalTaskId, TRANSIENT_TASK_BIT, TaskId, TraitTypeId, ValueTypeId},
     invalidation::{
         InvalidationReason, InvalidationReasonKind, InvalidationReasonSet, Invalidator,
         get_invalidator,
     },
     join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt},
-    key_value_pair::KeyValuePair,
-    magic_any::MagicAny,
     manager::{
         CurrentCellRef, ReadCellTracking, ReadConsistency, ReadTracking, TaskPersistence,
-        TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused, UpdateInfo,
-        dynamic_call, emit, get_serialization_invalidator, mark_finished, mark_root,
-        mark_session_dependent, prevent_gc, run, run_once, run_once_with_reason, trait_call,
-        turbo_tasks, turbo_tasks_scope, turbo_tasks_weak, with_turbo_tasks,
+        TaskPriority, TurboTasks, TurboTasksApi, TurboTasksBackendApi, TurboTasksCallApi, Unused,
+        UpdateInfo, dynamic_call, emit, get_serialization_invalidator, mark_finished,
+        mark_session_dependent, mark_stateful, mark_top_level_task, prevent_gc, run, run_once,
+        run_once_with_reason, trait_call, turbo_tasks, turbo_tasks_scope, turbo_tasks_weak,
+        unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
     },
+    mapped_read_ref::MappedReadRef,
     output::OutputContent,
-    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError},
+    raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveRawVcFuture},
     read_options::{ReadCellOptions, ReadOutputOptions},
     read_ref::ReadRef,
     serialization_invalidation::SerializationInvalidator,
     spawn::{JoinHandle, block_for_future, block_in_place, spawn, spawn_blocking, spawn_thread},
-    state::{State, TransientState},
+    state::{State, parking_lot_mutex_bincode},
     task::{
         SharedReference, TypedSharedReference,
         task_input::{EitherTaskInput, TaskInput},
     },
     task_execution_reason::TaskExecutionReason,
-    trait_ref::{IntoTraitRef, TraitRef},
+    trait_ref::TraitRef,
     value::{TransientInstance, TransientValue},
-    value_type::{TraitMethod, TraitType, ValueType},
+    value_type::{TraitMethod, TraitType, ValueType, ValueTypePersistence},
     vc::{
-        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture, ResolvedVc,
-        Upcast, UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellKeyedCompareMode,
-        VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead, VcValueTrait, VcValueTraitCast,
-        VcValueType, VcValueTypeCast,
+        Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ReadVcFuture,
+        ResolveOperationVcFuture, ResolveVcFuture, ResolvedVc, ToResolvedVcFuture, Upcast,
+        UpcastStrict, ValueDefault, Vc, VcCast, VcCellCompareMode, VcCellHashedCompareMode,
+        VcCellKeyedCompareMode, VcCellNewMode, VcDefaultRead, VcRead, VcTransparentRead,
+        VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
     },
 };
 
@@ -180,12 +159,19 @@ macro_rules! fxindexset {
     };
 }
 
+#[doc = include_str!("../singleton_pattern.md")]
+pub mod _singleton_pattern {}
+
+#[doc = include_str!("../function.md")]
+#[rustfmt::skip]
+pub use turbo_tasks_macros::function;
+
 /// Implements [`VcValueType`] for the given `struct` or `enum`. These value types can be used
 /// inside of a "value cell" as [`Vc<...>`][Vc].
 ///
-/// A [`Vc`] represents a (potentially lazy) memoized computation. Each [`Vc`]'s value is placed
-/// into a cell associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get
-/// [a read-only reference to the value contained in the cell][ReadRef].
+/// A [`Vc`] represents the result of a computation. Each [`Vc`]'s value is placed into a cell
+/// associated with the current [`TaskId`]. That [`Vc`] object can be `await`ed to get [a read-only
+/// reference to the value contained in the cell][ReadRef].
 ///
 /// This macro accepts multiple comma-separated arguments. For example:
 ///
@@ -204,6 +190,7 @@ macro_rules! fxindexset {
 /// - **`"new"`:** Always overrides the value in the cell, invalidating all dependent tasks.
 /// - **`"compare"` *(default)*:** Compares with the existing value in the cell, before overriding it.
 ///   Requires the value to implement [`Eq`].
+/// - **`"keyed"`:** Like `"compare"`, but uses per-key invalidation for transparent map types.
 ///
 /// Avoiding unnecessary invalidation is important to reduce downstream recomputation of tasks that
 /// depend on this cell's value.
@@ -221,17 +208,35 @@ macro_rules! fxindexset {
 ///
 /// ## `serialization = "..."`
 ///
-/// Affects serialization via [`serde::Serialize`] and [`serde::Deserialize`]. Serialization is
-/// required for filesystem cache of tasks.
+/// Affects serialization via [`bincode::Encode`] and [`bincode::Decode`]. Serialization is required
+/// for the filesystem cache of tasks.
 ///
-/// - **`"auto"` *(default)*:** Derives the serialization traits and enables serialization.
-/// - **`"custom"`:** Prevents deriving the serialization traits, but still enables serialization
-///   (you must manually implement [`serde::Serialize`] and [`serde::Deserialize`]).
+/// - **`"auto"` *(default)*:** Derives the bincode traits and enables serialization.
+/// - **`"custom"`:** Prevents deriving the bincode traits, but still enables serialization
+///   (you must manually implement [`bincode::Encode`] and [`bincode::Decode`]).
+/// - **`"hash"`:** Like `"none"` (no bincode serialization), but instead stores a hash of the cell
+///   value so that changes can be detected even when the transient cell data has been evicted
+///   from memory or was never stored in the cache—avoiding unnecessary downstream invalidation.
+///   Only valid with `cell = "compare"`.
+///   Requires the value to implement both [`Eq`] and [`DeterministicHash`][turbo_tasks_hash::DeterministicHash].
 /// - **`"none"`:** Disables serialization and prevents deriving the traits.
+///
+/// ## `hash = "..."`
+///
+/// By default, when using `serialization = "hash"`, we `#[derive(DeterministicHash)]`. This argument allows
+/// overriding that default implementation behavior.
+///
+/// - **`"manual"`:** Prevents deriving [`DeterministicHash`][turbo_tasks_hash::DeterministicHash] so you can do it manually.
+///   Only valid with `serialization = "hash"`.
 ///
 /// ## `shared`
 ///
-/// Makes the `cell()` method public so everyone can use it.
+/// This flag makes the macro-generated `.cell()` method public so everyone can use it.
+///
+/// Non-transparent types are given a `.cell()` method. That method returns a `Vc` of the type.
+///
+/// This option does not apply to wrapper types that use `transparent`. Those use the public
+/// [`Vc::cell`] function for construction.
 ///
 /// ## `transparent`
 ///
@@ -261,26 +266,88 @@ macro_rules! fxindexset {
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
 
-/// Allows this trait to be used as part of a trait object inside of a value
-/// cell, in the form of `Vc<dyn MyTrait>`.
+/// Allows this trait to be used as part of a trait object inside of a value cell, in the form of
+/// `Vc<Box<dyn MyTrait>>`. The annotated trait is made into a subtrait of [`VcValueTrait`].
+///
+/// ```ignore
+/// #[turbo_tasks::value_trait]
+/// pub trait MyTrait {
+///
+///     #[turbo_tasks::function]
+///     fn method(self: Vc<Self>, a: i32) -> Vc<Something>;
+///
+///     // External signature: fn method(self: Vc<Self>, a: i32) -> Vc<Something>
+///     #[turbo_tasks::function]
+///     async fn method2(&self, a: i32) -> Result<Vc<Something>> {
+///         // Default implementation
+///     }
+///
+///     // A normal trait item, not a turbo-task
+///     fn normal(&self) -> SomethingElse;
+/// }
+///
+/// #[turbo_tasks::value_trait]
+/// pub trait OtherTrait: MyTrait + ValueToString {
+///     // ...
+/// }
+///
+/// #[turbo_tasks::value_impl]
+/// impl MyTrait for MyValue {
+///     // only the external signature must match (see the docs for #[turbo_tasks::function])
+///     #[turbo_tasks::function]
+///     fn method(&self, a: i32) -> Vc<Something> {
+///         todo!()
+///     }
+///
+///     fn normal(&self) -> SomethingElse {
+///         todo!()
+///     }
+/// }
+/// ```
+///
+/// The `#[turbo_tasks::value_trait]` annotation derives [`VcValueTrait`] and registers the trait
+/// and its methods.
+///
+/// All methods annotated with [`#[turbo_tasks::function]`][function] are cached, and
+/// the external signature rewriting rules defined on that macro are applied.
+///
+/// Default implementation are supported.
 ///
 /// ## Arguments
 ///
-/// Example: `#[turbo_tasks::value_trait(no_debug, resolved)]`
+/// Example: `#[turbo_tasks::value_trait(no_debug, operation)]`
 ///
-/// ### 'no_debug`
+/// ### `no_debug`
 ///
-/// Disables the automatic implementation of [`ValueDebug`][crate::debug::ValueDebug].
+/// Disables the automatic implementation of [`ValueDebug`][debug::ValueDebug].
 ///
 /// Example: `#[turbo_tasks::value_trait(no_debug)]`
 ///
-/// ### 'resolved`
+/// ### `Operation`
 ///
-/// Adds [`NonLocalValue`] as a supertrait of this trait.
+/// Adds [`OperationValue`] as a supertrait of this trait.
 ///
-/// Example: `#[turbo_tasks::value_trait(resolved)]`
+/// Example: `#[turbo_tasks::value_trait(operation)]`
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value_trait;
+
+/// A macro used on any `impl` block for a [`VcValueType`]. This can either be an inherent
+/// implementation or a trait implementation (see [`turbo_tasks::value_trait`][value_trait] and
+/// [`VcValueTrait`]).
+///
+/// Methods should be annotated with the [`#[turbo_tasks::function]`][function] macro.
+///
+/// ```ignore
+/// #[turbo_tasks::value_impl]
+/// impl MyTrait for MyValue {
+///     #[turbo_tasks::function]
+///     fn method(&self, a: i32) -> Vc<Something> {
+///         todo!()
+///     }
+/// }
+/// ```
+#[rustfmt::skip]
+pub use turbo_tasks_macros::value_impl;
 
 /// Derives the TaskStorage struct and generates optimized storage structures.
 ///
@@ -320,6 +387,10 @@ pub use turbo_tasks_macros::value_trait;
 /// - Serialization methods
 #[rustfmt::skip]
 pub use turbo_tasks_macros::task_storage;
+
+/// Refer to [the trait documentation][trait@TaskInput] for usage.
+#[rustfmt::skip]
+pub use turbo_tasks_macros::TaskInput;
 
 pub type TaskIdSet = AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>;
 

@@ -86,9 +86,20 @@ function formatMessage(
   }
   let lines = message.split('\n')
 
-  // Strip Webpack-added headers off errors/warnings
+  // Extract loader paths from Webpack-added headers and move them to end.
+  // Original format: "Module build failed (from ./loaders/foo-loader.js):"
+  // The header line is removed and the path is appended at the end as:
+  //   "  (from ./loaders/foo-loader.js)"
   // https://github.com/webpack/webpack/blob/master/lib/ModuleError.js
-  lines = lines.filter((line: string) => !/Module [A-z ]+\(from/.test(line))
+  const loaderPaths: string[] = []
+  lines = lines.filter((line: string) => {
+    const match = /Module [A-z ]+\(from (.+)\):?\s*$/.exec(line)
+    if (match) {
+      loaderPaths.push(match[1])
+      return false
+    }
+    return true
+  })
 
   // Transform parsing error into syntax error
   // TODO: move this to our ESLint formatter?
@@ -180,6 +191,16 @@ function formatMessage(
     )
 
     lines = message.split('\n')
+  }
+
+  // Append loader paths at the end (before any remaining stack trace)
+  if (loaderPaths.length > 0) {
+    for (const loaderPath of loaderPaths) {
+      // Don't show internal Next.js loader paths — they're noise for users
+      if (!/[/\\]next[/\\]dist[/\\]/.test(loaderPath)) {
+        lines.push(`  (from ${loaderPath})`)
+      }
+    }
   }
 
   // Remove duplicated newlines

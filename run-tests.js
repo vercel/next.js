@@ -6,6 +6,7 @@ const { existsSync } = require('fs')
 const fsp = require('fs/promises')
 const { createClient } = require('@vercel/kv')
 const { promisify } = require('util')
+const { createHash } = require('crypto')
 const { Sema } = require('async-sema')
 const { spawn, exec: execOrig } = require('child_process')
 const { createNextInstall } = require('./test/lib/create-next-install')
@@ -15,9 +16,165 @@ const core = require('@actions/core')
 const { getTestFilter } = require('./test/get-test-filter')
 const { checkBuildFreshness } = require('./test/lib/check-build-freshness')
 
+// --- Test profile and result caching via turbo remote cache ---
+// On CI retry attempts, skip tests that already passed on this commit.
+
+class TestProfile {
+  // Env vars that always affect test behavior (non-NEXT prefixed).
+  static EXTRA_ENV_VARS = [
+    'IS_WEBPACK_TEST',
+    'IS_TURBOPACK_TEST',
+    'TURBOPACK_DEV',
+    'TURBOPACK_BUILD',
+    'BROWSER_NAME',
+    'DEVICE_NAME',
+  ]
+
+  // NEXT_* / __NEXT* vars that are operational, not behavioral.
+  static IGNORED_VARS = new Set([
+    'NEXT_TELEMETRY_DISABLED',
+    'NEXT_TEST_JOB',
+    'NEXT_JUNIT_TEST_REPORT',
+    'NEXT_TEST_PREFER_OFFLINE',
+    'NEXT_CI_RUNNER',
+    'NEXT_E2E_TEST_TIMEOUT',
+    'NEXT_TURBOPACK_IO_CONCURRENCY',
+  ])
+
+  // All key=value pairs that form the cache identity, sorted by key.
+  // Computed once at construction from a snapshot of process.env.
+  entries
+  // NEXT_*/__NEXT* vars that matched the pattern but were ignored.
+  ignoredVars
+  cachingEnabled
+  #cacheKey
+
+  constructor({ group = '', type = '', testPattern = '' } = {}) {
+    this.cachingEnabled = !!(
+      process.env.CI &&
+      process.env.TURBO_TOKEN &&
+      process.env.GITHUB_SHA &&
+      !process.env.NEXT_FLAKE_DETECTION &&
+      !process.env.NEXT_TEST_SKIP_RESULT_CACHE
+    )
+
+    // Snapshot env at construction time so dynamic vars set during the run
+    // (e.g. NEXT_TEST_STARTER, NEXT_TEST_PKG_PATHS) don't pollute the key.
+    const env = { ...process.env }
+
+    // Collect env vars that affect test behavior
+    const vars = new Map()
+    for (const v of TestProfile.EXTRA_ENV_VARS) {
+      if (env[v]) vars.set(v, env[v])
+    }
+    const ignored = []
+    for (const key of Object.keys(env)) {
+      if (
+        (key.startsWith('NEXT_') || key.startsWith('__NEXT')) &&
+        !key.startsWith('NEXT_SKIP_')
+      ) {
+        if (TestProfile.IGNORED_VARS.has(key)) {
+          ignored.push(key)
+        } else {
+          vars.set(key, env[key])
+        }
+      }
+    }
+    this.ignoredVars = ignored.sort()
+
+    // Build the single sorted entries list used for hashing, logging, and descriptions.
+    const branch =
+      process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || ''
+    const map = new Map([
+      ['os', process.platform],
+      ['branch', branch],
+      ['sha', process.env.GITHUB_SHA || ''],
+      ['node', process.versions.node.split('.')[0]],
+    ])
+    if (group) map.set('group', group)
+    if (type) map.set('type', type)
+    if (testPattern) map.set('testPattern', testPattern)
+    for (const [k, v] of [...vars.entries()].sort((a, b) =>
+      a[0].localeCompare(b[0])
+    )) {
+      map.set(k, v)
+    }
+    this.entries = [...map.entries()]
+  }
+
+  get cacheKey() {
+    if (!this.#cacheKey) {
+      const hash = createHash('sha256')
+      hash.update('test-result-v2\0')
+      for (const [k, v] of this.entries) {
+        hash.update(`${k}=${v}\0`)
+      }
+      this.#cacheKey = hash.digest('hex')
+    }
+    return this.#cacheKey
+  }
+
+  get description() {
+    return this.entries
+      .map(([k, v]) => (k === 'sha' ? `sha=${v?.slice(0, 10)}` : `${k}=${v}`))
+      .join(' | ')
+  }
+
+  log() {
+    console.log(`\nTest profile:`)
+    for (const [k, v] of this.entries) {
+      console.log(`  ${k}=${k === 'sha' ? v?.slice(0, 10) : v}`)
+    }
+    if (this.ignoredVars.length > 0) {
+      console.log(`  Ignored: ${this.ignoredVars.join(', ')}`)
+    }
+    console.log(`  Caching: ${this.cachingEnabled ? 'enabled' : 'disabled'}`)
+    console.log('')
+  }
+
+  // --- Cache operations ---
+
+  #turboCache = null
+  async #getTurboCache() {
+    if (this.#turboCache) return this.#turboCache
+    if (!this.cachingEnabled) return null
+    try {
+      this.#turboCache = await import('./scripts/turbo-cache.mjs')
+      return this.#turboCache
+    } catch {
+      return null
+    }
+  }
+
+  async loadPassedTests() {
+    try {
+      const cache = await this.#getTurboCache()
+      if (!cache) return new Set()
+      const data = await cache.get(this.cacheKey)
+      if (!data) return new Set()
+      const parsed = JSON.parse(data.toString())
+      return new Set(parsed.passed || [])
+    } catch {
+      return new Set()
+    }
+  }
+
+  async savePassedTests(passedFiles) {
+    try {
+      const cache = await this.#getTurboCache()
+      if (!cache) return false
+      const payload = JSON.stringify({ passed: [...passedFiles].sort() })
+      await cache.put(this.cacheKey, Buffer.from(payload))
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.3";
+const nextjsReactPeerVersion = "19.2.5";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -32,6 +189,11 @@ let argv = require('yargs/yargs')(process.argv.slice(2))
   .boolean('dry')
   .boolean('print-tests')
   .describe('print-tests', 'Prints the test files that will be run')
+  .boolean('require-timings')
+  .describe(
+    'require-timings',
+    'Require test-timings.json from disk; fail if missing instead of falling back to KV or round-robin'
+  )
   .boolean('local')
   .alias('c', 'concurrency').argv
 
@@ -113,13 +275,14 @@ const mockTrace = () => ({
 
 // which types we have configured to run separate
 const configuredTestTypes = Object.values(testFilters)
+/** @type {Map<string, { output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 
 async function maybeLogSummary() {
   if (process.env.CI && errorsPerTests.size > 0) {
     const outputTemplate = `
 ${Array.from(errorsPerTests.entries())
-  .map(([test, output]) => {
+  .map(([test, { output }]) => {
     return `
 <details>
 <summary>${test}</summary>
@@ -133,20 +296,27 @@ ${output}
   })
   .join('\n')}`
 
+    // Build table rows with one row per failed test case
+    const tableRows = []
+    for (const [test, { failedCases }] of errorsPerTests.entries()) {
+      const testLink = `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`
+      if (failedCases.length === 0) {
+        tableRows.push(['Unknown', testLink])
+      } else {
+        for (const caseName of failedCases) {
+          tableRows.push([caseName, testLink])
+        }
+      }
+    }
+
     await core.summary
       .addHeading('Tests failures')
       .addTable([
         [
-          {
-            data: 'Test suite',
-            header: true,
-          },
+          { data: 'Test Name', header: true },
+          { data: 'Test Path', header: true },
         ],
-        ...Array.from(errorsPerTests.entries()).map(([test]) => {
-          return [
-            `<a href="https://github.com/vercel/next.js/blob/canary/${test}">${test}</a>`,
-          ]
-        }),
+        ...tableRows,
       ])
       .addRaw(outputTemplate)
       .write()
@@ -164,12 +334,6 @@ const cleanUpAndExit = async (code) => {
 
   if (process.env.NEXT_TEST_STARTER) {
     await fsp.rm(process.env.NEXT_TEST_STARTER, {
-      recursive: true,
-      force: true,
-    })
-  }
-  if (process.env.NEXT_TEST_TEMP_REPO) {
-    await fsp.rm(process.env.NEXT_TEST_TEMP_REPO, {
       recursive: true,
       force: true,
     })
@@ -225,6 +389,7 @@ async function main() {
     testPattern: argv.testPattern ?? false,
     type: argv.type ?? false,
     retries: argv.retries ?? DEFAULT_NUM_RETRIES,
+    requireTimings: argv.requireTimings ?? false,
     dry: argv.dry ?? false,
     local: argv.local ?? false,
     printTests: argv.printTests ?? false,
@@ -256,6 +421,13 @@ async function main() {
     'in test mode',
     process.env.NEXT_TEST_MODE
   )
+
+  const profile = new TestProfile({
+    group: String(options.group || ''),
+    type: String(options.type || ''),
+    testPattern: String(options.testPattern || ''),
+  })
+  profile.log()
 
   // Only fetch/update shared timing data during grouped CI runs to avoid
   // individual test runs from polluting the timing data
@@ -314,13 +486,21 @@ async function main() {
       prevTimings = JSON.parse(await fsp.readFile(timingsFile, 'utf8'))
       console.log('Loaded test timings from disk successfully')
     } catch (_) {
+      if (options.requireTimings) {
+        console.error(
+          'ERROR: --require-timings is set but test-timings.json could not be loaded from disk:',
+          _
+        )
+        await cleanUpAndExit(1)
+        return
+      }
       console.error(
         'Failed to load test timings from disk. Proceeding to fetch from KV store. Original error: ',
         _
       )
     }
 
-    if (!prevTimings) {
+    if (!prevTimings && !options.requireTimings) {
       try {
         prevTimings = await getTestTimings()
         if (prevTimings) {
@@ -404,6 +584,15 @@ async function main() {
         Math.round(groupTimes[curGroupIdx]) + 's'
       )
     } else {
+      if (options.requireTimings) {
+        console.error(
+          'ERROR: --require-timings is set but no timing data is available for sharding. ' +
+            'Ensure test-timings.json is provided.'
+        )
+        await cleanUpAndExit(1)
+        return
+      }
+
       // assign every nth test "round-robin" to the group, so that similar slow
       // tests tend not to get clustered together
       tests = tests.filter((_value, idx) => idx % groupTotal === groupPos - 1)
@@ -448,13 +637,12 @@ ${ENDGROUP}`)
     console.log(`${GROUP}Creating shared Next.js install`)
     const reactVersion =
       process.env.NEXT_TEST_REACT_VERSION || nextjsReactPeerVersion
-    const { installDir, pkgPaths, tmpRepoDir } = await createNextInstall({
+    const { installDir, pkgPaths } = await createNextInstall({
       parentSpan: mockTrace(),
       dependencies: {
         react: reactVersion,
         'react-dom': reactVersion,
       },
-      keepRepoDir: true,
     })
 
     const serializedPkgPaths = []
@@ -463,7 +651,6 @@ ${ENDGROUP}`)
       serializedPkgPaths.push([key, pkgPaths.get(key)])
     }
     process.env.NEXT_TEST_PKG_PATHS = JSON.stringify(serializedPkgPaths)
-    process.env.NEXT_TEST_TEMP_REPO = tmpRepoDir
     process.env.NEXT_TEST_STARTER = installDir
     console.log(`${ENDGROUP}`)
   }
@@ -489,6 +676,7 @@ ${ENDGROUP}`)
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
+        '--no-cache',
         '--verbose',
         ...(isTestJob
           ? ['--json', `--outputFile=${test.file}${RESULTS_EXT}`]
@@ -501,6 +689,7 @@ ${ENDGROUP}`)
               `^(?!(?:${test.excludedCases.map(escapeRegexp).join('|')})$).`,
             ]),
       ]
+      const deferNextTestWasm = !!process.env.NEXT_TEST_WASM
       const env = {
         // run tests in headless mode by default
         HEADLESS: 'true',
@@ -539,6 +728,13 @@ ${ENDGROUP}`)
                 .filter(Boolean)
                 .join(':'),
             }),
+        ...(deferNextTestWasm
+          ? {
+              // Let Next/Jest initialize native SWC for the transformer first.
+              NEXT_TEST_WASM: undefined,
+              NEXT_TEST_WASM_AFTER_JEST: process.env.NEXT_TEST_WASM,
+            }
+          : {}),
         ...(isFinalRun
           ? {
               // Events can be finicky in CI. This switches to a more
@@ -608,7 +804,7 @@ ${ENDGROUP}`)
             }
 
             if (process.env.CI) {
-              errorsPerTests.set(test.file, output)
+              errorsPerTests.set(test.file, { output, failedCases: [] })
             }
 
             if (isExpanded) {
@@ -653,7 +849,32 @@ ${ENDGROUP}`)
       })
     })
 
+  const isRetryAttempt =
+    process.env.CI && parseInt(process.env.GITHUB_RUN_ATTEMPT || '1', 10) > 1
+  const passedTestFiles = new Set()
+
+  // On retry, load previously-passed tests and filter them out
+  let cachedPassedTests = new Set()
+  if (isRetryAttempt) {
+    cachedPassedTests = await profile.loadPassedTests()
+    if (cachedPassedTests.size > 0) {
+      console.log(
+        `Test result cache: loaded ${cachedPassedTests.size} passed test(s) (${profile.description})`
+      )
+    } else {
+      console.log(`Test result cache: miss (${profile.description})`)
+    }
+  }
+
   const runTest = async (/** @type {TestFile} */ test) => {
+    // On CI retry attempts, skip tests that already passed on this commit
+    if (cachedPassedTests.has(test.file)) {
+      console.log(
+        `${test.file} already passed on this commit (cached) — skipping`
+      )
+      return
+    }
+
     let passed = false
 
     for (let i = 0; i < numRetries + 1; i++) {
@@ -689,20 +910,47 @@ ${ENDGROUP}`)
       }
     }
 
+    if (passed) {
+      passedTestFiles.add(test.file)
+    }
+
     if (!passed) {
       hadFailures = true
       // "failed to pass within" is a keyword parsed by next-pr-webhook
       console.error(`${test.file} failed to pass within ${numRetries} retries`)
     }
 
-    // Emit test output, parsed by the commenter webhook to notify about failing tests
-    if (!passed && isTestJob) {
+    // Emit test output, parsed by the commenter webhook to notify about failing tests.
+    // Also emit for all tests when NEXT_TEST_EMIT_ALL_OUTPUT is set (for manifest generation).
+    if ((!passed || process.env.NEXT_TEST_EMIT_ALL_OUTPUT) && isTestJob) {
       try {
         const testsOutput = await fsp.readFile(
           `${test.file}${RESULTS_EXT}`,
           'utf8'
         )
         const obj = JSON.parse(testsOutput)
+
+        // Extract failed test case names from Jest JSON output
+        if (!passed && process.env.CI) {
+          const failedCases = []
+          for (const testResult of obj.testResults || []) {
+            for (const assertion of testResult.assertionResults || []) {
+              if (assertion.status === 'failed') {
+                const caseName = [
+                  ...(assertion.ancestorTitles || []),
+                  assertion.title,
+                ].join(' > ')
+                failedCases.push(caseName)
+              }
+            }
+          }
+          // Update errorsPerTests with failed case names
+          const existing = errorsPerTests.get(test.file)
+          if (existing) {
+            existing.failedCases = failedCases
+          }
+        }
+
         obj.processEnv = {
           NEXT_TEST_MODE: process.env.NEXT_TEST_MODE,
           HEADLESS: process.env.HEADLESS,
@@ -752,6 +1000,25 @@ ${ENDGROUP}`)
     if (result.status === 'rejected') {
       hadFailures = true
       console.error(result.reason)
+    }
+  }
+
+  // Save all passed tests (from this run + previously cached) as a single cache entry
+  if (process.env.CI && passedTestFiles.size > 0) {
+    const allPassed = new Set([...cachedPassedTests, ...passedTestFiles])
+    const saved = await profile.savePassedTests(allPassed)
+    if (saved) {
+      console.log(
+        `Test result cache: saved ${allPassed.size} passed test(s) (${profile.description})`
+      )
+    }
+  }
+  if (cachedPassedTests.size > 0) {
+    const skipped = tests.filter((t) => cachedPassedTests.has(t.file)).length
+    if (skipped > 0) {
+      console.log(
+        `Test result cache: skipped ${skipped} cached, re-ran ${tests.length - skipped}`
+      )
     }
   }
 

@@ -1,23 +1,40 @@
 import type {
   ReadonlyReducerState,
   ReducerState,
+  RefreshAction,
 } from '../router-reducer-types'
+import { ScrollBehavior } from '../router-reducer-types'
 import {
   convertServerPatchToFullTree,
   navigateToKnownRoute,
 } from '../../segment-cache/navigation'
-import { revalidateEntireCache } from '../../segment-cache/cache'
+import { invalidateSegmentCacheEntries } from '../../segment-cache/cache'
 import { hasInterceptionRouteInCurrentTree } from './has-interception-route-in-current-tree'
 import { FreshnessPolicy } from '../ppr-navigations'
-import { invalidateBfCache } from '../../segment-cache/bfcache'
+import {
+  invalidateBfCache,
+  UnknownDynamicStaleTime,
+} from '../../segment-cache/bfcache'
 
-export function refreshReducer(state: ReadonlyReducerState): ReducerState {
-  // TODO: Currently, all refreshes purge the prefetch cache. In the future,
-  // only client-side refreshes will have this behavior; the server-side
-  // `refresh` should send new data without purging the prefetch cache.
-  const currentNextUrl = state.nextUrl
-  const currentRouterState = state.tree
-  revalidateEntireCache(currentNextUrl, currentRouterState)
+export function refreshReducer(
+  state: ReadonlyReducerState,
+  action: RefreshAction
+): ReducerState {
+  // During a refresh, we invalidate the segment cache but not the route cache.
+  // The route cache contains the tree structure (which segments exist at a
+  // given URL) which doesn't change during a refresh. The segment cache
+  // contains the actual RSC data which needs to be re-fetched.
+  //
+  // The Instant Navigation Testing API can bypass cache invalidation to
+  // preserve prefetched data when refreshing after an MPA navigation. This is
+  // only used for testing and is not exposed in production builds by default.
+  const bypassCacheInvalidation =
+    process.env.__NEXT_EXPOSE_TESTING_API && action.bypassCacheInvalidation
+  if (!bypassCacheInvalidation) {
+    const currentNextUrl = state.nextUrl
+    const currentRouterState = state.tree
+    invalidateSegmentCacheEntries(currentNextUrl, currentRouterState)
+  }
   return refreshDynamicData(state, FreshnessPolicy.RefreshAll)
 }
 
@@ -43,19 +60,23 @@ export function refreshDynamicData(
   const currentUrl = new URL(currentCanonicalUrl, location.origin)
   const currentRenderedSearch = state.renderedSearch
   const currentFlightRouterState = state.tree
-  const shouldScroll = false
+  const scrollBehavior = ScrollBehavior.NoScroll
 
   // Create a NavigationSeed from the current FlightRouterState.
   // TODO: Eventually we will store this type directly on the state object
   // instead of reconstructing it on demand. Part of a larger series of
   // refactors to unify the various tree types that the client deals with.
+  const now = Date.now()
+  // TODO: Store the dynamic stale time on the top-level state so it's known
+  // during restores and refreshes.
   const refreshSeed = convertServerPatchToFullTree(
+    now,
     currentFlightRouterState,
     null,
-    currentRenderedSearch
+    currentRenderedSearch,
+    UnknownDynamicStaleTime
   )
 
-  const now = Date.now()
   const navigateType = 'replace'
   return navigateToKnownRoute(
     now,
@@ -69,8 +90,13 @@ export function refreshDynamicData(
     currentFlightRouterState,
     freshnessPolicy,
     nextUrlForRefresh,
-    shouldScroll,
+    scrollBehavior,
     navigateType,
+    null,
+    // Refresh navigations don't use route prediction, so there's no route
+    // cache entry to mark as having a dynamic rewrite on mismatch. If a
+    // mismatch occurs, the retry handler will traverse the known route tree
+    // to find and mark the entry.
     null
   )
 }

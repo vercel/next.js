@@ -13,7 +13,7 @@ describe('app-dir with proxy', () => {
     it('should log compilation time', async () => {
       await next.browser('/')
       expect(next.cliOutput).toMatch(
-        /GET \/ 200 in .* \(compile:.*, proxy.ts:.*, render:.*\)/
+        /GET \/ 200 in .* \(next\.js:.*, proxy\.ts:.*, application-code:.*\)/
       )
     })
   }
@@ -134,6 +134,14 @@ describe('app-dir with proxy', () => {
     expect(res.headers.get('link')).toContain(
       '<https://example.com/page>; rel="alternate"; hreflang="en"'
     )
+  })
+
+  it('should support unstable_cache in proxy', async () => {
+    const res = await next.fetch('/unstable-cache')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      value: expect.any(String),
+    })
   })
 
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {

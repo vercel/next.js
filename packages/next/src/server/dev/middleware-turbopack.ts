@@ -1,5 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import {
+  DEVTOOLS_CODE_FRAME_MAX_WIDTH,
   getOriginalCodeFrame,
   ignoreListAnonymousStackFramesIfSandwiched,
   type IgnorableStackFrame,
@@ -87,9 +88,9 @@ async function batchedTraceSource(
 
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
-    shouldIgnorePath(originalFile ?? sourceFrame.file) ||
-    // isInternal means resource starts with turbopack:///[turbopack]
-    !!sourceFrame.isInternal
+    // Check the sourcemap's ignoreList (e.g. from 3rd party packages)
+    !!sourceFrame.isIgnored ||
+    shouldIgnorePath(originalFile ?? sourceFrame.file)
   if (originalFile && !ignored) {
     let sourcePromise = currentSourcesByFile.get(originalFile)
     if (!sourcePromise) {
@@ -104,7 +105,6 @@ async function batchedTraceSource(
     source = await sourcePromise
   }
 
-  // TODO: get ignoredList from turbopack source map
   const ignorableFrame: IgnorableStackFrame = {
     file: sourceFrame.file,
     line1: sourceFrame.line ?? null,
@@ -308,16 +308,29 @@ async function createOriginalStackFrame(
     )
   }
 
+  /** undefined = not yet computed */
+  let originalCodeFrame: string | null | undefined
+
+  const tracedFrame = traced.frame
   return {
     originalStackFrame: {
-      arguments: traced.frame.arguments,
+      arguments: tracedFrame.arguments,
       file: normalizedStackFrameLocation,
-      line1: traced.frame.line1,
-      column1: traced.frame.column1,
-      ignored: traced.frame.ignored,
-      methodName: traced.frame.methodName,
+      line1: tracedFrame.line1,
+      column1: tracedFrame.column1,
+      ignored: tracedFrame.ignored,
+      methodName: tracedFrame.methodName,
     },
-    originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
+    get originalCodeFrame() {
+      if (originalCodeFrame === undefined) {
+        originalCodeFrame = getOriginalCodeFrame(tracedFrame, traced.source, {
+          // The overlay renders in a browser with horizontal scrolling,
+          // so don't truncate lines to the server's terminal width.
+          maxWidth: DEVTOOLS_CODE_FRAME_MAX_WIDTH,
+        })
+      }
+      return originalCodeFrame
+    },
   }
 }
 
@@ -508,7 +521,18 @@ export async function getOriginalStackFrames({
             reason: 'Failed to create original stack frame',
           }
         }
-        return { status: 'fulfilled', value: stackFrame }
+        const originalStackFrame = stackFrame.originalStackFrame
+        return {
+          status: 'fulfilled',
+          value: {
+            originalStackFrame,
+            originalCodeFrame:
+              (originalStackFrame?.ignored ?? true)
+                ? null
+                : // TODO: Don't get all codeframes of non-ignored frames eagerly.
+                  stackFrame.originalCodeFrame,
+          },
+        }
       } catch (error) {
         return {
           status: 'rejected',

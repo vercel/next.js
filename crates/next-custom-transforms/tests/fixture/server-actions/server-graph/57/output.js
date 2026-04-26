@@ -15,7 +15,7 @@ export const $$RSC_SERVER_ACTION_1 = async function bar() {
     console.log(42);
 };
 registerServerReference($$RSC_SERVER_ACTION_1, "0090b5db271335765a4b0eab01f044b381b5ebd5cd", null);
-/* __next_internal_action_entry_do_not_use__ {"0090b5db271335765a4b0eab01f044b381b5ebd5cd":"$$RSC_SERVER_ACTION_1","803128060c414d59f8552e4788b846c0d2b7f74743":"$$RSC_SERVER_CACHE_0"} */ export class MyClass {
+/* __next_internal_action_entry_do_not_use__ {"0090b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"},"803128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ export class MyClass {
     static foo = $$RSC_SERVER_CACHE_0;
     static bar = $$RSC_SERVER_ACTION_1;
 }

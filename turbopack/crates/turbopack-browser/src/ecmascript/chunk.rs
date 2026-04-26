@@ -17,6 +17,8 @@ use crate::{BrowserChunkingContext, ecmascript::content::EcmascriptBrowserChunkC
 
 /// Development Ecmascript chunk.
 #[turbo_tasks::value(shared)]
+#[derive(ValueToString)]
+#[value_to_string("Ecmascript Dev Chunk")]
 pub struct EcmascriptBrowserChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     chunk: ResolvedVc<EcmascriptChunk>,
@@ -53,14 +55,6 @@ impl EcmascriptBrowserChunk {
         self.chunk
             .ident()
             .with_modifier(rcstr!("ecmascript dev chunk"))
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptBrowserChunk {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("Ecmascript Dev Chunk"))
     }
 }
 
@@ -133,11 +127,6 @@ impl OutputAsset for EcmascriptBrowserChunk {
         Ok(this
             .chunking_context
             .chunk_path(Some(Vc::upcast(self)), ident, None, rcstr!(".js")))
-    }
-
-    #[turbo_tasks::function]
-    fn size_bytes(self: Vc<Self>) -> Vc<Option<u64>> {
-        self.own_content().content().len()
     }
 }
 

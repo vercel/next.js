@@ -73,10 +73,7 @@ function createTagsExpirationsByCacheKind(
 
 export async function getImplicitTags(
   page: string,
-  url: {
-    pathname: string
-    search?: string
-  },
+  pathname: string,
   fallbackRouteParams: null | OpaqueFallbackRouteParams
 ): Promise<ImplicitTags> {
   const tags = new Set<string>()
@@ -90,11 +87,8 @@ export async function getImplicitTags(
 
   // Add the tags from the pathname. If the route has unknown params, we don't
   // want to add the pathname as a tag, as it will be invalid.
-  if (
-    url.pathname &&
-    (!fallbackRouteParams || fallbackRouteParams.size === 0)
-  ) {
-    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${url.pathname}`
+  if (pathname && (!fallbackRouteParams || fallbackRouteParams.size === 0)) {
+    const tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${pathname}`
     tags.add(tag)
   }
 

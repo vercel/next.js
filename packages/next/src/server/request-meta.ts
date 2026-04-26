@@ -1,5 +1,6 @@
-import type { IncomingMessage } from 'http'
+import type { IncomingMessage, ServerResponse } from 'http'
 import type { ParsedUrlQuery } from 'querystring'
+import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
@@ -11,6 +12,7 @@ import type {
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import type { OpaqueFallbackRouteParams } from './request/fallback-params'
 import type { IncrementalCache } from './lib/incremental-cache'
+import type { RevalidateFn } from './lib/router-utils/router-server-context'
 import type { NextRequest } from './web/exports'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
@@ -81,9 +83,16 @@ export interface RequestMeta {
   didStripLocale?: boolean
 
   /**
-   * If the request had it's URL rewritten, this is the URL it was rewritten to.
+   * If the request had its URL rewritten, this is the pathname it was rewritten
+   * to (not a full URL, just the pathname).
    */
-  rewroteURL?: string
+  rewrittenPathname?: string
+
+  /**
+   * The resolved pathname for the request. Dynamic route params are
+   * interpolated, the pathname is decoded, and the trailing slash is removed.
+   */
+  resolvedPathname?: string
 
   /**
    * The cookies that were added by middleware and were added to the response.
@@ -212,6 +221,14 @@ export interface RequestMeta {
   renderFallbackShell?: boolean
 
   /**
+   * Route param keys that were explicitly resolved from partial nxtP*
+   * query params during background revalidation. Used by app-page.ts to
+   * determine which fallback params should remain deferred vs resolved
+   * in intermediate PPR shells.
+   */
+  resolvedRouteParamKeys?: Set<string>
+
+  /**
    * Whether the request is for the custom error page.
    */
   customErrorRender?: true
@@ -249,6 +266,27 @@ export interface RequestMeta {
   distDir?: string
 
   /**
+    Optional hostname used by route handlers when constructing absolute URLs.
+    hostname: '127.0.0.1',
+   */
+  hostname?: string
+
+  /**
+   Optional internal revalidate function to avoid revalidating over the network
+   */
+  revalidate?: RevalidateFn
+
+  /**
+   Optional function to render the 404 page for pages router `notFound: true`
+   */
+  render404?: (
+    req: IncomingMessage,
+    res: ServerResponse,
+    parsedUrl?: UrlWithParsedQuery,
+    setHeaders?: boolean
+  ) => Promise<void>
+
+  /**
    * The query after resolving routes
    */
   query?: ParsedUrlQuery
@@ -270,9 +308,10 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
-   * DEV only: The fallback params that should be used when validating prerenders during dev
+   * The fallback params for this route. In dev, used for validating prerenders.
+   * In production, used to defer params resolution during staged rendering.
    */
-  devFallbackParams?: OpaqueFallbackRouteParams
+  fallbackParams?: OpaqueFallbackRouteParams
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()
@@ -286,6 +325,16 @@ export interface RequestMeta {
    * DEV only: The duration of getStaticPaths/generateStaticParams in process.hrtime.bigint()
    */
   devGenerateStaticParamsDuration?: bigint
+
+  /**
+   * DEV only: Server action log info to be logged after the request log
+   */
+  devServerActionLog?: {
+    functionName: string
+    args: unknown[]
+    location: string
+    duration: number
+  }
 }
 
 /**

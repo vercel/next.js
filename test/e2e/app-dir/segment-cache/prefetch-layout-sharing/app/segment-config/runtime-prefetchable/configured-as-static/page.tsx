@@ -2,11 +2,9 @@ import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-// Technically, no `export const unstable_prefetch = ...` is needed, because we default to static,
+// Technically, no `export const unstable_instant = ...` is needed, because we default to static,
 // this is just to make sure that we excercise the codepaths for it
-export const unstable_prefetch = {
-  mode: 'static',
-}
+export const unstable_instant = true
 export default function Page() {
   return (
     <main>

@@ -94,6 +94,10 @@ static KNOWN_PURE_FUNCTIONS: phf::Map<&'static str, phf::Set<&'static str>> = ph
     "Array" => phf_set! {
         "isArray", "from", "of",
     },
+    // Symbol static methods
+    "Symbol" => phf_set! {
+        "for", "keyFor"
+    },
 };
 
 /// Known pure global functions that can be called directly (not as methods).
@@ -747,17 +751,14 @@ impl<'a> Visit for SideEffectVisitor<'a> {
             Expr::Yield(e) => {
                 e.arg.visit_with(self);
             }
-            Expr::TaggedTpl(tagged_tpl) => {
+            Expr::TaggedTpl(tagged_tpl)
                 // Tagged template literals are function calls
                 // But some are known to be pure, like String.raw
-                if self.is_known_pure_builtin_function(&tagged_tpl.tag) {
+                if self.is_known_pure_builtin_function(&tagged_tpl.tag) => {
                     for arg in &tagged_tpl.tpl.exprs {
                         arg.visit_with(self);
                     }
-                } else {
-                    self.mark_side_effect();
                 }
-            }
             Expr::OptChain(opt_chain) => {
                 // Optional chaining can be pure if it's just member access
                 // But if it's an optional call, it has side effects
@@ -1362,6 +1363,15 @@ mod tests {
         no_side_effects!(
             test_global_symbol_constructor_as_function,
             "const sym = Symbol('description');"
+        );
+
+        // Symbol.for() is pure
+        no_side_effects!(test_symbol_for, "const sym = Symbol.for('description');");
+
+        // Symbol.keyFor() is pure
+        no_side_effects!(
+            test_symbol_key_for,
+            "const description = Symbol.keyFor(sym);"
         );
 
         // Global pure function with impure argument is impure

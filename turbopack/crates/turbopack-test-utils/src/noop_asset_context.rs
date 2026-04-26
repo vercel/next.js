@@ -32,7 +32,6 @@ impl AssetContext for NoopAssetContext {
     async fn resolve_options(
         self: Vc<Self>,
         _origin_path: FileSystemPath,
-        _reference_type: ReferenceType,
     ) -> Result<Vc<ResolveOptions>> {
         Ok(ResolveOptions::default().cell())
     }

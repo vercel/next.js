@@ -14,8 +14,8 @@ use serde::Deserialize;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, NonLocalValue, OperationVc, ResolvedVc, TaskInput, TurboTasks, Vc, apply_effects,
-    debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
+    Completion, Effects, NonLocalValue, OperationVc, ReadRef, ResolvedVc, TaskInput, TurboTasks,
+    Vc, debug::ValueDebugFormat, fxindexmap, take_effects, trace::TraceRawVcs,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -38,7 +38,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::Layer,
     issue::{CollectibleIssuesExt, IssueFilter},
-    module_graph::{ModuleGraph, binding_usage_info::compute_binding_usage_info},
+    module_graph::{
+        ModuleGraph, SingleModuleGraph, binding_usage_info::compute_binding_usage_info,
+    },
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         ExternalTraced, ExternalType,
@@ -49,6 +51,7 @@ use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{TreeShakingMode, chunk::EcmascriptChunkType};
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_node::{
+    child_process_backend,
     debug::should_debug,
     evaluate::{evaluate, get_evaluate_entries},
 };
@@ -210,28 +213,51 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         noop_backing_storage(),
     ));
 
-    tt.run_once(async move {
-        let emit_op = run_inner_operation(resource.to_str().unwrap().into(), snapshot_mode);
-        let result = emit_op.read_strongly_consistent().owned().await?;
-        apply_effects(emit_op).await?;
-
-        Ok(result)
-    })
-    .await
-}
-
-#[turbo_tasks::function(operation)]
-async fn run_inner_operation(
-    resource: RcStr,
-    snapshot_mode: IssueSnapshotMode,
-) -> Result<Vc<JsResult>> {
-    let prepared_test = prepare_test(resource).to_resolved().await?;
-    let run_result_op = run_test_operation(prepared_test);
-    if snapshot_mode == IssueSnapshotMode::Snapshots {
-        snapshot_issues(*prepared_test, run_result_op).await?;
+    #[turbo_tasks::value(serialization = "skip", evict = "never")]
+    struct JsResultWithEffects {
+        result: ReadRef<JsResult>,
+        effects: Effects,
     }
 
-    Ok(*run_result_op.connect().await?.js_result)
+    #[turbo_tasks::function(operation)]
+    async fn run_inner_operation(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResult>> {
+        let prepared_test = prepare_test(resource).to_resolved().await?;
+        let run_result_op = run_test_operation(prepared_test);
+        if snapshot_mode == IssueSnapshotMode::Snapshots {
+            snapshot_issues(*prepared_test, run_result_op).await?;
+        }
+
+        let result = (*run_result_op.connect().await?.js_result.await?).clone();
+
+        Ok(result.cell())
+    }
+
+    /// Wrapper operation that collects all effects (including snapshot issue file writes) from
+    /// [`run_inner_operation`].
+    #[turbo_tasks::function(operation)]
+    async fn run_inner_operation_with_effects(
+        resource: RcStr,
+        snapshot_mode: IssueSnapshotMode,
+    ) -> Result<Vc<JsResultWithEffects>> {
+        let op = run_inner_operation(resource, snapshot_mode);
+        let result = op.connect().await?.clone();
+        let effects = take_effects(op).await?;
+        Ok(JsResultWithEffects { result, effects }.cell())
+    }
+
+    tt.run_once(async move {
+        let result_with_effects =
+            run_inner_operation_with_effects(resource.to_str().unwrap().into(), snapshot_mode)
+                .read_strongly_consistent()
+                .await?;
+        result_with_effects.effects.apply().await?;
+
+        Ok((*result_with_effects.result).clone())
+    })
+    .await
 }
 
 #[derive(
@@ -293,15 +319,17 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         resource_path.to_str().unwrap()
     );
 
-    let root_fs = DiskFileSystem::new(rcstr!("workspace"), REPO_ROOT.clone());
-    let project_fs = DiskFileSystem::new(rcstr!("project"), REPO_ROOT.clone());
+    let root_fs = DiskFileSystem::new(rcstr!("workspace"), Vc::cell(REPO_ROOT.clone()));
+    let project_fs = DiskFileSystem::new(rcstr!("project"), Vc::cell(REPO_ROOT.clone()));
     let project_root = project_fs.root().owned().await?;
 
-    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).context(format!(
-        "stripping repo root {:?} from resource path {:?}",
-        &*REPO_ROOT,
-        resource_path.display()
-    ))?;
+    let relative_path = resource_path.strip_prefix(&*REPO_ROOT).with_context(|| {
+        format!(
+            "stripping repo root {:?} from resource path {:?}",
+            &*REPO_ROOT,
+            resource_path.display()
+        )
+    })?;
     let relative_path = RcStr::from(sys_to_unix(relative_path.to_str().unwrap()));
     let path = root_fs.root().await?.join(&relative_path)?;
     let project_path = project_root.join(&relative_path)?;
@@ -414,6 +442,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
                 enable_typescript_transform: Some(
                     TypescriptTransformOptions::default().resolved_cell(),
                 ),
+                enable_import_as_bytes: true,
                 import_externals: true,
                 enable_exports_info_inlining: true,
                 infer_module_side_effects: true,
@@ -435,6 +464,8 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         ResolveOptionsContext {
             enable_typescript: true,
             enable_node_modules: Some(project_root.clone()),
+            enable_node_native_modules: true,
+            enable_node_externals: true,
             custom_conditions: vec![rcstr!("development")],
             rules: vec![(
                 ContextCondition::InNodeModules,
@@ -477,25 +508,31 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    let entries = get_evaluate_entries(jest_entry_asset, asset_context, None);
+    let node_backend = child_process_backend();
 
-    let mut module_graph = ModuleGraph::from_modules(entries.graph_entries(), false, true);
+    let entries = get_evaluate_entries(jest_entry_asset, asset_context, node_backend, None);
+
+    let single_graph = SingleModuleGraph::new_with_entries(
+        entries.graph_entries().to_resolved().await?,
+        false,
+        true,
+    );
+    let mut module_graph = ModuleGraph::from_graphs(vec![single_graph], None);
 
     let binding_usage = if options.remove_unused_imports || options.remove_unused_exports {
-        Some(
-            compute_binding_usage_info(
-                module_graph.to_resolved().await?,
-                options.remove_unused_imports,
-            )
-            .resolve_strongly_consistent()
-            .await?,
-        )
+        Some(compute_binding_usage_info(
+            module_graph,
+            options.remove_unused_imports,
+        ))
     } else {
         None
     };
-    if options.remove_unused_imports {
-        module_graph = module_graph.without_unused_references(*binding_usage.unwrap());
+    if options.remove_unused_imports
+        && let Some(binding_usage) = binding_usage
+    {
+        module_graph = ModuleGraph::from_graphs(vec![single_graph], Some(binding_usage));
     }
+    let module_graph = module_graph.connect();
 
     let mut builder = NodeJsChunkingContext::builder(
         project_root.clone(),
@@ -516,16 +553,17 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
-    .export_usage(
-        options
-            .remove_unused_exports
-            .then(|| binding_usage.unwrap()),
-    );
+    .export_usage(if options.remove_unused_exports {
+        Some(binding_usage.unwrap().connect().to_resolved().await?)
+    } else {
+        None
+    });
 
     if options.remove_unused_imports {
         builder = builder.unused_references(
             binding_usage
                 .unwrap()
+                .connect()
                 .unused_references()
                 .to_resolved()
                 .await?,
@@ -558,6 +596,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         entries,
         path.clone(),
         Vc::upcast(CommandLineProcessEnv::new()),
+        node_backend,
         Vc::upcast(test_source),
         Vc::upcast(chunking_context),
         module_graph,
@@ -593,9 +632,9 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
     run_result_op: OperationVc<RunTestResult>,
-) -> Result<Vc<()>> {
+) -> Result<()> {
     let PreparedTest { path, .. } = &*prepared_test.await?;
-    let _ = run_result_op.resolve_strongly_consistent().await;
+    let _ = run_result_op.resolve().strongly_consistent().await;
 
     let plain_issues = run_result_op
         .peek_issues()
@@ -606,5 +645,5 @@ async fn snapshot_issues(
         .await
         .context("Unable to handle issues")?;
 
-    Ok(Default::default())
+    Ok(())
 }

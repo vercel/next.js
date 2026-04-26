@@ -39,6 +39,7 @@ import {
   PAGES_MANIFEST,
   BUILD_ID_FILE,
   MIDDLEWARE_MANIFEST,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   ROUTES_MANIFEST,
   CLIENT_PUBLIC_FILES_PATH,
@@ -109,8 +110,9 @@ import { lazyRenderPagesPage } from './route-modules/pages/module.render'
 import { interopDefault } from '../lib/interop-default'
 import { formatDynamicImportPath } from '../lib/format-dynamic-import-path'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
-import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import type { PrefetchHints } from '../shared/lib/app-router-types'
 import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
@@ -118,7 +120,6 @@ import { AsyncCallbackSet } from './lib/async-callback-set'
 import { initializeCacheHandlers, setCacheHandler } from './use-cache/handlers'
 import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
-import { isPostpone } from './lib/router-utils/is-postpone'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import {
@@ -130,6 +131,7 @@ import {
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
 import { installGlobalBehaviors } from './node-environment-extensions/global-behaviors'
+import { installProcessErrorHandlers } from './node-environment-extensions/process-error-handlers'
 
 export * from './base-server'
 
@@ -170,88 +172,6 @@ function getMiddlewareMatcher(
   return matcher
 }
 
-function installProcessErrorHandlers(
-  shouldRemoveUncaughtErrorAndRejectionListeners: boolean
-) {
-  // The conventional wisdom of Node.js and other runtimes is to treat
-  // unhandled errors as fatal and exit the process.
-  //
-  // But Next.js is not a generic JS runtime — it's a specialized runtime for
-  // React Server Components.
-  //
-  // Many unhandled rejections are due to the late-awaiting pattern for
-  // prefetching data. In Next.js it's OK to call an async function without
-  // immediately awaiting it, to start the request as soon as possible
-  // without blocking unncessarily on the result. These can end up
-  // triggering an "unhandledRejection" if it later turns out that the
-  // data is not needed to render the page. Example:
-  //
-  //     const promise = fetchData()
-  //     const shouldShow = await checkCondition()
-  //     if (shouldShow) {
-  //       return <Component promise={promise} />
-  //     }
-  //
-  // In this example, `fetchData` is called immediately to start the request
-  // as soon as possible, but if `shouldShow` is false, then it will be
-  // discarded without unwrapping its result. If it errors, it will trigger
-  // an "unhandledRejection" event.
-  //
-  // Ideally, we would suppress these rejections completely without warning,
-  // because we don't consider them real errors. (TODO: Currently we do warn.)
-  //
-  // But regardless of whether we do or don't warn, we definitely shouldn't
-  // crash the entire process.
-  //
-  // Even a "legit" unhandled error unrelated to prefetching shouldn't
-  // prevent the rest of the page from rendering.
-  //
-  // So, we're going to intentionally override the default error handling
-  // behavior of the outer JS runtime to be more forgiving
-
-  // Remove any existing "unhandledRejection" and "uncaughtException" handlers.
-  // This is gated behind an experimental flag until we've considered the impact
-  // in various deployment environments. It's possible this may always need to
-  // be configurable.
-  if (shouldRemoveUncaughtErrorAndRejectionListeners) {
-    process.removeAllListeners('uncaughtException')
-    process.removeAllListeners('unhandledRejection')
-  }
-
-  // Install a new handler to prevent the process from crashing.
-  process.on('unhandledRejection', (reason: unknown) => {
-    if (isPostpone(reason)) {
-      // React postpones that are unhandled might end up logged here but they're
-      // not really errors. They're just part of rendering.
-      return
-    }
-    // Immediately log the error.
-    // TODO: Ideally, if we knew that this error was triggered by application
-    // code, we would suppress it entirely without logging. We can't reliably
-    // detect all of these, but when cacheComponents is enabled, we could suppress
-    // at least some of them by waiting to log the error until after all in-
-    // progress renders have completed. Then, only log errors for which there
-    // was not a corresponding "rejectionHandled" event.
-    console.error(reason)
-  })
-
-  process.on('rejectionHandled', () => {
-    // TODO: See note in the unhandledRejection handler above. In the future,
-    // we may use the "rejectionHandled" event to de-queue an error from
-    // being logged.
-  })
-
-  // Unhandled exceptions are errors triggered by non-async functions, so this
-  // is unrelated to the late-awaiting pattern. However, for similar reasons,
-  // we still shouldn't crash the process. Just log it.
-  process.on('uncaughtException', (reason: unknown) => {
-    if (isPostpone(reason)) {
-      return
-    }
-    console.error(reason)
-  })
-}
-
 export default class NextNodeServer extends BaseServer<
   Options,
   NodeNextRequest,
@@ -283,6 +203,10 @@ export default class NextNodeServer extends BaseServer<
 
     installGlobalBehaviors(this.nextConfig)
 
+    // Load prefetch hints from the build output. This must happen before
+    // any render to ensure segment inlining decisions are available.
+    this.renderOpts.prefetchHints = this.getPrefetchHints()
+
     const isDev = options.dev ?? false
     this.isDev = isDev
     this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
@@ -297,6 +221,9 @@ export default class NextNodeServer extends BaseServer<
     }
     if (this.renderOpts.nextScriptWorkers) {
       process.env.__NEXT_SCRIPT_WORKERS = JSON.stringify(true)
+    }
+    if (this.nextConfig.experimental.useNodeStreams) {
+      process.env.__NEXT_USE_NODE_STREAMS = 'true'
     }
 
     if (!this.minimalMode) {
@@ -356,7 +283,9 @@ export default class NextNodeServer extends BaseServer<
     // when using compile mode static env isn't inlined so we
     // need to populate in normal runtime env
     if (this.renderOpts.isExperimentalCompile) {
-      populateStaticEnv(this.nextConfig, this.renderOpts.deploymentId || '')
+      // supportsImmutableAssets only works with Turbopack, and `isExperimentalCompile` isn't supported
+      // with that anyway, so we can assign just use deploymentId here
+      populateStaticEnv(this.nextConfig, this.deploymentId || '')
     }
 
     const shouldRemoveUncaughtErrorAndRejectionListeners = Boolean(
@@ -491,7 +420,7 @@ export default class NextNodeServer extends BaseServer<
   }: {
     requestHeaders: IncrementalCache['requestHeaders']
   }) {
-    const dev = !!this.renderOpts.dev
+    const dev = !!this.dev
     let CacheHandler: any
     const { cacheHandler } = this.nextConfig
 
@@ -715,6 +644,11 @@ export default class NextNodeServer extends BaseServer<
           this.getServerComponentsHmrCache(),
           {
             buildId: this.buildId,
+            deploymentId: this.deploymentId,
+            clientAssetToken: this.nextConfig.experimental
+              .supportsImmutableAssets
+              ? ''
+              : this.deploymentId,
           }
         )
       } else {
@@ -729,7 +663,11 @@ export default class NextNodeServer extends BaseServer<
           renderOpts as LoadedRenderOpts<PagesModule>,
           {
             buildId: this.buildId,
-            deploymentId: this.renderOpts.deploymentId,
+            deploymentId: this.deploymentId,
+            clientAssetToken: this.nextConfig.experimental
+              .supportsImmutableAssets
+              ? undefined
+              : this.deploymentId,
             customServer: this.serverOptions.customServer || undefined,
           },
           {
@@ -781,9 +719,26 @@ export default class NextNodeServer extends BaseServer<
         return
       }
 
-      const { isAbsolute, href } = paramsResult
+      let { href } = paramsResult
 
-      const imageUpstream = isAbsolute
+      if (
+        process.env.__NEXT_TEST_MODE &&
+        process.env.IS_TURBOPACK_TEST &&
+        !paramsResult.isAbsolute
+      ) {
+        // Forward the dpl query param from the original /_next/image request to the
+        // internal static file request so that the static file validation in
+        // resolve-routes.ts can verify it.
+        const dpl =
+          typeof req.url === 'string'
+            ? new URL(req.url, 'http://n').searchParams.get('dpl')
+            : undefined
+        if (dpl) {
+          href += `${href.includes('?') ? '&' : '?'}dpl=${dpl}`
+        }
+      }
+
+      const imageUpstream = paramsResult.isAbsolute
         ? await fetchExternalImage(
             href,
             this.nextConfig.images.dangerouslyAllowLocalIP,
@@ -794,11 +749,12 @@ export default class NextNodeServer extends BaseServer<
             href,
             req.originalRequest,
             res.originalResponse,
+            this.nextConfig.images.maximumResponseBody,
             handleInternalReq
           )
 
       return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
-        isDev: this.renderOpts.dev,
+        isDev: this.dev,
         previousCacheEntry,
       })
     }
@@ -1003,7 +959,7 @@ export default class NextNodeServer extends BaseServer<
             )
           )
           this.imageCacheHandler = new CacheHandler({
-            dev: !!this.renderOpts.dev,
+            dev: !!this.dev,
             flushToDisk: this.nextConfig.experimental.isrFlushToDisk,
             serverDistDir: this.serverDistDir,
             maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
@@ -1036,7 +992,7 @@ export default class NextNodeServer extends BaseServer<
         req.originalRequest,
         parsedUrl.query,
         this.nextConfig,
-        !!this.renderOpts.dev
+        !!this.dev
       )
 
       if ('errorMessage' in paramsResult) {
@@ -1096,7 +1052,7 @@ export default class NextNodeServer extends BaseServer<
           cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
           imagesConfig,
           cacheEntry.cacheControl?.revalidate || 0,
-          Boolean(this.renderOpts.dev)
+          Boolean(this.dev)
         )
         return true
       } catch (err) {
@@ -1141,6 +1097,9 @@ export default class NextNodeServer extends BaseServer<
     routerServerGlobal[RouterServerContextSymbol][
       relativeProjectDir
     ].nextConfig = this.nextConfig
+    routerServerGlobal[RouterServerContextSymbol][
+      relativeProjectDir
+    ].isWrappedByNextServer = true
 
     try {
       // next.js core assumes page path without trailing slash
@@ -1227,7 +1186,7 @@ export default class NextNodeServer extends BaseServer<
       }
 
       try {
-        if (this.renderOpts.dev) {
+        if (this.dev) {
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
@@ -1337,16 +1296,16 @@ export default class NextNodeServer extends BaseServer<
 
   public async revalidate({
     urlPath,
-    revalidateHeaders,
+    headers,
     opts,
   }: {
     urlPath: string
-    revalidateHeaders: { [key: string]: string | string[] }
+    headers: { [key: string]: string | string[] }
     opts: { unstable_onlyGenerated?: boolean }
   }) {
     const mocked = createRequestResponseMocks({
       url: urlPath,
-      headers: revalidateHeaders,
+      headers,
     })
 
     const handler = this.getRequestHandler()
@@ -1405,7 +1364,7 @@ export default class NextNodeServer extends BaseServer<
     const is404 = res.statusCode === 404
 
     if (is404 && this.enabledDirectories.app) {
-      if (this.renderOpts.dev) {
+      if (this.dev) {
         await this.ensurePage({
           page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
           clientOnly: false,
@@ -1593,7 +1552,7 @@ export default class NextNodeServer extends BaseServer<
   private async loadNodeMiddleware() {
     if (!process.env.NEXT_MINIMAL) {
       try {
-        const functionsConfig = this.renderOpts.dev
+        const functionsConfig = this.dev
           ? {}
           : require(
               join(
@@ -1603,10 +1562,7 @@ export default class NextNodeServer extends BaseServer<
               )
             )
 
-        if (
-          this.renderOpts.dev ||
-          functionsConfig?.functions?.['/_middleware']
-        ) {
+        if (this.dev || functionsConfig?.functions?.['/_middleware']) {
           // if used with top level await, this will be a promise
           return require(
             join(
@@ -1798,10 +1754,13 @@ export default class NextNodeServer extends BaseServer<
         request: requestData,
         useCache: true,
         onWarning: params.onWarning,
+        clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+          ? ''
+          : this.deploymentId,
       })
     }
 
-    if (!this.renderOpts.dev) {
+    if (!this.dev) {
       result.waitUntil.catch((error) => {
         console.error(`Uncaught: middleware waitUntil errored`, error)
       })
@@ -1960,6 +1919,28 @@ export default class NextNodeServer extends BaseServer<
     return this._cachedPreviewManifest
   }
 
+  private _cachedPrefetchHints: Record<string, PrefetchHints> | undefined
+  protected getPrefetchHints(): Record<string, PrefetchHints> {
+    if (this._cachedPrefetchHints) {
+      return this._cachedPrefetchHints
+    }
+
+    this._cachedPrefetchHints =
+      (loadManifest(
+        join(
+          /* turbopackIgnore: true */ this.distDir,
+          SERVER_DIRECTORY,
+          PREFETCH_HINTS
+        ),
+        true,
+        undefined,
+        false,
+        true // handleMissing: don't crash if the file doesn't exist
+      ) as Record<string, PrefetchHints>) ?? {}
+
+    return this._cachedPrefetchHints
+  }
+
   protected getRoutesManifest(): NormalizedRouteManifest | undefined {
     return getTracer().trace(
       NextNodeServerSpan.getRoutesManifest,
@@ -2095,6 +2076,9 @@ export default class NextNodeServer extends BaseServer<
         params.req,
         'serverComponentsHmrCache'
       ),
+      clientAssetToken: this.nextConfig.experimental.supportsImmutableAssets
+        ? ''
+        : this.deploymentId,
     })
 
     if (result.fetchMetrics) {
@@ -2156,7 +2140,7 @@ export default class NextNodeServer extends BaseServer<
     await super.instrumentationOnRequestError(...args)
 
     // For Node.js runtime production logs, in dev it will be overridden by next-dev-server
-    if (!this.renderOpts.dev) {
+    if (!this.dev) {
       const [err, , , silenceLog] = args
       if (!silenceLog) {
         this.logError(err)

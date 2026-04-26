@@ -14,7 +14,7 @@ import {
 import { PrerenderManifest } from 'next/dist/build'
 
 const GENERIC_RSC_ERROR =
-  'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+  'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
 
 const withCacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
@@ -29,6 +29,19 @@ describe('use-cache', () => {
   if (skipped) {
     return
   }
+
+  let cliOutputLength: number
+
+  beforeEach(() => {
+    cliOutputLength = next.cliOutput.length
+  })
+
+  afterEach(async () => {
+    // eslint-disable-next-line jest/no-standalone-expect
+    expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
+      'unhandledRejection'
+    )
+  })
 
   it('should cache results', async () => {
     const browser = await next.browser(`/?n=1`)
@@ -188,7 +201,9 @@ describe('use-cache', () => {
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    })
 
     await browser.elementById('submit-button').click()
 
@@ -210,7 +225,9 @@ describe('use-cache', () => {
     })
 
     await browser.elementById('reset-button').click()
-    expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    await retry(async () => {
+      expect(await browser.elementByCss('p').text()).toBe('0 0 0')
+    })
 
     await browser.elementById('submit-button').click()
 
@@ -474,6 +491,8 @@ describe('use-cache', () => {
           // [id] route, first entry in generateStaticParams
           expect.stringMatching(/\/a\d/),
           withCacheComponents && '/api',
+          // api/[id] route handler using generateStaticParams with 'use cache' from node_modules
+          expect.stringMatching(/\/api\/\d/),
           // [id] route, second entry in generateStaticParams
           expect.stringMatching(/\/b\d/),
           '/cache-fetch',
@@ -484,6 +503,7 @@ describe('use-cache', () => {
           '/directive-in-node-modules/without-handler',
           '/draft-mode/with-cookies',
           '/draft-mode/without-cookies',
+          '/fetch-revalidate',
           '/form',
           '/imported-from-client',
           '/logs',
@@ -637,9 +657,15 @@ describe('use-cache', () => {
     const browser = await next.browser('/fetch-revalidate')
 
     const initialValue = await browser.elementByCss('#random').text()
-    await browser.refresh()
 
-    expect(await browser.elementByCss('#random').text()).not.toBe(initialValue)
+    // Revalidate is set to 1 second, so after waiting the value should change.
+    await retry(async () => {
+      await browser.refresh()
+
+      expect(await browser.elementByCss('#random').text()).not.toBe(
+        initialValue
+      )
+    })
   })
 
   it('should cache fetch without no-store', async () => {
@@ -1416,6 +1442,162 @@ describe('use-cache', () => {
     await browser.refresh()
     const numbers = await browser.elementById('numbers').text()
     expect(numbers).toBe(initialNumbers)
+  })
+
+  if (isNextDev) {
+    it('should not log "use cache" functions called from client', async () => {
+      const browser = await next.browser('/passed-to-client')
+      const outputIndex = next.cliOutput.length
+
+      await browser.elementByCss('#submit-button').click()
+
+      await retry(() => {
+        const logs = stripAnsi(next.cliOutput.slice(outputIndex))
+        // Should have the POST request but not the function log
+        expect(logs).toContain('POST /passed-to-client')
+        expect(logs).not.toContain('└─ ƒ')
+      })
+    })
+  }
+
+  it('should allow nested short-lived caches after connection()', async () => {
+    // Check the prerendered shell (no JS).
+    let browser = await next.browser('/short-lived-caches', {
+      disableJavaScript: true,
+    })
+
+    // Static content should be in the shell.
+    expect(await browser.elementById('static').text()).toBe('Static content')
+
+    // Explicit long cacheLife should be in the shell despite short-lived inner
+    // caches.
+    expect(
+      await browser.elementById('explicit-long-revalidate-zero').text()
+    ).toBeDateString()
+    expect(
+      await browser.elementById('explicit-long-low-expire').text()
+    ).toBeDateString()
+
+    // Now check with JS enabled to verify dynamic content loads.
+    browser = await next.browser('/short-lived-caches', {
+      pushErrorAsConsoleLog: true,
+    })
+
+    // Dynamic content should eventually render.
+    await retry(async () => {
+      // No explicit outer cacheLife (after connection()).
+      expect(
+        await browser.elementById('revalidate-zero').text()
+      ).toBeDateString()
+      expect(await browser.elementById('low-expire').text()).toBeDateString()
+
+      // Explicit short cacheLife - excluded from prerender.
+      expect(
+        await browser.elementById('explicit-revalidate-zero').text()
+      ).toBeDateString()
+      expect(
+        await browser.elementById('explicit-low-expire').text()
+      ).toBeDateString()
+    })
+
+    await assertNoConsoleErrors(browser)
+  })
+
+  it('should dedupe shared inner caches across different outer caches', async () => {
+    const browser = await next.browser('/nested/1')
+    const first = await browser.elementByCss('.inner:nth-of-type(1)').text()
+    const second = await browser.elementByCss('.inner:nth-of-type(2)').text()
+    expect(first).toBe(second)
+  })
+
+  if (!isNextDeploy) {
+    // In deploy mode, concurrent requests could hit different instances.
+    it('should dedupe a streaming cache across concurrent requests', async () => {
+      const [first, second] = await Promise.all([
+        next.render('/streaming'),
+        // Delay the second request to ensure deduping also works when the
+        // first request has already started streaming.
+        new Promise<string>((resolve) =>
+          setTimeout(() => resolve(next.render('/streaming')), 500)
+        ),
+      ])
+
+      // Both requests should contain the cached content.
+      expect(first).toContain('<p class="content">')
+      expect(second).toContain('<p class="content">')
+
+      // Both requests should get the same cached value.
+      const getContent = (html: string) =>
+        html.match(/<p class="content">([^<]+)<\/p>/)?.[1]
+
+      expect(getContent(first)).toBe(getContent(second))
+
+      // The leader streams with a loading boundary visible in the initial HTML,
+      // while the cross-request joiner resolves from the fully collected result
+      // with no loading boundary. We don't know which request is the leader,
+      // but exactly one should have it.
+      expect([first, second]).toSatisfy(function onlyOneRequestStreams([
+        a,
+        b,
+      ]: string[]) {
+        return (
+          (a.includes('<p class="loading">') &&
+            !b.includes('<p class="loading">')) ||
+          (!a.includes('<p class="loading">') &&
+            b.includes('<p class="loading">'))
+        )
+      })
+    })
+  }
+
+  it('should resolve different children correctly when deduping', async () => {
+    const browser = await next.browser('/cached-with-children')
+    const childA = await browser
+      .elementByCss('.wrapper:first-child .children')
+      .text()
+    const childB = await browser
+      .elementByCss('.wrapper:last-child .children')
+      .text()
+    expect(childA).toBe('Child A')
+    expect(childB).toBe('Child B')
+
+    // The random value from the cache function should be the same for both
+    // wrappers, confirming the invocation was actually deduped.
+    const randA = await browser
+      .elementByCss('.wrapper:first-child .rand')
+      .text()
+    const randB = await browser.elementByCss('.wrapper:last-child .rand').text()
+    expect(randA).toBe(randB)
+  })
+
+  it('should dedupe private caches within a single request', async () => {
+    const browser = await next.browser('/private-dedup')
+    const first = await browser.elementByCss('.rand:nth-of-type(1)').text()
+    const second = await browser.elementByCss('.rand:nth-of-type(2)').text()
+    expect(first).toBe(second)
+  })
+
+  it('should not dedupe private caches across concurrent requests', async () => {
+    const [first$, second$] = await Promise.all([
+      next.render$('/private-dedup'),
+      next.render$('/private-dedup'),
+    ])
+
+    const firstValue = first$('.rand').first().text()
+    const secondValue = second$('.rand').first().text()
+
+    // Across requests, private caches must NOT be deduped.
+    expect(firstValue).not.toBe(secondValue)
+  })
+
+  it('should stream the result of a deduped invocation', async () => {
+    const html = await next
+      .fetch('/nested/2')
+      .then((response) => response.text())
+
+    // The loading boundaries of both inner cache functions are expected to be
+    // shown while the page is loading.
+    expect(html).toIncludeRepeated('<p class="loading">Loading...</p>', 2)
   })
 })
 

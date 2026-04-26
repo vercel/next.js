@@ -34,7 +34,7 @@ pub use self::{
     data::EcmascriptChunkData,
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
-        EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo, ecmascript_chunk_item,
     },
     placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
@@ -172,16 +172,6 @@ impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
     fn chunk_items(&self) -> Vc<ChunkItems> {
         self.content.included_chunk_items()
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for EcmascriptChunk {
-    #[turbo_tasks::function]
-    async fn to_string(self: Vc<Self>) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(
-            format!("chunk {}", self.ident().to_string().await?).into(),
-        ))
     }
 }
 

@@ -7,7 +7,6 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath};
 
 use crate::{
-    asset::{Asset, AssetContent},
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -108,14 +107,6 @@ impl Module for NodeAddonModule {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl Asset for NodeAddonModule {
-    #[turbo_tasks::function]
-    fn content(&self) -> Vc<AssetContent> {
-        self.source.content()
-    }
-}
-
 #[turbo_tasks::function]
 async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferences>> {
     let matches = read_matches(
@@ -136,7 +127,7 @@ async fn dir_references(package_dir: FileSystemPath) -> Result<Vc<ModuleReferenc
                     Ok(path) => {
                         results.insert(path.clone());
                     }
-                    Err(e) => bail!(e.as_error_message(file, &realpath)),
+                    Err(e) => bail!(e.as_error_message(file, &realpath).await?),
                 }
             }
             PatternMatch::Directory(..) => {}

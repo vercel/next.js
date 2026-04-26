@@ -2,10 +2,10 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind, uncachedIO } from '../../../shared'
 import { connection } from 'next/server'
 
-export const unstable_prefetch = {
-  mode: 'runtime',
-  samples: [{ searchParams: { key: 'value' } }],
+export const unstable_instant = {
+  samples: [{ searchParams: { searchParam: 'value' } }],
 }
+export const unstable_prefetch = 'force-runtime'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 

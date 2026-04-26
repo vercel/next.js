@@ -5,7 +5,7 @@ use auto_hash_map::AutoSet;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, Vc};
 
 use crate::{
     chunk::chunking_context::UnusedReferences,
@@ -17,6 +17,12 @@ use crate::{
     resolve::{ExportUsage, ImportUsage},
 };
 
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct UsedExportsMap(FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>);
+
+#[turbo_tasks::value(transparent, cell = "keyed")]
+pub struct ExportCircuitBreakers(FxHashSet<ResolvedVc<Box<dyn Module>>>);
+
 #[turbo_tasks::value]
 #[derive(Clone, Default, Debug)]
 pub struct BindingUsageInfo {
@@ -24,8 +30,8 @@ pub struct BindingUsageInfo {
     #[turbo_tasks(trace_ignore)]
     unused_references_edges: FxHashSet<GraphEdgeIndex>,
 
-    used_exports: FxHashMap<ResolvedVc<Box<dyn Module>>, ModuleExportUsageInfo>,
-    export_circuit_breakers: FxHashSet<ResolvedVc<Box<dyn Module>>>,
+    used_exports: ResolvedVc<UsedExportsMap>,
+    export_circuit_breakers: ResolvedVc<ExportCircuitBreakers>,
 }
 
 #[turbo_tasks::value(transparent)]
@@ -58,8 +64,8 @@ impl BindingUsageInfo {
         &self,
         module: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleExportUsage>> {
-        let is_circuit_breaker = self.export_circuit_breakers.contains(&module);
-        let Some(exports) = self.used_exports.get(&module) else {
+        let is_circuit_breaker = self.export_circuit_breakers.contains_key(&module).await?;
+        let Some(exports) = self.used_exports.get(&module).await? else {
             // There are some module that are codegened, but not referenced in the module graph,
             let ident = module.ident_string().await?;
             if ident.contains(".wasm_.loader.mjs") || ident.contains("/__nextjs-internal-proxy.") {
@@ -73,7 +79,7 @@ impl BindingUsageInfo {
             bail!("export usage not found for module: {ident:?}");
         };
         Ok(ModuleExportUsage {
-            export_usage: exports.clone().resolved_cell(),
+            export_usage: (*exports).clone().resolved_cell(),
             is_circuit_breaker,
         }
         .cell())
@@ -90,7 +96,7 @@ impl BindingUsageInfo {
 
 #[turbo_tasks::function(operation)]
 pub async fn compute_binding_usage_info(
-    graph: ResolvedVc<ModuleGraph>,
+    graph: OperationVc<ModuleGraph>,
     remove_unused_imports: bool,
 ) -> Result<Vc<BindingUsageInfo>> {
     let span_outer = tracing::info_span!(
@@ -111,7 +117,9 @@ pub async fn compute_binding_usage_info(
         let mut unused_references_edges = FxHashSet::default();
         let mut unused_references = FxHashSet::default();
 
-        if graph.await?.binding_usage.is_some() {
+        let graph = graph.connect();
+        let graph_ref = graph.await?;
+        if graph_ref.binding_usage.is_some() {
             // If the graph already has binding usage info, return it directly. This is
             // unfortunately easy to do with
             // ```
@@ -128,9 +136,8 @@ pub async fn compute_binding_usage_info(
                  without_unused_references"
             );
         }
-        let graph_ref = graph.read_graphs().await?;
         let side_effect_free_modules = if remove_unused_imports {
-            let side_effect_free_modules = compute_side_effect_free_module_info(*graph).await?;
+            let side_effect_free_modules = compute_side_effect_free_module_info(graph).await?;
             span.record("side_effect_free_modules", side_effect_free_modules.len());
             Some(side_effect_free_modules)
         } else {
@@ -290,8 +297,8 @@ pub async fn compute_binding_usage_info(
         Ok(BindingUsageInfo {
             unused_references: ResolvedVc::cell(unused_references),
             unused_references_edges,
-            used_exports,
-            export_circuit_breakers,
+            used_exports: ResolvedVc::cell(used_exports),
+            export_circuit_breakers: ResolvedVc::cell(export_circuit_breakers),
         }
         .cell())
     }
@@ -331,9 +338,20 @@ impl ModuleExportUsageInfo {
                 *self = Self::Exports(AutoSet::from_iter([name.clone()]));
                 true
             }
+            (Self::Evaluation, ExportUsage::PartialNamespaceObject(names)) => {
+                *self = Self::Exports(AutoSet::from_iter(names.iter().cloned()));
+                true
+            }
             (Self::Exports(l), ExportUsage::Named(r)) => {
                 // Merge exports
                 l.insert(r.clone())
+            }
+            (Self::Exports(l), ExportUsage::PartialNamespaceObject(names)) => {
+                let mut changed = false;
+                for name in names {
+                    changed |= l.insert(name.clone());
+                }
+                changed
             }
             (_, ExportUsage::Evaluation) => false,
         }

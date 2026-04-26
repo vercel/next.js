@@ -85,15 +85,15 @@ module.exports = {
 
               if (process.env.IS_TURBOPACK_TEST && useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
-                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px, 0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
               } else if (process.env.IS_TURBOPACK_TEST && !useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
-                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px, 0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
               } else if (process.env.NEXT_RSPACK && useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
-                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px,0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0px, 0px)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
               } else if (useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
@@ -113,7 +113,7 @@ module.exports = {
               const sourceMapUrl =
                 /\/\*#\s*sourceMappingURL=(.+\.map)\s*\*\//.exec(cssContent)[1]
               const actualSourceMapUrl = stylesheetUrl.replace(
-                /[^/]+$/,
+                /(?<=^|\/)[^/?]+(?=$|\?)/,
                 sourceMapUrl
               )
 
@@ -129,36 +129,36 @@ module.exports = {
               if (process.env.IS_TURBOPACK_TEST) {
                 // Turbopack always uses lightningcss
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-                 {
-                   "mappings": "AAAA,qDACE,2BAKF,0DAIA,kDAIA,uCAIA",
-                   "names": [],
-                   "sourcesContent": [
-                     "@media (480px <= width < 768px) {
-                   ::placeholder {
-                     color: green;
-                   }
+               {
+                 "mappings": "AAAA,qDACE,2BAKF,0DAIA,mDAIA,uCAIA",
+                 "names": [],
+                 "sourcesContent": [
+                   "@media (480px <= width < 768px) {
+                 ::placeholder {
+                   color: green;
                  }
+               }
 
-                 .flex-parsing {
-                   flex: 0 0 calc(50% - var(--vertical-gutter));
-                 }
+               .flex-parsing {
+                 flex: 0 0 calc(50% - var(--vertical-gutter));
+               }
 
-                 .transform-parsing {
-                   transform: translate3d(0px, 0px);
-                 }
+               .transform-parsing {
+                 transform: translate3d(0px, 0px);
+               }
 
-                 .css-grid-shorthand {
-                   grid-column: span 2;
-                 }
+               .css-grid-shorthand {
+                 grid-column: span 2;
+               }
 
-                 .g-docs-sidenav .filter::-webkit-input-placeholder {
-                   opacity: 80%;
-                 }
-                 ",
-                   ],
-                   "version": 3,
-                 }
-                `)
+               .g-docs-sidenav .filter::-webkit-input-placeholder {
+                 opacity: 80%;
+               }
+               ",
+                 ],
+                 "version": 3,
+               }
+              `)
               } else if (process.env.NEXT_RSPACK && !useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
                  {
@@ -401,13 +401,13 @@ module.exports = {
               const cssPreload = $('link[rel="preload"][as="style"]')
               expect(cssPreload.length).toBe(1)
               expect(cssPreload.attr('href')).toMatch(
-                /^\/_next\/static\/.*\.css$/
+                /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
               )
 
               const cssSheet = $('link[rel="stylesheet"]')
               expect(cssSheet.length).toBe(1)
               expect(cssSheet.attr('href')).toMatch(
-                /^\/_next\/static\/.*\.css$/
+                /^\/_next\/static\/.*\.css(\?dpl=.*)?$/
               )
 
               /* ensure CSS preloaded first */

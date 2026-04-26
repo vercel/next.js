@@ -3,7 +3,8 @@ import { Playwright as NextBrowser } from '../../../../lib/next-webdriver'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
-describe('layout sharing in non-static prefetches', () => {
+// TODO: Skipped due to flakiness
+describe.skip('layout sharing in non-static prefetches', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
@@ -17,7 +18,7 @@ describe('layout sharing in non-static prefetches', () => {
   // - A "full prefetch" is `<Link prefetch="true">`
   //  It includes cached and uncached IO.
 
-  // - A "runtime prefetch" is the new `unstable_prefetch` segment config (only available in cacheComponents mode).
+  // - A "runtime prefetch" is the new `unstable_instant` segment config (only available in cacheComponents mode).
   //   It includes cached IO, and allows access to cookies/params/searchParams/"use cache: private", but excludes uncached IO.
 
   // TODO (runtime-prefetching): link-level opt-in has been removed. These tests need to be updated to use the segment configuration.

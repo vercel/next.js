@@ -165,7 +165,12 @@ describe('CSS Module client-side navigation', () => {
         })
 
         proxyServer = http.createServer(async (req, res) => {
-          if (stallCss && req.url.endsWith('.css')) {
+          if (
+            stallCss &&
+            new URL(req.url, `http://localhost:${port}`).pathname.endsWith(
+              '.css'
+            )
+          ) {
             console.log('stalling request for', req.url)
             await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
           }

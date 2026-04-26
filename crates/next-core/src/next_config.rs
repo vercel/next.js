@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashSet;
@@ -12,14 +13,19 @@ use turbo_tasks::{
 };
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fetch::FetchClientConfig;
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{
+    FileSystemPath,
+    glob::{Glob, GlobOptions},
+};
 use turbopack::module_options::{
-    ConditionItem, ConditionPath, LoaderRuleItem, WebpackRules,
-    module_options_context::MdxTransformOptions,
+    ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
+    WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
-    issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
+    chunk::{CrossOrigin, SourceMapsType},
+    issue::{
+        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
+    },
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::{OptionTreeShaking, TreeShakingMode};
@@ -64,6 +70,9 @@ impl Default for CacheKinds {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+pub struct CacheHandlersMap(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, RcStr>);
+
 #[turbo_tasks::value(eq = "manual")]
 #[derive(Clone, Debug, Default, PartialEq, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
@@ -103,7 +112,7 @@ pub struct NextConfig {
     skip_proxy_url_normalize: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
-    cross_origin: Option<CrossOriginConfig>,
+    cross_origin: CrossOrigin,
     dev_indicators: Option<DevIndicatorsConfig>,
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
@@ -170,28 +179,6 @@ impl NextConfig {
         new.cell()
     }
 }
-
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum CrossOriginConfig {
-    Anonymous,
-    UseCredentials,
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
 
 #[derive(
     Clone,
@@ -605,6 +592,9 @@ pub struct TurbopackConfig {
     pub resolve_alias: Option<FxIndexMap<RcStr, JsonValue>>,
     pub resolve_extensions: Option<Vec<RcStr>>,
     pub debug_ids: Option<bool>,
+    /// Issue patterns to ignore (suppress) from Turbopack output.
+    #[serde(default)]
+    pub ignore_issue: Option<Vec<TurbopackIgnoreIssueRule>>,
 }
 
 #[derive(
@@ -674,6 +664,78 @@ impl TryFrom<RegexComponents> for EsRegex {
 }
 
 #[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ConfigConditionQuery {
+    Constant(RcStr),
+    Regex(RegexComponents),
+}
+
+impl TryFrom<ConfigConditionQuery> for ConditionQuery {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionQuery) -> Result<ConditionQuery> {
+        Ok(match config {
+            ConfigConditionQuery::Constant(value) => ConditionQuery::Constant(value),
+            ConfigConditionQuery::Regex(regex) => {
+                ConditionQuery::Regex(EsRegex::try_from(regex)?.resolved_cell())
+            }
+        })
+    }
+}
+
+#[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(
+    tag = "type",
+    content = "value",
+    rename_all = "camelCase",
+    deny_unknown_fields
+)]
+pub enum ConfigConditionContentType {
+    Glob(RcStr),
+    Regex(RegexComponents),
+}
+
+impl TryFrom<ConfigConditionContentType> for ConditionContentType {
+    type Error = anyhow::Error;
+
+    fn try_from(config: ConfigConditionContentType) -> Result<ConditionContentType> {
+        Ok(match config {
+            ConfigConditionContentType::Glob(value) => ConditionContentType::Glob(value),
+            ConfigConditionContentType::Regex(regex) => {
+                ConditionContentType::Regex(EsRegex::try_from(regex)?.resolved_cell())
+            }
+        })
+    }
+}
+
+#[derive(
     Deserialize,
     Clone,
     PartialEq,
@@ -703,6 +765,10 @@ pub enum ConfigConditionItem {
         path: Option<ConfigConditionPath>,
         #[serde(default)]
         content: Option<RegexComponents>,
+        #[serde(default)]
+        query: Option<ConfigConditionQuery>,
+        #[serde(default, rename = "contentType")]
+        content_type: Option<ConfigConditionContentType>,
     },
 }
 
@@ -723,12 +789,21 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
             ConfigConditionItem::Builtin(cond) => {
                 ConditionItem::Builtin(RcStr::from(cond.as_str()))
             }
-            ConfigConditionItem::Base { path, content } => ConditionItem::Base {
+            ConfigConditionItem::Base {
+                path,
+                content,
+                query,
+                content_type,
+            } => ConditionItem::Base {
                 path: path.map(ConditionPath::try_from).transpose()?,
                 content: content
                     .map(EsRegex::try_from)
                     .transpose()?
                     .map(EsRegex::resolved_cell),
+                query: query.map(ConditionQuery::try_from).transpose()?,
+                content_type: content_type
+                    .map(ConditionContentType::try_from)
+                    .transpose()?,
             },
         })
     }
@@ -748,11 +823,14 @@ impl TryFrom<ConfigConditionItem> for ConditionItem {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RuleConfigItem {
+    #[serde(default)]
     pub loaders: Vec<LoaderItem>,
     #[serde(default, alias = "as")]
     pub rename_as: Option<RcStr>,
     #[serde(default)]
     pub condition: Option<ConfigConditionItem>,
+    #[serde(default, alias = "type")]
+    pub module_type: Option<RcStr>,
 }
 
 #[derive(
@@ -820,8 +898,15 @@ pub enum ModuleIds {
     Deterministic,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionModuleIds(pub Option<ModuleIds>);
+#[turbo_tasks::value(operation)]
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TurbopackPluginRuntimeStrategy {
+    #[cfg(feature = "worker_pool")]
+    WorkerThreads,
+    #[cfg(feature = "process_pool")]
+    ChildProcesses,
+}
 
 #[derive(
     Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
@@ -852,6 +937,13 @@ pub enum ReactCompilerPanicThreshold {
     AllErrors,
 }
 
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ReactCompilerTarget {
+    #[serde(rename = "18")]
+    React18,
+}
+
 /// Subset of react compiler options, we pass these options through to the webpack loader, so it
 /// must be serializable
 #[turbo_tasks::value(shared, operation)]
@@ -862,6 +954,8 @@ pub struct ReactCompilerOptions {
     pub compilation_mode: ReactCompilerCompilationMode,
     #[serde(default)]
     pub panic_threshold: ReactCompilerPanicThreshold,
+    #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub target: Option<ReactCompilerTarget>,
 }
 
 #[derive(
@@ -875,6 +969,73 @@ pub enum ReactCompilerOptionsOrBoolean {
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionalReactCompilerOptions(Option<ResolvedVc<ReactCompilerOptions>>);
+
+/// Serialized representation of a path pattern for `turbopack.ignoreIssue`.
+/// Strings are serialized as `{ "type": "glob", "value": "..." }` and
+/// RegExp as `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssuePathPattern {
+    #[serde(rename = "glob")]
+    Glob { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+impl TurbopackIgnoreIssuePathPattern {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssuePathPattern::Glob { value } => Ok(IgnoreIssuePattern::Glob(
+                Glob::parse(value.clone(), GlobOptions::default())?,
+            )),
+            TurbopackIgnoreIssuePathPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
+        }
+    }
+}
+
+/// Serialized representation of a text pattern (title/description) for
+/// `turbopack.ignoreIssue`. Strings are serialized as
+/// `{ "type": "string", "value": "..." }` and RegExp as
+/// `{ "type": "regex", "source": "...", "flags": "..." }`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+#[serde(tag = "type")]
+pub enum TurbopackIgnoreIssueTextPattern {
+    #[serde(rename = "string")]
+    String { value: RcStr },
+    #[serde(rename = "regex")]
+    Regex { source: RcStr, flags: RcStr },
+}
+
+impl TurbopackIgnoreIssueTextPattern {
+    fn to_ignore_pattern(&self) -> Result<IgnoreIssuePattern> {
+        match self {
+            TurbopackIgnoreIssueTextPattern::String { value } => {
+                Ok(IgnoreIssuePattern::ExactString(value.clone()))
+            }
+            TurbopackIgnoreIssueTextPattern::Regex { source, flags } => {
+                Ok(IgnoreIssuePattern::Regex(EsRegex::new(source, flags)?))
+            }
+        }
+    }
+}
+
+/// A single rule in `turbopack.ignoreIssue`.
+#[derive(
+    Clone, Debug, PartialEq, Deserialize, TraceRawVcs, NonLocalValue, OperationValue, Encode, Decode,
+)]
+pub struct TurbopackIgnoreIssueRule {
+    pub path: TurbopackIgnoreIssuePathPattern,
+    #[serde(default)]
+    pub title: Option<TurbopackIgnoreIssueTextPattern>,
+    #[serde(default)]
+    pub description: Option<TurbopackIgnoreIssueTextPattern>,
+}
 
 #[derive(
     Clone,
@@ -907,6 +1068,7 @@ pub struct ExperimentalConfig {
     strict_next_head: Option<bool>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
+    swc_env_options: Option<SwcEnvOptions>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
     manual_client_base_path: Option<bool>,
@@ -925,6 +1087,13 @@ pub struct ExperimentalConfig {
     cache_components: Option<bool>,
     use_cache: Option<bool>,
     root_params: Option<bool>,
+    runtime_server_deployment_id: Option<bool>,
+    supports_immutable_assets: Option<bool>,
+
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -932,6 +1101,7 @@ pub struct ExperimentalConfig {
     adjust_font_fallbacks_with_size_adjust: Option<bool>,
     after: Option<bool>,
     app_document_preloading: Option<bool>,
+    app_new_scroll_handler: Option<bool>,
     case_sensitive_routes: Option<bool>,
     cpus: Option<f64>,
     cra_compat: Option<bool>,
@@ -949,7 +1119,7 @@ pub struct ExperimentalConfig {
     fully_specified: Option<bool>,
     gzip_size: Option<bool>,
 
-    pub inline_css: Option<bool>,
+    inline_css: Option<bool>,
     instrumentation_hook: Option<bool>,
     client_trace_metadata: Option<Vec<String>>,
     large_page_data_bytes: Option<f64>,
@@ -969,6 +1139,7 @@ pub struct ExperimentalConfig {
     server_source_maps: Option<bool>,
     swc_trace_profiling: Option<bool>,
     transition_indicator: Option<bool>,
+    gesture_transition: Option<bool>,
     /// @internal Used by the Next.js internals only.
     trust_host_header: Option<bool>,
 
@@ -981,7 +1152,7 @@ pub struct ExperimentalConfig {
 
     turbopack_minify: Option<bool>,
     turbopack_module_ids: Option<ModuleIds>,
-    turbopack_persistent_caching: Option<bool>,
+    turbopack_plugin_runtime_strategy: Option<TurbopackPluginRuntimeStrategy>,
     turbopack_source_maps: Option<bool>,
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
@@ -989,6 +1160,7 @@ pub struct ExperimentalConfig {
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
+    turbopack_import_type_text: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
     turbopack_use_builtin_sass: Option<bool>,
@@ -996,6 +1168,11 @@ pub struct ExperimentalConfig {
     /// present.
     #[serde(default)]
     turbopack_use_builtin_babel: Option<bool>,
+    /// Enable per-directory PostCSS config resolution. When true, Turbopack
+    /// searches for postcss.config.js starting from the CSS file's parent
+    /// directory first, then falls back to the project root.
+    #[serde(default)]
+    turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1006,6 +1183,12 @@ pub struct ExperimentalConfig {
     turbopack_infer_module_side_effects: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
+    /// Whether to report inlined system environment variables as warnings or errors.
+    report_system_env_inlining: Option<String>,
+    // Use project.is_persistent_caching() instead
+    // turbopack_file_system_cache_for_dev: Option<bool>,
+    // turbopack_file_system_cache_for_build: Option<bool>,
+    lightning_css_features: Option<LightningCssFeatures>,
 }
 
 #[derive(
@@ -1023,6 +1206,25 @@ pub struct ExperimentalConfig {
 #[serde(rename_all = "camelCase")]
 pub struct SubResourceIntegrity {
     pub algorithm: Option<RcStr>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct LightningCssFeatures {
+    pub include: Option<Vec<RcStr>>,
+    pub exclude: Option<Vec<RcStr>>,
 }
 
 #[derive(
@@ -1214,6 +1416,37 @@ pub struct SwcPlugins(
     #[bincode(with = "turbo_bincode::serde_self_describing")] Vec<(RcStr, serde_json::Value)>,
 );
 
+/// Options for SWC's preset-env, exposed via `experimental.swcEnvOptions`.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct SwcEnvOptions {
+    pub mode: Option<RcStr>,
+    pub core_js: Option<RcStr>,
+    pub skip: Option<Vec<RcStr>>,
+    pub include: Option<Vec<RcStr>>,
+    pub exclude: Option<Vec<RcStr>>,
+    pub shipped_proposals: Option<bool>,
+    pub force_all_transforms: Option<bool>,
+    pub debug: Option<bool>,
+    pub loose: Option<bool>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionSwcEnvOptions(Option<SwcEnvOptions>);
+
 #[turbo_tasks::value(transparent)]
 pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 
@@ -1225,7 +1458,7 @@ pub struct OptionSubResourceIntegrity(Option<SubResourceIntegrity>);
 pub struct OptionFileSystemPath(Option<FileSystemPath>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionServerActions(Option<ServerActions>);
+pub struct IgnoreIssues(Vec<IgnoreIssue>);
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionJsonValue(
@@ -1243,40 +1476,32 @@ struct InvalidLoaderRuleRenameAsIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleRenameAsIssue {
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.config_file_path.clone().cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(
-            StyledString::Text(format!("Invalid loader rule for extension: {}", self.glob).into())
-                .cell(),
-        )
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!("Invalid loader rule for extension: {}", self.glob).into(),
+        ))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(RcStr::from(format!(
-                "The extension {} contains a wildcard, but the `as` option does not: {}",
-                self.glob, self.rename_as,
-            )))
-            .resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(RcStr::from(format!(
+            "The extension {} contains a wildcard, but the `as` option does not: {}",
+            self.glob, self.rename_as,
+        )))))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(turbopack_config_documentation_link())
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
     }
 }
 
@@ -1287,41 +1512,36 @@ struct InvalidLoaderRuleConditionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleConditionIssue {
-    #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.config_file_path.clone().cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(rcstr!("Invalid condition for Turbopack loader rule")).cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Encountered the following error: ")),
-                    StyledString::Code(self.error_string.clone()),
-                ]),
-                StyledString::Text(rcstr!("While processing the condition:")),
-                StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
-            ])
-            .resolved_cell(),
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Invalid condition for Turbopack loader rule"
         )))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(turbopack_config_documentation_link())
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Encountered the following error: ")),
+                StyledString::Code(self.error_string.clone()),
+            ]),
+            StyledString::Text(rcstr!("While processing the condition:")),
+            StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
     }
 }
 
@@ -1475,6 +1695,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut [loaders].into_iter()),
                                 rename_as: None,
                                 condition: None,
+                                module_type: None,
                             },
                         ));
                     }
@@ -1482,6 +1703,7 @@ impl NextConfig {
                         loaders,
                         rename_as,
                         condition,
+                        module_type,
                     }) => {
                         // If the extension contains a wildcard, and the rename_as does not,
                         // emit an issue to prevent users from encountering duplicate module
@@ -1530,6 +1752,7 @@ impl NextConfig {
                                 loaders: transform_loaders(&mut loaders.iter()),
                                 rename_as: rename_as.clone(),
                                 condition,
+                                module_type: module_type.clone(),
                             },
                         ));
                     }
@@ -1537,15 +1760,6 @@ impl NextConfig {
             }
         }
         Ok(Vc::cell(rules))
-    }
-
-    #[turbo_tasks::function]
-    pub fn persistent_caching_enabled(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.experimental
-                .turbopack_persistent_caching
-                .unwrap_or_default(),
-        ))
     }
 
     #[turbo_tasks::function]
@@ -1646,15 +1860,24 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn cache_handlers_map(&self) -> Vc<CacheHandlersMap> {
+        Vc::cell(self.cache_handlers.clone().unwrap_or_default())
+    }
+
+    #[turbo_tasks::function]
     pub fn experimental_swc_plugins(&self) -> Vc<SwcPlugins> {
         Vc::cell(self.experimental.swc_plugins.clone().unwrap_or_default())
     }
 
-    // TODO not implemented yet
-    // #[turbo_tasks::function]
-    // pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
-    //     Vc::cell(self.experimental.sri.clone())
-    // }
+    #[turbo_tasks::function]
+    pub fn experimental_swc_env_options(&self) -> Vc<OptionSwcEnvOptions> {
+        Vc::cell(self.experimental.swc_env_options.clone())
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
+        Vc::cell(self.experimental.sri.clone())
+    }
 
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_babel(&self) -> Vc<Option<bool>> {
@@ -1664,6 +1887,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_sass(&self) -> Vc<Option<bool>> {
         Vc::cell(self.experimental.turbopack_use_builtin_sass)
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_turbopack_local_postcss_config(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_local_postcss_config)
     }
 
     #[turbo_tasks::function]
@@ -1720,13 +1948,37 @@ impl NextConfig {
 
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
-    pub async fn chunk_suffix_path(self: Vc<Self>) -> Result<Vc<Option<RcStr>>> {
-        let this = self.await?;
+    pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
+        let needs_dpl_id = self
+            .experimental
+            .supports_immutable_assets
+            .is_none_or(|f| !f);
 
-        match &this.deployment_id {
-            Some(deployment_id) => Ok(Vc::cell(Some(format!("?dpl={deployment_id}").into()))),
-            None => Ok(Vc::cell(None)),
-        }
+        Vc::cell(
+            needs_dpl_id
+                .then_some(self.deployment_id.as_ref())
+                .flatten()
+                .map(|id| format!("?dpl={id}").into()),
+        )
+    }
+
+    /// Whether to enable immutable assets, which uses a different asset suffix, and writes a
+    /// .next/immutable-static-hashes.json manifest.
+    #[turbo_tasks::function]
+    pub fn enable_immutable_assets(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.supports_immutable_assets == Some(true))
+    }
+
+    #[turbo_tasks::function]
+    pub fn client_static_folder_name(&self) -> Vc<RcStr> {
+        Vc::cell(
+            if self.experimental.supports_immutable_assets == Some(true) {
+                // Ends up as `_next/static/immutable`
+                rcstr!("static/immutable")
+            } else {
+                rcstr!("static")
+            },
+        )
     }
 
     #[turbo_tasks::function]
@@ -1737,6 +1989,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_transition_indicator(&self) -> Vc<bool> {
         Vc::cell(self.experimental.transition_indicator.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_gesture_transition(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.gesture_transition.unwrap_or(false))
     }
 
     #[turbo_tasks::function]
@@ -1763,6 +2020,22 @@ impl NextConfig {
                 .root_params
                 // rootParams should be enabled implicitly in cacheComponents.
                 .unwrap_or(self.cache_components.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
+        let needs_dpl_id = self
+            .experimental
+            .supports_immutable_assets
+            .is_none_or(|f| !f);
+
+        Vc::cell(
+            needs_dpl_id
+                && self
+                    .experimental
+                    .runtime_server_deployment_id
+                    .unwrap_or(false),
         )
     }
 
@@ -1850,6 +2123,19 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn turbopack_plugin_runtime_strategy(&self) -> Vc<TurbopackPluginRuntimeStrategy> {
+        #[cfg(feature = "process_pool")]
+        let default = TurbopackPluginRuntimeStrategy::ChildProcesses;
+        #[cfg(all(feature = "worker_pool", not(feature = "process_pool")))]
+        let default = TurbopackPluginRuntimeStrategy::WorkerThreads;
+
+        self.experimental
+            .turbopack_plugin_runtime_strategy
+            .unwrap_or(default)
+            .cell()
+    }
+
+    #[turbo_tasks::function]
     pub async fn module_ids(&self, mode: Vc<NextMode>) -> Result<Vc<ModuleIds>> {
         Ok(match *mode.await? {
             // Ignore configuration in development mode, HMR only works with `named`
@@ -1909,6 +2195,32 @@ impl NextConfig {
                 .turbopack_import_type_bytes
                 .unwrap_or(false),
         )
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbopack_import_type_text(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .turbopack_import_type_text
+                .unwrap_or(false),
+        )
+    }
+
+    #[turbo_tasks::function]
+    pub fn lightningcss_feature_flags(
+        &self,
+    ) -> Result<Vc<turbopack_css::LightningCssFeatureFlags>> {
+        Ok(turbopack_css::LightningCssFeatureFlags {
+            include: lightningcss_features_field_mask(
+                &self.experimental.lightning_css_features,
+                |f| f.include.as_ref(),
+            )?,
+            exclude: lightningcss_features_field_mask(
+                &self.experimental.lightning_css_features,
+                |f| f.exclude.as_ref(),
+            )?,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
@@ -1972,8 +2284,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
-        Vc::cell(self.cross_origin.clone())
+    pub fn cross_origin(&self) -> Vc<CrossOrigin> {
+        *self.cross_origin.resolved_cell()
     }
 
     #[turbo_tasks::function]
@@ -1999,6 +2311,57 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn fetch_client(&self) -> Vc<FetchClientConfig> {
         FetchClientConfig::default().cell()
+    }
+
+    #[turbo_tasks::function]
+    pub async fn report_system_env_inlining(&self) -> Result<Vc<IssueSeverity>> {
+        match self.experimental.report_system_env_inlining.as_deref() {
+            None => Ok(IssueSeverity::Suggestion.cell()),
+            Some("warn") => Ok(IssueSeverity::Warning.cell()),
+            Some("error") => Ok(IssueSeverity::Error.cell()),
+            _ => bail!(
+                "`experimental.reportSystemEnvInlining` must be undefined, \"error\", or \"warn\""
+            ),
+        }
+    }
+
+    /// Returns the list of ignore-issue rules from the turbopack config,
+    /// converted to the `IgnoreIssue` type used by `IssueFilter`.
+    #[turbo_tasks::function]
+    pub fn turbopack_ignore_issue_rules(&self) -> Result<Vc<IgnoreIssues>> {
+        let rules = self
+            .turbopack
+            .as_ref()
+            .and_then(|tp| tp.ignore_issue.as_deref())
+            .unwrap_or_default()
+            .iter()
+            .map(|rule| {
+                Ok(IgnoreIssue {
+                    path: rule.path.to_ignore_pattern()?,
+                    title: rule
+                        .title
+                        .as_ref()
+                        .map(|t| t.to_ignore_pattern())
+                        .transpose()?,
+                    description: rule
+                        .description
+                        .as_ref()
+                        .map(|d| d.to_ignore_pattern())
+                        .transpose()?,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        Ok(Vc::cell(rules))
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_hash_salt(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.experimental
+                .output_hash_salt
+                .clone()
+                .unwrap_or_default(),
+        )
     }
 }
 
@@ -2029,6 +2392,65 @@ impl JsConfig {
     }
 }
 
+/// Extract either the `include` or `exclude` field from `LightningCssFeatures`
+/// and convert the feature names to a bitmask.
+fn lightningcss_features_field_mask(
+    features: &Option<LightningCssFeatures>,
+    field: impl FnOnce(&LightningCssFeatures) -> Option<&Vec<RcStr>>,
+) -> Result<u32> {
+    features
+        .as_ref()
+        .and_then(field)
+        .map(|names| lightningcss_feature_names_to_mask(names))
+        .unwrap_or(Ok(0))
+}
+
+/// Convert dash-case feature name strings to a lightningcss `Features` bitmask.
+///
+/// Uses the canonical `Features` constants from the lightningcss crate.
+/// Composite names (`selectors`, `media-queries`, `colors`) OR together the
+/// bits of their constituent individual features.
+///
+/// Feature names must match: `packages/next/src/server/config-shared.ts`
+/// (`LIGHTNINGCSS_FEATURE_NAMES`)
+pub fn lightningcss_feature_names_to_mask(
+    names: &[impl std::ops::Deref<Target = str>],
+) -> Result<u32> {
+    use lightningcss::targets::Features;
+    let mut mask = Features::empty();
+    for name in names {
+        mask |= match &**name {
+            "nesting" => Features::Nesting,
+            "not-selector-list" => Features::NotSelectorList,
+            "dir-selector" => Features::DirSelector,
+            "lang-selector-list" => Features::LangSelectorList,
+            "is-selector" => Features::IsSelector,
+            "text-decoration-thickness-percent" => Features::TextDecorationThicknessPercent,
+            "media-interval-syntax" => Features::MediaIntervalSyntax,
+            "media-range-syntax" => Features::MediaRangeSyntax,
+            "custom-media-queries" => Features::CustomMediaQueries,
+            "clamp-function" => Features::ClampFunction,
+            "color-function" => Features::ColorFunction,
+            "oklab-colors" => Features::OklabColors,
+            "lab-colors" => Features::LabColors,
+            "p3-colors" => Features::P3Colors,
+            "hex-alpha-colors" => Features::HexAlphaColors,
+            "space-separated-color-notation" => Features::SpaceSeparatedColorNotation,
+            "font-family-system-ui" => Features::FontFamilySystemUi,
+            "double-position-gradients" => Features::DoublePositionGradients,
+            "vendor-prefixes" => Features::VendorPrefixes,
+            "logical-properties" => Features::LogicalProperties,
+            "light-dark" => Features::LightDark,
+            // Composite groups
+            "selectors" => Features::Selectors,
+            "media-queries" => Features::MediaQueries,
+            "colors" => Features::Colors,
+            _ => bail!("Unknown lightningcss feature: {}", &**name),
+        };
+    }
+    Ok(mask.bits())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2046,6 +2468,13 @@ mod tests {
                         "browser",
                         {
                             "path": { "type": "glob", "value": "*.svg"},
+                            "query": {
+                                "type": "regex",
+                                "value": {
+                                    "source": "@someQuery",
+                                    "flags": ""
+                                }
+                            },
                             "content": {
                                 "source": "@someTag",
                                 "flags": ""
@@ -2063,6 +2492,7 @@ mod tests {
             RuleConfigItem {
                 loaders: vec![],
                 rename_as: Some(rcstr!("*.js")),
+                module_type: None,
                 condition: Some(ConfigConditionItem::All(
                     [
                         ConfigConditionItem::Builtin(WebpackLoaderBuiltinCondition::Production),
@@ -2080,6 +2510,11 @@ mod tests {
                                         source: rcstr!("@someTag"),
                                         flags: rcstr!(""),
                                     }),
+                                    query: Some(ConfigConditionQuery::Regex(RegexComponents {
+                                        source: rcstr!("@someQuery"),
+                                        flags: rcstr!(""),
+                                    })),
+                                    content_type: None,
                                 },
                             ]
                             .into(),

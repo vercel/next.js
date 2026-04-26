@@ -5,7 +5,7 @@ import {
   type NextRequestHint,
 } from '../../server/web/adapter'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
-import { initializeCacheHandlers } from '../../server/use-cache/handlers'
+import * as cacheHandlers from '../../server/use-cache/handlers'
 
 import Document from 'VAR_MODULE_DOCUMENT'
 import * as appMod from 'VAR_MODULE_APP'
@@ -38,6 +38,7 @@ declare const user500RouteModuleOptions: any
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
+// INJECT_RAW:cacheHandlerImports
 
 const pageMod = {
   ...userlandPage,
@@ -110,16 +111,18 @@ async function requestHandler(
     params,
     buildId,
     nextConfig,
+    deploymentId,
     isNextDataRequest,
     buildManifest,
     prerenderManifest,
     reactLoadableManifest,
-    clientReferenceManifest,
     subresourceIntegrityManifest,
     dynamicCssManifest,
+    clientAssetToken,
   } = prepareResult
 
-  initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  cacheHandlers.initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+  // INJECT_RAW:cacheHandlerRegistration
 
   const renderContext: PagesRouteHandlerContext = {
     page: srcPage,
@@ -128,7 +131,8 @@ async function requestHandler(
 
     sharedContext: {
       buildId,
-      deploymentId: process.env.NEXT_DEPLOYMENT_ID,
+      deploymentId,
+      clientAssetToken,
       customServer: undefined,
     },
 
@@ -168,7 +172,6 @@ async function requestHandler(
       buildManifest,
       subresourceIntegrityManifest,
       reactLoadableManifest,
-      clientReferenceManifest,
       dynamicCssManifest,
     },
   }

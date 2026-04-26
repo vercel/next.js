@@ -14,7 +14,7 @@ const cwd = process.cwd()
     let version = require('@next/swc/package.json').version
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'crates/napi/npm')
+    let nativePackagesDir = path.join(cwd, 'crates/next-napi-bindings/npm')
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )

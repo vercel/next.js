@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, io::Write};
 
 use anyhow::{Context, Result, bail};
+use bincode::{Decode, Encode};
 use next_core::{
     next_manifests::{
         ActionLayer, ActionManifestModuleId, ActionManifestWorkerEntry, ServerReferenceManifest,
@@ -19,7 +20,9 @@ use swc_core::{
     },
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{
+    FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, trace::TraceRawVcs,
+};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath, rope::RopeBuilder};
 use turbopack_core::{
     asset::AssetContent,
@@ -30,7 +33,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::Module,
-    module_graph::{ModuleGraph, SingleModuleGraph, async_module_info::AsyncModulesInfo},
+    module_graph::{ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -39,8 +42,11 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     EcmascriptParsable, chunk::EcmascriptChunkPlaceable, parse::ParseResult,
-    tree_shake::asset::EcmascriptModulePartAsset,
+    tree_shake::part::module::EcmascriptModulePartAsset,
 };
+
+/// Metadata for a server action: (layer, exported_name, filename)
+type ActionMetadata = (ActionLayer, String, String);
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
@@ -68,11 +74,9 @@ pub(crate) async fn create_server_actions_manifest(
 ) -> Result<Vc<ServerActionsManifest>> {
     let loader =
         build_server_actions_loader(project_path, page_name.clone(), actions, rsc_asset_context);
-    let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
-        .await?
-        .context("loader module must be evaluatable")?
-        .to_resolved()
-        .await?;
+    let evaluable =
+        ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(loader.to_resolved().await?)
+            .context("loader module must be evaluatable")?;
 
     let chunk_item = loader.as_chunk_item(module_graph, chunking_context);
     let manifest = build_manifest(
@@ -112,11 +116,12 @@ pub(crate) async fn build_server_actions_loader(
     // hashed ID as export name.
     let mut contents = RopeBuilder::from("");
     let mut import_map = FxIndexMap::default();
-    for (hash_id, (_layer, name, module)) in actions.iter() {
+    for (hash_id, (_layer, meta, module)) in actions.iter() {
         let index = import_map.len();
         let module_name = import_map
             .entry(*module)
             .or_insert_with(|| format!("ACTIONS_MODULE{index}").into());
+        let name = &meta.name;
         writeln!(
             contents,
             "export {{{name} as '{hash_id}'}} from '{module_name}'"
@@ -138,12 +143,12 @@ pub(crate) async fn build_server_actions_loader(
         .module();
 
     let Some(placeable) =
-        Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module.to_resolved().await?)
     else {
         bail!("internal module must be evaluatable");
     };
 
-    Ok(placeable)
+    Ok(*placeable)
 }
 
 /// Builds a manifest containing every action's hashed id, with an internal
@@ -168,7 +173,7 @@ async fn build_manifest(
 
     let actions_value = actions.await?;
     let loader_id = chunk_item.id().await?;
-    let loader_id = match &*loader_id {
+    let loader_id = match &loader_id {
         ModuleId::Number(id) => ActionManifestModuleId::Number(*id),
         ModuleId::String(id) => ActionManifestModuleId::String(id),
     };
@@ -177,29 +182,35 @@ async fn build_manifest(
         NextRuntime::NodeJs => &mut manifest.node,
     };
 
-    // Collect all the action metadata including filenames
-    let mut action_metadata: Vec<(String, (ActionLayer, String, String))> = Vec::new();
-    for (hash_id, (layer, name, module)) in actions_value.iter() {
-        // Get the module path and use the full path
-        let module_path = module.ident().path().await?;
-        let full_path = module_path.to_string();
+    // Collect all the action metadata including filenames and location
+    let mut action_metadata: Vec<(String, ActionMetadata)> = Vec::new();
+    for (hash_id, (layer, meta, module)) in actions_value.iter() {
+        // Use source_path from the action comment if available (contains original .ts/.tsx path),
+        // otherwise fall back to module.ident().path() (may be compiled .js path)
+        let filename = if !meta.source_path.is_empty() {
+            meta.source_path.clone()
+        } else {
+            let module_path = module.ident().path().await?;
+            module_path.to_string()
+        };
 
-        action_metadata.push((hash_id.clone(), (*layer, name.clone(), full_path)));
+        action_metadata.push((hash_id.clone(), (*layer, meta.name.clone(), filename)));
     }
 
     // Now create the manifest entries
-    for (hash_id, (layer, name, filename)) in &action_metadata {
+    for (hash_id, (_layer, name, filename)) in &action_metadata {
         let entry = mapping.entry(hash_id.as_str()).or_default();
         entry.workers.insert(
             &key,
             ActionManifestWorkerEntry {
                 module_id: loader_id.clone(),
-                is_async: *async_module_info.is_async(chunk_item.module()).await?,
+                is_async: async_module_info
+                    .is_async(chunk_item.module().to_resolved().await?)
+                    .await?,
                 exported_name: name.as_str(),
                 filename: filename.as_str(),
             },
         );
-        entry.layer.insert(&key, *layer);
 
         // Hoist the filename and exported_name to the entry level
         entry.exported_name = name.as_str();
@@ -250,6 +261,31 @@ pub async fn to_rsc_context(
     Ok(module)
 }
 
+/// Server action info for JSON parsing
+#[derive(Clone, Debug, serde::Deserialize)]
+#[serde(untagged)]
+enum ServerActionInfoRaw {
+    /// Old format: just the export name as a string
+    Name(String),
+    /// New format: object with name
+    WithName { name: String },
+}
+
+impl ServerActionInfoRaw {
+    fn into_action_entry(self) -> ActionEntry {
+        match self {
+            ServerActionInfoRaw::Name(name) => ActionEntry { name },
+            ServerActionInfoRaw::WithName { name } => ActionEntry { name },
+        }
+    }
+}
+
+/// Simplified action entry for storage in turbo_tasks values
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub struct ActionEntry {
+    pub name: String,
+}
+
 /// Parses the Server Actions comment for all exported action function names.
 ///
 /// Action names are stored in a leading BlockComment prefixed by
@@ -257,7 +293,7 @@ pub async fn to_rsc_context(
 pub fn parse_server_actions(
     program: &Program,
     comments: &dyn Comments,
-) -> Option<(BTreeMap<String, String>, String, String)> {
+) -> Option<(BTreeMap<String, ActionEntry>, String, String)> {
     let byte_pos = match program {
         Program::Module(m) => m.span.lo,
         Program::Script(s) => s.span.lo,
@@ -266,7 +302,29 @@ pub fn parse_server_actions(
         comments.iter().find_map(|c| {
             c.text
                 .split_once("__next_internal_action_entry_do_not_use__")
-                .and_then(|(_, actions)| serde_json::from_str(actions).ok())
+                .and_then(|(_, actions)| {
+                    // Try to parse as tuple format: (actions_map, entry_path, entry_query)
+                    if let Ok((raw, entry_path, entry_query)) = serde_json::from_str::<(
+                        BTreeMap<String, ServerActionInfoRaw>,
+                        String,
+                        String,
+                    )>(actions)
+                    {
+                        let converted: BTreeMap<String, ActionEntry> = raw
+                            .into_iter()
+                            .map(|(k, v)| (k, v.into_action_entry()))
+                            .collect();
+                        return Some((converted, entry_path, entry_query));
+                    }
+                    // Fall back to just actions map (old format without entry path/query)
+                    let raw: BTreeMap<String, ServerActionInfoRaw> =
+                        serde_json::from_str(actions).ok()?;
+                    let converted: BTreeMap<String, ActionEntry> = raw
+                        .into_iter()
+                        .map(|(k, v)| (k, v.into_action_entry()))
+                        .collect();
+                    Some((converted, String::new(), String::new()))
+                })
         })
     })
 }
@@ -289,7 +347,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     }
 
-    let original_parsed = ecmascript_asset.parse_original().resolve().await?;
+    let original_parsed = *ecmascript_asset.parse_original().to_resolved().await?;
 
     let ParseResult::Ok {
         program: original,
@@ -306,7 +364,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         return Ok(Vc::cell(None));
     };
 
-    let fragment = ecmascript_asset.failsafe_parse().resolve().await?;
+    let fragment = *ecmascript_asset.failsafe_parse().to_resolved().await?;
 
     if fragment != original_parsed {
         let ParseResult::Ok {
@@ -318,7 +376,7 @@ async fn parse_actions(module: ResolvedVc<Box<dyn Module>>) -> Result<Vc<OptionA
         };
 
         let all_exports = all_export_names(fragment);
-        actions.retain(|_, name| all_exports.iter().any(|export| export == name));
+        actions.retain(|_, entry| all_exports.iter().any(|export| export == &entry.name));
     }
 
     let mut actions = FxIndexMap::from_iter(actions.into_iter());
@@ -415,7 +473,18 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
         .unwrap_or(false)
 }
 
-type HashToLayerNameModule = Vec<(String, (ActionLayer, String, ResolvedVc<Box<dyn Module>>))>;
+/// Action metadata including name and source path
+#[derive(Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub struct ActionMeta {
+    pub name: String,
+    /// The original source file path (from entry_path in the action comment)
+    pub source_path: String,
+}
+
+type HashToLayerNameModule = Vec<(
+    String,
+    (ActionLayer, ActionMeta, ResolvedVc<Box<dyn Module>>),
+)>;
 
 /// A mapping of every module which exports a Server Action, with the hashed id
 /// and exported name of each found action.
@@ -430,12 +499,12 @@ impl AllActions {
     }
 }
 
-/// Maps the hashed action id to the action's exported function name.
+/// Maps the hashed action id to the action's exported function name and location.
 #[turbo_tasks::value]
 #[derive(Debug)]
 pub struct ActionMap {
     #[bincode(with = "turbo_bincode::indexmap")]
-    pub actions: FxIndexMap<String, String>,
+    pub actions: FxIndexMap<String, ActionEntry>,
     pub entry_path: String,
     pub entry_query: String,
 }
@@ -453,7 +522,9 @@ pub struct AllModuleActions(
 );
 
 #[turbo_tasks::function]
-pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {
+pub async fn map_server_actions(
+    graph: ResolvedVc<ModuleGraphLayer>,
+) -> Result<Vc<AllModuleActions>> {
     let actions = graph
         .await?
         .iter_nodes()

@@ -36,7 +36,7 @@ use turbopack_core::{
 };
 
 use self::{single_item_chunk::chunk::SingleItemCssChunk, source_map::CssChunkSourceMapAsset};
-use crate::{ImportAssetReference, util::stringify_js};
+use crate::ImportAssetReference;
 
 #[turbo_tasks::value]
 pub struct CssChunk {
@@ -130,7 +130,7 @@ impl CssChunk {
         }
 
         for external_import in external_imports {
-            writeln!(code, "@import {};", stringify_js(&external_import))?;
+            writeln!(code, "{}", &external_import)?;
         }
 
         let built = &body.build();
@@ -308,7 +308,7 @@ impl OutputAssetsReference for CssChunk {
                             .copied()
                             .chain(single_css_chunk.iter().copied())
                     })
-                    .chain(source_map.into_iter())
+                    .chain(source_map)
                     .collect(),
             ),
             referenced_assets: ResolvedVc::cell(
@@ -357,7 +357,7 @@ impl OutputChunk for CssChunk {
         let entries_chunk_items = &content.chunk_items;
         let included_ids = entries_chunk_items
             .iter()
-            .map(|chunk_item| chunk_item.id().to_resolved())
+            .map(|chunk_item| chunk_item.id())
             .try_join()
             .await?;
         let imports_chunk_items: Vec<_> = entries_chunk_items
@@ -441,7 +441,7 @@ impl GenerateSourceMap for CssChunk {
 
 // TODO: remove
 #[turbo_tasks::value_trait]
-pub trait CssChunkPlaceable: ChunkableModule + Module + Asset {}
+pub trait CssChunkPlaceable: ChunkableModule + Module {}
 
 #[derive(Clone, Debug)]
 #[turbo_tasks::value(shared)]
@@ -522,17 +522,10 @@ impl Introspectable for CssChunk {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, ValueToString)]
+#[value_to_string("css")]
 #[turbo_tasks::value]
 pub struct CssChunkType {}
-
-#[turbo_tasks::value_impl]
-impl ValueToString for CssChunkType {
-    #[turbo_tasks::function]
-    fn to_string(&self) -> Vc<RcStr> {
-        Vc::cell(rcstr!("css"))
-    }
-}
 
 #[turbo_tasks::value_impl]
 impl ChunkType for CssChunkType {

@@ -6,6 +6,7 @@ use bincode::{
     de::Decoder,
     enc::Encoder,
     error::{DecodeError, EncodeError},
+    impl_borrow_decode,
 };
 use regex::bytes::{Regex, RegexBuilder};
 use turbo_rcstr::{RcStr, rcstr};
@@ -66,6 +67,8 @@ impl<Context> Decode<Context> for Glob {
         Glob::parse(glob, opts).map_err(|err| DecodeError::OtherString(err.to_string()))
     }
 }
+
+impl_borrow_decode!(Glob);
 
 #[derive(
     Copy, Clone, PartialEq, Eq, Hash, Default, TaskInput, TraceRawVcs, Debug, Encode, Decode,

@@ -6,6 +6,7 @@ import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { tryToParsePath } from './try-to-parse-path'
 import { allowedStatusCodes } from './redirect-status'
 import { isFullStringUrl } from './url'
+import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from './constants'
 
 export type RouteHas =
   | {
@@ -488,6 +489,7 @@ export function checkCustomRoutes(
 
 export interface CustomRoutes {
   headers: Header[]
+  onMatchHeaders: Header[]
   rewrites: {
     fallback: Rewrite[]
     afterFiles: Rewrite[]
@@ -707,6 +709,8 @@ export default async function loadCustomRoutes(
     loadRedirects(config),
   ])
 
+  const onMatchHeaders: Header[] = []
+
   const totalRewrites =
     rewrites.beforeFiles.length +
     rewrites.afterFiles.length +
@@ -746,16 +750,46 @@ export default async function loadCustomRoutes(
     )
   }
 
-  if (config.experimental?.useSkewCookie && config.deploymentId) {
-    headers.unshift({
-      source: '/:path*',
-      headers: [
-        {
-          key: 'Set-Cookie',
-          value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
-        },
-      ],
-    })
+  if (config.deploymentId) {
+    if (config.experimental?.useSkewCookie) {
+      headers.unshift({
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Set-Cookie',
+            value: `__vdpl=${config.deploymentId}; Path=/; HttpOnly`,
+          },
+        ],
+      })
+    }
+
+    onMatchHeaders.push(
+      {
+        source: '/:path*',
+        has: [
+          {
+            type: 'header',
+            key: 'rsc',
+            value: '1',
+          },
+        ],
+        headers: [
+          {
+            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+            value: config.deploymentId,
+          },
+        ],
+      },
+      {
+        source: '/_next/data/(.*)',
+        headers: [
+          {
+            key: NEXT_NAV_DEPLOYMENT_ID_HEADER,
+            value: config.deploymentId,
+          },
+        ],
+      }
+    )
   }
 
   if (!config.skipTrailingSlashRedirect) {
@@ -821,6 +855,7 @@ export default async function loadCustomRoutes(
 
   return {
     headers,
+    onMatchHeaders,
     rewrites,
     redirects,
   }

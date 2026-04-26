@@ -6,13 +6,10 @@ use turbo_tasks::{
     util::{good_chunk_size, into_chunks},
 };
 
-use crate::{
-    backend::operation::{
-        AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
-        get_aggregation_number, get_uppers, is_aggregating_node,
-    },
-    data::{CachedDataItem, CachedDataItemType},
+use crate::backend::operation::{
+    AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext, Operation,
+    TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob, get_aggregation_number,
+    get_uppers, is_aggregating_node,
 };
 
 pub fn connect_children(
@@ -27,12 +24,13 @@ pub fn connect_children(
 
     let parent_aggregation = get_aggregation_number(&parent_task);
 
-    parent_task.extend_new(
-        CachedDataItemType::Child,
-        new_children.iter().map(|&new_child| CachedDataItem::Child {
-            task: new_child,
-            value: (),
-        }),
+    let old_children = parent_task.children_len();
+    parent_task.extend_children(new_children.iter().copied());
+    debug_assert!(
+        old_children + new_children.len() == parent_task.children_len(),
+        "Attempted to connect {len} new children, but some of them were already present in \
+         {parent_task_id}",
+        len = new_children.len()
     );
 
     let new_follower_ids: SmallVec<_> = new_children.into_iter().collect();

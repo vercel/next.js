@@ -26,7 +26,7 @@ describe('TypeScript Image Component', () => {
     () => {
       it('should fail to build invalid usage of the Image component', async () => {
         const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
-        expect(stderr).toMatch(/Failed to compile/)
+        expect(stderr).toMatch(/Failed to type check/)
         expect(stderr).toMatch(/is not assignable to type/)
         expect(code).toBe(1)
         const envTypes = await fs.readFile(
@@ -43,7 +43,7 @@ describe('TypeScript Image Component', () => {
           content.replace('// disableStaticImages', 'disableStaticImages')
         )
         const { code, stderr } = await nextBuild(appDir, [], { stderr: true })
-        expect(stderr).toMatch(/Failed to compile/)
+        expect(stderr).toMatch(/Failed to type check/)
         expect(stderr).toMatch(/is not assignable to type/)
         expect(code).toBe(1)
         await fs.writeFile(nextConfig, content)

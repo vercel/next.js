@@ -5,6 +5,7 @@ import type { Telemetry } from '../../telemetry/storage'
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
+import type { AnyStream } from '../app-render/stream-ops'
 
 import { type webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -17,7 +18,6 @@ import * as inspector from 'inspector'
 import { join, relative, isAbsolute, posix, dirname } from 'path'
 import {
   createEntrypoints,
-  createPagesMapping,
   finalizeEntrypoint,
   getClientEntry,
   getEdgeServerEntry,
@@ -25,6 +25,7 @@ import {
   runDependingOnPageType,
   getInstrumentationEntry,
 } from '../../build/entries'
+import { createPagesMapping } from '../../build/route-discovery'
 import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
 import { watchCompilers } from '../../build/output'
 import * as Log from '../../build/output/log'
@@ -88,10 +89,7 @@ import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
-import {
-  receiveBrowserLogsWebpack,
-  handleClientFileLogs,
-} from './browser-logs/receive-logs'
+import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
 import {
   devToolsConfigMiddleware,
   getDevToolsConfig,
@@ -603,24 +601,20 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               break
             }
             case 'browser-logs': {
-              if (this.config.experimental.browserDebugInfoInTerminal) {
-                await receiveBrowserLogsWebpack({
-                  entries: payload.entries,
-                  router: payload.router,
-                  sourceType: payload.sourceType,
-                  clientStats: () => this.clientStats,
-                  serverStats: () => this.serverStats,
-                  edgeServerStats: () => this.edgeServerStats,
-                  rootDirectory: this.dir,
-                  distDir: this.distDir,
-                  config: this.config.experimental.browserDebugInfoInTerminal,
-                })
-              }
-              break
-            }
-            case 'client-file-logs': {
-              // Always log to file regardless of terminal flag
-              await handleClientFileLogs(payload.logs)
+              await receiveBrowserLogsWebpack({
+                entries: payload.entries,
+                router: payload.router,
+                sourceType: payload.sourceType,
+                clientStats: () => this.clientStats,
+                serverStats: () => this.serverStats,
+                edgeServerStats: () => this.edgeServerStats,
+                rootDirectory: this.dir,
+                distDir: this.distDir,
+                config:
+                  (this.config.logging &&
+                    this.config.logging.browserToTerminal) ||
+                  false,
+              })
               break
             }
             case 'ping': {
@@ -1027,6 +1021,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       name: bundlePath,
                       page,
                       appPaths: entryData.appPaths,
+                      allNormalizedAppPaths: null, // Not available in dev mode
                       pagePath: posix.join(
                         APP_DIR_ALIAS,
                         relative(
@@ -1156,6 +1151,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     name: bundlePath,
                     page,
                     appPaths: entryData.appPaths,
+                    allNormalizedAppPaths: null, // Not available in dev mode
                     pagePath,
                     appDir: this.appDir!,
                     pageExtensions: this.config.pageExtensions,
@@ -1816,7 +1812,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public sendErrorsToBrowser(
-    errorsRscStream: ReadableStream<Uint8Array>,
+    errorsRscStream: AnyStream,
     htmlRequestId: string
   ): void {
     const client = this.webpackHotMiddleware?.getClient(htmlRequestId)

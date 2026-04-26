@@ -2,7 +2,8 @@ import { Suspense } from 'react'
 import { UncachedFetch, CachedData } from '../data-fetching'
 import { PrivateCachedData } from './data-fetching'
 
-export const unstable_prefetch = { mode: 'runtime', samples: [{}] }
+export const unstable_instant = true
+export const unstable_prefetch = 'force-runtime'
 
 const CACHE_KEY = '/private-cache/__LAYOUT__'
 

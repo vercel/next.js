@@ -2,9 +2,6 @@
 import './cpu-profile'
 import { getNetworkHost } from '../../lib/get-network-host'
 
-if (performance.getEntriesByName('next-start').length === 0) {
-  performance.mark('next-start')
-}
 import '../next'
 import '../require-hook'
 
@@ -19,7 +16,6 @@ import http from 'http'
 import https from 'https'
 import os from 'os'
 import { exec } from 'child_process'
-import Watchpack from 'next/dist/compiled/watchpack'
 import * as Log from '../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
 import { RESTART_EXIT_CODE } from './utils'
@@ -29,9 +25,20 @@ import {
   CONFIG_FILES,
   PHASE_DEVELOPMENT_SERVER,
 } from '../../shared/lib/constants'
-import { getEnvInfo, logExperimentalInfo, logStartInfo } from './app-info-log'
+import {
+  ensureAgentRulesForDev,
+  getEnvInfo,
+  logExperimentalInfo,
+  logStartInfo,
+} from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
-import { type Span, trace, flushAllTraces } from '../../trace'
+import {
+  type Span,
+  trace,
+  flushAllTraces,
+  exportTraceState,
+  initializeTraceState,
+} from '../../trace'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
@@ -126,6 +133,7 @@ export interface StartServerOptions {
   keepAliveTimeout?: number
   // this is dev-server only
   selfSignedCertificate?: SelfSignedCertificate
+  serverFastRefresh?: boolean
 }
 
 export async function getRequestHandlers({
@@ -138,6 +146,7 @@ export async function getRequestHandlers({
   minimalMode,
   keepAliveTimeout,
   experimentalHttpsServer,
+  serverFastRefresh,
   quiet,
 }: {
   dir: string
@@ -149,6 +158,7 @@ export async function getRequestHandlers({
   minimalMode?: boolean
   keepAliveTimeout?: number
   experimentalHttpsServer?: boolean
+  serverFastRefresh?: boolean
   quiet?: boolean
 }): ReturnType<typeof initialize> {
   return initialize({
@@ -161,6 +171,7 @@ export async function getRequestHandlers({
     server,
     keepAliveTimeout,
     experimentalHttpsServer,
+    serverFastRefresh,
     startServerSpan,
     quiet,
   })
@@ -181,6 +192,7 @@ export async function startServer(
     allowRetry,
     keepAliveTimeout,
     selfSignedCertificate,
+    serverFastRefresh,
   } = serverOptions
   let { port } = serverOptions
 
@@ -370,10 +382,11 @@ export async function startServer(
       })
 
       // Calculate and log "Ready in X" before loading config
-      // so it reflects actual framework startup time
+      // so it reflects actual framework startup time.
+      // NEXT_PRIVATE_START_TIME is set by bin/next.ts or cli/next-start.ts.
       const startTime = parseInt(process.env.NEXT_PRIVATE_START_TIME || '0', 10)
       const endTime = Date.now()
-      const startServerProcessDurationMs = endTime - startTime
+      const startServerProcessDurationMs = startTime ? endTime - startTime : 0
 
       const formattedStartDuration = durationToString(
         startServerProcessDurationMs / 1000
@@ -384,7 +397,7 @@ export async function startServer(
       try {
         let cleanupStarted = false
         let closeUpgraded: (() => void) | null = null
-        const cleanup = () => {
+        const cleanup = (signal: 'SIGINT' | 'SIGTERM') => {
           if (cleanupStarted) {
             // We can get duplicate signals, e.g. when `ctrl+c` is used in an
             // interactive shell (i.e. bash, zsh), the shell will recursively
@@ -415,6 +428,9 @@ export async function startServer(
               cleanupListeners?.runAll().catch(console.error),
             ])
 
+            // Flush any remaining traces to the trace file on shutdown
+            await flushAllTraces()
+
             // Flush telemetry if this is a dev server
             if (isDev) {
               try {
@@ -437,7 +453,23 @@ export async function startServer(
             }
 
             debug('start-server process cleanup finished')
-            process.exit(0)
+
+            // Exit with signal-based exit code (128 + signal number) so that
+            // Node.js treats this as a signal termination, not a normal exit.
+            // This avoids waiting for the debugger to disconnect.
+            switch (signal) {
+              case 'SIGINT':
+                process.exit(130)
+                break
+              case 'SIGTERM':
+                process.exit(143)
+                break
+              default:
+                // Make sure all handled signals have explicit exit codes.
+                // This is just a fallback to guard against unsound types.
+                signal satisfies never
+                process.exit(128)
+            }
           })()
         }
 
@@ -461,6 +493,7 @@ export async function startServer(
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
+          serverFastRefresh,
         })
         requestHandler = initResult.requestHandler
         upgradeHandler = initResult.upgradeHandler
@@ -473,6 +506,31 @@ export async function startServer(
             experimentalFeatures: initResult.experimentalFeatures,
             cacheComponents: initResult.cacheComponents,
           })
+
+          // Auto-generate AGENTS.md / CLAUDE.md when an AI coding agent
+          // is detected but the managed agent-rules block is missing.
+          // Gated on `agentRules` in next.config (default true).
+          if (initResult.agentRules !== false) {
+            const result = ensureAgentRulesForDev(dir)
+            if (result) {
+              const generated: string[] = []
+              if (
+                result.agentsMd === 'created' ||
+                result.agentsMd === 'updated'
+              )
+                generated.push('AGENTS.md')
+              if (
+                result.claudeMd === 'created' ||
+                result.claudeMd === 'updated'
+              )
+                generated.push('CLAUDE.md')
+              if (generated.length > 0) {
+                Log.event(
+                  `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
+                )
+              }
+            }
+          }
         }
 
         handlersReady()
@@ -495,31 +553,57 @@ export async function startServer(
     server.listen(port, hostname)
   })
 
+  // Watch config files for changes and distDir ancestors for deletion.
   if (isDev) {
-    function watchConfigFiles(
-      dirToWatch: string,
-      onChange: (filename: string) => void
-    ) {
-      const wp = new Watchpack()
-      wp.watch({
-        files: CONFIG_FILES.map((file) => path.join(dirToWatch, file)),
-      })
-      wp.on('change', onChange)
+    // Note: dir is absolute and normalized (`..` segments removed), `absDistDir`
+    // is also normalized because `path.join()` performs normalization. `distDir`
+    // does not have to be inside of `dir`!
+    const absDistDir = path.join(dir, distDir)
+    // always watch dir and absDistDir
+    const dirWatchPaths: string[] = [dir, absDistDir]
+    // also watch ancestors of absDistDir that are inside of dir.
+    let prevAncestor = absDistDir
+    while (true) {
+      const nextAncestor = path.dirname(prevAncestor)
+      // note: `dirname('/') === '/'` if we happen to reach the FS root
+      if (
+        !nextAncestor.startsWith(dir + path.sep) ||
+        nextAncestor === prevAncestor
+      ) {
+        break
+      }
+      dirWatchPaths.push(nextAncestor)
+      prevAncestor = nextAncestor
     }
-    watchConfigFiles(dir, async (filename) => {
-      if (process.env.__NEXT_DISABLE_MEMORY_WATCHER) {
-        Log.info(
-          `Detected change, manual restart required due to '__NEXT_DISABLE_MEMORY_WATCHER' usage`
-        )
+
+    const configFiles = CONFIG_FILES.map((file) => path.join(dir, file))
+    const Watchpack =
+      require('next/dist/compiled/watchpack') as typeof import('next/dist/compiled/watchpack').default
+    const wp = new Watchpack()
+    wp.watch({
+      files: configFiles,
+      missing: dirWatchPaths,
+    })
+    wp.on('change', async (filename) => {
+      if (!configFiles.includes(filename)) {
         return
       }
-
       Log.warn(
         `Found a change in ${path.basename(
           filename
         )}. Restarting the server to apply the changes...`
       )
       process.exit(RESTART_EXIT_CODE)
+    })
+    wp.on('remove', (removedPath: string) => {
+      if (dirWatchPaths.includes(removedPath)) {
+        Log.error(
+          `The directory at "${removedPath}" was deleted.\n\n` +
+            'Deleting this directory while Next.js is running can lead to ' +
+            'undefined behavior. Restarting the server to recover...'
+        )
+        process.exit(RESTART_EXIT_CODE)
+      }
     })
   }
 
@@ -534,13 +618,39 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
       msg.nextWorkerOptions &&
       process.send
     ) {
+      let enabledFeaturesFromParent = {}
+      if (process.env.NEXT_PRIVATE_ENABLED_FEATURES) {
+        const parsed = JSON.parse(process.env.NEXT_PRIVATE_ENABLED_FEATURES)
+        enabledFeaturesFromParent = Object.fromEntries(
+          Object.entries(parsed).map(([key, value]) => [
+            `feature.${key}`,
+            value,
+          ])
+        )
+      }
+
+      let rageRestartAttrsFromParent = {}
+      if (process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS) {
+        rageRestartAttrsFromParent = JSON.parse(
+          process.env.NEXT_PRIVATE_DEV_SPAN_ATTRS
+        )
+      }
+
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
         'memory.freeMem': String(os.freemem()),
         'memory.totalMem': String(os.totalmem()),
         'memory.heapSizeLimit': String(v8.getHeapStatistics().heap_size_limit),
+        ...enabledFeaturesFromParent,
+        ...rageRestartAttrsFromParent,
       })
+
+      initializeTraceState({
+        ...exportTraceState(),
+        defaultParentSpanId: startServerSpan.getId(),
+      })
+
       const result = await startServerSpan.traceAsyncFn(() =>
         startServer(msg.nextWorkerOptions)
       )

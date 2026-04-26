@@ -12,6 +12,7 @@ import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import { isReactLargeShellError } from './react-large-shell-error'
+import { isInstantValidationError } from './instant-validation/instant-validation-error'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -46,22 +47,19 @@ export function getDigestForWellKnownError(error: unknown): string | undefined {
   // If this is a prerender interrupted error, we don't need to log the error.
   if (isPrerenderInterruptedError(error)) return error.digest
 
+  if (isInstantValidationError(error)) return error.digest
+
   return undefined
 }
 
 export function createReactServerErrorHandler(
   shouldFormatError: boolean,
-  isNextExport: boolean,
+  isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   onReactServerRenderError: (err: DigestedError, silenceLog: boolean) => void,
   spanToRecordOn?: any
 ): RSCErrorHandler {
   return (thrownValue: unknown) => {
-    if (typeof thrownValue === 'string') {
-      // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-      return stringHash(thrownValue).toString()
-    }
-
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
 
@@ -100,11 +98,14 @@ export function createReactServerErrorHandler(
         // but has a digest from other means. Keep the error as-is.
       }
     } else {
-      err.digest = createDigestWithErrorCode(
-        err,
-        // TODO-APP: look at using webcrypto instead. Requires a promise to be awaited.
-        stringHash(err.message + (err.stack || '')).toString()
-      )
+      // TODO-APP: look at using webcrypto instead of string-hash. Requires a promise to be awaited.
+      err.digest =
+        typeof thrownValue === 'string'
+          ? stringHash(thrownValue).toString()
+          : createDigestWithErrorCode(
+              err,
+              stringHash(err.message + (err.stack || '')).toString()
+            )
     }
 
     // @TODO by putting this here and not at the top it is possible that
@@ -121,7 +122,7 @@ export function createReactServerErrorHandler(
     // Don't log the suppressed error during export
     if (
       !(
-        isNextExport &&
+        isBuildTimePrerendering &&
         err?.message?.includes(
           'The specific message is omitted in production builds to avoid leaking sensitive details.'
         )
@@ -147,7 +148,7 @@ export function createReactServerErrorHandler(
 
 export function createHTMLErrorHandler(
   shouldFormatError: boolean,
-  isNextExport: boolean,
+  isBuildTimePrerendering: boolean,
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void,
@@ -204,7 +205,7 @@ export function createHTMLErrorHandler(
     // Don't log the suppressed error during export
     if (
       !(
-        isNextExport &&
+        isBuildTimePrerendering &&
         err?.message?.includes(
           'The specific message is omitted in production builds to avoid leaking sensitive details.'
         )

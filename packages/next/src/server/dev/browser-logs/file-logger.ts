@@ -60,9 +60,7 @@ export class FileLogger {
 
   private formatLogEntry(entry: LogEntry): string {
     const { timestamp, source, level, message } = entry
-    const levelPadded = level.toUpperCase().padEnd(7, ' ') // Pad level to 7 characters for alignment
-    const sourcePadded = source === 'Browser' ? source : 'Server '
-    return `[${timestamp}] ${sourcePadded} ${levelPadded} ${message}\n`
+    return JSON.stringify({ timestamp, source, level, message }) + '\n'
   }
 
   private scheduleFlush(): void {
@@ -80,6 +78,10 @@ export class FileLogger {
 
   public getLogQueue(): string[] {
     return this.logQueue
+  }
+
+  public isEnabled(): boolean {
+    return this.mcpServerEnabled && this.isInitialized
   }
 
   private flush(): void {
@@ -126,11 +128,7 @@ export class FileLogger {
 
   log(source: 'Server' | 'Browser', level: string, message: string): void {
     // Don't log anything if mcpServer is disabled
-    if (!this.mcpServerEnabled) {
-      return
-    }
-
-    if (!this.isInitialized) {
+    if (!this.isEnabled()) {
       return
     }
 

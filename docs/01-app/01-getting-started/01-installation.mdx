@@ -39,7 +39,7 @@ cd my-app
 bun dev
 ```
 
-- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind, ESLint, App Router, and Turbopack, with import alias `@/*`.
+- `--yes` skips prompts using saved preferences or defaults. The default setup enables TypeScript, Tailwind CSS, ESLint, App Router, and Turbopack, with import alias `@/*`, and includes `AGENTS.md` (with a `CLAUDE.md` that references it) to guide coding agents to write up-to-date Next.js code.
 
 </AppOnly>
 
@@ -65,8 +65,20 @@ Learn more about [browser support](/docs/architecture/supported-browsers), inclu
 
 The quickest way to create a new Next.js app is using [`create-next-app`](/docs/app/api-reference/cli/create-next-app), which sets up everything automatically for you. To create a project, run:
 
-```bash filename="Terminal"
+```bash package="pnpm"
+pnpm create next-app
+```
+
+```bash package="npm"
 npx create-next-app@latest
+```
+
+```bash package="yarn"
+yarn create next-app
+```
+
+```bash package="bun"
+bun create next-app
 ```
 
 On installation, you'll see the following prompts:
@@ -74,7 +86,7 @@ On installation, you'll see the following prompts:
 ```txt filename="Terminal"
 What is your project named? my-app
 Would you like to use the recommended Next.js defaults?
-    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, Turbopack
+    Yes, use recommended defaults - TypeScript, ESLint, Tailwind CSS, App Router, AGENTS.md
     No, reuse previous settings
     No, customize settings - Choose your own preferences
 ```
@@ -90,6 +102,7 @@ Would you like your code inside a `src/` directory? No / Yes
 Would you like to use App Router? (recommended) No / Yes
 Would you like to customize the import alias (`@/*` by default)? No / Yes
 What import alias would you like configured? @/*
+Would you like to include AGENTS.md to guide coding agents to write up-to-date Next.js code? No / Yes
 ```
 
 After the prompts, [`create-next-app`](/docs/app/api-reference/cli/create-next-app) will create a folder with your project name and install the required dependencies.
@@ -114,7 +127,10 @@ yarn add next@latest react@latest react-dom@latest
 bun add next@latest react@latest react-dom@latest
 ```
 
-> **Good to know**: The App Router uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React 19 changes, as well as newer features being validated in frameworks. The Pages Router uses the React version you install in `package.json`.
+> **Good to know**:
+>
+> - The `App Router` uses [React canary releases](https://react.dev/blog/2023/05/03/react-canaries) built-in, which include all the stable React 19 changes, as well as newer features being validated in frameworks, but you should still declare react and react-dom in package.json for tooling and ecosystem compatibility.
+> - The `Pages Router` uses the React version from your `package.json`.
 
 Then, add the following scripts to your `package.json` file:
 

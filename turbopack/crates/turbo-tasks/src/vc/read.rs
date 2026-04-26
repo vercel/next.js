@@ -14,8 +14,9 @@ use rustc_hash::FxBuildHasher;
 
 use super::traits::VcValueType;
 use crate::{
-    ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast, VcValueTypeCast,
-    keyed::Keyed, keyed_read_ref::MappedReadRef,
+    MappedReadRef, ReadRawVcFuture, ReadRef, VcCast, VcValueTrait, VcValueTraitCast,
+    VcValueTypeCast,
+    keyed::{KeyedAccess, KeyedEq},
 };
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -143,6 +144,7 @@ where
     }
 }
 
+#[must_use]
 pub struct ReadVcFuture<T, Cast = VcValueTypeCast<T>>
 where
     T: ?Sized,
@@ -159,7 +161,7 @@ where
     Cast: VcCast,
 {
     /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
-    pub fn strongly_consistent(mut self) -> Self {
+    pub(crate) fn strongly_consistent(mut self) -> Self {
         self.raw = self.raw.strongly_consistent();
         self
     }
@@ -193,12 +195,15 @@ where
 impl<T> ReadVcFuture<T, VcValueTypeCast<T>>
 where
     T: VcValueType,
-    VcReadTarget<T>: Keyed,
-    <VcReadTarget<T> as Keyed>::Key: Hash,
+    VcReadTarget<T>: KeyedEq,
 {
     /// Read the value and selects a keyed value from it. Only depends on the used key instead of
     /// the full value.
-    pub fn get<'l>(mut self, key: &'l <VcReadTarget<T> as Keyed>::Key) -> ReadKeyedVcFuture<'l, T> {
+    pub fn get<'l, Q>(mut self, key: &'l Q) -> ReadKeyedVcFuture<'l, T, Q>
+    where
+        Q: Hash + ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
+    {
         self.raw = self.raw.track_with_key(FxBuildHasher.hash_one(key));
         ReadKeyedVcFuture { future: self, key }
     }
@@ -208,10 +213,11 @@ where
     ///
     /// Note: This is also invalidated when the value of the key changes, not only when the presence
     /// of the key changes.
-    pub fn contains_key<'l>(
-        mut self,
-        key: &'l <VcReadTarget<T> as Keyed>::Key,
-    ) -> ReadContainsKeyedVcFuture<'l, T> {
+    pub fn contains_key<'l, Q>(mut self, key: &'l Q) -> ReadContainsKeyedVcFuture<'l, T, Q>
+    where
+        Q: Hash + ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
+    {
         self.raw = self.raw.track_with_key(FxBuildHasher.hash_one(key));
         ReadContainsKeyedVcFuture { future: self, key }
     }
@@ -284,23 +290,26 @@ where
 }
 
 pin_project! {
-    pub struct ReadKeyedVcFuture<'l, T>
+    pub struct ReadKeyedVcFuture<'l, T, Q>
     where
         T: VcValueType,
-        VcReadTarget<T>: Keyed,
+        Q: ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
+
     {
         #[pin]
         future: ReadVcFuture<T, VcValueTypeCast<T>>,
-        key: &'l <VcReadTarget<T> as Keyed>::Key,
+        key: &'l Q,
     }
 }
 
-impl<'l, T> Future for ReadKeyedVcFuture<'l, T>
+impl<'l, T, Q> Future for ReadKeyedVcFuture<'l, T, Q>
 where
     T: VcValueType,
-    VcReadTarget<T>: Keyed,
+    Q: ?Sized,
+    VcReadTarget<T>: KeyedAccess<Q>,
 {
-    type Output = Result<Option<MappedReadRef<T, <VcReadTarget<T> as Keyed>::Value>>>;
+    type Output = Result<Option<MappedReadRef<T, <VcReadTarget<T> as KeyedAccess<Q>>::Value>>>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         // Safety: We never move the contents of `self`
@@ -322,21 +331,23 @@ where
 }
 
 pin_project! {
-    pub struct ReadContainsKeyedVcFuture<'l, T>
+    pub struct ReadContainsKeyedVcFuture<'l, T, Q>
     where
         T: VcValueType,
-        VcReadTarget<T>: Keyed,
+        Q: ?Sized,
+        VcReadTarget<T>: KeyedAccess<Q>,
     {
         #[pin]
         future: ReadVcFuture<T, VcValueTypeCast<T>>,
-        key: &'l <VcReadTarget<T> as Keyed>::Key,
+        key: &'l Q,
     }
 }
 
-impl<'l, T> Future for ReadContainsKeyedVcFuture<'l, T>
+impl<'l, T, Q> Future for ReadContainsKeyedVcFuture<'l, T, Q>
 where
     T: VcValueType,
-    VcReadTarget<T>: Keyed,
+    Q: ?Sized,
+    VcReadTarget<T>: KeyedAccess<Q>,
 {
     type Output = Result<bool>;
 

@@ -7,12 +7,13 @@ use serde::Serialize;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString,
+    ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{ChunkingContext, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
+    chunk::{ChunkingContext, CrossOrigin, ModuleChunkItemIdExt, ModuleId as TurbopackModuleId},
     module_graph::async_module_info::AsyncModulesInfo,
     output::{OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsWithReferenced},
 };
@@ -22,7 +23,7 @@ use crate::{
     mode::NextMode,
     next_app::ClientReferencesChunks,
     next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
-    next_config::{CrossOriginConfig, NextConfig},
+    next_config::NextConfig,
     next_manifests::{ModuleId, encode_uri_component::encode_uri_component},
     util::NextRuntime,
 };
@@ -66,7 +67,7 @@ pub struct CssResource {
 #[serde(rename_all = "camelCase")]
 pub struct ModuleLoading {
     pub prefix: RcStr,
-    pub cross_origin: Option<CrossOriginConfig>,
+    pub cross_origin: CrossOrigin,
 }
 
 #[derive(Serialize, Default, Debug, Clone)]
@@ -167,14 +168,18 @@ async fn build_manifest(
     async move {
         let mut entry_manifest: SerializedClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
-        let chunk_suffix_path = next_config.chunk_suffix_path().owned().await?;
         let prefix_path = next_config.computed_asset_prefix().owned().await?;
-        let suffix_path = chunk_suffix_path.unwrap_or_default();
+        let asset_suffix_path = next_config.asset_suffix_path().owned().await?;
+        let add_deployment_id_at_runtime = *next_config
+            .should_append_server_deployment_id_at_runtime()
+            .await?;
+        let suffix_path = if !add_deployment_id_at_runtime {
+            asset_suffix_path.unwrap_or_default()
+        } else {
+            rcstr!("")
+        };
 
-        // TODO: Add `suffix` to the manifest for React to use.
-        // entry_manifest.module_loading.prefix = prefix_path;
-
-        entry_manifest.module_loading.cross_origin = next_config.cross_origin().owned().await?;
+        entry_manifest.module_loading.cross_origin = *next_config.cross_origin().await?;
         let ClientReferencesChunks {
             client_component_client_chunks,
             layout_segment_client_chunks,
@@ -196,19 +201,23 @@ async fn build_manifest(
             .try_flat_join()
             .await?;
 
-        let async_modules = async_module_info
-            .is_async_multiple(Vc::cell(
-                client_references_ecmascript
-                    .iter()
-                    .flat_map(|(r, r_val)| {
-                        [
-                            ResolvedVc::upcast(*r),
-                            ResolvedVc::upcast(r_val.client_module),
-                            ResolvedVc::upcast(r_val.ssr_module),
-                        ]
-                    })
-                    .collect(),
-            ))
+        let async_modules = client_references_ecmascript
+            .iter()
+            .flat_map(|(r, r_val)| {
+                [
+                    ResolvedVc::upcast(*r),
+                    ResolvedVc::upcast(r_val.client_module),
+                    ResolvedVc::upcast(r_val.ssr_module),
+                ]
+            })
+            .map(async move |asset| {
+                Ok(if async_module_info.is_async(asset).await? {
+                    Some(asset)
+                } else {
+                    None
+                })
+            })
+            .try_flat_join()
             .await?;
 
         async fn cached_chunk_paths(
@@ -346,7 +355,7 @@ async fn build_manifest(
                     get_client_reference_module_key(&server_path, "*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*client_chunk_item_id).into(),
+                        id: (&client_chunk_item_id).into(),
                         chunks: client_chunks_paths,
                         // This should of course be client_is_async, but SSR can become
                         // async due to ESM externals, and
@@ -361,7 +370,7 @@ async fn build_manifest(
                     rcstr!("*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*ssr_chunk_item_id).into(),
+                        id: (&ssr_chunk_item_id).into(),
                         chunks: ssr_chunks_paths,
                         // See above
                         r#async: client_is_async || ssr_is_async,
@@ -373,7 +382,7 @@ async fn build_manifest(
                     rcstr!("*"),
                     ManifestNodeEntry {
                         name: rcstr!("*"),
-                        id: (&*rsc_chunk_item_id).into(),
+                        id: (&rsc_chunk_item_id).into(),
                         chunks: vec![],
                         r#async: rsc_is_async,
                     },
@@ -383,18 +392,18 @@ async fn build_manifest(
                     NextRuntime::NodeJs => {
                         entry_manifest
                             .ssr_module_mapping
-                            .insert((&*client_chunk_item_id).into(), ssr_manifest_node);
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
                         entry_manifest
                             .rsc_module_mapping
-                            .insert((&*client_chunk_item_id).into(), rsc_manifest_node);
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                     NextRuntime::Edge => {
                         entry_manifest
                             .edge_ssr_module_mapping
-                            .insert((&*client_chunk_item_id).into(), ssr_manifest_node);
+                            .insert((&client_chunk_item_id).into(), ssr_manifest_node);
                         entry_manifest
                             .edge_rsc_module_mapping
-                            .insert((&*client_chunk_item_id).into(), rsc_manifest_node);
+                            .insert((&client_chunk_item_id).into(), rsc_manifest_node);
                     }
                 }
             }
@@ -402,12 +411,15 @@ async fn build_manifest(
 
         // per layout segment chunks need to be emitted into the manifest too
         for (server_component, client_assets) in layout_segment_client_chunks.iter() {
+            // Use source_path() to get the original source path (e.g., page.mdx) instead of
+            // server_path() which returns the transformed path (e.g., page.mdx.tsx).
+            // This ensures the manifest key matches what the LoaderTree stores and what
+            // the runtime looks up after stripping one extension.
             let server_component_name = server_component
-                .server_path()
+                .source_path()
                 .await?
                 .with_extension("")
-                .value_to_string()
-                .owned()
+                .to_string_ref()
                 .await?;
             let entry_js_files = entry_manifest
                 .entry_js_files
@@ -469,10 +481,25 @@ async fn build_manifest(
                 FileContent::Content(File::from(formatdoc! {
                     r#"
                         globalThis.__RSC_MANIFEST = globalThis.__RSC_MANIFEST || {{}};
-                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest}
+                        globalThis.__RSC_MANIFEST[{entry_name}] = {manifest};
+                        {suffix}
                     "#,
                     entry_name = StringifyJs(&normalized_manifest_entry),
-                    manifest = &client_reference_manifest_json
+                    manifest = &client_reference_manifest_json,
+                    suffix = if add_deployment_id_at_runtime {
+                        formatdoc!{
+                            r#"
+                            for (const key in globalThis.__RSC_MANIFEST[{entry_name}].clientModules) {{
+                                const val = {{ ...globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] }}
+                                globalThis.__RSC_MANIFEST[{entry_name}].clientModules[key] = val
+                                val.chunks = val.chunks.map((c) => `${{c}}?dpl=${{process.env.NEXT_DEPLOYMENT_ID}}`)
+                            }}
+                            "#,
+                            entry_name = StringifyJs(&normalized_manifest_entry),
+                        }
+                    } else {
+                        "".to_string()
+                    }
                 }))
                 .cell(),
             )

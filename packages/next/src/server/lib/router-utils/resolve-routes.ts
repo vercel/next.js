@@ -57,6 +57,18 @@ export function getResolveRoutes(
   renderServerOpts: Parameters<RenderServer['initialize']>[0],
   ensureMiddleware?: (url?: string) => Promise<void>
 ) {
+  let clientHashes: Record<string, string> | undefined = undefined
+  if (process.env.__NEXT_TEST_MODE && process.env.IS_TURBOPACK_TEST) {
+    try {
+      clientHashes = JSON.parse(
+        (require('fs') as typeof import('fs')).readFileSync(
+          path.join(opts.dir, config.distDir, 'immutable-static-hashes.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
   type Route = {
     /**
      * The path matcher to check if this route applies to this request.
@@ -188,6 +200,11 @@ export function getResolveRoutes(
       return pathname
     }
 
+    const setIsNextDataRequest = () => {
+      addRequestMeta(req, 'isNextDataReq', true)
+      req.headers['x-nextjs-data'] = '1'
+    }
+
     let domainLocale: ReturnType<typeof detectDomainLocale> | undefined
     let defaultLocale: string | undefined
     let initialLocaleResult:
@@ -316,7 +333,7 @@ export function getResolveRoutes(
           }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
-            addRequestMeta(req, 'isNextDataReq', true)
+            setIsNextDataRequest()
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
@@ -412,11 +429,18 @@ export function getResolveRoutes(
               normalized = normalizers.basePath.normalize(normalized, true)
             }
 
+            const isNextDataPath =
+              pathHasPrefix(normalized, '/_next/data') &&
+              normalized.endsWith('.json')
+            const hasCurrentBuildIdDataPath = normalizers.data.match(normalized)
+
             let updated = false
-            if (normalizers.data.match(normalized)) {
+            if (hasCurrentBuildIdDataPath) {
               updated = true
-              addRequestMeta(req, 'isNextDataReq', true)
               normalized = normalizers.data.normalize(normalized, true)
+            }
+            if (isNextDataPath) {
+              setIsNextDataRequest()
             }
 
             if (config.i18n) {
@@ -474,6 +498,32 @@ export function getResolveRoutes(
               if (output.locale) {
                 addRequestMeta(req, 'locale', output.locale)
               }
+
+              if (
+                process.env.__NEXT_TEST_MODE &&
+                process.env.IS_TURBOPACK_TEST &&
+                output.type === 'nextStaticFolder' &&
+                config.deploymentId
+              ) {
+                let isImmutableFile =
+                  config.experimental.supportsImmutableAssets &&
+                  clientHashes![`static${decodeURI(output.itemPath)}`]
+                const expectedToken = isImmutableFile
+                  ? undefined
+                  : config.deploymentId
+                if (parsedUrl.query.dpl !== expectedToken) {
+                  console.error(
+                    `Invalid dpl query param: ${req.url}, expected: ${expectedToken}`
+                  )
+                  return {
+                    finished: true,
+                    parsedUrl,
+                    resHeaders,
+                    matchedOutput: null,
+                  }
+                }
+              }
+
               return {
                 parsedUrl,
                 resHeaders,
@@ -867,6 +917,12 @@ export function getResolveRoutes(
     for (const route of routes) {
       const result = await handleRoute(route)
       if (result) {
+        if (result.matchedOutput) {
+          // handle onMatchHeaders
+          for (const onMatchHeaders of fsChecker.onMatchHeaders) {
+            await handleRoute(onMatchHeaders)
+          }
+        }
         return result
       }
     }

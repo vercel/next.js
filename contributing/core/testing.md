@@ -92,6 +92,8 @@ these can be leveraged by prefixing the `pnpm test` command.
   it can be used when not using `pnpm test-dev` or `pnpm test-start` directly.
   Valid test modes can be seen here:
   https://github.com/vercel/next.js/blob/aa664868c102ddc5adc618415162d124503ad12e/test/lib/e2e-utils.ts#L46
+- Use `NEXT_TEST_DEPLOY_URL` with `pnpm test-deploy` to skip the Vercel deploy step and run
+  deploy-mode assertions against an existing deployment URL.
 - You can use `NEXT_TEST_PREFER_OFFLINE=1` while testing to configure the package manager to include the
   [`--prefer-offline`](https://pnpm.io/cli/install#--prefer-offline) argument during test setup.
   This is helpful when running tests in internet-restricted environments such as planes or public Wi-Fi.
@@ -132,6 +134,43 @@ If you want to run a test again both Turbopack and Webpack, use Jest's `--projec
 
 ```sh
 pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
+```
+
+### Deploy Tests
+
+Deploy tests verify that Next.js works correctly when deployed to Vercel.
+These tests are part of the e2e test suite and run against real Vercel deployments.
+
+#### Triggering Deploy Tests on PRs
+
+Deploy tests run automatically on `canary` but are not triggered by default on every PR.
+Test files that are modified or created in your PR will have their deploy tests run in CI.
+
+Alternatively, you can manually trigger the deploy test workflow via the
+[GitHub Actions UI](https://github.com/vercel/next.js/actions/workflows/test_e2e_deploy_release.yml)
+and point it at your branch (this requires passing a custom tarball).
+
+#### Running Deploy Tests Locally
+
+You can run deploy tests locally against a specific commit using the `NEXT_TEST_VERSION` environment variable:
+
+```sh
+NEXT_TEST_VERSION=https://vercel-packages.vercel.app/next/commits/<commitSha>/next pnpm test-deploy <path-to-test>
+```
+
+For example, to test against commit `abc123`:
+
+```sh
+NEXT_TEST_VERSION=https://vercel-packages.vercel.app/next/commits/abc123/next pnpm test-deploy test/e2e/app-dir/actions/
+```
+
+This downloads a pre-built Next.js tarball from the specified commit and runs the deploy tests against it.
+
+If you already have a deployment URL and want to skip the Vercel deploy step,
+use `NEXT_TEST_DEPLOY_URL` instead:
+
+```sh
+NEXT_TEST_DEPLOY_URL=https://your-deployment.vercel.app pnpm test-deploy test/e2e/app-dir/actions/
 ```
 
 ## Integration testing outside the repository with local builds

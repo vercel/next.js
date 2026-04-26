@@ -6,18 +6,19 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     chunk::{
-        ChunkingConfig, ChunkingContext, MangleType, MinifyType, SourceMapsType, UnusedReferences,
-        module_id_strategies::ModuleIdStrategy,
+        AssetSuffix, ChunkingConfig, ChunkingContext, CrossOrigin, MangleType, MinifyType,
+        SourceMapsType, UnusedReferences, UrlBehavior, chunk_id_strategy::ModuleIdStrategy,
     },
     compile_time_info::{CompileTimeDefines, CompileTimeInfo, FreeVarReference, FreeVarReferences},
     environment::{EdgeWorkerEnvironment, Environment, ExecutionEnvironment, NodeJsVersion},
     free_var_references,
+    issue::IssueSeverity,
     module_graph::binding_usage_info::OptionBindingUsageInfo,
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::execution_context::ExecutionContext;
-use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
+use turbopack_resolve::resolve_options_context::{ResolveOptionsContext, TsConfigHandling};
 
 use crate::{
     app_structure::CollectedRootParams,
@@ -26,11 +27,11 @@ use crate::{
     next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_edge_import_map},
     next_server::context::ServerContextType,
-    next_shared::resolve::{
-        ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin,
-        get_invalid_client_only_resolve_plugin, get_invalid_styled_jsx_resolve_plugin,
+    next_shared::resolve::{ModuleFeatureReportResolvePlugin, NextSharedRuntimeResolvePlugin},
+    util::{
+        NextRuntime, OptionEnvMap, defines, foreign_code_context_condition,
+        free_var_references_with_vercel_system_env_warnings, worker_forwarded_globals,
     },
-    util::{NextRuntime, OptionEnvMap, defines, foreign_code_context_condition},
 };
 
 #[turbo_tasks::function]
@@ -44,9 +45,13 @@ async fn next_edge_defines(define_env: Vc<OptionEnvMap>) -> Result<Vc<CompileTim
 async fn next_edge_free_vars(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
+    report_system_env_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<FreeVarReferences>> {
     Ok(free_var_references!(
-        ..defines(&*define_env.await?).into_iter(),
+        ..free_var_references_with_vercel_system_env_warnings(
+            defines(&*define_env.await?),
+            *report_system_env_inlining.await?
+        ),
         Buffer = FreeVarReference::EcmaScriptModule {
             request: rcstr!("buffer"),
             lookup_path: Some(project_path),
@@ -61,6 +66,7 @@ pub async fn get_edge_compile_time_info(
     project_path: FileSystemPath,
     define_env: Vc<OptionEnvMap>,
     node_version: ResolvedVc<NodeJsVersion>,
+    report_system_env_inlining: Vc<IssueSeverity>,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::EdgeWorker(
@@ -71,7 +77,7 @@ pub async fn get_edge_compile_time_info(
     )
     .defines(next_edge_defines(define_env).to_resolved().await?)
     .free_var_references(
-        next_edge_free_vars(project_path, define_env)
+        next_edge_free_vars(project_path, define_env, report_system_env_inlining)
             .to_resolved()
             .await?,
     )
@@ -121,25 +127,6 @@ pub async fn get_edge_resolve_options_context(
         ));
     };
 
-    if matches!(
-        ty,
-        ServerContextType::AppRSC { .. }
-            | ServerContextType::AppRoute { .. }
-            | ServerContextType::Middleware { .. }
-            | ServerContextType::Instrumentation { .. }
-    ) {
-        before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_client_only_resolve_plugin(project_path.clone())
-                .to_resolved()
-                .await?,
-        ));
-        before_resolve_plugins.push(ResolvedVc::upcast(
-            get_invalid_styled_jsx_resolve_plugin(project_path.clone())
-                .to_resolved()
-                .await?,
-        ));
-    }
-
     let after_resolve_plugins = vec![ResolvedVc::upcast(
         NextSharedRuntimeResolvePlugin::new(project_path.clone())
             .to_resolved()
@@ -172,21 +159,22 @@ pub async fn get_edge_resolve_options_context(
         ..Default::default()
     };
 
+    let tsconfig_path = next_config.typescript_tsconfig_path().await?;
+    let tsconfig_path = project_path.join(
+        tsconfig_path
+            .as_ref()
+            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
+            // resolve tsconfig.json relative to the file being compiled.
+            .unwrap_or(&rcstr!("tsconfig.json")),
+    )?;
+
     Ok(ResolveOptionsContext {
         enable_typescript: true,
         enable_react: true,
         enable_mjs_extension: true,
         enable_edge_node_externals: true,
         custom_extensions: next_config.resolve_extension().owned().await?,
-        tsconfig_path: next_config
-            .typescript_tsconfig_path()
-            .await?
-            .as_ref()
-            // Fall back to tsconfig only for resolving. This is because we don't want Turbopack to
-            // resolve tsconfig.json relative to the file being compiled.
-            .or(Some(&RcStr::from("tsconfig.json")))
-            .map(|p| project_path.join(p))
-            .transpose()?,
+        tsconfig_path: TsConfigHandling::Fixed(tsconfig_path),
         rules: vec![(
             foreign_code_context_condition(next_config, project_path).await?,
             resolve_options_context.clone().resolved_cell(),
@@ -203,7 +191,7 @@ pub struct EdgeChunkingContextOptions {
     pub node_root: FileSystemPath,
     pub output_root_to_root_path: Vc<RcStr>,
     pub environment: Vc<Environment>,
-    pub module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    pub module_id_strategy: Vc<ModuleIdStrategy>,
     pub export_usage: Vc<OptionBindingUsageInfo>,
     pub unused_references: Vc<UnusedReferences>,
     pub turbo_minify: Vc<bool>,
@@ -212,7 +200,11 @@ pub struct EdgeChunkingContextOptions {
     pub scope_hoisting: Vc<bool>,
     pub nested_async_chunking: Vc<bool>,
     pub client_root: FileSystemPath,
+    pub client_static_folder_name: RcStr,
     pub asset_prefix: RcStr,
+    pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
+    pub cross_origin: Vc<CrossOrigin>,
 }
 
 /// Like `get_edge_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -235,8 +227,13 @@ pub async fn get_edge_chunking_context_with_client_assets(
         scope_hoisting,
         nested_async_chunking,
         client_root,
+        client_static_folder_name,
         asset_prefix,
+        css_url_suffix,
+        hash_salt,
+        cross_origin,
     } = options;
+    let cross_origin_loading = *cross_origin.await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -245,11 +242,17 @@ pub async fn get_edge_chunking_context_with_client_assets(
         output_root_to_root_path.owned().await?,
         client_root.clone(),
         output_root.join("chunks/ssr")?,
-        client_root.join("static/media")?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
     .asset_base_path(Some(asset_prefix))
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+        static_suffix: css_url_suffix.to_resolved().await?,
+    })
     .minify_type(if *turbo_minify.await? {
         MinifyType::Minify {
             // React needs deterministic function names to work correctly.
@@ -259,10 +262,13 @@ pub async fn get_edge_chunking_context_with_client_assets(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .cross_origin(cross_origin_loading)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .hash_salt(hash_salt)
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
         builder = builder
@@ -306,8 +312,14 @@ pub async fn get_edge_chunking_context(
         scope_hoisting,
         nested_async_chunking,
         client_root,
+        client_static_folder_name,
         asset_prefix,
+        css_url_suffix,
+        hash_salt,
+        cross_origin,
     } = options;
+    let cross_origin = *cross_origin.await?;
+    let css_url_suffix = css_url_suffix.to_resolved().await?;
     let output_root = node_root.join("server/edge")?;
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -321,8 +333,24 @@ pub async fn get_edge_chunking_context(
         next_mode.runtime_type(),
     )
     .client_roots_override(rcstr!("client"), client_root.clone())
-    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_root_path_override(
+        rcstr!("client"),
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
+    )
     .asset_base_path_override(rcstr!("client"), asset_prefix)
+    .url_behavior_override(
+        rcstr!("client"),
+        UrlBehavior {
+            suffix: AssetSuffix::FromGlobal(rcstr!("NEXT_CLIENT_ASSET_SUFFIX")),
+            static_suffix: css_url_suffix,
+        },
+    )
+    .default_url_behavior(UrlBehavior {
+        suffix: AssetSuffix::Inferred,
+        static_suffix: ResolvedVc::cell(None),
+    })
     // Since one can't read files in edge directly, any asset need to be fetched
     // instead. This special blob url is handled by the custom fetch
     // implementation in the edge sandbox. It will respond with the
@@ -336,10 +364,13 @@ pub async fn get_edge_chunking_context(
         MinifyType::NoMinify
     })
     .source_maps(*turbo_source_maps.await?)
+    .cross_origin(cross_origin)
     .module_id_strategy(module_id_strategy.to_resolved().await?)
     .export_usage(*export_usage.await?)
     .unused_references(unused_references.to_resolved().await?)
-    .nested_async_availability(*nested_async_chunking.await?);
+    .hash_salt(hash_salt)
+    .nested_async_availability(*nested_async_chunking.await?)
+    .worker_forwarded_globals(worker_forwarded_globals());
 
     if !next_mode.is_development() {
         builder = builder

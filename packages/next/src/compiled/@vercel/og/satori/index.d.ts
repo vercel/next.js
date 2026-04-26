@@ -1,5 +1,4 @@
 import { ReactNode } from 'react';
-type Yoga = any;
 
 declare const code: {
     readonly 'ja-JP': RegExp;
@@ -134,6 +133,10 @@ interface TwConfig {
     }>;
 }
 
+type InitInput = string | Request | URL | Response | BufferSource | Buffer | WebAssembly.Module | Promise<Response | BufferSource | Buffer | WebAssembly.Module>;
+
+declare function init(input: InitInput): Promise<void>;
+
 /**
  * This module is used to calculate the layout of the current sub-tree.
  */
@@ -148,8 +151,6 @@ interface SatoriNode {
     props: Record<string, any>;
     textContent?: string;
 }
-
-declare function init(yoga: Yoga): void;
 
 type SatoriOptions = ({
     width: number;

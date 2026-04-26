@@ -13,20 +13,22 @@ import {
   workUnitAsyncStorage,
   type PrerenderStoreModern,
   type RequestStore,
+  isInEarlyRenderStage,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  delayUntilRuntimeStage,
   postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
+  delayUntilRuntimeStage,
   makeDevtoolsIOAwarePromise,
   makeHangingPromise,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -43,7 +45,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     ) {
       throw new Error(
         // TODO(after): clarify that this only applies to pages?
-        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -67,15 +69,21 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, cookies)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         case 'unstable-cache':
           throw new Error(
             `Route ${workStore.route} used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
           )
+        case 'generate-static-params':
+          throw new Error(
+            `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+          )
         case 'prerender':
           return makeHangingCookies(workStore, workUnitStore)
         case 'prerender-client':
+        case 'validation-client':
           const exportName = '`cookies`'
           throw new InvariantError(
             `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
@@ -128,6 +136,17 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
               underlyingCookies,
               workStore?.route
             )
+          } else if (workUnitStore.asyncApiPromises) {
+            const early = isInEarlyRenderStage(workUnitStore)
+            if (underlyingCookies === workUnitStore.mutableCookies) {
+              return early
+                ? workUnitStore.asyncApiPromises.earlyMutableCookies
+                : workUnitStore.asyncApiPromises.mutableCookies
+            } else {
+              return early
+                ? workUnitStore.asyncApiPromises.earlyCookies
+                : workUnitStore.asyncApiPromises.cookies
+            }
           } else {
             return makeUntrackedCookies(underlyingCookies)
           }
@@ -190,11 +209,16 @@ function makeUntrackedCookiesWithDevWarnings(
   route?: string
 ): Promise<ReadonlyRequestCookies> {
   if (requestStore.asyncApiPromises) {
+    const early = isInEarlyRenderStage(requestStore)
     let promise: Promise<ReadonlyRequestCookies>
     if (underlyingCookies === requestStore.mutableCookies) {
-      promise = requestStore.asyncApiPromises.mutableCookies
+      promise = early
+        ? requestStore.asyncApiPromises.earlyMutableCookies
+        : requestStore.asyncApiPromises.mutableCookies
     } else if (underlyingCookies === requestStore.cookies) {
-      promise = requestStore.asyncApiPromises.cookies
+      promise = early
+        ? requestStore.asyncApiPromises.earlyCookies
+        : requestStore.asyncApiPromises.cookies
     } else {
       throw new InvariantError(
         'Received an underlying cookies object that does not match either `cookies` or `mutableCookies`'

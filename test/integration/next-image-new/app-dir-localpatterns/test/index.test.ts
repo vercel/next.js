@@ -96,9 +96,14 @@ function runTests(mode: 'dev' | 'server') {
                 '^(?:\\/_next\\/static\\/media(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)|$))$',
               search: '',
             },
+            {
+              pathname:
+                '^(?:\\/_next\\/static\\/immutable\\/media(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)|$))$',
+              search: '',
+            },
           ],
           maximumRedirects: 3,
-          maximumResponseBody: 300000000,
+          maximumResponseBody: 50000000,
           minimumCacheTTL: 14400,
           path: '/_next/image',
           qualities: [75],

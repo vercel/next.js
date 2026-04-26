@@ -12,10 +12,10 @@ use crate::chunk::{
     EcmascriptChunkItemWithAsyncInfo,
 };
 
-#[turbo_tasks::value(transparent, serialization = "none")]
-pub struct CodeAndIds(SmallVec<[(ReadRef<ModuleId>, ReadRef<Code>); 1]>);
+#[turbo_tasks::value(transparent, serialization = "skip")]
+pub struct CodeAndIds(SmallVec<[(ModuleId, ReadRef<Code>); 1]>);
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct BatchGroupCodeAndIds(
     FxHashMap<EcmascriptChunkItemOrBatchWithAsyncInfo, ReadRef<CodeAndIds>>,
 );
@@ -47,9 +47,9 @@ pub async fn item_code_and_ids(
             async_info,
             ..
         }) => {
-            let id = chunk_item.id();
+            let id = chunk_item.id().await?;
             let code = chunk_item.code(async_info.map(|info| *info));
-            smallvec![(id.await?, code.await?)]
+            smallvec![(id, code.await?)]
         }
         EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch
             .await?

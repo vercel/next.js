@@ -143,6 +143,7 @@ export interface IncrementalResponseCacheEntry {
    */
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
   value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
 }
 
@@ -178,6 +179,7 @@ export type ResponseCacheEntry = {
   value: ResponseCacheValue | null
   isStale?: boolean | -1
   isMiss?: boolean
+  isFallback?: boolean
 }
 
 /**

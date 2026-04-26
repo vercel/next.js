@@ -1,20 +1,24 @@
 declare const __turbopack_external_require__: {
-  resolve: (name: string, opt: { paths: string[] }) => string
+  resolve: (name: string, opt?: { paths: string[] }) => string
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
-import type { Ipc } from '../ipc/evaluate'
+import type { Channel as Ipc } from '../types'
 import { dirname, resolve as pathResolve, relative } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
 } from '../compiled/stacktrace-parser'
-import { structuredError, type StructuredError } from '../ipc'
+import { structuredError, type StructuredError } from '../error'
 import {
   fromPath,
   getReadEnvVariables,
   toPath,
   type TransformIpc,
 } from './transforms'
+import {
+  evaluateBundle,
+  type ImportModuleResult,
+} from './webpack-loaders-runtime'
 import fs from 'fs'
 import path from 'path'
 
@@ -41,12 +45,18 @@ export type IpcInfoMessage =
       }>
     }
 
-export type IpcRequestMessage = {
-  type: 'resolve'
-  options: any
-  lookupPath: string
-  request: string
-}
+export type IpcRequestMessage =
+  | {
+      type: 'resolve'
+      options: any
+      lookupPath: string
+      request: string
+    }
+  | {
+      type: 'importModule'
+      lookupPath: string
+      request: string
+    }
 
 type LoaderConfig =
   | string
@@ -351,6 +361,53 @@ const transform = (
           },
           emitWarning: makeErrorEmitter('warning', ipc),
           emitError: makeErrorEmitter('error', ipc),
+          importModule(
+            request: string,
+            optionsOrCallback?: any,
+            maybeCallback?: (err: Error | null, result?: any) => void
+          ) {
+            // Support both (request, options, callback) and (request, options) -> Promise
+            let callback:
+              | ((err: Error | null, result?: any) => void)
+              | undefined
+            if (typeof optionsOrCallback === 'function') {
+              callback = optionsOrCallback
+            } else {
+              callback = maybeCallback
+            }
+
+            const doImport = async () => {
+              let actualRequest = request
+              // The webpack API allows absolute paths in importModule requests,
+              // but Turbopack's resolver expects relative paths. Convert absolute
+              // paths to relative ones for backward compatibility with webpack loaders.
+              if (path.isAbsolute(request)) {
+                actualRequest = path.relative(resourceDir, request)
+                if (
+                  !path.isAbsolute(actualRequest) &&
+                  actualRequest.split(path.sep)[0] !== '..'
+                ) {
+                  actualRequest = './' + actualRequest
+                }
+              }
+
+              const result = (await ipc.sendRequest({
+                type: 'importModule',
+                lookupPath: toPath(resourceDir),
+                request: actualRequest,
+              })) as ImportModuleResult
+
+              return evaluateBundle(result)
+            }
+
+            if (!callback) {
+              return doImport()
+            }
+            doImport().then(
+              (result) => callback!(null, result),
+              (err) => callback!(err as Error)
+            )
+          },
           getLogger(name: unknown) {
             const logFn = (logType: string, ...args: unknown[]) => {
               let trace: StackFrame[] | undefined
@@ -491,10 +548,41 @@ const transform = (
             '**',
           ]),
         })
-        if (err) return reject(err)
+        if (err) {
+          // Resolve loader paths to include in the error message using
+          // the same "(from ...)" style as webpack's format-webpack-messages.
+          const loaderPathList = loadersWithOptions.map((l) => {
+            try {
+              return __turbopack_external_require__.resolve(l.loader, {
+                paths: [contextDir, resourceDir],
+              })
+            } catch {
+              return l.loader
+            }
+          })
+          const loaderPaths = loaderPathList.join(', ')
+
+          if (!(err instanceof Error)) {
+            // String throws lose their stack trace, so we create a
+            // synthetic one pointing at the loader.
+            const wrappedErr = new Error(
+              `${String(err)}\n  (from ${loaderPaths})`
+            )
+            wrappedErr.stack = `Error: ${String(err)}\n    at loader (${loaderPaths})`
+            return reject(wrappedErr)
+          }
+
+          // Only append "(from ...)" when no loader path is already
+          // visible in the stack trace, to avoid redundant noise.
+          const stack = typeof err.stack === 'string' ? err.stack : ''
+          if (!loaderPathList.some((p) => stack.includes(p))) {
+            err.message += `\n  (from ${loaderPaths})`
+          }
+          return reject(err)
+        }
         if (!result.result) return reject(new Error('No result from loaders'))
         const [source, map] = result.result
-        resolve({
+        const resolvedValue = {
           source: Buffer.isBuffer(source)
             ? { binary: source.toString('base64') }
             : source,
@@ -504,7 +592,12 @@ const transform = (
               : typeof map === 'object'
                 ? JSON.stringify(map)
                 : undefined,
-        })
+        }
+        // Delay resolution by one event loop turn to catch deferred errors
+        // from loaders (e.g. unhandled Promise rejections, setTimeout throws).
+        // During this delay, uncaughtException/unhandledRejection handlers can
+        // fire and send the error via IPC before we send the 'end' message.
+        setTimeout(() => resolve(resolvedValue), 0)
       }
     )
   })

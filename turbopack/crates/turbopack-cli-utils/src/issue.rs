@@ -93,6 +93,30 @@ pub fn format_issue(
             writeln!(styled_issue, "{path}").unwrap();
         }
     }
+
+    // Render additional sources (e.g., generated code from a loader)
+    for additional in &plain_issue.additional_sources {
+        let desc = &additional.description;
+        let source = &additional.source;
+        match source.range {
+            Some((start, _)) => {
+                writeln!(
+                    styled_issue,
+                    "\n{}:\n{}:{}:{}",
+                    desc,
+                    source.asset.ident,
+                    start.line + 1,
+                    start.column + 1
+                )
+                .unwrap();
+            }
+            None => {
+                writeln!(styled_issue, "\n{}:\n{}", desc, source.asset.ident).unwrap();
+            }
+        }
+        format_source_content(source, &mut styled_issue);
+    }
+
     let traces = &*plain_issue.import_traces;
     if !traces.is_empty() {
         /// Returns the leaf layer name, which is the first present layer name in the trace
@@ -325,7 +349,7 @@ impl SeenIssues {
 ///
 /// The ConsoleUi can be shared and capture issues from multiple sources, with deduplication
 /// operating across all issues.
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", evict = "never", eq = "manual")]
 #[derive(Clone)]
 pub struct ConsoleUi {
     options: LogOptions,

@@ -105,7 +105,8 @@ describe('CLI Usage', () => {
           await testExitSignal(
             'SIGINT',
             ['start', dirBasic, '-p', port],
-            /- Local:/
+            /- Local:/,
+            130 // 128 + 2 (SIGINT)
           )
         })
         test('should exit when SIGTERM is signalled', async () => {
@@ -122,7 +123,8 @@ describe('CLI Usage', () => {
           await testExitSignal(
             'SIGTERM',
             ['start', dirBasic, '-p', port],
-            /- Local:/
+            /- Local:/,
+            143 // 128 + 15 (SIGTERM)
           )
         })
 
@@ -280,6 +282,41 @@ describe('CLI Usage', () => {
           expect(stderr).toContain(
             `Bad port: "${reservedPort}" is reserved for npp`
           )
+        })
+
+        test('--inspect', async () => {
+          await nextBuild(dirBasic)
+          const port = await findPort()
+
+          let output = ''
+          let errOutput = ''
+          const app = await runNextCommandDev(
+            ['start', dirBasic, '--port', '' + port, '--inspect'],
+            undefined,
+            {
+              onStdout(msg) {
+                output += stripAnsi(msg)
+              },
+              onStderr(msg) {
+                errOutput += stripAnsi(msg)
+              },
+            }
+          )
+
+          try {
+            await retry(() => {
+              expect(output).toMatch(new RegExp(`http://localhost:${port}`))
+            })
+            await retry(() => {
+              expect(output).toMatch(/- Debugger port:\s+9229/)
+            })
+            await retry(() => {
+              expect(errOutput).toMatch(/Debugger listening on/)
+            })
+            expect(errOutput).not.toContain('address already in use')
+          } finally {
+            await killApp(app)
+          }
         })
       })
 
@@ -794,9 +831,14 @@ describe('CLI Usage', () => {
 
     test('-p reserved', async () => {
       const TCP_MUX_PORT = 1
-      const { stderr, stdout } = await runAndCaptureOutput({
-        port: TCP_MUX_PORT,
-      })
+      const { stderr, stdout } = await runNextCommand(
+        [dirBasic, '-p', '' + TCP_MUX_PORT],
+        {
+          stdout: true,
+          stderr: true,
+          ignoreFail: true,
+        }
+      )
 
       expect(stdout).toMatch('')
       expect(stderr).toMatch(

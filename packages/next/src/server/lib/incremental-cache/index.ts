@@ -19,7 +19,7 @@ import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
 import {
-  CACHE_ONE_YEAR,
+  CACHE_ONE_YEAR_SECONDS,
   NEXT_CACHE_TAGS_HEADER,
   PRERENDER_REVALIDATE_HEADER,
 } from '../../../lib/constants'
@@ -570,6 +570,7 @@ export class IncrementalCache implements IncrementalCacheType {
     }
 
     let entry: IncrementalResponseCacheEntry | null = null
+    const { isFallback } = ctx
     const cacheControl = this.cacheControls.get(toRoute(cacheKey))
 
     let isStale: boolean | -1 | undefined
@@ -577,7 +578,7 @@ export class IncrementalCache implements IncrementalCacheType {
 
     if (cacheData?.lastModified === -1) {
       isStale = -1
-      revalidateAfter = -1 * CACHE_ONE_YEAR
+      revalidateAfter = -1 * CACHE_ONE_YEAR_SECONDS * 1000
     } else {
       const now = performance.timeOrigin + performance.now()
       const lastModified = cacheData?.lastModified || now
@@ -621,6 +622,7 @@ export class IncrementalCache implements IncrementalCacheType {
         cacheControl,
         revalidateAfter,
         value: cacheData.value,
+        isFallback,
       }
     }
 
@@ -638,6 +640,7 @@ export class IncrementalCache implements IncrementalCacheType {
         value: null,
         cacheControl,
         revalidateAfter,
+        isFallback,
       }
       this.set(cacheKey, entry.value, { ...ctx, cacheControl })
     }

@@ -1,9 +1,11 @@
-import React from 'react'
+import { Suspense } from 'react'
 
 export default function Root({ children }) {
   return (
     <html>
-      <body>{children}</body>
+      <body>
+        <Suspense>{children}</Suspense>
+      </body>
     </html>
   )
 }
