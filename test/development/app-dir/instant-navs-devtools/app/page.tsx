@@ -1,9 +1,19 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
+import { connection } from 'next/server'
+
+async function DynamicGreeting() {
+  await connection()
+  return <p data-testid="home-dynamic">Dynamic content rendered</p>
+}
 
 export default function Page() {
   return (
     <div>
       <h1 data-testid="home-title">Instant Navigation Mode Demo</h1>
+      <Suspense fallback={<p data-testid="home-dynamic-skeleton">Loading…</p>}>
+        <DynamicGreeting />
+      </Suspense>
       <p>
         This fixture tests the <strong>Instant Navigation Mode</strong> toggle
         in Next.js Dev Tools. When enabled, navigations show only the cached or

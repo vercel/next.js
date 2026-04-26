@@ -90,6 +90,7 @@ import {
 } from '../../client/components/redirect'
 import { isRedirectError } from '../../client/components/redirect-error'
 import { getImplicitTags, type ImplicitTags } from '../lib/implicit-tags'
+import { getInstantNavigationSessionId } from '../lib/instant-navigation-session'
 import { AppRenderSpan, NextNodeServerSpan } from '../lib/trace/constants'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import { FlightRenderResult } from './flight-render-result'
@@ -3315,8 +3316,12 @@ async function renderToStream(
   // bootstrap script is executed, which depends on it during hydration.
   // For MPA navigations (page reload, direct URL entry), the request ID
   // header is not present, so we generate a random one.
+  // Also expose the Instant Navigation session ID so the devtools panel and
+  // the on-page navigation lock can stamp their cookie writes with it. The
+  // server validates the embedded ID, so a stale cookie from a previous
+  // dev process doesn't spuriously reactivate instant test mode.
   const bootstrapScriptContent = process.env.__NEXT_DEV_SERVER
-    ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())}`
+    ? `self.__next_r=${JSON.stringify(requestId ?? crypto.randomUUID())};self.__next_instant_nav_session_id=${JSON.stringify(getInstantNavigationSessionId(workStore.buildId))}`
     : undefined
 
   // Create the "render route (app)" span manually so we can keep it open during streaming.

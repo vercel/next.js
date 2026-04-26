@@ -586,7 +586,8 @@ async function createClientResumeScriptInsertionTransformStream(): Promise<
  * self.__next_instant_test before any async bootstrap scripts execute.
  */
 export async function createInstantTestScriptInsertionTransformStream(
-  requestId: string | null
+  requestId: string | null,
+  sessionId: string
 ): Promise<TransformStream<Uint8Array, Uint8Array>> {
   // Kick off a fetch for the static RSC payload. This is the hydration
   // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
@@ -610,7 +611,12 @@ export async function createInstantTestScriptInsertionTransformStream(
   // bootstrapScriptContent.
   const requestIdScript =
     requestId !== null ? `self.__next_r=${JSON.stringify(requestId)};` : ''
-  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
+  // Also expose the server's instant-nav session ID so the client-side
+  // cookie writers can tag their writes with it. The server validates the
+  // embedded ID when checking the cookie, so cookies from a previous dev
+  // process are ignored instead of silently reactivating the static shell.
+  const sessionIdScript = `self.__next_instant_nav_session_id=${JSON.stringify(sessionId)};`
+  const INSTANT_TEST_SCRIPT = `<script>${requestIdScript}${sessionIdScript}self.__next_instant_test=fetch(location.pathname+'?${searchStr}',{credentials:'same-origin',headers:{'${RSC_HEADER}':'1','${NEXT_ROUTER_PREFETCH_HEADER}':'1','${NEXT_ROUTER_SEGMENT_PREFETCH_HEADER}':'${segmentPath}','${NEXT_INSTANT_PREFETCH_HEADER}':'1'}})</script>`
 
   let didAlreadyInsert = false
   return new TransformStream({

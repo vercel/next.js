@@ -1,16 +1,17 @@
 /**
  * Cookie reading and subscription for the instant navigation devtools panel.
  *
- * The cookie value is a JSON array:
- *   [0]        — pending (waiting to capture)
- *   [1, null]  — captured MPA page load
- *   [1, { from, to }] — captured SPA navigation (from/to route trees)
- *
- * The "to" tree may be null initially and updated after the prefetch resolves.
+ * See `shared/lib/instant-navigation-cookie` for the canonical parser and
+ * cookie shape. This module wraps it with React-friendly hooks and the
+ * pretty-printing utilities the panel needs.
  */
 
 import { useMemo } from 'react'
 import { useSyncExternalStore } from 'react'
+import {
+  parseInstantTestCookie,
+  type InstantTestCookie,
+} from '../../../../shared/lib/instant-navigation-cookie'
 import type {
   FlightRouterState,
   Segment,
@@ -27,24 +28,23 @@ export type InstantNavCookieData =
       toTree: FlightRouterState | null
     }
 
-function parseCookieValue(raw: string): InstantNavCookieData {
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      const rawState = parsed[2]
-      if (rawState === null) {
-        return { state: 'mpa' }
+function projectToPanelData(
+  parsed: InstantTestCookie | null
+): InstantNavCookieData {
+  if (parsed === null) return { state: 'pending' }
+  switch (parsed.state.kind) {
+    case 'mpa':
+      return { state: 'mpa' }
+    case 'spa':
+      return {
+        state: 'spa',
+        fromTree: parsed.state.fromTree,
+        toTree: parsed.state.toTree,
       }
-      // SPA capture: rawState is { from, to }
-      if (typeof rawState === 'object' && rawState !== null) {
-        const fromTree: FlightRouterState = rawState.from ?? ['', {}]
-        const toTree: FlightRouterState | null = rawState.to ?? null
-        return { state: 'spa', fromTree, toTree }
-      }
-      return { state: 'spa', fromTree: ['', {}], toTree: null }
-    }
-  } catch {}
-  return { state: 'pending' }
+    case 'pending':
+    default:
+      return { state: 'pending' }
+  }
 }
 
 export function readInstantNavCookieState():
@@ -53,7 +53,7 @@ export function readInstantNavCookieState():
   if (typeof document === 'undefined') return null
   const match = document.cookie.match(/next-instant-navigation-testing=([^;]*)/)
   if (!match) return null
-  return parseCookieValue(match[1]).state
+  return projectToPanelData(parseInstantTestCookie(match[1])).state
 }
 
 /**
@@ -166,6 +166,6 @@ export function useInstantNavCookieState(): InstantNavCookieData | null {
   const rawValue = useSyncExternalStore(subscribe, getSnapshot)
   return useMemo(() => {
     if (!rawValue) return null
-    return parseCookieValue(rawValue)
+    return projectToPanelData(parseInstantTestCookie(rawValue))
   }, [rawValue])
 }

@@ -87,8 +87,9 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
-  NEXT_INSTANT_TEST_COOKIE,
 } from '../client/components/app-router-headers'
+import { hasValidInstantTestCookie } from '../shared/lib/instant-navigation-cookie'
+import { getInstantNavigationSessionId } from './lib/instant-navigation-session'
 import type {
   MatchOptions,
   RouteMatcherManager,
@@ -2231,11 +2232,16 @@ export default abstract class Server<
     // page load) in the Instant Navigation Testing API. Only applies to
     // document requests (no RSC header) - RSC requests should proceed normally
     // even during a locked scope, with blocking happening on the client side.
+    // Cookies whose embedded session ID doesn't match the current server are
+    // treated as absent, so that a cookie left over from a previous dev
+    // process doesn't spuriously enable the static shell here.
     const hasInstantTestCookie =
       exposeTestingApi &&
       req.headers[RSC_HEADER] === undefined &&
-      typeof req.headers.cookie === 'string' &&
-      req.headers.cookie.includes(NEXT_INSTANT_TEST_COOKIE + '=') &&
+      hasValidInstantTestCookie(
+        req.headers.cookie,
+        getInstantNavigationSessionId(this.buildId)
+      ) &&
       couldSupportPPR
 
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
