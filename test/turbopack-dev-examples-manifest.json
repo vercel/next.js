@@ -148,7 +148,6 @@
   "with-redux": true,
   "with-reflexjs": true,
   "with-reflux": true,
-  "with-rematch": true,
   "with-route-as-modal": true,
   "with-sass": true,
   "with-segment-analytics": true,
