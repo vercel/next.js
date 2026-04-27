@@ -2,6 +2,12 @@
 const path = require('path')
 const execa = require('execa')
 const resolveFrom = require('resolve-from')
+const {
+  configureGitHubAuth,
+  getGitHubToken,
+  getGitHubTokenMissingMessage,
+  verifyGitHubApiAccess,
+} = require('./release-github-auth')
 
 const SEMVER_TYPES = ['patch', 'minor', 'major']
 
@@ -33,10 +39,10 @@ async function main() {
     return
   }
 
-  const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
+  const githubToken = getGitHubToken()
 
   if (!githubToken) {
-    console.log(`Missing RELEASE_BOT_GITHUB_TOKEN`)
+    console.log(getGitHubTokenMissingMessage())
     return
   }
 
@@ -49,18 +55,12 @@ async function main() {
   const config = new ConfigStore('release')
   config.set('token', githubToken)
 
-  await execa(
-    `git remote set-url origin https://nextjs-bot:${githubToken}@github.com/vercel/next.js.git`,
-    { stdio: 'inherit', shell: true }
+  await configureGitHubAuth(githubToken)
+  await verifyGitHubApiAccess(
+    githubToken,
+    '/repos/vercel/next.js/releases?per_page=1',
+    'release lookup'
   )
-  await execa(`git config user.name "nextjs-bot"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
-  await execa(`git config user.email "it+nextjs-bot@vercel.com"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
 
   console.log(`Running pnpm release-${isCanary ? 'canary' : 'stable'}...`)
   const preleaseType =
@@ -70,19 +70,22 @@ async function main() {
         ? 'preminor'
         : 'prerelease'
 
-  const child = execa(
-    isCanary
-      ? `pnpm lerna version ${preleaseType} --preid canary --force-publish -y && pnpm release --pre --skip-questions --show-url`
-      : isReleaseCandidate
-        ? `pnpm lerna version ${preleaseType} --preid rc --force-publish -y && pnpm release --pre --skip-questions --show-url`
-        : isBeta
-          ? `pnpm lerna version ${preleaseType} --preid beta --force-publish -y && pnpm release --pre --skip-questions --show-url`
-          : `pnpm lerna version ${semverType} --force-publish -y`,
-    {
-      stdio: 'pipe',
-      shell: true,
-    }
-  )
+  let command = isCanary
+    ? `pnpm lerna version ${preleaseType} --preid canary --force-publish -y`
+    : isReleaseCandidate
+      ? `pnpm lerna version ${preleaseType} --preid rc --force-publish -y`
+      : isBeta
+        ? `pnpm lerna version ${preleaseType} --preid beta --force-publish -y`
+        : `pnpm lerna version ${semverType} --force-publish -y`
+
+  if (isCanary || isReleaseCandidate || isBeta) {
+    command += ' && pnpm release --pre --skip-questions --show-url'
+  }
+
+  const child = execa(command, {
+    stdio: 'pipe',
+    shell: true,
+  })
 
   child.stdout?.pipe(process.stdout)
   child.stderr?.pipe(process.stderr)
