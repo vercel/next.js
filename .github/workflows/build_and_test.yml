@@ -81,7 +81,7 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
 
     secrets: inherit
@@ -711,7 +711,7 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
 
     secrets: inherit
@@ -884,7 +884,7 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
@@ -914,7 +914,7 @@ jobs:
           test/integration/create-next-app/index.test.ts \
           test/integration/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
@@ -944,7 +944,7 @@ jobs:
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
