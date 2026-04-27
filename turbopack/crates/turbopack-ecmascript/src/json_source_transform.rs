@@ -117,7 +117,10 @@ impl SourceTransform for JsonSourceTransform {
                     "Unable to make a module from invalid JSON: {}",
                     e.message
                 ))?;
-                (format!("throw new Error({js_error_message});"), "js")
+                (
+                    format!("throw new Error({js_error_message});"),
+                    "*.[json].js",
+                )
             }
             FileJsonContent::NotFound => {
                 // This is basically impossible since we wouldn't be called if the module
