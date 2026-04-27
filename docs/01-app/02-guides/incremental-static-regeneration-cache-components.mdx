@@ -196,7 +196,7 @@ After the first visit, Next.js renders the page in the background with the known
 - If some data is uncached or runtime APIs (`cookies`, `headers`) are accessed behind `<Suspense>` fallbacks, the upgrade produces a **more specific shell** with the params resolved but the dynamic parts still streaming.
 - Params are resolved in route order. A param without `generateStaticParams` blocks all subsequent params from upgrading.
 
-> **Good to know**: Client-side prefetches (via [`<Link>`](/docs/app/api-reference/components/link) or [`router.prefetch`](/docs/app/api-reference/functions/use-router)) do not trigger upgrades. Only a navigation into the page visit does.
+> **Good to know**: Prefetching also triggers upgrades. When a [`<Link>`](/docs/app/api-reference/components/link) enters the viewport or [`router.prefetch`](/docs/app/api-reference/functions/use-router) is called, Next.js can upgrade the shell in the background, so the next visitor gets the more specific version even before anyone actually navigates to the page.
 
 To disable fallback shells and revert to blocking behavior for routes not in `generateStaticParams`, set [`experimental.partialFallbacks`](/docs/app/api-reference/config/next-config-js/partialFallbacks) to `false`. The page is still generated after the first visit, but visitors wait for the full render instead of seeing a loading state.
 
