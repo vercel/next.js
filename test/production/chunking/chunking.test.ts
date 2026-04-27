@@ -64,12 +64,16 @@ import { join } from 'path'
   })
 
   it('should not include more than one instance of react-dom', () => {
+    // Match react-dom only when it appears as a directory segment, so pnpm
+    // peer-dep path suffixes like ".pnpm/next@x.y.z_react-dom@..." (which
+    // appear in CI installs) are not treated as react-dom modules.
+    const reactDomModuleRegex = /[\\/]react-dom[\\/]/
     const misplacedReactDom = stats.chunks.some((chunk: any) => {
       if (chunk.names.includes('framework')) {
         return false
       }
       return chunk.modules.some((module: any) => {
-        return /react-dom/.test(module.name)
+        return reactDomModuleRegex.test(module.name)
       })
     })
     expect(misplacedReactDom).toBe(false)
