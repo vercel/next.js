@@ -8,7 +8,7 @@ use bytes_str::BytesStr;
 use next_custom_transforms::transforms::{
     cjs_optimizer::cjs_optimizer,
     debug_fn_name::debug_fn_name,
-    debug_instant_stack::debug_instant_stack,
+    debug_instant_stack::DebugInstantStack,
     dynamic::{NextDynamicMode, next_dynamic},
     fonts::{Config as FontLoaderConfig, next_font_loaders},
     named_import_transform::named_import_transform,
@@ -878,7 +878,7 @@ fn test_debug_instant_stack(input: PathBuf) {
 
     test_fixture(
         syntax(),
-        &|_| debug_instant_stack("app/page.js".to_string(), vec![]),
+        &|_| DebugInstantStack::new::<Vec<&str>, &str>(vec![]).get_pass("app/page.js".to_string()),
         &input,
         &output,
         FixtureTestConfig {
