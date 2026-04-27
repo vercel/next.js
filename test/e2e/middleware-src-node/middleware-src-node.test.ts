@@ -70,8 +70,9 @@ export default function () {
       // src/middleware.* to the newly created root middleware.* files when
       // they are added at runtime. Restarting the dev server forces a fresh
       // middleware resolution. Turbopack picks up the new root middleware
-      // without a restart.
-      if (!isTurbopack) {
+      // without a restart. In production mode no server is running here
+      // (skipStart: true), so the restart must not run.
+      if (isNextDev && !isTurbopack) {
         await next.stop()
         await next.start()
       }
