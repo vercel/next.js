@@ -3,8 +3,8 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   cacheComponents: true,
   experimental: {
-    instant: {
-      defaultValidationLevel: 'disabled',
+    instantInsights: {
+      validationLevel: 'manual-warning',
     },
   },
   productionBrowserSourceMaps: true,

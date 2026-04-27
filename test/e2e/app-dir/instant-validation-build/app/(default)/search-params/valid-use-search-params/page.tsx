@@ -3,7 +3,7 @@ import { Suspense } from 'react'
 import { SearchParamsReader } from './search-params-reader'
 
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [
     {
       searchParams: {

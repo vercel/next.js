@@ -22,7 +22,7 @@ import { InvariantError } from '../../../shared/lib/invariant-error'
 
 /**
  * True when an unconfigured segment should be treated as implicitly
- * validated under a non-disabled default validation level. Only page and
+ * validated under a non-manual default validation level. Only page and
  * default segments qualify — layouts do not validate on their own.
  */
 export function isImplicitValidationSegment(segment: Segment): boolean {
@@ -38,7 +38,7 @@ export function isImplicitValidationSegment(segment: Segment): boolean {
  * Routes for the framework-synthesized error and not-found entries. They
  * have no user-configurable escape hatch (the framework supplies the page
  * when the user hasn't), so they're excluded from implicit validation under
- * a non-disabled default validation level. Even when the user provides their
+ * a non-manual default validation level. Even when the user provides their
  * own `global-error` or root `not-found`, these pages are special-purpose
  * error UI — opting them into validation is something the user can do
  * explicitly via `unstable_instant`.

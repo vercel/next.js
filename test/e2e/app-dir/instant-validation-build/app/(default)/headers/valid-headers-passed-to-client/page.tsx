@@ -3,7 +3,7 @@ import { headers } from 'next/headers'
 import { ClientChild } from './client'
 
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [
     {
       headers: [['x-test-header', 'testValue']],

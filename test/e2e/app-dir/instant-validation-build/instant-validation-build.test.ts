@@ -245,16 +245,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/search-params/invalid-undeclared-search-param" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
-           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:29:14)
+           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:32:14)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:28:3)
-         27 |   const sp = await searchParams
-         28 |   ensureThrows(
-       > 29 |     () => sp.undeclared,
+           at a (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:31:3)
+         30 |   const sp = await searchParams
+         31 |   ensureThrows(
+       > 32 |     () => sp.undeclared,
             |              ^
-         30 |     \`Expected accessing an undeclared search param to throw\`
-         31 |   )
-         32 |   return null {
+         33 |     \`Expected accessing an undeclared search param to throw\`
+         34 |   )
+         35 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-search-param".
@@ -282,16 +282,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/search-params/invalid-undeclared-search-param-caught" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
-           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:33:16)
+           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:36:16)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:32:5)
-         31 |   try {
-         32 |     ensureThrows(
-       > 33 |       () => sp.undeclared,
+           at a (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:35:5)
+         34 |   try {
+         35 |     ensureThrows(
+       > 36 |       () => sp.undeclared,
             |                ^
-         34 |       \`Expected accessing an undeclared search param to throw\`
-         35 |     )
-         36 |   } catch (err) { {
+         37 |       \`Expected accessing an undeclared search param to throw\`
+         38 |     )
+         39 |   } catch (err) { {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-search-param-caught".
@@ -395,16 +395,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/headers/invalid-undeclared-header-get" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
-           at <unknown> (app/(default)/headers/invalid-undeclared-header-get/page.tsx:25:24)
+           at <unknown> (app/(default)/headers/invalid-undeclared-header-get/page.tsx:28:24)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/headers/invalid-undeclared-header-get/page.tsx:24:3)
-         23 |   const headersStore = await headers()
-         24 |   ensureThrows(
-       > 25 |     () => headersStore.get('undeclaredHeader'),
+           at a (app/(default)/headers/invalid-undeclared-header-get/page.tsx:27:3)
+         26 |   const headersStore = await headers()
+         27 |   ensureThrows(
+       > 28 |     () => headersStore.get('undeclaredHeader'),
             |                        ^
-         26 |     \`Expected get() to throw for undeclared headers\`
-         27 |   )
-         28 |   return null {
+         29 |     \`Expected get() to throw for undeclared headers\`
+         30 |   )
+         31 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/headers/invalid-undeclared-header-get".
@@ -424,16 +424,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/headers/invalid-undeclared-header-get-caught" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
-           at <unknown> (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:28:25)
+           at <unknown> (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:31:25)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:27:5)
-         26 |   try {
-         27 |     ensureThrows(
-       > 28 |       () => headerStore.get('undeclaredHeader'),
+           at a (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:30:5)
+         29 |   try {
+         30 |     ensureThrows(
+       > 31 |       () => headerStore.get('undeclaredHeader'),
             |                         ^
-         29 |       \`Expected get() to throw for undeclared headers\`
-         30 |     )
-         31 |   } catch (err) { {
+         32 |       \`Expected get() to throw for undeclared headers\`
+         33 |     )
+         34 |   } catch (err) { {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/headers/invalid-undeclared-header-get-caught".
@@ -452,16 +452,16 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/headers/invalid-undeclared-header-has" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
-           at <unknown> (app/(default)/headers/invalid-undeclared-header-has/page.tsx:25:23)
+           at <unknown> (app/(default)/headers/invalid-undeclared-header-has/page.tsx:28:23)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/headers/invalid-undeclared-header-has/page.tsx:24:3)
-         23 |   const headerStore = await headers()
-         24 |   ensureThrows(
-       > 25 |     () => headerStore.has('undeclaredHeader'),
+           at a (app/(default)/headers/invalid-undeclared-header-has/page.tsx:27:3)
+         26 |   const headerStore = await headers()
+         27 |   ensureThrows(
+       > 28 |     () => headerStore.has('undeclaredHeader'),
             |                       ^
-         26 |     \`Expected has() to throw for undeclared headers\`
-         27 |   )
-         28 |   return null {
+         29 |     \`Expected has() to throw for undeclared headers\`
+         30 |   )
+         31 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/headers/invalid-undeclared-header-has".

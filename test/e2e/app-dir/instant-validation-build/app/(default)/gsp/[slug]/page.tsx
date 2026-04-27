@@ -7,7 +7,7 @@ import { AssertParamsClient } from './client'
 // samples use 'hello', but generateStaticParams uses 'foo'/'bar'.
 // During validation, the sample params should be used, not the GSP values.
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [
     {
       params: {

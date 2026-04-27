@@ -1,5 +1,5 @@
 export const unstable_instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [{ searchParams: { foo: 'bar' } }],
 }
 

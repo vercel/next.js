@@ -4,7 +4,7 @@ import { lang } from 'next/root-params'
 import { ensureRejects } from '../../../../ensure-error'
 
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   // no samples
   samples: [{}],
 }

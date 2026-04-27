@@ -46,7 +46,7 @@ The export accepts:
 
 - **`true`**: Opts the segment into validation. Validation runs in development (in the dev overlay) and at build (failing the build on violations).
 - **`false`**: Opts the segment out (see [Disabling instant](#disabling-instant)).
-- An **object**: Opts in with additional options. See [`samples`](#samples).
+- An **object**: Opts in with additional options. See [`level`](#level) and [`samples`](#samples).
 
 ### `samples`
 
@@ -64,6 +64,21 @@ export const unstable_instant = {
 ```
 
 Each sample can specify any of `cookies`, `headers`, `params`, or `searchParams`. Provide one entry per representative request shape — for example, one for an authenticated visit and one for an anonymous visit.
+
+### `level`
+
+Sets the severity at which validation runs for this segment.
+
+```tsx filename="page.tsx"
+export const unstable_instant = {
+  level: 'experimental-error',
+}
+```
+
+- **`'warning'`**: Validates in development only. Errors appear in the dev overlay; the build is unaffected.
+- **`'experimental-error'`**: Validates in development and at build time. The build fails when violations are found. The `experimental-` prefix is intentional — see the caveat in [Configuring validation defaults](#configuring-validation-defaults).
+
+When `level` is omitted (or `unstable_instant = true` is used), the segment is validated at whatever level is configured globally — see [Configuring validation defaults](#configuring-validation-defaults).
 
 ### Disabling instant
 
@@ -94,6 +109,36 @@ Setting `false` on the root layout disables static shell validation for the enti
 `unstable_instant` triggers validation at every shared layout boundary in the route. Validation runs during development (on page loads and HMR updates) and at build time. Errors appear in the dev error overlay or fail the build.
 
 Each error identifies the component that would block navigation. The fix is usually to cache the data with `use cache` or wrap it in a `<Suspense>` boundary.
+
+## Configuring validation defaults
+
+By default, only segments that explicitly export `unstable_instant` are validated. The `experimental.instantInsights.validationLevel` config opts every Page and Default segment into validation at once, without needing to repeat `unstable_instant` on each route.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    instantInsights: {
+      validationLevel: 'experimental-error',
+    },
+  },
+}
+```
+
+There are four levels:
+
+- **`'manual-warning'`** _(framework default)_: Only segments with an explicit `unstable_instant` are validated, at warning level (dev only).
+- **`'warning'`**: Every Page and Default segment is implicitly validated at warning level (dev only).
+- **`'experimental-manual-error'`**: Only segments with an explicit `unstable_instant` are validated, at error level (dev and build; the build fails on violations).
+- **`'experimental-error'`**: Every Page and Default segment is implicitly validated at error level (dev and build; the build fails on violations).
+
+A segment can override the configured level with the per-segment [`level`](#level) field — for example, `{ level: 'experimental-error' }` to fail builds for a specific route under a `'warning'` configuration, or `{ level: 'warning' }` to keep a route dev-only under `'experimental-error'`. Setting `unstable_instant = false` opts the segment out of validation entirely.
+
+> **Good to know**:
+>
+> - The `experimental-` prefix on the error levels is temporary and will be removed before this feature stabilizes.
+> - The framework default may change in future versions to opt users into higher levels of validation. Because this feature is experimental, that change is not considered a breaking change. To pin a specific behavior, set `validationLevel` explicitly.
+> - The error levels (`'experimental-error'` and `'experimental-manual-error'`) carry the `experimental-` prefix because the debugging story for build-time violations is still incomplete. A violation that surfaces only during build may not be reproducible under `next dev`, and build-time stack traces are less detailed than the dev error overlay. Prefer the warning levels for day-to-day development; reach for the error levels only as a CI gate where you're prepared to investigate sparse output.
+> - Framework-synthesized error routes (`/_global-error`, `/_not-found`) are excluded from implicit validation. To validate them, opt in explicitly with `unstable_instant`.
 
 ## Inspecting loading states
 
@@ -144,6 +189,7 @@ type InstantConfig =
   | true
   | false
   | {
+      level?: 'warning' | 'experimental-error'
       samples?: RuntimeSample[]
     }
 

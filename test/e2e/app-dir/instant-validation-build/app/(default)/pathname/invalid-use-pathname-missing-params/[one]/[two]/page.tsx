@@ -2,7 +2,7 @@ import type { Instant } from 'next'
 import { PathnameReader } from './pathname-reader'
 
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [
     {
       params: {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { ensureThrows } from '../../../../../../ensure-error'
 
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [
     {
       params: {

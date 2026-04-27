@@ -2,7 +2,7 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 export const unstable_instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [{ cookies: [], params: { param: '123' } }],
 }
 export const unstable_prefetch = 'force-runtime'

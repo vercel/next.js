@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import assert from 'node:assert/strict'
 
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [
     {
       cookies: [{ name: 'testCookie', value: 'testValue' }],

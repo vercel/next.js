@@ -4,8 +4,8 @@
 const nextConfig = {
   cacheComponents: true,
   experimental: {
-    instant: {
-      defaultValidationLevel: 'disabled',
+    instantInsights: {
+      validationLevel: 'manual-warning',
     },
   },
   typescript: {

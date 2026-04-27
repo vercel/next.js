@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { Suspense } from 'react'
 
 export const unstable_instant: Instant = {
-  level: 'error',
+  level: 'experimental-error',
   samples: [
     {
       searchParams: {
