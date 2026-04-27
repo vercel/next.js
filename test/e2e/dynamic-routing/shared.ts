@@ -1092,8 +1092,271 @@ export function runTests(ctx: {
         new RegExp(route.namedDataRouteRegex)
       }
 
-      expect(normalizeManifest(manifest, [[buildId, 'BUILD_ID']]))
-        .toMatchInlineSnapshot(`
+      const normalizedManifest = normalizeManifest(manifest, [
+        [buildId, 'BUILD_ID'],
+      ])
+
+      if (process.env.__NEXT_CACHE_COMPONENTS === 'true') {
+        expect(normalizedManifest).toMatchInlineSnapshot(`
+       {
+         "appType": "pages",
+         "basePath": "",
+         "caseSensitive": false,
+         "dataRoutes": [
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/b\\/([^\\/]+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/b/(?<nxtP123>[^/]+?)\\.json$",
+             "page": "/b/[123]",
+             "routeKeys": {
+               "nxtP123": "nxtP123",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/c\\/([^\\/]+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/c/(?<a>[^/]+?)\\.json$",
+             "page": "/c/[alongparamnameshouldbeallowedeventhoughweird]",
+             "routeKeys": {
+               "a": "nxtPalongparamnameshouldbeallowedeventhoughweird",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/p1\\/p2\\/all\\-ssg\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/p1/p2/all\\-ssg/(?<nxtPrest>.+?)\\.json$",
+             "page": "/p1/p2/all-ssg/[...rest]",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)\\.json$",
+             "page": "/p1/p2/nested-all-ssg/[...rest]",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)\\.json$",
+             "page": "/p1/p2/predefined-ssg/[...rest]",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "dataRouteRegex": "^\\/_next\\/data\\/BUILD_ID\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)\\.json$",
+             "namedDataRouteRegex": "^/_next/data/BUILD_ID/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)\\.json$",
+             "page": "/[name]/[comment]/[...rest]",
+             "routeKeys": {
+               "nxtPcomment": "nxtPcomment",
+               "nxtPname": "nxtPname",
+               "nxtPrest": "nxtPrest",
+             },
+           },
+         ],
+         "dynamicRoutes": [
+           {
+             "namedRegex": "^/b/(?<nxtP123>[^/]+?)(?:/)?$",
+             "page": "/b/[123]",
+             "regex": "^\\/b\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtP123": "nxtP123",
+             },
+           },
+           {
+             "namedRegex": "^/blog/(?<nxtPname>[^/]+?)/comment/(?<nxtPid>[^/]+?)(?:/)?$",
+             "page": "/blog/[name]/comment/[id]",
+             "regex": "^\\/blog\\/([^\\/]+?)\\/comment\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPid": "nxtPid",
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/c/(?<a>[^/]+?)(?:/)?$",
+             "page": "/c/[alongparamnameshouldbeallowedeventhoughweird]",
+             "regex": "^\\/c\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "a": "nxtPalongparamnameshouldbeallowedeventhoughweird",
+             },
+           },
+           {
+             "namedRegex": "^/catchall\\-dash/(?<nxtPhelloworld>.+?)(?:/)?$",
+             "page": "/catchall-dash/[...hello-world]",
+             "regex": "^\\/catchall\\-dash\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPhelloworld": "nxtPhello-world",
+             },
+           },
+           {
+             "namedRegex": "^/d/(?<nxtPid>[^/]+?)(?:/)?$",
+             "page": "/d/[id]",
+             "regex": "^\\/d\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPid": "nxtPid",
+             },
+           },
+           {
+             "namedRegex": "^/dash/(?<nxtPhelloworld>[^/]+?)(?:/)?$",
+             "page": "/dash/[hello-world]",
+             "regex": "^\\/dash\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPhelloworld": "nxtPhello-world",
+             },
+           },
+           {
+             "namedRegex": "^/index/(?<nxtPslug>.+?)(?:/)?$",
+             "page": "/index/[...slug]",
+             "regex": "^\\/index\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPslug": "nxtPslug",
+             },
+           },
+           {
+             "namedRegex": "^/on\\-mount/(?<nxtPpost>[^/]+?)(?:/)?$",
+             "page": "/on-mount/[post]",
+             "regex": "^\\/on\\-mount\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPpost": "nxtPpost",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/all\\-ssg/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/all-ssg/[...rest]",
+             "regex": "^\\/p1\\/p2\\/all\\-ssg\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/all\\-ssr/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/all-ssr/[...rest]",
+             "regex": "^\\/p1\\/p2\\/all\\-ssr\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/nested\\-all\\-ssg/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/nested-all-ssg/[...rest]",
+             "regex": "^\\/p1\\/p2\\/nested\\-all\\-ssg\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/p1/p2/predefined\\-ssg/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/p1/p2/predefined-ssg/[...rest]",
+             "regex": "^\\/p1\\/p2\\/predefined\\-ssg\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPrest": "nxtPrest",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)(?:/)?$",
+             "page": "/[name]",
+             "regex": "^\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/comments(?:/)?$",
+             "page": "/[name]/comments",
+             "regex": "^\\/([^\\/]+?)\\/comments(?:\\/)?$",
+             "routeKeys": {
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/on\\-mount\\-redir(?:/)?$",
+             "page": "/[name]/on-mount-redir",
+             "regex": "^\\/([^\\/]+?)\\/on\\-mount\\-redir(?:\\/)?$",
+             "routeKeys": {
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)(?:/)?$",
+             "page": "/[name]/[comment]",
+             "regex": "^\\/([^\\/]+?)\\/([^\\/]+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPcomment": "nxtPcomment",
+               "nxtPname": "nxtPname",
+             },
+           },
+           {
+             "namedRegex": "^/(?<nxtPname>[^/]+?)/(?<nxtPcomment>[^/]+?)/(?<nxtPrest>.+?)(?:/)?$",
+             "page": "/[name]/[comment]/[...rest]",
+             "regex": "^\\/([^\\/]+?)\\/([^\\/]+?)\\/(.+?)(?:\\/)?$",
+             "routeKeys": {
+               "nxtPcomment": "nxtPcomment",
+               "nxtPname": "nxtPname",
+               "nxtPrest": "nxtPrest",
+             },
+           },
+         ],
+         "headers": [],
+         "onMatchHeaders": [],
+         "pages404": true,
+         "ppr": {
+           "chain": {
+             "headers": {
+               "next-resume": "1",
+             },
+           },
+         },
+         "redirects": [
+           {
+             "destination": "/:path+",
+             "internal": true,
+             "priority": true,
+             "regex": "^(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))/$",
+             "source": "/:path+/",
+             "statusCode": 308,
+           },
+         ],
+         "rewriteHeaders": {
+           "pathHeader": "x-nextjs-rewritten-path",
+           "queryHeader": "x-nextjs-rewritten-query",
+         },
+         "rewrites": {
+           "afterFiles": [],
+           "beforeFiles": [],
+           "fallback": [],
+         },
+         "rsc": {
+           "clientParamParsing": true,
+           "contentTypeHeader": "text/x-component",
+           "didPostponeHeader": "x-nextjs-postponed",
+           "dynamicRSCPrerender": true,
+           "header": "rsc",
+           "prefetchHeader": "next-router-prefetch",
+           "prefetchSegmentDirSuffix": ".segments",
+           "prefetchSegmentHeader": "next-router-segment-prefetch",
+           "prefetchSegmentSuffix": ".segment.rsc",
+           "suffix": ".rsc",
+           "varyHeader": "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch",
+         },
+         "staticRoutes": [
+           {
+             "namedRegex": "^/(?:/)?$",
+             "page": "/",
+             "regex": "^/(?:/)?$",
+             "routeKeys": {},
+           },
+           {
+             "namedRegex": "^/another(?:/)?$",
+             "page": "/another",
+             "regex": "^/another(?:/)?$",
+             "routeKeys": {},
+           },
+         ],
+         "version": 3,
+       }
+      `)
+      } else {
+        expect(normalizedManifest).toMatchInlineSnapshot(`
        {
          "appType": "pages",
          "basePath": "",
@@ -1344,6 +1607,7 @@ export function runTests(ctx: {
          "version": 3,
        }
       `)
+      }
     })
 
     it('should output a pages-manifest correctly', async () => {
