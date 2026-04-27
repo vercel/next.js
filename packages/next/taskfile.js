@@ -2504,7 +2504,7 @@ export async function next_devtools_entrypoint(task, opts) {
 
 export async function next_react_devtools_entrypoint(task, opts) {
   await task
-    .source('src/next-react-devtools/initialize.ts?(x)')
+    .source('src/next-react-devtools/{backend,initialize,install-hook}.ts?(x)')
     .swc('client', { dev: opts.dev, interopClientDefaultExport: true })
     .target('dist/next-react-devtools')
 }

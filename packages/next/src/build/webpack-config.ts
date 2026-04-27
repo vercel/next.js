@@ -706,10 +706,14 @@ export default async function getBaseWebpackConfig(
 
   const reactRefreshEntry = isRspack
     ? require.resolve(
-        `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
+        config.experimental.reactDevToolsInNextDevTools
+          ? `next/dist/client/react-refresh-rspack-with-devtools`
+          : `next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime`
       )
     : require.resolve(
-        `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
+        config.experimental.reactDevToolsInNextDevTools
+          ? `next/dist/client/react-refresh-with-devtools`
+          : `next/dist/compiled/@next/react-refresh-utils/dist/runtime`
       )
 
   const clientEntries = isClient

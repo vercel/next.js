@@ -426,6 +426,9 @@ declare module 'next/dist/compiled/@next/react-refresh-utils/dist/ReactRefreshWe
   export = m
 }
 
+declare module 'next/dist/compiled/@next/react-refresh-utils/dist/runtime'
+declare module 'next/dist/compiled/@next/react-refresh-utils/dist/rspack-runtime'
+
 declare module 'next/dist/compiled/commander' {
   import commander from 'commander'
   export * from 'commander'

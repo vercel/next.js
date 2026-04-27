@@ -1,16 +1,12 @@
 import type { Wall } from 'react-devtools-inline/backend'
-import {
-  activate,
-  createBridge,
-  initialize as initBackend,
-} from 'react-devtools-inline/backend'
+import { activate, createBridge } from 'react-devtools-inline/backend'
+import { installBackendHook } from './backend'
 
 const FRAME_ATTR = 'data-nextjs-react-devtools-frame'
 const FRONTEND_SCRIPT_PATH = '/__nextjs_react_devtools/frontend.js'
 
 declare global {
   interface Window {
-    __NEXT_REACT_DEVTOOLS_BACKEND_INITIALIZED__?: boolean
     __NEXT_REACT_DEVTOOLS_FRAME_SHARED__?: {
       activate: () => void
       wall: Wall
@@ -71,14 +67,7 @@ function createIframe() {
 }
 
 function initialize(): void {
-  if (window.__NEXT_REACT_DEVTOOLS_BACKEND_INITIALIZED__) {
-    throw new Error(
-      'Next React DevTools backend already initialized. This is a bug in Next.js'
-    )
-  }
-
-  window.__NEXT_REACT_DEVTOOLS_BACKEND_INITIALIZED__ = true
-  initBackend(window)
+  installBackendHook()
 
   if (window.__NEXT_REACT_DEVTOOLS_FRAME_SHARED__) {
     throw new Error(

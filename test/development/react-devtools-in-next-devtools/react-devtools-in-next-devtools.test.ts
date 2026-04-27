@@ -28,6 +28,7 @@ describe('react-devtools-in-next-devtools', () => {
       const searchInput = iframeDocument?.querySelector(
         'input[placeholder="Search (text or /regex/)"]'
       ) as HTMLInputElement | null
+      const frameText = iframeDocument?.body?.textContent ?? ''
 
       return {
         hasFrame: !!frame,
@@ -46,11 +47,16 @@ describe('react-devtools-in-next-devtools', () => {
         searchInputBoxSizing: searchInput
           ? getComputedStyle(searchInput).boxSizing
           : null,
+        frameText,
+        isLoadingElementTree: frameText.includes('Loading React Element Tree'),
       }
     })
   }
 
-  async function expectReactDevToolsVisible(browser: any) {
+  async function expectReactDevToolsVisible(
+    browser: any,
+    expectedComponentPattern: RegExp
+  ) {
     await retry(async () => {
       const info = await readReactDevToolsInfo(browser)
 
@@ -60,6 +66,10 @@ describe('react-devtools-in-next-devtools', () => {
       expect(info.fullHeight).toBe(true)
       expect(info.hasSearchInput).toBe(true)
       expect(info.searchInputBoxSizing).toBe('border-box')
+      expect(info.isLoadingElementTree).toBe(false)
+      expect(info.frameText).toEqual(
+        expect.stringMatching(expectedComponentPattern)
+      )
     })
   }
 
@@ -70,7 +80,7 @@ describe('react-devtools-in-next-devtools', () => {
       expect(await browser.elementByCss('#app-ready').text()).toBe('app ready')
     })
 
-    await expectReactDevToolsVisible(browser)
+    await expectReactDevToolsVisible(browser, /AppRoutePage/)
   })
 
   it('shows React DevTools on the Pages Router route', async () => {
@@ -80,7 +90,7 @@ describe('react-devtools-in-next-devtools', () => {
       'pages ready'
     )
 
-    await expectReactDevToolsVisible(browser)
+    await expectReactDevToolsVisible(browser, /PagesRoutePage|PagesRouteMarker/)
   })
 
   it('serves lazy React DevTools chunks', async () => {

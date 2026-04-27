@@ -17,6 +17,11 @@ fn react_refresh_request() -> Vc<Request> {
 }
 
 #[turbo_tasks::function]
+fn react_refresh_request_with_next_devtools() -> Vc<Request> {
+    Request::parse_string(rcstr!("next/dist/client/react-refresh-with-devtools"))
+}
+
+#[turbo_tasks::function]
 fn react_refresh_request_in_next() -> Vc<Request> {
     Request::parse_string(rcstr!(
         "next/dist/compiled/@next/react-refresh-utils/dist/runtime"
@@ -55,7 +60,11 @@ pub async fn assert_can_resolve_react_refresh(
         path.clone(),
         resolve_options_context,
     ));
-    for request in [react_refresh_request_in_next(), react_refresh_request()] {
+    for request in [
+        react_refresh_request_with_next_devtools(),
+        react_refresh_request_in_next(),
+        react_refresh_request(),
+    ] {
         let result = turbopack_core::resolve::resolve(
             path.clone(),
             ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined),
