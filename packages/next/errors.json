@@ -1169,5 +1169,14 @@
   "1168": "Route \"%s\": Next.js encountered runtime data such as \\`cookies()\\`, \\`headers()\\`, \\`params\\`, or \\`searchParams\\` inside \\`generateMetadata\\`, or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata",
   "1169": "Route \"%s\": Next.js encountered uncached or runtime data during the initial render.\\n\\n\\`fetch(...)\\`, \\`cookies()\\`, \\`headers()\\`, \\`params\\`, \\`searchParams\\`, or \\`connection()\\` accessed outside of \\`<Suspense>\\` blocks navigation, leading to a slower user experience.\\n\\nWays to fix this:\\n  - Cache the data access with \\`\"use cache\"\\`\\n  - Move the data access into a child component within a <Suspense> boundary\\n  - Use \\`generateStaticParams\\` to make route params static\\n  - Set \\`export const instant = false\\` to allow a blocking route\\n\\nLearn more: https://nextjs.org/docs/messages/blocking-route",
   "1170": "Route \"%s\": Next.js encountered uncached data such as \\`fetch(...)\\` or \\`connection()\\` inside \\`generateMetadata\\`. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata",
-  "1171": "Response body exceeded maximum size of %s bytes"
+  "1171": "Response body exceeded maximum size of %s bytes",
+  "1172": "The request.ua has been removed in favour of \\`userAgent\\` function.\n  Read more: https://nextjs.org/docs/messages/middleware-parse-user-agent\n  ",
+  "1173": "Nested Middleware is not allowed, found:\\n%s\\nPlease move your code to a single file at %s instead.\\nRead More - https://nextjs.org/docs/messages/nested-middleware",
+  "1174": "Method unavailable on `ReadonlyURLSearchParams`. Read more: https://nextjs.org/docs/app/api-reference/functions/use-search-params#updating-searchparams",
+  "1175": "%s\\n\\nLearn more: %s",
+  "1176": "Headers cannot be modified. Read more: https://nextjs.org/docs/app/api-reference/functions/headers",
+  "1177": "The middleware \"%s\" accepts an async API directly with the form:\n  \n  export function middleware(request, event) {\n    return NextResponse.redirect('/new-location')\n  }\n  \n  Read more: https://nextjs.org/docs/messages/middleware-new-signature\n  ",
+  "1178": "The request.page has been deprecated in favour of \\`URLPattern\\`.\n  Read more: https://nextjs.org/docs/messages/middleware-request-page\n  ",
+  "1179": "Invariant: %s This is a bug in Next.js.",
+  "1180": "Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options"
 }
