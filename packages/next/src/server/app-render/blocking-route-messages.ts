@@ -42,7 +42,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
 
 export function createRuntimeMetadataError(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered runtime data inside \`generateMetadata()\`.\n\n` +
+    `Route "${route}": Next.js encountered runtime data in \`generateMetadata()\`.\n\n` +
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateMetadata()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
@@ -53,7 +53,7 @@ export function createRuntimeMetadataError(route: string): Error {
 
 export function createDynamicMetadataError(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered uncached data inside \`generateMetadata()\`.\n\n` +
+    `Route "${route}": Next.js encountered uncached data in \`generateMetadata()\`.\n\n` +
       `\`fetch(...)\` or \`connection()\` in \`generateMetadata()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
@@ -64,7 +64,7 @@ export function createDynamicMetadataError(route: string): Error {
 
 export function createRuntimeViewportError(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered runtime data inside \`generateViewport()\`.\n\n` +
+    `Route "${route}": Next.js encountered runtime data in \`generateViewport()\`.\n\n` +
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Use a static viewport export instead of \`generateViewport()\`\n` +
@@ -75,7 +75,7 @@ export function createRuntimeViewportError(route: string): Error {
 
 export function createDynamicViewportError(route: string): Error {
   return new Error(
-    `Route "${route}": Next.js encountered uncached data inside \`generateViewport()\`.\n\n` +
+    `Route "${route}": Next.js encountered uncached data in \`generateViewport()\`.\n\n` +
       `\`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
@@ -84,25 +84,37 @@ export function createDynamicViewportError(route: string): Error {
   )
 }
 
-export function disallowedDynamicViewportMessage(route: string): string {
-  return (
-    `Route "${route}": \`generateViewport()\` depends on Request data or uncached external data, which prevents the page from being prerendered, leading to a slower user experience.\n\n` +
-    `Ways to fix this:\n` +
-    `  - Use a static viewport export instead of \`generateViewport()\`\n` +
-    `  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
-    `  - Wrap your document \`<body>\` in \`<Suspense>\`\n\n` +
-    `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
+/**
+ * NOTE: Prefer `createRuntimeViewportError` or `createDynamicViewportError`.
+ * Only use this in situations like build-time static validation, where
+ * we can't pinpoint a more specific reason.
+ */
+export function createDynamicOrRuntimeViewportError(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached or runtime data in \`generateViewport()\`.\n\n` +
+      `This prevents the page from being prerendered, leading to a slower user experience.\n\n` +
+      `Ways to fix this:\n` +
+      `  - Use a static viewport export instead of \`generateViewport()\`\n` +
+      `  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
+      `  - Wrap your document \`<body>\` in \`<Suspense>\`\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
   )
 }
 
-export function disallowedDynamicMetadataMessage(route: string): string {
-  return (
-    `Route "${route}": \`generateMetadata()\` depends on Request data or uncached external data, which prevents the page from being prerendered, leading to a slower user experience.\n\n` +
-    `Ways to fix this:\n` +
-    `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
-    `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
-    `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to signal intentional dynamism\n\n` +
-    `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
+/**
+ * NOTE: Prefer `createRuntimeMetadataError` or `createDynamicMetadataError`.
+ * Only use this in situations like build-time static validation, where
+ * we can't pinpoint a more specific reason.
+ */
+export function createDynamicOrRuntimeMetadataError(route: string): Error {
+  return new Error(
+    `Route "${route}": Next.js encountered uncached or runtime data in \`generateMetadata()\`.\n\n` +
+      `This prevents the page from being prerendered, leading to a slower user experience.\n\n` +
+      `Ways to fix this:\n` +
+      `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
+      `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
+      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to signal intentional dynamism\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
 }
 
