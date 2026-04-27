@@ -270,6 +270,12 @@ function runTests(dev = false) {
       it('should stop accepting new requests when shutting down', async () => {
         const appKilledPromise = once(app, 'exit')
 
+        // Warm-up request to ensure the server has fully booted and registered
+        // its SIGTERM handler before we send the signal. Without this, CI runs
+        // can occasionally race and exit via the default signal disposition
+        // (signal=SIGTERM, code=null) instead of the graceful exit (code=143).
+        await fetchViaHTTP(appPort, '/api/fast').catch(() => {})
+
         process.kill(app.pid!, 'SIGTERM')
         expect(app.exitCode).toBe(null)
 
