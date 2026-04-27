@@ -143,6 +143,7 @@ async function createBlobForFile(token, commitSha, filePath) {
   const content = await git(['show', `${commitSha}:${filePath}`], {
     captureOutput: true,
     encoding: null,
+    stripFinalNewline: false,
     maxBuffer: 1024 * 1024 * 100,
   })
   const blob = await githubRequest(
