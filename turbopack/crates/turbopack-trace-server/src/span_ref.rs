@@ -14,8 +14,8 @@ use crate::{
     FxIndexMap,
     bottom_up::build_bottom_up_graph,
     span::{
-        Span, SpanEvent, SpanEventSelfTime, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames,
-        SpanTimeData, SpanTotals,
+        Span, SpanEvent, SpanEventSelfTime, SpanExtra, SpanGraphEvent, SpanIndex, SpanName,
+        SpanNames, SpanTimeData, SpanTotals,
     },
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
@@ -55,7 +55,7 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn time_data(&self) -> &'a SpanTimeData {
-        self.span.time_data()
+        &self.span.time_data
     }
 
     pub fn extra(&self) -> &'a SpanExtra {
@@ -88,64 +88,12 @@ impl<'a> SpanRef<'a> {
     }
 
     pub fn nice_name(&self) -> (&'a str, &'a str) {
-        let (category, title) = self.names().nice_name.get_or_init(|| {
-            if let Some(name) = self
-                .span
-                .args
-                .iter()
-                .find(|&(k, _)| k == "name")
-                .map(|(_, v)| v)
-            {
-                if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                    (self.span.name.clone(), name.clone())
-                } else if matches!(
-                    self.span.name.as_str(),
-                    "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
-                ) {
-                    (self.span.name.clone(), format!("*{name}").into())
-                } else {
-                    (
-                        self.span.category.clone(),
-                        format!("{} {name}", self.span.name).into(),
-                    )
-                }
-            } else {
-                (self.span.category.clone(), self.span.name.clone())
-            }
-        });
+        let SpanName { category, title } = &self.names().nice_name;
         (category.as_str(), title.as_str())
     }
 
     pub fn group_name(&self) -> (&'a str, &'a str) {
-        let (category, title) = self.names().group_name.get_or_init(|| {
-            if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                let name = self
-                    .span
-                    .args
-                    .iter()
-                    .find(|&(k, _)| k == "name")
-                    .map(|(_, v)| v.clone())
-                    .unwrap_or_else(|| self.span.name.clone());
-                (self.span.name.clone(), name)
-            } else if matches!(
-                self.span.name.as_str(),
-                "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
-            ) {
-                let name = self
-                    .span
-                    .args
-                    .iter()
-                    .find(|&(k, _)| k == "name")
-                    .map(|(_, v)| RcStr::from(format!("*{v}")))
-                    .unwrap_or_else(|| self.span.name.clone());
-                (
-                    self.span.category.clone(),
-                    format!("{} {name}", self.span.name).into(),
-                )
-            } else {
-                (self.span.category.clone(), self.span.name.clone())
-            }
-        });
+        let SpanName { category, title } = &self.names().group_name;
         (category.as_str(), title.as_str())
     }
 

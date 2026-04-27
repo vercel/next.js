@@ -42,9 +42,12 @@ pub struct Span {
     // Bundling the subtree totals into a single OnceLock pays a small cost on
     // partial reads in exchange for a much-reduced lock count per Span.
     pub totals: OnceLock<SpanTotals>,
-    pub time_data: OnceLock<Box<SpanTimeData>>,
+    pub time_data: SpanTimeData,
     pub extra: OnceLock<Box<SpanExtra>>,
-    pub names: OnceLock<Box<SpanNames>>,
+    /// Lazy first-touch via `OnceLock`, but inline rather than boxed: ~96% of
+    /// spans get names populated after browsing, never invalidated, so the box
+    /// indirection is pure overhead.
+    pub names: OnceLock<SpanNames>,
 }
 
 #[derive(Default)]
@@ -82,35 +85,87 @@ pub struct SpanExtra {
     pub search_index: OnceLock<HashMap<RcStr, Vec<SpanIndex>>>,
 }
 
-#[derive(Default)]
+#[derive(Clone)]
+pub struct SpanName {
+    pub category: RcStr,
+    pub title: RcStr,
+}
+
 pub struct SpanNames {
-    // These values are computed when accessed (and maybe deleted during writing):
-    pub nice_name: OnceLock<(RcStr, RcStr)>,
-    pub group_name: OnceLock<(RcStr, RcStr)>,
+    pub nice_name: SpanName,
+    pub group_name: SpanName,
 }
 
 impl Span {
-    pub fn time_data(&self) -> &SpanTimeData {
-        self.time_data.get_or_init(|| {
-            Box::new(SpanTimeData {
-                self_end: self.start,
-                ignore_self_time: &self.name == "thread" || &self.name == "blocking",
-                ..Default::default()
-            })
-        })
-    }
-
-    pub fn time_data_mut(&mut self) -> &mut SpanTimeData {
-        self.time_data();
-        self.time_data.get_mut().unwrap()
-    }
-
     pub fn extra(&self) -> &SpanExtra {
         self.extra.get_or_init(Default::default)
     }
 
     pub fn names(&self) -> &SpanNames {
-        self.names.get_or_init(Default::default)
+        self.names.get_or_init(|| self.compute_names())
+    }
+
+    fn compute_names(&self) -> SpanNames {
+        // Classify the span. `turbo_tasks::function` and the resolve-call spans
+        // get special-cased rendering when they carry a `name` arg; everything
+        // else is rendered generically.
+        enum Kind {
+            Function,
+            Resolve,
+            Other,
+        }
+        let kind = match self.name.as_str() {
+            "turbo_tasks::function" => Kind::Function,
+            "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call" => Kind::Resolve,
+            _ => Kind::Other,
+        };
+        let arg_name = self.args.iter().find(|&(k, _)| k == "name").map(|(_, v)| v);
+
+        // Generic fallback used by both names whenever no special case applies.
+        let generic = || SpanName {
+            category: self.category.clone(),
+            title: self.name.clone(),
+        };
+
+        // Each arm constructs the full `SpanNames` so the relationship between
+        // `nice_name` and `group_name` is visible at a glance. The `Some(n)`
+        // rows handle the "this span carries a `name` arg" case; the `None`
+        // arm falls back to the generic shape for both names — including for
+        // function/resolve spans, which (in practice) always carry a name arg,
+        // so the fallback is mostly defensive.
+        match (kind, arg_name) {
+            (Kind::Function, Some(n)) => {
+                let pretty = SpanName {
+                    category: self.name.clone(),
+                    title: n.clone(),
+                };
+                SpanNames {
+                    nice_name: pretty.clone(),
+                    group_name: pretty,
+                }
+            }
+            (Kind::Resolve, Some(n)) => SpanNames {
+                nice_name: SpanName {
+                    category: self.name.clone(),
+                    title: format!("*{n}").into(),
+                },
+                group_name: SpanName {
+                    category: self.category.clone(),
+                    title: format!("{} *{n}", self.name).into(),
+                },
+            },
+            (Kind::Other, Some(n)) => SpanNames {
+                nice_name: SpanName {
+                    category: self.category.clone(),
+                    title: format!("{} {n}", self.name).into(),
+                },
+                group_name: generic(),
+            },
+            (_, None) => SpanNames {
+                nice_name: generic(),
+                group_name: generic(),
+            },
+        }
     }
 }
 
