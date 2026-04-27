@@ -860,6 +860,7 @@ export async function handler(
           prefetchHints: prefetchHintsManifest,
           incrementalCache,
           cacheLifeProfiles: nextConfig.cacheLife,
+          staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
           basePath: nextConfig.basePath,
           serverActions: nextConfig.experimental.serverActions,
           logServerFunctions:
@@ -888,6 +889,7 @@ export async function handler(
             inlineCss: Boolean(nextConfig.experimental.inlineCss),
             prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
             authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+            useCacheTimeout: nextConfig.experimental.useCacheTimeout,
             cachedNavigations: Boolean(
               nextConfig.experimental.cachedNavigations
             ),
@@ -1103,22 +1105,44 @@ export async function handler(
                 ? prerenderInfo.fallback
                 : normalizedSrcPage
 
-            const fallbackRouteParams =
-              // In production or when debugging the static shell (e.g. instant
-              // navigation testing), use the prerender manifest's fallback
-              // route params which correctly identifies which params are
-              // unknown. Note: in dev, this block is only entered for
-              // non-prerendered URLs (guarded by the outer condition).
-              (isProduction || isDebugStaticShell) &&
-              prerenderInfo?.fallbackRouteParams
-                ? createOpaqueFallbackRouteParams(
-                    prerenderInfo.fallbackRouteParams
-                  )
-                : // When debugging the fallback shell, treat all params as
-                  // fallback (simulating the worst-case shell).
-                  isDebugFallbackShell
-                  ? getFallbackRouteParams(normalizedSrcPage, routeModule)
-                  : null
+            let fallbackRouteParams: OpaqueFallbackRouteParams | null
+            if (isProduction) {
+              // In production, rely on the prerender manifest's fallback
+              // entry — the authoritative set computed at build time by
+              // `buildAppStaticPaths`.
+              if (prerenderInfo?.fallbackRouteParams) {
+                fallbackRouteParams = createOpaqueFallbackRouteParams(
+                  prerenderInfo.fallbackRouteParams
+                )
+              } else if (isDebugFallbackShell) {
+                fallbackRouteParams = getFallbackRouteParams(
+                  normalizedSrcPage,
+                  routeModule
+                )
+              } else {
+                fallbackRouteParams = null
+              }
+            } else {
+              // In dev, the prerender manifest isn't populated for ad-hoc
+              // prefetches. The outer `!isPrerendered` guard means every URL
+              // reaching this block has params not covered by
+              // `generateStaticParams`, so the worst-case fallback set —
+              // every dynamic segment from the loader tree — matches what a
+              // static prerender would use. This keeps the prefetch response
+              // from baking resolved param values into the shell.
+              //
+              // `isDebugStaticShell` covers the `?__nextppronly=1` query and
+              // the Instant Navigation testing cookie; `isDebugFallbackShell`
+              // is the explicit fallback-shell debug flow.
+              if (isDebugStaticShell || isDebugFallbackShell) {
+                fallbackRouteParams = getFallbackRouteParams(
+                  normalizedSrcPage,
+                  routeModule
+                )
+              } else {
+                fallbackRouteParams = null
+              }
+            }
 
             // When rendering a debug static shell, override the fallback
             // params on the request so that the staged rendering correctly
@@ -1791,7 +1815,9 @@ export async function handler(
         const instantTestRequestId =
           routeModule.isDev === true ? crypto.randomUUID() : null
         body.pipeThrough(
-          createInstantTestScriptInsertionTransformStream(instantTestRequestId)
+          await createInstantTestScriptInsertionTransformStream(
+            instantTestRequestId
+          )
         )
         return sendRenderResult({
           req,

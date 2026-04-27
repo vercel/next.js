@@ -57,7 +57,7 @@ pub fn primitive(input: TokenStream) -> TokenStream {
         }
     } else {
         quote! {
-            turbo_tasks::ValueType::new_with_bincode::<#ty>(#name)
+            turbo_tasks::ValueType::persistable::<#ty>(#name)
         }
     };
 

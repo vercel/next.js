@@ -77,8 +77,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Upcast,
-    ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator, TaskInput,
+    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
+    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -90,14 +91,11 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects, OptionModule},
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
-    resolve::{
-        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
-        parse::Request,
-    },
+    resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
     source_map::GenerateSourceMap,
 };
@@ -363,7 +361,74 @@ impl EcmascriptModuleAssetBuilder {
     }
 }
 
+/// Stores the raw bytes of the last successfully parsed version of a module.
+///
+/// Cached as a turbo-tasks cell inside `failsafe_parse`: the always-equal
+/// `PartialEq` impl means that re-running the task does not replace the cell,
+/// so the interior `Mutex<Option<Rope>>` (and its stored rope) survive across
+/// task executions. A `SerializationInvalidator` keeps the persistence layer
+/// in sync with the in-memory mutation.
+#[turbo_tasks::value(eq = "manual")]
+struct LastSuccessfulSource {
+    #[bincode(with = "parking_lot_mutex_bincode")]
+    #[turbo_tasks(trace_ignore, debug_ignore)]
+    source: parking_lot::Mutex<Option<Rope>>,
+    /// Notifies the backend when the in-memory `source` changes so that the
+    /// serialized task state is written back to the persistence layer.
+    #[turbo_tasks(debug_ignore)]
+    serialization_invalidator: SerializationInvalidator,
+}
+
+impl LastSuccessfulSource {
+    fn get(&self) -> Option<Rope> {
+        self.source.lock().clone()
+    }
+
+    fn set(&self, rope: Rope) {
+        *self.source.lock() = Some(rope);
+        self.serialization_invalidator.invalidate();
+    }
+
+    fn clear(&self) {
+        *self.source.lock() = None;
+        self.serialization_invalidator.invalidate();
+    }
+}
+
+impl Default for LastSuccessfulSource {
+    fn default() -> Self {
+        Self {
+            source: parking_lot::Mutex::new(None),
+            serialization_invalidator: get_serialization_invalidator(),
+        }
+    }
+}
+
+impl std::fmt::Debug for LastSuccessfulSource {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("LastSuccessfulSource")
+    }
+}
+
+// Always-equal so that re-celling a freshly constructed `LastSuccessfulSource`
+// does not overwrite the existing cell — the interior `Mutex` holds the
+// cross-execution state and must survive task re-runs.
+impl PartialEq for LastSuccessfulSource {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl Eq for LastSuccessfulSource {}
+
+// No-op hash to uphold the `Hash` / `Eq` contract (equal values must hash
+// identically). The interior `Mutex` content is not part of the cache identity.
+impl std::hash::Hash for LastSuccessfulSource {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {}
+}
+
 #[turbo_tasks::value]
+#[derive(Debug)]
 pub struct EcmascriptModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -373,22 +438,6 @@ pub struct EcmascriptModuleAsset {
     pub compile_time_info: ResolvedVc<CompileTimeInfo>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
-    #[turbo_tasks(debug_ignore)]
-    last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
-}
-impl core::fmt::Debug for EcmascriptModuleAsset {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        f.debug_struct("EcmascriptModuleAsset")
-            .field("source", &self.source)
-            .field("asset_context", &self.asset_context)
-            .field("ty", &self.ty)
-            .field("transforms", &self.transforms)
-            .field("options", &self.options)
-            .field("compile_time_info", &self.compile_time_info)
-            .field("side_effect_free_packages", &self.side_effect_free_packages)
-            .field("inner_assets", &self.inner_assets)
-            .finish()
-    }
 }
 
 #[turbo_tasks::value_trait]
@@ -498,6 +547,41 @@ impl ModuleTypeResult {
     }
 }
 
+impl EcmascriptModuleAsset {
+    /// Attempts to re-parse the module from the last known-good file bytes.
+    ///
+    /// Returns `None` if no saved source is available or if any step fails, in
+    /// which case the caller should fall back to the current (broken) result.
+    /// On failure the cached source is cleared so we don't keep retrying it.
+    async fn try_parse_last_successful_source(
+        &self,
+        last_successful_source: &LastSuccessfulSource,
+    ) -> Option<Vc<ParseResult>> {
+        let rope = last_successful_source.get()?;
+        let result: Result<Vc<ParseResult>> = async {
+            let node_env = self
+                .compile_time_info
+                .await?
+                .defines
+                .read_process_env(rcstr!("NODE_ENV"))
+                .owned()
+                .await?
+                .unwrap_or_else(|| rcstr!("development"));
+            crate::parse::parse_from_rope(rope, self.source, self.ty, self.transforms, node_env)
+                .await
+        }
+        .await;
+        match result {
+            Ok(result) => Some(result),
+            Err(_) => {
+                // A failure is very unexpected, but we don't want to keep bad bytes around
+                last_successful_source.clear();
+                None
+            }
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
 impl EcmascriptParsable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
@@ -505,15 +589,23 @@ impl EcmascriptParsable for EcmascriptModuleAsset {
         let real_result = self.parse().await?;
         if self.options.await?.keep_last_successful_parse {
             let real_result_value = real_result.await?;
-            let result_value = if matches!(*real_result_value, ParseResult::Ok { .. }) {
-                self.last_successful_parse
-                    .set_unconditionally(real_result_value.clone());
-                real_result_value
+            // The cell stored here survives re-runs of this task because
+            // `LastSuccessfulSource`'s `PartialEq` is always-equal: the
+            // compare-and-update path preserves the existing cell (and its
+            // interior `Mutex<Option<Rope>>`) whenever this function is
+            // re-executed.
+            let last_successful_source = LastSuccessfulSource::default().cell().await?;
+            if let ParseResult::Ok { program_source, .. } = &*real_result_value {
+                // Store the bytes that `parse()` actually saw as the
+                // last-known-good source.
+                last_successful_source.set(program_source.clone());
+                Ok(real_result)
             } else {
-                let state_ref = self.last_successful_parse.get();
-                state_ref.as_ref().unwrap_or(&real_result_value).clone()
-            };
-            Ok(ReadRef::cell(result_value))
+                Ok(self
+                    .try_parse_last_successful_source(&last_successful_source)
+                    .await
+                    .unwrap_or(real_result))
+            }
         } else {
             Ok(real_result)
         }
@@ -642,7 +734,6 @@ impl EcmascriptModuleAsset {
             compile_time_info,
             side_effect_free_packages,
             inner_assets: None,
-            last_successful_parse: Default::default(),
         })
     }
 
@@ -677,7 +768,6 @@ impl EcmascriptModuleAsset {
                 compile_time_info,
                 side_effect_free_packages,
                 inner_assets: Some(inner_assets),
-                last_successful_parse: Default::default(),
             }))
         }
     }
@@ -883,19 +973,6 @@ impl ResolveOrigin for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         *self.asset_context
-    }
-
-    #[turbo_tasks::function]
-    async fn get_inner_asset(&self, request: Vc<Request>) -> Result<Vc<OptionModule>> {
-        Ok(Vc::cell(if let Some(inner_assets) = &self.inner_assets {
-            if let Some(request) = request.await?.request() {
-                inner_assets.await?.get(&request).copied()
-            } else {
-                None
-            }
-        } else {
-            None
-        }))
     }
 }
 

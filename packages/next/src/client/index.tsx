@@ -924,6 +924,14 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           error.name = initialErr!.name
           error.stack = initialErr!.stack
+          // If present, restore the error code from the original server error.
+          if (typeof initialErr.__NEXT_ERROR_CODE === 'string') {
+            Object.defineProperty(error, '__NEXT_ERROR_CODE', {
+              value: initialErr.__NEXT_ERROR_CODE,
+              enumerable: false,
+              configurable: true,
+            })
+          }
           const errSource = initialErr.source!
 
           // In development, error the navigation API usage in runtime,

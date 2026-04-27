@@ -128,6 +128,8 @@ impl InternalRowType<'_> {
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
     id_mapping: FxHashMap<u64, SpanIndex>,
+    dropped_ids: FxHashSet<u64>,
+    remaining_ids_to_drop: usize,
     queued_rows: FxHashMap<u64, Vec<InternalRow<'static>>>,
     outdated_spans: FxHashSet<SpanIndex>,
     thread_stacks: FxHashMap<u64, Vec<u64>>,
@@ -141,9 +143,15 @@ pub struct TurbopackFormat {
 
 impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
+        let drop_ids = std::env::var("DROP_SPANS")
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or_default();
         Self {
             store,
             id_mapping: FxHashMap::with_capacity_and_hasher(131_072, Default::default()),
+            dropped_ids: FxHashSet::with_capacity_and_hasher(drop_ids, Default::default()),
+            remaining_ids_to_drop: drop_ids,
             queued_rows: FxHashMap::with_capacity_and_hasher(1_024, Default::default()),
             outdated_spans: FxHashSet::with_capacity_and_hasher(8_192, Default::default()),
             thread_stacks: FxHashMap::with_capacity_and_hasher(64, Default::default()),
@@ -377,6 +385,16 @@ impl TurbopackFormat {
         queue: &mut Vec<InternalRow<'static>>,
     ) {
         let id = if let Some(id) = row.id {
+            if matches!(
+                row.ty,
+                InternalRowType::End { .. }
+                    | InternalRowType::Event { .. }
+                    | InternalRowType::Record { .. }
+                    | InternalRowType::SelfTime { .. }
+            ) && self.dropped_ids.contains(&id)
+            {
+                return;
+            }
             if let Some(id) = self.id_mapping.get(&id) {
                 Some(*id)
             } else {
@@ -397,18 +415,28 @@ impl TurbopackFormat {
                 target,
                 values,
             } => {
-                let span_id = store.add_span(
-                    id,
-                    ts,
-                    self.interner.intern_cow(target),
-                    self.interner.intern_cow(name),
-                    values
-                        .iter()
-                        .map(|(k, v)| (self.interner.intern(k), self.interner.intern_display(v)))
-                        .collect(),
-                    &mut self.outdated_spans,
-                );
-                self.id_mapping.insert(new_id, span_id);
+                if self.remaining_ids_to_drop > 0
+                    && let Some(id) = id
+                {
+                    self.remaining_ids_to_drop -= 1;
+                    self.dropped_ids.insert(new_id);
+                    self.id_mapping.insert(new_id, id);
+                } else {
+                    let span_id = store.add_span(
+                        id,
+                        ts,
+                        self.interner.intern_cow(target),
+                        self.interner.intern_cow(name),
+                        values
+                            .iter()
+                            .map(|(k, v)| {
+                                (self.interner.intern(k), self.interner.intern_display(v))
+                            })
+                            .collect(),
+                        &mut self.outdated_spans,
+                    );
+                    self.id_mapping.insert(new_id, span_id);
+                }
                 if let Some(rows) = self.queued_rows.remove(&new_id) {
                     queue.extend(rows);
                 }
@@ -496,7 +524,23 @@ impl TraceFormat for TurbopackFormat {
     }
 
     fn stats(&self) -> String {
-        format!("{} spans", self.id_mapping.len())
+        use std::fmt::Write;
+
+        let spans = self.id_mapping.len();
+        let mut stats = format!("{spans} spans");
+
+        let dropped_spans = self.dropped_ids.len();
+        if dropped_spans > 0 {
+            let total_drop = dropped_spans + self.remaining_ids_to_drop;
+            write!(stats, ", {dropped_spans}/{total_drop} dropped").unwrap();
+        }
+
+        let queued_spans = self.queued_rows.len();
+        if queued_spans > 0 {
+            write!(stats, ", {queued_spans} queued").unwrap();
+        }
+
+        stats
     }
 
     fn read(&mut self, mut buffer: &[u8], reuse: &mut Self::Reused) -> Result<usize> {

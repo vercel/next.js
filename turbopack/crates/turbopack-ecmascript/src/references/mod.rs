@@ -42,7 +42,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
-        GLOBALS, Globals, Span, Spanned, SyntaxContext,
+        GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, HANDLER, Handler, Level},
         source_map::SmallPos,
@@ -77,7 +77,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
-    reference_type::CommonJsReferenceSubType,
+    reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
         ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
         find_context_file,
@@ -101,7 +101,7 @@ use crate::{
         ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue, JsValueUrlKind,
         ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
-        graph::{ConditionalKind, DeclUsage, Effect, EffectArg, VarGraph, create_graph},
+        graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
         imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol},
         linker::link,
         parse_require_context, side_effects,
@@ -479,6 +479,8 @@ struct AnalysisState<'a> {
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     // The import map from the eval context, used to match dep strings to import references.
     imports: &'a ImportMap,
+    // Resolve overrides for imports
+    inner_assets: Option<ReadRef<InnerAssets>>,
 }
 
 impl AnalysisState<'_> {
@@ -557,6 +559,12 @@ async fn analyze_ecmascript_module_internal(
         analysis.ident = source.ident().to_string().owned().await?;
     }
 
+    let inner_assets = if let Some(assets) = raw_module.inner_assets {
+        Some(assets.await?)
+    } else {
+        None
+    };
+
     // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
         EcmascriptModuleAssetType::Typescript { analyze_types, .. } => *analyze_types,
@@ -625,6 +633,7 @@ async fn analyze_ecmascript_module_internal(
         comments,
         source_map,
         source_mapping_url,
+        program_source: _,
     } = &*parsed
     else {
         return analysis.build(Default::default(), false).await;
@@ -750,63 +759,21 @@ async fn analyze_ecmascript_module_internal(
         .supports_block_scoping()
         .await?;
 
-    let mut var_graph = {
-        let _span = tracing::trace_span!("analyze variable values").entered();
-        set_handler_and_globals(&handler, globals, || {
-            create_graph(program, eval_context, analyze_mode, supports_block_scoping)
-        })
-    };
-
-    let mut import_usage =
-        FxHashMap::with_capacity_and_hasher(var_graph.import_usages.len(), Default::default());
-    for (reference, usage) in &var_graph.import_usages {
-        // TODO make this more efficient, i.e. cache the result?
-        if let DeclUsage::Bindings(ids) = usage {
-            // compute transitive closure of `ids` over `top_level_mappings`
-            let mut visited = ids.clone();
-            let mut stack = ids.iter().collect::<Vec<_>>();
-            let mut has_global_usage = false;
-            while let Some(id) = stack.pop() {
-                match var_graph.decl_usages.get(id) {
-                    Some(DeclUsage::SideEffects) => {
-                        has_global_usage = true;
-                        break;
-                    }
-                    Some(DeclUsage::Bindings(callers)) => {
-                        for caller in callers {
-                            if visited.insert(caller.clone()) {
-                                stack.push(caller);
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            // Collect all `visited` declarations which are exported
-            import_usage.insert(
-                *reference,
-                if has_global_usage {
-                    ImportUsage::TopLevel
-                } else {
-                    ImportUsage::Exports(
-                        var_graph
-                            .exports
-                            .iter()
-                            .filter(|(_, id)| visited.contains(*id))
-                            .map(|(exported, _)| exported.as_str().into())
-                            .collect(),
-                    )
-                },
-            );
-        }
-    }
-
     let span = tracing::trace_span!("esm import references");
     let import_references = async {
         let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
         for (i, r) in eval_context.imports.references().enumerate() {
             let mut should_add_evaluation = false;
+
+            let resolve_override = if let Some(inner_assets) = &inner_assets
+                && let Some(req) = r.module_path.as_str()
+                && let Some(a) = inner_assets.get(req)
+            {
+                Some(*a)
+            } else {
+                None
+            };
+
             let reference = EsmAssetReference::new(
                 module,
                 ResolvedVc::upcast(module),
@@ -842,9 +809,15 @@ async fn analyze_ecmascript_module_internal(
                     )
                     .then(ModulePart::exports),
                 },
-                import_usage.get(&i).cloned().unwrap_or_default(),
+                eval_context
+                    .imports
+                    .import_usage
+                    .get(&i)
+                    .cloned()
+                    .unwrap_or_default(),
                 import_externals,
                 options.tree_shaking_mode,
+                resolve_override,
             )
             .resolved_cell();
 
@@ -978,6 +951,13 @@ async fn analyze_ecmascript_module_internal(
     .instrument(span)
     .await?;
 
+    let mut var_graph = {
+        let _span = tracing::trace_span!("analyze variable values").entered();
+        set_handler_and_globals(&handler, globals, || {
+            create_graph(program, eval_context, analyze_mode, supports_block_scoping)
+        })
+    };
+
     let span = tracing::trace_span!("effects processing");
     async {
         analysis.code_gens.extend(take(&mut var_graph.code_gens));
@@ -1011,6 +991,7 @@ async fn analyze_ecmascript_module_internal(
             is_esm,
             import_references: &import_references,
             imports: &eval_context.imports,
+            inner_assets,
         };
 
         enum Action {
@@ -1450,6 +1431,7 @@ async fn analyze_ecmascript_module_internal(
                                                 original_reference.import_usage.clone(),
                                                 original_reference.import_externals,
                                                 original_reference.tree_shaking_mode,
+                                                original_reference.resolve_override,
                                             )
                                             .resolved_cell()
                                         },
@@ -1817,6 +1799,7 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
         handler,
         origin,
         source,
+        &state.inner_assets,
         ignore_dynamic_requests,
         analysis,
         error_mode,
@@ -1833,6 +1816,7 @@ async fn handle_dynamic_import_with_linked_args(
     handler: &Handler,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     source: ResolvedVc<Box<dyn Source>>,
+    inner_assets: &Option<ReadRef<InnerAssets>>,
     ignore_dynamic_requests: bool,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     error_mode: ResolveErrorMode,
@@ -1876,6 +1860,16 @@ async fn handle_dynamic_import_with_linked_args(
                 return Ok(());
             }
         }
+
+        let resolve_override = if let Some(inner_assets) = &inner_assets
+            && let Some(req) = pat.as_constant_string()
+            && let Some(a) = inner_assets.get(req)
+        {
+            Some(*a)
+        } else {
+            None
+        };
+
         analysis.add_reference_code_gen(
             EsmAsyncAssetReference::new(
                 origin,
@@ -1885,6 +1879,7 @@ async fn handle_dynamic_import_with_linked_args(
                 error_mode,
                 import_externals,
                 export_usage,
+                resolve_override,
             ),
             ast_path.to_vec().into(),
         );
@@ -2176,6 +2171,7 @@ where
                 handler,
                 origin,
                 source,
+                &state.inner_assets,
                 ignore_dynamic_requests,
                 analysis,
                 error_mode,
@@ -2202,6 +2198,16 @@ where
                         return Ok(());
                     }
                 }
+
+                let resolve_override = if let Some(inner_assets) = &state.inner_assets
+                    && let Some(req) = pat.as_constant_string()
+                    && let Some(a) = inner_assets.get(req)
+                {
+                    Some(*a)
+                } else {
+                    None
+                };
+
                 analysis.add_reference_code_gen(
                     CjsRequireAssetReference::new(
                         origin,
@@ -2209,6 +2215,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        resolve_override,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2260,6 +2267,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        None,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2307,6 +2315,16 @@ where
                         return Ok(());
                     }
                 }
+
+                let resolve_override = if let Some(inner_assets) = &state.inner_assets
+                    && let Some(req) = pat.as_constant_string()
+                    && let Some(a) = inner_assets.get(req)
+                {
+                    Some(*a)
+                } else {
+                    None
+                };
+
                 analysis.add_reference_code_gen(
                     CjsRequireResolveAssetReference::new(
                         origin,
@@ -2314,6 +2332,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        resolve_override,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -3253,9 +3272,12 @@ async fn handle_free_var_reference(
                         ),
                         Default::default(),
                         export.clone().map(ModulePart::export),
+                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
+                        // level function could set ImportUsage properly here
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
+                        None,
                     )
                     .resolved_cell())
                 })
@@ -3811,41 +3833,6 @@ async fn require_context_visitor(
             RequireContextValue::from_context_map(map).await?,
         ),
     ))
-}
-
-pub(crate) fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Atom, SyntaxContext)) {
-    match pat {
-        Pat::Ident(BindingIdent { id, .. }) => {
-            f(&id.sym, id.ctxt);
-        }
-        Pat::Array(ArrayPat { elems, .. }) => elems.iter().for_each(|e| {
-            if let Some(e) = e {
-                for_each_ident_in_pat(e, f);
-            }
-        }),
-        Pat::Rest(RestPat { arg, .. }) => {
-            for_each_ident_in_pat(arg, f);
-        }
-        Pat::Object(ObjectPat { props, .. }) => {
-            props.iter().for_each(|p| match p {
-                ObjectPatProp::KeyValue(KeyValuePatProp { value, .. }) => {
-                    for_each_ident_in_pat(value, f);
-                }
-                ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                    f(&key.sym, key.ctxt);
-                }
-                ObjectPatProp::Rest(RestPat { arg, .. }) => {
-                    for_each_ident_in_pat(arg, f);
-                }
-            });
-        }
-        Pat::Assign(AssignPat { left, .. }) => {
-            for_each_ident_in_pat(left, f);
-        }
-        Pat::Invalid(_) | Pat::Expr(_) => {
-            panic!("Unexpected pattern while enumerating idents");
-        }
-    }
 }
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
