@@ -8,6 +8,7 @@ const {
   getGitHubTokenMissingMessage,
   verifyGitHubApiAccess,
 } = require('./release-github-auth')
+const { createGitHubReleaseCommit } = require('./release-github-api')
 
 const SEMVER_TYPES = ['patch', 'minor', 'major']
 
@@ -70,26 +71,42 @@ async function main() {
         ? 'preminor'
         : 'prerelease'
 
-  let command = isCanary
-    ? `pnpm lerna version ${preleaseType} --preid canary --force-publish -y`
-    : isReleaseCandidate
-      ? `pnpm lerna version ${preleaseType} --preid rc --force-publish -y`
-      : isBeta
-        ? `pnpm lerna version ${preleaseType} --preid beta --force-publish -y`
-        : `pnpm lerna version ${semverType} --force-publish -y`
+  const lernaArgs = [
+    'lerna',
+    'version',
+    isCanary || isReleaseCandidate || isBeta ? preleaseType : semverType,
+  ]
 
-  if (isCanary || isReleaseCandidate || isBeta) {
-    command += ' && pnpm release --pre --skip-questions --show-url'
+  if (isCanary) {
+    lernaArgs.push('--preid', 'canary')
+  } else if (isReleaseCandidate) {
+    lernaArgs.push('--preid', 'rc')
+  } else if (isBeta) {
+    lernaArgs.push('--preid', 'beta')
   }
 
-  const child = execa(command, {
-    stdio: 'pipe',
-    shell: true,
+  lernaArgs.push('--force-publish', '-y', '--no-push')
+
+  const child = execa('pnpm', lernaArgs, {
+    stdio: 'inherit',
   })
 
-  child.stdout?.pipe(process.stdout)
-  child.stderr?.pipe(process.stderr)
   await child
+
+  await createGitHubReleaseCommit(githubToken)
+
+  if (isCanary || isReleaseCandidate || isBeta) {
+    const releaseChild = execa(
+      'pnpm',
+      ['release', '--pre', '--skip-questions', '--show-url'],
+      {
+        stdio: 'inherit',
+      }
+    )
+
+    await releaseChild
+  }
+
   console.log('Release process is finished')
 }
 
