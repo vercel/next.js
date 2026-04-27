@@ -216,11 +216,12 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     },
     forwardedRef
   ) => {
-    const [img, setImg] = useState<HTMLImageElement | null>(null)
-    const didInsertImgRef = useRef(false)
+    const didInsertRef = useRef(false)
+    const insertedImgRef = useRef<HTMLImageElement>(null)
 
     useNonWarningLayoutEffect(() => {
-      const { current: didInsert } = didInsertImgRef
+      const { current: didInsert } = didInsertRef
+      const { current: img } = insertedImgRef
 
       if (!didInsert && img !== null) {
         // Replay events from during hydration that React doesn't replay.
@@ -255,10 +256,9 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             sizesInput
           )
         }
-        didInsertImgRef.current = true
+        didInsertRef.current = true
       }
     }, [
-      img,
       src,
       placeholder,
       onLoadRef,
@@ -268,12 +268,12 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       sizesInput,
     ])
 
-    const ref = useMergedRef(
-      forwardedRef,
-      setImg as React.Ref<HTMLImageElement>
-    )
+    const ref = useMergedRef(forwardedRef, insertedImgRef)
 
     return (
+      // If you move this element creation, also move the Layout Effect above
+      // reading from the ref. Otherwise we might run the Layout Effect when
+      // the current value isn't set to the HTMLImageElement instance.
       <img
         {...rest}
         {...getDynamicProps(fetchPriority)}
