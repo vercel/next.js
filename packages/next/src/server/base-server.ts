@@ -1222,10 +1222,8 @@ export default abstract class Server<
           const originQueryParams = { ...parsedUrl.query }
 
           const pathnameBeforeRewrite = parsedUrl.pathname
-          const { rewriteParams, rewrittenParsedUrl } = utils.handleRewrites(
-            req,
-            parsedUrl
-          )
+          const { rewriteParams, rewrittenParsedUrl, matchedRewrite } =
+            utils.handleRewrites(req, parsedUrl)
           const rewriteParamKeys = Object.keys(rewriteParams)
 
           // Create a copy of the query params to avoid mutating the original
@@ -1241,6 +1239,14 @@ export default abstract class Server<
               'rewrittenPathname',
               rewrittenParsedUrl.pathname
             )
+          }
+
+          if (matchedRewrite) {
+            // 1. `handleRewrites(...)` already confirmed an internal rewrite
+            //    was accepted for this request.
+            // 2. Persist that routing fact so later Pages Router hydration
+            //    logic can decide whether reconciliation is still required.
+            addRequestMeta(req, 'matchedRewrite', true)
           }
 
           const routeParamKeys = new Set<string>()

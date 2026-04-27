@@ -5,7 +5,7 @@ export default function Index() {
   const { query } = useRouter()
 
   useEffect(() => {
-    window.__renders = window.__renders || []
+    window.__renders ??= []
     window.__renders.push(query.foo)
   })
 

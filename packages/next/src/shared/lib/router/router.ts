@@ -48,6 +48,7 @@ import {
 } from '../../../lib/constants'
 import { getDeploymentId } from '../deployment-id'
 import { isJavaScriptURLString } from '../../../client/lib/javascript-url'
+import type { RewriteReconciliationState } from './utils/rewrite-reconciliation'
 
 let resolveRewrites: typeof import('./utils/resolve-rewrites').default
 if (process.env.__NEXT_HAS_REWRITES) {
@@ -755,6 +756,7 @@ export default class Router implements BaseRouter {
       defaultLocale,
       domainLocales,
       isPreview,
+      rewriteReconciliation,
     }: {
       subscription: Subscription
       initialProps: any
@@ -769,6 +771,7 @@ export default class Router implements BaseRouter {
       defaultLocale?: string
       domainLocales?: readonly DomainLocale[]
       isPreview?: boolean
+      rewriteReconciliation: RewriteReconciliationState
     }
   ) {
     // represents the current component key
@@ -815,6 +818,13 @@ export default class Router implements BaseRouter {
     // back from external site
     this.isSsr = true
     this.isLocaleDomain = false
+
+    // 1. Only `not-required` lets the router start ready immediately.
+    // 2. `required` keeps the exact reconciliation path.
+    // 3. `unknown` keeps the conservative delayed-ready fallback.
+    const shouldDelayInitialRewriteReconciliation =
+      rewriteReconciliation !== 'not-required'
+
     this.isReady = !!(
       self.__NEXT_DATA__.gssp ||
       self.__NEXT_DATA__.gip ||
@@ -822,7 +832,7 @@ export default class Router implements BaseRouter {
       (self.__NEXT_DATA__.appGip && !self.__NEXT_DATA__.gsp) ||
       (!autoExportDynamic &&
         !self.location.search &&
-        !process.env.__NEXT_HAS_REWRITES)
+        !shouldDelayInitialRewriteReconciliation)
     )
 
     if (process.env.__NEXT_I18N_SUPPORT) {

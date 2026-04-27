@@ -37,6 +37,12 @@ export type Rewrite = {
    * @internal - used internally for routing
    */
   regex?: string
+
+  /**
+   * @internal - used internally to mark rewrites that are safe to reason about
+   * before Pages Router hydration begins.
+   */
+  initialReconciliationDeterministic?: boolean
 }
 
 export type Header = {

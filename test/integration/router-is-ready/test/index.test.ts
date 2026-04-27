@@ -78,6 +78,23 @@ function runTests() {
   })
 }
 
+function runRewriteReconciliationTests() {
+  it('isReady should be true immediately when rewrite reconciliation is not required', async () => {
+    const browser = await webdriver(appPort, '/rewrite-to-gsp-not-required')
+    await checkIsReadyValues(browser, [true])
+  })
+
+  it('isReady should be true after query update when rewrite reconciliation is required', async () => {
+    const browser = await webdriver(appPort, '/rewrite-to-gsp')
+    await checkIsReadyValues(browser, [false, true])
+  })
+
+  it('isReady should keep the conservative fallback when rewrite reconciliation stays unknown', async () => {
+    const browser = await webdriver(appPort, '/rewrite-to-gsp-unsafe')
+    await checkIsReadyValues(browser, [false, true])
+  })
+}
+
 describe('router.isReady', () => {
   ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
     'development mode',
@@ -106,6 +123,10 @@ describe('router.isReady', () => {
       afterAll(() => killApp(app))
 
       runTests()
+      // Rewrite reconciliation is a production Pages Router hydration concern.
+      // Development mode renders request-by-request and does not preserve the
+      // same initial static snapshot contract we assert here.
+      runRewriteReconciliationTests()
     }
   )
 })

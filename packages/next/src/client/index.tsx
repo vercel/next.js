@@ -22,12 +22,17 @@ import {
 } from '../shared/lib/router/utils/querystring'
 import { getURL, loadGetInitialProps, ST } from '../shared/lib/utils'
 import type { NextWebVitalsMetric, NEXT_DATA } from '../shared/lib/utils'
+import {
+  computeInitialRewriteReconciliationState,
+  type RewriteReconciliationState,
+} from '../shared/lib/router/utils/rewrite-reconciliation'
 import { Portal } from './portal'
 import initHeadManager from './head-manager'
 import PageLoader from './page-loader'
 import type { StyleSheetTuple } from './page-loader'
 import { RouteAnnouncer } from './route-announcer'
 import { createRouter, makePublicRouterInstance } from './router'
+import { getClientBuildManifest } from './route-loader'
 import { getProperError } from '../lib/is-error'
 import { ImageConfigContext } from '../shared/lib/image-config-context.shared-runtime'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
@@ -87,6 +92,7 @@ let headManager: {
   getIsSsr?: () => boolean
 }
 let initialMatchesMiddleware = false
+let initialRewriteReconciliation: RewriteReconciliationState = 'unknown'
 let lastAppProps: AppProps
 
 let lastRenderReject: (() => void) | null
@@ -105,6 +111,8 @@ class Container extends React.Component<{
 
   componentDidMount() {
     this.scrollToHash()
+    const rewriteReconciliationRequiresHydration =
+      initialRewriteReconciliation !== 'not-required'
 
     // We need to replace the router state if:
     // - the page was (auto) exported and has a query string or search (hash)
@@ -118,12 +126,12 @@ class Container extends React.Component<{
         (initialData.nextExport &&
           (isDynamicRoute(router.pathname) ||
             location.search ||
-            process.env.__NEXT_HAS_REWRITES ||
+            rewriteReconciliationRequiresHydration ||
             initialMatchesMiddleware)) ||
         (initialData.props &&
           initialData.props.__N_SSG &&
           (location.search ||
-            process.env.__NEXT_HAS_REWRITES ||
+            rewriteReconciliationRequiresHydration ||
             initialMatchesMiddleware)))
     ) {
       // update query on mount for exported pages
@@ -269,6 +277,25 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
   }
 
   pageLoader = new PageLoader(initialData.buildId, prefix)
+
+  // Compute rewrite reconciliation before creating the router so `isReady`
+  // can start in the right state:
+  // - `not-required` starts ready immediately.
+  // - `required` still defers readiness until the hydration update runs.
+  // - `unknown` keeps the same conservative delayed-ready fallback.
+  // Note:
+  // Reuse any exact request-time answer from `__NEXT_DATA__` when one was
+  // already serialized.
+  initialRewriteReconciliation = await computeInitialRewriteReconciliationState(
+    initialData.rewriteReconciliation,
+    initialData.page,
+    initialData.query,
+    asPath,
+    initialData.locale,
+    initialData.locales,
+    () => pageLoader.getPageList(),
+    () => getClientBuildManifest()
+  )
 
   const register: RegisterFn = ([r, f]) =>
     pageLoader.routeLoader.onEntrypoint(r, f)
@@ -974,6 +1001,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     defaultLocale,
     domainLocales: initialData.domainLocales,
     isPreview: initialData.isPreview,
+    rewriteReconciliation: initialRewriteReconciliation,
   })
 
   initialMatchesMiddleware = await router._initialMatchesMiddlewarePromise

@@ -1,5 +1,4 @@
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import type { ParsedUrlQuery } from 'node:querystring'
 import { RouteKind } from '../../route-kind'
 import { BaseServerSpan } from '../../lib/trace/constants'
 import { getTracer, SpanKind, type Span } from '../../lib/trace/tracer'
@@ -42,12 +41,17 @@ import { RedirectStatusCode } from '../../../client/components/redirect-status-c
 import { isBot } from '../../../shared/lib/router/utils/is-bot'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
+import {
+  computeMatchedRewriteReconciliationFromSnapshots,
+  type RewriteReconciliationState,
+} from '../../../shared/lib/router/utils/rewrite-reconciliation'
 import type { PagesRouteModule } from './module.compiled'
 import type {
   GetServerSideProps,
   GetStaticPaths,
   GetStaticProps,
 } from '../../../types'
+import { getPagesRouterRewriteHydrationQueries } from '../../server-utils'
 
 export const getHandler = ({
   srcPage: originalSrcPage,
@@ -238,6 +242,32 @@ export const getHandler = ({
         // make sure to only add query values from original URL
         query: hasStaticProps ? {} : originalQuery,
       })
+      const { serializedQuery, reconciledQuery } =
+        getPagesRouterRewriteHydrationQueries(
+          hasStaticProps,
+          isExperimentalCompile === true,
+          query,
+          params
+        )
+
+      // Default to `not-required` and only refine the answer when this request
+      // actually flowed through an internal rewrite.
+      let rewriteReconciliation: RewriteReconciliationState = 'not-required'
+
+      const matchedRewrite = getRequestMeta(req, 'matchedRewrite') === true
+
+      if (matchedRewrite) {
+        // `matchedRewrite` only says that a rewrite changed the route.
+        // Compare the serialized and reconciled snapshots to decide whether
+        // hydration reconciliation is still required.
+        rewriteReconciliation =
+          computeMatchedRewriteReconciliationFromSnapshots(
+            srcPage,
+            srcPage,
+            serializedQuery,
+            reconciledQuery
+          )
+      }
 
       let parentSpan: Span | undefined
       const handleResponse = async (span?: Span) => {
@@ -248,15 +278,7 @@ export const getHandler = ({
             try {
               return await routeModule
                 .render(req, res, {
-                  query:
-                    hasStaticProps && !isExperimentalCompile
-                      ? ({
-                          ...params,
-                        } as ParsedUrlQuery)
-                      : {
-                          ...query,
-                          ...params,
-                        },
+                  query: serializedQuery,
                   params,
                   page: srcPage,
                   renderContext: {
@@ -310,6 +332,7 @@ export const getHandler = ({
                       nextConfig.experimental.largePageDataBytes,
 
                     isExperimentalCompile,
+                    rewriteReconciliation,
 
                     experimental: {
                       clientTraceMetadata:

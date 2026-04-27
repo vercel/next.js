@@ -28,6 +28,49 @@ import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import { parseReqUrl } from '../lib/url'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 
+/**
+ * Derive the two Pages Router query views involved in rewrite reconciliation.
+ *
+ * 1. `serializedQuery` mirrors what the initial payload should contain.
+ * 2. `reconciledQuery` mirrors what the client router should observe after any
+ *    rewrite reconciliation completes.
+ *
+ * @param hasStaticProps whether the page is rendered through `getStaticProps`
+ * @param isExperimentalCompile whether the experimental compile pipeline is enabled
+ * @param query the fully reconciled request query for the current render
+ * @param params the optional route params extracted for the current page
+ * @returns the serialized and reconciled Pages Router query snapshots
+ */
+export function getPagesRouterRewriteHydrationQueries(
+  hasStaticProps: boolean,
+  isExperimentalCompile: boolean,
+  query: ParsedUrlQuery,
+  params?: ParsedUrlQuery
+): {
+  serializedQuery: ParsedUrlQuery
+  reconciledQuery: ParsedUrlQuery
+} {
+  const normalizedParams: ParsedUrlQuery = params ?? {}
+  const reconciledQuery: ParsedUrlQuery = { ...query, ...normalizedParams }
+
+  if (!hasStaticProps || isExperimentalCompile) {
+    return {
+      serializedQuery: reconciledQuery,
+      reconciledQuery,
+    }
+  }
+
+  // 1. Keep `serializedQuery` separate from `params`.
+  // 2. Prevent later query mutations during rendering from aliasing back into
+  //    the `params` object we pass to page data functions.
+  const serializedQuery: ParsedUrlQuery = { ...normalizedParams }
+
+  return {
+    serializedQuery,
+    reconciledQuery,
+  }
+}
+
 function filterInternalQuery(
   query: Record<string, undefined | string | string[]>,
   paramKeys: string[]
@@ -256,6 +299,7 @@ export function getServerUtils({
       parsedUrl
     ) as NextUrlWithParsedQuery
     const rewriteParams: Record<string, string> = {}
+    let matchedRewrite = false
     let fsPathname = rewrittenParsedUrl.pathname
 
     const matchesPage = () => {
@@ -308,6 +352,10 @@ export function getServerUtils({
           return true
         }
 
+        // 1. Wait until an internal destination has actually been accepted.
+        // 2. Only then mark the rewrite as matched, because that is the point
+        //    where the effective route/query state is about to change.
+        matchedRewrite = true
         Object.assign(rewriteParams, destQuery, params)
         Object.assign(rewrittenParsedUrl.query, parsedDestination.query)
         delete (parsedDestination as any).query
@@ -367,7 +415,7 @@ export function getServerUtils({
       }
     }
 
-    return { rewriteParams, rewrittenParsedUrl }
+    return { rewriteParams, rewrittenParsedUrl, matchedRewrite }
   }
 
   function getParamsFromRouteMatches(routeMatchesHeader: string) {
