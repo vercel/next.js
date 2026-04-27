@@ -706,9 +706,7 @@ impl Viewer {
                                     (title.to_string(), cat.to_string())
                                 }))
                             }
-                            SortMode::ExecutionOrder => {
-                                Either::Right(span.events().sorted_by_key(|child| child.start()))
-                            }
+                            SortMode::ExecutionOrder => Either::Right(span.events()),
                         };
                         for child in spans {
                             match child {
