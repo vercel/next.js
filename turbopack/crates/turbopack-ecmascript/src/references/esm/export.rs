@@ -671,21 +671,19 @@ impl EsmExports {
                 )
                 .await?;
 
-                if let Some(ident) = ident {
-                    if let Some(id) = &id {
-                        dynamic_exports.push(quote_expr!(
+                if let Some(id) = &id {
+                    dynamic_exports.push(quote_expr!(
                         "$turbopack_dynamic($arg, $id)",
                         turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
                         arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into(),
                         id: Expr = module_id_to_lit(id)
                     ));
-                    } else {
-                        dynamic_exports.push(quote_expr!(
+                } else {
+                    dynamic_exports.push(quote_expr!(
                         "$turbopack_dynamic($arg)",
                         turbopack_dynamic: Expr = TURBOPACK_DYNAMIC.into(),
                         arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
                     ));
-                    }
                 }
             }
         }
