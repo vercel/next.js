@@ -136,6 +136,8 @@ function parseValidInspectAddress(value: string): DebugAddress {
 }
 
 const program = new NextRootCommand()
+// Must be called before subcommands are defined so they inherit the override.
+program.exitOverride()
 
 program
   .name('next')
@@ -700,4 +702,52 @@ internal
   })
   .usage('[directory] [options]')
 
-program.parse(process.argv)
+try {
+  program.parse(process.argv)
+} catch (err: any) {
+  if (err?.code === 'commander.unknownOption') {
+    const match = /unknown option '([^']+)'/.exec(err.message)
+    const unknownFlag = match?.[1] ?? ''
+    const firstArg = program.args?.[0]
+    const cliCommand = firstArg && !firstArg.startsWith('-') ? firstArg : 'dev'
+
+    // Commander already wrote the error message to stderr before throwing,
+    // so we don't need to re-print it.
+    const exitWithError = () => {
+      process.exit(err.exitCode ?? 1)
+    }
+
+    if (cliCommand === 'dev' || cliCommand === 'build') {
+      Promise.all([
+        import('../telemetry/storage.js'),
+        import('../telemetry/events/unknown-cli-flag.js'),
+      ])
+        .then(async ([{ Telemetry }, { eventUnknownCliFlag }]) => {
+          // Submit the event inline. We can't use flushDetached here because
+          // the detached child computes distDir via loadConfig, which may
+          // disagree with any path we guess (e.g. dev mode uses `.next/dev`).
+          // The submitRecord HTTP call has a 5s timeout, which is acceptable
+          // on an already-failing command.
+          //
+          // distDir: process.cwd() mirrors `next telemetry` (see
+          // cli/next-telemetry.ts) — we have no loaded config at this point.
+          const telemetry = new Telemetry({ distDir: process.cwd() })
+          await telemetry.record(
+            eventUnknownCliFlag({ cliCommand, unknownFlag })
+          )
+          await telemetry.flush()
+        })
+        .catch(() => {})
+        .finally(exitWithError)
+    } else {
+      exitWithError()
+    }
+  } else if (
+    typeof err?.code === 'string' &&
+    err.code.startsWith('commander.')
+  ) {
+    process.exit(err.exitCode ?? 1)
+  } else {
+    throw err
+  }
+}

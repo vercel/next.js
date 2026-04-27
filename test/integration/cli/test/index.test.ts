@@ -371,14 +371,32 @@ describe('CLI Usage', () => {
         test('should warn when unknown argument provided', async () => {
           const { stderr } = await runNextCommand(['build', '--random'], {
             stderr: true,
+            env: { NEXT_TELEMETRY_DISABLED: '1' },
           })
           expect(stderr).toEqual(`error: unknown option '--random'\n`)
         })
         test('should not throw UnhandledPromiseRejectionWarning', async () => {
           const { stderr } = await runNextCommand(['build', '--random'], {
             stderr: true,
+            env: { NEXT_TELEMETRY_DISABLED: '1' },
           })
           expect(stderr).not.toContain('UnhandledPromiseRejectionWarning')
+        })
+
+        test('should record telemetry event for unknown flag', async () => {
+          const { stderr, code } = await runNextCommand(
+            ['build', '--not-a-real-flag'],
+            {
+              stderr: true,
+              ignoreFail: true,
+              env: { NEXT_TELEMETRY_DEBUG: '1' },
+            }
+          )
+          expect(code).toBe(1)
+          expect(stderr).toContain(`unknown option '--not-a-real-flag'`)
+          expect(stderr).toContain('NEXT_CLI_UNKNOWN_FLAG')
+          expect(stderr).toContain('"cliCommand": "build"')
+          expect(stderr).toContain('"unknownFlag": "--not-a-real-flag"')
         })
 
         test('should exit when SIGINT is signalled', async () => {
@@ -480,6 +498,36 @@ describe('CLI Usage', () => {
         stdout: true,
       })
       expect(help.stdout).toMatch(/Starts Next.js in development mode/)
+    })
+
+    test('should record telemetry event for unknown flag', async () => {
+      const { stderr, code } = await runNextCommand(
+        ['dev', '--not-a-real-flag'],
+        {
+          stderr: true,
+          ignoreFail: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        }
+      )
+      expect(code).toBe(1)
+      expect(stderr).toContain(`unknown option '--not-a-real-flag'`)
+      expect(stderr).toContain('NEXT_CLI_UNKNOWN_FLAG')
+      expect(stderr).toContain('"cliCommand": "dev"')
+      expect(stderr).toContain('"unknownFlag": "--not-a-real-flag"')
+    })
+
+    test('should not record telemetry event for unknown flag on other subcommands', async () => {
+      const { stderr, code } = await runNextCommand(
+        ['start', '--not-a-real-flag'],
+        {
+          stderr: true,
+          ignoreFail: true,
+          env: { NEXT_TELEMETRY_DEBUG: '1' },
+        }
+      )
+      expect(code).toBe(1)
+      expect(stderr).toContain(`unknown option '--not-a-real-flag'`)
+      expect(stderr).not.toContain('NEXT_CLI_UNKNOWN_FLAG')
     })
 
     test('custom directory', async () => {

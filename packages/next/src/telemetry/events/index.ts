@@ -1,6 +1,7 @@
 export * from './version'
 export * from './build'
 export * from './plugins'
+export * from './unknown-cli-flag'
 
 // Re-export MCP-specific types and functions
 export type { McpToolName, EventMcpToolUsage } from './build'
