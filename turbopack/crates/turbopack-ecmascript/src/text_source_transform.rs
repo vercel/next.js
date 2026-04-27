@@ -53,8 +53,8 @@ impl SourceTransform for TextSourceTransform {
 
         // Rename to .mjs so module rules recognize it as ESM.
         // The inline source map ensures debuggers show the original file.
-        let new_pattern = format!("{}.[text].mjs", ident.path.path);
-        let new_ident = ident.rename_as(&new_pattern).await?.into_vc();
+
+        let new_ident = ident.rename_as("*.[text].mjs").into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

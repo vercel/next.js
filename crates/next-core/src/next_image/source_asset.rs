@@ -49,7 +49,6 @@ impl Source for StructuredImageFileSource {
             .await?
             .with_modifier(modifier)
             .rename_as("*.mjs")
-            .await?
             .into_vc())
     }
 

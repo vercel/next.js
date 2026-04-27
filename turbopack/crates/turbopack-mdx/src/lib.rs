@@ -106,7 +106,6 @@ impl Source for MdxTransformedAsset {
             .owned()
             .await?
             .rename_as("*.tsx")
-            .await?
             .into_vc())
     }
 

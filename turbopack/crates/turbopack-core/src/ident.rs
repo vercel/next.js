@@ -150,11 +150,13 @@ impl AssetIdent {
         self
     }
 
-    pub async fn rename_as(mut self, pattern: &str) -> Result<Self> {
-        let root = self.path.root().await?;
-        self.path = root.join(&pattern.replace('*', &self.path.path))?;
+    pub fn rename_as(mut self, pattern: &str) -> Self {
+        self.path = FileSystemPath::new_normalized_unchecked(
+            self.path.fs,
+            pattern.replace('*', &self.path.path).into(),
+        );
         self.content_type = None;
-        Ok(self)
+        self
     }
 }
 

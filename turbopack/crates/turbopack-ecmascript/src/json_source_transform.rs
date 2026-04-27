@@ -63,7 +63,7 @@ impl SourceTransform for JsonSourceTransform {
 
         // Parse the JSON to validate it and get the data
         let data = content.parse_json().await?;
-        let (code, extension) = match &*data {
+        let (code, rename_pattern) = match &*data {
             FileJsonContent::Content(data) => {
                 let data_str = data.to_string();
 
@@ -75,14 +75,14 @@ impl SourceTransform for JsonSourceTransform {
                 );
                 code.push_str("\"use turbopack no side effects\";\n");
 
-                let extension = if this.use_esm {
+                let rename_pattern = if this.use_esm {
                     // Spec-compliant ESM: only default export
                     code.push_str("export default ");
-                    "mjs"
+                    "*.[json].mjs"
                 } else {
                     // Webpack-compatible CommonJS: allows named property imports
                     code.push_str("module.exports = ");
-                    "cjs"
+                    "*.[json].cjs"
                 };
                 // For large JSON files, wrap in JSON.parse for better performance
                 // https://v8.dev/blog/cost-of-javascript-2019#json
@@ -96,7 +96,7 @@ impl SourceTransform for JsonSourceTransform {
                 code.push_str(";\n");
                 code.push_str(&inline_source_map_comment(&ident.path.path, &data_str));
 
-                (code, extension)
+                (code, rename_pattern)
             }
             FileJsonContent::Unparsable(e) => {
                 let resolved_source = source.to_resolved().await?;
@@ -127,8 +127,7 @@ impl SourceTransform for JsonSourceTransform {
             }
         };
 
-        let new_pattern = format!("{}.[json].{}", ident.path.path, extension);
-        let new_ident = ident.rename_as(&new_pattern).await?.into_vc();
+        let new_ident = ident.rename_as(rename_pattern).into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

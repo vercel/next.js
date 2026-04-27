@@ -161,7 +161,6 @@ impl Source for WebpackLoadersProcessedAsset {
                     .owned()
                     .await?
                     .rename_as(rename_as)
-                    .await?
                     .into_vc()
             } else {
                 self.source.ident()

@@ -36,7 +36,6 @@ impl Source for TextContentFileSource {
             .await?
             .with_modifier(rcstr!("text content"))
             .rename_as("*.mjs")
-            .await?
             .into_vc())
     }
 
