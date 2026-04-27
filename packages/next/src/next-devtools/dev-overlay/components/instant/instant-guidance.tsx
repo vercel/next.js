@@ -1,8 +1,6 @@
 import { css } from '../../utils/css'
 
-const DOCS = 'https://nextjs.org/docs/messages/blocking-route'
-
-type CardColor = 'blue' | 'purple' | 'red'
+type CardColor = 'blue' | 'purple' | 'red' | 'amber'
 
 type FixCard = {
   title: string
@@ -15,6 +13,8 @@ type Snippet = {
   text: string
   highlight?: boolean
 }
+
+// ── Blocking-route cards ──────────────────────────
 
 const runtimeCards: FixCard[] = [
   {
@@ -79,6 +79,257 @@ const dynamicCards: FixCard[] = [
   },
 ]
 
+// ── Metadata cards ────────────────────────────────
+
+const metadataRuntimeCards: FixCard[] = [
+  {
+    title: 'Use static metadata',
+    color: 'blue',
+    snippets: [
+      { text: 'export const metadata = {' },
+      { text: '  title: "My Page"', highlight: true },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Allow dynamic page',
+    color: 'purple',
+    snippets: [
+      { text: '// page.tsx' },
+      { text: 'async function DynamicMarker() {' },
+      { text: '  await connection()', highlight: true },
+      { text: '}' },
+    ],
+  },
+]
+
+const metadataDynamicCards: FixCard[] = [
+  {
+    title: 'Cache the metadata',
+    color: 'blue',
+    snippets: [
+      { text: 'async function generateMetadata() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await cms.getPageMeta(…)' },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Allow dynamic page',
+    color: 'purple',
+    snippets: [
+      { text: '// page.tsx' },
+      { text: 'async function DynamicMarker() {' },
+      { text: '  await connection()', highlight: true },
+      { text: '}' },
+    ],
+  },
+]
+
+// ── Viewport cards ────────────────────────────────
+
+const viewportRuntimeCards: FixCard[] = [
+  {
+    title: 'Use static viewport',
+    color: 'blue',
+    snippets: [
+      { text: 'export const viewport = {' },
+      { text: '  themeColor: "#000"', highlight: true },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Wrap body in Suspense',
+    color: 'purple',
+    snippets: [
+      { text: '<Suspense>', highlight: true },
+      { text: '  <body>{children}</body>' },
+      { text: '</Suspense>', highlight: true },
+    ],
+  },
+]
+
+const viewportDynamicCards: FixCard[] = [
+  {
+    title: 'Cache viewport data',
+    color: 'blue',
+    snippets: [
+      { text: 'async function generateViewport() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return await db.getViewport(…)' },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Wrap body in Suspense',
+    color: 'purple',
+    snippets: [
+      { text: '<Suspense>', highlight: true },
+      { text: '  <body>{children}</body>' },
+      { text: '</Suspense>', highlight: true },
+    ],
+  },
+]
+
+// ── Sync IO cards (per API) ───────────────────────
+
+const syncMathCards: FixCard[] = [
+  {
+    title: 'Render dynamically',
+    color: 'purple',
+    snippets: [
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = Math.random()' },
+      { text: 'return <Item id={id} />' },
+    ],
+  },
+  {
+    title: 'Render on client',
+    color: 'amber',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'export function RandomId() {' },
+      { text: '  return String(Math.random())' },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Cache the result',
+    color: 'blue',
+    snippets: [
+      { text: 'async function RandomId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return String(Math.random())' },
+      { text: '}' },
+    ],
+  },
+]
+
+const syncDateCards: FixCard[] = [
+  {
+    title: 'Render dynamically',
+    color: 'purple',
+    snippets: [
+      { text: 'await connection()', highlight: true },
+      { text: 'const t = Date.now()' },
+      { text: 'return <Banner time={t} />' },
+    ],
+  },
+  {
+    title: 'Render on client',
+    color: 'amber',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'export function RelativeTime() {' },
+      { text: '  return timeAgo(Date.now())' },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Cache the result',
+    color: 'blue',
+    snippets: [
+      { text: 'async function Timestamp() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <time>{Date.now()}</time>' },
+      { text: '}' },
+    ],
+  },
+]
+
+const syncCryptoCards: FixCard[] = [
+  {
+    title: 'Render dynamically',
+    color: 'purple',
+    snippets: [
+      { text: 'await connection()', highlight: true },
+      { text: 'const id = crypto.randomUUID()' },
+      { text: 'return <Token id={id} />' },
+    ],
+  },
+  {
+    title: 'Render on client',
+    color: 'amber',
+    snippets: [
+      { text: '"use client"', highlight: true },
+      { text: 'export function TokenId() {' },
+      { text: '  return crypto.randomUUID()' },
+      { text: '}' },
+    ],
+  },
+  {
+    title: 'Cache the result',
+    color: 'blue',
+    snippets: [
+      { text: 'async function TokenId() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return crypto.randomUUID()' },
+      { text: '}' },
+    ],
+  },
+]
+
+// ── Card lookup ───────────────────────────────────
+
+export type GuidanceKind =
+  | 'blocking-route'
+  | 'metadata'
+  | 'viewport'
+  | 'sync-io'
+
+export type GuidanceVariant = 'runtime' | 'navigation'
+
+const DOCS_URLS: Record<GuidanceKind, string> = {
+  'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
+  metadata: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata',
+  viewport: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport',
+  'sync-io': '',
+}
+
+const SYNC_IO_DOCS: Record<string, string> = {
+  'Math.random()': 'https://nextjs.org/docs/messages/next-prerender-random',
+  'Date.now()': 'https://nextjs.org/docs/messages/next-prerender-current-time',
+  'crypto.randomUUID()':
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+}
+
+const EXPLANATIONS: Record<GuidanceKind, string> = {
+  'blocking-route':
+    'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
+  metadata:
+    'This prevents the page from being prerendered, leading to a slower user experience.',
+  viewport:
+    'This prevents the page from being prerendered, leading to a slower user experience.',
+  'sync-io': '',
+}
+
+const syncCardsByCause: Record<string, FixCard[]> = {
+  'Math.random()': syncMathCards,
+  'Date.now()': syncDateCards,
+  'crypto.randomUUID()': syncCryptoCards,
+}
+
+function getCards(
+  kind: GuidanceKind,
+  variant: GuidanceVariant,
+  cause?: string
+): FixCard[] {
+  switch (kind) {
+    case 'blocking-route':
+      return variant === 'navigation' ? dynamicCards : runtimeCards
+    case 'metadata':
+      return variant === 'runtime' ? metadataRuntimeCards : metadataDynamicCards
+    case 'viewport':
+      return variant === 'runtime' ? viewportRuntimeCards : viewportDynamicCards
+    case 'sync-io':
+      return (cause && syncCardsByCause[cause]) || syncMathCards
+    default:
+      return runtimeCards
+  }
+}
+
+// ── Components ────────────────────────────────────
+
 function CardGrid({ cards }: { cards: FixCard[] }) {
   return (
     <div data-nextjs-card-grid>
@@ -110,16 +361,27 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
 
 export function InstantGuidance({
   variant,
+  kind = 'blocking-route',
+  explanation,
+  cause,
 }: {
-  variant: 'runtime' | 'navigation'
+  variant: GuidanceVariant
+  kind?: GuidanceKind
+  explanation?: string
+  cause?: string
 }) {
-  const cards = variant === 'navigation' ? dynamicCards : runtimeCards
+  const cards = getCards(kind, variant, cause)
+  const docsUrl =
+    kind === 'sync-io' && cause
+      ? SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
+      : DOCS_URLS[kind]
+  const defaultExplanation = explanation || EXPLANATIONS[kind]
 
   return (
     <div data-nextjs-instant-guidance>
       <p data-nextjs-instant-explanation>
-        This blocks navigation, leading to a slower user experience.{' '}
-        <a href={DOCS} target="_blank" rel="noopener noreferrer">
+        {defaultExplanation ? <>{defaultExplanation} </> : null}
+        <a href={docsUrl} target="_blank" rel="noopener noreferrer">
           Learn more
         </a>
       </p>
@@ -219,6 +481,10 @@ export const INSTANT_GUIDANCE_STYLES = css`
     border-color: var(--color-instant-border-red);
   }
 
+  [data-card-color='amber'] [data-nextjs-fix-snippet] {
+    border-color: var(--color-instant-border-amber);
+  }
+
   [data-snippet-line] {
     display: block;
     color: var(--color-gray-800);
@@ -239,5 +505,9 @@ export const INSTANT_GUIDANCE_STYLES = css`
 
   [data-card-color='red'] [data-snippet-line][data-snippet-highlight] {
     color: var(--color-red-800);
+  }
+
+  [data-card-color='amber'] [data-snippet-line][data-snippet-highlight] {
+    color: var(--color-instant-text-amber);
   }
 `

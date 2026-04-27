@@ -1,11 +1,60 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
-import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 
 type ApiType = 'time' | 'random' | 'crypto'
+
+const SYNC_IO_DOCS: Record<ApiType, string> = {
+  time: 'https://nextjs.org/docs/messages/next-prerender-current-time',
+  random: 'https://nextjs.org/docs/messages/next-prerender-random',
+  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto',
+}
+
+const SYNC_IO_CLIENT_DOCS: Record<ApiType, string> = {
+  time: 'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+  random: 'https://nextjs.org/docs/messages/next-prerender-random-client',
+  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+}
+
+const SYNC_IO_RUNTIME_DOCS: Record<ApiType, string> = {
+  time: 'https://nextjs.org/docs/messages/next-prerender-runtime-current-time',
+  random: 'https://nextjs.org/docs/messages/next-prerender-runtime-random',
+  crypto: 'https://nextjs.org/docs/messages/next-prerender-runtime-crypto',
+}
+
+function createSyncIOMessage(
+  route: string,
+  expression: string,
+  type: ApiType
+): string {
+  return (
+    `Route "${route}": ${expression} was called before any data access.\n\n` +
+    `Without a prior data access, Next.js doesn't know if this value should be fixed or fresh. This prevents the route from being prerendered, leading to a slower user experience.\n\n` +
+    `Ways to fix this:\n` +
+    `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
+    `  - Move the expression into a \`"use client"\` component\n` +
+    `  - Move the expression into a \`"use cache"\` component\n\n` +
+    `Learn more: ${SYNC_IO_DOCS[type]}`
+  )
+}
+
+function createSyncIORuntimeMessage(
+  route: string,
+  expression: string,
+  type: ApiType
+): string {
+  return (
+    `Route "${route}": ${expression} was called before any data access.\n\n` +
+    `When configured for Runtime prefetching, Next.js needs a data access before this call to determine if the value should be fixed or fresh. This prevents the route from being prerendered, leading to a slower user experience.\n\n` +
+    `Ways to fix this:\n` +
+    `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
+    `  - Move the expression into a \`"use client"\` component\n` +
+    `  - Move the expression into a \`"use cache"\` component\n\n` +
+    `Learn more: ${SYNC_IO_RUNTIME_DOCS[type]}`
+  )
+}
 
 export function io(expression: string, type: ApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -23,22 +72,7 @@ export function io(expression: string, type: ApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
-        let message: string
-        switch (type) {
-          case 'time':
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
-            break
-          case 'random':
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
-            break
-          case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
-            break
-          default:
-            throw new InvariantError(
-              'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-            )
-        }
+        const message = createSyncIOMessage(workStore.route, expression, type)
 
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
@@ -55,22 +89,14 @@ export function io(expression: string, type: ApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
-        let message: string
-        switch (type) {
-          case 'time':
-            message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client`
-            break
-          case 'random':
-            message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-random-client`
-            break
-          case 'crypto':
-            message = `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto-client`
-            break
-          default:
-            throw new InvariantError(
-              'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-            )
-        }
+        const docsUrl = SYNC_IO_CLIENT_DOCS[type]
+        const message =
+          `Route "${workStore.route}": ${expression} was used inside a Client Component without a \`<Suspense>\` boundary above it.\n\n` +
+          `This prevents the route from being prerendered, leading to a slower user experience.\n\n` +
+          `Ways to fix this:\n` +
+          `  - Wrap the Client Component in a \`<Suspense>\` boundary\n` +
+          `  - Move the expression into a \`"use cache"\` component\n\n` +
+          `Learn more: ${docsUrl}`
 
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
@@ -89,53 +115,17 @@ export function io(expression: string, type: ApiType) {
           stageController.currentStage === RenderStage.Static ||
           stageController.currentStage === RenderStage.EarlyStatic
         ) {
-          switch (type) {
-            case 'time':
-              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time`
-              break
-            case 'random':
-              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random`
-              break
-            case 'crypto':
-              message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random cryptographic values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-crypto`
-              break
-            default:
-              throw new InvariantError(
-                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-              )
-          }
+          message = createSyncIOMessage(workStore.route, expression, type)
         } else {
           // We're in the Runtime stage.
           // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
           // This check is implemented in `stageController.canSyncInterrupt()` --
           // if runtime prefetching isn't enabled, then we won't get here.
-
-          let accessStatement: string
-          let additionalInfoLink: string
-
-          switch (type) {
-            case 'time':
-              accessStatement = 'the current time'
-              additionalInfoLink =
-                'https://nextjs.org/docs/messages/next-prerender-runtime-current-time'
-              break
-            case 'random':
-              accessStatement = 'random values synchronously'
-              additionalInfoLink =
-                'https://nextjs.org/docs/messages/next-prerender-runtime-random'
-              break
-            case 'crypto':
-              accessStatement = 'random cryptographic values synchronously'
-              additionalInfoLink =
-                'https://nextjs.org/docs/messages/next-prerender-runtime-crypto'
-              break
-            default:
-              throw new InvariantError(
-                'Unknown expression type in abortOnSynchronousPlatformIOAccess.'
-              )
-          }
-
-          message = `Route "${workStore.route}" used ${expression} before accessing either uncached data (e.g. \`fetch()\`) or awaiting \`connection()\`. When configured for Runtime prefetching, accessing ${accessStatement} in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: ${additionalInfoLink}`
+          message = createSyncIORuntimeMessage(
+            workStore.route,
+            expression,
+            type
+          )
         }
 
         const syncIOError = applyOwnerStack(new Error(message))
