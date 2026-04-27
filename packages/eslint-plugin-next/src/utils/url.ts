@@ -80,7 +80,7 @@ function parseUrlForAppDir(
       const dirPath = path.join(directory, dirent.name)
       if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
         res.push(
-          ...parseUrlForPages(
+          ...parseUrlForAppDir(
             urlprefix + dirent.name + '/',
             dirPath,
             pageExtensions
