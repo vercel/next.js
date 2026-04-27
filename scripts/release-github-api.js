@@ -226,10 +226,21 @@ async function alignLocalBranchWithGitHubReleaseCommit(
   tagName,
   commitSha
 ) {
-  await execa('git', ['tag', '-d', tagName], {
-    stdio: 'inherit',
-    reject: false,
-  })
+  const tagExists = await execa(
+    'git',
+    ['show-ref', '--verify', '--quiet', `refs/tags/${tagName}`],
+    {
+      stdio: 'ignore',
+      reject: false,
+    }
+  )
+
+  if (tagExists.exitCode === 0) {
+    await git(['tag', '-d', tagName])
+  } else {
+    console.log(`Local tag ${tagName} does not exist; skipping delete`)
+  }
+
   await git([
     'fetch',
     'origin',
