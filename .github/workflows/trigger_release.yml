@@ -52,6 +52,24 @@ jobs:
           node-version: 20
           check-latest: true
 
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+
+      - name: Get GitHub App user ID
+        id: release-app-user
+        run: |
+          user_id="$(gh api "/users/${{ steps.release-app-token.outputs.app-slug }}[bot]" --jq .id)"
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
       - name: Clone Next.js repository
         run: git clone https://github.com/vercel/next.js.git --depth=25 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
 
@@ -61,10 +79,13 @@ jobs:
         # Ignoring failures for now to check if a failure truly implies a failed publish.
         continue-on-error: true
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
 
       - name: Get commit of the latest tag
-        run: echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 $(git describe --tags --abbrev=0))" >> $GITHUB_ENV
+        run: |
+          git fetch --tags --force --deepen=1000 origin
+          latest_tag="$(git describe --tags --abbrev=0)"
+          echo "LATEST_TAG_COMMIT=$(git rev-list -n 1 "$latest_tag")" >> $GITHUB_ENV
 
       - name: Get latest commit
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
@@ -102,6 +123,8 @@ jobs:
 
       - run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"
         env:
-          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
           INPUT_RELEASETYPE: ${{ github.event.inputs.releaseType || 'canary' }}
           INPUT_SEMVERTYPE: ${{ github.event.inputs.semverType }}
