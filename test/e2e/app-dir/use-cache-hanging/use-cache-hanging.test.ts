@@ -23,7 +23,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
+           "code": "E236",
            "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -52,7 +52,7 @@ describe('use-cache-hanging', () => {
 
         await expect(browser).toDisplayRedbox(`
          {
-           "code": "E394",
+           "code": "E236",
            "description": "Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".",
            "environmentLabel": null,
            "label": "Runtime Error",
