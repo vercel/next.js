@@ -221,32 +221,41 @@ async function createTreeFromLocalCommit(token, baseSha, localReleaseSha) {
  * Refresh local refs after the API writes so later release steps see the
  * GitHub-signed commit and tag instead of Lerna's unsigned local commit.
  */
-async function alignLocalBranchWithGitHubReleaseCommit(
+async function alignLocalBranchWithGitHubReleaseCommit({
   branch,
-  tagName,
-  commitSha
-) {
-  await execa('git', ['tag', '-d', tagName], {
+  commitSha,
+  localTagName,
+  remoteTagName,
+}) {
+  await execa('git', ['tag', '-d', localTagName], {
     stdio: 'inherit',
     reject: false,
   })
+
+  if (remoteTagName !== localTagName) {
+    await execa('git', ['tag', '-d', remoteTagName], {
+      stdio: 'inherit',
+      reject: false,
+    })
+  }
+
   await git([
     'fetch',
     'origin',
     `refs/heads/${branch}:refs/remotes/origin/${branch}`,
-    `refs/tags/${tagName}:refs/tags/${tagName}`,
+    `refs/tags/${remoteTagName}:refs/tags/${remoteTagName}`,
   ])
   await git(['reset', '--hard', commitSha])
 }
 
 /**
  * Replace Lerna's local release commit with an equivalent GitHub-signed commit,
- * then move the release tag and current branch to that new commit.
+ * then move the release tag and target branch to that new commit.
  */
-async function createGitHubReleaseCommit(token) {
-  const branch = await git(['rev-parse', '--abbrev-ref', 'HEAD'], {
-    captureOutput: true,
-  })
+async function createGitHubReleaseCommit(token, options = {}) {
+  const branch =
+    options.branch ||
+    (await git(['rev-parse', '--abbrev-ref', 'HEAD'], { captureOutput: true }))
 
   if (branch === 'HEAD') {
     throw new Error('Cannot create a GitHub release commit from detached HEAD')
@@ -256,13 +265,14 @@ async function createGitHubReleaseCommit(token) {
     captureOutput: true,
   })
   const baseSha = await getSingleParent(localReleaseSha)
-  const tagName = await getLocalReleaseTagName(localReleaseSha)
+  const localTagName = await getLocalReleaseTagName(localReleaseSha)
+  const remoteTagName = options.remoteTagName || localTagName
   const message = await git(['log', '-1', '--pretty=%B'], {
     captureOutput: true,
   })
 
   console.log(
-    `Creating GitHub-signed release commit for ${tagName} from local Lerna commit ${localReleaseSha}`
+    `Creating GitHub-signed release commit for ${remoteTagName} from local Lerna commit ${localReleaseSha}`
   )
 
   const treeSha = await createTreeFromLocalCommit(
@@ -291,7 +301,7 @@ async function createGitHubReleaseCommit(token) {
 
   try {
     await githubRequest(token, 'POST', `${REPO_API_PATH}/git/refs`, {
-      ref: `refs/tags/${tagName}`,
+      ref: `refs/tags/${remoteTagName}`,
       sha: commit.sha,
     })
     createdTag = true
@@ -310,9 +320,9 @@ async function createGitHubReleaseCommit(token) {
       await githubRequest(
         token,
         'DELETE',
-        `${REPO_API_PATH}/git/refs/tags/${tagName}`
+        `${REPO_API_PATH}/git/refs/tags/${remoteTagName}`
       ).catch((deleteError) => {
-        console.error(`Failed to delete ${tagName} after release failure`)
+        console.error(`Failed to delete ${remoteTagName} after release failure`)
         console.error(deleteError)
       })
     }
@@ -320,16 +330,22 @@ async function createGitHubReleaseCommit(token) {
     throw error
   }
 
-  await alignLocalBranchWithGitHubReleaseCommit(branch, tagName, commit.sha)
+  await alignLocalBranchWithGitHubReleaseCommit({
+    branch,
+    commitSha: commit.sha,
+    localTagName,
+    remoteTagName,
+  })
 
   console.log(
-    `Created GitHub-signed release commit ${commit.sha} and tag ${tagName}`
+    `Created GitHub-signed release commit ${commit.sha} and tag ${remoteTagName}`
   )
 
   return {
     branch,
     sha: commit.sha,
-    tagName,
+    localTagName,
+    tagName: remoteTagName,
   }
 }
 

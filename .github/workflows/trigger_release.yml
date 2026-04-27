@@ -28,6 +28,11 @@ on:
         default: false
         type: boolean
 
+      smokeTestReleaseApiCommit:
+        description: create a GitHub-signed commit on disposable refs without publishing a release
+        default: false
+        type: boolean
+
 name: Trigger Release
 
 env:
@@ -91,7 +96,7 @@ jobs:
         run: echo "LATEST_COMMIT=$(git rev-parse HEAD)" >> $GITHUB_ENV
 
       - name: Check if new commits since last tag
-        if: ${{ github.event.inputs.releaseType != 'stable' && github.event.inputs.force != true }}
+        if: ${{ github.event.inputs.smokeTestReleaseApiCommit != 'true' && github.event.inputs.releaseType != 'stable' && github.event.inputs.force != true }}
         run: |
           if [ "$LATEST_TAG_COMMIT" = "$LATEST_COMMIT" ]; then
             echo "No new commits. Exiting..."
@@ -121,7 +126,15 @@ jobs:
 
       - run: pnpm install
 
+      - run: node ./scripts/test-release-github-api.js
+        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.smokeTestReleaseApiCommit == 'true' }}
+        env:
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
+
       - run: node ./scripts/start-release.js --release-type "${INPUT_RELEASETYPE}" --semver-type "${INPUT_SEMVERTYPE}"
+        if: ${{ github.event.inputs.smokeTestReleaseApiCommit != 'true' }}
         env:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
