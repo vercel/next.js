@@ -217,12 +217,12 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     forwardedRef
   ) => {
     const [img, setImg] = useState<HTMLImageElement | null>(null)
-    const didHydrateRef = useRef(false)
+    const didInsertImgRef = useRef(false)
 
     useNonWarningLayoutEffect(() => {
-      const { current: didHydrate } = didHydrateRef
+      const { current: didInsert } = didInsertImgRef
 
-      if (!didHydrate && img !== null) {
+      if (!didInsert && img !== null) {
         // Replay events from during hydration that React doesn't replay.
         if (onError) {
           // If the image has an error before react hydrates, then the error is lost.
@@ -234,30 +234,28 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
           img.src = img.src
         }
 
-        if (img !== null) {
-          if (process.env.NODE_ENV !== 'production') {
-            if (!src) {
-              console.error(`Image is missing required "src" property:`, img)
-            }
-            if (img.getAttribute('alt') === null) {
-              console.error(
-                `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
-              )
-            }
+        if (process.env.NODE_ENV !== 'production') {
+          if (!src) {
+            console.error(`Image is missing required "src" property:`, img)
           }
-          if (img.complete) {
-            handleLoading(
-              img,
-              placeholder,
-              onLoadRef,
-              onLoadingCompleteRef,
-              setBlurComplete,
-              unoptimized,
-              sizesInput
+          if (img.getAttribute('alt') === null) {
+            console.error(
+              `Image is missing required "alt" property. Please add Alternative Text to describe the image for screen readers and search engines.`
             )
           }
         }
-        didHydrateRef.current = true
+        if (img.complete) {
+          handleLoading(
+            img,
+            placeholder,
+            onLoadRef,
+            onLoadingCompleteRef,
+            setBlurComplete,
+            unoptimized,
+            sizesInput
+          )
+        }
+        didInsertImgRef.current = true
       }
     }, [
       img,
