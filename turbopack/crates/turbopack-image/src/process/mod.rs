@@ -346,8 +346,8 @@ pub async fn get_meta_data(
         bail!("Input image not found");
     };
     let bytes = content.content().to_bytes();
-    let path = image.ident().await?.path.clone();
-    let extension = path.extension();
+    let ident = image.ident().await?;
+    let extension = ident.path.extension();
 
     if extension == Some("svg") {
         let content = result_to_issue(
@@ -429,8 +429,8 @@ pub async fn optimize(
         return Ok(FileContent::NotFound.cell());
     };
     let bytes = content.content().to_bytes();
-    let path = source.ident().await?.path.clone();
-    let extension = path.extension();
+    let ident = source.ident().await?;
+    let extension = ident.path.extension();
 
     let Some((image, format)) = load_image(source, &bytes, extension) else {
         return Ok(FileContent::NotFound.cell());

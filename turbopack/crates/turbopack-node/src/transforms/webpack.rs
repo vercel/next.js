@@ -292,8 +292,9 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-            let resource_fs_path = self.source.ident().await?.path.clone();
-            let Some(resource_path) = project_path.get_relative_path_to(&resource_fs_path) else {
+            let source_ident = self.source.ident().await?;
+            let resource_fs_path = &source_ident.path;
+            let Some(resource_path) = project_path.get_relative_path_to(resource_fs_path) else {
                 bail!(
                     "Resource path \"{}\" needs to be on project filesystem \"{}\"",
                     resource_fs_path,
@@ -347,7 +348,7 @@ impl WebpackLoadersProcessedAsset {
                     .map(|source_map| Rope::from(source_map.into_owned()))
             };
             let source_map =
-                resolve_source_map_sources(source_map.as_ref(), &resource_fs_path).await?;
+                resolve_source_map_sources(source_map.as_ref(), resource_fs_path).await?;
 
             let file = match processed.source {
                 Either::Left(str) => File::from(str),

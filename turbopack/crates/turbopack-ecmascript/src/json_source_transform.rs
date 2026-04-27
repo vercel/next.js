@@ -59,7 +59,6 @@ impl SourceTransform for JsonSourceTransform {
     ) -> Result<Vc<Box<dyn Source>>> {
         let this = self.await?;
         let ident = source.ident().owned().await?;
-        let path = ident.path.clone();
         let content = source.content().file_content();
 
         // Parse the JSON to validate it and get the data
@@ -95,7 +94,7 @@ impl SourceTransform for JsonSourceTransform {
                     code.push_str(&data_str);
                 }
                 code.push_str(";\n");
-                code.push_str(&inline_source_map_comment(&path.path, &data_str));
+                code.push_str(&inline_source_map_comment(&ident.path.path, &data_str));
 
                 (code, extension)
             }
@@ -105,7 +104,7 @@ impl SourceTransform for JsonSourceTransform {
 
                 CodeGenerationIssue {
                     severity: IssueSeverity::Error,
-                    path: path.clone(),
+                    path: ident.path.clone(),
                     title: StyledString::Text(rcstr!("Unable to make a module from invalid JSON"))
                         .resolved_cell(),
                     message: StyledString::Text(e.message.clone()).resolved_cell(),
@@ -124,14 +123,12 @@ impl SourceTransform for JsonSourceTransform {
                 // This is basically impossible since we wouldn't be called if the module
                 // doesn't exist but some kind of eventual consistency situation is
                 // possible where we resolve the file and then it disappears, so bail is appropriate
-                bail!("JSON file not found: {:?}", path);
+                bail!("JSON file not found: {:?}", ident.path);
             }
         };
 
-        let new_ident = ident
-            .rename_as(&format!("{}.[json].{}", path.path, extension))
-            .await?
-            .into_vc();
+        let new_pattern = format!("{}.[json].{}", ident.path.path, extension);
+        let new_ident = ident.rename_as(&new_pattern).await?.into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

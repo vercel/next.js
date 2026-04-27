@@ -119,7 +119,7 @@ async fn resolve_extends(
     extends: &str,
     resolve_options: Vc<ResolveOptions>,
 ) -> Result<Vc<OptionSource>> {
-    let parent_dir = tsconfig.ident().await?.path.clone().parent();
+    let parent_dir = tsconfig.ident().await?.path.parent();
     let request = Request::parse_string(extends.into());
 
     // TS's resolution is weird, and has special behavior for different import
@@ -231,13 +231,7 @@ async fn try_join_base_url(
     base_url: RcStr,
 ) -> Result<Vc<FileSystemPathOption>> {
     Ok(Vc::cell(
-        source
-            .ident()
-            .await?
-            .path
-            .clone()
-            .parent()
-            .try_join(&base_url),
+        source.ident().await?.path.parent().try_join(&base_url),
     ))
 }
 
@@ -274,13 +268,12 @@ pub async fn tsconfig_resolve_options(
         if let FileJsonContent::Content(json) = &*content.await?
             && let JsonValue::Object(paths) = &json["compilerOptions"]["paths"]
         {
-            let mut context_dir = source.ident().await?.path.clone().parent();
+            let mut context_dir = source.ident().await?.path.parent();
             if let Some(base_url) = json["compilerOptions"]["baseUrl"].as_str()
                 && let Some(new_context) = context_dir.try_join(base_url)
             {
                 context_dir = new_context;
             };
-            let context_dir = context_dir.clone();
             for (key, value) in paths.iter() {
                 if let JsonValue::Array(vec) = value {
                     let entries = vec

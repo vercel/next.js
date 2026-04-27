@@ -56,7 +56,7 @@ impl Source for WebAssemblySource {
             WebAssemblySourceType::Binary => self.source.ident(),
             WebAssemblySourceType::Text => {
                 let ident = self.source.ident().owned().await?;
-                let new_path = ident.path.clone().append("_.wasm")?;
+                let new_path = ident.path.append("_.wasm")?;
                 ident.with_path(new_path).into_vc()
             }
         })

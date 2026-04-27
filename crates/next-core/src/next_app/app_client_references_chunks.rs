@@ -262,21 +262,16 @@ pub async fn get_app_client_references_chunks(
                     )
                     .entered();
 
-                    Some(
-                        client_chunking_context.chunk_group(
-                            base_ident
-                                .clone()
-                                .with_modifier(rcstr!("client modules"))
-                                .into_vc(),
-                            ChunkGroup::IsolatedMerged {
-                                parent: parent_chunk_group,
-                                merge_tag: ecmascript_client_reference_merge_tag(),
-                                entries: client_modules,
-                            },
-                            module_graph,
-                            availability_info,
-                        ),
-                    )
+                    Some(client_chunking_context.chunk_group(
+                        base_ident.with_modifier(rcstr!("client modules")).into_vc(),
+                        ChunkGroup::IsolatedMerged {
+                            parent: parent_chunk_group,
+                            merge_tag: ecmascript_client_reference_merge_tag(),
+                            entries: client_modules,
+                        },
+                        module_graph,
+                        availability_info,
+                    ))
                 } else {
                     None
                 };

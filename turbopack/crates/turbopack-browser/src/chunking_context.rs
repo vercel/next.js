@@ -656,7 +656,8 @@ impl ChunkingContext for BrowserChunkingContext {
         tag: Option<RcStr>,
     ) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
-        let source_path = original_asset_ident.await?.path.clone();
+        let ident = original_asset_ident.await?;
+        let source_path = &ident.path;
         let basename = source_path.file_name();
         let ContentHashing::Direct { length } = this.asset_content_hashing;
         let hash = content

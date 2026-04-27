@@ -37,14 +37,13 @@ impl SourceTransform for BytesSourceTransform {
         _asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Box<dyn Source>>> {
         let ident = source.ident().owned().await?;
-        let path = ident.path.clone();
         let content = source.content().file_content().await?;
         let bytes = match &*content {
             FileContent::Content(data) => {
                 data.read().bytes().collect::<std::io::Result<Vec<u8>>>()?
             }
             FileContent::NotFound => {
-                bail!("File not found: {:?}", path);
+                bail!("File not found: {:?}", ident.path);
             }
         };
 
@@ -59,15 +58,13 @@ export default base64Decode({});
             StringifyJs(&encoded),
             // For binary files, we use an empty string as sourcesContent since the
             // original content isn't meaningful text.
-            inline_source_map_comment(&path.path, "")
+            inline_source_map_comment(&ident.path.path, "")
         );
 
         // Rename to .mjs so module rules recognize it as ESM.
         // The inline source map ensures debuggers show the original file.
-        let new_ident = ident
-            .rename_as(&format!("{}.[bytes].mjs", path.path))
-            .await?
-            .into_vc();
+        let new_pattern = format!("{}.[bytes].mjs", ident.path.path);
+        let new_ident = ident.rename_as(&new_pattern).await?.into_vc();
 
         Ok(Vc::upcast(VirtualSource::new_with_ident(
             new_ident,

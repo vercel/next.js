@@ -192,8 +192,7 @@ async fn build_manifest(
         let filename = if !meta.source_path.is_empty() {
             meta.source_path.clone()
         } else {
-            let module_path = module.ident().await?.path.clone();
-            module_path.to_string()
+            module.ident().await?.path.to_string()
         };
 
         action_metadata.push((hash_id.clone(), (*layer, meta.name.clone(), filename)));

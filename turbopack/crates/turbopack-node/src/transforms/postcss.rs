@@ -455,11 +455,11 @@ async fn find_config_in_location(
         }
         // Check project root first, fall back to the CSS file's directory.
         PostCssConfigLocation::ProjectPathOrLocalPath => {
-            vec![project_path, source.ident().await?.path.clone().parent()]
+            vec![project_path, source.ident().await?.path.parent()]
         }
         // Check the CSS file's directory first, fall back to the project root.
         PostCssConfigLocation::LocalPathOrProjectPath => {
-            vec![source.ident().await?.path.clone().parent(), project_path]
+            vec![source.ident().await?.path.parent(), project_path]
         }
     };
 
@@ -559,11 +559,12 @@ impl PostCssTransformedAsset {
         .to_resolved()
         .await?;
 
-        let css_fs_path = self.source.ident().await?.path.clone();
+        let source_ident = self.source.ident().await?;
 
         // We need to get a path relative to the project because the postcss loader
         // runs with the project as the current working directory.
-        let css_path = if let Some(css_path) = project_path.get_relative_path_to(&css_fs_path) {
+        let css_path = if let Some(css_path) = project_path.get_relative_path_to(&source_ident.path)
+        {
             css_path.into_owned()
         } else {
             // This shouldn't be an error since it can happen on virtual assets

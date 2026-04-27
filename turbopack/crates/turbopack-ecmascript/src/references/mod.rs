@@ -824,7 +824,7 @@ async fn analyze_ecmascript_module_internal(
                 .await?,
             compile_time_info_ref,
             var_graph: &var_graph,
-            allow_project_root_tracing: !source.ident().await?.path.clone().is_in_node_modules(),
+            allow_project_root_tracing: !source.ident().await?.path.is_in_node_modules(),
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             first_import_meta: true,
@@ -1793,7 +1793,7 @@ where
         {
             Ok(cwd)
         } else {
-            Ok(source.ident().await?.path.clone().parent())
+            Ok(source.ident().await?.path.parent())
         }
     };
 
@@ -2373,9 +2373,14 @@ where
             return Ok(());
         }
         WellKnownFunctionKind::PathJoin if analysis.analyze_mode.is_tracing_assets() => {
-            let context_path = source.ident().await?.path.clone();
             // ignore path.join in `node-gyp`, it will includes too many files
-            if context_path.path.contains("node_modules/node-gyp") {
+            if source
+                .ident()
+                .await?
+                .path
+                .path
+                .contains("node_modules/node-gyp")
+            {
                 return Ok(());
             }
             let args = linked_args().await?;

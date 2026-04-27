@@ -214,25 +214,21 @@ impl EcmascriptBrowserEvaluateChunk {
             .with_modifier(rcstr!("ecmascript browser evaluate chunk"));
 
         let evaluatable_assets = self.evaluatable_assets.await?;
-        for name in evaluatable_assets
-            .iter()
-            .map(|entry| entry.ident().to_string().owned())
-            .try_join()
-            .await?
-        {
-            ident = ident.with_modifier(name);
-        }
-
-        for name in self
-            .other_chunks
-            .await?
-            .iter()
-            .map(|chunk| chunk.path().to_string().owned())
-            .try_join()
-            .await?
-        {
-            ident = ident.with_modifier(name);
-        }
+        ident.modifiers.extend(
+            evaluatable_assets
+                .iter()
+                .map(|entry| entry.ident().to_string().owned())
+                .try_join()
+                .await?,
+        );
+        ident.modifiers.extend(
+            self.other_chunks
+                .await?
+                .iter()
+                .map(|chunk| chunk.path().to_string().owned())
+                .try_join()
+                .await?,
+        );
 
         Ok(ident.into_vc())
     }

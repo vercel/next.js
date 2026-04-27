@@ -365,7 +365,8 @@ pub async fn parse_segment_config_from_source(
     source: ResolvedVc<Box<dyn Source>>,
     mode: ParseSegmentMode,
 ) -> Result<Vc<NextSegmentConfig>> {
-    let path = source.ident().await?.path.clone();
+    let ident = source.ident().await?;
+    let path = &ident.path;
 
     // Don't try parsing if it's not a javascript file, otherwise it will emit an
     // issue causing the build to "fail".

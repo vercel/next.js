@@ -263,7 +263,8 @@ async fn detect_react_compiler_target(
         return Ok(None);
     };
 
-    let path = source.ident().await?.path.clone();
+    let ident = source.ident().await?;
+    let path = &ident.path;
     let FileContent::Content(file) = &*path.read().await? else {
         return Ok(None);
     };
@@ -352,7 +353,7 @@ pub async fn resolve_babel_plugin_react_compiler(
         // the relative path should only ever fail to resolve when the `fs` is different, which
         // should only happen due to eventual consistency.
         project_path
-            .get_relative_path_to(&source.ident().await?.path.clone().parent())
+            .get_relative_path_to(&source.ident().await?.path.parent())
             .context("failed to resolve relative path for react compiler plugin")?,
     ))
 }

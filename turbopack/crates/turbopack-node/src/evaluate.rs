@@ -449,12 +449,7 @@ pub async fn get_evaluate_entries(
     let entry_module = asset_context
         .process(
             Vc::upcast(VirtualSource::new(
-                runtime_asset
-                    .ident()
-                    .await?
-                    .path
-                    .clone()
-                    .join("evaluate.js")?,
+                runtime_asset.ident().await?.path.join("evaluate.js")?,
                 AssetContent::file(
                     FileContent::Content(File::from(
                         "import {run} from 'RUNTIME'; run(() => import('INNER'))",

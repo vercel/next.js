@@ -206,9 +206,7 @@ impl CssChunk {
             ServerFileSystem::new().root().owned().await?
         };
         let mut ident = AssetIdent::from_path(path);
-        for (key, asset) in assets {
-            ident = ident.with_asset(key, asset);
-        }
+        ident.assets.extend(assets);
 
         Ok(ident.into_vc())
     }

@@ -168,7 +168,7 @@ impl MdxTransformedAsset {
                 .jsx_import_source
                 .clone()
                 .map(RcStr::into_owned),
-            filepath: Some(self.source.ident().await?.path.clone().to_string()),
+            filepath: Some(self.source.ident().await?.path.to_string()),
             ..Default::default()
         };
 

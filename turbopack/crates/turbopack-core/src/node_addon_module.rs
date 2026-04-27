@@ -52,7 +52,8 @@ impl Module for NodeAddonModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         static SHARP_BINARY_REGEX: LazyLock<Regex> =
             LazyLock::new(|| Regex::new("/sharp-(\\w+-\\w+).node$").unwrap());
-        let module_path = self.source.ident().await?.path.clone();
+        let ident = self.source.ident().await?;
+        let module_path = &ident.path;
 
         // For most .node binaries, we usually assume that they are standalone dynamic library
         // binaries that get loaded by some `require` call. So the binary itself doesn't read any

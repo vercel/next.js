@@ -308,9 +308,10 @@ async fn parse_internal(
     inline_helpers: bool,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
-    let fs_path = source.ident().await?.path.clone();
+    let source_ident = source.ident().await?;
+    let fs_path = &source_ident.path;
     let ident = &*source.ident().to_string().await?;
-    let file_path_hash = hash_xxh3_hash64(&*source.ident().to_string().await?) as u128;
+    let file_path_hash = hash_xxh3_hash64(ident) as u128;
     let content = match content.await {
         Ok(content) => content,
         Err(error) => {
@@ -340,9 +341,9 @@ async fn parse_internal(
                 let transforms = &*transforms.await?;
                 match parse_file_content(
                     file.content().clone(),
-                    &fs_path,
+                    fs_path,
                     ident,
-                    source.ident().await?.query.clone(),
+                    source_ident.query.clone(),
                     file_path_hash,
                     source,
                     ty,
@@ -765,14 +766,13 @@ pub async fn parse_from_rope(
 ) -> Result<Vc<ParseResult>> {
     let ident_vc = source.ident();
     let ident_ref = ident_vc.await?;
-    let fs_path = ident_ref.path.clone();
     let ident = &*ident_vc.to_string().await?;
     let file_path_hash = hash_xxh3_hash64(ident) as u128;
     let query = ident_ref.query.clone();
     let transforms = &*transforms.await?;
     parse_file_content(
         rope,
-        &fs_path,
+        &ident_ref.path,
         ident,
         query,
         file_path_hash,

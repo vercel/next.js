@@ -1270,7 +1270,7 @@ pub async fn try_get_next_package(
         node_cjs_resolve_options(root.clone()),
     );
     if let Some(source) = &*result.first_source().await? {
-        Ok(Vc::cell(Some(source.ident().await?.path.clone().parent())))
+        Ok(Vc::cell(Some(source.ident().await?.path.parent())))
     } else {
         MissingNextFolderIssue {
             path: context_directory,

@@ -450,15 +450,7 @@ async fn build_internal(
                             Target::Browser => chunking_context.evaluated_chunk_group_assets(
                                 AssetIdent::from_path(
                                     build_output_root
-                                        .join(
-                                            ecmascript
-                                                .ident()
-                                                .await?
-                                                .path
-                                                .clone()
-                                                .file_stem()
-                                                .unwrap(),
-                                        )?
+                                        .join(ecmascript.ident().await?.path.file_stem().unwrap())?
                                         .with_extension("entry.js"),
                                 )
                                 .into_vc(),
