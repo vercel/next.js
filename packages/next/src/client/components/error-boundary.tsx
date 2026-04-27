@@ -15,7 +15,7 @@ const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
 export type ErrorInfo = {
-  error: Error
+  error: unknown
   reset: () => void
   unstable_retry: () => void
 }
@@ -128,7 +128,8 @@ export class ErrorBoundaryHandler extends React.Component<
           {this.props.errorStyles}
           {this.props.errorScripts}
           <this.props.errorComponent
-            error={thrownValue as Error}
+            // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
+            error={thrownValue}
             reset={this.reset}
             unstable_retry={this.unstable_retry}
           />

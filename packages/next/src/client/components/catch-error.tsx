@@ -133,7 +133,8 @@ class CatchError<P extends UserProps> extends React.Component<
         <this.props.fallback
           props={this.props.props}
           errorInfo={{
-            error: thrownValue as Error,
+            // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
+            error: thrownValue,
             reset: this.reset,
             unstable_retry: this.unstable_retry,
           }}

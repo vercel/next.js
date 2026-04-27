@@ -9,7 +9,7 @@ function ErrorFallback(
 
   return (
     <>
-      <p id="pages-error-message">{error.message}</p>
+      <p id="pages-error-message">{(error as Error).message}</p>
       <button
         id="pages-reset"
         onClick={() => {
