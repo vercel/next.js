@@ -249,12 +249,13 @@ impl ReferencedAsset {
                     }
                 }
 
-                Some(ReferencedAssetIdent::Module {
-                    namespace_ident: Self::get_ident_from_placeable(asset, chunking_context)
-                        .await?,
-                    ctxt: None,
-                    export,
-                })
+                Self::get_ident_from_placeable(asset, chunking_context)
+                    .await?
+                    .map(|namespace_ident| ReferencedAssetIdent::Module {
+                        namespace_ident,
+                        ctxt: None,
+                        export,
+                    })
             }
             ReferencedAsset::External(request, ty) => Some(ReferencedAssetIdent::Module {
                 namespace_ident: magic_identifier::mangle(&format!("{ty} external {request}")),
@@ -268,11 +269,16 @@ impl ReferencedAsset {
     pub(crate) async fn get_ident_from_placeable(
         asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<String> {
-        let id = asset.chunk_item_id(chunking_context).await?;
+    ) -> Result<Option<String>> {
+        let Ok(id) = asset.chunk_item_id(chunking_context).await else {
+            return Ok(None);
+        };
+
         // There are a number of places in `next` that match on this prefix.
         // See `packages/next/src/shared/lib/magic-identifier.ts`
-        Ok(magic_identifier::mangle(&format!("imported module {id}")))
+        Ok(Some(magic_identifier::mangle(&format!(
+            "imported module {id}"
+        ))))
     }
 }
 
