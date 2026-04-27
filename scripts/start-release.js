@@ -88,11 +88,9 @@ async function main() {
   lernaArgs.push('--force-publish', '-y', '--no-push')
 
   const child = execa('pnpm', lernaArgs, {
-    stdio: 'pipe',
+    stdio: 'inherit',
   })
 
-  child.stdout?.pipe(process.stdout)
-  child.stderr?.pipe(process.stderr)
   await child
 
   await createGitHubReleaseCommit(githubToken)
@@ -102,12 +100,10 @@ async function main() {
       'pnpm',
       ['release', '--pre', '--skip-questions', '--show-url'],
       {
-        stdio: 'pipe',
+        stdio: 'inherit',
       }
     )
 
-    releaseChild.stdout?.pipe(process.stdout)
-    releaseChild.stderr?.pipe(process.stderr)
     await releaseChild
   }
 

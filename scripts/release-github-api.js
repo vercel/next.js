@@ -163,7 +163,7 @@ async function createBlobForFile(token, commitSha, filePath) {
  * blob objects for changed files in parallel while preserving deletions and
  * submodules.
  */
-async function createTreeFromLocalCommit(token, baseSha, localReleaseSha) {
+async function createTreeFromLocalCommit({ token, baseSha, localReleaseSha }) {
   const baseTreeSha = await git(['rev-parse', `${baseSha}^{tree}`], {
     captureOutput: true,
   })
@@ -276,11 +276,11 @@ async function createGitHubReleaseCommit(token) {
     `Creating GitHub-signed release commit for ${tagName} from local Lerna commit ${localReleaseSha}`
   )
 
-  const treeSha = await createTreeFromLocalCommit(
+  const treeSha = await createTreeFromLocalCommit({
     token,
     baseSha,
-    localReleaseSha
-  )
+    localReleaseSha,
+  })
   const commit = await githubRequest(
     token,
     'POST',
