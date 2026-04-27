@@ -2360,9 +2360,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
             // be scheduled and executed again
-            let _stats = CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
             #[cfg(feature = "trace_aggregation_update_stats")]
-            _span.record("stats", tracing::field::debug(_stats));
+            {
+                let stats = CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
+                _span.record("stats", tracing::field::debug(stats));
+            }
+            #[cfg(not(feature = "trace_aggregation_update_stats"))]
+            CleanupOldEdgesOperation::run(task_id, old_edges, queue, ctx);
         }
 
         Some(TaskExecutionCompletePrepareResult {
