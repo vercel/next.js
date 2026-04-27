@@ -358,20 +358,15 @@ async fn to_single_pattern_mapping(
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
                 let ident = chunking_context.async_loader_chunk_item_ident(*chunkable);
-                let Ok(loader_id) = chunking_context
+                let loader_id = chunking_context
                     .chunk_item_id_strategy()
                     .await?
                     .get_id_from_ident(ident)
-                    .await
-                else {
-                    return Ok(SinglePatternMapping::Ignored);
-                };
+                    .await?;
                 return Ok(SinglePatternMapping::ModuleLoader(loader_id));
             }
             ResolveType::ChunkItem => {
-                let Ok(item_id) = chunkable.chunk_item_id(chunking_context).await else {
-                    return Ok(SinglePatternMapping::Ignored);
-                };
+                let item_id = chunkable.chunk_item_id(chunking_context).await?;
                 return Ok(SinglePatternMapping::Module(item_id));
             }
         }
