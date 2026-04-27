@@ -949,8 +949,8 @@ jobs:
           test/production/pages-dir/production/test/index.test.ts \
           test/integration/css-client-nav/test/index.test.ts \
           test/integration/rewrites-has-condition/test/index.test.ts \
-          test/integration/create-next-app/index.test.ts \
-          test/integration/create-next-app/package-manager/pnpm.test.ts
+          test/production/create-next-app/index.test.ts \
+          test/production/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
       runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
