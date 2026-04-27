@@ -175,7 +175,6 @@
   "with-typescript": true,
   "with-typescript-graphql": true,
   "with-typescript-types": true,
-  "with-unsplash": true,
   "with-urql": true,
   "with-userbase": true,
   "with-videojs": true,
