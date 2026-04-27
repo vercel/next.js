@@ -698,8 +698,12 @@ impl EsmAssetReference {
                                 let (key, mut call_expr) = match import_source {
                                     ImportSource::Module { asset } => {
                                         let id = asset.chunk_item_id(chunking_context).await?;
+                                        // Include ctxt in the key to prevent incorrect
+                                        // deduplication when multiple merged modules import the
+                                        // same target but have different syntax contexts (which
+                                        // would cause hygiene to rename one of them).
                                         (
-                                            id.to_string().into(),
+                                            format!("{} {:?}", id, ctxt).into(),
                                             quote!(
                                                 "$turbopack_import($id)" as Expr,
                                                 turbopack_import: Expr = TURBOPACK_IMPORT.into(),
