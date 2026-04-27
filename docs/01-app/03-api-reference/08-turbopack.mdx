@@ -110,13 +110,12 @@ Turbopack in Next.js has **zero-configuration** for the common use cases. Below 
 
 ### Module resolution
 
-| Feature                | Status              | Notes                                                                                                                                                           |
-| ---------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Path Aliases**       | **Supported**       | Reads `tsconfig.json`'s `paths` and `baseUrl`, matching Next.js behavior.                                                                                       |
-| **Manual Aliases**     | **Supported**       | [Configure `resolveAlias` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases) (similar to `webpack.resolve.alias`). |
-| **Custom Extensions**  | **Supported**       | [Configure `resolveExtensions` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions).                       |
-| **`import.meta.glob`** | **Supported**       | Vite-compatible glob imports. [See below.](#importmetaglob)                                                                                                     |
-| **AMD**                | Partially Supported | Basic transforms work; advanced AMD usage is limited.                                                                                                           |
+| Feature               | Status              | Notes                                                                                                                                                           |
+| --------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Path Aliases**      | **Supported**       | Reads `tsconfig.json`'s `paths` and `baseUrl`, matching Next.js behavior.                                                                                       |
+| **Manual Aliases**    | **Supported**       | [Configure `resolveAlias` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-aliases) (similar to `webpack.resolve.alias`). |
+| **Custom Extensions** | **Supported**       | [Configure `resolveExtensions` in `next.config.js`](/docs/app/api-reference/config/next-config-js/turbopack#resolving-custom-extensions).                       |
+| **AMD**               | Partially Supported | Basic transforms work; advanced AMD usage is limited.                                                                                                           |
 
 ### Performance and Fast Refresh
 
