@@ -293,7 +293,48 @@ export default async function BlogPostPage({ params }) {
 
 Learn more about [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes) and the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) props.
 
-Nested [layouts within Dynamic Segments](/docs/app/api-reference/file-conventions/layout#params-optional), can also access the `params` props.
+Nested [layouts within Dynamic Segments](/docs/app/api-reference/file-conventions/layout#params-optional) can also access the `params` props.
+
+<details>
+<summary>Static generation with `generateStaticParams`</summary>
+
+If you know the list of dynamic params ahead of time, you can statically generate those pages at build time by exporting [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params). For example:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export async function generateStaticParams() {
+  const res = await fetch('https://api.vercel.app/blog')
+  const posts = await res.json()
+
+  return posts.map((post: { slug: string }) => ({ slug: post.slug }))
+}
+
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  // fetch and render post for `slug`
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+export async function generateStaticParams() {
+  const res = await fetch('https://api.vercel.app/blog')
+  const posts = await res.json()
+
+  return posts.map((post) => ({ slug: post.slug }))
+}
+
+export default async function Page({ params }) {
+  const { slug } = await params
+  // fetch and render post for `slug`
+}
+```
+
+Only the returned params are prerendered. By default, any other params will be generated on demand at request time. To opt out (and return 404 for unknown params), set [`dynamicParams: false`](/docs/app/api-reference/file-conventions/route-segment-config#dynamicparams).
+
+</details>
 
 ## Rendering with search params
 
