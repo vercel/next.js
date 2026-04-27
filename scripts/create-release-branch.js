@@ -2,6 +2,12 @@
 const fs = require('fs')
 const path = require('path')
 const execa = require('execa')
+const {
+  configureGitHubAuth,
+  getGitHubToken,
+  getGitHubTokenMissingMessage,
+  verifyGitHubApiAccess,
+} = require('./release-github-auth')
 
 async function main() {
   const args = process.argv
@@ -16,25 +22,20 @@ async function main() {
     throw new Error('tagName value is invalid "' + tagName + '"')
   }
 
-  const githubToken = process.env.RELEASE_BOT_GITHUB_TOKEN
+  const githubToken = getGitHubToken()
 
   if (!githubToken) {
-    console.log(`Missing RELEASE_BOT_GITHUB_TOKEN`)
+    console.log(getGitHubTokenMissingMessage())
     return
   }
 
-  await execa(
-    `git remote set-url origin https://nextjs-bot:${githubToken}@github.com/vercel/next.js.git`,
-    { stdio: 'inherit', shell: true }
+  await configureGitHubAuth(githubToken)
+  await verifyGitHubApiAccess(
+    githubToken,
+    '/repos/vercel/next.js/environments/release-stable/deployment-branch-policies?per_page=1',
+    'release-stable deployment branch policies'
   )
-  await execa(`git config user.name "nextjs-bot"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
-  await execa(`git config user.email "it+nextjs-bot@vercel.com"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
+
   await execa(`git checkout -b "${branchName}"`, {
     stdio: 'inherit',
     shell: true,
@@ -96,6 +97,7 @@ async function main() {
     stdio: 'inherit',
     shell: true,
   })
+
   await execa(`git push origin "${branchName}"`, {
     stdio: 'inherit',
     shell: true,

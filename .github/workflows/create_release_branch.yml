@@ -11,10 +11,6 @@ on:
         type: string
         required: true
 
-    secrets:
-      RELEASE_BOT_GITHUB_TOKEN:
-        required: true
-
 name: Create Release Branch
 
 env:
@@ -39,13 +35,33 @@ jobs:
           node-version: 20
           check-latest: true
 
+      - name: Create GitHub App token
+        id: release-app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_GITHUB_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: next.js
+          permission-contents: write
+          permission-environments: write
+          permission-workflows: write
+
+      - name: Get GitHub App user ID
+        id: release-app-user
+        run: |
+          user_id="$(gh api "/users/${{ steps.release-app-token.outputs.app-slug }}[bot]" --jq .id)"
+          echo "user-id=$user_id" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
+
       - name: Clone Next.js repository
         run: git clone https://github.com/vercel/next.js.git --depth=25 --single-branch --branch ${GITHUB_REF_NAME:-canary} .
 
       - name: Check token
         run: gh auth status
         env:
-          GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.release-app-token.outputs.token }}
 
       # https://github.com/actions/virtual-environments/issues/1187
       - name: tune linux network
@@ -72,6 +88,8 @@ jobs:
 
       - run: node ./scripts/create-release-branch.js --branch-name "${INPUT_BRANCHNAME}" --tag-name "${INPUT_TAGNAME}"
         env:
-          RELEASE_BOT_GITHUB_TOKEN: ${{ secrets.RELEASE_BOT_GITHUB_TOKEN }}
+          RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
+          RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
+          RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
           INPUT_BRANCHNAME: ${{ github.event.inputs.branchName }}
           INPUT_TAGNAME: ${{ github.event.inputs.tagName }}
