@@ -122,8 +122,7 @@ async fn compute_side_effect_free_module_info_single(
                         ModuleSideEffects::SideEffectful => None,
                         ModuleSideEffects::SideEffectFree => Some((m, false)),
                         ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
-                            if locally_side_effect_free_modules_that_have_side_effects.contains(&m)
-                            {
+                            if locally_side_effect_free_modules_that_have_side_effects.contains(m) {
                                 None
                             } else {
                                 Some((m, true))
