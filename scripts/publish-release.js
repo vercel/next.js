@@ -48,29 +48,38 @@ const cwd = process.cwd()
         ? 'beta'
         : 'latest'
 
+  const version = JSON.parse(
+    await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
+  ).version
+  let tags
+
   try {
-    if (!isCanary && !isReleaseCandidate && !isBeta) {
-      const version = JSON.parse(
-        await fs.promises.readFile(path.join(cwd, 'lerna.json'), 'utf-8')
-      ).version
-
-      const res = await fetch(
-        `https://registry.npmjs.org/-/package/next/dist-tags`
-      )
-      const tags = await res.json()
-
-      if (semver.lt(version, tags.latest)) {
-        // If the current version is less than the latest, it means this
-        // is a backport release. Since NPM sets the 'latest' tag by default
-        // during publishing, when users install `next@latest`, they might
-        // get the backported version instead of the actual "latest" version.
-        // Therefore, we explicitly set the tag as 'backport' for backports.
-        tag = 'backport'
-      }
-    }
+    const res = await fetch(
+      `https://registry.npmjs.org/-/package/next/dist-tags`
+    )
+    tags = await res.json()
   } catch (error) {
     console.log('Failed to fetch Next.js dist tags from the NPM registry.')
     throw error
+  }
+
+  if (isCanary || isReleaseCandidate || isBeta) {
+    const publishedVersion = tags[tag]
+
+    if (publishedVersion && semver.gt(publishedVersion, version)) {
+      throw new Error(
+        `Refusing to publish stale ${tag} release ${version}; npm ${tag} is already ${publishedVersion}`
+      )
+    }
+  } else {
+    if (semver.lt(version, tags.latest)) {
+      // If the current version is less than the latest, it means this
+      // is a backport release. Since NPM sets the 'latest' tag by default
+      // during publishing, when users install `next@latest`, they might
+      // get the backported version instead of the actual "latest" version.
+      // Therefore, we explicitly set the tag as 'backport' for backports.
+      tag = 'backport'
+    }
   }
 
   console.log(`Publishing as "${tag}" dist tag...`)
