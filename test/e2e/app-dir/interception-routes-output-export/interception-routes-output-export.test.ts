@@ -29,11 +29,13 @@ describe('interception-routes-output-export', () => {
       })
 
       try {
+        // The dev server can take a while to boot in CI before the
+        // interception route check runs, so use a generous timeout.
         await retry(async () => {
           expect(stderr).toContain(
             'Intercepting routes are not supported with static export.'
           )
-        })
+        }, 30 * 1000)
       } finally {
         if (child) {
           await killApp(child).catch(() => {})
