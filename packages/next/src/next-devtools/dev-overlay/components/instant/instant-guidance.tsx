@@ -289,7 +289,25 @@ const DOCS_URLS: Record<GuidanceKind, string> = {
 const SYNC_IO_DOCS: Record<string, string> = {
   'Math.random()': 'https://nextjs.org/docs/messages/next-prerender-random',
   'Date.now()': 'https://nextjs.org/docs/messages/next-prerender-current-time',
+  'Date()': 'https://nextjs.org/docs/messages/next-prerender-current-time',
+  'new Date()': 'https://nextjs.org/docs/messages/next-prerender-current-time',
   'crypto.randomUUID()':
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  'crypto.getRandomValues()':
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  "require('node:crypto').randomUUID()":
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  "require('node:crypto').randomBytes(size)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  "require('node:crypto').randomFillSync(...)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  "require('node:crypto').randomInt(min, max)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  "require('node:crypto').generatePrimeSync(...)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  "require('node:crypto').generateKeyPairSync(...)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto',
+  "require('node:crypto').generateKeySync(...)":
     'https://nextjs.org/docs/messages/next-prerender-crypto',
 }
 
@@ -306,7 +324,17 @@ const EXPLANATIONS: Record<GuidanceKind, string> = {
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
   'Date.now()': syncDateCards,
+  'Date()': syncDateCards,
+  'new Date()': syncDateCards,
   'crypto.randomUUID()': syncCryptoCards,
+  'crypto.getRandomValues()': syncCryptoCards,
+  "require('node:crypto').randomUUID()": syncCryptoCards,
+  "require('node:crypto').randomBytes(size)": syncCryptoCards,
+  "require('node:crypto').randomFillSync(...)": syncCryptoCards,
+  "require('node:crypto').randomInt(min, max)": syncCryptoCards,
+  "require('node:crypto').generatePrimeSync(...)": syncCryptoCards,
+  "require('node:crypto').generateKeyPairSync(...)": syncCryptoCards,
+  "require('node:crypto').generateKeySync(...)": syncCryptoCards,
 }
 
 function getCards(

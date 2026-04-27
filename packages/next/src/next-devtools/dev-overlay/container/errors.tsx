@@ -268,7 +268,25 @@ function isRuntimeVariant(message: string): boolean {
   )
 }
 
-const SYNC_IO_APIS = ['Math.random()', 'Date.now()', 'crypto.randomUUID()']
+const SYNC_IO_APIS = [
+  // Math
+  'Math.random()',
+  // Date/Time — `new Date()` before `Date()` to avoid substring false positive
+  'Date.now()',
+  'new Date()',
+  'Date()',
+  // Node Crypto — longer strings first to avoid substring false positives
+  "require('node:crypto').generateKeyPairSync(...)",
+  "require('node:crypto').generateKeySync(...)",
+  "require('node:crypto').generatePrimeSync(...)",
+  "require('node:crypto').randomFillSync(...)",
+  "require('node:crypto').randomBytes(size)",
+  "require('node:crypto').randomInt(min, max)",
+  "require('node:crypto').randomUUID()",
+  // Web Crypto
+  'crypto.getRandomValues()',
+  'crypto.randomUUID()',
+]
 
 // Matches error messages from `createSyncIOMessage` and `createSyncIORuntimeMessage`
 // in io-utils.tsx, as well as the legacy `needs to bail out` phrasing.
