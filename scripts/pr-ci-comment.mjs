@@ -531,7 +531,22 @@ async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
     return
   }
 
-  console.log('No stats block found in the completed stats workflow')
+  console.log(
+    'No stats block found in the completed stats workflow. Assuming stats were skipped.'
+  )
+
+  const sha = pr.headSha || workflowRun.head_sha
+  const body = [
+    STATS_COMMENT_MARKER,
+    '## Stats skipped',
+    '',
+    `Commit: ${sha}`,
+    `[View workflow run](${workflowRun.html_url})`,
+    '',
+  ].join('\n')
+  await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
+    '## Stats from current PR',
+  ])
 }
 
 async function handleBuildAndTestWorkflow({
