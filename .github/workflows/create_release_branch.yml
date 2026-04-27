@@ -43,7 +43,6 @@ jobs:
           private-key: ${{ secrets.RELEASE_GITHUB_APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
           repositories: next.js
-          permission-administration: write
           permission-contents: write
           permission-environments: write
           permission-workflows: write
