@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
- 
+
 import { preload } from 'react-dom'
 import Link from 'next/link'
 
@@ -41,7 +41,7 @@ export default function Home() {
   return (
     <main id="home">
       <h1>Home</h1>
-      <Link href="/logs" id="link-logs" prefetch={false}>
+      <Link href="/logs" id="link-logs">
         Go to /logs
       </Link>
     </main>
