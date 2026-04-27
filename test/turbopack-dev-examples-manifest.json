@@ -177,7 +177,6 @@
   "with-typescript-types": true,
   "with-unsplash": true,
   "with-urql": true,
-  "with-userbase": true,
   "with-videojs": true,
   "with-vitest": true,
   "with-web-worker": true,
