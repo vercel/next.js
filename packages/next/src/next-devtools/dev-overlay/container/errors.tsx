@@ -288,12 +288,13 @@ const SYNC_IO_APIS = [
   'crypto.randomUUID()',
 ]
 
-// Matches error messages from `createSyncIOMessage` and `createSyncIORuntimeMessage`
-// in io-utils.tsx, as well as the legacy `needs to bail out` phrasing.
+// Discriminates sync IO errors from `createSyncIOMessage` and `createSyncIORuntimeMessage`
 function isSyncIOError(message: string): boolean {
   return (
     message.includes('needs to bail out of prerendering') ||
-    message.includes('was called before any data access')
+    message.includes('next-prerender-random') ||
+    message.includes('next-prerender-current-time') ||
+    message.includes('next-prerender-crypto')
   )
 }
 
@@ -622,8 +623,8 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
           errorType={errorType}
           errorMessage={
             <>
-              <code>{errorDetails.cause}</code> was called before any data
-              access.
+              Next.js encountered <code>{errorDetails.cause}</code> during the
+              initial render.
             </>
           }
           onClose={isServerError ? undefined : onClose}
@@ -643,7 +644,7 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               variant="runtime"
               kind="sync-io"
               cause={errorDetails.cause}
-              explanation={`Without a prior data access, Next.js doesn't know if this value should be fixed or fresh.`}
+              explanation="Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request."
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>

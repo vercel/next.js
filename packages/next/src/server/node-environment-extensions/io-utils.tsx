@@ -30,8 +30,8 @@ function createSyncIOMessage(
   type: ApiType
 ): string {
   return (
-    `Route "${route}": ${expression} was called before any data access.\n\n` +
-    `Without a prior data access, Next.js doesn't know if this value should be fixed or fresh. This prevents the route from being prerendered, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
+    `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
     `Ways to fix this:\n` +
     `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
     `  - Move the expression into a \`"use client"\` component\n` +
@@ -46,8 +46,8 @@ function createSyncIORuntimeMessage(
   type: ApiType
 ): string {
   return (
-    `Route "${route}": ${expression} was called before any data access.\n\n` +
-    `When configured for Runtime prefetching, Next.js needs a data access before this call to determine if the value should be fixed or fresh. This prevents the route from being prerendered, leading to a slower user experience.\n\n` +
+    `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
+    `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
     `Ways to fix this:\n` +
     `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
     `  - Move the expression into a \`"use client"\` component\n` +
@@ -91,8 +91,8 @@ export function io(expression: string, type: ApiType) {
         // any stacks because something else actually terminated the prerender.
         const docsUrl = SYNC_IO_CLIENT_DOCS[type]
         const message =
-          `Route "${workStore.route}": ${expression} was used inside a Client Component without a \`<Suspense>\` boundary above it.\n\n` +
-          `This prevents the route from being prerendered, leading to a slower user experience.\n\n` +
+          `Route "${workStore.route}": Next.js encountered ${expression} inside a Client Component without a \`<Suspense>\` boundary above it.\n\n` +
+          `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
           `Ways to fix this:\n` +
           `  - Wrap the Client Component in a \`<Suspense>\` boundary\n` +
           `  - Move the expression into a \`"use cache"\` component\n\n` +
