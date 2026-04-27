@@ -1,6 +1,9 @@
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 
-describe('500 Page build validation', () => {
+// This test exercises `next build` outputs and `next start` behaviour, so it
+// is meaningless in dev mode where the dev server bypasses production build
+// artifacts (e.g. statically prerendered 500.html from getStaticProps).
+;(isNextDev ? describe.skip : describe)('500 Page build validation', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
