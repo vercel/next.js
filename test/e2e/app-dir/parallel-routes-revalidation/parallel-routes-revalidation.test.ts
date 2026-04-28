@@ -380,6 +380,30 @@ describe('parallel-routes-revalidation', () => {
   )
 
   describe('server action revalidation', () => {
+    it('should not hard navigate when updateTag is called from a nested intercepted modal', async () => {
+      const browser = await next.browser('/test')
+
+      await browser.elementById('go-test-new').click()
+      await browser.waitForElementByCss('#test-new-modal')
+
+      await browser.elementById('go-test-id').click()
+      await browser.waitForElementByCss('#test-detail-page')
+
+      await browser.elementById('go-test-id-new').click()
+      await browser.waitForElementByCss('#test-id-new-modal')
+
+      await browser.elementById('update-tag').click()
+
+      await retry(async () => {
+        // A hard navigation to /test/42/new would render 404 because there is
+        // no non-intercepted route for that pathname.
+        expect(
+          await browser.hasElementByCssSelector('#test-id-new-modal')
+        ).toBe(true)
+        expect(await browser.elementByCss('body').text()).not.toContain('404')
+      })
+    })
+
     it('handles refreshing when multiple parallel slots are active', async () => {
       const browser = await next.browser('/nested-revalidate')
 
