@@ -229,12 +229,11 @@ impl Storage {
                     // track_modification), so any_modified() is sufficient.
                     if flags.any_modified() {
                         if key.is_transient() {
-                            if cfg!(debug_assertions) {
-                                unreachable!(
-                                    "found a modified transient task: {:?}",
-                                    shared_value.get().get_persistent_task_type()
-                                );
-                            }
+                            debug_assert!(
+                                false,
+                                "found a modified transient task: {:?}",
+                                shared_value.get().get_persistent_task_type()
+                            );
                             continue;
                         }
 
