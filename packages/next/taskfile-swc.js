@@ -47,7 +47,7 @@ module.exports = function (task) {
           targets: MODERN_BROWSERSLIST_TARGET,
         },
         jsc: {
-          loose: true,
+          loose: false,
           externalHelpers: true,
           parser: {
             syntax: 'typescript',
@@ -67,6 +67,7 @@ module.exports = function (task) {
               development: false,
               useBuiltins: true,
             },
+            useDefineForClassFields: true,
           },
         },
       }
@@ -91,7 +92,7 @@ module.exports = function (task) {
           },
         },
         jsc: {
-          loose: true,
+          loose: false,
           // Do not enable external helpers on server-side files build
           // _is_native_function helper is not compatible with edge runtime (need investigate)
           externalHelpers: false,
@@ -113,6 +114,7 @@ module.exports = function (task) {
               development: false,
               useBuiltins: true,
             },
+            useDefineForClassFields: true,
           },
         },
       }
