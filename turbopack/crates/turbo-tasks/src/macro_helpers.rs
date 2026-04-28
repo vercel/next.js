@@ -182,6 +182,7 @@ where
     /// Accumulator written from ctors. `Some` until `finalize` runs, then `take`n and left
     /// `None` so any post-finalize call to `register` panics rather than silently dropping
     /// the registration. The `None` state also makes subsequent `finalize` calls cheap no-ops.
+    #[allow(clippy::type_complexity)]
     pending: SyncUnsafeCell<Option<Vec<(&'static ValueType, DynMetadata<T>)>>>,
     /// Built once by `finalize`, read-only thereafter. `None` until finalize runs.
     inner: SyncUnsafeCell<Option<FxHashMap<ValueTypeId, DynMetadata<T>>>>,
