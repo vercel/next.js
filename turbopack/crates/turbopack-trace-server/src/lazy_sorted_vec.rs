@@ -1,7 +1,15 @@
 use std::{cell::UnsafeCell, ops::Deref, sync::Once};
 
+use smallvec::SmallVec;
+
+/// Backing storage for `LazySortedVec`. Inlines a single element so that
+/// the common case (e.g. a leaf span with one self-time event) does not
+/// pay a heap allocation. With one inline slot plus the workspace's
+/// `union` smallvec feature, this is the same size as a `Vec`.
+type Inner<T> = SmallVec<[T; 1]>;
+
 pub struct LazySortedVec<T> {
-    vec: UnsafeCell<Vec<T>>,
+    vec: UnsafeCell<Inner<T>>,
     once: Once,
 }
 
@@ -11,7 +19,7 @@ unsafe impl<T> Sync for LazySortedVec<T> where T: Sync {}
 impl<T> LazySortedVec<T> {
     pub fn new() -> Self {
         Self {
-            vec: UnsafeCell::new(Vec::new()),
+            vec: UnsafeCell::new(SmallVec::new()),
             once: Once::new(),
         }
     }
@@ -21,8 +29,8 @@ impl<T> LazySortedVec<T> {
         self.vec.get_mut().push(value);
     }
 
-    pub fn retain_unordered(&mut self, f: impl FnMut(&T) -> bool) {
-        self.vec.get_mut().retain(f);
+    pub fn retain_unordered(&mut self, mut f: impl FnMut(&T) -> bool) {
+        self.vec.get_mut().retain(|t| f(t));
     }
 
     pub fn iter_mut_unordered(&mut self) -> std::slice::IterMut<'_, T> {
@@ -31,7 +39,7 @@ impl<T> LazySortedVec<T> {
 }
 
 impl<T: Ord> Deref for LazySortedVec<T> {
-    type Target = Vec<T>;
+    type Target = [T];
 
     fn deref(&self) -> &Self::Target {
         let ptr = self.vec.get();
@@ -44,7 +52,7 @@ impl<T: Ord> Deref for LazySortedVec<T> {
         // SAFETY: Returning this reference is safe because the lifetime guarantees that there is no
         // `&mut self` that could cause a simultaneous access to the `vec`, and the `Once`
         // guarantees that the sorting is complete before we return the reference.
-        unsafe { &*ptr }
+        unsafe { &*ptr }.as_slice()
     }
 }
 
@@ -54,10 +62,19 @@ impl<T> Default for LazySortedVec<T> {
     }
 }
 
+impl<T> From<Inner<T>> for LazySortedVec<T> {
+    fn from(vec: Inner<T>) -> Self {
+        Self {
+            vec: UnsafeCell::new(vec),
+            once: Once::new(),
+        }
+    }
+}
+
 impl<T> From<Vec<T>> for LazySortedVec<T> {
     fn from(vec: Vec<T>) -> Self {
         Self {
-            vec: UnsafeCell::new(vec),
+            vec: UnsafeCell::new(SmallVec::from_vec(vec)),
             once: Once::new(),
         }
     }

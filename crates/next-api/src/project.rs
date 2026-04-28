@@ -2482,7 +2482,7 @@ async fn scale_down_node_pool(project: ResolvedVc<Project>) -> Result<()> {
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<BaseAndFullModuleGraph>> {
-    let span = tracing::info_span!("whole app module graph", modules = Empty);
+    let span = tracing::info_span!("whole app module graph", modules = Empty, edges = Empty);
     let span_clone = span.clone();
     async move {
         let next_mode = project.next_mode();
@@ -2529,15 +2529,24 @@ async fn whole_app_module_graph_operation(
                 .connect()
                 .module_count()
                 .untracked()
-                .owned()
                 .await?;
             let additional_module_count = additional_module_graph
                 .connect()
                 .module_count()
                 .untracked()
-                .owned()
                 .await?;
-            span.record("modules", base_module_count + additional_module_count);
+            span.record("modules", *base_module_count + *additional_module_count);
+            let base_edge_count = base_single_module_graph
+                .connect()
+                .edge_count()
+                .untracked()
+                .await?;
+            let additional_edge_count = additional_module_graph
+                .connect()
+                .edge_count()
+                .untracked()
+                .await?;
+            span.record("edges", *base_edge_count + *additional_edge_count);
         }
 
         let graphs = vec![base_single_module_graph, additional_module_graph];
