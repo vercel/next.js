@@ -150,6 +150,8 @@ impl Debug for TaskId {
     }
 }
 
+unsafe impl crate::NonLocalValue for TaskId {}
+
 pub const TRANSIENT_TASK_BIT: u32 = 0x8000_0000;
 
 impl TaskId {

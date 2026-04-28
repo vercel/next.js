@@ -159,20 +159,13 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
     ) -> Result<TypedCellContent>;
 
-    fn read_own_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<TypedCellContent>;
+    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(
         &self,
         task: TaskId,
         index: CellId,
-        is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
@@ -1484,10 +1477,9 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
         self.backend
-            .try_read_own_task_cell(current_task, index, options, self)
+            .try_read_own_task_cell(current_task, index, self)
     }
 
     #[track_caller]
@@ -1557,20 +1549,14 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         }
     }
 
-    fn read_own_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        options: ReadCellOptions,
-    ) -> Result<TypedCellContent> {
-        self.try_read_own_task_cell(task, index, options)
+    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
+        self.try_read_own_task_cell(task, index)
     }
 
     fn update_own_task_cell(
         &self,
         task: TaskId,
         index: CellId,
-        is_serializable_cell_content: bool,
         content: CellContent,
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
@@ -1579,7 +1565,6 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.update_task_cell(
             task,
             index,
-            is_serializable_cell_content,
             content,
             updated_key_hashes,
             content_hash,
@@ -1964,7 +1949,7 @@ pub fn mark_invalidator() {
 }
 
 /// Marks the current task as stateful. This is used to indicate that the task
-/// has interior mutability (e.g., via State or TransientState), which means
+/// has interior mutability (e.g., via [`State`][crate::State]), which means
 /// the task may produce different outputs even with the same inputs.
 ///
 /// Only has an effect when the `verify_determinism` feature is enabled.
@@ -2041,7 +2026,6 @@ pub(crate) async fn read_task_output(
 pub struct CurrentCellRef {
     current_task: TaskId,
     index: CellId,
-    is_serializable_cell_content: bool,
 }
 
 type VcReadTarget<T> = <<T as VcValueType>::Read as VcRead<T>>::Target;
@@ -2077,24 +2061,12 @@ impl CurrentCellRef {
         )>,
     ) {
         let tt = turbo_tasks();
-        let cell_content = tt
-            .read_own_task_cell(
-                self.current_task,
-                self.index,
-                ReadCellOptions {
-                    // INVALIDATION: Reading our own cell must be untracked
-                    tracking: ReadCellTracking::Untracked,
-                    is_serializable_cell_content: self.is_serializable_cell_content,
-                    final_read_hint: false,
-                },
-            )
-            .ok();
+        let cell_content = tt.read_own_task_cell(self.current_task, self.index).ok();
         let update = functor(cell_content.as_ref().and_then(|cc| cc.1.0.as_ref()));
         if let Some((update, updated_key_hashes, content_hash)) = update {
             tt.update_own_task_cell(
                 self.current_task,
                 self.index,
-                self.is_serializable_cell_content,
                 CellContent(Some(update)),
                 updated_key_hashes,
                 content_hash,
@@ -2286,7 +2258,6 @@ impl CurrentCellRef {
         tt.update_own_task_cell(
             self.current_task,
             self.index,
-            self.is_serializable_cell_content,
             CellContent(Some(SharedReference::new(triomphe::Arc::new(new_value)))),
             None,
             None,
@@ -2308,18 +2279,7 @@ impl CurrentCellRef {
     ) {
         let tt = turbo_tasks();
         let update = if matches!(verification_mode, VerificationMode::EqualityCheck) {
-            let content = tt
-                .read_own_task_cell(
-                    self.current_task,
-                    self.index,
-                    ReadCellOptions {
-                        // INVALIDATION: Reading our own cell must be untracked
-                        tracking: ReadCellTracking::Untracked,
-                        is_serializable_cell_content: self.is_serializable_cell_content,
-                        final_read_hint: false,
-                    },
-                )
-                .ok();
+            let content = tt.read_own_task_cell(self.current_task, self.index).ok();
             if let Some(TypedCellContent(_, CellContent(Some(shared_ref_exp)))) = content {
                 // pointer equality (not value equality)
                 shared_ref_exp != shared_ref
@@ -2333,7 +2293,6 @@ impl CurrentCellRef {
             tt.update_own_task_cell(
                 self.current_task,
                 self.index,
-                self.is_serializable_cell_content,
                 CellContent(Some(shared_ref)),
                 None,
                 None,
@@ -2355,10 +2314,10 @@ fn extract_sr_value<T: VcValueType>(sr: &SharedReference) -> &T {
 }
 
 pub fn find_cell_by_type<T: VcValueType>() -> CurrentCellRef {
-    find_cell_by_id(T::get_value_type_id(), T::has_serialization())
+    find_cell_by_id(T::get_value_type_id())
 }
 
-pub fn find_cell_by_id(ty: ValueTypeId, is_serializable_cell_content: bool) -> CurrentCellRef {
+pub fn find_cell_by_id(ty: ValueTypeId) -> CurrentCellRef {
     CURRENT_TASK_STATE.with(|ts| {
         let current_task = current_task("celling turbo_tasks values");
         let mut ts = ts.write().unwrap();
@@ -2369,7 +2328,6 @@ pub fn find_cell_by_id(ty: ValueTypeId, is_serializable_cell_content: bool) -> C
         CurrentCellRef {
             current_task,
             index: CellId { type_id: ty, index },
-            is_serializable_cell_content,
         }
     })
 }

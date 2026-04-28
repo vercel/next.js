@@ -243,6 +243,9 @@ importers:
       '@vercel/agent-eval':
         specifier: 0.9.5
         version: 0.9.5
+      '@vercel/blob':
+        specifier: 2.3.2
+        version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
       '@vercel/devlow-bench':
         specifier: workspace:*
         version: link:turbopack/packages/devlow-bench
@@ -980,7 +983,7 @@ importers:
   packages/eslint-config-next:
     dependencies:
       '@next/eslint-plugin-next':
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../eslint-plugin-next
       eslint:
         specifier: '>=9.0.0'
@@ -1057,7 +1060,7 @@ importers:
   packages/next:
     dependencies:
       '@next/env':
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../next-env
       '@swc/helpers':
         specifier: 0.5.15
@@ -1178,19 +1181,19 @@ importers:
         specifier: 1.2.0
         version: 1.2.0
       '@next/font':
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../font
       '@next/polyfill-module':
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../next-polyfill-module
       '@next/polyfill-nomodule':
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../next-polyfill-nomodule
       '@next/react-refresh-utils':
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../react-refresh-utils
       '@next/swc':
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../next-swc
       '@opentelemetry/api':
         specifier: 1.6.0
@@ -1924,7 +1927,7 @@ importers:
         version: 1.0.20
     devDependencies:
       next:
-        specifier: 16.3.0-canary.2
+        specifier: 16.3.0-canary.4
         version: link:../next
       outdent:
         specifier: 0.8.0
@@ -11486,10 +11489,6 @@ packages:
 
   is-buffer@1.1.6:
     resolution: {integrity: sha512-NcdALwpXkTm5Zvvbk7owOUSvVvBKDgKP5/ewfXEznmQFfs4ZRmanOeKBTjRVjka3QFoN6XJ+9F3USqfHqTaU5w==}
-
-  is-buffer@2.0.4:
-    resolution: {integrity: sha512-Kq1rokWXOPXWuaMAqZiJW4XxsmD9zGx9q4aePabbn3qCRGedtH7Cm+zV8WETitMfu1wdh+Rvd6w5egwSngUX2A==}
-    engines: {node: '>=4'}
 
   is-buffer@2.0.5:
     resolution: {integrity: sha512-i2R6zNFDwgEHJyQUtJEk0XFi1i0dPFn/oqjK3/vPCcDeJvW5NQ83V8QbicfF1SupOaB0h8ntgBC2YiE7dfyctQ==}
@@ -29732,8 +29731,6 @@ snapshots:
 
   is-buffer@1.1.6: {}
 
-  is-buffer@2.0.4: {}
-
   is-buffer@2.0.5: {}
 
   is-builtin-module@3.2.1:
@@ -37047,7 +37044,7 @@ snapshots:
 
   to-vfile@6.1.0:
     dependencies:
-      is-buffer: 2.0.4
+      is-buffer: 2.0.5
       vfile: 4.2.1
 
   toidentifier@1.0.0: {}
@@ -37414,7 +37411,7 @@ snapshots:
       figures: 3.1.0
       glob: 7.1.7
       ignore: 5.3.2
-      is-buffer: 2.0.4
+      is-buffer: 2.0.5
       is-empty: 1.2.0
       is-plain-obj: 2.1.0
       js-yaml: 3.14.1
@@ -37438,7 +37435,7 @@ snapshots:
       '@types/unist': 2.0.3
       bail: 2.0.2
       extend: 3.0.2
-      is-buffer: 2.0.4
+      is-buffer: 2.0.5
       is-plain-obj: 4.1.0
       trough: 2.1.0
       vfile: 5.3.6
@@ -37458,7 +37455,7 @@ snapshots:
       '@types/unist': 2.0.3
       bail: 1.0.4
       extend: 3.0.2
-      is-buffer: 2.0.4
+      is-buffer: 2.0.5
       is-plain-obj: 2.1.0
       trough: 1.0.4
       vfile: 4.2.1
@@ -37907,14 +37904,14 @@ snapshots:
   vfile@4.2.1:
     dependencies:
       '@types/unist': 2.0.3
-      is-buffer: 2.0.4
+      is-buffer: 2.0.5
       unist-util-stringify-position: 2.0.3
       vfile-message: 2.0.4
 
   vfile@5.3.6:
     dependencies:
       '@types/unist': 2.0.3
-      is-buffer: 2.0.4
+      is-buffer: 2.0.5
       unist-util-stringify-position: 3.0.3
       vfile-message: 3.1.3
 

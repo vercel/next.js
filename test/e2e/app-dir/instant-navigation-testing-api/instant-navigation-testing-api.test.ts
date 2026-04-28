@@ -512,6 +512,52 @@ describe('instant-navigation-testing-api', () => {
     })
   })
 
+  it('does not bake dynamic route params into the instant shell when no generateStaticParams is defined', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-ungenerated-params')
+
+      // Suspense fallback is visible in the instant shell
+      const fallback = page.locator(
+        '[data-testid="ungenerated-params-fallback"]'
+      )
+      await fallback.waitFor({ state: 'visible' })
+
+      // The resolved param value must not be present in the shell
+      const paramValue = page.locator('[data-testid="ungenerated-param-value"]')
+      expect(await paramValue.count()).toBe(0)
+    })
+
+    // After the instant scope exits, the param value streams in normally
+    const paramValue = page.locator('[data-testid="ungenerated-param-value"]')
+    await paramValue.waitFor({ state: 'visible' })
+    expect(await paramValue.textContent()).toContain('slug: anything')
+  })
+
+  it('does include dynamic route params in the instant shell when runtime prefetching is enabled', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-ungenerated-params-runtime')
+
+      // The param value IS in the shell because the route opts into runtime
+      // prefetching, so the prefetch resolves `slug` rather than returning
+      // the generic fallback.
+      const paramValue = page.locator(
+        '[data-testid="ungenerated-param-runtime-value"]'
+      )
+      await paramValue.waitFor({ state: 'visible' })
+      expect(await paramValue.textContent()).toContain('slug: anything')
+
+      // Suspense fallback is NOT visible
+      const fallback = page.locator(
+        '[data-testid="ungenerated-params-runtime-fallback"]'
+      )
+      expect(await fallback.count()).toBe(0)
+    })
+  })
+
   // In dev mode, hover/intent-based prefetches should not send requests
   // that produce stale segment data. If a hover prefetch caches the route
   // with resolved runtime data before the instant lock is acquired, params
@@ -694,6 +740,56 @@ describe('instant-navigation-testing-api', () => {
       (c) => c.name === 'next-instant-navigation-testing'
     )
     expect(instantCookie).toBeUndefined()
+  })
+
+  it('blocks out-of-band client fetch during instant scope (SPA)', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#link-to-client-fetch')
+
+      // The page title appears (it's a client component, rendered immediately)
+      const title = page.locator('[data-testid="client-fetch-title"]')
+      await title.waitFor({ state: 'visible' })
+
+      // The fetch to /api/data is blocked, so the loading state persists
+      const loading = page.locator('[data-testid="fetched-data-loading"]')
+      await loading.waitFor({ state: 'visible' })
+
+      // The fetched data has NOT arrived
+      const fetchedData = page.locator('[data-testid="fetched-data"]')
+      expect(await fetchedData.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, the fetch completes
+    const fetchedData = page.locator('[data-testid="fetched-data"]')
+    await fetchedData.waitFor({ state: 'visible' })
+    expect(await fetchedData.textContent()).toContain('api response')
+  })
+
+  it('blocks out-of-band client fetch during instant scope (MPA)', async () => {
+    const page = await openPage(next, '/')
+
+    await instant(page, async () => {
+      await page.click('#plain-link-to-client-fetch')
+
+      // The page title appears
+      const title = page.locator('[data-testid="client-fetch-title"]')
+      await title.waitFor({ state: 'visible' })
+
+      // The fetch to /api/data is blocked, so the loading state persists
+      const loading = page.locator('[data-testid="fetched-data-loading"]')
+      await loading.waitFor({ state: 'visible' })
+
+      // The fetched data has NOT arrived
+      const fetchedData = page.locator('[data-testid="fetched-data"]')
+      expect(await fetchedData.count()).toBe(0)
+    })
+
+    // After exiting the instant scope, the fetch completes
+    const fetchedData = page.locator('[data-testid="fetched-data"]')
+    await fetchedData.waitFor({ state: 'visible' })
+    expect(await fetchedData.textContent()).toContain('api response')
   })
 
   it('clears cookie even when callback throws', async () => {

@@ -1459,11 +1459,6 @@ function assignDefaultsAndValidate(
   if (result.cacheComponents) {
     // TODO: remove once we've finished migrating internally to cacheComponents.
     result.experimental.ppr = true
-
-    // Prerender sourcemaps are enabled by default when using cacheComponents, unless explicitly disabled.
-    if (result.enablePrerenderSourceMaps === undefined) {
-      result.enablePrerenderSourceMaps = true
-    }
   }
 
   // "use cache" was originally implicitly enabled with the cacheComponents flag, so
@@ -1524,6 +1519,14 @@ function assignDefaultsAndValidate(
 
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
+  }
+
+  // Derive the `'use cache'` fill timeout from `staticPageGenerationTimeout`
+  // if the user didn't set one explicitly. 90% leaves headroom for the
+  // cache-fill error to surface before the build worker kills the page.
+  if (result.experimental.useCacheTimeout === undefined) {
+    result.experimental.useCacheTimeout =
+      result.staticPageGenerationTimeout * 0.9
   }
 
   return result as NextConfigComplete
@@ -2017,9 +2020,6 @@ function enforceExperimentalFeatures(
     debugPrerender &&
     (phase === PHASE_PRODUCTION_BUILD || phase === PHASE_EXPORT)
   ) {
-    // TODO: This is not an experimental feature, but should be enabled alongside other prerender debugging features.
-    config.enablePrerenderSourceMaps = true
-
     setExperimentalFeatureForDebugPrerender(
       config.experimental,
       'serverSourceMaps',

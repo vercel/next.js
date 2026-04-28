@@ -1,0 +1,13 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/import-meta-glob-errors/input/index.js:6:9  TP1008 import.meta.glob() requires 1 or 2 arguments
+  
+       2 | // They are wrapped in functions to avoid runtime evaluation errors, since
+       3 | // invalid glob calls are not transformed and would throw at runtime.
+       4 | 
+       5 | function getTooMany() {
+         +          v------------------------------------v
+       6 +   return import.meta.glob('./dir/*.js', {}, {})
+         +          ^------------------------------------^
+       7 | }
+       8 | 
+       9 | function getNumPattern() {
+      10 |   return import.meta.glob(123)
