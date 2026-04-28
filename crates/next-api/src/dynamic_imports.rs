@@ -120,38 +120,36 @@ pub struct DynamicImportEntries(
 pub async fn map_next_dynamic(
     graph: ResolvedVc<ModuleGraphLayer>,
 ) -> Result<Vc<DynamicImportEntries>> {
-    let actions = graph
-        .await?
-        .iter_nodes()
-        .map(|module| async move {
-            if module
-                .ident()
-                .await?
-                .layer
-                .as_ref()
-                .is_some_and(|layer| layer.name() == "app-client" || layer.name() == "client")
-                && let Some(dynamic_entry_module) =
+    let actions =
+        graph
+            .await?
+            .iter_nodes()
+            .map(|module| async move {
+                if let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
-            {
-                return Ok(Some((
-                    module,
-                    DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
-                )));
-            }
-            // TODO add this check once these modules have the correct layer
-            // if layer.is_some_and(|layer| &**layer == "app-rsc") {
-            if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
-            {
-                return Ok(Some((
-                    module,
-                    DynamicImportEntriesMapType::ClientReference(client_reference_module),
-                )));
-            }
-            // }
-            Ok(None)
-        })
-        .try_flat_join()
-        .await?;
+                    && module.ident().await?.layer.as_ref().is_some_and(|layer| {
+                        layer.name() == "app-client" || layer.name() == "client"
+                    })
+                {
+                    return Ok(Some((
+                        module,
+                        DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
+                    )));
+                }
+                // TODO add this check once these modules have the correct layer
+                // if layer.is_some_and(|layer| &**layer == "app-rsc") {
+                if let Some(client_reference_module) =
+                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
+                {
+                    return Ok(Some((
+                        module,
+                        DynamicImportEntriesMapType::ClientReference(client_reference_module),
+                    )));
+                }
+                // }
+                Ok(None)
+            })
+            .try_flat_join()
+            .await?;
     Ok(Vc::cell(actions.into_iter().collect()))
 }
