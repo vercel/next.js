@@ -948,8 +948,15 @@ export async function handler(
       // `incrementalCache.set`, the response Cache-Control header, the outgoing
       // entry returned to `handleResponse`) sees a finalized `cacheControl`
       // with a populated `expire`. This mirrors the build-time fallback in
-      // `next build` (see `build/index.ts`).
-      if (cacheControl && cacheControl.expire === undefined) {
+      // `build/index.ts` so we don't apply an expire to routes that opt out of
+      // revalidation entirely (`revalidate: false`) or that are dynamic
+      // (`revalidate: 0`).
+      if (
+        cacheControl &&
+        cacheControl.revalidate !== false &&
+        cacheControl.revalidate > 0 &&
+        cacheControl.expire === undefined
+      ) {
         cacheControl.expire = nextConfig.expireTime
       }
 
