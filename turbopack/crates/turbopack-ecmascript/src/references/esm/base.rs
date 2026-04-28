@@ -673,6 +673,7 @@ impl EsmAssetReference {
                         // when the ident was resolved through a re-export chain, the
                         // directly-referenced asset is the outer (rename) module, not the one
                         // the emitted variable actually holds.
+                        drop(referenced_asset);
                         match ident {
                             Some(ReferencedAssetIdent::LocalBinding { .. }) => {
                                 // no need to import
