@@ -44,7 +44,9 @@ where
 {
     let tt_for_evict = tt.clone();
     let snapshot_and_evict = Box::new(move || {
-        let _ = tt_for_evict.backend().snapshot_and_evict(&*tt_for_evict);
+        let _ = tt_for_evict
+            .backend()
+            .snapshot_and_evict_for_testing(&*tt_for_evict);
     });
     TestInstance {
         tt: tt as Arc<dyn TurboTasksApi>,

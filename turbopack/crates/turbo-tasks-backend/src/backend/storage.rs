@@ -161,7 +161,7 @@ pub struct Storage {
     /// then re-check the specific task's `restoring`/`restored` bits after waking.
     pub(crate) restored: Event,
     /// Maps `CachedTaskType` → `TaskId` for deduplication of persistent task creation.
-    /// This is backed by the TaskCache table in the backend.
+    /// This is backed by the TaskCache table in the database.
     ///
     /// LockOrdering: See the comments on [map].,
     pub task_cache: FxDashMap<Arc<CachedTaskType>, TaskId>,

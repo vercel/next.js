@@ -886,15 +886,12 @@ impl<T: IsTransient> DropPartial for Option<T> {
 
 impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
     fn drop_partial(&mut self) -> bool {
-        let start_len = self.len();
         self.retain(|t| t.is_transient());
         let end_len = self.len();
         if end_len == 0 {
             true
-        } else if end_len < start_len {
-            self.shrink_to_fit();
-            false
         } else {
+            self.shrink_to_fit();
             false
         }
     }
@@ -902,30 +899,24 @@ impl<T: IsTransient + Hash + Eq> DropPartial for AutoSet<T> {
 
 impl<K: IsTransient + Hash + Eq, V: Eq> DropPartial for CounterMap<K, V> {
     fn drop_partial(&mut self) -> bool {
-        let start_len = self.len();
         self.retain(|k, _v| k.is_transient());
         let end_len = self.len();
         if end_len == 0 {
             true
-        } else if end_len < start_len {
-            self.shrink_to_fit();
-            false
         } else {
+            self.shrink_to_fit();
             false
         }
     }
 }
 impl<K: IsTransient + Hash + Eq, V: IsTransient> DropPartial for AutoMap<K, V> {
     fn drop_partial(&mut self) -> bool {
-        let start_len = self.len();
         self.retain(|k, v| k.is_transient() || v.is_transient());
         let end_len = self.len();
         if end_len == 0 {
             true
-        } else if end_len < start_len {
-            self.shrink_to_fit();
-            false
         } else {
+            self.shrink_to_fit();
             false
         }
     }
