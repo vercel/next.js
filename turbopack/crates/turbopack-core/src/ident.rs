@@ -103,6 +103,7 @@ impl AssetIdent {
 
     /// Finalizes the builder by turning the owned [`AssetIdent`] into a cached [`Vc<AssetIdent>`].
     pub fn into_vc(self) -> Vc<Self> {
+        // This optimizes cache misses in cold builds by only storing one copy of the AssetIdent.
         AssetIdent::new_inner(ReadRef::new_owned(self))
     }
 
