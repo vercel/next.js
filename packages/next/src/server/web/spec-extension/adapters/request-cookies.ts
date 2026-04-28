@@ -10,6 +10,8 @@ import { ActionDidRevalidateStaticAndDynamic } from '../../../../shared/lib/acti
  * @internal
  */
 export class ReadonlyRequestCookiesError extends Error {
+  static name = 'ReadonlyRequestCookiesError'
+
   constructor() {
     super(
       'Cookies can only be modified in a Server Action or Route Handler. Read more: https://nextjs.org/docs/app/api-reference/functions/cookies#options'

@@ -3,6 +3,8 @@ const BAILOUT_TO_CSR = 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
 
 /** An error that should be thrown when we want to bail out to client-side rendering. */
 export class BailoutToCSRError extends Error {
+  static name = 'BailoutToCSRError'
+
   public readonly digest = BAILOUT_TO_CSR
 
   constructor(public readonly reason: string) {

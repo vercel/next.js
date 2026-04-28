@@ -76,6 +76,8 @@ import type { Params } from '../server/request/params'
 import { Bundler } from '../lib/bundler'
 
 export class ExportError extends Error {
+  static name = 'ExportError'
+
   code = 'NEXT_EXPORT_ERROR'
 }
 

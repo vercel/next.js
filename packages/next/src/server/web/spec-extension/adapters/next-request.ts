@@ -10,6 +10,8 @@ import { isNodeNextRequest, isWebNextRequest } from '../../../base-http/helpers'
 
 export const ResponseAbortedName = 'ResponseAborted'
 export class ResponseAborted extends Error {
+  static name = 'ResponseAborted'
+
   public readonly name = ResponseAbortedName
 }
 

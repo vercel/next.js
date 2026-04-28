@@ -1,6 +1,8 @@
 const NEXT_STATIC_GEN_BAILOUT = 'NEXT_STATIC_GEN_BAILOUT'
 
 export class StaticGenBailoutError extends Error {
+  static name = 'StaticGenBailoutError'
+
   public readonly code = NEXT_STATIC_GEN_BAILOUT
 }
 

@@ -430,9 +430,15 @@ export const ST =
     (method) => typeof performance[method] === 'function'
   )
 
-export class DecodeError extends Error {}
-export class NormalizeError extends Error {}
+export class DecodeError extends Error {
+  static name = 'DecodeError'
+}
+export class NormalizeError extends Error {
+  static name = 'NormalizeError'
+}
 export class PageNotFoundError extends Error {
+  static name = 'PageNotFoundError'
+
   code: string
 
   constructor(page: string) {
@@ -444,6 +450,8 @@ export class PageNotFoundError extends Error {
 }
 
 export class MissingStaticPage extends Error {
+  static name = 'MissingStaticPage'
+
   constructor(page: string, message: string) {
     super()
     this.message = `Failed to load static file for page: ${page} ${message}`
@@ -451,6 +459,8 @@ export class MissingStaticPage extends Error {
 }
 
 export class MiddlewareNotFoundError extends Error {
+  static name = 'MiddlewareNotFoundError'
+
   code: string
   constructor() {
     super()

@@ -175,6 +175,8 @@ export function clearPreviewData<T>(
  * Custom error class
  */
 export class ApiError extends Error {
+  static name = 'ApiError'
+
   readonly statusCode: number
 
   constructor(statusCode: number, message: string) {

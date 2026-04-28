@@ -1,4 +1,6 @@
 export class HardDeprecatedConfigError extends Error {
+  static name = 'HardDeprecatedConfigError'
+
   constructor(message: string) {
     super(message)
 

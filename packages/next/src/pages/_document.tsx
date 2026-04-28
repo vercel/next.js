@@ -379,7 +379,7 @@ function getNextFontLinkTags(
 export class Head extends React.Component<HeadProps> {
   static contextType = HtmlContext
 
-  context!: HtmlProps
+  declare context: HtmlProps
 
   getCssLinks(files: DocumentFiles): JSX.Element[] | null {
     const {
@@ -801,7 +801,7 @@ function handleDocumentScriptLoaderItems(
 export class NextScript extends React.Component<OriginProps> {
   static contextType = HtmlContext
 
-  context!: HtmlProps
+  declare context: HtmlProps
 
   getDynamicChunks(files: DocumentFiles) {
     return getDynamicChunks(this.context, this.props, files)

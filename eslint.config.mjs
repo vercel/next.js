@@ -401,6 +401,7 @@ export default defineConfig([
     },
     rules: {
       '@next/internal/typechecked-require': 'error',
+      '@next/internal/error-subclass-static-name': 'error',
       'jsdoc/no-types': 'error',
       'jsdoc/no-undefined-types': 'error',
     },

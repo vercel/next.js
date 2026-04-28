@@ -21,6 +21,8 @@ const isProxy = page === '/proxy' || page === '/src/proxy'
 const handlerUserland = (isProxy ? mod.proxy : mod.middleware) || mod.default
 
 class ProxyMissingExportError extends Error {
+  static name = 'ProxyMissingExportError'
+
   constructor(message: string) {
     super(message)
     // Stack isn't useful here, remove it considering it spams logs during development.

@@ -88,6 +88,8 @@ switch (UHR_FILTER_LOG_LEVEL) {
 }
 
 class DebugWithStack extends Error {
+  static name = 'DebugWithStack'
+
   constructor(message: string) {
     super(message)
     this.name = '[Next.js Unhandled Rejection Filter]'
@@ -95,6 +97,8 @@ class DebugWithStack extends Error {
 }
 
 class WarnWithStack extends Error {
+  static name = 'WarnWithStack'
+
   constructor(message: string) {
     super(message)
     this.name = '[Next.js Unhandled Rejection Filter]'

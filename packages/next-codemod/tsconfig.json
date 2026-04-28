@@ -9,7 +9,8 @@
     "strictFunctionTypes": false,
     "strictNullChecks": false,
     "types": ["node"],
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "useDefineForClassFields": true
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "transforms/__testfixtures__/**"]

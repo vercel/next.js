@@ -1,6 +1,8 @@
 const USE_CACHE_TIMEOUT_ERROR_CODE = 'USE_CACHE_TIMEOUT'
 
 export class UseCacheTimeoutError extends Error {
+  static name = 'UseCacheTimeoutError'
+
   digest: typeof USE_CACHE_TIMEOUT_ERROR_CODE = USE_CACHE_TIMEOUT_ERROR_CODE
 
   constructor() {

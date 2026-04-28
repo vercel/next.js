@@ -1,4 +1,6 @@
 export class UnrecognizedActionError extends Error {
+  static name = 'UnrecognizedActionError'
+
   constructor(...args: ConstructorParameters<typeof Error>) {
     super(...args)
     this.name = 'UnrecognizedActionError'

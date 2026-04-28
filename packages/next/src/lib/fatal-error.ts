@@ -1,1 +1,3 @@
-export class FatalError extends Error {}
+export class FatalError extends Error {
+  static name = 'FatalError'
+}

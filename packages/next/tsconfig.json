@@ -10,6 +10,7 @@
     "target": "ES2018",
     "moduleResolution": "bundler",
     "types": ["trusted-types", "jest", "node"],
+    "useDefineForClassFields": true,
     "paths": {
       // Required absolute paths.
       // We rewrite these here so that they aren't also input files which would fail tsc with

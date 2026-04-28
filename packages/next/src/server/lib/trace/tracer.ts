@@ -39,6 +39,8 @@ const { context, propagation, trace, SpanStatusCode, SpanKind, ROOT_CONTEXT } =
   api
 
 export class BubbledError extends Error {
+  static name = 'BubbledError'
+
   constructor(
     public readonly bubble?: boolean,
     public readonly result?: FetchEventResult

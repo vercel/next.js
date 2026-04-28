@@ -7,6 +7,8 @@ export function isStableBuild() {
 }
 
 export class CanaryOnlyConfigError extends Error {
+  static name = 'CanaryOnlyConfigError'
+
   constructor(arg: { feature: string } | string) {
     if (typeof arg === 'object' && 'feature' in arg) {
       super(

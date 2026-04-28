@@ -23,6 +23,7 @@ const VERBOSE_ISSUES = !!process.env.NEXT_TURBOPACK_VERBOSE_ISSUES
  * errors caused by issues with user code.
  */
 export class ModuleBuildError extends Error {
+  static name = 'ModuleBuildError'
   name = 'ModuleBuildError'
 }
 

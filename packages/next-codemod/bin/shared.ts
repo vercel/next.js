@@ -1,1 +1,3 @@
-export class BadInput extends Error {}
+export class BadInput extends Error {
+  static name = 'BadInput'
+}

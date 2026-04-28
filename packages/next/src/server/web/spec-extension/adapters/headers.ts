@@ -6,6 +6,8 @@ import { ReflectAdapter } from './reflect'
  * @internal
  */
 export class ReadonlyHeadersError extends Error {
+  static name = 'ReadonlyHeadersError'
+
   constructor() {
     super(
       'Headers cannot be modified. Read more: https://nextjs.org/docs/app/api-reference/functions/headers'

@@ -1,1 +1,3 @@
-export class CompileError extends Error {}
+export class CompileError extends Error {
+  static name = 'CompileError'
+}

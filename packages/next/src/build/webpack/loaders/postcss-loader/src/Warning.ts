@@ -9,6 +9,8 @@
  * @param {Object} warning PostCSS Warning
  */
 export default class Warning extends Error {
+  static name = 'Warning'
+
   stack: any
   constructor(warning: any) {
     super(warning)

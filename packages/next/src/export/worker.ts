@@ -61,10 +61,14 @@ import { installGlobalBehaviors } from '../server/node-environment-extensions/gl
 }
 
 class TimeoutError extends Error {
+  static name = 'TimeoutError'
+
   code = 'NEXT_EXPORT_TIMEOUT_ERROR'
 }
 
 class ExportPageError extends Error {
+  static name = 'ExportPageError'
+
   code = 'NEXT_EXPORT_PAGE_ERROR'
 }
 

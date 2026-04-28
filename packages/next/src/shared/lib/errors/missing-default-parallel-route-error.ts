@@ -1,6 +1,8 @@
 import { UsageError } from './usage-error'
 
 export class MissingDefaultParallelRouteError extends UsageError {
+  static name = 'MissingDefaultParallelRouteError'
+
   constructor(fullSegmentPath: string, slotName: string) {
     super(
       `Missing required default.js file for parallel route at ${fullSegmentPath}\n` +

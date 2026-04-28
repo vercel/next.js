@@ -1,4 +1,6 @@
 export default class CssSyntaxError extends Error {
+  static name = 'CssSyntaxError'
+
   stack: any
   constructor(error: any) {
     super(error)

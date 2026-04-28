@@ -13,5 +13,7 @@ export function isInstantValidationError(
 }
 
 export class InstantValidationError extends Error {
+  static name = 'InstantValidationError'
+
   digest = INSTANT_VALIDATION_ERROR_DIGEST
 }

@@ -1,4 +1,6 @@
 export class PageSignatureError extends Error {
+  static name = 'PageSignatureError'
+
   constructor({ page }: { page: string }) {
     super(`The middleware "${page}" accepts an async API directly with the form:
   
@@ -12,6 +14,8 @@ export class PageSignatureError extends Error {
 }
 
 export class RemovedPageError extends Error {
+  static name = 'RemovedPageError'
+
   constructor() {
     super(`The request.page has been deprecated in favour of \`URLPattern\`.
   Read more: https://nextjs.org/docs/messages/middleware-request-page
@@ -20,6 +24,8 @@ export class RemovedPageError extends Error {
 }
 
 export class RemovedUAError extends Error {
+  static name = 'RemovedUAError'
+
   constructor() {
     super(`The request.ua has been removed in favour of \`userAgent\` function.
   Read more: https://nextjs.org/docs/messages/middleware-parse-user-agent

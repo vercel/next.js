@@ -9,6 +9,8 @@ import { traceGlobals } from '../../../trace/shared'
  * These are constructed in Turbopack by calling `throwTurbopackInternalError`.
  */
 export class TurbopackInternalError extends Error {
+  static name = 'TurbopackInternalError'
+
   name = 'TurbopackInternalError'
   location: string | undefined
 

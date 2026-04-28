@@ -1,4 +1,6 @@
 export class UsageError extends Error {
+  static name = 'UsageError'
+
   constructor(message: string, docUrl: string) {
     super(`${message}\n\nLearn more: ${docUrl}`)
     this.name = 'UsageError'

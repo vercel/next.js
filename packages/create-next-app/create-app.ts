@@ -23,7 +23,9 @@ import { runTypegen } from './helpers/typegen'
 import type { Bundler, TemplateMode, TemplateType } from './templates'
 import { getTemplateFile, installTemplate } from './templates'
 
-export class DownloadError extends Error {}
+export class DownloadError extends Error {
+  static name = 'DownloadError'
+}
 
 export async function createApp({
   appPath,

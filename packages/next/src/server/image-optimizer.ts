@@ -736,6 +736,8 @@ export class ImageOptimizerCache {
   }
 }
 export class ImageError extends Error {
+  static name = 'ImageError'
+
   statusCode: number
 
   constructor(statusCode: number, message: string) {

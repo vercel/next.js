@@ -23,6 +23,8 @@ export function isHangingPromiseRejectionError(
 const HANGING_PROMISE_REJECTION = 'HANGING_PROMISE_REJECTION'
 
 class HangingPromiseRejectionError extends Error {
+  static name = 'HangingPromiseRejectionError'
+
   public readonly digest = HANGING_PROMISE_REJECTION
 
   constructor(

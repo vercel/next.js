@@ -295,6 +295,8 @@ export type RequestContext<
 // Internal wrapper around build errors at development
 // time, to prevent us from propagating or logging them
 export class WrappedBuildError extends Error {
+  static name = 'WrappedBuildError'
+
   innerError: Error
 
   constructor(innerError: Error) {

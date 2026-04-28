@@ -1505,6 +1505,8 @@ export function getPossibleMiddlewareFilenames(
 }
 
 export class NestedMiddlewareError extends Error {
+  static name = 'NestedMiddlewareError'
+
   constructor(
     nestedFileNames: string[],
     mainDir: string,

@@ -6,6 +6,8 @@ import {
 const regexpPlainIdentifier = /^[A-Za-z_$][A-Za-z0-9_$]*$/
 
 export class SerializableError extends Error {
+  static name = 'SerializableError'
+
   constructor(page: string, method: string, path: string, message: string) {
     super(
       path

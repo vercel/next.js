@@ -562,7 +562,9 @@ function bindingToApi(
       }
   )
 
-  const cancel = new (class Cancel extends Error {})()
+  const cancel = new (class Cancel extends Error {
+    static name = 'Cancel'
+  })()
 
   /**
    * Utility function to ensure all variants of an enum are handled.

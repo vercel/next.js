@@ -7,7 +7,8 @@
     "esModuleInterop": true,
     "outDir": "dist",
     "rootDir": ".",
-    "skipLibCheck": false
+    "skipLibCheck": false,
+    "useDefineForClassFields": true
   },
   "exclude": ["templates", "dist"],
   "files": ["index.ts"]

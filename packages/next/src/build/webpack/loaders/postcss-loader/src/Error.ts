@@ -9,6 +9,8 @@
  * @param {Object} err CssSyntaxError
  */
 export default class PostCSSSyntaxError extends Error {
+  static name = 'PostCSSSyntaxError'
+
   stack: any
   constructor(error: any) {
     super(error)
