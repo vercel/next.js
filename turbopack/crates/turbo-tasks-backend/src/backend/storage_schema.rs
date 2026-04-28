@@ -21,15 +21,14 @@ use std::sync::Arc;
 
 use parking_lot::Mutex;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, TypedSharedReference,
-    ValueTypeId,
-    backend::{CachedTaskType, TransientTaskType},
+    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    backend::{CachedTaskType, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
 
 use crate::{
-    backend::counter_map::CounterMap,
+    backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
@@ -74,7 +73,13 @@ struct TaskStorageSchema {
 
     /// Tasks that depend on this task's output.
 
-    #[field(storage = "auto_set", category = "data", inline, filter_transient)]
+    #[field(
+        storage = "auto_set",
+        category = "data",
+        inline,
+        filter_transient,
+        drop_on_completion_if_immutable
+    )]
     output_dependent: AutoSet<TaskId>,
 
     /// The task's output value.
@@ -161,6 +166,14 @@ struct TaskStorageSchema {
     #[field(storage = "flag", category = "transient")]
     data_restored: bool,
 
+    /// Whether meta data restoration is currently in progress by another thread.
+    #[field(storage = "flag", category = "transient")]
+    meta_restoring: bool,
+
+    /// Whether data restoration is currently in progress by another thread.
+    #[field(storage = "flag", category = "transient")]
+    data_restoring: bool,
+
     /// Whether meta was modified before snapshot mode was entered.
     #[field(storage = "flag", category = "transient")]
     meta_modified: bool,
@@ -186,6 +199,11 @@ struct TaskStorageSchema {
     /// Used to skip determinism checks for stateful tasks.
     #[field(storage = "flag", category = "transient")]
     stateful: bool,
+
+    /// Whether this task is new and needs its type persisted to the task cache.
+    /// Set when task is created, cleared after persisting.
+    #[field(storage = "flag", category = "transient")]
+    pub new_task: bool,
 
     // =========================================================================
     // CHILDREN & AGGREGATION (meta)
@@ -267,13 +285,32 @@ struct TaskStorageSchema {
     // =========================================================================
     // CELL DATA (data)
     // =========================================================================
-    /// Persistent cell data (serializable).
-    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
-    persistent_cell_data: AutoMap<CellId, TypedSharedReference>,
+    /// Cell data for all cells, regardless of serialization mode.
+    ///
+    /// `CellData` is a newtype over `AutoMap<CellId, SharedReference>` whose
+    /// bincode impl filters out entries whose value type is not
+    /// `ValueTypePersistence::Persistable` at encode time (i.e. `SkipPersist`
+    /// or `SessionStateful`). Those entries stay in memory but are not
+    /// persisted — on restore the next read triggers the "cell index in range
+    /// but data missing" recompute path. `SessionStateful` value types are
+    /// identified on `ValueType::persistence` for future eviction handling.
+    #[field(
+        storage = "auto_map",
+        category = "data",
+        shrink_on_completion,
+        as_type = "AutoMap<CellId, SharedReference>"
+    )]
+    cell_data: CellData,
 
-    /// Transient cell data (not serializable).
-    #[field(storage = "auto_map", category = "transient", shrink_on_completion)]
-    transient_cell_data: AutoMap<CellId, SharedReference>,
+    /// Hash of transient cell data, persisted for hash-based change detection when
+    /// transient data has been evicted from memory.
+    ///
+    /// Stored as `[u8; 16]` (little-endian bytes of a u128) rather than `u128` to keep
+    /// the 1-byte alignment out of the `AutoMap` and therefore out of the `LazyField`
+    /// enum; a bare `u128` would grow the enum from 56 to 64 bytes due to its 16-byte
+    /// alignment requirement.
+    #[field(storage = "auto_map", category = "data", shrink_on_completion)]
+    cell_data_hash: AutoMap<CellId, CellHash>,
 
     /// Maximum cell index per cell type.
     #[field(storage = "auto_map", category = "data", shrink_on_completion)]
@@ -330,6 +367,31 @@ impl TaskFlags {
             TaskDataCategory::Meta => self.meta_restored(),
             TaskDataCategory::Data => self.data_restored(),
             TaskDataCategory::All => self.meta_restored() && self.data_restored(),
+        }
+    }
+
+    /// Check if the category's restoration is currently in progress by another thread
+    pub fn is_restoring(&self, category: TaskDataCategory) -> bool {
+        match category {
+            TaskDataCategory::Meta => self.meta_restoring(),
+            TaskDataCategory::Data => self.data_restoring(),
+            TaskDataCategory::All => self.meta_restoring() || self.data_restoring(),
+        }
+    }
+
+    /// Set or clear the restoring bits for the given category
+    pub fn set_restoring(&mut self, category: TaskDataCategory, value: bool) {
+        match category {
+            TaskDataCategory::Meta => {
+                self.set_meta_restoring(value);
+            }
+            TaskDataCategory::Data => {
+                self.set_data_restoring(value);
+            }
+            TaskDataCategory::All => {
+                self.set_meta_restoring(value);
+                self.set_data_restoring(value);
+            }
         }
     }
 
@@ -538,7 +600,8 @@ impl TaskStorage {
         task_type: TransientTaskType,
         should_track_activeness: bool,
     ) {
-        // Mark as fully restored since transient tasks don't need restoration from disk
+        // Mark as fully restored since transient tasks don't need restoration from disk,
+        // and as new since this task was just created.
         self.flags.set_restored(TaskDataCategory::All);
 
         // This is a root (or once) task. These tasks use the max aggregation number.

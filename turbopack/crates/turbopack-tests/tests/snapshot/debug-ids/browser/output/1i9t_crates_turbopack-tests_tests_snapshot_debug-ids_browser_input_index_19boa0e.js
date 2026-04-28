@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="d770a5d4-1204-13a9-f97e-0b13896fee56")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="6a138f62-859e-e13c-84a0-d111b048d46a")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/1i9t_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js",
     {"otherChunks":["output/1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvs.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -12,6 +12,7 @@ var CHUNK_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
+var CROSS_ORIGIN = null;
 var WORKER_FORWARDED_GLOBALS = [];
 /**
  * This file contains runtime types and functions that are shared between all
@@ -2083,6 +2084,7 @@ let BACKEND;
                 } else {
                     const link = document.createElement('link');
                     link.rel = 'stylesheet';
+                    link.crossOrigin = CROSS_ORIGIN;
                     link.href = chunkUrl;
                     link.onerror = ()=>{
                         resolver.reject();
@@ -2107,6 +2109,7 @@ let BACKEND;
                     }
                 } else {
                     const script = document.createElement('script');
+                    script.crossOrigin = CROSS_ORIGIN;
                     script.src = chunkUrl;
                     // We'll only mark the chunk as loaded once the script has been executed,
                     // which happens in `registerChunk`. Hence the absence of `resolve()` in
@@ -2182,6 +2185,7 @@ let DEV_BACKEND;
                 }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
+                link.crossOrigin = CROSS_ORIGIN;
                 if (navigator.userAgent.includes('Firefox') || navigator.userAgent.includes('Safari') && !navigator.userAgent.includes('Chrome') && !navigator.userAgent.includes('Chromium')) {
                     // Firefox won't reload CSS files that were previously loaded on the
                     // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
@@ -2192,12 +2196,11 @@ let DEV_BACKEND;
                     // Replace or add a fresh `ts` cache-busting param without
                     // discarding other query parameters that may already be present.
                     const url = new URL(chunkUrl, location.origin);
-                    url.searchParams.set('ts', String(Date.now()));
                     // Reduced timer precision in some browers could lead to an update getting dropped
-                    // in firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
+                    // in Firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
                     // So trust that the server is only updating us when it is important and use a
                     // random number to bust the cache.
-                    url.searchParams.set('_next_rand', String(Math.random()));
+                    url.searchParams.set('ts', `${Date.now()}.${Math.random()}`);
                     link.href = url.pathname + url.search;
                 } else {
                     link.href = chunkUrl;
@@ -2244,5 +2247,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=d770a5d4-1204-13a9-f97e-0b13896fee56
+//# debugId=6a138f62-859e-e13c-84a0-d111b048d46a
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_19boa0e.js.map

@@ -1,6 +1,6 @@
 {
   "name": "next",
-  "version": "16.2.1-canary.16",
+  "version": "16.3.0-canary.4",
   "description": "The React Framework",
   "main": "./dist/server/next.js",
   "license": "MIT",
@@ -9,6 +9,7 @@
   "homepage": "https://nextjs.org",
   "types": "index.d.ts",
   "files": [
+    "AGENTS.md",
     "dist",
     "app.js",
     "app.d.ts",
@@ -88,7 +89,8 @@
     "ncc-compiled": "taskr ncc",
     "storybook": "BROWSER=none storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "test-storybook": "test-storybook"
+    "test-storybook": "test-storybook",
+    "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
   "taskr": {
     "requires": [
@@ -99,7 +101,7 @@
     ]
   },
   "dependencies": {
-    "@next/env": "16.2.1-canary.16",
+    "@next/env": "16.3.0-canary.4",
     "@swc/helpers": "0.5.15",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",
@@ -163,11 +165,11 @@
     "@modelcontextprotocol/sdk": "1.18.1",
     "@mswjs/interceptors": "0.23.0",
     "@napi-rs/triples": "1.2.0",
-    "@next/font": "16.2.1-canary.16",
-    "@next/polyfill-module": "16.2.1-canary.16",
-    "@next/polyfill-nomodule": "16.2.1-canary.16",
-    "@next/react-refresh-utils": "16.2.1-canary.16",
-    "@next/swc": "16.2.1-canary.16",
+    "@next/font": "16.3.0-canary.4",
+    "@next/polyfill-module": "16.3.0-canary.4",
+    "@next/polyfill-nomodule": "16.3.0-canary.4",
+    "@next/react-refresh-utils": "16.3.0-canary.4",
+    "@next/swc": "16.3.0-canary.4",
     "@opentelemetry/api": "1.6.0",
     "@playwright/test": "1.58.2",
     "@rspack/core": "1.6.7",
@@ -217,6 +219,7 @@
     "@types/ua-parser-js": "0.7.36",
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
     "@types/ws": "8.2.0",
+    "@vercel/blob": "2.3.2",
     "@vercel/ncc": "0.34.0",
     "@vercel/nft": "0.27.1",
     "@vercel/routing-utils": "5.2.0",
@@ -340,7 +343,7 @@
     "text-table": "0.2.0",
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
-    "typescript": "5.9.2",
+    "typescript": "6.0.2",
     "ua-parser-js": "1.0.35",
     "unistore": "3.4.1",
     "util": "0.12.4",
@@ -350,6 +353,7 @@
     "webpack": "5.98.0",
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
+    "write-file-atomic": "7.0.1",
     "ws": "8.2.3",
     "zod": "3.25.76",
     "zod-validation-error": "3.4.0"

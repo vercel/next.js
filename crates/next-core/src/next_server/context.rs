@@ -27,7 +27,8 @@ use turbopack_core::{
 };
 use turbopack_css::chunk::CssChunkType;
 use turbopack_ecmascript::{
-    AnalyzeMode, TypeofWindow, chunk::EcmascriptChunkType, references::esm::UrlRewriteBehavior,
+    AnalyzeMode, CustomTransformer, TransformPlugin, TypeofWindow, chunk::EcmascriptChunkType,
+    references::esm::UrlRewriteBehavior,
 };
 use turbopack_ecmascript_plugins::transform::directives::{
     client::ClientDirectiveTransformer, client_disallowed::ClientDisallowedDirectiveTransformer,
@@ -446,13 +447,21 @@ pub async fn get_server_module_options_context(
 
     let foreign_code_context_condition =
         foreign_code_context_condition(next_config, project_path.clone()).await?;
+    let local_postcss_config = *next_config
+        .experimental_turbopack_local_postcss_config()
+        .await?;
+    let postcss_config_location = if local_postcss_config == Some(true) {
+        PostCssConfigLocation::LocalPathOrProjectPath
+    } else {
+        PostCssConfigLocation::ProjectPathOrLocalPath
+    };
     let postcss_transform_options = PostCssTransformOptions {
         postcss_package: Some(
             get_postcss_package_mapping(project_path.clone())
                 .to_resolved()
                 .await?,
         ),
-        config_location: PostCssConfigLocation::ProjectPathOrLocalPath,
+        config_location: postcss_config_location,
         ..Default::default()
     };
     let postcss_foreign_transform_options = PostCssTransformOptions {
@@ -744,17 +753,18 @@ pub async fn get_server_module_options_context(
             ecmascript_client_reference_transition_name,
             ..
         } => {
-            let client_directive_transformer = ecmascript_client_reference_transition_name.map(
-                |ecmascript_client_reference_transition_name| {
-                    get_ecma_transform_rule(
-                        Box::new(ClientDirectiveTransformer::new(
-                            ecmascript_client_reference_transition_name,
-                        )),
+            let client_directive_transformer =
+                if let Some(name) = ecmascript_client_reference_transition_name {
+                    Some(get_ecma_transform_rule(
+                        client_directive_transform_plugin(name)
+                            .to_resolved()
+                            .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
-                    )
-                },
-            );
+                    ))
+                } else {
+                    None
+                };
 
             foreign_next_server_rules.extend(internal_custom_rules);
             foreign_next_server_rules.extend(client_directive_transformer.clone());
@@ -831,9 +841,9 @@ pub async fn get_server_module_options_context(
                 ecmascript_client_reference_transition_name
             {
                 common_next_server_rules.push(get_ecma_transform_rule(
-                    Box::new(ClientDirectiveTransformer::new(
-                        ecmascript_client_reference_transition_name,
-                    )),
+                    client_directive_transform_plugin(ecmascript_client_reference_transition_name)
+                        .to_resolved()
+                        .await?,
                     enable_mdx_rs.is_some(),
                     EcmascriptTransformStage::Preprocess,
                 ));
@@ -902,26 +912,28 @@ pub async fn get_server_module_options_context(
             app_dir,
             ecmascript_client_reference_transition_name,
         } => {
-            let custom_source_transform_rules: Vec<ModuleRule> = vec![
-                if let Some(ecmascript_client_reference_transition_name) =
-                    ecmascript_client_reference_transition_name
-                {
+            let directive_transform_rule =
+                if let Some(name) = ecmascript_client_reference_transition_name {
                     get_ecma_transform_rule(
-                        Box::new(ClientDirectiveTransformer::new(
-                            ecmascript_client_reference_transition_name,
-                        )),
+                        client_directive_transform_plugin(name)
+                            .to_resolved()
+                            .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
                     )
                 } else {
                     get_ecma_transform_rule(
-                        Box::new(ClientDisallowedDirectiveTransformer::new(
-                            "next/dist/client/use-client-disallowed.js".to_string(),
-                        )),
+                        client_disallowed_directive_transform_plugin(rcstr!(
+                            "next/dist/client/use-client-disallowed.js"
+                        ))
+                        .to_resolved()
+                        .await?,
                         enable_mdx_rs.is_some(),
                         EcmascriptTransformStage::Preprocess,
                     )
-                },
+                };
+            let custom_source_transform_rules: Vec<ModuleRule> = vec![
+                directive_transform_rule,
                 get_next_react_server_components_transform_rule(next_config, true, app_dir).await?,
             ];
 
@@ -985,6 +997,19 @@ pub async fn get_server_module_options_context(
     Ok(module_options_context)
 }
 
+#[turbo_tasks::function]
+fn client_directive_transform_plugin(transition_name: RcStr) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(ClientDirectiveTransformer::new(transition_name))
+        as Box<dyn CustomTransformer + Send + Sync>)
+}
+
+#[turbo_tasks::function]
+fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(ClientDisallowedDirectiveTransformer::new(
+        error_proxy_module.to_string(),
+    )) as Box<dyn CustomTransformer + Send + Sync>)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
@@ -1002,8 +1027,10 @@ pub struct ServerChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub client_root: FileSystemPath,
+    pub client_static_folder_name: RcStr,
     pub asset_prefix: RcStr,
     pub css_url_suffix: Vc<Option<RcStr>>,
+    pub hash_salt: ResolvedVc<RcStr>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1027,8 +1054,10 @@ pub async fn get_server_chunking_context_with_client_assets(
         nested_async_chunking,
         debug_ids,
         client_root,
+        client_static_folder_name,
         asset_prefix,
         css_url_suffix,
+        hash_salt,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1042,7 +1071,9 @@ pub async fn get_server_chunking_context_with_client_assets(
         node_root_to_root_path,
         client_root.clone(),
         node_root.join("server/chunks/ssr")?,
-        client_root.join("static/media")?,
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
@@ -1072,6 +1103,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
@@ -1125,8 +1157,10 @@ pub async fn get_server_chunking_context(
         nested_async_chunking,
         debug_ids,
         client_root,
+        client_static_folder_name,
         asset_prefix,
         css_url_suffix,
+        hash_salt,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1144,7 +1178,12 @@ pub async fn get_server_chunking_context(
         next_mode.runtime_type(),
     )
     .client_roots_override(rcstr!("client"), client_root.clone())
-    .asset_root_path_override(rcstr!("client"), client_root.join("static/media")?)
+    .asset_root_path_override(
+        rcstr!("client"),
+        client_root
+            .join(&client_static_folder_name)?
+            .join("media")?,
+    )
     .asset_prefix_override(rcstr!("client"), asset_prefix)
     .url_behavior_override(
         rcstr!("client"),
@@ -1170,6 +1209,7 @@ pub async fn get_server_chunking_context(
     .unused_references(unused_references.to_resolved().await?)
     .file_tracing(next_mode.is_production())
     .debug_ids(*debug_ids.await?)
+    .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 

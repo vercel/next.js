@@ -41,11 +41,11 @@ import {
   createNodeStreamWithLateRelease,
   createNodeStreamFromChunks,
 } from './stream-utils'
-import { createDebugChannel } from '../debug-channel-server'
+import type { DebugChannelPair } from '../debug-channel-server'
+import type { FlightComponentMod } from '../stream-ops'
+
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromNodeStream } from 'react-server-dom-webpack/client'
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { renderToReadableStream } from 'react-server-dom-webpack/server'
 import {
   addSearchParamsIfPageSegment,
   isGroupSegment,
@@ -203,12 +203,22 @@ export type StageEndTimes = {
  * Splits an existing staged stream (represented as arrays of chunks)
  * into separate staged streams (also in arrays-of-chunks form), one for each segment.
  * */
+type RenderToFlightStream = (
+  ComponentMod: FlightComponentMod,
+  payload: any,
+  clientModules: any,
+  opts: any
+) => AsyncIterable<Uint8Array>
+
 export async function collectStagedSegmentData(
+  ComponentMod: FlightComponentMod,
+  renderFlightStream: RenderToFlightStream,
   fullPageChunks: StageChunks,
   fullPageDebugChunks: Uint8Array[] | null,
   startTime: number,
   hasRuntimePrefetch: boolean,
-  clientReferenceManifest: ClientReferenceManifest
+  clientReferenceManifest: ClientReferenceManifest,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   const debugChannelAbortController = new AbortController()
   const debugStream = fullPageDebugChunks
@@ -291,7 +301,8 @@ export async function collectStagedSegmentData(
       ? createDebugChannel()
       : undefined
 
-    const itemStream = renderToReadableStream(
+    const itemStream = renderFlightStream(
+      ComponentMod,
       data,
       clientReferenceManifest.clientModules,
       {
@@ -335,14 +346,14 @@ export async function collectStagedSegmentData(
     await Promise.all([
       // accumulate Flight chunks
       (async () => {
-        for await (const chunk of itemStream.values()) {
+        for await (const chunk of itemStream) {
           writeChunk(cacheEntry.chunks, controller.currentStage, chunk)
         }
       })(),
       // accumulate Debug chunks
       segmentDebugChannel &&
         (async () => {
-          for await (const chunk of segmentDebugChannel.clientSide.readable.values()) {
+          for await (const chunk of segmentDebugChannel.clientSide.readable) {
             cacheEntry.debugChunks!.push(chunk)
           }
         })(),
@@ -510,12 +521,15 @@ function writeChunk(
  * to provide extra debug info.
  * */
 export async function createCombinedPayloadStream(
+  ComponentMod: FlightComponentMod,
+  renderFlightStream: RenderToFlightStream,
   payload: InitialRSCPayload,
   extraChunksAbortController: AbortController,
   renderSignal: AbortSignal,
   clientReferenceManifest: ClientReferenceManifest,
   startTime: number,
-  isDebugChannelEnabled: boolean
+  isDebugChannelEnabled: boolean,
+  createDebugChannel: () => DebugChannelPair | undefined
 ) {
   // Collect all the chunks so that we're not dependent on timing of the render.
 
@@ -530,7 +544,8 @@ export async function createCombinedPayloadStream(
 
   await runInSequentialTasks(
     () => {
-      const stream = renderToReadableStream(
+      const stream = renderFlightStream(
+        ComponentMod,
         payload,
         clientReferenceManifest.clientModules,
         {
@@ -573,7 +588,7 @@ export async function createCombinedPayloadStream(
       streamFinished = Promise.all([
         // Accumulate Flight chunks
         (async () => {
-          for await (const chunk of stream.values()) {
+          for await (const chunk of stream) {
             allChunks.push(chunk)
             if (isRenderable) {
               renderableChunks.push(chunk)
@@ -583,7 +598,7 @@ export async function createCombinedPayloadStream(
         // Accumulate debug chunks
         debugChannel &&
           (async () => {
-            for await (const chunk of debugChannel.clientSide.readable.values()) {
+            for await (const chunk of debugChannel.clientSide.readable) {
               debugChunks!.push(chunk)
             }
           })(),
@@ -1133,11 +1148,17 @@ export async function createCombinedPayloadAtDepth(
         : createChildSegmentPath(parentPath, key!, segment)
 
     let instantConfig: Instant | null = null
+    let prefetchConfig: AppSegmentConfig['unstable_prefetch'] | null = null
     let localCreateInstantStack: (() => Error) | null = null
     if (layoutOrPageMod !== undefined) {
       instantConfig =
         (layoutOrPageMod as AppSegmentConfig).unstable_instant ?? null
-      if (instantConfig && typeof instantConfig === 'object') {
+      prefetchConfig =
+        (layoutOrPageMod as AppSegmentConfig).unstable_prefetch ?? null
+      if (
+        instantConfig === true ||
+        (typeof instantConfig === 'object' && instantConfig !== null)
+      ) {
         const rawFactory: unknown = (layoutOrPageMod as any)
           .__debugCreateInstantConfigStack
         localCreateInstantStack =
@@ -1145,14 +1166,12 @@ export async function createCombinedPayloadAtDepth(
       }
     }
 
+    const segmentHasRuntimePrefetch = prefetchConfig === 'force-runtime'
+
     let childIsInsideRuntimePrefetch = isInsideRuntimePrefetch
     let stage: SegmentStage
     if (!isInsideRuntimePrefetch) {
-      if (
-        instantConfig &&
-        typeof instantConfig === 'object' &&
-        instantConfig.prefetch === 'runtime'
-      ) {
+      if (segmentHasRuntimePrefetch) {
         stage = RenderStage.Runtime
         childIsInsideRuntimePrefetch = true
         hasRuntimeSegments = true
@@ -1227,7 +1246,10 @@ export async function createCombinedPayloadAtDepth(
       requiresInstantUI = false
       createInstantStack = null
       configDepth = -1
-    } else if (instantConfig && typeof instantConfig === 'object') {
+    } else if (
+      instantConfig === true ||
+      (typeof instantConfig === 'object' && instantConfig !== null)
+    ) {
       requiresInstantUI = true
       createInstantStack = localCreateInstantStack
       configDepth = segmentDepth

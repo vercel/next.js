@@ -60,9 +60,18 @@ struct PostCssProcessingResult {
     Decode,
 )]
 pub enum PostCssConfigLocation {
+    /// Searches for postcss config only starting from the project root directory.
+    /// Used for foreign code (node_modules) where per-directory configs should be ignored.
     #[default]
     ProjectPath,
+    /// Searches for postcss config starting from the project root directory first,
+    /// then falls back to searching from the CSS file's parent directory if not found
+    /// at the project root.
     ProjectPathOrLocalPath,
+    /// Searches for postcss config starting from the CSS file's parent directory first,
+    /// then falls back to the project root if not found locally. This allows per-directory
+    /// postcss.config.js files to override the project root config.
+    LocalPathOrProjectPath,
 }
 
 #[turbo_tasks::value(shared)]
@@ -437,22 +446,28 @@ async fn find_config_in_location(
     location: PostCssConfigLocation,
     source: Vc<Box<dyn Source>>,
 ) -> Result<Option<FileSystemPath>> {
-    if let FindContextFileResult::Found(config_path, _) =
-        &*find_context_file_or_package_key(project_path, postcss_configs(), rcstr!("postcss"))
-            .await?
-    {
-        return Ok(Some(config_path.clone()));
-    }
+    // Build an ordered list of directories to search based on the location strategy.
+    let search_paths = match location {
+        // Only check project root (used for foreign/node_modules code).
+        PostCssConfigLocation::ProjectPath => {
+            vec![project_path]
+        }
+        // Check project root first, fall back to the CSS file's directory.
+        PostCssConfigLocation::ProjectPathOrLocalPath => {
+            vec![project_path, source.ident().path().await?.parent()]
+        }
+        // Check the CSS file's directory first, fall back to the project root.
+        PostCssConfigLocation::LocalPathOrProjectPath => {
+            vec![source.ident().path().await?.parent(), project_path]
+        }
+    };
 
-    if matches!(location, PostCssConfigLocation::ProjectPathOrLocalPath)
-        && let FindContextFileResult::Found(config_path, _) = &*find_context_file_or_package_key(
-            source.ident().path().await?.parent(),
-            postcss_configs(),
-            rcstr!("postcss"),
-        )
-        .await?
-    {
-        return Ok(Some(config_path.clone()));
+    for path in search_paths {
+        if let FindContextFileResult::Found(config_path, _) =
+            &*find_context_file_or_package_key(path, postcss_configs(), rcstr!("postcss")).await?
+        {
+            return Ok(Some(config_path.clone()));
+        }
     }
 
     Ok(None)
@@ -531,11 +546,14 @@ impl PostCssTransformedAsset {
                 .to_resolved()
                 .await?;
 
-        let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-            entries.graph_entries().to_resolved().await?,
-            false,
-            false,
-        ))
+        let module_graph = ModuleGraph::from_graphs(
+            vec![SingleModuleGraph::new_with_entries(
+                entries.graph_entries().to_resolved().await?,
+                false,
+                false,
+            )],
+            None,
+        )
         .connect()
         .to_resolved()
         .await?;

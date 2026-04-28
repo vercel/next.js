@@ -8,11 +8,15 @@ use std::{
 use hashbrown::HashMap;
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use rustc_hash::FxHashSet;
+use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     FxIndexMap,
     bottom_up::build_bottom_up_graph,
-    span::{Span, SpanEvent, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames, SpanTimeData},
+    span::{
+        Span, SpanEvent, SpanEventSelfTime, SpanExtra, SpanGraphEvent, SpanIndex, SpanNames,
+        SpanTimeData,
+    },
     span_bottom_up_ref::SpanBottomUpRef,
     span_graph_ref::{SpanGraphEventRef, SpanGraphRef, event_map_to_list},
     store::{SpanId, Store},
@@ -90,26 +94,26 @@ impl<'a> SpanRef<'a> {
                 .args
                 .iter()
                 .find(|&(k, _)| k == "name")
-                .map(|(_, v)| v.as_str())
+                .map(|(_, v)| v)
             {
                 if matches!(self.span.name.as_str(), "turbo_tasks::function") {
-                    (self.span.name.clone(), name.to_string())
+                    (self.span.name.clone(), name.clone())
                 } else if matches!(
                     self.span.name.as_str(),
                     "turbo_tasks::resolve_call" | "turbo_tasks::resolve_trait_call"
                 ) {
-                    (self.span.name.clone(), format!("*{name}"))
+                    (self.span.name.clone(), format!("*{name}").into())
                 } else {
                     (
                         self.span.category.clone(),
-                        format!("{} {name}", self.span.name),
+                        format!("{} {name}", self.span.name).into(),
                     )
                 }
             } else {
-                (self.span.category.to_string(), self.span.name.to_string())
+                (self.span.category.clone(), self.span.name.clone())
             }
         });
-        (category, title)
+        (category.as_str(), title.as_str())
     }
 
     pub fn group_name(&self) -> (&'a str, &'a str) {
@@ -120,8 +124,8 @@ impl<'a> SpanRef<'a> {
                     .args
                     .iter()
                     .find(|&(k, _)| k == "name")
-                    .map(|(_, v)| v.to_string())
-                    .unwrap_or_else(|| self.span.name.to_string());
+                    .map(|(_, v)| v.clone())
+                    .unwrap_or_else(|| self.span.name.clone());
                 (self.span.name.clone(), name)
             } else if matches!(
                 self.span.name.as_str(),
@@ -132,11 +136,11 @@ impl<'a> SpanRef<'a> {
                     .args
                     .iter()
                     .find(|&(k, _)| k == "name")
-                    .map(|(_, v)| format!("*{v}"))
-                    .unwrap_or_else(|| self.span.name.to_string());
+                    .map(|(_, v)| RcStr::from(format!("*{v}")))
+                    .unwrap_or_else(|| self.span.name.clone());
                 (
                     self.span.category.clone(),
-                    format!("{} {name}", self.span.name),
+                    format!("{} {name}", self.span.name).into(),
                 )
             } else {
                 (self.span.category.clone(), self.span.name.clone())
@@ -176,29 +180,33 @@ impl<'a> SpanRef<'a> {
         1
     }
 
-    // TODO(sokra) use events instead of children for visualizing span graphs
-    #[allow(dead_code)]
+    /// Events sorted by start time, including self time and children.
     pub fn events(&self) -> impl DoubleEndedIterator<Item = SpanEventRef<'a>> {
-        self.span.events.iter().map(|event| match event {
-            &SpanEvent::SelfTime { start, end } => SpanEventRef::SelfTime {
-                store: self.store,
-                start,
-                end,
-            },
-            SpanEvent::Child { index } => SpanEventRef::Child {
-                span: SpanRef {
-                    span: &self.store.spans[index.get()],
-                    store: self.store,
-                    index: index.get(),
+        self.span
+            .events
+            .iter()
+            .map(|event: &'a SpanEvent| match event {
+                SpanEvent::SelfTime(self_time) => SpanEventRef::SelfTime {
+                    self_time: SpanEventSelfTimeRef {
+                        store: self.store,
+                        self_time,
+                    },
                 },
-            },
-        })
+                SpanEvent::Child { index, .. } => SpanEventRef::Child {
+                    span: SpanRef {
+                        span: &self.store.spans[index.get()],
+                        store: self.store,
+                        index: index.get(),
+                    },
+                },
+            })
     }
 
+    /// Children sorted by start time, excluding self time.
     pub fn children(&self) -> impl DoubleEndedIterator<Item = SpanRef<'a>> + 'a + use<'a> {
         self.span.events.iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index } => Some(SpanRef {
+            SpanEvent::Child { index, .. } => Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),
@@ -206,10 +214,11 @@ impl<'a> SpanRef<'a> {
         })
     }
 
+    /// Children sorted by start time, excluding self time, in parallel.
     pub fn children_par(&self) -> impl ParallelIterator<Item = SpanRef<'a>> + 'a {
         self.span.events.par_iter().filter_map(|event| match event {
             SpanEvent::SelfTime { .. } => None,
-            SpanEvent::Child { index } => Some(SpanRef {
+            SpanEvent::Child { index, .. } => Some(SpanRef {
                 span: &self.store.spans[index.get()],
                 store: self.store,
                 index: index.get(),
@@ -284,17 +293,11 @@ impl<'a> SpanRef<'a> {
                 .span
                 .events
                 .par_iter()
-                .filter_map(|event| {
-                    if let SpanEvent::SelfTime { start, end } = event {
-                        let duration = *end - *start;
-                        if !duration.is_zero() {
-                            store.set_max_self_time_lookup(*end);
-                            let corrected_time =
-                                store.self_time_tree.as_ref().map_or(duration, |tree| {
-                                    tree.lookup_range_corrected_time(*start, *end)
-                                });
-                            return Some(corrected_time);
-                        }
+                .filter_map(|event: &'a SpanEvent| {
+                    if let SpanEvent::SelfTime(self_time) = event {
+                        return Some(
+                            SpanEventSelfTimeRef { store, self_time }.corrected_self_time(),
+                        );
                     }
                     None
                 })
@@ -422,7 +425,7 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    fn search_index(&self) -> &HashMap<String, Vec<SpanIndex>> {
+    fn search_index(&self) -> &HashMap<RcStr, Vec<SpanIndex>> {
         self.extra().search_index.get_or_init(|| {
             let mut all_spans = Vec::new();
             all_spans.push(self.index);
@@ -442,41 +445,58 @@ impl<'a> SpanRef<'a> {
 
             enum SpanOrMap<'a> {
                 Span(SpanRef<'a>),
-                Map(HashMap<String, Vec<SpanIndex>>),
+                Map(HashMap<RcStr, Vec<SpanIndex>>),
             }
 
-            fn add_span_to_map<'a>(index: &mut HashMap<String, Vec<SpanIndex>>, span: SpanRef<'a>) {
-                if !span.is_root() {
-                    let (cat, name) = span.nice_name();
-                    if !cat.is_empty() {
-                        index
-                            .raw_entry_mut()
-                            .from_key(cat)
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (cat.to_string(), vec![span.index()]));
-                    }
-                    if !name.is_empty() {
-                        index
-                            .raw_entry_mut()
-                            .from_key(name)
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (format!("name={name}"), vec![span.index()]));
-                    }
-                    for (name, value) in span.span.args.iter() {
-                        index
-                            .raw_entry_mut()
-                            .from_key(value)
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (format!("{name}={value}"), vec![span.index()]));
-                    }
-                    if !span.is_complete() && span.span.name != "thread" {
-                        let name = "incomplete_span";
-                        index
-                            .raw_entry_mut()
-                            .from_key(name)
-                            .and_modify(|_, v| v.push(span.index()))
-                            .or_insert_with(|| (name.to_string(), vec![span.index()]));
-                    }
+            /// Insert `span_index` into `index` under the given key.
+            ///
+            /// `lookup` is the string used for the hash lookup. `make_key` produces
+            /// the stored map key when a new entry is created (may differ from
+            /// `lookup`, e.g. `"name=foo"` stored under the hash of `"foo"`).
+            fn push_to_index(
+                index: &mut HashMap<RcStr, Vec<SpanIndex>>,
+                lookup: &str,
+                make_key: impl FnOnce() -> RcStr,
+                span_index: SpanIndex,
+            ) {
+                index
+                    .raw_entry_mut()
+                    .from_key(lookup)
+                    .and_modify(|_, v| v.push(span_index))
+                    .or_insert_with(|| (make_key(), vec![span_index]));
+            }
+
+            fn add_span_to_map<'a>(index: &mut HashMap<RcStr, Vec<SpanIndex>>, span: SpanRef<'a>) {
+                if span.is_root() {
+                    return;
+                }
+                let (cat, name) = span.nice_name();
+                if !cat.is_empty() {
+                    push_to_index(index, cat, || RcStr::from(cat), span.index());
+                }
+                if !name.is_empty() {
+                    push_to_index(
+                        index,
+                        name,
+                        || RcStr::from(format!("name={name}")),
+                        span.index(),
+                    );
+                }
+                for (k, v) in span.span.args.iter() {
+                    push_to_index(
+                        index,
+                        v.as_str(),
+                        || RcStr::from(format!("{k}={v}")),
+                        span.index(),
+                    );
+                }
+                if !span.is_complete() && span.span.name != "thread" {
+                    push_to_index(
+                        index,
+                        "incomplete_span",
+                        || rcstr!("incomplete_span"),
+                        span.index(),
+                    );
                 }
             }
 
@@ -540,47 +560,53 @@ impl Debug for SpanRef<'_> {
     }
 }
 
-#[allow(dead_code)]
-#[derive(Copy, Clone)]
+pub struct SpanEventSelfTimeRef<'a> {
+    store: &'a Store,
+    self_time: &'a SpanEventSelfTime,
+}
+
+impl<'a> SpanEventSelfTimeRef<'a> {
+    pub fn start(&self) -> Timestamp {
+        self.self_time.start
+    }
+
+    pub fn end(&self) -> Timestamp {
+        self.self_time.end
+    }
+
+    pub fn corrected_self_time(&self) -> Timestamp {
+        *self.self_time.corrected_self_time.get_or_init(|| {
+            let duration = self.self_time.end - self.self_time.start;
+            if !duration.is_zero() {
+                self.store.set_max_self_time_lookup(self.self_time.end);
+                self.store.self_time_tree.as_ref().map_or(duration, |tree| {
+                    tree.lookup_range_corrected_time(self.self_time.start, self.self_time.end)
+                })
+            } else {
+                Timestamp::ZERO
+            }
+        })
+    }
+}
+
 pub enum SpanEventRef<'a> {
-    SelfTime {
-        store: &'a Store,
-        start: Timestamp,
-        end: Timestamp,
-    },
-    Child {
-        span: SpanRef<'a>,
-    },
+    SelfTime { self_time: SpanEventSelfTimeRef<'a> },
+    Child { span: SpanRef<'a> },
 }
 
 impl SpanEventRef<'_> {
-    pub fn start(&self) -> Timestamp {
-        match self {
-            SpanEventRef::SelfTime { start, .. } => *start,
-            SpanEventRef::Child { span } => span.start(),
-        }
-    }
-
     pub fn total_time(&self) -> Timestamp {
         match self {
-            SpanEventRef::SelfTime { start, end, .. } => end.saturating_sub(*start),
+            SpanEventRef::SelfTime {
+                self_time: event, ..
+            } => event.end().saturating_sub(event.start()),
             SpanEventRef::Child { span } => span.total_time(),
         }
     }
 
     pub fn corrected_self_time(&self) -> Timestamp {
         match self {
-            SpanEventRef::SelfTime { store, start, end } => {
-                let duration = *end - *start;
-                if !duration.is_zero() {
-                    store.set_max_self_time_lookup(*end);
-                    store.self_time_tree.as_ref().map_or(duration, |tree| {
-                        tree.lookup_range_corrected_time(*start, *end)
-                    })
-                } else {
-                    Timestamp::ZERO
-                }
-            }
+            SpanEventRef::SelfTime { self_time: event } => event.corrected_self_time(),
             SpanEventRef::Child { span } => span.corrected_self_time(),
         }
     }

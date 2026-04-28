@@ -2,6 +2,7 @@ use std::fs;
 
 use rustc_hash::FxHashMap;
 use swc_core::{
+    common::{Span, SyntaxContext},
     ecma::{ast::*, transforms::testing::test_inline, visit::*},
     plugin::{plugin_transform, proxies::TransformPluginProgramMetadata},
 };
@@ -114,6 +115,98 @@ fn stringify_new_error_arg(expr: &Expr, bindings: &FxHashMap<Id, String>) -> Str
     }
 }
 
+impl TransformVisitor {
+    // Look up `error_message` in `errors.json`. On miss, spill to
+    // `cwd/.errors/<hash>.json` so the check-error-codes consolidation step can
+    // pick it up.
+    fn lookup_or_emit(&self, error_message: String) -> Option<String> {
+        // Normalize line endings by converting Windows CRLF (\r\n) to Unix LF (\n)
+        // This ensures the comparison works consistently across different operating systems.
+        // We assume `errors.json` uses Unix LF (\n) as line endings.
+        let error_message = error_message.replace("\r\n", "\n");
+
+        if let Some(code) = self
+            .errors
+            .iter()
+            .find_map(|(key, value)| (*value == error_message).then_some(key))
+        {
+            return Some(format!("E{}", code));
+        }
+
+        let new_error = serde_json::to_string(&NewError { error_message }).unwrap();
+        let hash_hex = format!("{:x}", md5::compute(new_error.as_bytes()));
+        let file_path = format!("cwd/.errors/{}.json", &hash_hex[0..8]);
+
+        let _ = fs::create_dir_all("cwd/.errors");
+        let _ = fs::write(&file_path, new_error);
+
+        None
+    }
+
+    // Build `Object.defineProperty(<target>, "__NEXT_ERROR_CODE", { value:
+    // "<code>", enumerable: false, configurable: true })`.
+    fn build_define_property_call(
+        &self,
+        span: Span,
+        ctxt: SyntaxContext,
+        code: String,
+        target: Box<Expr>,
+    ) -> CallExpr {
+        CallExpr {
+            span,
+            callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
+                span,
+                obj: Box::new(Expr::Ident(Ident::new(
+                    "Object".into(),
+                    span,
+                    Default::default(),
+                ))),
+                prop: MemberProp::Ident("defineProperty".into()),
+            }))),
+            args: vec![
+                ExprOrSpread {
+                    spread: None,
+                    expr: target,
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Lit(Lit::Str(Str {
+                        span,
+                        value: "__NEXT_ERROR_CODE".into(),
+                        raw: None,
+                    }))),
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Object(ObjectLit {
+                        span,
+                        props: vec![
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: PropName::Ident("value".into()),
+                                value: Box::new(Expr::Lit(Lit::Str(Str {
+                                    span,
+                                    value: code.into(),
+                                    raw: None,
+                                }))),
+                            }))),
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: PropName::Ident("enumerable".into()),
+                                value: Box::new(Expr::Lit(Lit::Bool(Bool { span, value: false }))),
+                            }))),
+                            PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                key: PropName::Ident("configurable".into()),
+                                value: Box::new(Expr::Lit(Lit::Bool(Bool { span, value: true }))),
+                            }))),
+                        ],
+                    })),
+                },
+            ],
+            type_args: None,
+            ctxt,
+        }
+    }
+}
+
 impl VisitMut for TransformVisitor {
     fn visit_mut_program(&mut self, program: &mut Program) {
         let mut collector = BindingCollector {
@@ -200,92 +293,118 @@ impl VisitMut for TransformVisitor {
         }
 
         let new_error_expr: NewExpr = new_error_expr.unwrap();
+        let error_message = error_message.unwrap();
 
-        // Normalize line endings by converting Windows CRLF (\r\n) to Unix LF (\n)
-        // This ensures the comparison works consistently across different operating systems
-        let error_message = error_message.unwrap().replace("\r\n", "\n");
-
-        let code = self.errors.iter().find_map(|(key, value)| {
-            // We assume `errors.json` uses Unix LF (\n) as line endings
-            if *value == error_message {
-                Some(key)
-            } else {
-                None
-            }
-        });
-
-        if code.is_none() {
-            let new_error = serde_json::to_string(&NewError { error_message }).unwrap();
-
-            let hash_hex = format!("{:x}", md5::compute(new_error.as_bytes()));
-            let file_path = format!("cwd/.errors/{}.json", &hash_hex[0..8]);
-
-            let _ = fs::create_dir_all("cwd/.errors");
-            let _ = fs::write(&file_path, new_error);
-        } else {
-            let code = format!("E{}", code.unwrap());
-
-            // Mutate to Object.defineProperty(new Error(...), "__NEXT_ERROR_CODE", { value:
-            // "$code", enumerable: false })
-            *expr = Expr::Call(CallExpr {
-                span: new_error_expr.span,
-                callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
-                    span: new_error_expr.span,
-                    obj: Box::new(Expr::Ident(Ident::new(
-                        "Object".into(),
-                        new_error_expr.span,
-                        Default::default(),
-                    ))),
-                    prop: MemberProp::Ident("defineProperty".into()),
-                }))), // Object.defineProperty(
-                args: vec![
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::New(new_error_expr.clone())), // new Error(...)
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Lit(Lit::Str(Str {
-                            span: new_error_expr.span,
-                            value: "__NEXT_ERROR_CODE".into(),
-                            raw: None,
-                        }))), // "__NEXT_ERROR_CODE"
-                    },
-                    ExprOrSpread {
-                        spread: None,
-                        expr: Box::new(Expr::Object(ObjectLit {
-                            span: new_error_expr.span,
-                            props: vec![
-                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident("value".into()),
-                                    value: Box::new(Expr::Lit(Lit::Str(Str {
-                                        span: new_error_expr.span,
-                                        value: code.into(),
-                                        raw: None,
-                                    }))),
-                                }))),
-                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident("enumerable".into()),
-                                    value: Box::new(Expr::Lit(Lit::Bool(Bool {
-                                        span: new_error_expr.span,
-                                        value: false,
-                                    }))),
-                                }))),
-                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
-                                    key: PropName::Ident("configurable".into()),
-                                    value: Box::new(Expr::Lit(Lit::Bool(Bool {
-                                        span: new_error_expr.span,
-                                        value: true,
-                                    }))),
-                                }))),
-                            ],
-                        })), // { value: "$code", enumerable: false }
-                    },
-                ],
-                type_args: None,
-                ctxt: new_error_expr.ctxt,
-            });
+        if let Some(code) = self.lookup_or_emit(error_message) {
+            let span = new_error_expr.span;
+            let ctxt = new_error_expr.ctxt;
+            let call = self.build_define_property_call(
+                span,
+                ctxt,
+                code,
+                Box::new(Expr::New(new_error_expr)),
+            );
+            *expr = Expr::Call(call);
         }
+    }
+
+    fn visit_mut_class(&mut self, class: &mut Class) {
+        // Visit children first so any `new Error(...)` inside methods is still
+        // rewritten by `visit_mut_expr`.
+        class.visit_mut_children_with(self);
+
+        // Only classes that extend a recognized Error class.
+        let super_class_name = match class.super_class.as_deref() {
+            Some(Expr::Ident(ident)) if is_error_class_name(ident.sym.as_str()) => {
+                ident.sym.as_str()
+            }
+            _ => return,
+        };
+
+        // `AggregateError(errors, message)` takes the message as the second
+        // argument. All other recognized error classes take it as the first.
+        let message_arg_index = if super_class_name == "AggregateError" {
+            1
+        } else {
+            0
+        };
+
+        // Skip the injection if the class already declares `__NEXT_ERROR_CODE`
+        // itself. This respects manual overrides in classes whose code can't
+        // be derived statically from the `super(...)` message.
+        let declares_error_code = class.body.iter().any(|member| match member {
+            ClassMember::ClassProp(prop) => matches!(
+                &prop.key,
+                PropName::Ident(ident) if ident.sym.as_str() == "__NEXT_ERROR_CODE"
+            ),
+            _ => false,
+        });
+        if declares_error_code {
+            return;
+        }
+
+        // Find the first constructor with a body.
+        let ctor = class.body.iter_mut().find_map(|member| match member {
+            ClassMember::Constructor(Constructor { body: Some(_), .. }) => {
+                if let ClassMember::Constructor(ctor) = member {
+                    Some(ctor)
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        });
+        let Some(ctor) = ctor else {
+            return;
+        };
+        let Some(body) = ctor.body.as_mut() else {
+            return;
+        };
+
+        // Locate the first top-level `super(arg)` statement.
+        let mut super_index: Option<usize> = None;
+        let mut super_info: Option<(Span, SyntaxContext, String)> = None;
+        for (i, stmt) in body.stmts.iter().enumerate() {
+            if let Stmt::Expr(ExprStmt { expr, .. }) = stmt
+                && let Expr::Call(CallExpr {
+                    callee: Callee::Super(_),
+                    args,
+                    span,
+                    ctxt,
+                    ..
+                }) = &**expr
+                && let Some(message_arg) = args.get(message_arg_index)
+                && message_arg.spread.is_none()
+            {
+                let message = stringify_new_error_arg(&message_arg.expr, &self.resolved_bindings);
+                super_index = Some(i);
+                super_info = Some((*span, *ctxt, message));
+                break;
+            }
+        }
+
+        let Some(stmt_index) = super_index else {
+            return;
+        };
+        let (span, ctxt, message) = super_info.unwrap();
+
+        let Some(code) = self.lookup_or_emit(message) else {
+            return;
+        };
+
+        // Insert `Object.defineProperty(this, "__NEXT_ERROR_CODE", { ... })`
+        // immediately after the super call.
+        let call = self.build_define_property_call(
+            span,
+            ctxt,
+            code,
+            Box::new(Expr::This(ThisExpr { span })),
+        );
+        let new_stmt = Stmt::Expr(ExprStmt {
+            span,
+            expr: Box::new(Expr::Call(call)),
+        });
+        body.stmts.insert(stmt_index + 1, new_stmt);
     }
 }
 
@@ -417,6 +536,158 @@ function test5() {
         enumerable: false,
         configurable: true
     });
+}
+"#
+);
+
+test_inline!(
+    Default::default(),
+    |_| visit_mut_pass(TransformVisitor {
+        errors: FxHashMap::from_iter([
+            ("7".to_string(), "Timeout reached".to_string()),
+            ("8".to_string(), "Prefix: %s".to_string()),
+        ]),
+        resolved_bindings: FxHashMap::default(),
+    }),
+    subclass_super_messages,
+    // Input codes
+    r#"
+class LiteralSuper extends Error {
+    constructor() {
+        super("Timeout reached");
+    }
+}
+
+class TemplateSuper extends Error {
+    constructor(x) {
+        super(`Prefix: ${x}`);
+    }
+}
+
+class ExtendsKnownSubclass extends ApiError {
+    constructor() {
+        super("Timeout reached");
+        this.extra = 1;
+    }
+}
+
+class NoCtor extends Error {}
+
+class SpreadSuper extends Error {
+    constructor(...args) {
+        super(...args);
+    }
+}
+
+class ExtendsUnknown extends Foo {
+    constructor() {
+        super("Timeout reached");
+    }
+}
+
+class SuperInIf extends Error {
+    constructor(cond) {
+        if (cond) {
+            super("Timeout reached");
+        } else {
+            super("Timeout reached");
+        }
+    }
+}
+
+class UnknownMessage extends Error {
+    constructor() {
+        super("Not in errors.json");
+    }
+}
+
+class AggregateSubclass extends AggregateError {
+    constructor(errors) {
+        super(errors, "Timeout reached");
+    }
+}
+
+class ManualErrorCode extends Error {
+    __NEXT_ERROR_CODE = 'Manual';
+    constructor(message) {
+        super(message);
+    }
+}
+"#,
+    // Output codes after transformed with plugin
+    r#"
+class LiteralSuper extends Error {
+    constructor(){
+        super("Timeout reached");
+        Object.defineProperty(this, "__NEXT_ERROR_CODE", {
+            value: "E7",
+            enumerable: false,
+            configurable: true
+        });
+    }
+}
+class TemplateSuper extends Error {
+    constructor(x){
+        super(`Prefix: ${x}`);
+        Object.defineProperty(this, "__NEXT_ERROR_CODE", {
+            value: "E8",
+            enumerable: false,
+            configurable: true
+        });
+    }
+}
+class ExtendsKnownSubclass extends ApiError {
+    constructor(){
+        super("Timeout reached");
+        Object.defineProperty(this, "__NEXT_ERROR_CODE", {
+            value: "E7",
+            enumerable: false,
+            configurable: true
+        });
+        this.extra = 1;
+    }
+}
+class NoCtor extends Error {
+}
+class SpreadSuper extends Error {
+    constructor(...args){
+        super(...args);
+    }
+}
+class ExtendsUnknown extends Foo {
+    constructor(){
+        super("Timeout reached");
+    }
+}
+class SuperInIf extends Error {
+    constructor(cond){
+        if (cond) {
+            super("Timeout reached");
+        } else {
+            super("Timeout reached");
+        }
+    }
+}
+class UnknownMessage extends Error {
+    constructor(){
+        super("Not in errors.json");
+    }
+}
+class AggregateSubclass extends AggregateError {
+    constructor(errors){
+        super(errors, "Timeout reached");
+        Object.defineProperty(this, "__NEXT_ERROR_CODE", {
+            value: "E7",
+            enumerable: false,
+            configurable: true
+        });
+    }
+}
+class ManualErrorCode extends Error {
+    __NEXT_ERROR_CODE = 'Manual';
+    constructor(message){
+        super(message);
+    }
 }
 "#
 );

@@ -16,14 +16,10 @@ export async function anySegmentHasRuntimePrefetchEnabled(
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
   // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
-  const instantConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).unstable_instant
+  const prefetchConfig = layoutOrPageMod
+    ? (layoutOrPageMod as AppSegmentConfig).unstable_prefetch
     : undefined
-  const hasRuntimePrefetch =
-    instantConfig && typeof instantConfig === 'object'
-      ? instantConfig.prefetch === 'runtime'
-      : false
-  if (hasRuntimePrefetch) {
+  if (prefetchConfig === 'force-runtime') {
     return true
   }
 
@@ -53,10 +49,10 @@ export async function isPageAllowedToBlock(tree: LoaderTree): Promise<boolean> {
   // instant UI, so we should make sure that a static shell exists.
   // (even if it'd use runtime prefetching for client navs)
   if (instantConfig !== undefined) {
-    if (typeof instantConfig === 'object') {
-      return false
-    } else if (instantConfig === false) {
+    if (instantConfig === false) {
       return true
+    } else {
+      return false
     }
   }
 
@@ -88,12 +84,14 @@ async function anySegmentNeedsInstantValidation(
 ): Promise<boolean> {
   const segments = await findSegmentsWithInstantConfig(rootTree)
 
-  // Check if there's any configs with `prefetch: 'static'` or `mode: 'instant'`.
+  // Check if there's any non-false configs that need validation.
   // (If there's only `false`, there's no need to run validation).
   // If any segment has `unstable_disableValidation`, we skip validation for the whole tree.
   let needsValidation = false
   for (const { config } of segments) {
-    if (typeof config === 'object') {
+    if (config === true) {
+      needsValidation = true
+    } else if (typeof config === 'object') {
       if (
         config.unstable_disableValidation === true ||
         (mode === 'dev' && config.unstable_disableDevValidation === true) ||

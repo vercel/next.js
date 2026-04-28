@@ -3,11 +3,7 @@ title: cacheComponents
 description: Learn how to enable the cacheComponents flag in Next.js.
 ---
 
-The `cacheComponents` flag is a feature in Next.js that causes data fetching operations in the App Router to be excluded from prerenders unless they are explicitly cached. This can be useful for optimizing the performance of uncached data fetching in Server Components.
-
-It is useful if your application requires fresh data fetching during runtime rather than serving from a prerendered cache.
-
-It is expected to be used in conjunction with [`use cache`](/docs/app/api-reference/directives/use-cache) so that your data fetching happens at runtime by default unless you define specific parts of your application to be cached with `use cache` at the page, function, or component level.
+Cache Components enables component and function-level caching using the [`use cache`](/docs/app/api-reference/directives/use-cache) directive. Data fetching is dynamic by default, and you choose what to cache at the page, component, or function level. Next.js prerenders a static HTML shell that is served immediately while dynamic content streams in when ready, letting you mix static and dynamic content within a single route.
 
 ## Usage
 
@@ -28,6 +24,14 @@ When `cacheComponents` is enabled, you can use the following cache functions and
 - The [`use cache` directive](/docs/app/api-reference/directives/use-cache)
 - The [`cacheLife` function](/docs/app/api-reference/config/next-config-js/cacheLife) with `use cache`
 - The [`cacheTag` function](/docs/app/api-reference/functions/cacheTag)
+
+> **Good to know**: If you used `experimental.useCache` or `experimental.dynamicIO`, migrate using the [Version 16 upgrade guide](/docs/app/guides/upgrading/version-16#experimentaldynamicio-and-experimentalusecache). To migrate route segment configs and other caching patterns, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
+
+Additionally, `cacheComponents` implements **[Partial Prerendering (PPR)](/docs/app/glossary#partial-prerendering-ppr)** as the default behavior in the App Router. This means the `experimental.ppr` configuration flag and the `experimental_ppr` route segment configuration are no longer necessary and have been removed.
+
+Read [How rendering works](/docs/app/getting-started/caching#how-rendering-works) for how the static shell and streaming fit together.
+
+> **Good to know**: If you used experimental PPR in Next.js 15, refer to the [Partial Prerendering (PPR)](/docs/app/guides/upgrading/version-16#partial-prerendering-ppr) section of the Version 16 upgrade guide when migrating.
 
 ## Navigation with Activity
 

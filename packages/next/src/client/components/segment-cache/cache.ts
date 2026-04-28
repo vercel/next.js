@@ -31,6 +31,7 @@ import {
   type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
+import { fetch } from './fetch'
 import {
   pingPrefetchTask,
   isPrefetchTaskDirty,
@@ -1672,15 +1673,7 @@ export async function fetchRouteOnCacheMiss(
         response !== null && response.redirected ? new URL(response.url) : url
     }
 
-    if (
-      !response ||
-      !response.ok ||
-      // 204 is a Cache miss. Though theoretically this shouldn't happen when
-      // PPR is enabled, because we always respond to route tree requests, even
-      // if it needs to be blockingly generated on demand.
-      response.status === 204 ||
-      !response.body
-    ) {
+    if (!response || !response.ok || !response.body) {
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
       rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
@@ -1950,7 +1943,6 @@ export async function fetchSegmentsOnCacheMiss(
     if (
       !response ||
       !response.ok ||
-      response.status === 204 || // Cache miss
       // This checks whether the response was served from the per-segment cache,
       // rather than the old prefetching flow. If it fails, it implies that PPR
       // is disabled on this route. Theoretically this should never happen

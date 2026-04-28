@@ -1,6 +1,5 @@
 #![allow(clippy::items_after_test_module)]
 #![feature(arbitrary_self_types)]
-#![feature(arbitrary_self_types_pointers)]
 
 mod helpers;
 use std::{path::PathBuf, sync::LazyLock};
@@ -84,8 +83,8 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::depth_1("depth-1")]
 // #[case::depth_2("depth-2")]
 // #[case::depth_3("depth-3")]
-// #[case::dirname_emit("dirname-emit")]
-// #[case::dirname_emit_concat("dirname-emit-concat")]
+#[case::dirname_emit("dirname-emit")]
+#[case::dirname_emit_concat("dirname-emit-concat")]
 #[case::dirname_len("dirname-len")]
 #[case::dot_dot("dot-dot")]
 #[case::esm_dynamic_import("esm-dynamic-import")]
@@ -186,9 +185,9 @@ static ALLOC: turbo_tasks_malloc::TurboMalloc = turbo_tasks_malloc::TurboMalloc;
 // #[case::webpack_wrapper_strs_namespaces_large("webpack-wrapper-strs-namespaces-large")]
 // #[case::when_wrapper("when-wrapper")]
 #[case::wildcard("wildcard")]
-// #[case::wildcard_require("wildcard-require")]
+#[case::wildcard_require("wildcard-require")]
 // #[case::wildcard2("wildcard2")]
-// #[case::wildcard3("wildcard3")]
+#[case::wildcard3("wildcard3")]
 // #[case::yarn_workspace_esm("yarn-workspace-esm")]
 // #[case::yarn_workspaces("yarn-workspaces")]
 // #[case::zeromq_node_gyp("zeromq-node-gyp")]
@@ -200,7 +199,7 @@ fn unit_test(#[case] input: &str) -> Result<()> {
 async fn node_file_trace_operation(package_root: RcStr, input: RcStr) -> Result<Vc<Vec<RcStr>>> {
     let workspace_fs: Vc<Box<dyn FileSystem>> = Vc::upcast(DiskFileSystem::new(
         rcstr!("workspace"),
-        package_root.clone(),
+        Vc::cell(package_root.clone()),
     ));
     let input_dir = workspace_fs.root().owned().await?;
     let input = input_dir.join(&input)?;

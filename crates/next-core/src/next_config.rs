@@ -1,4 +1,5 @@
 use anyhow::{Context, Result, bail};
+use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
 use rustc_hash::FxHashSet;
@@ -21,10 +22,9 @@ use turbopack::module_options::{
     WebpackRules, module_options_context::MdxTransformOptions,
 };
 use turbopack_core::{
-    chunk::SourceMapsType,
+    chunk::{CrossOrigin, SourceMapsType},
     issue::{
-        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage,
-        OptionStyledString, StyledString,
+        IgnoreIssue, IgnoreIssuePattern, Issue, IssueExt, IssueSeverity, IssueStage, StyledString,
     },
     resolve::ResolveAliasMap,
 };
@@ -112,7 +112,7 @@ pub struct NextConfig {
     skip_proxy_url_normalize: Option<bool>,
     skip_trailing_slash_redirect: Option<bool>,
     i18n: Option<I18NConfig>,
-    cross_origin: Option<CrossOriginConfig>,
+    cross_origin: CrossOrigin,
     dev_indicators: Option<DevIndicatorsConfig>,
     output: Option<OutputType>,
     turbopack: Option<TurbopackConfig>,
@@ -179,28 +179,6 @@ impl NextConfig {
         new.cell()
     }
 }
-
-#[derive(
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Serialize,
-    Deserialize,
-    TraceRawVcs,
-    NonLocalValue,
-    OperationValue,
-    Encode,
-    Decode,
-)]
-#[serde(rename_all = "kebab-case")]
-pub enum CrossOriginConfig {
-    Anonymous,
-    UseCredentials,
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct OptionCrossOriginConfig(Option<CrossOriginConfig>);
 
 #[derive(
     Clone,
@@ -959,6 +937,13 @@ pub enum ReactCompilerPanicThreshold {
     AllErrors,
 }
 
+#[turbo_tasks::value(shared, operation)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum ReactCompilerTarget {
+    #[serde(rename = "18")]
+    React18,
+}
+
 /// Subset of react compiler options, we pass these options through to the webpack loader, so it
 /// must be serializable
 #[turbo_tasks::value(shared, operation)]
@@ -969,6 +954,8 @@ pub struct ReactCompilerOptions {
     pub compilation_mode: ReactCompilerCompilationMode,
     #[serde(default)]
     pub panic_threshold: ReactCompilerPanicThreshold,
+    #[serde(default, skip_deserializing, skip_serializing_if = "Option::is_none")]
+    pub target: Option<ReactCompilerTarget>,
 }
 
 #[derive(
@@ -1081,6 +1068,7 @@ pub struct ExperimentalConfig {
     strict_next_head: Option<bool>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
     swc_plugins: Option<Vec<(RcStr, serde_json::Value)>>,
+    swc_env_options: Option<SwcEnvOptions>,
     external_middleware_rewrites_resolve: Option<bool>,
     scroll_restoration: Option<bool>,
     manual_client_base_path: Option<bool>,
@@ -1100,7 +1088,11 @@ pub struct ExperimentalConfig {
     use_cache: Option<bool>,
     root_params: Option<bool>,
     runtime_server_deployment_id: Option<bool>,
-    immutable_asset_token: Option<RcStr>,
+    supports_immutable_assets: Option<bool>,
+
+    /// A salt to mix into chunk and asset content hashes. Empty string means
+    /// no salt.
+    output_hash_salt: Option<RcStr>,
 
     // ---
     // UNSUPPORTED
@@ -1176,6 +1168,11 @@ pub struct ExperimentalConfig {
     /// present.
     #[serde(default)]
     turbopack_use_builtin_babel: Option<bool>,
+    /// Enable per-directory PostCSS config resolution. When true, Turbopack
+    /// searches for postcss.config.js starting from the CSS file's parent
+    /// directory first, then falls back to the project root.
+    #[serde(default)]
+    turbopack_local_postcss_config: Option<bool>,
     // Whether to enable the global-not-found convention
     global_not_found: Option<bool>,
     /// Defaults to false in development mode, true in production mode.
@@ -1419,6 +1416,37 @@ pub struct SwcPlugins(
     #[bincode(with = "turbo_bincode::serde_self_describing")] Vec<(RcStr, serde_json::Value)>,
 );
 
+/// Options for SWC's preset-env, exposed via `experimental.swcEnvOptions`.
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+    Encode,
+    Decode,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct SwcEnvOptions {
+    pub mode: Option<RcStr>,
+    pub core_js: Option<RcStr>,
+    pub skip: Option<Vec<RcStr>>,
+    pub include: Option<Vec<RcStr>>,
+    pub exclude: Option<Vec<RcStr>>,
+    pub shipped_proposals: Option<bool>,
+    pub force_all_transforms: Option<bool>,
+    pub debug: Option<bool>,
+    pub loose: Option<bool>,
+}
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionSwcEnvOptions(Option<SwcEnvOptions>);
+
 #[turbo_tasks::value(transparent)]
 pub struct OptionalMdxTransformOptions(Option<ResolvedVc<MdxTransformOptions>>);
 
@@ -1448,40 +1476,32 @@ struct InvalidLoaderRuleRenameAsIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleRenameAsIssue {
-    #[turbo_tasks::function]
-    async fn file_path(&self) -> Result<Vc<FileSystemPath>> {
-        Ok(self.config_file_path.clone().cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(
-            StyledString::Text(format!("Invalid loader rule for extension: {}", self.glob).into())
-                .cell(),
-        )
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            format!("Invalid loader rule for extension: {}", self.glob).into(),
+        ))
     }
 
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Text(RcStr::from(format!(
-                "The extension {} contains a wildcard, but the `as` option does not: {}",
-                self.glob, self.rename_as,
-            )))
-            .resolved_cell(),
-        )))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(RcStr::from(format!(
+            "The extension {} contains a wildcard, but the `as` option does not: {}",
+            self.glob, self.rename_as,
+        )))))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(turbopack_config_documentation_link())
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
     }
 }
 
@@ -1492,41 +1512,36 @@ struct InvalidLoaderRuleConditionIssue {
     config_file_path: FileSystemPath,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for InvalidLoaderRuleConditionIssue {
-    #[turbo_tasks::function]
-    async fn file_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.await?.config_file_path.clone().cell())
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.config_file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(self: Vc<Self>) -> Vc<IssueStage> {
-        IssueStage::Config.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Config
     }
 
-    #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(rcstr!("Invalid condition for Turbopack loader rule")).cell())
-    }
-
-    #[turbo_tasks::function]
-    async fn description(&self) -> Result<Vc<OptionStyledString>> {
-        Ok(Vc::cell(Some(
-            StyledString::Stack(vec![
-                StyledString::Line(vec![
-                    StyledString::Text(rcstr!("Encountered the following error: ")),
-                    StyledString::Code(self.error_string.clone()),
-                ]),
-                StyledString::Text(rcstr!("While processing the condition:")),
-                StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
-            ])
-            .resolved_cell(),
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Invalid condition for Turbopack loader rule"
         )))
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        Vc::cell(turbopack_config_documentation_link())
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Stack(vec![
+            StyledString::Line(vec![
+                StyledString::Text(rcstr!("Encountered the following error: ")),
+                StyledString::Code(self.error_string.clone()),
+            ]),
+            StyledString::Text(rcstr!("While processing the condition:")),
+            StyledString::Code(RcStr::from(format!("{:#?}", self.condition))),
+        ])))
+    }
+
+    fn documentation_link(&self) -> RcStr {
+        turbopack_config_documentation_link()
     }
 }
 
@@ -1855,6 +1870,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn experimental_swc_env_options(&self) -> Vc<OptionSwcEnvOptions> {
+        Vc::cell(self.experimental.swc_env_options.clone())
+    }
+
+    #[turbo_tasks::function]
     pub fn experimental_sri(&self) -> Vc<OptionSubResourceIntegrity> {
         Vc::cell(self.experimental.sri.clone())
     }
@@ -1867,6 +1887,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn experimental_turbopack_use_builtin_sass(&self) -> Vc<Option<bool>> {
         Vc::cell(self.experimental.turbopack_use_builtin_sass)
+    }
+
+    #[turbo_tasks::function]
+    pub fn experimental_turbopack_local_postcss_config(&self) -> Vc<Option<bool>> {
+        Vc::cell(self.experimental.turbopack_local_postcss_config)
     }
 
     #[turbo_tasks::function]
@@ -1924,20 +1949,36 @@ impl NextConfig {
     /// Returns the suffix to use for chunk loading.
     #[turbo_tasks::function]
     pub fn asset_suffix_path(&self) -> Vc<Option<RcStr>> {
-        let id = self
+        let needs_dpl_id = self
             .experimental
-            .immutable_asset_token
-            .as_ref()
-            .or(self.deployment_id.as_ref());
+            .supports_immutable_assets
+            .is_none_or(|f| !f);
 
-        Vc::cell(id.as_ref().map(|id| format!("?dpl={id}").into()))
+        Vc::cell(
+            needs_dpl_id
+                .then_some(self.deployment_id.as_ref())
+                .flatten()
+                .map(|id| format!("?dpl={id}").into()),
+        )
     }
 
     /// Whether to enable immutable assets, which uses a different asset suffix, and writes a
     /// .next/immutable-static-hashes.json manifest.
     #[turbo_tasks::function]
     pub fn enable_immutable_assets(&self) -> Vc<bool> {
-        Vc::cell(self.experimental.immutable_asset_token.is_some())
+        Vc::cell(self.experimental.supports_immutable_assets == Some(true))
+    }
+
+    #[turbo_tasks::function]
+    pub fn client_static_folder_name(&self) -> Vc<RcStr> {
+        Vc::cell(
+            if self.experimental.supports_immutable_assets == Some(true) {
+                // Ends up as `_next/static/immutable`
+                rcstr!("static/immutable")
+            } else {
+                rcstr!("static")
+            },
+        )
     }
 
     #[turbo_tasks::function]
@@ -1983,11 +2024,18 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn runtime_server_deployment_id_available(&self) -> Vc<bool> {
+    pub fn should_append_server_deployment_id_at_runtime(&self) -> Vc<bool> {
+        let needs_dpl_id = self
+            .experimental
+            .supports_immutable_assets
+            .is_none_or(|f| !f);
+
         Vc::cell(
-            self.experimental
-                .runtime_server_deployment_id
-                .unwrap_or(false),
+            needs_dpl_id
+                && self
+                    .experimental
+                    .runtime_server_deployment_id
+                    .unwrap_or(false),
         )
     }
 
@@ -2236,8 +2284,8 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn cross_origin(&self) -> Vc<OptionCrossOriginConfig> {
-        Vc::cell(self.cross_origin.clone())
+    pub fn cross_origin(&self) -> Vc<CrossOrigin> {
+        *self.cross_origin.resolved_cell()
     }
 
     #[turbo_tasks::function]
@@ -2304,6 +2352,16 @@ impl NextConfig {
             })
             .collect::<Result<Vec<_>>>()?;
         Ok(Vc::cell(rules))
+    }
+
+    #[turbo_tasks::function]
+    pub fn output_hash_salt(&self) -> Vc<RcStr> {
+        Vc::cell(
+            self.experimental
+                .output_hash_salt
+                .clone()
+                .unwrap_or_default(),
+        )
     }
 }
 

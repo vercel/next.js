@@ -5,19 +5,19 @@ use indoc::writedoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
-    chunk::AssetSuffix,
+    chunk::{AssetSuffix, CrossOrigin},
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
-    environment::{ChunkLoading, Environment},
+    environment::ChunkLoading,
 };
 use turbopack_ecmascript::utils::StringifyJs;
 
-use crate::{RuntimeType, asset_context::get_runtime_asset_context, embed_js::embed_static_code};
+use crate::{RuntimeType, embed_js::embed_static_code};
 
 /// Returns the code for the ECMAScript runtime.
 #[turbo_tasks::function]
 pub async fn get_browser_runtime_code(
-    environment: ResolvedVc<Environment>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     chunk_base_path: Vc<Option<RcStr>>,
     asset_suffix: Vc<AssetSuffix>,
     worker_forwarded_globals: Vc<Vec<RcStr>>,
@@ -25,10 +25,10 @@ pub async fn get_browser_runtime_code(
     output_root_to_root_path: RcStr,
     generate_source_map: bool,
     chunk_loading_global: Vc<RcStr>,
+    cross_origin: Vc<CrossOrigin>,
 ) -> Result<Vc<Code>> {
-    let asset_context = *get_runtime_asset_context(*environment)
-        .to_resolved()
-        .await?;
+    let asset_context = *asset_context;
+    let environment = asset_context.compile_time_info().environment();
 
     let shared_runtime_utils_code = embed_static_code(
         asset_context,
@@ -88,6 +88,7 @@ pub async fn get_browser_runtime_code(
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
     let asset_suffix = asset_suffix.await?;
     let chunk_loading_global = chunk_loading_global.await?;
+    let cross_origin = *cross_origin.await?;
     let chunk_lists_global = format!("{}_CHUNK_LISTS", &*chunk_loading_global);
 
     if *environment
@@ -156,6 +157,15 @@ pub async fn get_browser_runtime_code(
             )?;
         }
     }
+
+    let cross_origin = cross_origin.as_str();
+    writedoc!(
+        code,
+        r#"
+            var CROSS_ORIGIN = {};
+        "#,
+        StringifyJs(&cross_origin)
+    )?;
 
     // Output the list of global variable names to forward to workers
     let worker_forwarded_globals = worker_forwarded_globals.await?;

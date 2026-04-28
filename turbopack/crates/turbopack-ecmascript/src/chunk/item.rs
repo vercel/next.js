@@ -14,7 +14,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
-    code_builder::{Code, CodeBuilder},
+    code_builder::{Code, CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -53,7 +53,7 @@ pub enum RewriteSourcePath {
 
 // Note we don't want to persist this as `module_factory_with_code_generation_issue` is already
 // persisted and we want to avoid duplicating it.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "skip")]
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
@@ -132,7 +132,7 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self) -> Result<ResolvedVc<Code>> {
+    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -204,7 +204,7 @@ impl EcmascriptChunkItemContent {
 
         code += "})";
 
-        Ok(code.build().resolved_cell())
+        Ok(code.build().cell_persisted())
     }
 }
 
@@ -286,6 +286,7 @@ where
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
         module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
+            .to_code()
     }
 }
 
@@ -293,7 +294,7 @@ where
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-) -> Result<Vc<Code>> {
+) -> Result<Vc<PersistedCode>> {
     let content = match chunk_item
         .content_with_async_module_info(async_module_info, false)
         .await
@@ -327,7 +328,7 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = &js_error_message)?;
             code += "\n}})";
-            code.build().cell()
+            *code.build().cell_persisted()
         }
     })
 }

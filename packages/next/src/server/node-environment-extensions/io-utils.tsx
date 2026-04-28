@@ -3,8 +3,7 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
-
-import { getServerReact, getClientReact } from '../runtime-reacts.external'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 
 type ApiType = 'time' | 'random' | 'crypto'
 
@@ -166,38 +165,4 @@ export function io(expression: string, type: ApiType) {
     default:
       workUnitStore satisfies never
   }
-}
-
-function applyOwnerStack(error: Error) {
-  // TODO: Instead of stitching the stacks here, we should log the original
-  // error as-is when it occurs, and let `patchErrorInspect` handle adding the
-  // owner stack, instead of logging it deferred in the `LogSafely` component
-  // via `throwIfDisallowedDynamic`.
-  if (process.env.NODE_ENV !== 'production') {
-    const ownerStack =
-      getClientReact()?.captureOwnerStack?.() ??
-      getServerReact()?.captureOwnerStack?.()
-
-    if (ownerStack) {
-      let stack = ownerStack
-
-      if (error.stack) {
-        const frames: string[] = []
-
-        for (const frame of error.stack.split('\n').slice(1)) {
-          if (frame.includes('react_stack_bottom_frame')) {
-            break
-          }
-
-          frames.push(frame)
-        }
-
-        stack = '\n' + frames.join('\n') + stack
-      }
-
-      error.stack = error.name + ': ' + error.message + stack
-    }
-  }
-
-  return error
 }

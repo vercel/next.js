@@ -4,8 +4,9 @@ use std::{
 };
 
 use hashbrown::HashMap;
+use turbo_rcstr::RcStr;
 
-use crate::timestamp::Timestamp;
+use crate::{lazy_sorted_vec::LazySortedVec, timestamp::Timestamp};
 
 pub type SpanIndex = NonZeroUsize;
 
@@ -14,12 +15,13 @@ pub struct Span {
     pub parent: Option<SpanIndex>,
     pub depth: u32,
     pub start: Timestamp,
-    pub category: String,
-    pub name: String,
-    pub args: Vec<(String, String)>,
+    pub category: RcStr,
+    pub name: RcStr,
+    pub args: Vec<(RcStr, RcStr)>,
 
     // This might change during writing:
-    pub events: Vec<SpanEvent>,
+    /// The list of events sorted by start time
+    pub events: LazySortedVec<SpanEvent>,
     pub is_complete: bool,
 
     // These values are computed automatically:
@@ -64,14 +66,14 @@ pub struct SpanTimeData {
 pub struct SpanExtra {
     pub graph: OnceLock<Vec<SpanGraphEvent>>,
     pub bottom_up: OnceLock<Vec<Arc<SpanBottomUp>>>,
-    pub search_index: OnceLock<HashMap<String, Vec<SpanIndex>>>,
+    pub search_index: OnceLock<HashMap<RcStr, Vec<SpanIndex>>>,
 }
 
 #[derive(Default)]
 pub struct SpanNames {
     // These values are computed when accessed (and maybe deleted during writing):
-    pub nice_name: OnceLock<(String, String)>,
-    pub group_name: OnceLock<(String, String)>,
+    pub nice_name: OnceLock<(RcStr, RcStr)>,
+    pub group_name: OnceLock<(RcStr, RcStr)>,
 }
 
 impl Span {
@@ -99,10 +101,62 @@ impl Span {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct SpanEventSelfTime {
+    pub start: Timestamp,
+    pub end: Timestamp,
+    pub corrected_self_time: OnceLock<Timestamp>,
+}
+
 pub enum SpanEvent {
-    SelfTime { start: Timestamp, end: Timestamp },
-    Child { index: SpanIndex },
+    SelfTime(SpanEventSelfTime),
+    Child { start: Timestamp, index: SpanIndex },
+}
+
+impl SpanEvent {
+    pub fn self_time(start: Timestamp, end: Timestamp) -> Self {
+        Self::SelfTime(SpanEventSelfTime {
+            start,
+            end,
+            corrected_self_time: OnceLock::new(),
+        })
+    }
+
+    pub fn start(&self) -> Timestamp {
+        match self {
+            SpanEvent::SelfTime(self_time) => self_time.start,
+            SpanEvent::Child { start, .. } => *start,
+        }
+    }
+}
+
+impl PartialEq for SpanEvent {
+    fn eq(&self, other: &Self) -> bool {
+        self.cmp(other) == std::cmp::Ordering::Equal
+    }
+}
+
+impl Eq for SpanEvent {}
+
+impl PartialOrd for SpanEvent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for SpanEvent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.start()
+            .cmp(&other.start())
+            .then_with(|| match (self, other) {
+                (SpanEvent::SelfTime(_), SpanEvent::Child { .. }) => std::cmp::Ordering::Less,
+                (SpanEvent::Child { .. }, SpanEvent::SelfTime(_)) => std::cmp::Ordering::Greater,
+                (SpanEvent::SelfTime(a), SpanEvent::SelfTime(b)) => a.end.cmp(&b.end),
+                (
+                    SpanEvent::Child { start: _, index: a },
+                    SpanEvent::Child { start: _, index: b },
+                ) => a.cmp(b),
+            })
+    }
 }
 
 #[derive(Clone)]

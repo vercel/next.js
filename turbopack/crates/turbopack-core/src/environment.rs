@@ -113,7 +113,7 @@ impl Environment {
             // browserslist correctly because CSS Modules in client components is double-processed,
             // once for server once for browser.
             {
-                Vc::cell(rcstr!(""))
+                Vc::default()
             }
             ExecutionEnvironment::Browser(browser_env) => {
                 Vc::cell(browser_env.await?.browserslist_query.clone())
@@ -354,7 +354,7 @@ impl EdgeWorkerEnvironment {
 
 // TODO preset_env_base::Version implements Serialize/Deserialize incorrectly
 #[derive(Debug)]
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
 #[turbo_tasks::value_impl]

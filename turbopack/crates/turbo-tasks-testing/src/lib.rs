@@ -17,8 +17,9 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use tokio::sync::mpsc::Receiver;
 use turbo_tasks::{
-    CellId, ExecutionId, InvalidationReason, LocalTaskId, MagicAny, RawVc, ReadCellOptions,
-    ReadOutputOptions, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi, TurboTasksCallApi,
+    CellId, DynTaskInputs, ExecutionId, InvalidationReason, LocalTaskId, RawVc, ReadCellOptions,
+    ReadOutputOptions, StackDynTaskInputs, TaskId, TaskPersistence, TraitTypeId, TurboTasksApi,
+    TurboTasksCallApi,
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent, VerificationMode},
     event::{Event, EventListener},
     message_queue::CompilationEvent,
@@ -47,7 +48,7 @@ impl VcStorage {
         &self,
         func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this_arg: Option<RawVc>,
-        arg: Box<dyn MagicAny>,
+        arg: Box<dyn DynTaskInputs>,
     ) -> RawVc {
         let this = self.this.upgrade().unwrap();
         let handle = tokio::runtime::Handle::current();
@@ -96,26 +97,26 @@ impl TurboTasksCallApi for VcStorage {
         &self,
         func: &'static turbo_tasks::macro_helpers::NativeFunction,
         this: Option<RawVc>,
-        arg: Box<dyn MagicAny>,
+        arg: &mut dyn StackDynTaskInputs,
         _persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(func, this, arg)
+        self.dynamic_call(func, this, arg.take_box())
     }
     fn native_call(
         &self,
-        _func: &'static turbo_tasks::macro_helpers::NativeFunction,
-        _this: Option<RawVc>,
-        _arg: Box<dyn MagicAny>,
+        func: &'static turbo_tasks::macro_helpers::NativeFunction,
+        this: Option<RawVc>,
+        arg: &mut dyn StackDynTaskInputs,
         _persistence: TaskPersistence,
     ) -> RawVc {
-        unreachable!()
+        self.dynamic_call(func, this, arg.take_box())
     }
 
     fn trait_call(
         &self,
         _trait_type: &'static turbo_tasks::TraitMethod,
         _this: RawVc,
-        _arg: Box<dyn MagicAny>,
+        _arg: &mut dyn StackDynTaskInputs,
         _persistence: TaskPersistence,
     ) -> RawVc {
         unreachable!()
@@ -219,9 +220,8 @@ impl TurboTasksApi for VcStorage {
         &self,
         current_task: TaskId,
         index: CellId,
-        options: ReadCellOptions,
     ) -> Result<TypedCellContent> {
-        self.read_own_task_cell(current_task, index, options)
+        self.read_own_task_cell(current_task, index)
     }
 
     fn try_read_local_output(
@@ -257,12 +257,7 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
-    fn read_own_task_cell(
-        &self,
-        task: TaskId,
-        index: CellId,
-        _options: ReadCellOptions,
-    ) -> Result<TypedCellContent> {
+    fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent> {
         let map = self.cells.lock().unwrap();
         Ok(if let Some(cell) = map.get(&(task, index)) {
             cell.to_owned()
@@ -276,9 +271,9 @@ impl TurboTasksApi for VcStorage {
         &self,
         task: TaskId,
         index: CellId,
-        _is_serializable_cell_content: bool,
         content: CellContent,
         _updated_key_hashes: Option<SmallVec<[u64; 2]>>,
+        _content_hash: Option<[u8; 16]>,
         _verification_mode: VerificationMode,
     ) {
         let mut map = self.cells.lock().unwrap();
@@ -291,6 +286,10 @@ impl TurboTasksApi for VcStorage {
     }
 
     fn mark_own_task_as_finished(&self, _task: TaskId) {
+        // no-op
+    }
+
+    fn mark_own_task_as_session_dependent(&self, _task: TaskId) {
         // no-op
     }
 
