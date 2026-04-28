@@ -100,12 +100,6 @@ impl TurbopackFormat {
         }
     }
 
-    /// Eagerly intern a list of `(key, value)` pairs from a parsed trace row
-    /// into the same `SpanArgs` (`SmallVec<[(RcStr, RcStr); 1]>`) shape that
-    /// `Span::args` uses, so the queued/Start path and the final stored args
-    /// share one allocation. Both keys and values become `RcStr`s up front:
-    /// string variants are interned directly, non-string variants are
-    /// rendered via `Display` and interned.
     fn intern_span_args(&mut self, values: Vec<(Cow<'_, str>, TraceValue<'_>)>) -> SpanArgs {
         values
             .into_iter()
@@ -216,9 +210,7 @@ impl TurbopackFormat {
             TraceRow::Event { ts, parent, values } => {
                 let ts = Timestamp::from_micros(ts);
                 // Pull `duration` and `name` out of the typed values during
-                // interning, so the runtime `values` vec is uniformly
-                // `Vec<(RcStr, RcStr)>` and the Event arm of
-                // `process_internal_row` doesn't need a hashmap detour.
+                // interning
                 let mut duration = Timestamp::ZERO;
                 let mut name = rcstr!("event");
                 let mut interned_values: SpanArgs = SpanArgs::with_capacity(values.len());
