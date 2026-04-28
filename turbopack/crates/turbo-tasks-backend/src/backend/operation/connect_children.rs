@@ -109,8 +109,18 @@ pub fn connect_children(
         }
 
         {
-            #[cfg(feature = "trace_task_completion")]
-            let _span = tracing::trace_span!("connect new children").entered();
+            #[cfg(any(
+                feature = "trace_task_completion",
+                feature = "trace_aggregation_update_stats"
+            ))]
+            let _span = tracing::trace_span!("connect new children", stats = tracing::field::Empty)
+                .entered();
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                let stats = queue.execute_with_stats(ctx);
+                _span.record("stats", tracing::field::debug(stats));
+            }
+            #[cfg(not(feature = "trace_aggregation_update_stats"))]
             queue.execute(ctx);
         }
     }

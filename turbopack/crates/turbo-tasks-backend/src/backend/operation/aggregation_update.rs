@@ -45,6 +45,10 @@ const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 /// of them per `process()` call before yielding.
 const FIND_AND_SCHEDULE_BATCH_SIZE: usize = 10000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
+#[cfg(not(feature = "trace_aggregation_update"))]
+const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::Meta;
+#[cfg(feature = "trace_aggregation_update")]
+const AGGREGATION_UPDATE_CATEGORY: TaskDataCategory = TaskDataCategory::All;
 
 type TaskIdVec = SmallVec<[TaskId; 4]>;
 type TaskIdWithCountVec = SmallVec<[(TaskId, u32); 2]>;
@@ -240,6 +244,12 @@ pub enum AggregationUpdateJob {
     },
     /// Notifies multiple upper tasks that one of its inner tasks has new followers.
     InnerOfUppersHasNewFollowers(Box<InnerOfUppersHasNewFollowersJob>),
+    /// Notifies an upper task that one of its inner tasks has lost a follower.
+    InnerOfUpperLostFollower {
+        upper_id: TaskId,
+        lost_follower_id: TaskId,
+        retry: u16,
+    },
     /// Notifies multiple upper tasks that one of its inner tasks has lost a follower.
     InnerOfUppersLostFollower {
         upper_ids: TaskIdVec,
@@ -788,6 +798,30 @@ impl PartialEq for FindAndScheduleJob {
 
 impl Eq for FindAndScheduleJob {}
 
+#[cfg(feature = "trace_aggregation_update_stats")]
+#[derive(Default, Encode, Decode, Clone, Debug)]
+pub struct AggregationUpdateQueueStats {
+    new_followers: usize,
+    inner_of_upper_has_new_follower: usize,
+    inner_of_uppers_has_new_follower: usize,
+    inner_of_upper_has_new_followers: usize,
+    lost_followers: usize,
+    inner_of_upper_lost_follower: usize,
+    inner_of_upper_lost_followers: usize,
+    inner_of_uppers_lost_follower: usize,
+    increase_active_count: usize,
+    decrease_active_count: usize,
+    balance_edge: usize,
+    balance_edge_batches: usize,
+    update_aggregation_number: usize,
+    update_aggregation_number_batches: usize,
+    optimize_task: usize,
+    aggregated_data_update: usize,
+    find_and_schedule_dirty_batches: usize,
+    find_and_schedule_dirty: usize,
+    schedule_task: usize,
+}
+
 /// Encodes the jobs in the queue. This is used to filter out transient jobs during encoding.
 mod encode_jobs {
     use bincode::{
@@ -858,6 +892,8 @@ pub struct AggregationUpdateQueue {
     optimize_queue: FxRingSet<OptimizeJob>,
     #[bincode(skip, default = "FxHashMap::default")]
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    pub stats: AggregationUpdateQueueStats,
 }
 
 impl AggregationUpdateQueue {
@@ -871,6 +907,8 @@ impl AggregationUpdateQueue {
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
             scheduled_tasks: FxHashMap::default(),
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            stats: AggregationUpdateQueueStats::default(),
         }
     }
 
@@ -884,6 +922,8 @@ impl AggregationUpdateQueue {
             optimize_queue,
             done_aggregation_number_updates: _,
             scheduled_tasks,
+            #[cfg(feature = "trace_aggregation_update_stats")]
+                stats: _,
         } = self;
         jobs.is_empty()
             && aggregation_number_updates.is_empty()
@@ -1003,6 +1043,11 @@ impl AggregationUpdateQueue {
                     let uppers = upper_ids.len();
                     let followers = new_follower_ids.len();
                     if uppers == 1 && followers == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += 1;
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(
                             ctx,
                             new_follower_ids[0],
@@ -1020,6 +1065,11 @@ impl AggregationUpdateQueue {
                             } else {
                                 take(upper_ids)
                             };
+                            #[cfg(feature = "trace_aggregation_update_stats")]
+                            {
+                                self.stats.new_followers += uppers;
+                                self.stats.inner_of_uppers_has_new_follower += 1;
+                            }
                             self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                         }
                     } else if let Some(upper_id) = upper_ids.pop() {
@@ -1032,6 +1082,11 @@ impl AggregationUpdateQueue {
                         } else {
                             take(new_follower_ids)
                         };
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += followers;
+                            self.stats.inner_of_upper_has_new_followers += 1;
+                        }
                         self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
@@ -1040,8 +1095,18 @@ impl AggregationUpdateQueue {
                     new_follower_id,
                 } => {
                     if upper_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_ids[0], 1);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_uppers_has_new_follower += 1;
+                        }
                         self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                     }
                 }
@@ -1051,8 +1116,18 @@ impl AggregationUpdateQueue {
                 } => {
                     if upper_ids.len() == 1 {
                         let (id, count) = upper_ids[0];
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, new_follower_id, id, count);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += upper_ids.len();
+                            self.stats.inner_of_uppers_has_new_follower += 1;
+                        }
                         self.inner_of_uppers_has_new_follower(ctx, new_follower_id, upper_ids);
                     }
                 }
@@ -1061,8 +1136,18 @@ impl AggregationUpdateQueue {
                     new_follower_ids,
                 } => {
                     if new_follower_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, new_follower_ids[0], upper_id, 1);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_followers += 1;
+                        }
                         self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
@@ -1072,8 +1157,18 @@ impl AggregationUpdateQueue {
                 } => {
                     if new_follower_ids.len() == 1 {
                         let (id, count) = new_follower_ids[0];
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_follower += 1;
+                        }
                         self.inner_of_upper_has_new_follower(ctx, id, upper_id, count);
                     } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.new_followers += new_follower_ids.len();
+                            self.stats.inner_of_upper_has_new_followers += 1;
+                        }
                         self.inner_of_upper_has_new_followers(ctx, new_follower_ids, upper_id);
                     }
                 }
@@ -1081,14 +1176,45 @@ impl AggregationUpdateQueue {
                     upper_id,
                     new_follower_id,
                 } => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.new_followers += 1;
+                        self.stats.inner_of_upper_has_new_follower += 1;
+                    }
                     self.inner_of_upper_has_new_follower(ctx, new_follower_id, upper_id, 1);
+                }
+                AggregationUpdateJob::InnerOfUpperLostFollower {
+                    lost_follower_id,
+                    upper_id,
+                    retry,
+                } => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.lost_followers += 1;
+                        self.stats.inner_of_upper_lost_follower += 1;
+                    }
+                    self.inner_of_upper_lost_follower(ctx, lost_follower_id, upper_id, retry);
                 }
                 AggregationUpdateJob::InnerOfUppersLostFollowers(mut boxed) => {
                     let InnerOfUppersLostFollowersJob {
                         upper_ids,
                         lost_follower_ids,
                     } = &mut *boxed;
-                    if upper_ids.len() > lost_follower_ids.len() {
+                    let uppers = upper_ids.len();
+                    let followers = lost_follower_ids.len();
+                    if uppers == 1 && followers == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += 1;
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_ids[0],
+                            upper_ids[0],
+                            0,
+                        );
+                    } else if uppers > followers {
                         if let Some(lost_follower_id) = lost_follower_ids.pop() {
                             let upper_ids = if !lost_follower_ids.is_empty() {
                                 let upper_ids = upper_ids.clone();
@@ -1099,6 +1225,11 @@ impl AggregationUpdateQueue {
                             } else {
                                 take(upper_ids)
                             };
+                            #[cfg(feature = "trace_aggregation_update_stats")]
+                            {
+                                self.stats.lost_followers += uppers;
+                                self.stats.inner_of_upper_lost_follower += 1;
+                            }
                             self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, 0);
                         }
                     } else if let Some(upper_id) = upper_ids.pop() {
@@ -1111,6 +1242,11 @@ impl AggregationUpdateQueue {
                         } else {
                             take(lost_follower_ids)
                         };
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += followers;
+                            self.stats.inner_of_upper_lost_followers += 1;
+                        }
                         self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, 0);
                     }
                 }
@@ -1119,19 +1255,61 @@ impl AggregationUpdateQueue {
                     lost_follower_id,
                     retry,
                 } => {
-                    self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, retry);
+                    if upper_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += upper_ids.len();
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_id,
+                            upper_ids[0],
+                            retry,
+                        );
+                    } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += upper_ids.len();
+                            self.stats.inner_of_uppers_lost_follower += 1;
+                        }
+                        self.inner_of_uppers_lost_follower(ctx, lost_follower_id, upper_ids, retry);
+                    }
                 }
                 AggregationUpdateJob::InnerOfUpperLostFollowers {
                     upper_id,
                     lost_follower_ids,
                     retry,
                 } => {
-                    self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
+                    if lost_follower_ids.len() == 1 {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += lost_follower_ids.len();
+                            self.stats.inner_of_upper_lost_follower += 1;
+                        }
+                        self.inner_of_upper_lost_follower(
+                            ctx,
+                            lost_follower_ids[0],
+                            upper_id,
+                            retry,
+                        );
+                    } else {
+                        #[cfg(feature = "trace_aggregation_update_stats")]
+                        {
+                            self.stats.lost_followers += lost_follower_ids.len();
+                            self.stats.inner_of_upper_lost_followers += 1;
+                        }
+                        self.inner_of_upper_lost_followers(ctx, lost_follower_ids, upper_id, retry);
+                    }
                 }
                 AggregationUpdateJob::AggregatedDataUpdate(box AggregatedDataUpdateJob {
                     upper_ids,
                     update,
                 }) => {
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.aggregated_data_update += 1;
+                    }
                     self.aggregated_data_update(upper_ids, ctx, update);
                 }
                 AggregationUpdateJob::InvalidateDueToCollectiblesChange {
@@ -1178,6 +1356,10 @@ impl AggregationUpdateQueue {
             }
             false
         } else if !self.aggregation_number_updates.is_empty() {
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.update_aggregation_number_batches += 1;
+            }
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
                 if let Some((
@@ -1201,6 +1383,10 @@ impl AggregationUpdateQueue {
                             span: None,
                         },
                     );
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.update_aggregation_number += 1;
+                    }
                     self.update_aggregation_number(ctx, task_id, distance, base_aggregation_number);
                     remaining -= 1;
                 } else {
@@ -1209,6 +1395,10 @@ impl AggregationUpdateQueue {
             }
             false
         } else if !self.balance_queue.is_empty() {
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.balance_edge_batches += 1;
+            }
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
                 if let Some(BalanceJob {
@@ -1220,6 +1410,10 @@ impl AggregationUpdateQueue {
                 {
                     #[cfg(feature = "trace_aggregation_update_queue")]
                     let _guard = span.map(|s| s.entered());
+                    #[cfg(feature = "trace_aggregation_update_stats")]
+                    {
+                        self.stats.balance_edge += 1;
+                    }
                     self.balance_edge(ctx, upper, task);
                     remaining -= 1;
                 } else {
@@ -1238,6 +1432,10 @@ impl AggregationUpdateQueue {
             // all have the same upper count. Optimizing the root first
             #[cfg(feature = "trace_aggregation_update_queue")]
             let _guard = span.map(|s| s.entered());
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.optimize_task += 1;
+            }
             self.optimize_task(ctx, task_id);
             false
         } else if !self.find_and_schedule.is_empty() {
@@ -1247,9 +1445,18 @@ impl AggregationUpdateQueue {
                 .min(FIND_AND_SCHEDULE_BATCH_SIZE);
             let jobs: SmallVec<[FindAndScheduleJob; 4]> =
                 self.find_and_schedule.drain(..count).collect();
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.find_and_schedule_dirty_batches += 1;
+                self.stats.find_and_schedule_dirty += jobs.len();
+            }
             self.find_and_schedule_dirty(jobs, ctx);
             false
         } else if !self.scheduled_tasks.is_empty() {
+            #[cfg(feature = "trace_aggregation_update_stats")]
+            {
+                self.stats.schedule_task += self.scheduled_tasks.len();
+            }
             ctx.for_each_task_all(
                 self.scheduled_tasks.keys().copied(),
                 "schedule tasks",
@@ -1278,7 +1485,7 @@ impl AggregationUpdateQueue {
             upper_id,
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
         let upper_aggregation_number = get_aggregation_number(&upper);
         let task_aggregation_number = get_aggregation_number(&task);
@@ -1527,6 +1734,176 @@ impl AggregationUpdateQueue {
         );
     }
 
+    fn inner_of_upper_lost_follower(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        lost_follower_id: TaskId,
+        upper_id: TaskId,
+        mut retry: u16,
+    ) {
+        #[cfg(feature = "trace_aggregation_update")]
+        let _span = trace_span!("lost follower").entered();
+
+        // see documentation of `retry_loop` for more information why this is needed
+        let result = retry_loop(retry, || {
+            // STEP 1
+            let mut follower = ctx.task(
+                lost_follower_id,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+
+            // STEP 2
+            let mut is_upper = true;
+            let mut removed_upper = false;
+
+            // STEP 3
+            follower.update_upper(upper_id, |old| {
+                let Some(old) = old else {
+                    is_upper = false;
+                    return None;
+                };
+                if old == 1 {
+                    removed_upper = true;
+                    return None;
+                }
+                Some(old - 1)
+            });
+
+            // STEP 4
+            if is_upper {
+                if removed_upper {
+                    let data = AggregatedDataUpdate::from_task(&mut follower).invert();
+                    let followers = get_followers(&follower);
+                    drop(follower);
+
+                    // STEP 5
+                    if !data.is_empty() {
+                        // remove data from upper
+                        let mut upper = ctx.task(
+                            upper_id,
+                            // For performance reasons this should stay `Meta` and not `All`
+                            AGGREGATION_UPDATE_CATEGORY,
+                        );
+                        // STEP 6
+                        let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
+                        if !diff.is_empty() {
+                            let upper_ids = get_uppers(&upper);
+                            self.push(
+                                AggregatedDataUpdateJob {
+                                    upper_ids,
+                                    update: diff,
+                                }
+                                .into(),
+                            )
+                        }
+                    }
+                    // STEP 7
+                    if !followers.is_empty() {
+                        self.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
+                            upper_id,
+                            lost_follower_ids: followers,
+                            retry: 0,
+                        });
+                    }
+                } else {
+                    drop(follower);
+                }
+
+                // STEP 8
+                return ControlFlow::Break(());
+            }
+
+            drop(follower);
+
+            // STEP 9
+            let mut upper = ctx.task(
+                upper_id,
+                // For performance reasons this should stay `Meta` and not `All`
+                AGGREGATION_UPDATE_CATEGORY,
+            );
+            let mut is_follower = true;
+            let mut removed_follower = false;
+
+            // STEP 10
+            upper.update_followers(lost_follower_id, |old| {
+                let Some(old) = old else {
+                    is_follower = false;
+                    return None;
+                };
+                if old == 1 {
+                    removed_follower = true;
+                    return None;
+                }
+                Some(old - 1)
+            });
+
+            // STEP 11
+            if is_follower {
+                if removed_follower {
+                    // STEP 12
+                    // May optimize the task
+                    if upper.followers_len().is_power_of_two() {
+                        self.push_optimize_task(upper_id);
+                    }
+
+                    // STEP 13
+                    let has_active_count = ctx.should_track_activeness()
+                        && upper.get_activeness().is_some_and(|a| a.active_counter > 0);
+                    let upper_ids = get_uppers(&upper);
+                    drop(upper);
+
+                    // STEP 14
+                    // update active count
+                    if has_active_count {
+                        self.push(AggregationUpdateJob::DecreaseActiveCount {
+                            task: lost_follower_id,
+                        });
+                    }
+
+                    // STEP 15
+                    // notify uppers about lost follower
+                    if !upper_ids.is_empty() {
+                        self.push(AggregationUpdateJob::InnerOfUppersLostFollower {
+                            upper_ids,
+                            lost_follower_id,
+                            retry: 0,
+                        });
+                    }
+                } else {
+                    drop(upper);
+                }
+
+                // STEP 16
+                return ControlFlow::Break(());
+            }
+            ControlFlow::Continue(())
+        });
+
+        // STEP 17
+        if result.is_err() {
+            retry += 1;
+            if retry > MAX_RETRIES {
+                let lost_follower_description = ctx
+                    .task(lost_follower_id, TaskDataCategory::Data)
+                    .get_task_description();
+                let upper_description = ctx
+                    .task(upper_id, TaskDataCategory::Data)
+                    .get_task_description();
+                panic!(
+                    "inner_of_upper_lost_follower is not able to remove follower \
+                     {lost_follower_id} ({lost_follower_description}) from {upper_id} \
+                     {upper_description} as it doesn't exist as upper or follower edges",
+                );
+            }
+            self.push(AggregationUpdateJob::InnerOfUpperLostFollower {
+                upper_id,
+                lost_follower_id,
+                retry,
+            });
+        }
+    }
+
     fn inner_of_uppers_lost_follower(
         &mut self,
         ctx: &mut impl ExecuteContext<'_>,
@@ -1543,7 +1920,7 @@ impl AggregationUpdateQueue {
             let mut follower = ctx.task(
                 lost_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
 
             // STEP 2
@@ -1620,7 +1997,7 @@ impl AggregationUpdateQueue {
                 let mut upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
                 let mut not_a_follower = false;
                 let mut removed_follower = false;
@@ -1733,7 +2110,7 @@ impl AggregationUpdateQueue {
                 let mut follower = ctx.task(
                     lost_follower_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
 
                 // STEP 2
@@ -1765,7 +2142,7 @@ impl AggregationUpdateQueue {
                         let mut upper = ctx.task(
                             upper_id,
                             // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
+                            AGGREGATION_UPDATE_CATEGORY,
                         );
                         // STEP 6
                         let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
@@ -1805,7 +2182,7 @@ impl AggregationUpdateQueue {
             let mut upper = ctx.task(
                 upper_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             swap_retain(&mut lost_follower_ids, |&mut lost_follower_id| {
                 let mut not_a_follower = false;
@@ -1924,7 +2301,7 @@ impl AggregationUpdateQueue {
             let follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             get_aggregation_number(&follower)
         };
@@ -1940,7 +2317,7 @@ impl AggregationUpdateQueue {
                 let mut upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
                 // decide if it should be an inner or follower
                 let upper_aggregation_number = get_aggregation_number(&upper);
@@ -2011,7 +2388,7 @@ impl AggregationUpdateQueue {
             let mut new_follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             let follower_aggregation_number = get_aggregation_number(&new_follower);
 
@@ -2172,7 +2549,7 @@ impl AggregationUpdateQueue {
                 let follower = ctx.task(
                     new_follower_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
                 (new_follower_id, count, get_aggregation_number(&follower))
             })
@@ -2192,7 +2569,7 @@ impl AggregationUpdateQueue {
                 let mut upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
 
                 // decide if it should be an inner or follower
@@ -2289,7 +2666,7 @@ impl AggregationUpdateQueue {
                     let mut new_follower = ctx.task(
                         new_follower_id,
                         // For performance reasons this should stay `Meta` and not `All`
-                        TaskDataCategory::Meta,
+                        AGGREGATION_UPDATE_CATEGORY,
                     );
                     let follower_aggregation_number = get_aggregation_number(&new_follower);
 
@@ -2347,7 +2724,7 @@ impl AggregationUpdateQueue {
             let mut upper = ctx.task(
                 upper_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             let diffs = upper_data_updates
                 .into_iter()
@@ -2388,7 +2765,7 @@ impl AggregationUpdateQueue {
                 let upper = ctx.task(
                     upper_id,
                     // For performance reasons this should stay `Meta` and not `All`
-                    TaskDataCategory::Meta,
+                    AGGREGATION_UPDATE_CATEGORY,
                 );
                 is_active = upper.has_activeness();
             }
@@ -2417,7 +2794,7 @@ impl AggregationUpdateQueue {
             let follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             get_aggregation_number(&follower)
         };
@@ -2434,7 +2811,7 @@ impl AggregationUpdateQueue {
             let mut upper = ctx.task(
                 upper_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             // decide if it should be an inner or follower
             let upper_aggregation_number = get_aggregation_number(&upper);
@@ -2502,7 +2879,7 @@ impl AggregationUpdateQueue {
             let mut new_follower = ctx.task(
                 new_follower_id,
                 // For performance reasons this should stay `Meta` and not `All`
-                TaskDataCategory::Meta,
+                AGGREGATION_UPDATE_CATEGORY,
             );
             let follower_aggregation_number = get_aggregation_number(&new_follower);
 
@@ -2532,7 +2909,7 @@ impl AggregationUpdateQueue {
                         let mut upper = ctx.task(
                             upper_id,
                             // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
+                            AGGREGATION_UPDATE_CATEGORY,
                         );
                         let diff = data.apply(&mut upper, ctx.should_track_activeness(), self);
                         if !diff.is_empty() {
@@ -2560,7 +2937,7 @@ impl AggregationUpdateQueue {
                         let upper = ctx.task(
                             upper_id,
                             // For performance reasons this should stay `Meta` and not `All`
-                            TaskDataCategory::Meta,
+                            AGGREGATION_UPDATE_CATEGORY,
                         );
                         is_active = upper.has_activeness();
                     }
@@ -2586,7 +2963,7 @@ impl AggregationUpdateQueue {
         let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
@@ -2631,7 +3008,7 @@ impl AggregationUpdateQueue {
             task_id,
             // For performance reasons this should stay Meta and not All.
             // persistent_task_type is now set eagerly in initialize_new_task.
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
         let state = task.get_activeness_mut_or_insert_with(|| ActivenessState::new(task_id));
         let is_new = state.is_empty();
@@ -2678,7 +3055,7 @@ impl AggregationUpdateQueue {
         let mut task = ctx.task(
             task_id,
             // For performance reasons this should stay `Meta` and not `All`
-            TaskDataCategory::Meta,
+            AGGREGATION_UPDATE_CATEGORY,
         );
         let current = task.get_aggregation_number().copied().unwrap_or_default();
         let old = current.effective;
@@ -2710,7 +3087,7 @@ impl AggregationUpdateQueue {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!(
                 "update aggregation number",
-                task = ctx.get_task_description(task_id),
+                task = task.get_task_description(),
                 old,
                 aggregation_number
             )
@@ -2881,6 +3258,29 @@ impl AggregationUpdateQueue {
             });
             // We want to make sure to optimize again after this change has been applied
             self.push_optimize_task(task_id);
+        }
+    }
+
+    #[cfg(feature = "trace_aggregation_update_stats")]
+    pub fn execute_with_stats(
+        mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) -> AggregationUpdateQueueStats {
+        loop {
+            ctx.operation_suspend_point(&self);
+            if self.process(ctx) {
+                return self.stats;
+            }
+        }
+    }
+
+    #[cfg(not(feature = "trace_aggregation_update_stats"))]
+    pub fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) {
+        loop {
+            ctx.operation_suspend_point(&self);
+            if self.process(ctx) {
+                return;
+            }
         }
     }
 }
