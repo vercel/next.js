@@ -1,7 +1,7 @@
-import * as locale from './locales.js'
+import { exec } from './util.js'
 
 export function unused() {
-  return locale
+  return exec
 }
 
 export function used() {
