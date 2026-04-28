@@ -3,7 +3,7 @@ export function createRuntimeBodyError(route: string): Error {
     `Route "${route}": Next.js encountered runtime data during the initial render.\n\n` +
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
-      `  - Move the data access into a child component within a \`<Suspense>\` boundary\n` +
+      `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - Use \`generateStaticParams\` to make route params static\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -16,7 +16,7 @@ export function createDynamicBodyError(route: string): Error {
       `\`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the data access with \`"use cache"\`\n` +
-      `  - Move the data access into a child component within a \`<Suspense>\` boundary\n` +
+      `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
   )
@@ -33,7 +33,7 @@ export function createDynamicOrRuntimeBodyError(route: string): Error {
       `\`fetch(...)\`, \`cookies()\`, \`headers()\`, \`params\`, \`searchParams\`, or \`connection()\` accessed outside of \`<Suspense>\` prevents the route from being prerendered, blocking navigation and leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the data access with \`"use cache"\`\n` +
-      `  - Move the data access into a child component within a \`<Suspense>\` boundary\n` +
+      `  - Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - Use \`generateStaticParams\` to make route params static\n` +
       `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/blocking-route`
@@ -46,7 +46,8 @@ export function createRuntimeMetadataError(route: string): Error {
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateMetadata()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
-      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to signal intentional dynamism\n\n` +
+      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n` +
+      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
 }
@@ -57,7 +58,8 @@ export function createDynamicMetadataError(route: string): Error {
       `\`fetch(...)\` or \`connection()\` in \`generateMetadata()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
-      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to signal intentional dynamism\n\n` +
+      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n` +
+      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
 }
@@ -68,7 +70,8 @@ export function createRuntimeViewportError(route: string): Error {
       `\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Use a static viewport export instead of \`generateViewport()\`\n` +
-      `  - Wrap your document \`<body>\` in \`<Suspense>\`\n\n` +
+      `  - Wrap your document \`<body>\` in \`<Suspense>\`\n` +
+      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
   )
 }
@@ -79,7 +82,8 @@ export function createDynamicViewportError(route: string): Error {
       `\`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
-      `  - Wrap your document \`<body>\` in \`<Suspense>\`\n\n` +
+      `  - Wrap your document \`<body>\` in \`<Suspense>\`\n` +
+      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
   )
 }
@@ -96,7 +100,8 @@ export function createDynamicOrRuntimeViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`\n` +
-      `  - Wrap your document \`<body>\` in \`<Suspense>\`\n\n` +
+      `  - Wrap your document \`<body>\` in \`<Suspense>\`\n` +
+      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport`
   )
 }
@@ -113,7 +118,8 @@ export function createDynamicOrRuntimeMetadataError(route: string): Error {
       `Ways to fix this:\n` +
       `  - Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - Cache the metadata with \`"use cache"\` in \`generateMetadata()\`\n` +
-      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to signal intentional dynamism\n\n` +
+      `  - Add a dynamic data access (e.g. \`await connection()\`) to the page to render it at request time\n` +
+      `  - Set \`export const instant = false\` to allow a blocking route\n\n` +
       `Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata`
   )
 }

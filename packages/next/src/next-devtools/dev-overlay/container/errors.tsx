@@ -288,22 +288,16 @@ const SYNC_IO_APIS = [
   'crypto.randomUUID()',
 ]
 
-// Discriminates sync IO errors from `createSyncIOMessage` and `createSyncIORuntimeMessage`
-function isSyncIOError(message: string): boolean {
-  if (
-    message.includes('inside a Client Component') ||
-    message.includes('next-prerender-random-client') ||
-    message.includes('next-prerender-current-time-client') ||
-    message.includes('next-prerender-crypto-client')
-  ) {
-    return false
-  }
+const SYNC_IO_DOCS_PATTERN =
+  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(?!-)/
 
+// Matches sync IO errors from `createSyncIOMessage` and
+// `createSyncIORuntimeMessage`, plus the "needs to bail out of prerendering"
+// abort/throw reason from `dynamic-rendering.ts`.
+function isSyncIOError(message: string): boolean {
   return (
     message.includes('needs to bail out of prerendering') ||
-    message.includes('next-prerender-random') ||
-    message.includes('next-prerender-current-time') ||
-    message.includes('next-prerender-crypto')
+    SYNC_IO_DOCS_PATTERN.test(message)
   )
 }
 

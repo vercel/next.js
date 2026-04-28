@@ -101,6 +101,15 @@ const metadataRuntimeCards: FixCard[] = [
       { text: '}' },
     ],
   },
+  {
+    title: 'Allow blocking route',
+    color: 'red',
+    snippets: [
+      { text: 'export const instant = false', highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
+    ],
+  },
 ]
 
 const metadataDynamicCards: FixCard[] = [
@@ -122,6 +131,15 @@ const metadataDynamicCards: FixCard[] = [
       { text: '  await connection()', highlight: true },
       { text: '  return …' },
       { text: '}' },
+    ],
+  },
+  {
+    title: 'Allow blocking route',
+    color: 'red',
+    snippets: [
+      { text: 'export const instant = false', highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
     ],
   },
 ]
@@ -202,7 +220,7 @@ const syncMathCards: FixCard[] = [
     ],
   },
   {
-    title: 'Render on client',
+    title: 'Render on the client',
     color: 'amber',
     snippets: [
       { text: '"use client"', highlight: true },
@@ -234,7 +252,7 @@ const syncDateCards: FixCard[] = [
     ],
   },
   {
-    title: 'Render on client',
+    title: 'Render on the client',
     color: 'amber',
     snippets: [
       { text: '"use client"', highlight: true },
@@ -266,7 +284,7 @@ const syncCryptoCards: FixCard[] = [
     ],
   },
   {
-    title: 'Render on client',
+    title: 'Render on the client',
     color: 'amber',
     snippets: [
       { text: '"use client"', highlight: true },
