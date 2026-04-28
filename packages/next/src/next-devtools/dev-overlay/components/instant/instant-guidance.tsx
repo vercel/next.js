@@ -18,7 +18,7 @@ type Snippet = {
 
 const runtimeCards: FixCard[] = [
   {
-    title: 'Move within Suspense',
+    title: 'Provide a placeholder with Suspense',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -50,7 +50,7 @@ const runtimeCards: FixCard[] = [
 
 const dynamicCards: FixCard[] = [
   {
-    title: 'Cache dynamic data',
+    title: 'Prerender and cache',
     color: 'blue',
     snippets: [
       { text: 'async function getData() {' },
@@ -60,7 +60,7 @@ const dynamicCards: FixCard[] = [
     ],
   },
   {
-    title: 'Move within Suspense',
+    title: 'Provide a placeholder with Suspense',
     color: 'purple',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
@@ -92,7 +92,7 @@ const metadataRuntimeCards: FixCard[] = [
     ],
   },
   {
-    title: 'Allow dynamic page',
+    title: 'Render page at request time',
     color: 'purple',
     snippets: [
       { text: 'export default async function Page() {' },
@@ -105,7 +105,7 @@ const metadataRuntimeCards: FixCard[] = [
 
 const metadataDynamicCards: FixCard[] = [
   {
-    title: 'Cache the metadata',
+    title: 'Prerender and cache',
     color: 'blue',
     snippets: [
       { text: 'async function generateMetadata() {' },
@@ -115,7 +115,7 @@ const metadataDynamicCards: FixCard[] = [
     ],
   },
   {
-    title: 'Allow dynamic page',
+    title: 'Render page at request time',
     color: 'purple',
     snippets: [
       { text: 'export default async function Page() {' },
@@ -147,11 +147,20 @@ const viewportRuntimeCards: FixCard[] = [
       { text: '</Suspense>', highlight: true },
     ],
   },
+  {
+    title: 'Allow blocking route',
+    color: 'red',
+    snippets: [
+      { text: 'export const instant = false', highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
+    ],
+  },
 ]
 
 const viewportDynamicCards: FixCard[] = [
   {
-    title: 'Cache viewport data',
+    title: 'Prerender and cache',
     color: 'blue',
     snippets: [
       { text: 'async function generateViewport() {' },
@@ -169,13 +178,22 @@ const viewportDynamicCards: FixCard[] = [
       { text: '</Suspense>', highlight: true },
     ],
   },
+  {
+    title: 'Allow blocking route',
+    color: 'red',
+    snippets: [
+      { text: 'export const instant = false', highlight: true },
+      { text: '' },
+      { text: 'export default async function Page() {' },
+    ],
+  },
 ]
 
 // ── Sync IO cards (per API) ───────────────────────
 
 const syncMathCards: FixCard[] = [
   {
-    title: 'Render dynamically',
+    title: 'Render at request time',
     color: 'purple',
     snippets: [
       { text: 'await connection()', highlight: true },
@@ -194,7 +212,7 @@ const syncMathCards: FixCard[] = [
     ],
   },
   {
-    title: 'Cache the result',
+    title: 'Prerender and cache',
     color: 'blue',
     snippets: [
       { text: 'async function RandomId() {' },
@@ -207,7 +225,7 @@ const syncMathCards: FixCard[] = [
 
 const syncDateCards: FixCard[] = [
   {
-    title: 'Render dynamically',
+    title: 'Render at request time',
     color: 'purple',
     snippets: [
       { text: 'await connection()', highlight: true },
@@ -226,7 +244,7 @@ const syncDateCards: FixCard[] = [
     ],
   },
   {
-    title: 'Cache the result',
+    title: 'Prerender and cache',
     color: 'blue',
     snippets: [
       { text: 'async function Timestamp() {' },
@@ -239,7 +257,7 @@ const syncDateCards: FixCard[] = [
 
 const syncCryptoCards: FixCard[] = [
   {
-    title: 'Render dynamically',
+    title: 'Render at request time',
     color: 'purple',
     snippets: [
       { text: 'await connection()', highlight: true },
@@ -258,7 +276,7 @@ const syncCryptoCards: FixCard[] = [
     ],
   },
   {
-    title: 'Cache the result',
+    title: 'Prerender and cache',
     color: 'blue',
     snippets: [
       { text: 'async function TokenId() {' },
