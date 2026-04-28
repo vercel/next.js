@@ -309,7 +309,7 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm install
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
 
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
