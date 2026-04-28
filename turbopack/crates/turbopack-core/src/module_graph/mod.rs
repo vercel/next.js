@@ -1472,7 +1472,7 @@ impl<'a> Iterator for ModuleGraphSnapshotNodeIterator<'a> {
     type Item = &'a SingleModuleGraphNode;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(node_idx) = self.visit_queue.pop_front() {
+        while let Some(node_idx) = self.visit_queue.pop_front() {
             if self.visited.insert(node_idx) {
                 let node_weight = self.graph.get_node(node_idx).unwrap();
                 if self
@@ -1485,17 +1485,14 @@ impl<'a> Iterator for ModuleGraphSnapshotNodeIterator<'a> {
                     self.visit_queue.extend(
                         self.graph
                             .iter_graphs_neighbors_rev(node, Direction::Outgoing)
-                            .map(|(_, succ)| succ),
+                            .map(|(_, succ)| succ)
+                            .filter(|succ| !self.visited.contains(succ)),
                     );
                 }
-                Some(node_weight)
-            } else {
-                // Continue to next node
-                self.next()
+                return Some(node_weight);
             }
-        } else {
-            None
         }
+        None
     }
 }
 impl FusedIterator for ModuleGraphSnapshotNodeIterator<'_> {}
