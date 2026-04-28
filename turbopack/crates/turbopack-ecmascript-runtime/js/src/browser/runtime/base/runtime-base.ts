@@ -25,7 +25,7 @@ declare var CHUNK_BASE_PATH: string
  * When non-empty, overrides CHUNK_BASE_PATH for URLs loaded via `new Worker(...)`.
  * Mirrors webpack's `output.workerPublicPath`. Empty string means "use CHUNK_BASE_PATH".
  */
-declare var WORKER_PUBLIC_PATH: string
+declare var WORKER_BASE_PATH: string
 declare var ASSET_SUFFIX: string
 declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var WORKER_FORWARDED_GLOBALS: string[]
@@ -324,8 +324,8 @@ function createWorker(
   // `assetPrefix` points to a cross-origin CDN (browsers reject cross-origin
   // Worker construction).
   const workerBasePath =
-    typeof WORKER_PUBLIC_PATH === 'string' && WORKER_PUBLIC_PATH.length > 0
-      ? WORKER_PUBLIC_PATH
+    typeof WORKER_BASE_PATH === 'string' && WORKER_BASE_PATH.length > 0
+      ? WORKER_BASE_PATH
       : CHUNK_BASE_PATH
 
   const chunkUrls = moduleChunks

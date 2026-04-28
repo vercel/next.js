@@ -114,7 +114,7 @@ pub async fn get_browser_runtime_code(
             }}
 
             var CHUNK_BASE_PATH = {};
-            var WORKER_PUBLIC_PATH = {};
+            var WORKER_BASE_PATH = {};
             var RELATIVE_ROOT_PATH = {};
             var RUNTIME_PUBLIC_PATH = {};
         "#,
