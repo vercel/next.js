@@ -3,6 +3,32 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 
+// When `__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true` is set in CI, Next.js
+// regenerates `next-env.d.ts` with additional `cache-life`/`validator`
+// imports. The seed fixture must match that output so the very first read of
+// `next-env.d.ts` (before any regeneration is observed) lines up with what
+// Next.js will write back during the test.
+const strictRouteTypes =
+  process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
+
+const nextEnvDts = strictRouteTypes
+  ? `/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+import "./.next/dev/types/cache-life.d.ts";
+import "./.next/dev/types/validator.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.
+`
+  : `/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.
+`
+
 describe('typescript-app-type-declarations', () => {
   const { next } = nextTestSetup({
     files: {
@@ -31,13 +57,7 @@ describe('typescript-app-type-declarations', () => {
         exclude: ['node_modules', '**/*.test.ts', '**/*.test.tsx'],
         include: ['next-env.d.ts', 'components', 'pages'],
       }),
-      'next-env.d.ts': `/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/pages/api-reference/config/typescript for more information.
-`,
+      'next-env.d.ts': nextEnvDts,
     },
     dependencies: {
       typescript: 'latest',
