@@ -527,7 +527,7 @@ pub async fn map_server_actions(
 ) -> Result<Vc<AllModuleActions>> {
     let actions = graph
         .await?
-        .iter_nodes()
+        .iter_reachable_modules()?
         .map(async |module| {
             // TODO: compare module contexts instead?
             let layer = match module.ident().await?.layer.as_ref() {

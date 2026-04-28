@@ -140,7 +140,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         let inner_span = tracing::info_span!("collect mergeable modules");
         let mergeable = module_graph
-            .iter_nodes()
+            .iter_reachable_modules()?
             .map(async |module| {
                 if let Some(mergeable) =
                     ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)

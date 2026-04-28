@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 
 use crate::{
     module::{Module, ModuleSideEffects},
-    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer},
+    module_graph::{GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode},
 };
 
 /// This lists all the modules that are side effect free
@@ -43,16 +43,16 @@ async fn compute_side_effect_free_module_info_single(
     let parent_side_effect_free_modules = parent_side_effect_free_modules.await?;
     let graph = graph.await?;
     let module_side_effects = graph
-        .enumerate_nodes()
-        .map(async |(_, node)| {
+        .iter_reachable_nodes()?
+        .map(async |node| {
             Ok(match node {
-                super::SingleModuleGraphNode::Module(module) => {
+                SingleModuleGraphNode::Module(module) => {
                     // This turbo task always has a cache hit since it is called when building the
                     // module graph. we could consider moving this information
                     // into to the module graph, but then changes would invalidate the whole graph.
                     (*module, *module.side_effects().await?)
                 }
-                super::SingleModuleGraphNode::VisitedModule { idx: _, module } => (
+                SingleModuleGraphNode::VisitedModule { idx: _, module } => (
                     *module,
                     if parent_side_effect_free_modules.contains(module) {
                         ModuleSideEffects::SideEffectFree
