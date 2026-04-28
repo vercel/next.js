@@ -161,11 +161,14 @@ pub async fn create_web_entry_source(
                 .map(|&entry| ResolvedVc::upcast(entry)),
         )
         .collect::<Vec<ResolvedVc<Box<dyn Module>>>>();
-    let module_graph = ModuleGraph::from_single_graph(SingleModuleGraph::new_with_entries(
-        ResolvedVc::cell(vec![ChunkGroupEntry::Entry(all_modules)]),
-        false,
-        false,
-    ));
+    let module_graph = ModuleGraph::from_graphs(
+        vec![SingleModuleGraph::new_with_entries(
+            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(all_modules)]),
+            false,
+            false,
+        )],
+        None,
+    );
     let module_graph = module_graph.connect().to_resolved().await?;
 
     let entries: Vec<_> = entries

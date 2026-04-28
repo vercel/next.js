@@ -12,6 +12,7 @@ use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
     environment::ChunkLoading,
     issue::IssueSource,
+    module::Module,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
@@ -46,6 +47,7 @@ pub struct EsmAsyncAssetReference {
     /// Detected from destructured await, member access on await, .then()
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
+    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl EsmAsyncAssetReference {
@@ -67,6 +69,7 @@ impl EsmAsyncAssetReference {
         error_mode: ResolveErrorMode,
         import_externals: bool,
         export_usage: ExportUsage,
+        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Self {
         EsmAsyncAssetReference {
             origin,
@@ -76,6 +79,7 @@ impl EsmAsyncAssetReference {
             error_mode,
             import_externals,
             export_usage,
+            resolve_override,
         }
     }
 }
@@ -84,6 +88,10 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        if let Some(resolved) = &self.resolve_override {
+            return Ok(*ModuleResolveResult::module(*resolved));
+        }
+
         esm_resolve(
             *self.get_origin().to_resolved().await?,
             *self.request,

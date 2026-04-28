@@ -17,6 +17,7 @@ use self::{
 };
 
 mod bottom_up;
+mod lazy_sorted_vec;
 mod reader;
 mod self_time_tree;
 mod server;
