@@ -1563,8 +1563,13 @@ impl SingleModuleGraph {
     }
 
     #[turbo_tasks::function]
-    pub async fn module_count(&self) -> Result<Vc<u64>> {
-        Ok(Vc::cell(self.number_of_modules as u64))
+    pub async fn module_count(&self) -> Vc<u64> {
+        Vc::cell(self.number_of_modules as u64)
+    }
+
+    #[turbo_tasks::function]
+    pub async fn edge_count(&self) -> Vc<u64> {
+        Vc::cell(self.graph.edge_count() as u64)
     }
 }
 
