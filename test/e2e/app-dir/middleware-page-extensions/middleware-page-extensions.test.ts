@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('middleware-page-extensions', () => {
   const { next } = nextTestSetup({
@@ -18,5 +19,16 @@ describe('middleware-page-extensions', () => {
     expect(res.status).toBe(200)
     const html = await res.text()
     expect(html).toContain('hello from middleware-page-extensions')
+  })
+
+  it('should warn that the middleware convention is deprecated in favor of proxy', async () => {
+    // The deprecation warnOnce is fired the first time the middleware
+    // convention is detected. nextTestSetup waits for "ready" but the log
+    // may still be flushing, so poll.
+    await retry(async () => {
+      expect(next.cliOutput).toContain(
+        'The "middleware" file convention is deprecated. Please use "proxy" instead.'
+      )
+    })
   })
 })

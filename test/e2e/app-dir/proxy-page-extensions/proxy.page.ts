@@ -10,5 +10,8 @@ export function proxy(request: NextRequest) {
       }),
     },
   })
+  // Expose a response header so route-level tests can verify the proxy
+  // actually ran without forcing the page to opt into dynamic rendering.
+  response.headers.set('x-proxy-ran', 'true')
   return response
 }
