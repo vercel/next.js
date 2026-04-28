@@ -290,6 +290,15 @@ const SYNC_IO_APIS = [
 
 // Discriminates sync IO errors from `createSyncIOMessage` and `createSyncIORuntimeMessage`
 function isSyncIOError(message: string): boolean {
+  if (
+    message.includes('inside a Client Component') ||
+    message.includes('next-prerender-random-client') ||
+    message.includes('next-prerender-current-time-client') ||
+    message.includes('next-prerender-crypto-client')
+  ) {
+    return false
+  }
+
   return (
     message.includes('needs to bail out of prerendering') ||
     message.includes('next-prerender-random') ||

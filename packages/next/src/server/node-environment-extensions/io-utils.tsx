@@ -91,12 +91,8 @@ export function io(expression: string, type: ApiType) {
         // any stacks because something else actually terminated the prerender.
         const docsUrl = SYNC_IO_CLIENT_DOCS[type]
         const message =
-          `Route "${workStore.route}": Next.js encountered ${expression} inside a Client Component without a \`<Suspense>\` boundary above it.\n\n` +
-          `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
-          `Ways to fix this:\n` +
-          `  - Wrap the Client Component in a \`<Suspense>\` boundary\n` +
-          `  - Move the expression into a \`"use cache"\` component\n\n` +
-          `Learn more: ${docsUrl}`
+          `Route "${workStore.route}" used \`${expression}\` inside a Client Component without a Suspense boundary above it. ` +
+          `See more info here: ${docsUrl}`
 
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
