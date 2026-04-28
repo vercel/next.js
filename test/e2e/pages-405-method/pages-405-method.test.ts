@@ -41,4 +41,11 @@ describe('pages-405-method', () => {
     // Pages with getServerSideProps can handle POST since they receive `req`
     expect(res.status).not.toBe(405)
   })
+
+  it('should allow POST to a page with getInitialProps', async () => {
+    const res = await next.fetch('/gip', { method: 'POST' })
+    // Pages with getInitialProps can handle POST since their resolver
+    // receives the request and may act on the method.
+    expect(res.status).not.toBe(405)
+  })
 })

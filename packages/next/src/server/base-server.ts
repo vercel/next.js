@@ -2286,9 +2286,14 @@ export default abstract class Server<
         // In dev mode pages are never pre-rendered to HTML strings, so the
         // `typeof components.Component === 'string'` check above doesn't
         // catch plain pages (no getStaticProps / getServerSideProps). Pages
-        // with getServerSideProps intentionally accept non-GET/HEAD methods
+        // with `getServerSideProps` or `getInitialProps` (per-page, or via
+        // a custom `_app.tsx`) intentionally accept non-GET/HEAD methods
         // because the server-side handler receives `req` and can act on it.
-        (!isAppPath && !hasServerProps))
+        (!isAppPath &&
+          !hasServerProps &&
+          !(components.Component as any)?.getInitialProps &&
+          (components.App as any)?.getInitialProps ===
+            (components.App as any)?.origGetInitialProps))
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
