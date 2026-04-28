@@ -177,7 +177,7 @@ export const styles = `
 
     width: var(--size-24);
     height: var(--size-24);
-    background: var(--color-gray-300);
+    background: none;
     flex-shrink: 0;
 
     border: none;
@@ -192,8 +192,12 @@ export const styles = `
       outline: var(--focus-ring);
     }
 
+    &:not(:disabled):hover {
+      background: var(--color-gray-alpha-100);
+    }
+
     &:not(:disabled):active {
-      background: var(--color-gray-500);
+      background: var(--color-gray-alpha-200);
     }
 
     &:disabled {

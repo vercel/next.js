@@ -1,7 +1,8 @@
+import type { DebugInfo } from '../../../../../shared/types'
 import type { VersionInfo } from '../../../../../server/dev/parse-version-info'
 
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
-import { VersionStalenessInfo } from '../../version-staleness-info/version-staleness-info'
+import { ErrorOverlayToolbar } from '../error-overlay-toolbar/error-overlay-toolbar'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 
 type ErrorOverlayNavProps = {
@@ -10,6 +11,9 @@ type ErrorOverlayNavProps = {
   setActiveIndex?: (index: number) => void
   versionInfo?: VersionInfo
   isTurbopack?: boolean
+  error: ReadyRuntimeError['error']
+  debugInfo?: DebugInfo
+  generateErrorInfo: () => Promise<string>
 }
 
 export function ErrorOverlayNav({
@@ -17,12 +21,14 @@ export function ErrorOverlayNav({
   activeIdx,
   setActiveIndex,
   versionInfo,
+  error,
+  debugInfo,
+  generateErrorInfo,
 }: ErrorOverlayNavProps) {
   const bundlerName = (process.env.__NEXT_BUNDLER || 'Turbopack') as
     | 'Turbopack'
     | 'Webpack'
     | 'Rspack'
-
   return (
     <div data-nextjs-error-overlay-nav>
       <NavItem side="left">
@@ -33,14 +39,15 @@ export function ErrorOverlayNav({
           onActiveIndexChange={setActiveIndex ?? (() => {})}
         />
       </NavItem>
-      {versionInfo && (
-        <NavItem side="right">
-          <VersionStalenessInfo
-            versionInfo={versionInfo}
-            bundlerName={bundlerName}
-          />
-        </NavItem>
-      )}
+      <NavItem side="right">
+        <ErrorOverlayToolbar
+          error={error}
+          debugInfo={debugInfo}
+          generateErrorInfo={generateErrorInfo}
+          versionInfo={versionInfo}
+          bundlerName={bundlerName}
+        />
+      </NavItem>
     </div>
   )
 }
@@ -64,7 +71,6 @@ export const styles = `
     .error-overlay-nav-item {
       translate: calc(var(--next-dialog-border-width) * -1);
       width: auto;
-      height: var(--next-dialog-nav-item-height);
       padding: 12px;
       position: relative;
 

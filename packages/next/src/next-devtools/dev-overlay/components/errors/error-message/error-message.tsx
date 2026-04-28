@@ -101,13 +101,14 @@ export const styles = `
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    padding: 6px 8px;
+    padding: 6px 12px;
     background: var(--color-background-100);
-    border: 1px solid var(--color-gray-alpha-400);
+    border: none;
     border-radius: 999px;
     box-shadow:
       0px 2px 2px var(--color-gray-alpha-100),
-      0px 8px 8px -8px var(--color-gray-alpha-100);
+      0px 8px 8px -8px var(--color-gray-alpha-100),
+      0px 0px 0px 1px var(--color-gray-alpha-400);
     font-size: var(--size-13);
     cursor: pointer;
     color: var(--color-gray-900);

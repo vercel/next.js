@@ -4,10 +4,7 @@ import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
 import { DialogContent } from '../../dialog'
-import {
-  ErrorOverlayToolbar,
-  styles as toolbarStyles,
-} from '../error-overlay-toolbar/error-overlay-toolbar'
+import { styles as toolbarStyles } from '../error-overlay-toolbar/error-overlay-toolbar'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 import {
   ErrorMessage,
@@ -116,6 +113,9 @@ export function ErrorOverlayLayout({
           setActiveIndex={setActiveIndex}
           versionInfo={versionInfo}
           isTurbopack={isTurbopack}
+          error={error}
+          debugInfo={debugInfo}
+          generateErrorInfo={generateErrorInfo}
         />
         <ErrorOverlayDialog
           onClose={onClose}
@@ -142,11 +142,6 @@ export function ErrorOverlayLayout({
                       />
                     )}
                   </span>
-                  <ErrorOverlayToolbar
-                    error={error}
-                    debugInfo={debugInfo}
-                    generateErrorInfo={generateErrorInfo}
-                  />
                 </div>
                 <ErrorMessage
                   errorMessage={errorMessage}

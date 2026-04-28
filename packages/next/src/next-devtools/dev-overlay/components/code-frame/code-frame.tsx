@@ -140,7 +140,6 @@ export const CODE_FRAME_STYLES = `
 
   .code-frame-link [data-text] {
     text-align: left;
-    margin: auto 6px;
   }
 
   .code-frame-header {
@@ -152,9 +151,8 @@ export const CODE_FRAME_STYLES = `
 
   [data-with-open-in-editor-link-source-file] {
     padding: 4px;
-    margin: -4px 0 -4px auto;
-    border-radius: var(--rounded-full);
     margin-left: auto;
+    border-radius: var(--rounded-full);
 
     &:focus-visible {
       outline: var(--focus-ring);
@@ -162,7 +160,11 @@ export const CODE_FRAME_STYLES = `
     }
 
     &:hover {
-      background: var(--color-gray-100);
+      background: var(--color-gray-alpha-100);
+    }
+
+    &:active {
+      background: var(--color-gray-alpha-200);
     }
   }
 
@@ -204,8 +206,13 @@ export const CODE_FRAME_STYLES = `
 
   .code-frame-link {
     display: flex;
+    align-items: center;
+    gap: 6px;
     margin: 0;
     outline: 0;
+    padding-top: 8px;
+    padding-bottom: 8px;
+    padding-right: 8px;
   }
   .code-frame-link [data-icon='right'] {
     margin-left: auto;

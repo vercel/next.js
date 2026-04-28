@@ -136,7 +136,11 @@ export const CALL_STACK_FRAME_STYLES = `
     }
 
     &:hover {
-      background: var(--color-gray-100);
+      background: var(--color-gray-alpha-100);
+    }
+
+    &:active {
+      background: var(--color-gray-alpha-200);
     }
   }
 

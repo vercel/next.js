@@ -74,7 +74,7 @@ export const CALL_STACK_STYLES = css`
     justify-content: center;
     align-items: center;
 
-    width: var(--size-20);
+    padding: 0 6px;
     height: var(--size-20);
     gap: 4px;
 
@@ -85,7 +85,7 @@ export const CALL_STACK_STYLES = css`
     line-height: var(--size-16);
 
     border-radius: var(--rounded-full);
-    background: var(--color-gray-300);
+    background: var(--color-gray-200);
   }
 
   [data-nextjs-call-stack-ignored-list-toggle-button] {
@@ -99,8 +99,6 @@ export const CALL_STACK_STYLES = css`
     border-radius: 6px;
     padding: 4px 6px;
     margin-right: -6px;
-    transition: background 150ms ease;
-
     &:hover {
       background: var(--color-gray-100);
     }
