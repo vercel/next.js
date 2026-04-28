@@ -25,21 +25,21 @@ export function ErrorOverlayNav({
 
   return (
     <div data-nextjs-error-overlay-nav>
-      <Notch side="left">
+      <NavItem side="left">
         {/* TODO: better passing data instead of nullish coalescing */}
         <ErrorOverlayPagination
           runtimeErrors={runtimeErrors ?? []}
           activeIdx={activeIdx ?? 0}
           onActiveIndexChange={setActiveIndex ?? (() => {})}
         />
-      </Notch>
+      </NavItem>
       {versionInfo && (
-        <Notch side="right">
+        <NavItem side="right">
           <VersionStalenessInfo
             versionInfo={versionInfo}
             bundlerName={bundlerName}
           />
-        </Notch>
+        </NavItem>
       )}
     </div>
   )
@@ -61,24 +61,19 @@ export const styles = `
     translate: var(--next-dialog-border-width) var(--next-dialog-border-width);
     max-width: var(--next-dialog-max-width);
 
-    .error-overlay-notch {
+    .error-overlay-nav-item {
       translate: calc(var(--next-dialog-border-width) * -1);
       width: auto;
-      height: var(--next-dialog-notch-height);
+      height: var(--next-dialog-nav-item-height);
       padding: 12px;
-      background: var(--background-color);
-      border: var(--next-dialog-border-width) solid var(--stroke-color);
-      border-bottom: none;
       position: relative;
 
       &[data-side='left'] {
         padding-right: 0;
-        border-radius: var(--next-dialog-radius) 0 0 0;
       }
 
       &[data-side='right'] {
         padding-left: 0;
-        border-radius: 0 var(--next-dialog-radius) 0 0;
       }
     }
   }
@@ -92,7 +87,7 @@ export const styles = `
       overflow: hidden;
       translate: 0 var(--next-dialog-border-width);
       
-      .error-overlay-notch {
+      .error-overlay-nav-item {
         border-radius: 0;
         border: 0;
 
@@ -104,7 +99,7 @@ export const styles = `
   }
 `
 
-function Notch({
+function NavItem({
   children,
   side = 'left',
 }: {
@@ -112,7 +107,7 @@ function Notch({
   side?: 'left' | 'right'
 }) {
   return (
-    <div className="error-overlay-notch" data-side={side}>
+    <div className="error-overlay-nav-item" data-side={side}>
       {children}
     </div>
   )

@@ -6,7 +6,7 @@ export const styles = css`
     --next-dialog-max-width: 960px;
     --next-dialog-row-padding: 16px;
     --next-dialog-padding: 12px;
-    --next-dialog-notch-height: 42px;
+    --next-dialog-nav-item-height: 50px;
     --next-dialog-border-width: 1px;
 
     display: flex;
