@@ -79,11 +79,9 @@ impl Store {
     }
 
     pub fn reset(&mut self) {
-        self.spans.truncate(1);
-        self.spans[0] = new_root_span();
-        if let Some(tree) = self.self_time_tree.as_mut() {
-            *tree = SelfTimeTree::new();
-        }
+        self.spans = ChunkedVec::new();
+        self.spans.push(new_root_span());
+        self.self_time_tree.take();
         *self.max_self_time_lookup_time.get_mut() = 0;
         self.memory_samples.clear();
     }

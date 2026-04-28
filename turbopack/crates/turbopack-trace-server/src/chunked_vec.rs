@@ -97,57 +97,6 @@ impl<T> ChunkedVec<T> {
         // `push` and not freed by `truncate`.
         Some(unsafe { self.chunks[chunk_idx][off].assume_init_ref() })
     }
-
-    /// Drop all elements after `new_len`. Used by `Store::reset` with
-    /// `new_len = 1` to keep the root span and discard everything else.
-    pub fn truncate(&mut self, new_len: usize) {
-        if new_len >= self.len {
-            return;
-        }
-        let old_len = self.len;
-        // Set len early so any panic in element drops doesn't leave us
-        // with a `len` that points at already-dropped slots.
-        self.len = new_len;
-
-        // Drop every initialized slot in [new_len, old_len). Walk the
-        // chunks one by one so we visit each `MaybeUninit<T>` exactly
-        // once.
-        let (first_chunk, first_off) = split_index(new_len);
-        // `old_len > new_len >= 0` here, so `old_len > 0` and the last
-        // populated chunk is `(old_len - 1) / CHUNK_SIZE`. The number
-        // of initialized slots in that chunk is `((old_len - 1) %
-        // CHUNK_SIZE) + 1` — which is `CHUNK_SIZE` when `old_len` lands
-        // exactly on a chunk boundary.
-        let last_chunk = (old_len - 1) / CHUNK_SIZE;
-        let last_chunk_end = ((old_len - 1) % CHUNK_SIZE) + 1;
-
-        for chunk_idx in first_chunk..=last_chunk {
-            let chunk = &mut self.chunks[chunk_idx];
-            let start = if chunk_idx == first_chunk {
-                first_off
-            } else {
-                0
-            };
-            let end = if chunk_idx == last_chunk {
-                last_chunk_end
-            } else {
-                CHUNK_SIZE
-            };
-            for slot in &mut chunk[start..end] {
-                // SAFETY: the slot was initialized by a prior `push`
-                // and has not yet been dropped by `truncate`.
-                unsafe { slot.assume_init_drop() };
-            }
-        }
-
-        // Free chunks that no longer hold any initialized slots.
-        let chunks_to_keep = if first_off == 0 {
-            first_chunk
-        } else {
-            first_chunk + 1
-        };
-        self.chunks.truncate(chunks_to_keep);
-    }
 }
 
 impl<T> Default for ChunkedVec<T> {
@@ -158,9 +107,23 @@ impl<T> Default for ChunkedVec<T> {
 
 impl<T> Drop for ChunkedVec<T> {
     fn drop(&mut self) {
-        // Drops every initialized slot; the `Vec<Chunk<T>>` then frees
-        // the chunk allocations themselves on its own drop.
-        self.truncate(0);
+        // Drop every initialized slot in [new_len, old_len). Walk the
+        // chunks one by one so we visit each `MaybeUninit<T>` exactly
+        // once.
+        let (last_chunk, last_chunk_len) = split_index(self.len);
+
+        for (chunk_index, chunk) in self.chunks.iter_mut().enumerate() {
+            let chunk_end = if chunk_index == last_chunk {
+                last_chunk_len
+            } else {
+                CHUNK_SIZE
+            };
+            for slot in &mut chunk[0..chunk_end] {
+                // SAFETY: the slot was initialized by a prior `push`
+                // and has not yet been dropped by `truncate`.
+                unsafe { slot.assume_init_drop() };
+            }
+        }
     }
 }
 
@@ -236,61 +199,7 @@ mod tests {
     }
 
     #[test]
-    fn truncate_within_first_chunk() {
-        let mut v = ChunkedVec::new();
-        for i in 0..100 {
-            v.push(i);
-        }
-        v.truncate(1);
-        assert_eq!(v.len(), 1);
-        assert_eq!(v[0], 0);
-        assert!(v.get(1).is_none());
-    }
-
-    #[test]
-    fn truncate_across_chunks() {
-        let mut v = ChunkedVec::new();
-        for i in 0..(2 * CHUNK_SIZE + 10) {
-            v.push(i);
-        }
-        // Truncate to a length that lands on a chunk boundary.
-        v.truncate(CHUNK_SIZE);
-        assert_eq!(v.len(), CHUNK_SIZE);
-        assert_eq!(v[CHUNK_SIZE - 1], CHUNK_SIZE - 1);
-        assert!(v.get(CHUNK_SIZE).is_none());
-        // Truncate further into the first chunk.
-        v.truncate(50);
-        assert_eq!(v.len(), 50);
-        assert_eq!(v[49], 49);
-        assert!(v.get(50).is_none());
-    }
-
-    #[test]
-    fn truncate_to_or_above_len_is_noop() {
-        let mut v = ChunkedVec::new();
-        for i in 0..10 {
-            v.push(i);
-        }
-        v.truncate(10);
-        assert_eq!(v.len(), 10);
-        v.truncate(100);
-        assert_eq!(v.len(), 10);
-    }
-
-    #[test]
-    fn push_after_truncate_continues_at_correct_index() {
-        let mut v = ChunkedVec::new();
-        for i in 0..(CHUNK_SIZE + 5) {
-            v.push(i);
-        }
-        v.truncate(3);
-        assert_eq!(v.push(42), 3);
-        assert_eq!(v.len(), 4);
-        assert_eq!(v[3], 42);
-    }
-
-    #[test]
-    fn drops_elements_on_truncate_and_drop() {
+    fn drops_elements_on_drop() {
         use std::rc::Rc;
         let counter = Rc::new(());
         {
@@ -301,19 +210,6 @@ mod tests {
                 v.push(counter.clone());
             }
             assert_eq!(Rc::strong_count(&counter), total + 1);
-            // Truncate into the first chunk; should drop everything except
-            // the first 10 clones.
-            v.truncate(10);
-            assert_eq!(Rc::strong_count(&counter), 10 + 1);
-            // Truncate to a chunk boundary after pushing more; verify the
-            // boundary case (off == 0) drops the whole trailing chunk.
-            for _ in 0..(CHUNK_SIZE - 10) {
-                v.push(counter.clone());
-            }
-            assert_eq!(v.len(), CHUNK_SIZE);
-            assert_eq!(Rc::strong_count(&counter), CHUNK_SIZE + 1);
-            v.truncate(CHUNK_SIZE);
-            assert_eq!(Rc::strong_count(&counter), CHUNK_SIZE + 1);
         } // ChunkedVec drop runs here, dropping the remaining CHUNK_SIZE clones.
         assert_eq!(Rc::strong_count(&counter), 1);
     }
