@@ -8,6 +8,7 @@ if (!Array.isArray(globalThis["TURBOPACK"])) {
 }
 
 var CHUNK_BASE_PATH = "";
+var WORKER_BASE_PATH = "";
 var RELATIVE_ROOT_PATH = "../../../../../../..";
 var RUNTIME_PUBLIC_PATH = "";
 var ASSET_SUFFIX = "";
@@ -1297,6 +1298,10 @@ browserContextPrototype.q = exportUrl;
  * @param workerOptions options to pass to the Worker constructor (optional)
  */ function createWorker(WorkerConstructor, entrypoint, moduleChunks, workerOptions) {
     var isSharedWorker = WorkerConstructor.name === 'SharedWorker';
+    // `WORKER_BASE_PATH` overrides only the entrypoint URL to keep `new Worker(...)`
+    // same-origin when `assetPrefix` is a cross-origin CDN. Module chunks loaded
+    // inside the worker can be cross-origin, so they always use CHUNK_BASE_PATH.
+    var entrypointBasePath = WORKER_BASE_PATH || CHUNK_BASE_PATH;
     var chunkUrls = moduleChunks.map(function(chunk) {
         return getChunkRelativeUrl(chunk);
     }).reverse();
@@ -1324,7 +1329,7 @@ browserContextPrototype.q = exportUrl;
             }
         }
     }
-    var url = new URL(getChunkRelativeUrl(entrypoint), location.origin);
+    var url = new URL(getChunkRelativeUrl(entrypoint, entrypointBasePath), location.origin);
     var paramsJson = JSON.stringify(params);
     if (isSharedWorker) {
         url.searchParams.set('params', paramsJson);
@@ -1346,7 +1351,8 @@ browserContextPrototype.b = createWorker;
 /**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */ function getChunkRelativeUrl(chunkPath) {
-    return `${CHUNK_BASE_PATH}${chunkPath.split('/').map(function(p) {
+    var basePath = arguments.length > 1 && arguments[1] !== void 0 ? arguments[1] : CHUNK_BASE_PATH;
+    return `${basePath}${chunkPath.split('/').map(function(p) {
         return encodeURIComponent(p);
     }).join('/')}${ASSET_SUFFIX}`;
 }
