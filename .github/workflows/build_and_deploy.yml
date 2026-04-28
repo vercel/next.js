@@ -183,13 +183,10 @@ jobs:
             build_task: build-native-release
             os:
               mac:
+                host: "['macos-15']"
                 vendor: apple
                 sys: darwin
-                arch:
-                  x86_64:
-                    host: "['macos-15-intel']"
-                  aarch64:
-                    host: "['macos-15']"
+                arch: [x86_64, aarch64]
               windows:
                 host: "['windows-latest-8-core-oss']"
                 vendor: pc
