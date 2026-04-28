@@ -1,26 +1,11 @@
 //! A push-only vector that grows in fixed-size chunks instead of one
 //! contiguous reallocating buffer.
 //!
-//! `Vec<T>` doubles its backing buffer on overflow, which is fine for
-//! small workloads but expensive when the per-element size is large and
-//! the element count is huge. The trace server pushes ~47M `Span`s of
-//! ~376 bytes each during a load — every doubling copies gigabytes of
-//! span data. `ChunkedVec` instead allocates a fresh chunk of `CHUNK_SIZE`
-//! elements on overflow, so growth cost is constant per chunk and there
-//! are no copies of existing elements.
-//!
 //! The trade-off vs. `Vec`:
 //! - One pointer indirection per indexed access (chunk lookup → element).
-//! - Slightly larger per-element overhead from chunk pointers (negligible at 64K elements/chunk ×
-//!   376 bytes = 24 MB/chunk).
+//! - Slightly larger per-element overhead from chunk pointers (negligible at 64K elements/chunk).
 //! - References returned by `index`/`index_mut` are stable across `push` (a future-useful property;
 //!   not currently relied on).
-//!
-//! Each chunk is a `Box<[MaybeUninit<T>; CHUNK_SIZE]>` rather than a
-//! `Vec<T>` because chunks are fixed-size and never reallocate — the
-//! per-chunk `len`/`capacity` fields a `Vec` would carry are pure
-//! redundancy when `ChunkedVec::len` is the sole source of truth for the
-//! init/uninit cutoff.
 //!
 //! API is intentionally minimal — only the operations the trace server
 //! needs (`push`, `len`, indexed access, `get`, `truncate`).
@@ -31,9 +16,7 @@ use std::{
 };
 
 /// Number of elements per chunk. Power of two so `idx / CHUNK_SIZE` and
-/// `idx % CHUNK_SIZE` compile to a shift and a mask. 64K elements ×
-/// 376-byte `Span` = 24 MB per chunk; large allocations like this are
-/// served via `mmap`, so they're naturally page-aligned.
+/// `idx % CHUNK_SIZE` compile to a shift and a mask.
 const CHUNK_SIZE: usize = 1 << 16;
 
 /// Returns the chunk index and intra-chunk offset for an element index.
