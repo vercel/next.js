@@ -321,13 +321,10 @@ function createWorker(
   // `WORKER_BASE_PATH` overrides only the entrypoint URL to keep `new Worker(...)`
   // same-origin when `assetPrefix` is a cross-origin CDN. Module chunks loaded
   // inside the worker can be cross-origin, so they always use CHUNK_BASE_PATH.
-  const entrypointBasePath =
-    typeof WORKER_BASE_PATH === 'string' && WORKER_BASE_PATH.length > 0
-      ? WORKER_BASE_PATH
-      : CHUNK_BASE_PATH
+  const entrypointBasePath = WORKER_BASE_PATH || CHUNK_BASE_PATH
 
   const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk, CHUNK_BASE_PATH))
+    .map((chunk) => getChunkRelativeUrl(chunk))
     .reverse()
   const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
   for (const globalName of WORKER_FORWARDED_GLOBALS) {
