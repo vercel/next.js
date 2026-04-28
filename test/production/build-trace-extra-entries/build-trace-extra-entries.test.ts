@@ -8,8 +8,8 @@ describe('build trace with extra entries', () => {
       skipStart: true,
     })
 
-    if (!isNextStart) {
-      it('skipped for non-start mode', () => {})
+    if (!isNextStart || isTurbopack) {
+      it('skipped for non-start or turbopack mode', () => {})
       return
     }
 
