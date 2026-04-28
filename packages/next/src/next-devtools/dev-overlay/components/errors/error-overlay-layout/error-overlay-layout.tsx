@@ -34,7 +34,6 @@ import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 import type { ReadyRuntimeError } from '../../../utils/get-error-by-type'
 import { EnvironmentNameLabel } from '../environment-name-label/environment-name-label'
 import { useFocusTrap } from '../dev-tools-indicator/utils'
-import { Fader } from '../../fader'
 import { Resizer } from '../../resizer'
 import { OverlayBackdrop } from '../../overlay'
 
@@ -89,17 +88,9 @@ export function ErrorOverlayLayout({
     Boolean(transitionDurationMs)
   )
 
-  const faderRef = React.useRef<HTMLDivElement | null>(null)
   const hasFooter = Boolean(errorCode)
   const dialogRef = React.useRef<HTMLDivElement | null>(null)
   useFocusTrap(dialogRef, null, rendered)
-
-  function onScroll(e: React.UIEvent<HTMLDivElement>) {
-    if (faderRef.current) {
-      const opacity = clamp(e.currentTarget.scrollTop / 17, [0, 1])
-      faderRef.current.style.opacity = String(opacity)
-    }
-  }
 
   function onTransitionEnd({ propertyName, target }: React.TransitionEvent) {
     // We can only measure height after the `scale` transition ends,
@@ -129,7 +120,6 @@ export function ErrorOverlayLayout({
         <ErrorOverlayDialog
           onClose={onClose}
           data-has-footer={hasFooter}
-          onScroll={onScroll}
           footer={hasFooter && <ErrorOverlayFooter errorCode={errorCode} />}
         >
           <Resizer
@@ -173,14 +163,9 @@ export function ErrorOverlayLayout({
             activeIdx={activeIdx ?? 0}
           />
         </ErrorOverlayDialog>
-        <Fader ref={faderRef} side="top" stop="50%" blur="4px" height={48} />
       </div>
     </ErrorOverlayOverlay>
   )
-}
-
-function clamp(value: number, [min, max]: [number, number]) {
-  return Math.min(Math.max(value, min), max)
 }
 
 export const styles = `

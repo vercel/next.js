@@ -27,14 +27,6 @@ export const styles = css`
       scale: 1;
     }
 
-    [data-nextjs-scroll-fader][data-side='top'] {
-      left: 1px;
-      top: calc(
-        var(--next-dialog-notch-height) + var(--next-dialog-border-width)
-      );
-      width: calc(100% - var(--next-dialog-padding));
-      opacity: 0;
-    }
   }
 
   [data-nextjs-dialog] {
