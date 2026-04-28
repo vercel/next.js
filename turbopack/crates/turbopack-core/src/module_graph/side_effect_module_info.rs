@@ -105,6 +105,44 @@ async fn compute_side_effect_free_module_info_single(
         },
         |_, _, _| Ok(()),
     )?;
+    #[cfg(debug_assertions)]
+    {
+        use once_cell::sync::Lazy;
+        static PRINT_SIDE_EFFECT_INFO: Lazy<bool> = Lazy::new(|| {
+            std::env::var_os("TURBOPACK_PRINT_SIDE_EFFECT_INFO")
+                .is_some_and(|v| v == "1" || v == "true")
+        });
+        if *PRINT_SIDE_EFFECT_INFO {
+            use turbo_tasks::TryJoinIterExt;
+            println!(
+                "side effect free modules: {:#?}",
+                module_side_effects
+                    .iter()
+                    .filter_map(|(m, e)| match e {
+                        ModuleSideEffects::SideEffectful => None,
+                        ModuleSideEffects::SideEffectFree => Some((m, false)),
+                        ModuleSideEffects::ModuleEvaluationIsSideEffectFree => {
+                            if locally_side_effect_free_modules_that_have_side_effects.contains(m) {
+                                None
+                            } else {
+                                Some((m, true))
+                            }
+                        }
+                    })
+                    .map(async |(m, locally)| Ok((
+                        m.ident_string().await?,
+                        if locally {
+                            "inferred locally"
+                        } else {
+                            "declared"
+                        }
+                    )))
+                    .try_join()
+                    .await?
+            );
+        }
+    }
+
     let side_effect_free_modules = module_side_effects
         .into_iter()
         .filter_map(|(m, e)| match e {
