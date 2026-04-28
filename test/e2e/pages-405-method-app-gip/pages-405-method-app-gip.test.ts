@@ -9,8 +9,11 @@ describe('pages-405-method-app-gip', () => {
     // A custom `_app.tsx` with getInitialProps opts every page in the app
     // out of static auto-export, so plain pages must still accept non-GET
     // methods because the app-level resolver may inspect `req.method`.
+    // Assert a specific success status so a 500 from a render regression
+    // would also fail this test (rather than passing under a permissive
+    // `not.toBe`).
     const res = await next.fetch('/', { method: 'POST' })
-    expect(res.status).not.toBe(405)
+    expect(res.status).toBe(200)
   })
 
   it('should serve GET normally', async () => {
