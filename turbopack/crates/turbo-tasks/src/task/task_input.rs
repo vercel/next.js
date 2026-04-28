@@ -24,7 +24,7 @@ use turbo_tasks_hash::HashAlgorithm;
 // name directly.
 use crate as turbo_tasks;
 use crate::{
-    DynTaskInputs, ReadRef, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
+    DynTaskInputs, ResolvedVc, TaskId, TransientInstance, TransientValue, ValueTypeId, Vc,
     trace::TraceRawVcs,
 };
 

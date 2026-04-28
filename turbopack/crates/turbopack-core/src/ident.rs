@@ -6,8 +6,8 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
-    trace::TraceRawVcs, turbofmt,
+    NonLocalValue, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
@@ -102,9 +102,6 @@ impl AssetIdent {
     }
 
     /// Finalizes the builder by turning the owned [`AssetIdent`] into a cached [`Vc<AssetIdent>`].
-    ///
-    /// Internally delegates to `new_inner` which is the only cached turbo-task constructor for
-    /// `AssetIdent`, avoiding redundant task executions for every builder step.
     pub fn into_vc(self) -> Vc<Self> {
         AssetIdent::new_inner(ReadRef::new_owned(self))
     }
