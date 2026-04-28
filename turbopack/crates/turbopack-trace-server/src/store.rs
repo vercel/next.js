@@ -211,9 +211,7 @@ impl Store {
         end: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
-        let Some(event) = SpanEvent::self_time(start, end) else {
-            return;
-        };
+        let event = SpanEvent::self_time(start, end);
         let span = &mut self.spans[span_index.get()];
         let time_data = &mut span.time_data;
         if time_data.ignore_self_time {
@@ -222,8 +220,10 @@ impl Store {
         outdated_spans.insert(span_index);
         time_data.self_time += end - start;
         time_data.self_end = max(time_data.self_end, end);
-        span.events.push(event);
-        self.insert_self_time(start, end, span_index, outdated_spans);
+        if let Some(event) = event {
+            span.events.push(event);
+            self.insert_self_time(start, end, span_index, outdated_spans);
+        }
     }
 
     pub fn set_total_time(
