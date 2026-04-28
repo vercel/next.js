@@ -3286,8 +3286,10 @@ async fn handle_exports_imports_field(
                     // - "prefix...<dynamic>...suffix"
 
                     let mut old_request_key = result_path;
-                    // Remove the Pattern::Constant(rcstr!("./")), from above again
-                    old_request_key.push_front(rcstr!("./").into());
+                    if matches!(ty, ImportExportFieldType::Exports) {
+                        // Remove the Pattern::Constant(rcstr!("./")) from above again
+                        old_request_key.push_front(rcstr!("./").into());
+                    }
                     let new_request_key = req.clone();
 
                     resolve_result.with_replaced_request_key_pattern(
