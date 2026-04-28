@@ -1427,9 +1427,21 @@ impl ModuleGraphSnapshot {
         Ok(visit_count)
     }
 
+    /// Iterates all reachable modules in the graph, ignoring unused and traced references.
     pub fn iter_reachable_modules(
         &self,
     ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>>> {
+        Ok(self.iter_reachable_nodes()?.filter_map(|n| match n {
+            SingleModuleGraphNode::Module(m) => Some(*m),
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        }))
+    }
+
+    /// Iterates all reachable nodes in the graph, ignoring unused and traced references.
+    /// This includes VisitedModule nodes (which means that some modules are returned twice).
+    pub fn iter_reachable_nodes<'a>(
+        &'a self,
+    ) -> Result<impl Iterator<Item = &'a SingleModuleGraphNode> + 'a> {
         ModuleGraphSnapshotNodeIterator::new(self)
     }
 }
@@ -1456,25 +1468,27 @@ impl<'a> ModuleGraphSnapshotNodeIterator<'a> {
         })
     }
 }
-impl Iterator for ModuleGraphSnapshotNodeIterator<'_> {
-    type Item = ResolvedVc<Box<dyn Module>>;
+impl<'a> Iterator for ModuleGraphSnapshotNodeIterator<'a> {
+    type Item = &'a SingleModuleGraphNode;
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some(node_idx) = self.visit_queue.pop_front() {
-            if self.visited.insert(node_idx)
-                && let node_weight = self.graph.get_node(node_idx).unwrap()
-                && let SingleModuleGraphNode::Module(module) = node_weight
-                && self
+            if self.visited.insert(node_idx) {
+                let node_weight = self.graph.get_node(node_idx).unwrap();
+                if self
                     .graph
                     .should_visit_node(node_weight, Direction::Outgoing)
-            {
-                for (_, succ) in self
-                    .graph
-                    .iter_graphs_neighbors_rev(node_idx, Direction::Outgoing)
                 {
-                    self.visit_queue.push_back(succ);
+                    let node = node_weight
+                        .target_idx(Direction::Outgoing)
+                        .unwrap_or(node_idx);
+                    self.visit_queue.extend(
+                        self.graph
+                            .iter_graphs_neighbors_rev(node, Direction::Outgoing)
+                            .map(|(_, succ)| succ),
+                    );
                 }
-                Some(*module)
+                Some(node_weight)
             } else {
                 // Continue to next node
                 self.next()
@@ -2242,6 +2256,209 @@ pub mod tests {
             assert_eq!(
                 traversal_results.reverse_from_b,
                 vec![rcstr!("[test]/b.js"), rcstr!("[test]/a.js")]
+            );
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_iter_nodes_modules_through_layered_graph() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            #[turbo_tasks::value]
+            struct Results {
+                iter_nodes: Vec<RcStr>,
+                iter_modules: Vec<RcStr>,
+                iter_nodes_single: Vec<Vec<RcStr>>,
+                iter_modules_single: Vec<Vec<RcStr>>,
+            }
+
+            #[turbo_tasks::function(operation)]
+            async fn reverse_traversal_results_operation() -> Result<Vc<Results>> {
+                let fs = VirtualFileSystem::new_with_name(rcstr!("test"));
+                let root = fs.root().await?;
+
+                // a simple linear graph a -> b -> c -> x -> y -> z
+                // but x -> y -> z is in a parent graph
+                let graph = {
+                    let mut deps = FxHashMap::default();
+
+                    deps.insert(rcstr!("a.js"), vec![rcstr!("b.js")]);
+                    deps.insert(rcstr!("b.js"), vec![rcstr!("c.js")]);
+                    deps.insert(rcstr!("c.js"), vec![rcstr!("x.js")]);
+                    deps.insert(rcstr!("x.js"), vec![rcstr!("y.js")]);
+                    deps.insert(rcstr!("y.js"), vec![rcstr!("z.js")]);
+                    deps
+                };
+                let repo = TestRepo {
+                    repo: graph
+                        .iter()
+                        .map(|(k, v)| {
+                            (
+                                root.join(k).unwrap(),
+                                v.iter().map(|f| root.join(f).unwrap()).collect(),
+                            )
+                        })
+                        .collect(),
+                }
+                .cell();
+                let make_module = |name| {
+                    Vc::upcast::<Box<dyn Module>>(MockModule::new(root.join(name).unwrap(), repo))
+                        .to_resolved()
+                };
+                let x_module = make_module("x.js").await?;
+                let a_module = make_module("a.js").await?;
+
+                let parent_graph = SingleModuleGraph::new_with_entries(
+                    ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![x_module])]),
+                    false,
+                    false,
+                );
+
+                let module_graph = ModuleGraph::from_graphs(
+                    vec![
+                        parent_graph,
+                        SingleModuleGraph::new_with_entries_visited(
+                            ResolvedVc::cell(vec![ChunkGroupEntry::Entry(vec![a_module])]),
+                            VisitedModules::from_graph(parent_graph),
+                            false,
+                            false,
+                        ),
+                    ],
+                    None,
+                )
+                .connect();
+                let graph_layers = module_graph.iter_graphs().await?;
+
+                Ok(Results {
+                    iter_nodes: module_graph
+                        .await?
+                        .iter_reachable_nodes()?
+                        .map(async |node| {
+                            Ok(match node {
+                                SingleModuleGraphNode::Module(module) => {
+                                    module.ident_string().owned().await?
+                                }
+                                SingleModuleGraphNode::VisitedModule { module, .. } => {
+                                    format!("visited {}", module.ident_string().owned().await?)
+                                        .into()
+                                }
+                            })
+                        })
+                        .try_join()
+                        .await?,
+                    iter_modules: module_graph
+                        .await?
+                        .iter_reachable_modules()?
+                        .map(|m| m.ident_string().owned())
+                        .try_join()
+                        .await?,
+                    iter_nodes_single: graph_layers
+                        .iter()
+                        .map(async |layer| {
+                            layer
+                                .connect()
+                                .await?
+                                .iter_reachable_nodes()?
+                                .map(async |node| {
+                                    Ok(match node {
+                                        SingleModuleGraphNode::Module(module) => {
+                                            module.ident_string().owned().await?
+                                        }
+                                        SingleModuleGraphNode::VisitedModule { module, .. } => {
+                                            format!(
+                                                "visited {}",
+                                                module.ident_string().owned().await?
+                                            )
+                                            .into()
+                                        }
+                                    })
+                                })
+                                .try_join()
+                                .await
+                        })
+                        .try_join()
+                        .await?,
+                    iter_modules_single: graph_layers
+                        .iter()
+                        .map(async |layer| {
+                            layer
+                                .connect()
+                                .await?
+                                .iter_reachable_modules()?
+                                .map(|m| m.ident_string().owned())
+                                .try_join()
+                                .await
+                        })
+                        .try_join()
+                        .await?,
+                }
+                .cell())
+            }
+
+            let traversal_results = reverse_traversal_results_operation()
+                .read_strongly_consistent()
+                .await?;
+
+            assert_eq!(
+                traversal_results.iter_nodes,
+                vec![
+                    rcstr!("[test]/x.js"),
+                    rcstr!("[test]/a.js"),
+                    rcstr!("[test]/y.js"),
+                    rcstr!("[test]/b.js"),
+                    rcstr!("[test]/z.js"),
+                    rcstr!("[test]/c.js"),
+                    rcstr!("visited [test]/x.js")
+                ]
+            );
+            assert_eq!(
+                traversal_results.iter_modules,
+                vec![
+                    rcstr!("[test]/x.js"),
+                    rcstr!("[test]/a.js"),
+                    rcstr!("[test]/y.js"),
+                    rcstr!("[test]/b.js"),
+                    rcstr!("[test]/z.js"),
+                    rcstr!("[test]/c.js")
+                ]
+            );
+            assert_eq!(
+                traversal_results.iter_nodes_single,
+                vec![
+                    vec![
+                        rcstr!("[test]/x.js"),
+                        rcstr!("[test]/y.js"),
+                        rcstr!("[test]/z.js")
+                    ],
+                    vec![
+                        rcstr!("[test]/a.js"),
+                        rcstr!("[test]/b.js"),
+                        rcstr!("[test]/c.js"),
+                        rcstr!("visited [test]/x.js")
+                    ]
+                ]
+            );
+            assert_eq!(
+                traversal_results.iter_modules_single,
+                vec![
+                    vec![
+                        rcstr!("[test]/x.js"),
+                        rcstr!("[test]/y.js"),
+                        rcstr!("[test]/z.js")
+                    ],
+                    vec![
+                        rcstr!("[test]/a.js"),
+                        rcstr!("[test]/b.js"),
+                        rcstr!("[test]/c.js")
+                    ]
+                ]
             );
 
             Ok(())
