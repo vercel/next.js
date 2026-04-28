@@ -318,18 +318,16 @@ function createWorker(
 ): Worker {
   const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
 
-  // When `workerPublicPath` is set, route both the Worker entrypoint and its
-  // module chunks through that same-origin prefix instead of CHUNK_BASE_PATH.
-  // This mirrors webpack's `output.workerPublicPath` and is needed when
-  // `assetPrefix` points to a cross-origin CDN (browsers reject cross-origin
-  // Worker construction).
-  const workerBasePath =
+  // `WORKER_BASE_PATH` overrides only the entrypoint URL to keep `new Worker(...)`
+  // same-origin when `assetPrefix` is a cross-origin CDN. Module chunks loaded
+  // inside the worker can be cross-origin, so they always use CHUNK_BASE_PATH.
+  const entrypointBasePath =
     typeof WORKER_BASE_PATH === 'string' && WORKER_BASE_PATH.length > 0
       ? WORKER_BASE_PATH
       : CHUNK_BASE_PATH
 
   const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk, workerBasePath))
+    .map((chunk) => getChunkRelativeUrl(chunk, CHUNK_BASE_PATH))
     .reverse()
   const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
   for (const globalName of WORKER_FORWARDED_GLOBALS) {
@@ -337,7 +335,7 @@ function createWorker(
   }
 
   const url = new URL(
-    getChunkRelativeUrl(entrypoint, workerBasePath),
+    getChunkRelativeUrl(entrypoint, entrypointBasePath),
     location.origin
   )
   const paramsJson = JSON.stringify(params)
