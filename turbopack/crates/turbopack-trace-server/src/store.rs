@@ -10,7 +10,7 @@ use turbo_rcstr::{RcStr, rcstr};
 
 use crate::{
     self_time_tree::SelfTimeTree,
-    span::{Span, SpanEvent, SpanIndex},
+    span::{Span, SpanArgs, SpanEvent, SpanIndex, SpanTimeData},
     span_ref::SpanRef,
     timestamp::Timestamp,
 };
@@ -45,20 +45,18 @@ fn new_root_span() -> Span {
         start: Timestamp::MAX,
         category: RcStr::default(),
         name: rcstr!("(root)"),
-        args: vec![],
+        args: SpanArgs::new(),
         events: Default::default(),
         is_complete: true,
-        max_depth: OnceLock::new(),
         self_allocations: 0,
         self_allocation_count: 0,
         self_deallocations: 0,
         self_deallocation_count: 0,
-        total_allocations: OnceLock::new(),
-        total_deallocations: OnceLock::new(),
-        total_persistent_allocations: OnceLock::new(),
-        total_allocation_count: OnceLock::new(),
-        total_span_count: OnceLock::new(),
-        time_data: OnceLock::new(),
+        totals: OnceLock::new(),
+        time_data: SpanTimeData {
+            self_end: Timestamp::MAX,
+            ..Default::default()
+        },
         extra: OnceLock::new(),
         names: OnceLock::new(),
     }
@@ -109,10 +107,11 @@ impl Store {
         start: Timestamp,
         category: RcStr,
         name: RcStr,
-        args: Vec<(RcStr, RcStr)>,
+        args: SpanArgs,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) -> SpanIndex {
         let id = SpanIndex::new(self.spans.len()).unwrap();
+        let ignore_self_time = &name == "thread" || &name == "blocking";
         self.spans.push(Span {
             parent,
             depth: 0,
@@ -120,19 +119,18 @@ impl Store {
             category,
             name,
             args,
-            events: vec![].into(),
+            events: Default::default(),
             is_complete: false,
-            max_depth: OnceLock::new(),
             self_allocations: 0,
             self_allocation_count: 0,
             self_deallocations: 0,
             self_deallocation_count: 0,
-            total_allocations: OnceLock::new(),
-            total_deallocations: OnceLock::new(),
-            total_persistent_allocations: OnceLock::new(),
-            total_allocation_count: OnceLock::new(),
-            total_span_count: OnceLock::new(),
-            time_data: OnceLock::new(),
+            totals: OnceLock::new(),
+            time_data: SpanTimeData {
+                self_end: start,
+                ignore_self_time,
+                ..Default::default()
+            },
             extra: OnceLock::new(),
             names: OnceLock::new(),
         });
@@ -213,16 +211,19 @@ impl Store {
         end: Timestamp,
         outdated_spans: &mut FxHashSet<SpanIndex>,
     ) {
+        let event = SpanEvent::self_time(start, end);
         let span = &mut self.spans[span_index.get()];
-        let time_data = span.time_data_mut();
+        let time_data = &mut span.time_data;
         if time_data.ignore_self_time {
             return;
         }
         outdated_spans.insert(span_index);
         time_data.self_time += end - start;
         time_data.self_end = max(time_data.self_end, end);
-        span.events.push(SpanEvent::self_time(start, end));
-        self.insert_self_time(start, end, span_index, outdated_spans);
+        if let Some(event) = event {
+            span.events.push(event);
+            self.insert_self_time(start, end, span_index, outdated_spans);
+        }
     }
 
     pub fn set_total_time(
@@ -239,7 +240,7 @@ impl Store {
         };
         let mut children = span
             .children()
-            .map(|c| (c.span.start, c.span.time_data().self_end, c.index()))
+            .map(|c| (c.span.start, c.span.time_data.self_end, c.index()))
             .collect::<Vec<_>>();
         children.sort();
         let self_end = start_time + total_time;
@@ -249,14 +250,18 @@ impl Store {
         for (start, end, index) in children {
             if start > current {
                 if start > self_end {
-                    events.push(SpanEvent::self_time(current, self_end));
-                    self.insert_self_time(current, self_end, span_index, outdated_spans);
-                    self_time += self_end - current;
+                    if let Some(event) = SpanEvent::self_time(current, self_end) {
+                        events.push(event);
+                        self.insert_self_time(current, self_end, span_index, outdated_spans);
+                        self_time += self_end - current;
+                    }
                     break;
                 }
-                events.push(SpanEvent::self_time(current, start));
-                self.insert_self_time(current, start, span_index, outdated_spans);
-                self_time += start - current;
+                if let Some(event) = SpanEvent::self_time(current, start) {
+                    events.push(event);
+                    self.insert_self_time(current, start, span_index, outdated_spans);
+                    self_time += start - current;
+                }
             }
             events.push(SpanEvent::Child { start, index });
             current = max(current, end);
@@ -264,20 +269,16 @@ impl Store {
         current -= start_time;
         if current < total_time {
             self_time += total_time - current;
-            events.push(SpanEvent::self_time(
-                current + start_time,
-                start_time + total_time,
-            ));
-            self.insert_self_time(
-                current + start_time,
-                start_time + total_time,
-                span_index,
-                outdated_spans,
-            );
+            let st = current + start_time;
+            let en = start_time + total_time;
+            if let Some(event) = SpanEvent::self_time(st, en) {
+                events.push(event);
+                self.insert_self_time(st, en, span_index, outdated_spans);
+            }
         }
         let span = &mut self.spans[span_index.get()];
         outdated_spans.insert(span_index);
-        let time_data = span.time_data_mut();
+        let time_data = &mut span.time_data;
         time_data.self_time = self_time;
         time_data.self_end = self_end;
         span.events = events.into();
@@ -385,22 +386,16 @@ impl Store {
 
     pub fn invalidate_outdated_spans(&mut self, outdated_spans: &FxHashSet<SpanId>) {
         fn invalidate_span(span: &mut Span) {
-            if let Some(time_data) = span.time_data.get_mut() {
-                time_data.end.take();
-                time_data.total_time.take();
-                time_data.corrected_self_time.take();
-                time_data.corrected_total_time.take();
-            }
+            span.time_data.end.take();
+            span.time_data.total_time.take();
+            span.time_data.corrected_self_time.take();
+            span.time_data.corrected_total_time.take();
             for event in span.events.iter_mut_unordered() {
                 if let SpanEvent::SelfTime(self_time) = event {
                     self_time.corrected_self_time.take();
                 }
             }
-            span.total_allocations.take();
-            span.total_deallocations.take();
-            span.total_persistent_allocations.take();
-            span.total_allocation_count.take();
-            span.total_span_count.take();
+            span.totals.take();
             span.extra.take();
         }
 

@@ -10809,6 +10809,7 @@ dependencies = [
  "rustc-hash 2.1.1",
  "serde",
  "serde_json",
+ "smallvec",
  "tungstenite 0.21.0",
  "turbo-rcstr",
  "turbo-tasks-malloc",
