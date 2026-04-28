@@ -43,10 +43,20 @@ impl TryFrom<LitStr> for CellMode {
     }
 }
 
+/// How a value type's cells are persisted across restarts.
 enum SerializationMode {
-    None,
+    /// Round-trip through bincode via auto-derived `Encode` / `Decode`.
     Auto,
+    /// Round-trip through bincode via a manual `Encode` / `Decode` impl
+    /// supplied by the value type.
     Custom,
+    /// No persistence of the value itself. Eviction policy is controlled
+    /// separately via the `evict` attribute.
+    Skip,
+    /// Persist only a hash of the value so post-eviction reads can detect
+    /// unchanged content and skip invalidation. Only valid with
+    /// `cell = "compare"` (or the default).
+    Hash,
 }
 
 impl Parse for SerializationMode {
@@ -61,12 +71,53 @@ impl TryFrom<LitStr> for SerializationMode {
 
     fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
         match lit.value().as_str() {
-            "none" => Ok(SerializationMode::None),
             "auto" => Ok(SerializationMode::Auto),
             "custom" => Ok(SerializationMode::Custom),
+            "skip" => Ok(SerializationMode::Skip),
+            "hash" => Ok(SerializationMode::Hash),
             _ => Err(Error::new_spanned(
                 &lit,
-                "expected \"none\", \"auto\", or \"custom\"",
+                "expected \"auto\", \"custom\", \"skip\", or \"hash\"",
+            )),
+        }
+    }
+}
+
+/// Eviction policy for a `serialization = "skip"` value type. Ignored for
+/// other serialization modes (the macro rejects non-`Always` values in that
+/// case).
+enum EvictMode {
+    /// Evictable freely. The next reader after eviction triggers a recompute
+    /// from the task's inputs. This is the default when `evict` is omitted.
+    Always,
+    /// Evictable, but re-deriving is non-trivial (e.g. WASM compile,
+    /// spawning a Node process pool). Eviction policy should prefer
+    /// evicting cheaper cells first.
+    Last,
+    /// Not evictable: the value holds interior-mutable state that
+    /// accumulates across the session (`State<>` cells, `Arc<Mutex<_>>`
+    /// dedup histories) and must stay in memory.
+    Never,
+}
+
+impl Parse for EvictMode {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let ident = input.parse::<LitStr>()?;
+        Self::try_from(ident)
+    }
+}
+
+impl TryFrom<LitStr> for EvictMode {
+    type Error = Error;
+
+    fn try_from(lit: LitStr) -> Result<Self, Self::Error> {
+        match lit.value().as_str() {
+            "always" => Ok(EvictMode::Always),
+            "last" => Ok(EvictMode::Last),
+            "never" => Ok(EvictMode::Never),
+            _ => Err(Error::new_spanned(
+                &lit,
+                "expected \"always\", \"last\", or \"never\"",
             )),
         }
     }
@@ -74,9 +125,11 @@ impl TryFrom<LitStr> for SerializationMode {
 
 struct ValueArguments {
     serialization_mode: SerializationMode,
+    evict_mode: EvictMode,
     shared: bool,
     cell_mode: CellMode,
     manual_eq: bool,
+    manual_hash: bool,
     transparent: bool,
     /// Should we `#[derive(turbo_tasks::OperationValue)]`?
     operation: Option<Span>,
@@ -86,9 +139,11 @@ impl Parse for ValueArguments {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut result = ValueArguments {
             serialization_mode: SerializationMode::Auto,
+            evict_mode: EvictMode::Always,
             shared: false,
             cell_mode: CellMode::Compare,
             manual_eq: false,
+            manual_hash: false,
             transparent: false,
             operation: None,
         };
@@ -118,6 +173,18 @@ impl Parse for ValueArguments {
                     result.serialization_mode = SerializationMode::try_from(str)?;
                 }
                 (
+                    "evict",
+                    Meta::NameValue(MetaNameValue {
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
+                    }),
+                ) => {
+                    result.evict_mode = EvictMode::try_from(str)?;
+                }
+                (
                     "cell",
                     Meta::NameValue(MetaNameValue {
                         value:
@@ -145,6 +212,22 @@ impl Parse for ValueArguments {
                         return Err(Error::new_spanned(&str, "expected \"manual\""));
                     };
                 }
+                (
+                    "hash",
+                    Meta::NameValue(MetaNameValue {
+                        value:
+                            Expr::Lit(ExprLit {
+                                lit: Lit::Str(str), ..
+                            }),
+                        ..
+                    }),
+                ) => {
+                    result.manual_hash = if str.value() == "manual" {
+                        true
+                    } else {
+                        return Err(Error::new_spanned(&str, "expected \"manual\""));
+                    };
+                }
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
@@ -156,8 +239,8 @@ impl Parse for ValueArguments {
                         &meta,
                         format!(
                             "unexpected {meta:?}, expected \"shared\", \"into\", \
-                             \"serialization\", \"cell\", \"eq\", \"transparent\", or \
-                             \"operation\""
+                             \"serialization\", \"evict\", \"cell\", \"eq\", \"hash\", \
+                             \"transparent\", or \"operation\""
                         ),
                     ));
                 }
@@ -172,12 +255,50 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     let item = parse_macro_input!(input as Item);
     let ValueArguments {
         serialization_mode,
+        evict_mode,
         shared,
         cell_mode,
         manual_eq,
+        manual_hash,
         transparent,
         operation,
     } = parse_macro_input!(args as ValueArguments);
+
+    // `serialization = "hash"` only makes sense with `cell = "compare"` (the default).
+    if matches!(serialization_mode, SerializationMode::Hash)
+        && !matches!(cell_mode, CellMode::Compare)
+    {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "serialization = \"hash\" only makes sense with cell = \"compare\" (or default)",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    // `hash = "manual"` only makes sense with `serialization = "hash"`.
+    if manual_hash && !matches!(serialization_mode, SerializationMode::Hash) {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "hash = \"manual\" only makes sense with serialization = \"hash\"",
+        )
+        .to_compile_error()
+        .into();
+    }
+
+    // `evict = "last" | "never"` is only valid when `serialization = "skip"`;
+    // other persistence modes have their own eviction semantics fixed by the
+    // backend (Persistable: evict-and-restore, HashOnly: evict-with-hash-gate).
+    if !matches!(evict_mode, EvictMode::Always)
+        && !matches!(serialization_mode, SerializationMode::Skip)
+    {
+        return syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "evict = \"last\" | \"never\" is only valid with serialization = \"skip\"",
+        )
+        .to_compile_error()
+        .into();
+    }
 
     let mut struct_attributes = vec![quote! {
         #[derive(
@@ -277,6 +398,9 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         CellMode::New => quote! {
             turbo_tasks::VcCellNewMode<#ident>
         },
+        CellMode::Compare if matches!(serialization_mode, SerializationMode::Hash) => quote! {
+            turbo_tasks::VcCellHashedCompareMode<#ident>
+        },
         CellMode::Compare => quote! {
             turbo_tasks::VcCellCompareMode<#ident>
         },
@@ -314,7 +438,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[bincode(crate = "turbo_tasks::macro_helpers::bincode")]
             });
         }
-        SerializationMode::None | SerializationMode::Custom => {}
+        SerializationMode::Custom | SerializationMode::Skip | SerializationMode::Hash => {}
     };
     if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
@@ -323,15 +447,18 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         });
     } else {
         struct_attributes.push(quote! {
-            #[derive(
-                turbo_tasks::debug::ValueDebugFormat,
-                turbo_tasks::debug::internal::ValueDebug,
-            )]
+            #[derive(turbo_tasks::debug::ValueDebugFormat)]
+            #[cfg_attr(debug_assertions, derive(turbo_tasks::debug::internal::ValueDebug))]
         });
     }
     if !manual_eq {
         struct_attributes.push(quote! {
             #[derive(PartialEq, Eq)]
+        });
+    }
+    if matches!(serialization_mode, SerializationMode::Hash) && !manual_hash {
+        struct_attributes.push(quote! {
+            #[derive(turbo_tasks::DeterministicHash)]
         });
     }
     if let Some(span) = operation {
@@ -342,18 +469,28 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     }
 
     let name = global_name_for_type(ident);
-    let new_value_type = match serialization_mode {
-        SerializationMode::None => quote! {
-            turbo_tasks::ValueType::new::<#ident>(#name)
+    // Dispatch to the constructor whose name reflects the persistence +
+    // eviction combo. `evict` is only read when `serialization = Skip`;
+    // other modes ignore it (and the parser rejects non-Always values).
+    let new_value_type = match (&serialization_mode, &evict_mode) {
+        (SerializationMode::Auto | SerializationMode::Custom, _) => quote! {
+            turbo_tasks::ValueType::persistable::<#ident>(#name)
         },
-        SerializationMode::Auto | SerializationMode::Custom => {
-            quote! {
-                turbo_tasks::ValueType::new_with_bincode::<#ident>(#name)
-            }
-        }
+        (SerializationMode::Hash, _) => quote! {
+            turbo_tasks::ValueType::hash_only::<#ident>(#name)
+        },
+        (SerializationMode::Skip, EvictMode::Always) => quote! {
+            turbo_tasks::ValueType::skip_persist::<#ident>(#name)
+        },
+        (SerializationMode::Skip, EvictMode::Last) => quote! {
+            turbo_tasks::ValueType::skip_persist_expensive::<#ident>(#name)
+        },
+        (SerializationMode::Skip, EvictMode::Never) => quote! {
+            turbo_tasks::ValueType::session_stateful::<#ident>(#name)
+        },
     };
     let has_serialization = match serialization_mode {
-        SerializationMode::None => quote! { false },
+        SerializationMode::Skip | SerializationMode::Hash => quote! { false },
         SerializationMode::Auto | SerializationMode::Custom => quote! { true },
     };
 
@@ -361,22 +498,31 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         // For transparent values, we defer directly to the inner type's `ValueDebug`
         // implementation.
         quote! {
+            #[cfg(debug_assertions)]
             #[turbo_tasks::value_impl]
             impl turbo_tasks::debug::ValueDebug for #ident {
-                #[turbo_tasks::function]
-                async fn dbg(&self) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                    use turbo_tasks::debug::ValueDebugFormat;
-                    (&self.0).value_debug_format(usize::MAX).try_to_value_debug_string().await
-                }
-
-                #[turbo_tasks::function]
-                async fn dbg_depth(&self, depth: usize) -> anyhow::Result<turbo_tasks::Vc<turbo_tasks::debug::ValueDebugString>> {
-                    use turbo_tasks::debug::ValueDebugFormat;
-                    (&self.0).value_debug_format(depth).try_to_value_debug_string().await
+                fn dbg_depth<'a>(
+                    &'a self,
+                    depth: usize,
+                ) -> ::std::pin::Pin<
+                    ::std::boxed::Box<
+                        dyn ::std::future::Future<
+                                Output = ::anyhow::Result<::std::string::String>,
+                            > + ::std::marker::Send
+                            + 'a,
+                    >,
+                > {
+                    ::std::boxed::Box::pin(async move {
+                        use turbo_tasks::debug::ValueDebugFormat;
+                        (&self.0).value_debug_format(depth).try_to_string().await
+                    })
                 }
             }
+
         }
     } else {
+        // For non-transparent types, the debug impl is generated by
+        // `derive(turbo_tasks::debug::internal::ValueDebug)` (debug builds only).
         quote! {}
     };
 

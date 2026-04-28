@@ -20,6 +20,7 @@ use crate::{
     collector_entry::CollectorEntry,
     compression::{checksum_block, compress_into_buffer},
     constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    db::WriteOperationGuard,
     key::StoreKey,
     meta_file::MetaEntryFlags,
     meta_file_builder::MetaFileBuilder,
@@ -66,7 +67,9 @@ enum GlobalCollectorState<K: StoreKey + Send> {
 }
 
 /// A write batch.
-pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: usize> {
+pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: usize> {
+    /// RAII guard that releases the write-operation slot (and rolls back on failure) on drop.
+    _write_guard: WriteOperationGuard<'db>,
     /// Parallel scheduler
     parallel_scheduler: S,
     /// The database path
@@ -87,11 +90,12 @@ pub struct WriteBatch<K: StoreKey + Send, S: ParallelScheduler, const FAMILIES: 
     new_sst_files: Mutex<Vec<(u32, File)>>,
 }
 
-impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
-    WriteBatch<K, S, FAMILIES>
+impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
+    WriteBatch<'db, K, S, FAMILIES>
 {
     /// Creates a new write batch for a database with per-family configuration.
     pub(crate) fn new(
+        write_guard: WriteOperationGuard<'db>,
         path: PathBuf,
         current: u32,
         parallel_scheduler: S,
@@ -101,6 +105,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             assert!(FAMILIES <= usize_from_u32(u32::MAX));
         };
         Self {
+            _write_guard: write_guard,
             parallel_scheduler,
             db_path: path,
             family_configs,
@@ -111,6 +116,14 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
             meta_collectors: [(); FAMILIES].map(|_| Mutex::new(Vec::new())),
             new_sst_files: Mutex::new(Vec::new()),
         }
+    }
+
+    /// Marks the write operation as successfully completed.
+    ///
+    /// Must be called before dropping the `WriteBatch` to skip the rollback in the guard's `Drop`
+    /// impl. Typically called by `TurboPersistence::commit_write_batch` after a successful commit.
+    pub(crate) fn mark_succeeded(&mut self) {
+        self._write_guard.success();
     }
 
     /// Returns the thread local state for the current thread.
@@ -141,7 +154,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
         Ok(collector)
     }
 
-    #[tracing::instrument(level = "trace", skip(self, collector))]
+    #[tracing::instrument(level = "trace", skip(self, collector), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     fn flush_thread_local_collector(
         &self,
         family: u32,
@@ -243,7 +256,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
     ///
     /// Caller must ensure that no concurrent put or delete operation is happening on the flushed
     /// family.
-    #[tracing::instrument(level = "trace", skip(self))]
+    #[tracing::instrument(level = "trace", skip(self), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     pub unsafe fn flush(&self, family: u32) -> Result<()> {
         // Flush the thread local collectors to the global collector.
         let mut collectors = Vec::new();
@@ -452,7 +465,7 @@ impl<K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize>
 
     /// Creates a new SST file with the given collector data.
     /// Returns a tuple of (sequence number, file).
-    #[tracing::instrument(level = "trace", skip(self, collector_data))]
+    #[tracing::instrument(level = "trace", skip(self, collector_data), fields(family_name = self.family_configs[usize_from_u32(family)].name))]
     fn create_sst_file(
         &self,
         family: u32,

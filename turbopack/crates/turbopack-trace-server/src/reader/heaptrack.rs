@@ -4,6 +4,7 @@ use anyhow::{Context, Result, bail};
 use indexmap::map::Entry;
 use rustc_demangle::demangle;
 use rustc_hash::{FxHashMap, FxHashSet};
+use turbo_rcstr::{RcStr, rcstr};
 
 use super::TraceFormat;
 use crate::{FxIndexMap, span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp};
@@ -273,8 +274,8 @@ impl TraceFormat for HeaptrackFormat {
                                         let span_index = store.add_span(
                                             Some(parent.span_index),
                                             self.last_timestamp,
-                                            "".to_string(),
-                                            "recursion".to_string(),
+                                            RcStr::default(),
+                                            rcstr!("recursion"),
                                             Vec::new(),
                                             &mut outdated_spans,
                                         );
@@ -333,16 +334,16 @@ impl TraceFormat for HeaptrackFormat {
                             .get(*function_index)
                             .context("function not found")?;
                         args.push((
-                            "location".to_string(),
-                            format!("{function} @ {file}:{line}"),
+                            rcstr!("location"),
+                            RcStr::from(format!("{function} @ {file}:{line}")),
                         ));
                     }
 
                     let span_index = store.add_span(
                         parent,
                         self.last_timestamp,
-                        module.to_string(),
-                        name,
+                        RcStr::from(module.as_str()),
+                        RcStr::from(name),
                         args,
                         &mut outdated_spans,
                     );

@@ -36,7 +36,7 @@ impl UpdateCollectibleOperation {
                 {
                     let _span = tracing::trace_span!(
                         "make root node for removing collectible",
-                        %task_id
+                        task = ctx.debug_get_task_description(task_id)
                     )
                     .entered();
                     AggregationUpdateQueue::run(

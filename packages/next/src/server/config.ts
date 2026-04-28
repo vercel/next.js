@@ -2,6 +2,7 @@ import { existsSync } from 'fs'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
@@ -547,14 +548,29 @@ function assignDefaultsAndValidate(
         )
       }
       // avoid double-pushing the same pattern if it already exists
-      const hasMatch = images.localPatterns.some(
-        (pattern) =>
-          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
-      )
-      if (!hasMatch) {
+      if (
+        !images.localPatterns.some(
+          (pattern) =>
+            pattern.pathname === '/_next/static/media/**' &&
+            pattern.search === ''
+        )
+      ) {
         // static import images are automatically allowed
         images.localPatterns.push({
           pathname: '/_next/static/media/**',
+          search: '',
+        })
+      }
+      if (
+        !images.localPatterns.some(
+          (pattern) =>
+            pattern.pathname === '/_next/static/immutable/media/**' &&
+            pattern.search === ''
+        )
+      ) {
+        // static import images are automatically allowed
+        images.localPatterns.push({
+          pathname: '/_next/static/immutable/media/**',
           search: '',
         })
       }
@@ -1024,10 +1040,14 @@ function assignDefaultsAndValidate(
     process.env.__NEXT_TEST_MODE &&
     process.env.IS_TURBOPACK_TEST &&
     result.deploymentId &&
-    process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+    process.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS
   ) {
-    result.experimental.immutableAssetToken =
-      process.env.__NEXT_IMMUTABLE_ASSET_TOKEN
+    result.experimental.supportsImmutableAssets = true
+  }
+
+  if (process.env.NEXT_HASH_SALT) {
+    result.experimental.outputHashSalt =
+      (result.experimental.outputHashSalt ?? '') + process.env.NEXT_HASH_SALT
   }
 
   const tracingRoot = result?.outputFileTracingRoot
@@ -1453,14 +1473,65 @@ function assignDefaultsAndValidate(
     result.experimental.useCache = result.cacheComponents
   }
 
+  // Node.js version gate for turbopackPluginRuntimeStrategy: 'workerThreads'.
+  // Older Node.js versions have memory safety bugs in worker threads. Bun and
+  // Deno are not affected by this check.
+  {
+    const strategy = result.experimental.turbopackPluginRuntimeStrategy
+    const isForced = strategy === 'forceWorkerThreads'
+    if (strategy === 'workerThreads' || isForced) {
+      // Normalize 'forceWorkerThreads' → 'workerThreads' for Rust/serde
+      result.experimental.turbopackPluginRuntimeStrategy = 'workerThreads'
+
+      const isBun = !!process.versions.bun
+      const isDeno = !!process.versions.deno
+      if (!isBun && !isDeno) {
+        const nodeVersion = process.versions.node
+        const WORKER_THREADS_SAFE_RANGE = '>=24.13.1 <25.0.0 || >=25.4.0'
+        if (
+          !semver.satisfies(nodeVersion, WORKER_THREADS_SAFE_RANGE, {
+            includePrerelease: true,
+          })
+        ) {
+          if (isForced) {
+            Log.warn(
+              `\`experimental.turbopackPluginRuntimeStrategy = ` +
+                `'forceWorkerThreads'\` has been enabled, but you're using ` +
+                `Node.js ${nodeVersion}, which has known memory safety bugs ` +
+                `with worker threads used from the Node-API. You may ` +
+                `experience crashes, segmentation faults, or other ` +
+                `instability. Upgrade to Node.js ${WORKER_THREADS_SAFE_RANGE}.`
+            )
+          } else {
+            Log.warn(
+              `\`experimental.turbopackPluginRuntimeStrategy = ` +
+                `'workerThreads'\` is set but has been ` +
+                `ignored because you're using Node.js ${nodeVersion}, which ` +
+                `has memory safety bugs in worker threads. Falling back to ` +
+                `'childProcesses'. Upgrade to Node.js ` +
+                `${WORKER_THREADS_SAFE_RANGE}.`
+            )
+            result.experimental.turbopackPluginRuntimeStrategy =
+              'childProcesses'
+          }
+        }
+      }
+    }
+  }
+
   // Store the distDirRoot in the config before it is modified for development mode
   ;(result as NextConfigComplete).distDirRoot = result.distDir
-  // Pre-compute the effective hash salt (used by both Webpack and Turbopack).
-  ;(result as NextConfigComplete).hashSalt =
-    (result.experimental?.outputHashSalt ?? '') +
-    (process.env.NEXT_HASH_SALT ?? '')
+
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
+  }
+
+  // Derive the `'use cache'` fill timeout from `staticPageGenerationTimeout`
+  // if the user didn't set one explicitly. 90% leaves headroom for the
+  // cache-fill error to surface before the build worker kills the page.
+  if (result.experimental.useCacheTimeout === undefined) {
+    result.experimental.useCacheTimeout =
+      result.staticPageGenerationTimeout * 0.9
   }
 
   return result as NextConfigComplete
@@ -1786,13 +1857,13 @@ export default async function loadConfig(
     }
 
     if (
-      phase === PHASE_PRODUCTION_BUILD &&
-      bundler !== Bundler.Turbopack &&
-      userConfig.experimental?.immutableAssetToken
+      userConfig.experimental?.supportsImmutableAssets &&
+      bundler !== undefined &&
+      bundler !== Bundler.Turbopack
     ) {
       // Silently ignore that flag for Webpack/Rspack since the server code assumes that all files
       // in `static/chunks` are always immutable without checking the manifest.
-      userConfig.experimental.immutableAssetToken = undefined
+      userConfig.experimental.supportsImmutableAssets = undefined
     }
 
     if (reactProductionProfiling) {

@@ -109,14 +109,18 @@ const runTests = (isDev) => {
       if (process.env.IS_TURBOPACK_TEST) {
         // Turbopack generates different script names
         if (isDev) {
-          scriptCount = $(
-            `#${id} ~ script[src^="/_next/static/chunks/%5Broot-of-the-server%5D__"]`
-          ).length
+          scriptCount =
+            $(
+              `#${id} ~ script[src^="/_next/static/chunks/%5Broot-of-the-server%5D__"]`
+            ).length +
+            $(
+              `#${id} ~ script[src^="/_next/static/immutable/chunks/%5Broot-of-the-server%5D__"]`
+            ).length
         } else {
           // In production mode, content hashes are used
-          scriptCount = $(
-            `#${id} ~ script[src^="/_next/static/chunks/"]`
-          ).length
+          scriptCount =
+            $(`#${id} ~ script[src^="/_next/static/chunks/"]`).length +
+            $(`#${id} ~ script[src^="/_next/static/immutable/chunks/"]`).length
         }
       } else {
         scriptCount = $(
@@ -146,14 +150,18 @@ const runTests = (isDev) => {
       if (process.env.IS_TURBOPACK_TEST) {
         // Turbopack generates different script names
         if (isDev) {
-          scriptCount = $(
-            `#${id} ~ script[src^="/_next/static/chunks/%5Broot-of-the-server%5D__"]`
-          ).length
+          scriptCount =
+            $(
+              `#${id} ~ script[src^="/_next/static/chunks/%5Broot-of-the-server%5D__"]`
+            ).length +
+            $(
+              `#${id} ~ script[src^="/_next/static/immutable/chunks/%5Broot-of-the-server%5D__"]`
+            ).length
         } else {
           // In production mode, content hashes are used
-          scriptCount = $(
-            `#${id} ~ script[src^="/_next/static/chunks/"]`
-          ).length
+          scriptCount =
+            $(`#${id} ~ script[src^="/_next/static/chunks/"]`).length +
+            $(`#${id} ~ script[src^="/_next/static/immutable/chunks/"]`).length
         }
       } else {
         scriptCount = $(
@@ -226,7 +234,10 @@ const runTests = (isDev) => {
       expect(
         $(`#inline-before ~ link[href^="/_next/static/"]`).filter(
           (i, element) => $(element).attr('href')?.includes('.css')
-        ).length
+        ).length +
+          $(`#inline-before ~ link[href^="/_next/static/immutable/"]`).filter(
+            (i, element) => $(element).attr('href')?.includes('.css')
+          ).length
       ).toBeGreaterThan(0)
     }
   })
@@ -338,31 +349,28 @@ describe('Next.js Script - Primary Strategies - Strict Mode', () => {
 
   runTests(true)
 })
+;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+  'Next.js Script - Primary Strategies - Production Mode',
+  () => {
+    beforeAll(async () => {
+      await nextBuild(appDir)
 
-describe('Next.js Script - Primary Strategies - Production Mode', () => {
-  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
-    'production mode',
-    () => {
-      beforeAll(async () => {
-        await nextBuild(appDir)
-
-        const app = nextServer({
-          dir: appDir,
-          dev: false,
-          quiet: true,
-        })
-
-        server = await startApp(
-          // @ts-expect-error -- Discovered when converting from JS to TS
-          app
-        )
-        appPort = server.address().port
-      })
-      afterAll(async () => {
-        await stopApp(server)
+      const app = nextServer({
+        dir: appDir,
+        dev: false,
+        quiet: true,
       })
 
-      runTests(false)
-    }
-  )
-})
+      server = await startApp(
+        // @ts-expect-error -- Discovered when converting from JS to TS
+        app
+      )
+      appPort = server.address().port
+    })
+    afterAll(async () => {
+      await stopApp(server)
+    })
+
+    runTests(false)
+  }
+)

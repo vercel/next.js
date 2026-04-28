@@ -54,7 +54,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -79,7 +79,7 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
@@ -94,6 +94,7 @@ describe('app-dir - errors', () => {
     })
 
     it('should trigger error component when undefined is thrown during server components rendering', async () => {
+      const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server-component/throw-undefined')
 
       expect(
@@ -101,22 +102,34 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'undefined'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
         // Digest of the error message should be stable.
       ).not.toBe('')
-      expect(stripAnsi(next.cliOutput)).toEqual(
-        expect.stringMatching(
-          isNextDev
-            ? /Error: An undefined error was thrown.*digest: '\d+@E\d+'/s
-            : /Error: undefined.*digest: '\d+@E\d+'/s
+      const cleanCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(/digest: '\d+(@E\d+)'/g, "digest: '<digest>$1'")
+      if (isNextDev) {
+        expect(cleanCliOutput).toEqual(
+          expect.stringMatching(
+            /Error: An undefined error was thrown.*digest: '<digest>@E98'/s
+          )
         )
-      )
+      } else {
+        expect(cleanCliOutput).toMatchInlineSnapshot(`
+         "⨯ Error: undefined
+             at stringify (<anonymous>) {
+           digest: '<digest>@E394'
+         }
+         "
+        `)
+      }
     })
 
     it('should trigger error component when null is thrown during server components rendering', async () => {
+      const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server-component/throw-null')
 
       expect(
@@ -124,22 +137,34 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'null'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
         // Digest of the error message should be stable.
       ).not.toBe('')
-      expect(stripAnsi(next.cliOutput)).toEqual(
-        expect.stringMatching(
-          isNextDev
-            ? /Error: A null error was thrown.*digest: '\d+@E\d+'/s
-            : /Error: null.*digest: '\d+@E\d+'/s
+      const cleanCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(/digest: '\d+(@E\d+)'/g, "digest: '<digest>$1'")
+      if (isNextDev) {
+        expect(cleanCliOutput).toEqual(
+          expect.stringMatching(
+            /Error: A null error was thrown.*digest: '<digest>@E336'/s
+          )
         )
-      )
+      } else {
+        expect(cleanCliOutput).toMatchInlineSnapshot(`
+         "⨯ Error: null
+             at stringify (<anonymous>) {
+           digest: '<digest>@E394'
+         }
+         "
+        `)
+      }
     })
 
     it('should trigger error component when a string is thrown during server components rendering', async () => {
+      const outputIndex = next.cliOutput.length
       const browser = await next.browser('/server-component/throw-string')
 
       expect(
@@ -147,19 +172,28 @@ describe('app-dir - errors', () => {
       ).toBe(
         isNextDev
           ? 'this is a test'
-          : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+          : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
       )
       expect(
         await browser.waitForElementByCss('#error-boundary-digest').text()
         // Digest of the error message should be stable.
       ).not.toBe('')
-      expect(stripAnsi(next.cliOutput)).toEqual(
-        expect.stringMatching(
-          isNextDev
-            ? /Error: this is a test.*digest: '\d+'/s
-            : /Error: An error occurred in the Server Components render.*digest: '\d+'/s
+      const cleanCliOutput = stripAnsi(
+        next.cliOutput.slice(outputIndex)
+      ).replaceAll(/digest: '\d+'/g, "digest: '<digest>'")
+      if (isNextDev) {
+        expect(cleanCliOutput).toEqual(
+          expect.stringMatching(/Error: this is a test.*digest: '<digest>'/s)
         )
-      )
+      } else {
+        expect(cleanCliOutput).toMatchInlineSnapshot(`
+         "⨯ Error: this is a test
+             at stringify (<anonymous>) {
+           digest: '<digest>'
+         }
+         "
+        `)
+      }
     })
 
     it('should use default error boundary for prod and overlay for dev when no error component specified', async () => {
@@ -237,9 +271,7 @@ describe('app-dir - errors', () => {
         expect.objectContaining({
           message: isNextDev
             ? 'custom server error'
-            : 'An error occurred in the Server Components render. ' +
-              'The specific message is omitted in production builds to avoid leaking sensitive details. ' +
-              'A digest property is included on this error instance which may provide additional details about the nature of the error.',
+            : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.',
         }),
       ])
     })
@@ -340,7 +372,7 @@ describe('app-dir - errors', () => {
         ).toBe(
           isNextDev
             ? 'this is a test'
-            : 'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
+            : 'Minified React error #441; visit https://react.dev/errors/441 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.'
         )
 
         // Enable recovery via globalThis.__nextTestRecover

@@ -1,21 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
+import { listClientChunks } from 'next-test-utils'
 import { join } from 'path'
-import { readdir } from 'fs/promises'
-import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
-
-async function getFilenames(dir: string, ext: string): Promise<string[]> {
-  const entries: string[] = []
-  try {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      if (!entry.isDirectory() && entry.name.endsWith(ext)) {
-        entries.push(entry.name)
-      }
-    }
-  } catch {
-    // directory may not exist
-  }
-  return entries
-}
 
 describe('NEXT_HASH_SALT', () => {
   const { next } = nextTestSetup({
@@ -23,30 +8,16 @@ describe('NEXT_HASH_SALT', () => {
     skipStart: true,
   })
 
-  const chunksDir = () => join(next.testDir, '.next/static/chunks')
-  const mediaDir = () => join(next.testDir, '.next/static/media')
-  // Turbopack places CSS in .next/static/chunks/ rather than .next/static/css/,
-  // so search the entire static tree for .css files.
-  const staticDir = () => join(next.testDir, '.next/static')
-
-  async function getCssFilenames(): Promise<string[]> {
-    try {
-      const paths = await recursiveReadDir(staticDir(), {
-        pathnameFilter: (f) => f.endsWith('.css'),
-      })
-      return paths.map((p) => p.replace(/.*[\\/]/, ''))
-    } catch {
-      return []
-    }
-  }
-
   /** Build with the given salt and return { chunks, images, css } filename lists. */
   async function buildWithSalt(salt: string) {
-    await next.build({ env: { NEXT_HASH_SALT: salt } })
-    const chunks = await getFilenames(chunksDir(), '.js')
-    const images = await getFilenames(mediaDir(), '.png')
-    const css = await getCssFilenames()
     await next.clean()
+    await next.build({ env: { NEXT_HASH_SALT: salt } })
+    const files = await listClientChunks(join(next.testDir, next.distDir))
+    const chunks = files.filter(
+      (f) => f.includes('/chunks/') && f.endsWith('.js')
+    )
+    const images = files.filter((f) => f.endsWith('.png'))
+    const css = files.filter((f) => f.endsWith('.css'))
     return { chunks, images, css }
   }
 
@@ -109,48 +80,71 @@ describe('experimental.outputHashSalt', () => {
     skipStart: true,
   })
 
-  const chunksDir = () => join(next.testDir, '.next/static/chunks')
-
   async function buildWithSalts(opts: {
     configSalt?: string
     envSalt?: string
+    adapterSalt?: string
   }) {
     const env: Record<string, string> = {}
     if (opts.configSalt) env.OUTPUT_HASH_SALT_CONFIG = opts.configSalt
     if (opts.envSalt) env.NEXT_HASH_SALT = opts.envSalt
-    await next.build({ env })
-    const chunks = await getFilenames(chunksDir(), '.js')
+    if (opts.adapterSalt) env.ADAPTER_HASH_SALT = opts.adapterSalt
     await next.clean()
-    return chunks
+    await next.build({ env })
+    const chunks = (
+      await listClientChunks(join(next.testDir, next.distDir))
+    ).filter((f) => f.includes('/chunks/') && f.endsWith('.js'))
+    return chunks.sort()
   }
 
   let noSaltChunks: string[]
   let configOnlyChunks: string[]
   let envOnlyChunks: string[]
-  let bothChunks: string[]
+  let adapterEnvOnlyChunks: string[]
+  let configAndEnvChunks: string[]
+  let configAndAdapterEnvChunks: string[]
+  let envAndAdapterEnvChunks: string[]
 
   beforeAll(
     async () => {
       noSaltChunks = await buildWithSalts({})
       configOnlyChunks = await buildWithSalts({ configSalt: 'config-salt' })
       envOnlyChunks = await buildWithSalts({ envSalt: 'env-salt' })
-      bothChunks = await buildWithSalts({
+      adapterEnvOnlyChunks = await buildWithSalts({
+        adapterSalt: 'adapter-salt',
+      })
+      configAndEnvChunks = await buildWithSalts({
         configSalt: 'config-salt',
         envSalt: 'env-salt',
+      })
+      configAndAdapterEnvChunks = await buildWithSalts({
+        configSalt: 'config-salt',
+        adapterSalt: 'adapter-salt',
+      })
+      envAndAdapterEnvChunks = await buildWithSalts({
+        envSalt: 'env-salt',
+        adapterSalt: 'adapter-salt',
       })
     },
     5 * 60 * 1000
   )
 
   it('config salt changes filenames compared to no salt', () => {
-    expect(configOnlyChunks.sort()).not.toEqual(noSaltChunks.sort())
+    expect(configOnlyChunks).not.toEqual(noSaltChunks)
   })
 
-  it('combined salt differs from env-var-only salt', () => {
-    expect(bothChunks.sort()).not.toEqual(envOnlyChunks.sort())
+  it('config-and-env salt differs', () => {
+    expect(configAndEnvChunks).not.toEqual(envOnlyChunks)
+    expect(configAndEnvChunks).not.toEqual(configOnlyChunks)
   })
 
-  it('combined salt differs from config-only salt', () => {
-    expect(bothChunks.sort()).not.toEqual(configOnlyChunks.sort())
+  it('config-and-adapter-env salt differs', () => {
+    expect(configAndAdapterEnvChunks).not.toEqual(configOnlyChunks)
+    expect(configAndAdapterEnvChunks).not.toEqual(adapterEnvOnlyChunks)
+  })
+
+  it('env-and-adapter-env salt differs', () => {
+    expect(envAndAdapterEnvChunks).not.toEqual(envOnlyChunks)
+    expect(envAndAdapterEnvChunks).not.toEqual(adapterEnvOnlyChunks)
   })
 })

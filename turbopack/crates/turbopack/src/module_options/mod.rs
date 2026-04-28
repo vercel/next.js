@@ -30,6 +30,7 @@ use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptOptions,
     SpecifiedModuleType, bytes_source_transform::BytesSourceTransform,
     json_source_transform::JsonSourceTransform, text_source_transform::TextSourceTransform,
+    transform::PresetEnvConfig,
 };
 use turbopack_mdx::MdxTransform;
 use turbopack_node::{
@@ -244,6 +245,7 @@ impl ModuleOptions {
                     source_maps: ecmascript_source_maps,
                     inline_helpers,
                     infer_module_side_effects,
+                    ref preset_env_config,
                     ..
                 },
             enable_mdx,
@@ -331,7 +333,11 @@ impl ModuleOptions {
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(environment) = environment {
-            postprocess.push(EcmascriptInputTransform::PresetEnv(environment));
+            let env_config = match preset_env_config {
+                Some(c) => *c,
+                None => PresetEnvConfig::default().resolved_cell(),
+            };
+            postprocess.push(EcmascriptInputTransform::PresetEnv(environment, env_config));
         }
 
         let decorators_transform = if let Some(options) = &enable_decorators {

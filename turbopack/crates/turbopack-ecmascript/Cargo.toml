@@ -49,6 +49,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-esregex = { workspace = true }
+turbo-frozenmap = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }
@@ -57,6 +58,7 @@ turbopack-core = { workspace = true }
 turbopack-resolve = { workspace = true }
 turbopack-swc-utils = { workspace = true }
 url = { workspace = true }
+urlencoding = { workspace = true }
 
 swc_core = { workspace = true, features = [
   "ecma_ast",

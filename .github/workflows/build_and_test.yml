@@ -63,6 +63,50 @@ jobs:
           )
         }}
 
+  pr-ci-metadata:
+    name: Upload PR CI metadata
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write PR metadata
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          mkdir -p pr-ci-metadata
+          node <<'NODE'
+          const fs = require('fs')
+
+          fs.writeFileSync(
+            'pr-ci-metadata/pr.json',
+            JSON.stringify(
+              {
+                number: Number(process.env.PR_NUMBER),
+                headSha: process.env.PR_HEAD_SHA,
+                headRef: process.env.PR_HEAD_REF,
+                headRepo: process.env.PR_HEAD_REPO,
+                baseRef: process.env.PR_BASE_REF,
+                isFork: process.env.PR_IS_FORK === 'true',
+              },
+              null,
+              2
+            )
+          )
+          NODE
+
+      - name: Upload PR metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-ci-metadata
+          path: pr-ci-metadata/pr.json
+          retention-days: 1
+
   build-native:
     name: build-native
     uses: ./.github/workflows/build_reusable.yml
@@ -71,6 +115,7 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native'
+      uploadNativeArtifact: 'next-swc-linux'
     secrets: inherit
 
   build-native-windows:
@@ -81,8 +126,9 @@ jobs:
     with:
       skipInstallBuild: 'yes'
       stepName: 'build-native-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
+      uploadNativeArtifact: 'next-swc-windows'
 
     secrets: inherit
 
@@ -134,7 +180,7 @@ jobs:
           fi
 
       - name: Upload test timings
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: test-timings
           path: test-timings.json
@@ -192,7 +238,7 @@ jobs:
       needsRust: 'yes'
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit --remote-cache-timeout 60 --log-order stream
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
     secrets: inherit
 
@@ -214,7 +260,7 @@ jobs:
       needsRust: 'yes'
       skipInstallBuild: 'yes'
       skipNativeBuild: 'yes'
-      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run rust-check
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run rust-check ${TURBO_ARGS}
       stepName: 'rust-check'
     secrets: inherit
 
@@ -602,7 +648,7 @@ jobs:
       afterBuild: |
         rustup target add wasm32-unknown-unknown
         node ./scripts/normalize-version-bump.js
-        pnpm dlx turbo@${TURBO_VERSION} run build-wasm -- --target nodejs
+        pnpm dlx turbo@${TURBO_VERSION} run build-wasm ${TURBO_ARGS} -- --target nodejs
         git checkout .
 
         export NEXT_TEST_MODE=start
@@ -630,7 +676,7 @@ jobs:
       skipNativeInstall: 'yes'
       afterBuild: |
         rustup target add wasm32-wasip1-threads
-        pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi
+        pnpm dlx turbo@${TURBO_VERSION} run build-native-wasi ${TURBO_ARGS}
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
@@ -698,7 +744,7 @@ jobs:
 
   test-unit-windows:
     name: test unit windows
-    needs: ['changes', 'build-native', 'build-native-windows']
+    needs: ['changes', 'build-native-windows', 'build-next']
     if: ${{ needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -711,7 +757,7 @@ jobs:
       nodeVersion: ${{ matrix.node }}
       afterBuild: node run-tests.js --type unit
       stepName: 'test-unit-windows-${{ matrix.node }}'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
 
     secrets: inherit
@@ -866,14 +912,7 @@ jobs:
 
   test-dev-windows:
     name: test dev windows
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native-windows',
-        'build-native',
-        'build-next',
-      ]
+    needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -890,20 +929,13 @@ jobs:
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts \
           test/development/app-dir/segment-explorer/segment-explorer.test.ts
       stepName: 'test-dev-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-integration-windows:
     name: test integration windows
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native-windows',
-        'build-native',
-        'build-next',
-      ]
+    needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -920,20 +952,13 @@ jobs:
           test/integration/create-next-app/index.test.ts \
           test/integration/create-next-app/package-manager/pnpm.test.ts
       stepName: 'test-integration-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod-windows:
     name: test prod windows
-    needs:
-      [
-        'optimize-ci',
-        'changes',
-        'build-native-windows',
-        'build-native',
-        'build-next',
-      ]
+    needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     uses: ./.github/workflows/build_reusable.yml
@@ -950,7 +975,7 @@ jobs:
           test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts \
           test/e2e/app-dir/proxy-runtime-nodejs/proxy-runtime-nodejs.test.ts
       stepName: 'test-prod-windows'
-      runs_on_labels: '["windows","self-hosted","x64"]'
+      runs_on_labels: '["windows-latest-8-core-oss"]'
       buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
@@ -1167,9 +1192,16 @@ jobs:
       stepName: 'test-cache-components-prod-${{ matrix.group }}'
     secrets: inherit
 
-  test-node-streams-dev:
-    name: test node streams dev
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+  test-node-streams-cache-components-dev:
+    name: test node streams cache components dev
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native',
+        'build-next',
+        'fetch-test-timings',
+      ]
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
@@ -1183,10 +1215,74 @@ jobs:
         export __NEXT_CACHE_COMPONENTS=true
         export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
         export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_TEST_MODE=dev
+        export IS_WEBPACK_TEST=1
+
+        node run-tests.js \
+          --timings \
+          --require-timings \
+          -g ${{ matrix.group }} \
+          --type development
+      testTimingsArtifact: 'test-timings'
+      stepName: 'test-node-streams-cache-components-dev-${{ matrix.group }}'
+    secrets: inherit
+
+  test-node-streams-cache-components-prod:
+    name: test node streams cache components prod
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native',
+        'build-next',
+        'fetch-test-timings',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export __NEXT_USE_NODE_STREAMS=true
+        export __NEXT_CACHE_COMPONENTS=true
+        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
+        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
+        export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json"
+        export NEXT_TEST_MODE=start
+        export IS_WEBPACK_TEST=1
+
+        node run-tests.js \
+          --timings \
+          --require-timings \
+          -g ${{ matrix.group }} \
+          --type production
+      testTimingsArtifact: 'test-timings'
+      stepName: 'test-node-streams-cache-components-prod-${{ matrix.group }}'
+    secrets: inherit
+
+  test-node-streams-dev:
+    name: test node streams dev
+    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: |
+        export __NEXT_USE_NODE_STREAMS=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=dev
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_DEV=1
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export RUST_BACKTRACE=1
 
         node run-tests.js \
           --timings \
@@ -1208,13 +1304,12 @@ jobs:
     with:
       afterBuild: |
         export __NEXT_USE_NODE_STREAMS=true
-        export __NEXT_CACHE_COMPONENTS=true
-        export __NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS=true
-        export __NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=true
         export NEXT_EXTERNAL_TESTS_FILTERS="test/cache-components-tests-manifest.json,test/use-node-streams-tests-manifest.json"
         export NEXT_TEST_MODE=start
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
+        export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
+        export RUST_BACKTRACE=1
 
         node run-tests.js \
           --timings \
@@ -1241,6 +1336,8 @@ jobs:
         'test-cache-components-dev',
         'test-cache-components-prod',
         'test-cache-components-integration',
+        'test-node-streams-cache-components-dev',
+        'test-node-streams-cache-components-prod',
         'test-node-streams-dev',
         'test-node-streams-prod',
         'test-cargo-unit',

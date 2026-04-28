@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import glob from 'glob'
 import fs from 'fs-extra'
 import { join } from 'path'
 import {
@@ -10,6 +9,7 @@ import {
   initNextServerScript,
   nextBuild,
   nextStart,
+  listClientChunks,
 } from 'next-test-utils'
 
 const appDir = join(__dirname, '..')
@@ -89,18 +89,15 @@ describe('Non-Standard NODE_ENV', () => {
           },
         })
 
-        const staticFiles = glob.sync('**/*.js', {
-          cwd: join(appDir, '.next/static'),
-        })
+        const staticFiles = (
+          await listClientChunks(join(appDir, '.next'))
+        ).filter((f) => f.endsWith('.js'))
         expect(staticFiles.length).toBeGreaterThan(0)
 
         let foundProductionValue = false
         let foundOtherValue = false
         for (const file of staticFiles) {
-          const content = await fs.readFile(
-            join(appDir, '.next/static', file),
-            'utf8'
-          )
+          const content = await fs.readFile(join(appDir, '.next', file), 'utf8')
 
           if (content.includes('Hello Production')) {
             foundProductionValue = true

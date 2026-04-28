@@ -95,10 +95,10 @@ describe('metadata-files-static-output-parallel-route', () => {
       twitterImageRes,
       sitemapRes,
     ] = await Promise.all([
-      next.fetch(`/parallel/apple-icon-kzjltp.png`),
-      next.fetch(`/parallel/icon-kzjltp.png`),
-      next.fetch(`/parallel/opengraph-image-kzjltp.png`),
-      next.fetch(`/parallel/twitter-image-kzjltp.png`),
+      next.fetch('/parallel/apple-icon-kzjltp.png'),
+      next.fetch('/parallel/icon-kzjltp.png'),
+      next.fetch('/parallel/opengraph-image-kzjltp.png'),
+      next.fetch('/parallel/twitter-image-kzjltp.png'),
       next.fetch(`/parallel/sitemap.xml`),
     ])
 

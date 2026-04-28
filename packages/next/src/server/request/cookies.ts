@@ -28,6 +28,7 @@ import {
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestAPICallableInsideAfter } from './utils'
+import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
 
@@ -44,7 +45,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
     ) {
       throw new Error(
         // TODO(after): clarify that this only applies to pages?
-        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
       )
     }
 
@@ -68,6 +69,7 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
             `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
           )
           Error.captureStackTrace(error, cookies)
+          applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         case 'unstable-cache':
