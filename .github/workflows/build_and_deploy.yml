@@ -183,13 +183,10 @@ jobs:
             build_task: build-native-release
             os:
               mac:
+                host: "['macos-15']"
                 vendor: apple
                 sys: darwin
-                arch:
-                  x86_64:
-                    host: "['macos-15-intel']"
-                  aarch64:
-                    host: "['macos-15']"
+                arch: [x86_64, aarch64]
               windows:
                 host: "['windows-latest-8-core-oss']"
                 vendor: pc
@@ -226,7 +223,7 @@ jobs:
 
     name: stable - ${{ matrix.target }} - node@20
     runs-on: ${{ fromJSON(matrix.host) }}
-    timeout-minutes: ${{ matrix.os == 'mac' && 90 || 45 }}
+    timeout-minutes: 45
     env:
       # Disable all build caches for production/staging/force-preview deploys
       NEXT_SKIP_BUILD_CACHE: ${{ contains(fromJSON('["production","staging","force-preview"]'), needs.deploy-target.outputs.value) && '1' || '' }}
