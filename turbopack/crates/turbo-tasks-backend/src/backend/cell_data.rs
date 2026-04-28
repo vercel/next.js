@@ -52,27 +52,30 @@ impl CellData {
     ///
     /// Dropped:
     /// - `Persistable` — restored from disk.
-    /// - `SkipPersist { expensive: false }` — cheap to re-derive by re-running the task.
-    /// - `HashOnly` — the hash lives in `cell_data_hash`; value is re-derived.
+    /// - `SkipPersist { expensive: false, .. }` — cheap to re-derive by re-running the task.
     ///
     /// Retained:
-    /// - `SkipPersist { expensive: true }` — expensive to re-derive.
+    /// - `SkipPersist { expensive: true, .. }` — expensive to re-derive.
     /// - `SessionStateful` — would lose accumulated state if dropped.
     ///
     /// Returns `true` if entries remain, so the caller can drop the whole
     /// `LazyField::CellData` variant when empty.
     pub fn drop_partial(&mut self) -> bool {
-        let len_start = self.len();
         self.0.retain(
             |cell_id, _| match registry::get_value_type(cell_id.type_id).persistence {
                 ValueTypePersistence::Persistable(_, _)
-                | ValueTypePersistence::SkipPersist { expensive: false }
-                | ValueTypePersistence::HashOnly => {
+                | ValueTypePersistence::SkipPersist {
+                    expensive: false,
+                    hash_only: _,
+                } => {
                     // these are either persisted or determined to not be worth persisting because
                     // they are cheap to re-derive
                     false
                 }
-                ValueTypePersistence::SkipPersist { expensive: true }
+                ValueTypePersistence::SkipPersist {
+                    expensive: true,
+                    hash_only: _,
+                }
                 | ValueTypePersistence::SessionStateful => {
                     // These are either impossible to derive or expensive so we retain.
                     true
@@ -82,9 +85,7 @@ impl CellData {
         if self.0.is_empty() {
             return false;
         }
-        if self.len() < len_start {
-            self.shrink_to_fit();
-        }
+        self.shrink_to_fit();
         true
     }
 }

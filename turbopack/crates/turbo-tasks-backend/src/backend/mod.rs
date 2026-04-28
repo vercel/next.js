@@ -86,7 +86,7 @@ use crate::{
 const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
 
 /// Configurable idle timeout for snapshot persistence.
-/// Defaults to 10 seconds if not set or if the value is invalid.
+/// Defaults to 2 seconds if not set or if the value is invalid.
 static IDLE_TIMEOUT: LazyLock<Duration> = LazyLock::new(|| {
     std::env::var("TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS")
         .ok()
@@ -223,11 +223,11 @@ impl<B: BackingStorage> TurboTasksBackend<B> {
     /// snapshot → evict → restore cycle works correctly.
     ///
     /// Returns `(snapshot_had_new_data, eviction_counts)`.
-    pub fn snapshot_and_evict(
+    pub fn snapshot_and_evict_for_testing(
         &self,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> (bool, EvictionCounts) {
-        self.0.snapshot_and_evict(turbo_tasks)
+        self.0.snapshot_and_evict_for_testing(turbo_tasks)
     }
 }
 
@@ -311,7 +311,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ///
     /// Returns `(snapshot_had_new_data, eviction_counts)`.
     #[doc(hidden)]
-    pub fn snapshot_and_evict(
+    pub fn snapshot_and_evict_for_testing(
         &self,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> (bool, EvictionCounts) {

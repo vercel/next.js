@@ -48,12 +48,13 @@ pub enum ValueTypePersistence {
         /// evicting cheap cells first. True iff declared with
         /// `serialization = "skip", evict = "last"`.
         expensive: bool,
+
+        /// The value type is not persisted, but the macro emitted a
+        /// `DeterministicHash` derive and the write path stashes a `content_hash`
+        /// into `cell_data_hash` so post-eviction reads can detect unchanged
+        /// content and skip invalidation. Maps to `serialization = "hash"`.
+        hash_only: bool,
     },
-    /// The value type is not persisted, but the macro emitted a
-    /// `DeterministicHash` derive and the write path stashes a `content_hash`
-    /// into `cell_data_hash` so post-eviction reads can detect unchanged
-    /// content and skip invalidation. Maps to `serialization = "hash"`.
-    HashOnly,
     /// Not persistable, not reconstructible — holds interior-mutable state
     /// that accumulates across the session (`State<>` cells, `Arc<Mutex<_>>`
     /// dedup histories). Re-running the producing task would lose the
@@ -129,7 +130,10 @@ impl ValueType {
     pub const fn skip_persist<T: VcValueType>(global_name: &'static str) -> Self {
         Self::new_inner::<T>(
             global_name,
-            ValueTypePersistence::SkipPersist { expensive: false },
+            ValueTypePersistence::SkipPersist {
+                expensive: false,
+                hash_only: false,
+            },
         )
     }
 
@@ -142,7 +146,10 @@ impl ValueType {
     pub const fn skip_persist_expensive<T: VcValueType>(global_name: &'static str) -> Self {
         Self::new_inner::<T>(
             global_name,
-            ValueTypePersistence::SkipPersist { expensive: true },
+            ValueTypePersistence::SkipPersist {
+                expensive: true,
+                hash_only: false,
+            },
         )
     }
 
@@ -153,7 +160,13 @@ impl ValueType {
     /// This is internally used by [`#[turbo_tasks::value]`][crate::value] for
     /// `serialization = "hash"`.
     pub const fn hash_only<T: VcValueType>(global_name: &'static str) -> Self {
-        Self::new_inner::<T>(global_name, ValueTypePersistence::HashOnly)
+        Self::new_inner::<T>(
+            global_name,
+            ValueTypePersistence::SkipPersist {
+                expensive: false,
+                hash_only: true,
+            },
+        )
     }
 
     /// Construct a `ValueType` whose cells cannot be reconstructed by
