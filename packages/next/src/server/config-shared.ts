@@ -230,31 +230,6 @@ export interface TurbopackOptions {
   debugIds?: boolean
 
   /**
-   * (`next --turbopack` only) A custom URL prefix for Web Worker assets,
-   * overriding `assetPrefix` for `new Worker(new URL(..., import.meta.url))`
-   * entrypoints and their module chunks.
-   *
-   * Use this when `assetPrefix` points to a cross-origin CDN but Workers must
-   * stay same-origin (browsers reject cross-origin Worker construction
-   * without CORS). Mirrors webpack's `output.workerPublicPath`.
-   *
-   * When unset, Worker URLs use the regular `assetPrefix`/chunk base path
-   * (backward compatible).
-   *
-   * @example
-   * ```js
-   * // next.config.js
-   * module.exports = {
-   *   assetPrefix: 'https://cdn.example.com',
-   *   turbopack: {
-   *     workerPublicPath: '/_next/',
-   *   },
-   * }
-   * ```
-   */
-  workerPublicPath?: string
-
-  /**
    * An array of issue filter rules to ignore specific Turbopack issues.
    * Each rule must have a `path` field (mandatory) and optionally `title`
    * and `description`. String paths are treated as glob patterns. String
@@ -698,6 +673,31 @@ export interface ExperimentalConfig {
    * Enable scope hoisting. Defaults to true in build mode. Always disabled in development mode.
    */
   turbopackScopeHoisting?: boolean
+
+  /**
+   * (`next --turbopack` only) A custom URL prefix for Web Worker assets,
+   * overriding `assetPrefix` for `new Worker(new URL(..., import.meta.url))`
+   * entrypoints and their module chunks.
+   *
+   * Use this when `assetPrefix` points to a cross-origin CDN but Workers must
+   * stay same-origin (browsers reject cross-origin Worker construction
+   * without CORS). Mirrors webpack's `output.workerPublicPath`.
+   *
+   * When unset, Worker URLs use the regular `assetPrefix`/chunk base path
+   * (backward compatible).
+   *
+   * @example
+   * ```js
+   * // next.config.js
+   * module.exports = {
+   *   assetPrefix: 'https://cdn.example.com',
+   *   experimental: {
+   *     turbopackWorkerPublicPath: '/_next/',
+   *   },
+   * }
+   * ```
+   */
+  turbopackWorkerPublicPath?: string
 
   /**
    * Enable nested async chunking for client side assets. Defaults to true in build mode and false in dev mode.

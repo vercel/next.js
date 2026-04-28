@@ -11,10 +11,10 @@ describe('turbopack-worker-public-path', () => {
     return
   }
 
-  // The fixture configures `turbopack.workerPublicPath`, a turbopack-only
-  // option that does not apply to webpack builds.
+  // The fixture configures `experimental.turbopackWorkerPublicPath`, a
+  // turbopack-only option that does not apply to webpack builds.
   if (!isTurbopack) {
-    it.skip('skipped in webpack mode (workerPublicPath is turbopack-only)', () => {})
+    it.skip('skipped in webpack mode (turbopackWorkerPublicPath is turbopack-only)', () => {})
     return
   }
 

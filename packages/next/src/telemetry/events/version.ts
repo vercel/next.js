@@ -123,7 +123,7 @@ export function eventCliSession(
     webpackVersion: event.webpackVersion || null,
     turboFlag: event.turboFlag || false,
     useTurbopackWorkerPublicPath: Boolean(
-      nextConfig?.turbopack?.workerPublicPath
+      nextConfig?.experimental?.turbopackWorkerPublicPath
     ),
     isRspack: process.env.NEXT_RSPACK !== undefined,
     appDir: event.appDir,
