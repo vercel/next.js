@@ -674,22 +674,22 @@ export type WithStringifiedURLs<T> = T extends URL
  */
 type ResolvedMetadata = WithStringifiedURLs<ResolvedMetadataWithURLs>
 
+type RobotsRule = {
+  userAgent?: string | string[] | undefined
+  allow?: string | string[] | undefined
+  disallow?: string | string[] | undefined
+  crawlDelay?: number | undefined
+  // Allow non-standard directives (e.g. Request-Rate, Visit-time)
+  [key: string]: string | string[] | number | boolean | undefined
+}
+
+type RobotsRuleWithUserAgent = RobotsRule & {
+  userAgent: string | string[]
+}
+
 type RobotsFile = {
   // Apply rules for all
-  rules:
-    | {
-        userAgent?: string | string[] | undefined
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }
-    // Apply rules for specific user agents
-    | Array<{
-        userAgent: string | string[]
-        allow?: string | string[] | undefined
-        disallow?: string | string[] | undefined
-        crawlDelay?: number | undefined
-      }>
+  rules: RobotsRule | Array<RobotsRuleWithUserAgent>
   sitemap?: string | string[] | undefined
   host?: string | undefined
 }

@@ -119,6 +119,52 @@ Disallow: /
 Sitemap: https://acme.com/sitemap.xml
 ```
 
+### Non-standard directives
+
+Some crawlers support additional, non-standard directives in `robots.txt`. You can include these by adding any custom key-value pair to a rule. For example:
+
+```ts filename="app/robots.ts" switcher
+import type { MetadataRoute } from 'next'
+
+export default function robots(): MetadataRoute.Robots {
+  return {
+    rules: [
+      {
+        userAgent: 'SeznamBot',
+        allow: '/',
+        'Request-Rate': '10/1m',
+      },
+    ],
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+```js filename="app/robots.js" switcher
+export default function robots() {
+  return {
+    rules: [
+      {
+        userAgent: 'SeznamBot',
+        allow: '/',
+        'Request-Rate': '10/1m',
+      },
+    ],
+    sitemap: 'https://acme.com/sitemap.xml',
+  }
+}
+```
+
+Output:
+
+```txt
+User-Agent: SeznamBot
+Allow: /
+Request-Rate: 10/1m
+
+Sitemap: https://acme.com/sitemap.xml
+```
+
 ### Robots object
 
 ```tsx
@@ -129,12 +175,16 @@ type Robots = {
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        // Non-standard directives
+        [key: string]: string | string[] | number | boolean | undefined
       }
     | Array<{
         userAgent: string | string[]
         allow?: string | string[]
         disallow?: string | string[]
         crawlDelay?: number
+        // Non-standard directives
+        [key: string]: string | string[] | number | boolean | undefined
       }>
   sitemap?: string | string[]
   host?: string
@@ -143,6 +193,7 @@ type Robots = {
 
 ## Version History
 
-| Version   | Changes              |
-| --------- | -------------------- |
-| `v13.3.0` | `robots` introduced. |
+| Version   | Changes                                         |
+| --------- | ----------------------------------------------- |
+| `v16.2.0` | Support for non-standard directives in `robots` |
+| `v13.3.0` | `robots` introduced.                            |

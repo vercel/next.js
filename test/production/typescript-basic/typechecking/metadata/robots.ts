@@ -11,4 +11,15 @@ import type { MetadataRoute } from 'next'
     sitemap: undefined,
     host: undefined,
   }) satisfies MetadataRoute.Robots
+
+  // Non-standard directives should be allowed
+  ;({
+    rules: [
+      {
+        userAgent: 'SeznamBot',
+        allow: '/',
+        'Request-Rate': '10/1m',
+      },
+    ],
+  }) satisfies MetadataRoute.Robots
 }

@@ -28,11 +28,13 @@ describe('app dir - metadata dynamic routes', () => {
       expect(text).toMatchInlineSnapshot(`
         "User-Agent: Googlebot
         Allow: /
+        Request-Rate: 10/1m
 
         User-Agent: Applebot
         User-Agent: Bingbot
         Disallow: /
         Crawl-delay: 2
+        Visit-time: 0600-0845
 
         Host: https://example.com
         Sitemap: https://example.com/sitemap.xml
