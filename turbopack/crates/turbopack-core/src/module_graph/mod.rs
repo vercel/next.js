@@ -1,6 +1,7 @@
 use std::{
     collections::{BinaryHeap, VecDeque},
     future::Future,
+    iter::FusedIterator,
     ops::Deref,
 };
 
@@ -425,7 +426,8 @@ impl SingleModuleGraph {
         Ok(graph)
     }
 
-    /// Iterate over all nodes in the graph
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.graph.node_weights().filter_map(|n| match n {
             SingleModuleGraphNode::Module(node) => Some(*node),
@@ -450,7 +452,8 @@ impl SingleModuleGraph {
         self.entries.iter().flat_map(|e| e.entries())
     }
 
-    /// Enumerate all nodes in the graph
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
@@ -933,12 +936,16 @@ impl ModuleGraphSnapshot {
         }
     }
 
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
         self.graphs.iter().flat_map(|g| g.enumerate_nodes())
     }
 
+    /// WARNING: using this is discouraged, as it doesn't filter out unused or traced references.
+    /// Use iter_reachable_modules or one of the .traverse_* functions instead.
     pub fn iter_nodes(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Module>>> + '_ {
         self.graphs.iter().flat_map(|g| g.iter_nodes())
     }
@@ -1419,7 +1426,65 @@ impl ModuleGraphSnapshot {
 
         Ok(visit_count)
     }
+
+    pub fn iter_reachable_modules(
+        &self,
+    ) -> Result<impl Iterator<Item = ResolvedVc<Box<dyn Module>>>> {
+        ModuleGraphSnapshotNodeIterator::new(self)
+    }
 }
+
+struct ModuleGraphSnapshotNodeIterator<'a> {
+    graph: &'a ModuleGraphSnapshot,
+    visited: FxHashSet<GraphNodeIndex>,
+    visit_queue: VecDeque<GraphNodeIndex>,
+}
+
+impl<'a> ModuleGraphSnapshotNodeIterator<'a> {
+    fn new(graph: &'a ModuleGraphSnapshot) -> Result<Self> {
+        let entries = graph
+            .graphs
+            .iter()
+            .flat_map(|g| g.entry_modules())
+            .map(|e| graph.get_entry(e))
+            .collect::<Result<VecDeque<_>>>()?;
+
+        Ok(Self {
+            graph,
+            visited: FxHashSet::default(),
+            visit_queue: entries,
+        })
+    }
+}
+impl Iterator for ModuleGraphSnapshotNodeIterator<'_> {
+    type Item = ResolvedVc<Box<dyn Module>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(node_idx) = self.visit_queue.pop_front() {
+            if self.visited.insert(node_idx)
+                && let node_weight = self.graph.get_node(node_idx).unwrap()
+                && let SingleModuleGraphNode::Module(module) = node_weight
+                && self
+                    .graph
+                    .should_visit_node(node_weight, Direction::Outgoing)
+            {
+                for (_, succ) in self
+                    .graph
+                    .iter_graphs_neighbors_rev(node_idx, Direction::Outgoing)
+                {
+                    self.visit_queue.push_back(succ);
+                }
+                Some(*module)
+            } else {
+                // Continue to next node
+                self.next()
+            }
+        } else {
+            None
+        }
+    }
+}
+impl FusedIterator for ModuleGraphSnapshotNodeIterator<'_> {}
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
