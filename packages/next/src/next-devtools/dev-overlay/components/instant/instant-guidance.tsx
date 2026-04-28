@@ -95,9 +95,9 @@ const metadataRuntimeCards: FixCard[] = [
     title: 'Allow dynamic page',
     color: 'purple',
     snippets: [
-      { text: '// page.tsx' },
-      { text: 'async function DynamicMarker() {' },
+      { text: 'export default async function Page() {' },
       { text: '  await connection()', highlight: true },
+      { text: '  return …' },
       { text: '}' },
     ],
   },
@@ -118,9 +118,9 @@ const metadataDynamicCards: FixCard[] = [
     title: 'Allow dynamic page',
     color: 'purple',
     snippets: [
-      { text: '// page.tsx' },
-      { text: 'async function DynamicMarker() {' },
+      { text: 'export default async function Page() {' },
       { text: '  await connection()', highlight: true },
+      { text: '  return …' },
       { text: '}' },
     ],
   },
