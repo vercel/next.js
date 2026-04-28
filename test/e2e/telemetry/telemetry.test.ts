@@ -168,146 +168,138 @@ describe('Telemetry CLI', () => {
     })
 
     it('cli session: babel tooling config', async () => {
-      await fs.rename(
-        path.join(next.testDir, '.babelrc.default'),
-        path.join(next.testDir, '.babelrc')
+      // Read the fixture content from the source dir rather than from
+      // `next.testDir`, since the isolated install may not reliably copy
+      // top-level dotfiles. `patchFile` writes the file, runs the callback,
+      // and restores/removes it afterwards regardless of build outcome.
+      const babelrc = await fs.readFile(
+        path.join(__dirname, '.babelrc.default'),
+        'utf8'
       )
-      const { cliOutput } = await next.build({
-        env: {
-          NEXT_TELEMETRY_DEBUG: '1',
-        },
+      await next.patchFile('.babelrc', babelrc, async () => {
+        const { cliOutput } = await next.build({
+          env: {
+            NEXT_TELEMETRY_DEBUG: '1',
+          },
+        })
+
+        const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+          .exec(cliOutput)
+          .pop()
+
+        expect(event).toMatch(/"hasNextConfig": false/)
+        expect(event).toMatch(/"buildTarget": "default"/)
+        expect(event).toMatch(/"hasWebpackConfig": false/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
       })
-      await fs.rename(
-        path.join(next.testDir, '.babelrc'),
-        path.join(next.testDir, '.babelrc.default')
-      )
-
-      const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(cliOutput)
-        .pop()
-
-      expect(event).toMatch(/"hasNextConfig": false/)
-      expect(event).toMatch(/"buildTarget": "default"/)
-      expect(event).toMatch(/"hasWebpackConfig": false/)
-      expect(event).toMatch(/"hasBabelConfig": false/)
     })
 
     it('cli session: custom babel config (plugin)', async () => {
-      await fs.rename(
-        path.join(next.testDir, '.babelrc.plugin'),
-        path.join(next.testDir, '.babelrc')
+      const babelrc = await fs.readFile(
+        path.join(__dirname, '.babelrc.plugin'),
+        'utf8'
       )
-      const { cliOutput } = await next.build({
-        env: {
-          NEXT_TELEMETRY_DEBUG: '1',
-        },
+      await next.patchFile('.babelrc', babelrc, async () => {
+        const { cliOutput } = await next.build({
+          env: {
+            NEXT_TELEMETRY_DEBUG: '1',
+          },
+        })
+
+        const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+          .exec(cliOutput)
+          .pop()
+
+        expect(event).toMatch(/"hasNextConfig": false/)
+        expect(event).toMatch(/"buildTarget": "default"/)
+        expect(event).toMatch(/"hasWebpackConfig": false/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
       })
-      await fs.rename(
-        path.join(next.testDir, '.babelrc'),
-        path.join(next.testDir, '.babelrc.plugin')
-      )
-
-      const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(cliOutput)
-        .pop()
-
-      expect(event).toMatch(/"hasNextConfig": false/)
-      expect(event).toMatch(/"buildTarget": "default"/)
-      expect(event).toMatch(/"hasWebpackConfig": false/)
-      expect(event).toMatch(/"hasBabelConfig": false/)
     })
 
     it('cli session: package.json custom babel config (plugin)', async () => {
-      const originalPkg = await fs.readFile(
-        path.join(next.testDir, 'package.json'),
-        'utf8'
-      )
       const babelPkg = await fs.readFile(
-        path.join(next.testDir, 'package.babel'),
+        path.join(__dirname, 'package.babel'),
         'utf8'
       )
-      await fs.writeFile(path.join(next.testDir, 'package.json'), babelPkg)
-      const { cliOutput } = await next.build({
-        env: {
-          NEXT_TELEMETRY_DEBUG: '1',
-        },
+      await next.patchFile('package.json', babelPkg, async () => {
+        const { cliOutput } = await next.build({
+          env: {
+            NEXT_TELEMETRY_DEBUG: '1',
+          },
+        })
+
+        const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+          .exec(cliOutput)
+          .pop()
+
+        expect(event).toMatch(/"hasNextConfig": false/)
+        expect(event).toMatch(/"buildTarget": "default"/)
+        expect(event).toMatch(/"hasWebpackConfig": false/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
       })
-      await fs.writeFile(path.join(next.testDir, 'package.json'), originalPkg)
-
-      const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(cliOutput)
-        .pop()
-
-      expect(event).toMatch(/"hasNextConfig": false/)
-      expect(event).toMatch(/"buildTarget": "default"/)
-      expect(event).toMatch(/"hasWebpackConfig": false/)
-      expect(event).toMatch(/"hasBabelConfig": false/)
     })
 
     it('cli session: custom babel config (preset)', async () => {
-      await fs.rename(
-        path.join(next.testDir, '.babelrc.preset'),
-        path.join(next.testDir, '.babelrc')
+      const babelrc = await fs.readFile(
+        path.join(__dirname, '.babelrc.preset'),
+        'utf8'
       )
-      const { cliOutput } = await next.build({
-        env: {
-          NEXT_TELEMETRY_DEBUG: '1',
-        },
+      await next.patchFile('.babelrc', babelrc, async () => {
+        const { cliOutput } = await next.build({
+          env: {
+            NEXT_TELEMETRY_DEBUG: '1',
+          },
+        })
+
+        const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+          .exec(cliOutput)
+          .pop()
+
+        expect(event).toMatch(/"hasNextConfig": false/)
+        expect(event).toMatch(/"buildTarget": "default"/)
+        expect(event).toMatch(/"hasWebpackConfig": false/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
       })
-      await fs.rename(
-        path.join(next.testDir, '.babelrc'),
-        path.join(next.testDir, '.babelrc.preset')
-      )
-
-      const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(cliOutput)
-        .pop()
-
-      expect(event).toMatch(/"hasNextConfig": false/)
-      expect(event).toMatch(/"buildTarget": "default"/)
-      expect(event).toMatch(/"hasWebpackConfig": false/)
-      expect(event).toMatch(/"hasBabelConfig": false/)
     })
 
     it('cli session: next config with webpack', async () => {
-      await fs.rename(
-        path.join(next.testDir, 'next.config.webpack'),
-        path.join(next.testDir, 'next.config.js')
+      const nextConfig = await fs.readFile(
+        path.join(__dirname, 'next.config.webpack'),
+        'utf8'
       )
-      const { cliOutput } = await next.build({
-        env: {
-          NEXT_TELEMETRY_DEBUG: '1',
-        },
+      await next.patchFile('next.config.js', nextConfig, async () => {
+        const { cliOutput } = await next.build({
+          env: {
+            NEXT_TELEMETRY_DEBUG: '1',
+          },
+        })
+
+        const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
+          .exec(cliOutput)
+          .pop()
+
+        expect(event).toMatch(/"hasNextConfig": true/)
+        expect(event).toMatch(/"buildTarget": "default"/)
+        expect(event).toMatch(/"hasWebpackConfig": true/)
+        expect(event).toMatch(/"hasBabelConfig": false/)
+
+        if (!isTurbopack) {
+          const featureUsageEvents = findAllTelemetryEvents(
+            cliOutput,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'swcStyledComponents',
+            invocationCount: 0,
+          })
+
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'webpackPlugins',
+            invocationCount: 1,
+          })
+        }
       })
-      await fs.rename(
-        path.join(next.testDir, 'next.config.js'),
-        path.join(next.testDir, 'next.config.webpack')
-      )
-
-      const event = /NEXT_CLI_SESSION_STARTED[\s\S]+?{([\s\S]+?)}/
-        .exec(cliOutput)
-        .pop()
-
-      expect(event).toMatch(/"hasNextConfig": true/)
-      expect(event).toMatch(/"buildTarget": "default"/)
-      expect(event).toMatch(/"hasWebpackConfig": true/)
-      expect(event).toMatch(/"hasBabelConfig": false/)
-
-      if (!isTurbopack) {
-        const featureUsageEvents = findAllTelemetryEvents(
-          cliOutput,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'swcStyledComponents',
-          invocationCount: 0,
-        })
-
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'webpackPlugins',
-          invocationCount: 1,
-        })
-      }
     })
 
     it('detect static 404 correctly for `next build`', async () => {
