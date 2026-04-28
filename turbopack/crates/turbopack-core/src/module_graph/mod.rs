@@ -981,9 +981,7 @@ impl ModuleGraphSnapshot {
     /// This is primarily useful for debugging.
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
         Ok(self
-            .graphs
-            .iter()
-            .flat_map(|g| g.iter_nodes())
+            .iter_nodes()
             .map(async |n| Ok((n, n.ident().to_string().await?)))
             .try_join()
             .await?

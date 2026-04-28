@@ -292,6 +292,22 @@ pub async fn compute_binding_usage_info(
                         .await?
                 );
             }
+
+            static PRINT_USED_EXPORTS: Lazy<bool> = Lazy::new(|| {
+                std::env::var_os("TURBOPACK_PRINT_USED_EXPORTS")
+                    .is_some_and(|v| v == "1" || v == "true")
+            });
+            if *PRINT_USED_EXPORTS {
+                use turbo_tasks::TryJoinIterExt;
+                println!(
+                    "used exports: {:#?}",
+                    used_exports
+                        .iter()
+                        .map(async |(m, v)| Ok((m.ident_string().await?, v,)))
+                        .try_join()
+                        .await?
+                );
+            }
         }
 
         Ok(BindingUsageInfo {

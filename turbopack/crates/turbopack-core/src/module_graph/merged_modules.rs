@@ -139,9 +139,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             FxHashSet::with_capacity_and_hasher(module_count, Default::default());
 
         let inner_span = tracing::info_span!("collect mergeable modules");
-        let mergeable = graphs
-            .iter()
-            .flat_map(|g| g.iter_nodes())
+        let mergeable = module_graph
+            .iter_nodes()
             .map(async |module| {
                 if let Some(mergeable) =
                     ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
