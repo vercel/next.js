@@ -1575,6 +1575,23 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       )
     } else {
       logValidationSkipped(ctx)
+
+      // The main render may record an invalid dynamic usage error on the work
+      // store, e.g. a `'use cache'` fill timeout, or a request API like
+      // `cookies()` being called inside a `'use cache'` scope. Even when we
+      // don't spawn the static shell validation, surface any recorded error
+      // through the dev overlay so client-side navigations see the same error
+      // as initial HTML loads, where the spawned validation forwards it. Wait
+      // for the full stream to finish accumulating so we also catch errors from
+      // the dynamic stage.
+      void accumulatedChunksPromise.then(() => {
+        if (workStore.invalidDynamicUsageError) {
+          logMessagesAndSendErrorsToBrowser(
+            [workStore.invalidDynamicUsageError],
+            ctx
+          )
+        }
+      })
     }
 
     debugChannel = returnedDebugChannel
