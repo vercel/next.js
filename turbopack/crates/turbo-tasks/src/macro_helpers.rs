@@ -1,6 +1,9 @@
 //! Runtime helpers for [turbo-tasks-macro].
 
-use std::cell::SyncUnsafeCell;
+use std::{
+    cell::SyncUnsafeCell,
+    ptr::{DynMetadata, Pointee},
+};
 
 pub use async_trait::async_trait;
 pub use bincode;
@@ -68,7 +71,7 @@ macro_rules! stringify_path {
 /// Rexport std::ptr::metadata so not every crate needs to enable the feature when they use our
 /// macros.
 #[inline(always)]
-pub const fn metadata<T: ?Sized>(ptr: *const T) -> <T as std::ptr::Pointee>::Metadata {
+pub const fn metadata<T: ?Sized>(ptr: *const T) -> <T as Pointee>::Metadata {
     // Ideally we would just `pub use std::ptr::metadata;` but this doesn't seem to work.
     std::ptr::metadata(ptr)
 }
@@ -165,22 +168,26 @@ pub const fn strip_trailing_segments(s: &str, count: usize) -> &str {
 /// The vtable pointer for each `impl Trait for Concrete` is materialized at compile time (no
 /// runtime `transmute` or indirect fn-pointer call), and lookup is a single hashmap get — no
 /// `LazyLock` check and no list walk.
-pub struct VTableRegistry<T: ?Sized> {
+pub struct VTableRegistry<T>
+where
+    T: Pointee<Metadata = DynMetadata<T>> + ?Sized,
+{
     // `SyncUnsafeCell` gives us a `const fn new()` for the empty map. Writes happen only during
     // single-threaded ctor phase; reads happen only after `main` starts.
-    inner: SyncUnsafeCell<Option<FxHashMap<&'static ValueType, VtablePtr>>>,
-    _phantom: std::marker::PhantomData<fn() -> *const T>,
+    inner: SyncUnsafeCell<Option<FxHashMap<&'static ValueType, DynMetadata<T>>>>,
 }
 
 // SAFETY: the only writers are `#[ctor::ctor]` functions, which run serially on the main thread
 // before `main` starts. After that, the map is read-only. `VtablePtr` itself is `Send`/`Sync`.
-unsafe impl<T: ?Sized> Sync for VTableRegistry<T> {}
+unsafe impl<T> Sync for VTableRegistry<T> where T: Pointee<Metadata = DynMetadata<T>> + ?Sized {}
 
-impl<T: ?Sized> VTableRegistry<T> {
+impl<T> VTableRegistry<T>
+where
+    T: Pointee<Metadata = DynMetadata<T>> + ?Sized,
+{
     pub const fn new() -> Self {
         Self {
             inner: SyncUnsafeCell::new(None),
-            _phantom: std::marker::PhantomData,
         }
     }
 
@@ -192,11 +199,11 @@ impl<T: ?Sized> VTableRegistry<T> {
     // `Hash` / `Eq` impls (see `turbo_registry!`) use pointer identity, so the interior
     // mutability doesn't affect the hash.
     #[allow(clippy::mutable_key_type)]
-    pub fn register(&'static self, value_type: &'static ValueType, vtable: VtablePtr) {
+    pub fn register(&'static self, value_type: &'static ValueType, fat_ptr: *const T) {
         // SAFETY: ctors run single-threaded at load; no concurrent readers exist yet.
         let inner = unsafe { &mut *self.inner.get() };
         let map = inner.get_or_insert_with(FxHashMap::default);
-        let prev = map.insert(value_type, vtable);
+        let prev = map.insert(value_type, std::ptr::metadata(fat_ptr));
         debug_assert!(
             prev.is_none(),
             "multiple trait impls registered for {value_type}"
@@ -214,39 +221,18 @@ impl<T: ?Sized> VTableRegistry<T> {
         let Some(vtable) = map.get(&value_type) else {
             panic!("no trait impl registered for value type {value_type}")
         };
-        // SAFETY: `VtablePtr` was produced by `extract_vtable_ptr::<T>` in the `value_impl`
-        // expansion that registered this entry, so its representation matches
-        // `<T as Pointee>::Metadata`. Both are pointer-sized.
-        let metadata: <T as std::ptr::Pointee>::Metadata =
-            unsafe { std::mem::transmute_copy(&vtable.0) };
-        std::ptr::from_raw_parts(raw, metadata)
+
+        std::ptr::from_raw_parts(raw, *vtable)
     }
 }
 
-impl<T: ?Sized> Default for VTableRegistry<T> {
+impl<T> Default for VTableRegistry<T>
+where
+    T: Pointee<Metadata = DynMetadata<T>> + ?Sized,
+{
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Type-erased vtable pointer produced by [`extract_vtable_ptr`]. Storing the metadata as a plain
-/// pointer lets `value_impl` consumers avoid needing the `ptr_metadata` nightly feature — only
-/// this crate (which already opts in) actually mentions `Pointee`/`DynMetadata`.
-#[derive(Copy, Clone)]
-#[repr(transparent)]
-pub struct VtablePtr(pub *const ());
-// SAFETY: the pointer is a compiler-emitted vtable address in read-only data.
-unsafe impl Sync for VtablePtr {}
-unsafe impl Send for VtablePtr {}
-
-/// Extract the vtable pointer out of a fat raw pointer to `dyn Trait`. Const-evaluable so the
-/// `value_impl` macro can materialize the pointer at compile time.
-#[inline(always)]
-pub const fn extract_vtable_ptr<T: ?Sized>(fat: *const T) -> VtablePtr {
-    let metadata = std::ptr::metadata(fat);
-    // SAFETY: `DynMetadata<T>` (the Metadata type for `dyn Trait`) is `repr(transparent)` over a
-    // pointer-sized value. `transmute_copy` between two pointer-sized values is sound.
-    VtablePtr(unsafe { std::mem::transmute_copy::<_, *const ()>(&metadata) })
 }
 
 pub struct CollectableTraitMethods {

@@ -315,8 +315,9 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
                         {
                             let p: *const #ty = ::std::ptr::null();
+                            // This essentially attaches a fat pointer to the
                             let fat: *const dyn #trait_path = p;
-                            turbo_tasks::macro_helpers::extract_vtable_ptr::<dyn #trait_path>(fat)
+                            fat
                         },
                     );
             }
