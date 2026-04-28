@@ -1024,8 +1024,8 @@ pub struct PlainIssueSource {
 #[turbo_tasks::value(serialization = "skip")]
 #[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
-    pub ident: ReadRef<RcStr>,
-    pub file_path: ReadRef<RcStr>,
+    pub ident: RcStr,
+    pub file_path: RcStr,
     #[turbo_tasks(debug_ignore)]
     pub content: ReadRef<FileContent>,
 }
@@ -1041,8 +1041,8 @@ impl PlainSource {
         };
 
         Ok(PlainSource {
-            ident: asset.ident().to_string().await?,
-            file_path: ReadRef::new_owned(asset.ident().await?.path.to_string_ref().await?),
+            ident: asset.ident().to_string().owned().await?,
+            file_path: asset.ident().await?.path.to_string_ref().await?,
             content,
         }
         .cell())
