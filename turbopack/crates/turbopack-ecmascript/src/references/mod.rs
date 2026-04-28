@@ -5,6 +5,7 @@ pub mod constant_condition;
 pub mod constant_value;
 pub mod dynamic_expression;
 pub mod esm;
+pub mod exports;
 pub mod exports_info;
 pub mod external_module;
 pub mod hot_module;
@@ -28,7 +29,7 @@ use std::{
     sync::{Arc, LazyLock},
 };
 
-use anyhow::{Result, bail};
+use anyhow::Result;
 use bincode::{Decode, Encode};
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
@@ -42,7 +43,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::{Atom, Wtf8Atom, atom},
     common::{
-        GLOBALS, Globals, Span, Spanned, SyntaxContext,
+        GLOBALS, Globals, Span, Spanned,
         comments::{CommentKind, Comments},
         errors::{DiagnosticId, HANDLER, Handler, Level},
         source_map::SmallPos,
@@ -77,7 +78,7 @@ use turbopack_core::{
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::{Module, ModuleSideEffects},
     reference::{ModuleReference, ModuleReferences},
-    reference_type::CommonJsReferenceSubType,
+    reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
         ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
         find_context_file,
@@ -96,19 +97,18 @@ use worker::WorkerAssetReference;
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
     AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
-    ModuleTypeResult, SpecifiedModuleType, TreeShakingMode, TypeofWindow,
+    ModuleTypeResult, TreeShakingMode, TypeofWindow,
     analyzer::{
         ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue, JsValueUrlKind,
         ObjectPart, RequireContextValue, WellKnownFunctionKind, WellKnownObjectKind,
         builtin::{early_replace_builtin, replace_builtin},
-        graph::{ConditionalKind, DeclUsage, Effect, EffectArg, VarGraph, create_graph},
-        imports::{ImportAnnotations, ImportAttributes, ImportMap, ImportedSymbol},
+        graph::{ConditionalKind, Effect, EffectArg, VarGraph, create_graph},
+        imports::{ImportAnnotations, ImportAttributes, ImportMap},
         linker::link,
         parse_require_context, side_effects,
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
-    chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
     parse::ParseResult,
@@ -124,10 +124,11 @@ use crate::{
         },
         dynamic_expression::DynamicExpression,
         esm::{
-            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmExports, ImportMetaBinding,
+            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
             module_id::EsmModuleIdAssetReference,
         },
+        exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
         hot_module::{ModuleHotReferenceAssetReference, ModuleHotReferenceCodeGen},
         ident::IdentReplacement,
@@ -136,14 +137,13 @@ use crate::{
         node::PackageJsonReference,
         raw::{DirAssetReference, FileSourceReference},
         require_context::{RequireContextAssetReference, RequireContextMap},
-        type_issue::SpecifiedModuleTypeIssue,
         typescript::{
             TsConfigReference, TsReferencePathAssetReference, TsReferenceTypeAssetReference,
         },
     },
     runtime_functions::{
-        TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE, TURBOPACK_EXPORTS, TURBOPACK_GLOBAL,
-        TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB, TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
+        TURBOPACK_EXPORTS, TURBOPACK_GLOBAL, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
+        TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS,
     },
     source_map::parse_source_map_comment,
     tree_shake::{part_of_module, split_module},
@@ -159,7 +159,6 @@ pub struct AnalyzeEcmascriptModuleResult {
     pub esm_reexport_references: ResolvedVc<EsmAssetReferences>,
 
     pub code_generation: ResolvedVc<CodeGens>,
-    pub exports: ResolvedVc<EcmascriptExports>,
     pub async_module: ResolvedVc<OptionAsyncModule>,
     pub side_effects: ModuleSideEffects,
     /// `true` when the analysis was successful.
@@ -218,7 +217,6 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
     code_gens: CodeGenCollection,
-    exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -238,7 +236,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_references_rewritten: Default::default(),
             esm_references_free_var: Default::default(),
             code_gens: Default::default(),
-            exports: EcmascriptExports::Unknown,
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
@@ -310,11 +307,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Sets the analysis result ES export.
-    pub fn set_exports(&mut self, exports: EcmascriptExports) {
-        self.exports = exports;
-    }
-
-    /// Sets the analysis result ES export.
     pub fn set_async_module(&mut self, async_module: ResolvedVc<AsyncModule>) {
         self.async_module = ResolvedVc::cell(Some(async_module));
     }
@@ -357,7 +349,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
         mut self,
-        import_references: Vec<ResolvedVc<EsmAssetReference>>,
+        import_references: &[ResolvedVc<EsmAssetReference>],
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
         // esm_references_rewritten (and esm_references_free_var) needs to be spliced in at the
@@ -430,7 +422,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                     esm_reexport_references.unwrap_or_default(),
                 ),
                 code_generation: ResolvedVc::cell(code_generation),
-                exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
                 side_effects: self.side_effects,
                 successful: self.successful,
@@ -479,6 +470,8 @@ struct AnalysisState<'a> {
     import_references: &'a [ResolvedVc<EsmAssetReference>],
     // The import map from the eval context, used to match dep strings to import references.
     imports: &'a ImportMap,
+    // Resolve overrides for imports
+    inner_assets: Option<ReadRef<InnerAssets>>,
 }
 
 impl AnalysisState<'_> {
@@ -557,6 +550,12 @@ async fn analyze_ecmascript_module_internal(
         analysis.ident = source.ident().to_string().owned().await?;
     }
 
+    let inner_assets = if let Some(assets) = raw_module.inner_assets {
+        Some(assets.await?)
+    } else {
+        None
+    };
+
     // Is this a typescript file that requires analyzing type references?
     let analyze_types = match &ty {
         EcmascriptModuleAssetType::Typescript { analyze_types, .. } => *analyze_types,
@@ -566,9 +565,9 @@ async fn analyze_ecmascript_module_internal(
     };
 
     // Split out our module part if we have one.
-    let parsed = if let Some(part) = part {
+    let parsed = if let Some(part) = &part {
         let split_data = split_module(*module);
-        part_of_module(split_data, part)
+        part_of_module(split_data, part.clone())
     } else {
         module.failsafe_parse()
     };
@@ -611,6 +610,14 @@ async fn analyze_ecmascript_module_internal(
         .await?;
     }
 
+    let EcmascriptExportsAnalysis {
+        exports: _,
+        import_references,
+        esm_reexport_reference_idxs,
+        esm_evaluation_reference_idxs,
+        // This reads the ParseResult, so it has to happen before the final_read_hint.
+    } = &*compute_ecmascript_module_exports(*module, part).await?;
+
     let parsed = if !analyze_mode.is_code_gen() {
         // We are never code-gening the module, so we can drop the AST after the analysis.
         parsed.final_read_hint().await?
@@ -625,10 +632,18 @@ async fn analyze_ecmascript_module_internal(
         comments,
         source_map,
         source_mapping_url,
+        program_source: _,
     } = &*parsed
     else {
         return analysis.build(Default::default(), false).await;
     };
+
+    for i in esm_reexport_reference_idxs {
+        analysis.add_esm_reexport_reference(*i);
+    }
+    for i in esm_evaluation_reference_idxs {
+        analysis.add_esm_evaluation_reference(*i);
+    }
 
     let has_side_effect_free_directive = match program {
         Program::Module(module) => Either::Left(
@@ -750,201 +765,6 @@ async fn analyze_ecmascript_module_internal(
         .supports_block_scoping()
         .await?;
 
-    let mut var_graph = {
-        let _span = tracing::trace_span!("analyze variable values").entered();
-        set_handler_and_globals(&handler, globals, || {
-            create_graph(program, eval_context, analyze_mode, supports_block_scoping)
-        })
-    };
-
-    let mut import_usage =
-        FxHashMap::with_capacity_and_hasher(var_graph.import_usages.len(), Default::default());
-    for (reference, usage) in &var_graph.import_usages {
-        // TODO make this more efficient, i.e. cache the result?
-        if let DeclUsage::Bindings(ids) = usage {
-            // compute transitive closure of `ids` over `top_level_mappings`
-            let mut visited = ids.clone();
-            let mut stack = ids.iter().collect::<Vec<_>>();
-            let mut has_global_usage = false;
-            while let Some(id) = stack.pop() {
-                match var_graph.decl_usages.get(id) {
-                    Some(DeclUsage::SideEffects) => {
-                        has_global_usage = true;
-                        break;
-                    }
-                    Some(DeclUsage::Bindings(callers)) => {
-                        for caller in callers {
-                            if visited.insert(caller.clone()) {
-                                stack.push(caller);
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-            }
-
-            // Collect all `visited` declarations which are exported
-            import_usage.insert(
-                *reference,
-                if has_global_usage {
-                    ImportUsage::TopLevel
-                } else {
-                    ImportUsage::Exports(
-                        var_graph
-                            .exports
-                            .iter()
-                            .filter(|(_, id)| visited.contains(*id))
-                            .map(|(exported, _)| exported.as_str().into())
-                            .collect(),
-                    )
-                },
-            );
-        }
-    }
-
-    let span = tracing::trace_span!("esm import references");
-    let import_references = async {
-        let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
-        for (i, r) in eval_context.imports.references().enumerate() {
-            let mut should_add_evaluation = false;
-            let reference = EsmAssetReference::new(
-                module,
-                ResolvedVc::upcast(module),
-                RcStr::from(&*r.module_path.to_string_lossy()),
-                IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32()),
-                r.annotations.as_ref().map(|a| (**a).clone()),
-                match &r.imported_symbol {
-                    ImportedSymbol::ModuleEvaluation => {
-                        should_add_evaluation = true;
-                        Some(ModulePart::evaluation())
-                    }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                    ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
-                        if !matches!(
-                            options.tree_shaking_mode,
-                            Some(TreeShakingMode::ModuleFragments)
-                        ) {
-                            bail!(
-                                "Internal imports only exist in reexports only mode when \
-                                 importing {:?} from {}",
-                                r.imported_symbol,
-                                r.module_path.to_string_lossy()
-                            );
-                        }
-                        if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
-                            should_add_evaluation = true;
-                        }
-                        Some(ModulePart::internal(*part_id))
-                    }
-                    ImportedSymbol::Exports => matches!(
-                        options.tree_shaking_mode,
-                        Some(TreeShakingMode::ModuleFragments)
-                    )
-                    .then(ModulePart::exports),
-                },
-                import_usage.get(&i).cloned().unwrap_or_default(),
-                import_externals,
-                options.tree_shaking_mode,
-            )
-            .resolved_cell();
-
-            import_references.push(reference);
-            if should_add_evaluation {
-                analysis.add_esm_evaluation_reference(i);
-            }
-        }
-        anyhow::Ok(import_references)
-    }
-    .instrument(span)
-    .await?;
-
-    let span = tracing::trace_span!("exports");
-    async {
-        let esm_star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>> = eval_context
-            .imports
-            .reexport_namespaces()
-            .map(|i| ResolvedVc::upcast(import_references[i]))
-            .collect();
-        let esm_exports = eval_context
-            .imports
-            .as_esm_exports(&import_references, eval_context)?;
-
-        for idx in eval_context.imports.reexports_reference_idxs() {
-            analysis.add_esm_reexport_reference(idx);
-        }
-
-        let exports = if !esm_exports.is_empty() || !esm_star_exports.is_empty() {
-            if specified_type == SpecifiedModuleType::CommonJs {
-                SpecifiedModuleTypeIssue {
-                    // TODO(PACK-4879): this should point at one of the exports
-                    source: IssueSource::from_source_only(source),
-                    specified_type,
-                }
-                .resolved_cell()
-                .emit();
-            }
-
-            let esm_exports = EsmExports {
-                exports: esm_exports,
-                star_exports: esm_star_exports,
-            }
-            .cell();
-
-            EcmascriptExports::EsmExports(esm_exports.to_resolved().await?)
-        } else if specified_type == SpecifiedModuleType::EcmaScript {
-            match detect_dynamic_export(program) {
-                DetectedDynamicExportType::CommonJs => {
-                    SpecifiedModuleTypeIssue {
-                        // TODO(PACK-4879): this should point at the source location of the commonjs
-                        // export
-                        source: IssueSource::from_source_only(source),
-                        specified_type,
-                    }
-                    .resolved_cell()
-                    .emit();
-
-                    EcmascriptExports::EsmExports(
-                        EsmExports {
-                            exports: Default::default(),
-                            star_exports: Default::default(),
-                        }
-                        .resolved_cell(),
-                    )
-                }
-                DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
-                DetectedDynamicExportType::Value => EcmascriptExports::Value,
-                DetectedDynamicExportType::UsingModuleDeclarations
-                | DetectedDynamicExportType::None => EcmascriptExports::EsmExports(
-                    EsmExports {
-                        exports: Default::default(),
-                        star_exports: Default::default(),
-                    }
-                    .resolved_cell(),
-                ),
-            }
-        } else {
-            match detect_dynamic_export(program) {
-                DetectedDynamicExportType::CommonJs => EcmascriptExports::CommonJs,
-                DetectedDynamicExportType::Namespace => EcmascriptExports::DynamicNamespace,
-                DetectedDynamicExportType::Value => EcmascriptExports::Value,
-                DetectedDynamicExportType::UsingModuleDeclarations => {
-                    EcmascriptExports::EsmExports(
-                        EsmExports {
-                            exports: Default::default(),
-                            star_exports: Default::default(),
-                        }
-                        .resolved_cell(),
-                    )
-                }
-                DetectedDynamicExportType::None => EcmascriptExports::EmptyCommonJs,
-            }
-        };
-        analysis.set_exports(exports);
-        anyhow::Ok(())
-    }
-    .instrument(span)
-    .await?;
-
     // TODO: we can do this when constructing the var graph
     let span = tracing::trace_span!("async module handling");
     async {
@@ -978,6 +798,13 @@ async fn analyze_ecmascript_module_internal(
     .instrument(span)
     .await?;
 
+    let mut var_graph = {
+        let _span = tracing::trace_span!("analyze variable values").entered();
+        set_handler_and_globals(&handler, globals, || {
+            create_graph(program, eval_context, analyze_mode, supports_block_scoping)
+        })
+    };
+
     let span = tracing::trace_span!("effects processing");
     async {
         analysis.code_gens.extend(take(&mut var_graph.code_gens));
@@ -1009,8 +836,9 @@ async fn analyze_ecmascript_module_internal(
             collect_affecting_sources: options.analyze_mode.is_tracing_assets(),
             tracing_only: !options.analyze_mode.is_code_gen(),
             is_esm,
-            import_references: &import_references,
+            import_references,
             imports: &eval_context.imports,
+            inner_assets,
         };
 
         enum Action {
@@ -1450,6 +1278,7 @@ async fn analyze_ecmascript_module_internal(
                                                 original_reference.import_usage.clone(),
                                                 original_reference.import_externals,
                                                 original_reference.tree_shaking_mode,
+                                                original_reference.resolve_override,
                                             )
                                             .resolved_cell()
                                         },
@@ -1817,6 +1646,7 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
         handler,
         origin,
         source,
+        &state.inner_assets,
         ignore_dynamic_requests,
         analysis,
         error_mode,
@@ -1833,6 +1663,7 @@ async fn handle_dynamic_import_with_linked_args(
     handler: &Handler,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     source: ResolvedVc<Box<dyn Source>>,
+    inner_assets: &Option<ReadRef<InnerAssets>>,
     ignore_dynamic_requests: bool,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
     error_mode: ResolveErrorMode,
@@ -1876,6 +1707,16 @@ async fn handle_dynamic_import_with_linked_args(
                 return Ok(());
             }
         }
+
+        let resolve_override = if let Some(inner_assets) = &inner_assets
+            && let Some(req) = pat.as_constant_string()
+            && let Some(a) = inner_assets.get(req)
+        {
+            Some(*a)
+        } else {
+            None
+        };
+
         analysis.add_reference_code_gen(
             EsmAsyncAssetReference::new(
                 origin,
@@ -1885,6 +1726,7 @@ async fn handle_dynamic_import_with_linked_args(
                 error_mode,
                 import_externals,
                 export_usage,
+                resolve_override,
             ),
             ast_path.to_vec().into(),
         );
@@ -2176,6 +2018,7 @@ where
                 handler,
                 origin,
                 source,
+                &state.inner_assets,
                 ignore_dynamic_requests,
                 analysis,
                 error_mode,
@@ -2202,6 +2045,16 @@ where
                         return Ok(());
                     }
                 }
+
+                let resolve_override = if let Some(inner_assets) = &state.inner_assets
+                    && let Some(req) = pat.as_constant_string()
+                    && let Some(a) = inner_assets.get(req)
+                {
+                    Some(*a)
+                } else {
+                    None
+                };
+
                 analysis.add_reference_code_gen(
                     CjsRequireAssetReference::new(
                         origin,
@@ -2209,6 +2062,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        resolve_override,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2260,6 +2114,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        None,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -2307,6 +2162,16 @@ where
                         return Ok(());
                     }
                 }
+
+                let resolve_override = if let Some(inner_assets) = &state.inner_assets
+                    && let Some(req) = pat.as_constant_string()
+                    && let Some(a) = inner_assets.get(req)
+                {
+                    Some(*a)
+                } else {
+                    None
+                };
+
                 analysis.add_reference_code_gen(
                     CjsRequireResolveAssetReference::new(
                         origin,
@@ -2314,6 +2179,7 @@ where
                         issue_source(source, span),
                         error_mode,
                         attributes.chunking_type,
+                        resolve_override,
                     ),
                     ast_path.to_vec().into(),
                 );
@@ -3253,9 +3119,12 @@ async fn handle_free_var_reference(
                         ),
                         Default::default(),
                         export.clone().map(ModulePart::export),
+                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
+                        // level function could set ImportUsage properly here
                         ImportUsage::TopLevel,
                         state.import_externals,
                         state.tree_shaking_mode,
+                        None,
                     )
                     .resolved_cell())
                 })
@@ -3813,41 +3682,6 @@ async fn require_context_visitor(
     ))
 }
 
-pub(crate) fn for_each_ident_in_pat(pat: &Pat, f: &mut impl FnMut(&Atom, SyntaxContext)) {
-    match pat {
-        Pat::Ident(BindingIdent { id, .. }) => {
-            f(&id.sym, id.ctxt);
-        }
-        Pat::Array(ArrayPat { elems, .. }) => elems.iter().for_each(|e| {
-            if let Some(e) = e {
-                for_each_ident_in_pat(e, f);
-            }
-        }),
-        Pat::Rest(RestPat { arg, .. }) => {
-            for_each_ident_in_pat(arg, f);
-        }
-        Pat::Object(ObjectPat { props, .. }) => {
-            props.iter().for_each(|p| match p {
-                ObjectPatProp::KeyValue(KeyValuePatProp { value, .. }) => {
-                    for_each_ident_in_pat(value, f);
-                }
-                ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                    f(&key.sym, key.ctxt);
-                }
-                ObjectPatProp::Rest(RestPat { arg, .. }) => {
-                    for_each_ident_in_pat(arg, f);
-                }
-            });
-        }
-        Pat::Assign(AssignPat { left, .. }) => {
-            for_each_ident_in_pat(left, f);
-        }
-        Pat::Invalid(_) | Pat::Expr(_) => {
-            panic!("Unexpected pattern while enumerating idents");
-        }
-    }
-}
-
 #[derive(Hash, Debug, Clone, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct AstPath(
     #[bincode(with_serde)]
@@ -3879,124 +3713,6 @@ impl From<Vec<AstParentKind>> for AstPath {
 pub static TURBOPACK_HELPER: Lazy<Atom> = Lazy::new(|| atom!("__turbopack-helper__"));
 pub static TURBOPACK_HELPER_WTF8: Lazy<Wtf8Atom> =
     Lazy::new(|| atom!("__turbopack-helper__").into());
-
-pub fn is_turbopack_helper_import(import: &ImportDecl) -> bool {
-    let annotations = ImportAnnotations::parse(import.with.as_deref());
-
-    annotations.is_some_and(|a| a.get(&TURBOPACK_HELPER_WTF8).is_some())
-}
-
-pub fn is_swc_helper_import(import: &ImportDecl) -> bool {
-    import.src.value.starts_with("@swc/helpers/")
-}
-
-#[derive(Debug)]
-enum DetectedDynamicExportType {
-    CommonJs,
-    Namespace,
-    Value,
-    None,
-    UsingModuleDeclarations,
-}
-
-fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
-    use swc_core::ecma::visit::{Visit, VisitWith, visit_obj_and_computed};
-
-    if let Program::Module(m) = p {
-        // Check for imports/exports
-        if m.body.iter().any(|item| {
-            item.as_module_decl().is_some_and(|module_decl| {
-                module_decl.as_import().is_none_or(|import| {
-                    !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
-                })
-            })
-        }) {
-            return DetectedDynamicExportType::UsingModuleDeclarations;
-        }
-    }
-
-    struct Visitor {
-        cjs: bool,
-        value: bool,
-        namespace: bool,
-        found: bool,
-    }
-
-    impl Visit for Visitor {
-        visit_obj_and_computed!();
-
-        fn visit_ident(&mut self, i: &Ident) {
-            // The detection is not perfect, it might have some false positives, e. g. in
-            // cases where `module` is used in some other way. e. g. `const module = 42;`.
-            // But a false positive doesn't break anything, it only opts out of some
-            // optimizations, which is acceptable.
-            if &*i.sym == "module" || &*i.sym == "exports" {
-                self.cjs = true;
-                self.found = true;
-            }
-            if &*i.sym == "__turbopack_export_value__" {
-                self.value = true;
-                self.found = true;
-            }
-            if &*i.sym == "__turbopack_export_namespace__" {
-                self.namespace = true;
-                self.found = true;
-            }
-        }
-
-        fn visit_expr(&mut self, n: &Expr) {
-            if self.found {
-                return;
-            }
-
-            if let Expr::Member(member) = n
-                && member.obj.is_ident_ref_to("__turbopack_context__")
-                && let MemberProp::Ident(prop) = &member.prop
-            {
-                const TURBOPACK_EXPORT_VALUE_SHORTCUT: &str = TURBOPACK_EXPORT_VALUE.shortcut;
-                const TURBOPACK_EXPORT_NAMESPACE_SHORTCUT: &str =
-                    TURBOPACK_EXPORT_NAMESPACE.shortcut;
-                match &*prop.sym {
-                    TURBOPACK_EXPORT_VALUE_SHORTCUT => {
-                        self.value = true;
-                        self.found = true;
-                    }
-                    TURBOPACK_EXPORT_NAMESPACE_SHORTCUT => {
-                        self.namespace = true;
-                        self.found = true;
-                    }
-                    _ => {}
-                }
-            }
-
-            n.visit_children_with(self);
-        }
-
-        fn visit_stmt(&mut self, n: &Stmt) {
-            if self.found {
-                return;
-            }
-            n.visit_children_with(self);
-        }
-    }
-
-    let mut v = Visitor {
-        cjs: false,
-        value: false,
-        namespace: false,
-        found: false,
-    };
-    p.visit_with(&mut v);
-    if v.cjs {
-        DetectedDynamicExportType::CommonJs
-    } else if v.value {
-        DetectedDynamicExportType::Value
-    } else if v.namespace {
-        DetectedDynamicExportType::Namespace
-    } else {
-        DetectedDynamicExportType::None
-    }
-}
 
 /// Detects whether a list of arguments is specifically
 /// `(process.argv[0], ['-e', ...])`. This is useful for detecting if a node

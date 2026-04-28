@@ -18,8 +18,11 @@ env:
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 6
 
-  TURBO_TEAM: 'vercel'
-  TURBO_CACHE: 'remote:rw'
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
   NEXT_TELEMETRY_DISABLED: 1
   # we build a dev binary for use in CI so skip downloading
   # canary next-swc binaries in the monorepo
@@ -31,6 +34,50 @@ env:
   NEXT_DISABLE_SWC_WASM: 1
 
 jobs:
+  pr-ci-metadata:
+    name: Upload PR CI metadata
+    if: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Write PR metadata
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          PR_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_IS_FORK: ${{ github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          mkdir -p pr-ci-metadata
+          node <<'NODE'
+          const fs = require('fs')
+
+          fs.writeFileSync(
+            'pr-ci-metadata/pr.json',
+            JSON.stringify(
+              {
+                number: Number(process.env.PR_NUMBER),
+                headSha: process.env.PR_HEAD_SHA,
+                headRef: process.env.PR_HEAD_REF,
+                headRepo: process.env.PR_HEAD_REPO,
+                baseRef: process.env.PR_BASE_REF,
+                isFork: process.env.PR_IS_FORK === 'true',
+              },
+              null,
+              2
+            )
+          )
+          NODE
+
+      - name: Upload PR metadata
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pr-ci-metadata
+          path: pr-ci-metadata/pr.json
+          retention-days: 1
+
   build:
     uses: ./.github/workflows/build_reusable.yml
     secrets: inherit
@@ -47,11 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         bundler: [webpack, turbopack]
-    runs-on:
-      - 'self-hosted'
-      - 'linux'
-      - 'x64'
-      - 'metal'
+    runs-on: ubuntu-latest-16-core-oss
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,7 +118,6 @@ jobs:
         with:
           bundler: ${{ matrix.bundler }}
         env:
-          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
           TURBO_TEAM: ${{ env.TURBO_TEAM }}
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_CACHE: ${{ env.TURBO_CACHE }}
@@ -126,6 +168,5 @@ jobs:
         working-directory: .github/actions/next-stats-action
         run: node src/aggregate-results.js ${{ github.workspace }}/stats-results
         env:
-          PR_STATS_COMMENT_TOKEN: ${{ secrets.PR_STATS_COMMENT_TOKEN }}
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}

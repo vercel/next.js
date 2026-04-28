@@ -69,6 +69,16 @@ struct FieldInfo {
     /// If true, drop this field entirely after execution completes if the task is immutable.
     /// Immutable tasks don't re-execute, so dependency tracking fields are not needed.
     drop_on_completion_if_immutable: bool,
+    /// Optional override for the underlying map type, used when the field is a
+    /// newtype wrapping `AutoMap<K, V>` (or similar) so callers can inject
+    /// custom bincode / accessor behavior while the macro still generates map
+    /// accessors with the right key/value types.
+    ///
+    /// The newtype must `Deref`/`DerefMut` to the inner map so the generated
+    /// accessors (which call `.iter()`, `.insert()`, etc.) keep working.
+    ///
+    /// When absent, the macro parses the outer field type directly.
+    as_type: Option<Type>,
 }
 
 impl FieldInfo {
@@ -363,6 +373,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
     let mut use_default = false;
     let mut shrink_on_completion = false;
     let mut drop_on_completion_if_immutable = false;
+    let mut as_type: Option<Type> = None;
 
     // Find and parse the field attribute
     if let Some(attr) = field.attrs.iter().find(|attr| {
@@ -437,11 +448,28 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
                                 });
                             }
                         }
+                        "as_type" => {
+                            if let Some(lit_str) = expect_string_literal(&nv.value, "as_type") {
+                                match syn::parse_str::<Type>(&lit_str.value()) {
+                                    Ok(ty) => as_type = Some(ty),
+                                    Err(err) => {
+                                        lit_str
+                                            .span()
+                                            .unwrap()
+                                            .error(format!(
+                                                "`as_type` must parse as a Rust type: {err}"
+                                            ))
+                                            .emit();
+                                    }
+                                }
+                            }
+                        }
                         other => {
                             meta.span()
                                 .unwrap()
                                 .error(format!(
-                                    "unknown attribute `{other}`, expected `storage` or `category`"
+                                    "unknown attribute `{other}`, expected `storage`, `category`, \
+                                     or `as_type`"
                                 ))
                                 .emit();
                         }
@@ -581,6 +609,7 @@ fn parse_field_storage_attributes(field: &syn::Field) -> FieldInfo {
         use_default,
         shrink_on_completion,
         drop_on_completion_if_immutable,
+        as_type,
     }
 }
 
@@ -2302,7 +2331,12 @@ fn generate_countermap_ops(field: &FieldInfo) -> TokenStream {
 fn generate_automap_ops(field: &FieldInfo) -> TokenStream {
     let field_type = &field.field_type;
 
-    let Some((key_type, value_type)) = extract_map_types(field_type, "AutoMap") else {
+    // If the field uses a newtype wrapper, `as_type` gives us the actual
+    // `AutoMap<K, V>` to extract key/value types from. Otherwise parse the
+    // declared field type directly.
+    let map_ty = field.as_type.as_ref().unwrap_or(field_type);
+
+    let Some((key_type, value_type)) = extract_map_types(map_ty, "AutoMap") else {
         return quote! {};
     };
 

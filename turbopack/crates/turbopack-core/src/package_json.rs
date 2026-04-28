@@ -32,7 +32,7 @@ impl Deref for PackageJson {
     }
 }
 
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct OptionPackageJson(Option<PackageJson>);
 
 /// Reads a package.json file (if it exists). If the file is unparsable, it

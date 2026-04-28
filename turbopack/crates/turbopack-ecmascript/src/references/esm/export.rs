@@ -786,7 +786,7 @@ impl EsmExports {
                                         }
                                     }
                                 },
-                                ReferencedAssetIdent::Module { namespace_ident:_, ctxt:_, export:_ } => {
+                                ReferencedAssetIdent::Module { .. } => {
                                     // Otherwise we need to bind as a getter to preserve the 'liveness' of the other modules bindings.
                                     // TODO: If this becomes important it might be faster to use the runtime to copy PropertyDescriptors across modules
                                     // since that would reduce allocations and optimize access. We could do this by passing the module-id up.
