@@ -15,7 +15,20 @@ describe('server-side dev errors', () => {
       .replace(/.*at async handleResponse.*/g, '')
       .replace(/.*at async doRender \(.*/g, '')
       .split(/\n/)
-      .filter((item) => !!item.trim())
+      .filter((item) => {
+        const trimmed = item.trim()
+        if (!trimmed) return false
+        // Drop bootstrap/startup banner lines that may appear after
+        // `next.cliOutput` was sliced. The Experiments banner is logged
+        // asynchronously after the dev server reports ready (see
+        // `logExperimentalInfo` in `start-server.ts`), so it can race
+        // with the test capturing `cliOutputIdx`.
+        if (trimmed.startsWith('- ')) return false
+        if (/^[✓⚠△] /.test(trimmed)) return false
+        // Drop compiling indicator lines (e.g. "○ Compiling /gsp ...").
+        if (trimmed.startsWith('○ ')) return false
+        return true
+      })
       .join('\n')
   }
 
