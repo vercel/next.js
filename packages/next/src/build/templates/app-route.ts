@@ -408,7 +408,7 @@ export async function handler(
               nodeNextReq,
               nodeNextRes,
               response,
-              context.renderOpts.pendingWaitUntil
+              pendingWaitUntil
             )
             return null
           }
