@@ -163,22 +163,34 @@ pub const fn strip_trailing_segments(s: &str, count: usize) -> &str {
 
 /// A registry of all the impl vtables for a given VcValue trait.
 ///
-/// `const`-constructed as a plain `static`. Populated during the `#[ctor::ctor]` phase by
-/// functions emitted by `value_impl`, then treated as read-only for the lifetime of the process.
-/// The vtable pointer for each `impl Trait for Concrete` is materialized at compile time (no
-/// runtime `transmute` or indirect fn-pointer call), and lookup is a single hashmap get — no
-/// `LazyLock` check and no list walk.
+/// `const`-constructed as a plain `static`. Populated in two phases:
+///
+/// 1. **ctor phase** (before `main`): `value_impl`-emitted `#[ctor::ctor]` functions push
+///    `(value_type, DynMetadata)` pairs into `pending`. `ValueType` ids are not yet assigned here —
+///    we just accumulate.
+/// 2. **`finalize` phase** (inside the `VALUES` `LazyLock` initializer, after ids are assigned):
+///    `pending` is drained into `inner`, keyed by `ValueTypeId`. Idempotent.
+///
+/// After finalize, the cast path is a single hashmap `.get()` keyed by `u16` — no `LazyLock`
+/// check, no `get_value_type(id)` indirection. The vtable pointer for each
+/// `impl Trait for Concrete` is materialized at compile time, so there's no runtime `transmute`
+/// or indirect fn-pointer call either.
 pub struct VTableRegistry<T>
 where
     T: Pointee<Metadata = DynMetadata<T>> + ?Sized,
 {
-    // `SyncUnsafeCell` gives us a `const fn new()` for the empty map. Writes happen only during
-    // single-threaded ctor phase; reads happen only after `main` starts.
-    inner: SyncUnsafeCell<Option<FxHashMap<&'static ValueType, DynMetadata<T>>>>,
+    /// Accumulator written from ctors. `Some` until `finalize` runs, then `take`n and left
+    /// `None` so any post-finalize call to `register` panics rather than silently dropping
+    /// the registration. The `None` state also makes subsequent `finalize` calls cheap no-ops.
+    pending: SyncUnsafeCell<Option<Vec<(&'static ValueType, DynMetadata<T>)>>>,
+    /// Built once by `finalize`, read-only thereafter. `None` until finalize runs.
+    inner: SyncUnsafeCell<Option<FxHashMap<ValueTypeId, DynMetadata<T>>>>,
 }
 
-// SAFETY: the only writers are `#[ctor::ctor]` functions, which run serially on the main thread
-// before `main` starts. After that, the map is read-only. `VtablePtr` itself is `Send`/`Sync`.
+// SAFETY: writes to `pending` happen only from `#[ctor::ctor]` functions, which run serially on
+// the main thread before `main`. Writes to `inner` happen only from `finalize`, which runs once
+// inside the `VALUES` `LazyLock` initializer (synchronized by the `LazyLock`). Reads of `inner`
+// from `cast` are published by that same `LazyLock` — see the `cast` safety comment.
 unsafe impl<T> Sync for VTableRegistry<T> where T: Pointee<Metadata = DynMetadata<T>> + ?Sized {}
 
 impl<T> VTableRegistry<T>
@@ -187,42 +199,71 @@ where
 {
     pub const fn new() -> Self {
         Self {
+            pending: SyncUnsafeCell::new(Some(Vec::new())),
             inner: SyncUnsafeCell::new(None),
         }
     }
 
-    /// Register an `impl Trait for Concrete` — called only from a `#[ctor::ctor]` function at
-    /// program load. Safe under the single-threaded-ctor-phase invariant noted on the impl.
-    //
-    // `clippy::mutable_key_type` fires because `ValueType` contains a `SyncUnsafeCell<u16>` via
-    // `RegistryType`. That cell only holds the runtime-assigned type id; `ValueType`'s
-    // `Hash` / `Eq` impls (see `turbo_registry!`) use pointer identity, so the interior
-    // mutability doesn't affect the hash.
-    #[allow(clippy::mutable_key_type)]
+    /// Queue an `impl Trait for Concrete` registration. Called from a `#[ctor::ctor]` function
+    /// at program load, before `ValueType` ids are assigned. The actual map is built later by
+    /// [`Self::finalize`].
+    ///
+    /// Panics if called after `finalize`. Since all `value_impl` ctors run before `main` and
+    /// `finalize` runs lazily after `main`, this should be unreachable in normal use; the
+    /// panic guards against future changes that might violate that ordering.
     pub fn register(&'static self, value_type: &'static ValueType, fat_ptr: *const T) {
-        // SAFETY: ctors run single-threaded at load; no concurrent readers exist yet.
-        let inner = unsafe { &mut *self.inner.get() };
-        let map = inner.get_or_insert_with(FxHashMap::default);
-        let prev = map.insert(value_type, std::ptr::metadata(fat_ptr));
-        debug_assert!(
-            prev.is_none(),
-            "multiple trait impls registered for {value_type}"
-        );
+        // SAFETY: ctors run single-threaded at load; no concurrent readers or writers.
+        let pending = unsafe { &mut *self.pending.get() };
+        let Some(pending) = pending.as_mut() else {
+            panic!("VTableRegistry::register called after finalize for {value_type}");
+        };
+        pending.push((value_type, std::ptr::metadata(fat_ptr)));
     }
 
-    #[allow(clippy::mutable_key_type)] // hashed by pointer, see `register`
-    pub(crate) fn cast(&self, id: ValueTypeId, raw: *const ()) -> *const T {
-        let value_type = crate::registry::get_value_type(id);
-        // SAFETY: the ctor write phase completed before `main` started.
-        let inner = unsafe { &*self.inner.get() };
-        let Some(map) = inner else {
-            panic!("no trait impl registered for value type {value_type}")
+    /// Take `pending` into `inner`, resolving each `&'static ValueType` to its assigned
+    /// `ValueTypeId`. Must be called after `VALUES` ids are assigned (i.e. from inside the
+    /// `VALUES` `LazyLock` initializer). Idempotent: a second call is a no-op, which lets
+    /// `register_all_trait_methods` invoke `finalize_vtable_registry` once per impl without
+    /// having to dedup.
+    pub fn finalize(&'static self) {
+        // SAFETY: invoked from inside the `VALUES` `LazyLock` initializer (single-threaded
+        // section synchronized by the `LazyLock`). All ctors completed before `main`.
+        let pending = unsafe { &mut *self.pending.get() };
+        // `take` makes any later `register` call (which would otherwise be silently dropped)
+        // hit the `None` branch and panic; subsequent `finalize` calls also short-circuit here.
+        let Some(pending) = pending.take() else {
+            return;
         };
-        let Some(vtable) = map.get(&value_type) else {
-            panic!("no trait impl registered for value type {value_type}")
-        };
+        let inner = unsafe { &mut *self.inner.get() };
+        debug_assert!(inner.is_none(), "inner already populated");
+        let mut map = FxHashMap::with_capacity_and_hasher(pending.len(), Default::default());
+        for (value_type, metadata) in pending {
+            // SAFETY: we're called from inside the `VALUES` `LazyLock` initializer, after
+            // `init_registry` has assigned ids. Calling `get_value_type_id` here would re-enter
+            // `LazyLock::force` and deadlock; read the id cell directly instead.
+            let id = unsafe { crate::registry::get_value_type_id_unchecked(value_type) };
+            let prev = map.insert(id, metadata);
+            debug_assert!(
+                prev.is_none(),
+                "multiple trait impls registered for {value_type}"
+            );
+        }
+        *inner = Some(map);
+    }
 
-        std::ptr::from_raw_parts(raw, *vtable)
+    pub(crate) fn cast(&self, id: ValueTypeId, raw: *const ()) -> *const T {
+        // SAFETY: any caller in possession of a `ValueTypeId` must have already forced the
+        // `VALUES` `LazyLock` (that's the only way to obtain one). `finalize` ran inside that
+        // initializer, so its write to `inner` happens-before this read via the `LazyLock`'s
+        // acquire fence.
+        let inner = unsafe { &*self.inner.get() };
+        let Some(metadata) = inner.as_ref().and_then(|map| map.get(&id)) else {
+            panic!(
+                "no trait impl registered for value type {}",
+                crate::registry::get_value_type(id)
+            )
+        };
+        std::ptr::from_raw_parts(raw, *metadata)
     }
 }
 
@@ -239,6 +280,11 @@ pub struct CollectableTraitMethods {
     pub value_type: &'static ValueType,
     pub trait_type: &'static TraitType,
     pub methods: &'static [&'static NativeFunction],
+    /// Calls `<Box<dyn Trait>>::IMPL_VTABLES.finalize()` for the trait this entry corresponds
+    /// to. Invoked from `register_all_trait_methods` after `VALUES` ids are assigned. The same
+    /// trait's registry will be finalized once per impl, but `VTableRegistry::finalize` is
+    /// idempotent.
+    pub finalize_vtable_registry: fn(),
 }
 inventory::collect! {CollectableTraitMethods}
 

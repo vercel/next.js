@@ -297,14 +297,19 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     value_type: <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
                     trait_type: <::std::boxed::Box<dyn #trait_path> as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::TraitType>>::DEF,
                     methods: &METHODS,
+                    finalize_vtable_registry: || {
+                        <::std::boxed::Box<dyn #trait_path> as turbo_tasks::VcValueTrait>::IMPL_VTABLES
+                            .finalize();
+                    },
                 }
             }}
 
-            // Register this `impl Trait for Concrete` into the trait's `VTableRegistry` at
-            // program load. Running in a ctor means no `LazyLock` on the cast path: subsequent
-            // dispatches are a direct hashmap `.get()` on a read-only map. The vtable pointer is
-            // materialized at compile time via `extract_vtable_ptr` on a null-unsized
-            // `*const dyn Trait`, so there's no runtime `transmute` or indirect fn call either.
+            // Queue this `impl Trait for Concrete` into the trait's `VTableRegistry` at program
+            // load. The ctor runs before `ValueType` ids are assigned, so it just appends to a
+            // `Vec`; the map keyed by `ValueTypeId` is built lazily inside the `VALUES`
+            // `LazyLock` initializer (via `CollectableTraitMethods::finalize_vtable_registry`).
+            // The vtable pointer is materialized at compile time via the null-fat-ptr trick, so
+            // there's no runtime `transmute` or indirect fn call.
             #[turbo_tasks::macro_helpers::ctor::ctor(
                 crate_path = turbo_tasks::macro_helpers::ctor,
             )]
@@ -315,7 +320,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         <#ty as turbo_tasks::macro_helpers::RegistryDef::<turbo_tasks::ValueType>>::DEF,
                         {
                             let p: *const #ty = ::std::ptr::null();
-                            // This essentially attaches a fat pointer to the
+                            // This attaches a fat pointer to the null pointer.
                             let fat: *const dyn #trait_path = p;
                             fat
                         },
