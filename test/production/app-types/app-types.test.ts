@@ -9,6 +9,7 @@ describe('app type checking - production mode', () => {
       '@mdx-js/loader': 'latest',
       '@mdx-js/react': 'latest',
     },
+    packageJson: { type: 'module' },
   })
 
   if (!isNextStart) {
