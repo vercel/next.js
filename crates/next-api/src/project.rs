@@ -95,6 +95,7 @@ use crate::{
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
+    path_utils::convention_file_base_name,
     route::{
         Endpoint, EndpointGroup, EndpointGroupEntry, EndpointGroupKey, EndpointGroups, Endpoints,
         Route,
@@ -1852,7 +1853,7 @@ impl Project {
 
         let middleware = self.find_middleware();
         let middleware = if let FindContextFileResult::Found(fs_path, _) = &*middleware.await? {
-            let is_proxy = fs_path.file_name().split('.').next() == Some("proxy");
+            let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
             Some(Middleware {
                 endpoint: self.middleware_endpoint().to_resolved().await?,
                 is_proxy,
@@ -2028,7 +2029,7 @@ impl Project {
             .as_ref()
             .map(|_| AppProject::client_transition_name());
 
-        let is_proxy = fs_path.file_name().split('.').next() == Some("proxy");
+        let is_proxy = convention_file_base_name(fs_path.file_name()) == "proxy";
         let config = parse_segment_config_from_source(
             source,
             if is_proxy {

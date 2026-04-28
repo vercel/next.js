@@ -18,6 +18,7 @@ pub mod next_server_nft;
 mod nft_json;
 pub mod operation;
 mod pages;
+mod path_utils;
 pub mod paths;
 pub mod project;
 pub mod project_asset_hashes_manifest;

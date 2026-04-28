@@ -116,6 +116,7 @@ import type { EventBuildFeatureUsage } from '../telemetry/events'
 import { Telemetry } from '../telemetry/storage'
 import { discoverRoutes, createPagesMapping } from './route-discovery'
 import { sortByPageExts } from './sort-by-page-exts'
+import { getConventionFileBaseName } from './get-convention-file-base-name'
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { PAGE_TYPES } from '../lib/page-types'
 import { generateBuildId } from './generate-build-id'
@@ -1252,11 +1253,7 @@ export default async function build(
 
       for (const rootPath of rootPaths) {
         const { base: fileBase, dir: fileDir } = path.parse(rootPath)
-        // Use split('.')[0] instead of path.parse().name to handle compound
-        // pageExtensions like 'page.ts' where the file is 'proxy.page.ts'.
-        // path.parse().name returns 'proxy.page' (strips only the last ext),
-        // but we need 'proxy' (the first segment before any dot).
-        const fileBaseName = fileBase.split('.')[0]
+        const fileBaseName = getConventionFileBaseName(fileBase)
 
         const normalizedFileDir = normalizePathSep(fileDir)
         const isAtConventionLevel =
