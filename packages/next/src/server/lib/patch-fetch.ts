@@ -1334,6 +1334,11 @@ export function patchFetch(options: PatchableModule) {
 export function unpatchFetch() {
   if (prePatchFetch) {
     globalThis.fetch = prePatchFetch
+    // Drop the snapshot once it's been used. The next `patchFetch()` will
+    // capture a fresh snapshot from `globalThis.fetch`, so leaving a stale
+    // reference here only keeps the prior wrapper closure GC-pinned for no
+    // benefit.
+    prePatchFetch = undefined
   }
   ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
 }
