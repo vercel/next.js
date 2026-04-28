@@ -9,6 +9,9 @@ export const styles = css`
     --next-dialog-nav-item-height: 50px;
     --next-dialog-border-width: 1px;
 
+    background-color: var(--color-gray-100);
+    padding: 0 4px 4px 4px;
+    border-radius: var(--rounded-2xl);
     display: flex;
     flex-direction: column;
     width: 100%;
