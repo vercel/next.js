@@ -98,8 +98,8 @@ import { outdent } from 'outdent'
       pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'), {})
     } catch (error) {
       throw new Error(
-        'No binary candidate found. ' +
-          `This environment is not supported by Next.js or publish of ${nextVersion} is incomplete. ` +
+        'No binary candidate found.\n' +
+          `This environment is not supported by Next.js or publish of ${nextVersion} is incomplete.\n` +
           'If binaries are built from source, set `NEXT_SKIP_NATIVE_POSTINSTALL=1`.',
         { cause: error }
       )
