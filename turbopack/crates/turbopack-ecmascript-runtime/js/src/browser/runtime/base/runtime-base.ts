@@ -21,11 +21,17 @@ declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
 /**
- * Custom URL prefix for Web Worker entrypoints and their module chunks.
- * When non-empty, overrides CHUNK_BASE_PATH for URLs loaded via `new Worker(...)`.
- * Mirrors webpack's `output.workerPublicPath`. Empty string means "use CHUNK_BASE_PATH".
+ * Custom base path for Web Worker URLs (the entrypoint and the module
+ * chunks loaded inside the worker). Mirrors webpack's
+ * `output.workerPublicPath`. `null` means "use CHUNK_BASE_PATH"; an empty
+ * string is a literal empty prefix (not a fallback).
+ *
+ * The worker's bootstrap rejects module chunks whose origin differs from
+ * the worker's own origin, so the override has to apply to both — using
+ * `WORKER_BASE_PATH` only for the entrypoint would leave the worker unable
+ * to load any chunks when `CHUNK_BASE_PATH` is on a different origin.
  */
-declare var WORKER_BASE_PATH: string
+declare var WORKER_BASE_PATH: string | null
 declare var ASSET_SUFFIX: string
 declare var CROSS_ORIGIN: 'anonymous' | 'use-credentials' | null
 declare var WORKER_FORWARDED_GLOBALS: string[]
@@ -318,13 +324,14 @@ function createWorker(
 ): Worker {
   const isSharedWorker = WorkerConstructor.name === 'SharedWorker'
 
-  // `WORKER_BASE_PATH` overrides only the entrypoint URL to keep `new Worker(...)`
-  // same-origin when `assetPrefix` is a cross-origin CDN. Module chunks loaded
-  // inside the worker can be cross-origin, so they always use CHUNK_BASE_PATH.
-  const entrypointBasePath = WORKER_BASE_PATH || CHUNK_BASE_PATH
+  // `WORKER_BASE_PATH` overrides `CHUNK_BASE_PATH` for the entrypoint and the
+  // module chunks loaded inside the worker, keeping them same-origin to each
+  // other when `CHUNK_BASE_PATH` (= `assetPrefix`) is a cross-origin CDN.
+  // `null` falls back; an empty string is treated as a literal empty prefix.
+  const workerBasePath = WORKER_BASE_PATH ?? CHUNK_BASE_PATH
 
   const chunkUrls = moduleChunks
-    .map((chunk) => getChunkRelativeUrl(chunk))
+    .map((chunk) => getChunkRelativeUrl(chunk, workerBasePath))
     .reverse()
   const params: unknown[] = [chunkUrls, ASSET_SUFFIX]
   for (const globalName of WORKER_FORWARDED_GLOBALS) {
@@ -332,7 +339,7 @@ function createWorker(
   }
 
   const url = new URL(
-    getChunkRelativeUrl(entrypoint, entrypointBasePath),
+    getChunkRelativeUrl(entrypoint, workerBasePath),
     location.origin
   )
   const paramsJson = JSON.stringify(params)

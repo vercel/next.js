@@ -388,7 +388,7 @@ Additionally, the following experimental options are available under `experiment
 | `turbopackUseBuiltinSass`                                                                                    | Enable automatic Sass loader configuration.                                                                                                  | `true`        | `true`                        |
 | `turbopackModuleIds`                                                                                         | Module ID strategy: `'named'` or `'deterministic'`.                                                                                          | `'named'`     | `'deterministic'`             |
 | [`turbopackLocalPostcssConfig`](/docs/app/api-reference/config/next-config-js/turbopackLocalPostcssConfig)   | Resolve `postcss.config.js` from the CSS file's directory first, then the project root.                                                      | `false`       | `false`                       |
-| `turbopackWorkerPublicPath`                                                                                  | Custom URL prefix for Web Worker entrypoints and their module chunks, overriding `assetPrefix`. Mirrors webpack's `output.workerPublicPath`. | `undefined`   | `undefined`                   |
+| `turbopackWorkerAssetPrefix`                                                                                 | Custom asset prefix for Web Worker URLs (entrypoint + module chunks), overriding `assetPrefix`. Mirrors webpack's `output.workerPublicPath`. | `undefined`   | `undefined`                   |
 
 ```js filename="next.config.js"
 module.exports = {

@@ -103,8 +103,8 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn worker_public_path(mut self, worker_public_path: Option<RcStr>) -> Self {
-        self.chunking_context.worker_public_path = worker_public_path;
+    pub fn worker_asset_prefix(mut self, worker_asset_prefix: Option<RcStr>) -> Self {
+        self.chunking_context.worker_asset_prefix = worker_asset_prefix;
         self
     }
 
@@ -272,12 +272,14 @@ pub struct BrowserChunkingContext {
     /// Base path that will be prepended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     chunk_base_path: Option<RcStr>,
-    /// Base path for Web Worker entrypoints and their module chunks. When set,
-    /// overrides `chunk_base_path` for URLs loaded via `new Worker(...)`.
-    /// Mirrors webpack's `output.workerPublicPath`. Primary use case: keep
-    /// Workers same-origin when `chunk_base_path`/`assetPrefix` points to a
-    /// cross-origin CDN (browsers reject cross-origin Worker construction).
-    worker_public_path: Option<RcStr>,
+    /// Base path for Web Worker URLs (the entrypoint and the module chunks
+    /// loaded inside the worker). When `Some`, overrides `chunk_base_path`
+    /// for those URLs. Mirrors webpack's `output.workerPublicPath`. Primary
+    /// use case: keep Worker URLs same-origin when
+    /// `chunk_base_path`/`assetPrefix` points to a cross-origin CDN
+    /// (browsers reject cross-origin Worker construction, and the worker
+    /// bootstrap rejects cross-origin module chunks).
+    worker_asset_prefix: Option<RcStr>,
     /// Suffix that will be appended to all chunk URLs when loading them.
     /// This path will not appear in chunk paths or chunk data.
     asset_suffix: Option<ResolvedVc<AssetSuffix>>,
@@ -366,7 +368,7 @@ impl BrowserChunkingContext {
                 asset_root_path,
                 asset_root_paths: Default::default(),
                 chunk_base_path: None,
-                worker_public_path: None,
+                worker_asset_prefix: None,
                 asset_suffix: None,
                 asset_base_path: None,
                 asset_base_paths: Default::default(),
@@ -481,11 +483,12 @@ impl BrowserChunkingContext {
         Vc::cell(self.chunk_base_path.clone())
     }
 
-    /// Returns the worker public path override. When set, takes precedence
-    /// over `chunk_base_path` for Worker entrypoint and module chunk URLs.
+    /// Returns the worker base-path override. When `Some`, takes precedence
+    /// over `chunk_base_path` for the entrypoint URL and the module chunks
+    /// loaded inside the worker.
     #[turbo_tasks::function]
-    pub fn worker_public_path(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(self.worker_public_path.clone())
+    pub fn worker_asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(self.worker_asset_prefix.clone())
     }
 
     /// Returns the asset suffix path.
