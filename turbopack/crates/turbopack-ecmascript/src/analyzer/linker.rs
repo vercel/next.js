@@ -41,7 +41,7 @@ const LIMIT_LINK_STEPS: u32 = 1500;
 
 #[derive(Debug, Hash, Clone, Eq, PartialEq)]
 enum Step {
-    /// Take all children out of the value (replacing temporarily with unknown) and queue them
+    /// Take all chlidren out of the value (replacing temporarily with unknown) and queue them
     /// for processing using individual `Enter`s.
     Enter(JsValue),
     /// Pop however many children there are from `done` and reinsert them into the value
