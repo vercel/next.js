@@ -29,6 +29,7 @@ import { isRequestAPICallableInsideAfter } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
+import { exposedToUserspace } from '../node-environment-extensions/track-work-unit.external'
 
 /**
  * This function allows you to read the HTTP incoming request headers in
@@ -39,7 +40,7 @@ import { RenderStage } from '../app-render/staged-rendering'
  *
  * Read more: [Next.js Docs: `headers`](https://nextjs.org/docs/app/api-reference/functions/headers)
  */
-export function headers(): Promise<ReadonlyHeaders> {
+export const headers = exposedToUserspace((): Promise<ReadonlyHeaders> => {
   const callingExpression = 'headers'
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
@@ -168,7 +169,7 @@ export function headers(): Promise<ReadonlyHeaders> {
 
   // If we end up here, there was no work store or work unit store present.
   throwForMissingRequestStore(callingExpression)
-}
+})
 
 interface CacheLifetime {}
 const CachedHeaders = new WeakMap<CacheLifetime, Promise<ReadonlyHeaders>>()

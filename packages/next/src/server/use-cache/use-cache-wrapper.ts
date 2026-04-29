@@ -78,6 +78,11 @@ import { RenderStage } from '../app-render/staged-rendering'
 import * as Log from '../../build/output/log'
 import { getServerReact, getClientReact } from '../runtime-reacts.external'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
+import {
+  disableWorkUnitTracking,
+  exposedToUserspace,
+  reenableWorkUnitTracking,
+} from '../node-environment-extensions/track-work-unit.external'
 
 interface PrivateCacheContext {
   readonly kind: 'private'
@@ -672,17 +677,19 @@ function generateCacheEntryWithCacheContext(
     defaultCacheLife
   )
 
-  return workUnitAsyncStorage.run(cacheStore, () =>
-    dynamicAccessAsyncStorage.run(
-      { abortController: new AbortController() },
-      generateCacheEntryImpl,
-      workStore,
-      cacheContext,
-      cacheStore,
-      clientReferenceManifest,
-      encodedArguments,
-      fn,
-      timeoutError
+  return disableWorkUnitTracking(() =>
+    workUnitAsyncStorage.run(cacheStore, () =>
+      dynamicAccessAsyncStorage.run(
+        { abortController: new AbortController() },
+        generateCacheEntryImpl,
+        workStore,
+        cacheContext,
+        cacheStore,
+        clientReferenceManifest,
+        encodedArguments,
+        fn,
+        timeoutError
+      )
     )
   )
 }
@@ -1047,7 +1054,9 @@ async function generateCacheEntryImpl(
   // though, until React awaits the promise so that React's request store (ALS)
   // is available when the function is invoked. This allows us, for example, to
   // capture logs so that we can later replay them.
-  const resultPromise = createLazyResult(fn.bind(null, ...args))
+  const resultPromise = createLazyResult(() =>
+    reenableWorkUnitTracking(fn.bind(null, ...args))
+  )
 
   const errors: Array<unknown> = []
 
@@ -1344,7 +1353,7 @@ function createTrackedReadableStream(
   })
 }
 
-export async function cache(
+export const cache = exposedToUserspace(async function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
@@ -2713,7 +2722,7 @@ export async function cache(
     replayConsoleLogs,
     environmentName: 'Cache',
   })
-}
+})
 
 /**
  * Returns `true` if the `'use cache'` function is the page component itself,

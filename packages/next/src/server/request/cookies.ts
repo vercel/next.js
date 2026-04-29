@@ -31,134 +31,137 @@ import { isRequestAPICallableInsideAfter } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { RenderStage } from '../app-render/staged-rendering'
+import { exposedToUserspace } from '../node-environment-extensions/track-work-unit.external'
 
-export function cookies(): Promise<ReadonlyRequestCookies> {
-  const callingExpression = 'cookies'
-  const workStore = workAsyncStorage.getStore()
-  const workUnitStore = workUnitAsyncStorage.getStore()
+export const cookies = exposedToUserspace(
+  (): Promise<ReadonlyRequestCookies> => {
+    const callingExpression = 'cookies'
+    const workStore = workAsyncStorage.getStore()
+    const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (workStore) {
-    if (
-      workUnitStore &&
-      workUnitStore.phase === 'after' &&
-      !isRequestAPICallableInsideAfter()
-    ) {
-      throw new Error(
-        // TODO(after): clarify that this only applies to pages?
-        `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
-      )
-    }
+    if (workStore) {
+      if (
+        workUnitStore &&
+        workUnitStore.phase === 'after' &&
+        !isRequestAPICallableInsideAfter()
+      ) {
+        throw new Error(
+          // TODO(after): clarify that this only applies to pages?
+          `Route ${workStore.route} used \`cookies()\` inside \`after()\`. This is not supported. If you need this data inside an \`after()\` callback, use \`cookies()\` outside of the callback. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+        )
+      }
 
-    if (workStore.forceStatic) {
-      // When using forceStatic we override all other logic and always just return an empty
-      // cookies object without tracking
-      const underlyingCookies = createEmptyCookies()
-      return makeUntrackedCookies(underlyingCookies)
-    }
+      if (workStore.forceStatic) {
+        // When using forceStatic we override all other logic and always just return an empty
+        // cookies object without tracking
+        const underlyingCookies = createEmptyCookies()
+        return makeUntrackedCookies(underlyingCookies)
+      }
 
-    if (workStore.dynamicShouldError) {
-      throw new StaticGenBailoutError(
-        `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-      )
-    }
+      if (workStore.dynamicShouldError) {
+        throw new StaticGenBailoutError(
+          `Route ${workStore.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies()\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
+        )
+      }
 
-    if (workUnitStore) {
-      switch (workUnitStore.type) {
-        case 'cache':
-          const error = new Error(
-            `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
-          Error.captureStackTrace(error, cookies)
-          applyOwnerStack(error)
-          workStore.invalidDynamicUsageError ??= error
-          throw error
-        case 'unstable-cache':
-          throw new Error(
-            `Route ${workStore.route} used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-          )
-        case 'generate-static-params':
-          throw new Error(
-            `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
-          )
-        case 'prerender':
-          return makeHangingCookies(workStore, workUnitStore)
-        case 'prerender-client':
-        case 'validation-client':
-          const exportName = '`cookies`'
-          throw new InvariantError(
-            `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
-          )
-        case 'prerender-ppr':
-          // We need track dynamic access here eagerly to keep continuity with
-          // how cookies has worked in PPR without cacheComponents.
-          return postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
-          )
-        case 'prerender-legacy':
-          // We track dynamic access here so we don't need to wrap the cookies
-          // in individual property access tracking.
-          return throwToInterruptStaticGeneration(
-            callingExpression,
-            workStore,
-            workUnitStore
-          )
-        case 'prerender-runtime':
-          return delayUntilRuntimeStage(
-            workUnitStore,
-            makeUntrackedCookies(workUnitStore.cookies)
-          )
-        case 'private-cache':
-          // Private caches are delayed until the runtime stage in use-cache-wrapper,
-          // so we don't need an additional delay here.
-          return makeUntrackedCookies(workUnitStore.cookies)
-        case 'request':
-          trackDynamicDataInDynamicRender(workUnitStore)
-
-          let underlyingCookies: ReadonlyRequestCookies
-
-          if (areCookiesMutableInCurrentPhase(workUnitStore)) {
-            // We can't conditionally return different types here based on the context.
-            // To avoid confusion, we always return the readonly type here.
-            underlyingCookies =
-              workUnitStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
-          } else {
-            underlyingCookies = workUnitStore.cookies
-          }
-
-          if (process.env.NODE_ENV === 'development') {
-            // Semantically we only need the dev tracking when running in `next dev`
-            // but since you would never use next dev with production NODE_ENV we use this
-            // as a proxy so we can statically exclude this code from production builds.
-            return makeUntrackedCookiesWithDevWarnings(
-              workUnitStore,
-              underlyingCookies,
-              workStore?.route
+      if (workUnitStore) {
+        switch (workUnitStore.type) {
+          case 'cache':
+            const error = new Error(
+              `Route ${workStore.route} used \`cookies()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
             )
-          } else if (workUnitStore.asyncApiPromises) {
-            const early = isInEarlyRenderStage(workUnitStore)
-            if (underlyingCookies === workUnitStore.mutableCookies) {
-              return early
-                ? workUnitStore.asyncApiPromises.earlyMutableCookies
-                : workUnitStore.asyncApiPromises.mutableCookies
+            Error.captureStackTrace(error, cookies)
+            applyOwnerStack(error)
+            workStore.invalidDynamicUsageError ??= error
+            throw error
+          case 'unstable-cache':
+            throw new Error(
+              `Route ${workStore.route} used \`cookies()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`cookies()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+            )
+          case 'generate-static-params':
+            throw new Error(
+              `Route ${workStore.route} used \`cookies()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+            )
+          case 'prerender':
+            return makeHangingCookies(workStore, workUnitStore)
+          case 'prerender-client':
+          case 'validation-client':
+            const exportName = '`cookies`'
+            throw new InvariantError(
+              `${exportName} must not be used within a Client Component. Next.js should be preventing ${exportName} from being included in Client Components statically, but did not in this case.`
+            )
+          case 'prerender-ppr':
+            // We need track dynamic access here eagerly to keep continuity with
+            // how cookies has worked in PPR without cacheComponents.
+            return postponeWithTracking(
+              workStore.route,
+              callingExpression,
+              workUnitStore.dynamicTracking
+            )
+          case 'prerender-legacy':
+            // We track dynamic access here so we don't need to wrap the cookies
+            // in individual property access tracking.
+            return throwToInterruptStaticGeneration(
+              callingExpression,
+              workStore,
+              workUnitStore
+            )
+          case 'prerender-runtime':
+            return delayUntilRuntimeStage(
+              workUnitStore,
+              makeUntrackedCookies(workUnitStore.cookies)
+            )
+          case 'private-cache':
+            // Private caches are delayed until the runtime stage in use-cache-wrapper,
+            // so we don't need an additional delay here.
+            return makeUntrackedCookies(workUnitStore.cookies)
+          case 'request':
+            trackDynamicDataInDynamicRender(workUnitStore)
+
+            let underlyingCookies: ReadonlyRequestCookies
+
+            if (areCookiesMutableInCurrentPhase(workUnitStore)) {
+              // We can't conditionally return different types here based on the context.
+              // To avoid confusion, we always return the readonly type here.
+              underlyingCookies =
+                workUnitStore.userspaceMutableCookies as unknown as ReadonlyRequestCookies
             } else {
-              return early
-                ? workUnitStore.asyncApiPromises.earlyCookies
-                : workUnitStore.asyncApiPromises.cookies
+              underlyingCookies = workUnitStore.cookies
             }
-          } else {
-            return makeUntrackedCookies(underlyingCookies)
-          }
-        default:
-          workUnitStore satisfies never
+
+            if (process.env.NODE_ENV === 'development') {
+              // Semantically we only need the dev tracking when running in `next dev`
+              // but since you would never use next dev with production NODE_ENV we use this
+              // as a proxy so we can statically exclude this code from production builds.
+              return makeUntrackedCookiesWithDevWarnings(
+                workUnitStore,
+                underlyingCookies,
+                workStore?.route
+              )
+            } else if (workUnitStore.asyncApiPromises) {
+              const early = isInEarlyRenderStage(workUnitStore)
+              if (underlyingCookies === workUnitStore.mutableCookies) {
+                return early
+                  ? workUnitStore.asyncApiPromises.earlyMutableCookies
+                  : workUnitStore.asyncApiPromises.mutableCookies
+              } else {
+                return early
+                  ? workUnitStore.asyncApiPromises.earlyCookies
+                  : workUnitStore.asyncApiPromises.cookies
+              }
+            } else {
+              return makeUntrackedCookies(underlyingCookies)
+            }
+          default:
+            workUnitStore satisfies never
+        }
       }
     }
-  }
 
-  // If we end up here, there was no work store or work unit store present.
-  throwForMissingRequestStore(callingExpression)
-}
+    // If we end up here, there was no work store or work unit store present.
+    throwForMissingRequestStore(callingExpression)
+  }
+)
 
 function createEmptyCookies(): ReadonlyRequestCookies {
   return RequestCookiesAdapter.seal(new RequestCookies(new Headers({})))

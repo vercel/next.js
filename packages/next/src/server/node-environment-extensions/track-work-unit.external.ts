@@ -1,4 +1,5 @@
 import {
+  AsyncLocalStorage,
   AsyncResource,
   createHook,
   executionAsyncId,
@@ -37,6 +38,36 @@ let nextStoreId = 0
 const storeIdByStore = new WeakMap<WorkUnitStore, StoreId>()
 const workStoreByWorkUnitStore = new WeakMap<WorkUnitStore, WorkStore>()
 
+export const frameworkInternalAsyncStorage = new AsyncLocalStorage<boolean>()
+
+export function disableWorkUnitTracking<T>(cb: () => T): T {
+  return frameworkInternalAsyncStorage.run(true, cb)
+}
+
+export function reenableWorkUnitTracking<T>(cb: () => T): T {
+  return frameworkInternalAsyncStorage.exit(cb)
+}
+
+export function exposedToUserspace<TFn extends (...args: any[]) => any>(
+  func: TFn
+): TFn {
+  return function (this: any) {
+    const self = this
+    // return func.apply(
+    //   self,
+    //   // @ts-expect-error
+    //   arguments
+    // )
+    return frameworkInternalAsyncStorage.run(true, () =>
+      func.apply(
+        self,
+        // @ts-expect-error
+        arguments
+      )
+    )
+  } as TFn
+}
+
 function getGlobalStoreId(store: WorkUnitStore) {
   const workStore = workAsyncStorage.getStore()
   if (workStore) {
@@ -44,7 +75,7 @@ function getGlobalStoreId(store: WorkUnitStore) {
   }
   let id = storeIdByStore.get(store)
   if (id === undefined) {
-    id = `${workStore ? workStore.page + '-' : ''}${store.type}@${nextStoreId++}`
+    id = `${workStore ? workStore.page + '@' : ''}${store.type}:${nextStoreId++}`
     storeIdByStore.set(store, id)
   }
   return id
@@ -101,10 +132,15 @@ export function createWorkUnitTracker(
         )
       }
 
+      const isTrackingDisabled =
+        frameworkInternalAsyncStorage.getStore() ?? false
+
       const triggerStore: WorkUnitStore | null =
         nodesById.get(triggerId)?.originStore ?? null
 
-      const currentStore = workUnitAsyncStorage.getStore() ?? null
+      const currentStore = isTrackingDisabled
+        ? null
+        : (workUnitAsyncStorage.getStore() ?? null)
       // Note: we don't always get one promise that acts like a root for the store transition,
       // there can be multiple
       const node: AsyncResourceNode = {
@@ -117,7 +153,8 @@ export function createWorkUnitTracker(
       if (
         currentStore &&
         triggerStore &&
-        getStoreId(currentStore) !== getStoreId(triggerStore)
+        getStoreId(currentStore) !== getStoreId(triggerStore) &&
+        !isTrackingDisabled
       ) {
         debug?.(
           '#'.repeat(40) +
