@@ -2023,16 +2023,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a949c44fcacbbbb7ada007dc7acb34603dd97cd47de5d054f2b6493ecebb483"
 
 [[package]]
-name = "ctrlc"
-version = "3.4.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46f93780a459b7d656ef7f071fe699c4d3d2cb201c4b24d085b6ddc505276e73"
-dependencies = [
- "nix",
- "windows-sys 0.59.0",
-]
-
-[[package]]
 name = "cty"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4299,31 +4289,6 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
-
-[[package]]
-name = "lsp-server"
-version = "0.7.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "248f65b78f6db5d8e1b1604b4098a28b43d21a8eb1deeca22b1c421b276c7095"
-dependencies = [
- "crossbeam-channel",
- "log",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "lsp-types"
-version = "0.95.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8e34d33a8e9b006cd3fc4fe69a921affa097bae4bb65f76271f4644f9a334365"
-dependencies = [
- "bitflags 1.3.2",
- "serde",
- "serde_json",
- "serde_repr",
- "url",
-]
 
 [[package]]
 name = "lz4_flex"
@@ -7114,17 +7079,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_repr"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "175ee3e80ae9982737ca543e96133087cbd9a485eecc3bc4de9c1a37b47ea59c"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.104",
-]
-
-[[package]]
 name = "serde_spanned"
 version = "0.6.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9857,27 +9811,6 @@ dependencies = [
  "turbo-bincode",
  "turbo-tasks-hash",
  "unty",
-]
-
-[[package]]
-name = "turbo-static"
-version = "0.1.0"
-dependencies = [
- "bincode 1.3.3",
- "clap",
- "ctrlc",
- "ignore",
- "itertools 0.10.5",
- "lsp-server",
- "lsp-types",
- "proc-macro2",
- "rustc-hash 2.1.1",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "syn 2.0.104",
- "tracing",
- "tracing-subscriber",
 ]
 
 [[package]]
