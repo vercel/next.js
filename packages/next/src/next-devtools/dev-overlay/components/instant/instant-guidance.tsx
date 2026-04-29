@@ -9,9 +9,18 @@ type FixCard = {
   conditional?: boolean
 }
 
+type SnippetPart = {
+  text: string
+  highlight?: boolean
+}
+
 type Snippet = {
   text: string
   highlight?: boolean
+  // When present, render the line with inline highlighted parts instead of
+  // applying the line-level `highlight` flag. `text` is still kept for any
+  // tooling that reads the full line content.
+  parts?: SnippetPart[]
 }
 
 // ── Blocking-route cards ──────────────────────────
@@ -32,8 +41,21 @@ const runtimeCards: FixCard[] = [
     conditional: true,
     snippets: [
       { text: 'export async function' },
-      { text: '  generateStaticParams() {', highlight: true },
-      { text: '  return [{ slug: "…" }]' },
+      {
+        text: '  generateStaticParams() {',
+        parts: [
+          { text: '  ' },
+          { text: 'generateStaticParams()', highlight: true },
+          { text: ' {' },
+        ],
+      },
+      {
+        text: '  return [{ slug: "…" }]',
+        parts: [
+          { text: '  return ' },
+          { text: '[{ slug: "…" }]', highlight: true },
+        ],
+      },
       { text: '}' },
     ],
   },
@@ -409,9 +431,20 @@ function CardGrid({ cards }: { cards: FixCard[] }) {
               <span
                 key={i}
                 data-snippet-line
-                data-snippet-highlight={s.highlight || undefined}
+                data-snippet-highlight={
+                  !s.parts && s.highlight ? '' : undefined
+                }
               >
-                {s.text}
+                {s.parts
+                  ? s.parts.map((p, j) => (
+                      <span
+                        key={j}
+                        data-snippet-highlight={p.highlight ? '' : undefined}
+                      >
+                        {p.text}
+                      </span>
+                    ))
+                  : s.text}
                 {'\n'}
               </span>
             ))}
@@ -554,24 +587,26 @@ export const INSTANT_GUIDANCE_STYLES = css`
     color: var(--color-gray-800);
   }
 
-  [data-snippet-line][data-snippet-highlight] {
+  [data-nextjs-fix-snippet] [data-snippet-highlight] {
     color: var(--color-gray-1000);
     font-weight: 500;
   }
 
-  [data-card-color='blue'] [data-snippet-line][data-snippet-highlight] {
+  [data-card-color='blue'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
     color: var(--color-blue-800);
   }
 
-  [data-card-color='purple'] [data-snippet-line][data-snippet-highlight] {
+  [data-card-color='purple']
+    [data-nextjs-fix-snippet]
+    [data-snippet-highlight] {
     color: var(--color-instant-text-purple);
   }
 
-  [data-card-color='red'] [data-snippet-line][data-snippet-highlight] {
+  [data-card-color='red'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
     color: var(--color-red-800);
   }
 
-  [data-card-color='amber'] [data-snippet-line][data-snippet-highlight] {
+  [data-card-color='amber'] [data-nextjs-fix-snippet] [data-snippet-highlight] {
     color: var(--color-instant-text-amber);
   }
 `
