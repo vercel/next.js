@@ -173,6 +173,11 @@ export async function getTypeScriptConfiguration(
           result.options.paths
         ) as import('typescript').MapLike<string[]>
         delete (result.options as { baseUrl?: unknown }).baseUrl
+        // After removing baseUrl, TypeScript uses pathsBasePath to determine the
+        // base directory for resolving rewritten path aliases. Set it to the
+        // tsconfig directory so the rewritten ../../... aliases resolve relative
+        // to the app dir, matching webpack's JsConfigPathsPlugin behavior.
+        result.options.pathsBasePath = path.dirname(path.resolve(tsConfigPath))
       }
     }
 
