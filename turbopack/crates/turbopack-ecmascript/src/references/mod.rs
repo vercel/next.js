@@ -1505,7 +1505,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                 add_effects(block.effects);
                 value
             }
-            EffectArg::Spread => JsValue::unknown_empty(true, "spread is not supported yet"),
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
         })
         .collect::<Vec<_>>();
 
@@ -1627,7 +1629,9 @@ async fn handle_dynamic_import<G: Fn(Vec<Effect>) + Send + Sync>(
                 add_effects(block.effects);
                 value
             }
-            EffectArg::Spread => JsValue::unknown_empty(true, "spread is not supported yet"),
+            EffectArg::Spread => {
+                JsValue::unknown_empty(true, rcstr!("spread is not supported yet"))
+            }
         })
         .collect();
 
@@ -3442,7 +3446,7 @@ async fn value_visitor_inner(
         ) => {
             // import.meta.glob() result is handled by the effect handler;
             // in value_visitor_inner we just return unknown.
-            v.into_unknown(false, "import.meta.glob()")
+            v.into_unknown(false, rcstr!("import.meta.glob()"))
         }
         JsValue::Call(
             _,
@@ -3462,7 +3466,7 @@ async fn value_visitor_inner(
             // analysis when a new file gets added
             v.into_unknown(
                 true,
-                "require.context() static analysis is currently limited",
+                rcstr!("require.context() static analysis is currently limited"),
             )
         }
         JsValue::Call(
@@ -3487,7 +3491,7 @@ async fn value_visitor_inner(
                     rel.clone(),
                 )))
             } else {
-                v.into_unknown(true, "createRequire() non constant")
+                v.into_unknown(true, rcstr!("createRequire() non constant"))
             }
         }
         JsValue::New(
@@ -3507,10 +3511,10 @@ async fn value_visitor_inner(
                 if prop.as_str() == "url" {
                     JsValue::Url(url.clone(), JsValueUrlKind::Relative)
                 } else {
-                    v.into_unknown(true, "new URL() non constant")
+                    v.into_unknown(true, rcstr!("new URL() non constant"))
                 }
             } else {
-                v.into_unknown(true, "new non constant")
+                v.into_unknown(true, rcstr!("new non constant"))
             }
         }
         JsValue::WellKnownFunction(
@@ -3520,7 +3524,7 @@ async fn value_visitor_inner(
         ) => {
             if ignore {
                 return Ok((
-                    JsValue::unknown(v, true, "ignored well known function"),
+                    JsValue::unknown(v, true, rcstr!("ignored well known function")),
                     true,
                 ));
             } else {
@@ -3535,25 +3539,25 @@ async fn value_visitor_inner(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                 true,
-                "ignored require",
+                rcstr!("ignored require"),
             ),
             "import" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                 true,
-                "ignored import",
+                rcstr!("ignored import"),
             ),
             "Worker" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                 true,
-                "ignored Worker constructor",
+                rcstr!("ignored Worker constructor"),
             ),
             "SharedWorker" => JsValue::unknown_if(
                 ignore,
                 JsValue::WellKnownFunction(WellKnownFunctionKind::SharedWorkerConstructor),
                 true,
-                "ignored SharedWorker constructor",
+                rcstr!("ignored SharedWorker constructor"),
             ),
             "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
             "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
@@ -3569,10 +3573,13 @@ async fn value_visitor_inner(
             // TODO check externals
             .then(|| module_value_to_well_known_object(mv))
             .flatten()
-            .unwrap_or_else(|| v.into_unknown(true, "cross module analyzing is not yet supported")),
-        JsValue::Argument(..) => {
-            v.into_unknown(true, "cross function analyzing is not yet supported")
-        }
+            .unwrap_or_else(|| {
+                v.into_unknown(true, rcstr!("cross module analyzing is not yet supported"))
+            }),
+        JsValue::Argument(..) => v.into_unknown(
+            true,
+            rcstr!("cross function analyzing is not yet supported"),
+        ),
         _ => {
             let (mut v, mut modified) =
                 replace_well_known(v, compile_time_info, allow_project_root_tracing).await?;
@@ -3619,7 +3626,7 @@ async fn require_resolve_visitor(
                     args,
                 ),
                 false,
-                "unresolvable request",
+                rcstr!("unresolvable request"),
             ),
             1 => values.pop().unwrap(),
             _ => JsValue::alternatives(values),
@@ -3633,7 +3640,7 @@ async fn require_resolve_visitor(
                 args,
             ),
             true,
-            "only a single argument is supported",
+            rcstr!("only a single argument is supported"),
         )
     })
 }
@@ -3653,7 +3660,7 @@ async fn require_context_visitor(
                     args,
                 ),
                 true,
-                PrettyPrintError(&err).to_string(),
+                PrettyPrintError(&err).to_string().into(),
             ));
         }
     };

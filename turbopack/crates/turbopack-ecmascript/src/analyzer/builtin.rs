@@ -1,5 +1,7 @@
 use std::mem::take;
 
+use turbo_rcstr::rcstr;
+
 use super::{ConstantNumber, ConstantValue, JsValue, LogicalOperator, LogicalProperty, ObjectPart};
 use crate::analyzer::JsValueUrlKind;
 
@@ -19,7 +21,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                     has_side_effects,
                 } => {
                     let has_side_effects = has_side_effects || args_have_side_effects();
-                    value.make_unknown(has_side_effects, "unknown callee");
+                    value.make_unknown(has_side_effects, rcstr!("unknown callee"));
                     true
                 }
                 // We known that these callee will lead to an error at runtime, so we can skip
@@ -34,7 +36,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                 | JsValue::Add(_, _)
                 | JsValue::Not(_, _) => {
                     let has_side_effects = args_have_side_effects();
-                    value.make_unknown(has_side_effects, "non-function callee");
+                    value.make_unknown(has_side_effects, rcstr!("non-function callee"));
                     true
                 }
                 _ => false,
@@ -58,7 +60,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                 } => {
                     let side_effects =
                         has_side_effects || prop.has_side_effects() || args_have_side_effects();
-                    value.make_unknown(side_effects, "unknown callee object");
+                    value.make_unknown(side_effects, rcstr!("unknown callee object"));
                     true
                 }
                 // otherwise we need to look at the property
@@ -70,7 +72,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
                         has_side_effects,
                     } => {
                         let side_effects = has_side_effects || args_have_side_effects();
-                        value.make_unknown(side_effects, "unknown callee property");
+                        value.make_unknown(side_effects, rcstr!("unknown callee property"));
                         true
                     }
                     _ => false,
@@ -89,7 +91,7 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
             box ref mut prop,
         ) => {
             let side_effects = has_side_effects || prop.has_side_effects();
-            value.make_unknown(side_effects, "unknown object");
+            value.make_unknown(side_effects, rcstr!("unknown object"));
             true
         }
         _ => false,
@@ -143,7 +145,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     items.push(JsValue::unknown(
                         JsValue::member(Box::new(JsValue::array(Vec::new())), Box::new(take(prop))),
                         false,
-                        "unknown array prototype methods or values",
+                        rcstr!("unknown array prototype methods or values"),
                     ));
                     JsValue::alternatives(take(items))
                 }
@@ -162,19 +164,19 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 *value = JsValue::unknown(
                                     JsValue::member(Box::new(take(obj)), Box::new(take(prop))),
                                     false,
-                                    "invalid index",
+                                    rcstr!("invalid index"),
                                 );
                                 true
                             }
                         } else {
-                            value.make_unknown(false, "non-num constant property on array");
+                            value.make_unknown(false, rcstr!("non-num constant property on array"));
                             true
                         }
                     }
                     // accessing a non-numeric property on an array like `[1,2,3].length`
                     // We don't know what happens here
                     JsValue::Constant(_) => {
-                        value.make_unknown(false, "non-num constant property on array");
+                        value.make_unknown(false, rcstr!("non-num constant property on array"));
                         true
                     }
                     // accessing multiple alternative properties on an array like `[1,2,3][(1 | 2 |
@@ -224,7 +226,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                         prop.clone(),
                                     ),
                                     true,
-                                    "spread object",
+                                    rcstr!("spread object"),
                                 ));
                             }
                         }
@@ -236,7 +238,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                 Box::new(take(prop)),
                             ),
                             true,
-                            "unknown object prototype methods or values",
+                            rcstr!("unknown object prototype methods or values"),
                         ));
                     }
                     JsValue::alternatives(values)
@@ -301,7 +303,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                     }
                                 }
                                 ObjectPart::Spread(_) => {
-                                    value.make_unknown(true, "spread object");
+                                    value.make_unknown(true, rcstr!("spread object"));
                                     return true;
                                 }
                             }
@@ -441,13 +443,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                     *value = JsValue::alternatives(
                         take(values)
                             .into_iter()
-                            .map(|alt| {
-                                JsValue::member_call(
-                                    Box::new(alt),
-                                    Box::new(prop.clone()),
-                                    args.clone(),
-                                )
-                            })
+                            .map(|alt| JsValue::member_call(alt, prop.clone(), args.clone()))
                             .collect(),
                     );
                     return true;

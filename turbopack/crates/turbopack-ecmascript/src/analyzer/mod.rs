@@ -23,7 +23,7 @@ use swc_core::{
     },
 };
 use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, FxIndexSet, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefinableNameSegmentRef, DefinableNameSegmentRefs, FreeVarReference,
@@ -413,7 +413,7 @@ pub enum JsValue {
     /// info. Has a reason string for explanation.
     Unknown {
         original_value: Option<Arc<JsValue>>,
-        reason: Cow<'static, str>,
+        reason: RcStr,
         has_side_effects: bool,
     },
 
@@ -549,11 +549,11 @@ impl fmt::Debug for MemberCallList {
 }
 
 impl MemberCallList {
-    fn new(obj: Box<JsValue>, prop: Box<JsValue>, args: Vec<JsValue>) -> Self {
+    fn new(obj: JsValue, prop: JsValue, args: Vec<JsValue>) -> Self {
         let mut list = args;
         list.reserve_exact(2);
-        list.push(*prop);
-        list.push(*obj);
+        list.push(prop);
+        list.push(obj);
         Self(list)
     }
 
@@ -706,16 +706,17 @@ impl TryFrom<&FreeVarReference> for JsValue {
     fn try_from(value: &FreeVarReference) -> Result<Self> {
         match value {
             FreeVarReference::Value(v) => v.try_into(),
-            FreeVarReference::Ident(_) => {
-                Ok(JsValue::unknown_empty(false, "compile time injected ident"))
-            }
+            FreeVarReference::Ident(_) => Ok(JsValue::unknown_empty(
+                false,
+                rcstr!("compile time injected ident"),
+            )),
             FreeVarReference::Member(_, _) => Ok(JsValue::unknown_empty(
                 false,
-                "compile time injected member",
+                rcstr!("compile time injected member"),
             )),
             FreeVarReference::EcmaScriptModule { .. } => Ok(JsValue::unknown_empty(
                 false,
-                "compile time injected free var module",
+                rcstr!("compile time injected free var module"),
             )),
             FreeVarReference::ReportUsage { inner, .. } => {
                 if let Some(inner) = &inner {
@@ -723,7 +724,7 @@ impl TryFrom<&FreeVarReference> for JsValue {
                 } else {
                     Ok(JsValue::unknown_empty(
                         false,
-                        "compile time injected free var error",
+                        rcstr!("compile time injected free var error"),
                     ))
                 }
             }
@@ -733,10 +734,10 @@ impl TryFrom<&FreeVarReference> for JsValue {
                     false,
                     match kind {
                         InputRelativeConstant::DirName => {
-                            "compile time injected free var referencing the directory name"
+                            rcstr!("compile time injected free var referencing the directory name")
                         }
                         InputRelativeConstant::FileName => {
-                            "compile time injected free var referencing the file name"
+                            rcstr!("compile time injected free var referencing the file name")
                         }
                     },
                 ))
@@ -747,7 +748,7 @@ impl TryFrom<&FreeVarReference> for JsValue {
 
 impl Default for JsValue {
     fn default() -> Self {
-        JsValue::unknown_empty(false, "")
+        JsValue::unknown_empty(false, rcstr!(""))
     }
 }
 
@@ -1167,7 +1168,7 @@ impl JsValue {
         Self::SuperCall(1 + total_nodes(&args), args)
     }
 
-    pub fn member_call(o: Box<JsValue>, p: Box<JsValue>, args: Vec<JsValue>) -> Self {
+    pub fn member_call(o: JsValue, p: JsValue, args: Vec<JsValue>) -> Self {
         let total = 1 + o.total_nodes() + p.total_nodes() + total_nodes(&args);
         Self::MemberCall(total, MemberCallList::new(o, p, args))
     }
@@ -1188,36 +1189,27 @@ impl JsValue {
         Self::Awaited(1 + operand.total_nodes(), operand)
     }
 
-    pub fn unknown(
-        value: impl Into<Arc<JsValue>>,
-        side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
-    ) -> Self {
+    pub fn unknown(value: impl Into<Arc<JsValue>>, side_effects: bool, reason: RcStr) -> Self {
         Self::Unknown {
             original_value: Some(value.into()),
-            reason: reason.into(),
+            reason,
             has_side_effects: side_effects,
         }
     }
 
-    pub fn unknown_empty(side_effects: bool, reason: impl Into<Cow<'static, str>>) -> Self {
+    pub fn unknown_empty(side_effects: bool, reason: RcStr) -> Self {
         Self::Unknown {
             original_value: None,
-            reason: reason.into(),
+            reason,
             has_side_effects: side_effects,
         }
     }
 
-    pub fn unknown_if(
-        is_unknown: bool,
-        value: JsValue,
-        side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
-    ) -> Self {
+    pub fn unknown_if(is_unknown: bool, value: JsValue, side_effects: bool, reason: RcStr) -> Self {
         if is_unknown {
             Self::Unknown {
                 original_value: Some(value.into()),
-                reason: reason.into(),
+                reason,
                 has_side_effects: side_effects,
             }
         } else {
@@ -2032,27 +2024,19 @@ impl JsValue {
 // Unknown management
 impl JsValue {
     /// Convert the value into unknown with a specific reason.
-    pub fn make_unknown(&mut self, side_effects: bool, reason: impl Into<Cow<'static, str>>) {
+    pub fn make_unknown(&mut self, side_effects: bool, reason: RcStr) {
         *self = JsValue::unknown(take(self), side_effects || self.has_side_effects(), reason);
     }
 
     /// Convert the owned value into unknown with a specific reason.
-    pub fn into_unknown(
-        mut self,
-        side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
-    ) -> Self {
+    pub fn into_unknown(mut self, side_effects: bool, reason: RcStr) -> Self {
         self.make_unknown(side_effects, reason);
         self
     }
 
     /// Convert the value into unknown with a specific reason, but don't retain
     /// the original value.
-    pub fn make_unknown_without_content(
-        &mut self,
-        side_effects: bool,
-        reason: impl Into<Cow<'static, str>>,
-    ) {
+    pub fn make_unknown_without_content(&mut self, side_effects: bool, reason: RcStr) {
         *self = JsValue::unknown_empty(side_effects || self.has_side_effects(), reason);
     }
 
@@ -2060,7 +2044,7 @@ impl JsValue {
     pub fn make_nested_operations_unknown(&mut self) -> bool {
         fn inner(this: &mut JsValue) -> bool {
             if matches!(this.meta_type(), JsValueMetaKind::Operation) {
-                this.make_unknown(false, "nested operation");
+                this.make_unknown(false, rcstr!("nested operation"));
                 true
             } else {
                 this.for_each_children_mut(&mut inner)
@@ -2074,7 +2058,10 @@ impl JsValue {
     }
 
     pub fn add_unknown_mutations(&mut self, side_effects: bool) {
-        self.add_alt(JsValue::unknown_empty(side_effects, "unknown mutation"));
+        self.add_alt(JsValue::unknown_empty(
+            side_effects,
+            rcstr!("unknown mutation"),
+        ));
     }
 }
 
@@ -3677,7 +3664,7 @@ pub mod test_utils {
                         annotations: None,
                     }))
                 }
-                _ => v.into_unknown(true, "import() non constant"),
+                _ => v.into_unknown(true, rcstr!("import() non constant")),
             },
             JsValue::Call(
                 _,
@@ -3695,7 +3682,7 @@ pub mod test_utils {
                 {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
                 } else {
-                    v.into_unknown(true, "createRequire() non constant")
+                    v.into_unknown(true, rcstr!("createRequire() non constant"))
                 }
             }
             JsValue::Call(
@@ -3704,13 +3691,13 @@ pub mod test_utils {
                 ref args,
             ) => match &args[0] {
                 JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
-                _ => v.into_unknown(true, "require.resolve non constant"),
+                _ => v.into_unknown(true, rcstr!("require.resolve non constant")),
             },
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
                 _,
-            ) => v.into_unknown(false, "import.meta.glob()"),
+            ) => v.into_unknown(false, rcstr!("import.meta.glob()")),
             JsValue::Call(
                 _,
                 box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
@@ -3736,7 +3723,7 @@ pub mod test_utils {
                         Box::new(RequireContextValue(map)),
                     ))
                 }
-                Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
+                Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string().into()),
             },
             JsValue::New(
                 _,
@@ -3756,10 +3743,10 @@ pub mod test_utils {
                         // TODO avoid clone
                         JsValue::Url(url.clone(), JsValueUrlKind::Relative)
                     } else {
-                        v.into_unknown(true, "new non constant")
+                        v.into_unknown(true, rcstr!("new non constant"))
                     }
                 } else {
-                    v.into_unknown(true, "new non constant")
+                    v.into_unknown(true, rcstr!("new non constant"))
                 }
             }
             JsValue::FreeVar(ref var) => match &**var {
@@ -3770,26 +3757,26 @@ pub mod test_utils {
                     ignore,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require),
                     true,
-                    "ignored require",
+                    rcstr!("ignored require"),
                 ),
                 "import" => JsValue::unknown_if(
                     ignore,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
                     true,
-                    "ignored import",
+                    rcstr!("ignored import"),
                 ),
                 "Worker" => JsValue::unknown_if(
                     ignore,
                     JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor),
                     true,
-                    "ignored Worker constructor",
+                    rcstr!("ignored Worker constructor"),
                 ),
                 "define" => JsValue::WellKnownFunction(WellKnownFunctionKind::Define),
                 "URL" => JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
                 "process" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProcessModule),
                 "Object" => JsValue::WellKnownObject(WellKnownObjectKind::GlobalObject),
                 "Buffer" => JsValue::WellKnownObject(WellKnownObjectKind::NodeBuffer),
-                _ => v.into_unknown(true, "unknown global"),
+                _ => v.into_unknown(true, rcstr!("unknown global")),
             },
             JsValue::Module(ref mv) => {
                 if let Some(wko) = module_value_to_well_known_object(mv) {
@@ -3826,6 +3813,7 @@ mod tests {
         },
         testing::{NormalizedOutput, fixture, run_test},
     };
+    use turbo_rcstr::rcstr;
     use turbo_tasks::{ResolvedVc, util::FormatDuration};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
@@ -4061,7 +4049,8 @@ mod tests {
                                         );
                                     }
                                     EffectArg::Spread => {
-                                        new_args.push(JsValue::unknown_empty(true, "spread"));
+                                        new_args
+                                            .push(JsValue::unknown_empty(true, rcstr!("spread")));
                                     }
                                 }
                             }
@@ -4187,7 +4176,7 @@ mod tests {
                                     handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
-                                    JsValue::member_call(Box::new(obj), Box::new(prop), new_args),
+                                    JsValue::member_call(obj, prop, new_args),
                                 ));
                                 obj_steps + prop_steps
                             }
@@ -4206,7 +4195,7 @@ mod tests {
                             Effect::Unreachable { .. } => {
                                 resolved.push((
                                     format!("{parent} -> {i} unreachable"),
-                                    JsValue::unknown_empty(true, "unreachable"),
+                                    JsValue::unknown_empty(true, rcstr!("unreachable")),
                                 ));
                                 0
                             }
@@ -4301,5 +4290,11 @@ mod tests {
         })
         .await
         .unwrap()
+    }
+
+    #[test]
+    #[cfg(target_pointer_width = "64")]
+    fn jsvalue_size() {
+        assert_eq!(40, size_of::<JsValue>());
     }
 }
