@@ -590,26 +590,39 @@ export class IncrementalCache implements IncrementalCacheType {
         ctx.isFallback
       )
 
-      isStale =
-        revalidateAfter !== false && revalidateAfter < now ? true : undefined
+      // If the route's `expire` time has passed, force a blocking revalidation
+      // by signalling `isStale = -1`. The response cache treats `-1` as "skip
+      // the early SWR resolve" and awaits a fresh render before the user sees a
+      // response.
+      const expireAfter =
+        typeof cacheControl?.expire === 'number'
+          ? cacheControl.expire * 1000 + lastModified
+          : undefined
 
-      // If the stale time couldn't be determined based on the revalidation
-      // time, we check if the tags are expired or stale.
-      if (
-        isStale === undefined &&
-        (cacheData?.value?.kind === CachedRouteKind.APP_PAGE ||
-          cacheData?.value?.kind === CachedRouteKind.APP_ROUTE)
-      ) {
-        const tagsHeader = cacheData.value.headers?.[NEXT_CACHE_TAGS_HEADER]
+      if (expireAfter !== undefined && expireAfter < now) {
+        isStale = -1
+      } else {
+        isStale =
+          revalidateAfter !== false && revalidateAfter < now ? true : undefined
 
-        if (typeof tagsHeader === 'string') {
-          const cacheTags = tagsHeader.split(',')
+        // If the stale time couldn't be determined based on the revalidation
+        // time, we check if the tags are expired or stale.
+        if (
+          isStale === undefined &&
+          (cacheData?.value?.kind === CachedRouteKind.APP_PAGE ||
+            cacheData?.value?.kind === CachedRouteKind.APP_ROUTE)
+        ) {
+          const tagsHeader = cacheData.value.headers?.[NEXT_CACHE_TAGS_HEADER]
 
-          if (cacheTags.length > 0) {
-            if (areTagsExpired(cacheTags, lastModified)) {
-              isStale = -1
-            } else if (areTagsStale(cacheTags, lastModified)) {
-              isStale = true
+          if (typeof tagsHeader === 'string') {
+            const cacheTags = tagsHeader.split(',')
+
+            if (cacheTags.length > 0) {
+              if (areTagsExpired(cacheTags, lastModified)) {
+                isStale = -1
+              } else if (areTagsStale(cacheTags, lastModified)) {
+                isStale = true
+              }
             }
           }
         }

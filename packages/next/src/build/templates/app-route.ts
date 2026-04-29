@@ -387,7 +387,17 @@ export async function handler(
             const expire =
               typeof context.renderOpts.collectedExpire === 'undefined' ||
               context.renderOpts.collectedExpire >= INFINITE_CACHE
-                ? undefined
+                ? // Fall back to the global `expireTime` config when the
+                  // route has a numeric `revalidate` but didn't declare an
+                  // explicit `expire` (e.g. via `cacheLife`). This mirrors the
+                  // build-time fallback in `build/index.ts` so cache entries
+                  // and the response Cache-Control header agree on the route's
+                  // effective expire. Routes that opt out of revalidation
+                  // (`revalidate: false`) or that are dynamic (`revalidate: 0`)
+                  // keep `expire: undefined`.
+                  revalidate !== false && revalidate > 0
+                  ? nextConfig.expireTime
+                  : undefined
                 : context.renderOpts.collectedExpire
 
             // Create the cache entry for the response.

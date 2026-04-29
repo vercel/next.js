@@ -169,6 +169,7 @@
       "test/e2e/app-dir/error-boundary-navigation/index.test.ts",
       "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts",
       "test/e2e/app-dir/errors/index.test.ts",
+      "test/e2e/app-dir/expire-time/**/*",
       "test/e2e/app-dir/fallback-prefetch/fallback-prefetch.test.ts",
       "test/e2e/app-dir/fallback-shells/**/*",
       "test/e2e/app-dir/forbidden/basic/forbidden-basic.test.ts",

@@ -361,6 +361,24 @@ export const getHandler = ({
                   let cacheControl: CacheControl | undefined =
                     metadata.cacheControl
 
+                  // Apply the `expireTime` fallback as soon as we have the
+                  // render's `cacheControl`, so every downstream consumer (the
+                  // cache stored via `incrementalCache.set`, the response
+                  // Cache-Control header, the outgoing entry returned from this
+                  // responseGenerator) sees a finalized `cacheControl` with a
+                  // populated `expire`. This mirrors the build-time fallback in
+                  // `build/index.ts` so we don't apply an expire to routes that
+                  // opt out of revalidation entirely (`revalidate: false`) or
+                  // that are dynamic (`revalidate: 0`).
+                  if (
+                    cacheControl &&
+                    cacheControl.revalidate !== false &&
+                    cacheControl.revalidate > 0 &&
+                    cacheControl.expire === undefined
+                  ) {
+                    cacheControl.expire = nextConfig.expireTime
+                  }
+
                   if ('isNotFound' in metadata && metadata.isNotFound) {
                     return {
                       value: null,
@@ -609,7 +627,7 @@ export const getHandler = ({
             }
             cacheControl = {
               revalidate: result.cacheControl.revalidate,
-              expire: result.cacheControl?.expire ?? nextConfig.expireTime,
+              expire: result.cacheControl.expire,
             }
           } else {
             // revalidate: false
