@@ -557,6 +557,11 @@ export abstract class RouteModule<
     const manifests = await this.loadManifests(srcPage, absoluteProjectDir)
     const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
 
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+
     const { basePath, i18n, rewrites } = routesManifest
 
     if (basePath) {
@@ -701,7 +706,13 @@ export abstract class RouteModule<
     }
 
     serverUtils.normalizeCdnUrl(req, combinedParamKeys)
-    serverUtils.normalizeQueryParams(query, routeParamKeys)
+    // When Next is not hosted in a single process, upstream proxies will add query values for route params that were used to match the route.
+    // Outside of that environment, there is no reason to do any normalization to honor those query values.
+    if (!routerServerContext?.isWrappedByNextServer) {
+      serverUtils.normalizeQueryParams(query, routeParamKeys)
+    } else {
+      serverUtils.filterInternalQuery(query, [])
+    }
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {
@@ -787,11 +798,6 @@ export abstract class RouteModule<
       isDraftMode = previewData !== false
     }
 
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest.config
 

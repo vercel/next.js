@@ -40,6 +40,8 @@ export type RouterServerContext = Record<
     logErrorWithOriginalStack?: (err: unknown, type: string) => void
     // allow setting ISR status in dev
     setIsrStatus?: (key: string, value: boolean | null) => void
+    // indicates request handlers are already wrapped by next-server
+    isWrappedByNextServer?: boolean
   }
 >
 
