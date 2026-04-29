@@ -3,12 +3,12 @@
 import React, {
   useRef,
   useEffect,
-  useCallback,
   useContext,
   useMemo,
   useState,
   forwardRef,
   use,
+  useLayoutEffect,
 } from 'react'
 import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
@@ -44,7 +44,7 @@ export type { ImageLoaderProps }
 export type ImageLoader = (p: ImageLoaderProps) => string
 
 type ImgElementWithDataProp = HTMLImageElement & {
-  'data-loaded-src': string | undefined
+  'data-loaded-src'?: string | undefined
 }
 
 type ImageElementProps = ImgProps & {
@@ -180,6 +180,15 @@ function getDynamicProps(
   return { fetchpriority: fetchPriority }
 }
 
+/**
+ * A version of useLayoutEffect that doesn't warn during SSR.
+ * TODO: Just useLayoutEffect once support for React 18 is dropped.
+ * Do not rename this to "isomorphic layout effect". There is no such thing as
+ * an isomorphic Layout Effect since there is no Layout on the server
+ */
+const useNonWarningLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect
+
 const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
   (
     {
@@ -207,18 +216,25 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     },
     forwardedRef
   ) => {
-    const ownRef = useCallback(
-      (img: ImgElementWithDataProp | null) => {
-        if (!img) {
-          return
-        }
+    const didInsertRef = useRef(false)
+    const insertedImgRef = useRef<HTMLImageElement>(null)
+
+    useNonWarningLayoutEffect(() => {
+      const { current: didInsert } = didInsertRef
+      const { current: img } = insertedImgRef
+
+      if (!didInsert && img !== null) {
+        // Replay events from during hydration that React doesn't replay.
         if (onError) {
           // If the image has an error before react hydrates, then the error is lost.
           // The workaround is to wait until the image is mounted which is after hydration,
           // then we set the src again to trigger the error handler (if there was an error).
+          // This doesn't just trigger the error handler but retries the whole request.
+          // TODO: Consider dispatching a synthetic event instead.
           // eslint-disable-next-line no-self-assign
           img.src = img.src
         }
+
         if (process.env.NODE_ENV !== 'production') {
           if (!src) {
             console.error(`Image is missing required "src" property:`, img)
@@ -240,22 +256,24 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
             sizesInput
           )
         }
-      },
-      [
-        src,
-        placeholder,
-        onLoadRef,
-        onLoadingCompleteRef,
-        setBlurComplete,
-        onError,
-        unoptimized,
-        sizesInput,
-      ]
-    )
+        didInsertRef.current = true
+      }
+    }, [
+      src,
+      placeholder,
+      onLoadRef,
+      onLoadingCompleteRef,
+      onError,
+      unoptimized,
+      sizesInput,
+    ])
 
-    const ref = useMergedRef(forwardedRef, ownRef)
+    const ref = useMergedRef(forwardedRef, insertedImgRef)
 
     return (
+      // If you move this element creation, also move the Layout Effect above
+      // reading from the ref. Otherwise we might run the Layout Effect when
+      // the current value isn't set to the HTMLImageElement instance.
       <img
         {...rest}
         {...getDynamicProps(fetchPriority)}
@@ -280,9 +298,9 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         src={src}
         ref={ref}
         onLoad={(event) => {
-          const img = event.currentTarget as ImgElementWithDataProp
+          const currentImage = event.currentTarget
           handleLoading(
-            img,
+            currentImage,
             placeholder,
             onLoadRef,
             onLoadingCompleteRef,
