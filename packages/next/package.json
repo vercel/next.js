@@ -105,7 +105,7 @@
     "@swc/helpers": "0.5.15",
     "baseline-browser-mapping": "^2.9.19",
     "caniuse-lite": "^1.0.30001579",
-    "postcss": "8.4.31",
+    "postcss": "8.5.10",
     "styled-jsx": "5.1.6"
   },
   "peerDependencies": {
