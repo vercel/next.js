@@ -2053,6 +2053,14 @@ function requireModule(metadata) {
   if (hasOwnProperty.call(moduleExports, metadata[2]))
     return moduleExports[metadata[2]];
 }
+function appendBackingEntry(backingStore, key, value) {
+  backingStore.data.append(key, value);
+  value = backingStore.keys;
+  null === value
+    ? ((backingStore.keys = Array.from(backingStore.data.keys())),
+      (backingStore.keyPointer = 0))
+    : value.push(key);
+}
 var RESPONSE_SYMBOL = Symbol();
 function ReactPromise(status, value, reason) {
   this.status = status;
@@ -2425,7 +2433,7 @@ function getChunk(response, id) {
   var chunks = response._chunks,
     chunk = chunks.get(id);
   chunk ||
-    ((chunk = response._formData.get(response._prefix + id)),
+    ((chunk = response._formData.data.get(response._prefix + id)),
     (chunk =
       "string" === typeof chunk
         ? createResolvedModelChunk(response, chunk, id)
@@ -2526,6 +2534,10 @@ function getOutlinedModel(
     case "fulfilled":
       id = chunk.value;
       chunk = chunk.reason;
+      if (null !== chunk && "error" in chunk)
+        throw Error(
+          "Expected an initialized chunk but got an initialized stream chunk instead. This payload may have been submitted by an older version of React."
+        );
       for (
         var localLength = 0,
           rootArrayContexts = response._rootArrayContexts,
@@ -2609,22 +2621,19 @@ function createMap(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Map initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Map.");
   model.$$consumed = !0;
-  response = new Map(model);
-  return response;
+  return new Map(model);
 }
 function createSet(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Set initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Set.");
   model.$$consumed = !0;
-  response = new Set(model);
-  return response;
+  return new Set(model);
 }
 function extractIterator(response, model) {
   if (!isArrayImpl(model)) throw Error("Invalid Iterator initializer.");
   if (!0 === model.$$consumed) throw Error("Already initialized Iterator.");
   model.$$consumed = !0;
-  response = model[Symbol.iterator]();
-  return response;
+  return model[Symbol.iterator]();
 }
 function createModel(response, model, parentObject, key) {
   return "then" === key && "function" === typeof model ? null : model;
@@ -2662,7 +2671,7 @@ function parseTypedArray(
       Error("Already initialized typed array.")
     )
   );
-  reference = response._formData.get(key).arrayBuffer();
+  reference = response._formData.data.get(key).arrayBuffer();
   if (initializingHandler) {
     var handler = initializingHandler;
     handler.deps++;
@@ -2706,7 +2715,7 @@ function resolveStream(response, id, stream, controller) {
   var chunks = response._chunks;
   stream = new ReactPromise("fulfilled", stream, controller);
   chunks.set(id, stream);
-  response = response._formData.getAll(response._prefix + id);
+  response = response._formData.data.getAll(response._prefix + id);
   for (id = 0; id < response.length; id++)
     (chunks = response[id]),
       "string" === typeof chunks &&
@@ -2921,24 +2930,31 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
           getOutlinedModel(response, arrayRoot, obj, key, null, createSet)
         );
       case "K":
-        obj = value.slice(2);
-        obj = response._prefix + obj + "_";
-        key = new FormData();
-        response = response._formData;
-        arrayRoot = Array.from(response.keys());
-        for (value = 0; value < arrayRoot.length; value++)
-          if (((reference = arrayRoot[value]), reference.startsWith(obj))) {
+        key = value.slice(2);
+        obj = response._prefix + "_";
+        key = obj + key + "_";
+        arrayRoot = new FormData();
+        for (response = response._formData; ; ) {
+          value = response.keys;
+          null === value &&
+            ((value = response.keys = Array.from(response.data.keys())),
+            (response.keyPointer = 0));
+          value = value[response.keyPointer];
+          if (void 0 === value) break;
+          if (value.startsWith(key)) {
+            reference = response.data.getAll(value);
             for (
-              var entries = response.getAll(reference),
-                newKey = reference.slice(obj.length),
-                j = 0;
-              j < entries.length;
-              j++
+              var referencedFormDataKey = value.slice(key.length), i = 0;
+              i < reference.length;
+              i++
             )
-              key.append(newKey, entries[j]);
-            response.delete(reference);
-          }
-        return key;
+              arrayRoot.append(referencedFormDataKey, reference[i]);
+            response.data.delete(value);
+            response.keyPointer++;
+          } else if (value.startsWith(obj)) break;
+          else response.keyPointer++;
+        }
+        return arrayRoot;
       case "i":
         return (
           (arrayRoot = value.slice(2)),
@@ -3097,7 +3113,7 @@ function parseModelString(response, obj, key, value, reference, arrayRoot) {
       case "B":
         return (
           (obj = parseInt(value.slice(2), 16)),
-          response._formData.get(response._prefix + obj)
+          response._formData.data.get(response._prefix + obj)
         );
       case "R":
         return parseReadableStream(response, value, void 0);
@@ -3125,7 +3141,7 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
   return {
     _bundlerConfig: bundlerConfig,
     _prefix: formFieldPrefix,
-    _formData: backingFormData,
+    _formData: { data: backingFormData, keyPointer: -1, keys: null },
     _chunks: chunks,
     _closed: !1,
     _closedReason: null,
@@ -3261,7 +3277,7 @@ exports.decodeReplyFromAsyncIterable = function (
       var name = entry[0];
       entry = entry[1];
       if ("string" === typeof entry) {
-        response._formData.append(name, entry);
+        appendBackingEntry(response._formData, name, entry);
         var prefix = response._prefix;
         if (name.startsWith(prefix)) {
           var chunks = response._chunks;
@@ -3269,7 +3285,7 @@ exports.decodeReplyFromAsyncIterable = function (
           (chunks = chunks.get(name)) &&
             resolveModelChunk(response, chunks, entry, name);
         }
-      } else response._formData.append(name, entry);
+      } else appendBackingEntry(response._formData, name, entry);
       iterator.next().then(progress, error);
     }
   }
