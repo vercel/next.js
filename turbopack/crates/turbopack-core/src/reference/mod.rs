@@ -16,7 +16,7 @@ use crate::{
         expand_output_assets,
     },
     raw_module::RawModule,
-    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, RequestKey},
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
 };
 pub mod source_map;
 
@@ -53,35 +53,6 @@ impl ModuleReferences {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
         Vc::cell(Vec::new())
-    }
-}
-
-/// A reference that always resolves to a single module.
-#[turbo_tasks::value]
-#[derive(ValueToString)]
-#[value_to_string(self.description)]
-pub struct SingleModuleReference {
-    module: ResolvedVc<Box<dyn Module>>,
-    description: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for SingleModuleReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(self.module)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl SingleModuleReference {
-    /// Create a new instance that resolves to the given module.
-    #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn Module>>, description: RcStr) -> Vc<Self> {
-        Self::cell(SingleModuleReference {
-            module,
-            description,
-        })
     }
 }
 
@@ -129,38 +100,6 @@ impl ModuleReference for SingleChunkableModuleReference {
             import: ImportUsage::TopLevel,
             export: self.export.clone(),
         }
-    }
-}
-
-/// A reference that always resolves to a single module.
-#[turbo_tasks::value]
-#[derive(ValueToString)]
-#[value_to_string(self.description)]
-pub struct SingleOutputAssetReference {
-    asset: ResolvedVc<Box<dyn OutputAsset>>,
-    description: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for SingleOutputAssetReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::output_asset(RequestKey::default(), self.asset)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl SingleOutputAssetReference {
-    /// Create a new `Vc<SingleOutputAssetReference>` that resolves to the given asset.
-    #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: RcStr) -> Vc<Self> {
-        Self::cell(SingleOutputAssetReference { asset, description })
-    }
-
-    /// The [`Vc<Box<dyn OutputAsset>>`][OutputAsset] that this reference resolves to.
-    #[turbo_tasks::function]
-    pub fn asset(&self) -> Vc<Box<dyn OutputAsset>> {
-        *self.asset
     }
 }
 

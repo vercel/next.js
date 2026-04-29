@@ -13,7 +13,6 @@ use turbopack_core::{
         ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
     },
     output::OutputAssetsWithReferenced,
-    reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
 use crate::{
@@ -143,29 +142,6 @@ impl Module for ManifestAsyncModule {
     #[turbo_tasks::function]
     fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
         Vc::cell(None)
-    }
-
-    #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let assets = self.chunk_group().expand_all_assets().await?;
-
-        Ok(Vc::cell(
-            assets
-                .into_iter()
-                .copied()
-                .map(|chunk| async move {
-                    Ok(ResolvedVc::upcast(
-                        SingleOutputAssetReference::new(
-                            *chunk,
-                            manifest_chunk_reference_description(),
-                        )
-                        .to_resolved()
-                        .await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        ))
     }
 
     #[turbo_tasks::function]
