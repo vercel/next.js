@@ -5,9 +5,17 @@ describe('metadata-files-static-output-intercepting-route', () => {
   if (process.env.__NEXT_CACHE_COMPONENTS) {
     // Cache Components build fails when metadata files are inside a dynamic route.
     //
-    // Route "/dynamic/[id]" has a `generateMetadata` that depends on Request data (`cookies()`, etc...)
-    // or uncached external data (`fetch(...)`, etc...) when the rest of the route does not.
-    // See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
+    // Route "/dynamic/[id]": Next.js encountered uncached or runtime data in `generateMetadata()`.
+    //
+    // This prevents the page from being prerendered, leading to a slower user experience.
+    //
+    // Ways to fix this:
+    //   - Use a static metadata export instead of `generateMetadata()`
+    //   - Cache the metadata with `"use cache"` in `generateMetadata()`
+    //   - Add a dynamic data access (e.g. `await connection()`) to the page to render it at request time
+    //   - Set `export const instant = false` to allow a blocking route
+    //
+    // Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata
     // Error occurred prerendering page "/dynamic/[id]". Read more: https://nextjs.org/docs/messages/prerender-error
     // Export encountered an error on /dynamic/[id]/page: /dynamic/[id], exiting the build.
     //

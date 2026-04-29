@@ -2262,24 +2262,10 @@ describe('instant validation', () => {
                  ],
                },
              ],
-             "code": "E1165",
-             "description": "Runtime data was accessed inside generateViewport()
-
-           Viewport metadata needs to be available on page load so accessing data that comes from a user Request while producing it prevents Next.js from prerendering an initial UI.cookies(), headers(), params, and searchParams are examples of Runtime data that can only come from a user request.
-
-           To fix this:
-
-           Remove the Runtime data requirement from generateViewport. This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
-
-           or
-
-           Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
-
-           params are usually considered Runtime data but if all params are provided a value using generateStaticParams they can be statically prerendered.
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "code": "E1208",
+             "description": "Next.js encountered runtime data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/suspense-in-root/head/invalid-runtime-viewport-in-static/page.tsx (11:16) @ Module.generateViewport
            > 11 |   await cookies()
                 |                ^",

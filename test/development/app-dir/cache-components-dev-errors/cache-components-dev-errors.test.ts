@@ -22,9 +22,9 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E394",
-       "description": "Route "/error" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "description": "Next.js encountered Math.random() during the initial render.",
        "environmentLabel": "Server",
-       "label": "Console Error",
+       "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page
      > 2 |   const random = Math.random()
          |                       ^",
@@ -52,9 +52,9 @@ describe('Cache Components Dev Errors', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      {
        "code": "E394",
-       "description": "Route "/error" used \`Math.random()\` before accessing either uncached data (e.g. \`fetch()\`) or Request data (e.g. \`cookies()\`, \`headers()\`, \`connection()\`, and \`searchParams\`). Accessing random values synchronously in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-random",
+       "description": "Next.js encountered Math.random() during the initial render.",
        "environmentLabel": "Server",
-       "label": "Console Error",
+       "label": "Instant",
        "source": "app/error/page.tsx (2:23) @ Page
      > 2 |   const random = Math.random()
          |                       ^",
