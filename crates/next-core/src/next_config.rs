@@ -1157,6 +1157,17 @@ pub struct ExperimentalConfig {
     turbopack_input_source_maps: Option<bool>,
     turbopack_tree_shaking: Option<bool>,
     turbopack_scope_hoisting: Option<bool>,
+    /// Custom URL prefix for Web Worker URLs (the entrypoint and the module
+    /// chunks loaded inside the worker) produced by
+    /// `new Worker(new URL(..., import.meta.url))`. Mirrors webpack's
+    /// `output.workerPublicPath`. When unset, Worker URLs use the regular
+    /// chunk base path (i.e. `assetPrefix` + `/_next/`).
+    ///
+    /// Like `assetPrefix`, the value is a prefix without a trailing slash
+    /// and without `/_next` — `/_next/` is appended automatically. An empty
+    /// string is a literal empty prefix; only `None` falls back to
+    /// `assetPrefix`.
+    turbopack_worker_asset_prefix: Option<RcStr>,
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
@@ -2270,6 +2281,18 @@ impl NextConfig {
                 .as_ref()
                 .and_then(|turbopack| turbopack.debug_ids)
                 .unwrap_or(false),
+        )
+    }
+
+    /// Returns the resolved worker chunk base path with `/_next/` appended,
+    /// or `None` to fall back to the regular chunk base path.
+    #[turbo_tasks::function]
+    pub fn turbopack_worker_asset_prefix(&self) -> Vc<Option<RcStr>> {
+        Vc::cell(
+            self.experimental
+                .turbopack_worker_asset_prefix
+                .as_ref()
+                .map(|prefix| format!("{}/_next/", prefix.trim_end_matches('/')).into()),
         )
     }
 
