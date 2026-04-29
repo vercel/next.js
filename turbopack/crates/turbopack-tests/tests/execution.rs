@@ -277,6 +277,8 @@ struct TestOptions {
     minify: bool,
     #[serde(default)]
     production_chunking: bool,
+    #[serde(default)]
+    manifest_chunks: bool,
 }
 
 fn default_tree_shaking_mode() -> Option<TreeShakingMode> {
@@ -296,6 +298,7 @@ impl Default for TestOptions {
             scope_hoisting: default_true(),
             minify: false,
             production_chunking: false,
+            manifest_chunks: false,
         }
     }
 }
@@ -553,6 +556,7 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
     } else {
         MinifyType::NoMinify
     })
+    .manifest_chunks(options.manifest_chunks)
     .export_usage(if options.remove_unused_exports {
         Some(binding_usage.unwrap().connect().to_resolved().await?)
     } else {
