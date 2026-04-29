@@ -11,6 +11,29 @@ const originalCodeFrame = (message: string) => {
 \u001b[0m \u001b[90m 5 \u001b[39m\u001b[0m`
 }
 
+const instantCodeFrame = ({
+  beforeLine,
+  line,
+  markerLine,
+  pointerColumn,
+  afterLine = 'return <div>Hello</div>',
+}: {
+  beforeLine: string
+  line: string
+  markerLine: number
+  pointerColumn: number
+  afterLine?: string
+}) => {
+  const markerPadding = ' '.repeat(Math.max(pointerColumn - 1, 0))
+
+  return `\u001b[0m \u001b[90m 1 \u001b[39m ${beforeLine}\u001b[0m
+\u001b[0m \u001b[90m ${markerLine - 1} \u001b[39m \u001b[36mexport\u001b[39m \u001b[36mdefault\u001b[39m \u001b[36masync\u001b[39m \u001b[36mfunction\u001b[39m \u001b[33mPage\u001b[39m() {\u001b[0m
+\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m ${markerLine} \u001b[39m   ${line}\u001b[0m
+\u001b[0m \u001b[90m   \u001b[39m   ${markerPadding}\u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m
+\u001b[0m \u001b[90m ${markerLine + 1} \u001b[39m   ${afterLine}\u001b[0m
+\u001b[0m \u001b[90m ${markerLine + 2} \u001b[39m }\u001b[0m`
+}
+
 const sourceStackFrame = {
   file: 'app/page.tsx',
   methodName: 'Home',
@@ -54,6 +77,48 @@ const frame = {
 const ignoredFrame = {
   ...frame,
   ignored: true,
+}
+
+function createStoryFrames({
+  reason,
+  file,
+  methodName,
+  line,
+  column,
+  codeFrame,
+}: {
+  reason: string
+  file: string
+  methodName: string
+  line: number
+  column: number
+  codeFrame: string
+}) {
+  return () =>
+    Promise.resolve([
+      {
+        error: true,
+        reason,
+        external: false,
+        ignored: false,
+        sourceStackFrame: {
+          file,
+          methodName,
+          arguments: [],
+          line1: line,
+          column1: column,
+        },
+        originalStackFrame: {
+          file,
+          methodName,
+          arguments: [],
+          line1: line,
+          column1: column,
+          ignored: false,
+        },
+        originalCodeFrame: codeFrame,
+      },
+    ])
 }
 
 export const errors: SupportedErrorEvent[] = [
@@ -285,6 +350,178 @@ export const runtimeErrors: ReadyRuntimeError[] = [
           originalCodeFrame: originalCodeFrame('Tenth error message'),
         },
       ]),
+    type: 'runtime',
+  },
+]
+
+export const instantRuntimeDataErrors: ReadyRuntimeError[] = [
+  {
+    id: 101,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/runtime-data": Next.js encountered runtime data during the initial render.\n\n`cookies()`, `headers()`, `params`, or `searchParams` accessed outside of `<Suspense>` blocks navigation, leading to a slower user experience.\n\nWays to fix this:\n  - Move the data access into a child component within a <Suspense> boundary\n  - Use `generateStaticParams` to make route params static\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+      ),
+      { __NEXT_ERROR_CODE: 'E1166' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/runtime-data": Next.js encountered runtime data during the initial render.',
+      file: 'app/instant/runtime-data/page.tsx',
+      methodName: 'Page',
+      line: 6,
+      column: 16,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { cookies } from 'next/headers'",
+        line: 'await cookies()',
+        markerLine: 6,
+        pointerColumn: 14,
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantUncachedDataErrors: ReadyRuntimeError[] = [
+  {
+    id: 102,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/uncached-data": Next.js encountered uncached data during the initial render.\n\n`fetch(...)` or `connection()` accessed outside of `<Suspense>` blocks navigation, leading to a slower user experience.\n\nWays to fix this:\n  - Cache the data access with `"use cache"`\n  - Move the data access into a child component within a <Suspense> boundary\n  - Set `export const instant = false` to allow a blocking route\n\nLearn more: https://nextjs.org/docs/messages/blocking-route'
+      ),
+      { __NEXT_ERROR_CODE: 'E1164' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/uncached-data": Next.js encountered uncached data during the initial render.',
+      file: 'app/instant/uncached-data/page.tsx',
+      methodName: 'Page',
+      line: 7,
+      column: 22,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { connection } from 'next/server'",
+        line: 'await fetch("https://example.com/api/data")',
+        markerLine: 7,
+        pointerColumn: 20,
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantViewportErrors: ReadyRuntimeError[] = [
+  {
+    id: 103,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/runtime-viewport": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateViewport`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport'
+      ),
+      { __NEXT_ERROR_CODE: 'E1165' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/runtime-viewport": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateViewport`.',
+      file: 'app/instant/runtime-viewport/page.tsx',
+      methodName: 'generateViewport',
+      line: 4,
+      column: 16,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { cookies } from 'next/headers'",
+        line: 'await cookies()',
+        markerLine: 4,
+        pointerColumn: 14,
+        afterLine: 'return { themeColor: "black" }',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantMetadataErrors: ReadyRuntimeError[] = [
+  {
+    id: 104,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/runtime-metadata": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateMetadata`, or you have file-based metadata such as icons that depend on dynamic params segments. Except for this instance, the page would have been entirely prerenderable which may have been the intended behavior. See more info here: https://nextjs.org/docs/messages/next-prerender-dynamic-metadata'
+      ),
+      { __NEXT_ERROR_CODE: 'E1168' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/runtime-metadata": Next.js encountered runtime data such as `cookies()`, `headers()`, `params`, or `searchParams` inside `generateMetadata`.',
+      file: 'app/instant/runtime-metadata/page.tsx',
+      methodName: 'generateMetadata',
+      line: 5,
+      column: 16,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { cookies } from 'next/headers'",
+        line: 'await cookies()',
+        markerLine: 5,
+        pointerColumn: 14,
+        afterLine: 'return { title: "Hello" }',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantCurrentTimeErrors: ReadyRuntimeError[] = [
+  {
+    id: 105,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/current-time" used `Date.now()` before accessing either uncached data (e.g. `fetch()`) or awaiting `connection()`. When configured for Runtime prefetching, accessing the current time in a Server Component requires reading one of these data sources first. Alternatively, consider moving this expression into a Client Component or Cache Component. See more info here: https://nextjs.org/docs/messages/next-prerender-runtime-current-time'
+      ),
+      { __NEXT_ERROR_CODE: 'E1078' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/current-time" used `Date.now()` before accessing either uncached data or awaiting `connection()`.',
+      file: 'app/instant/current-time/page.tsx',
+      methodName: 'Page',
+      line: 4,
+      column: 20,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import { connection } from 'next/server'",
+        line: 'const now = Date.now()',
+        markerLine: 4,
+        pointerColumn: 18,
+        afterLine: 'await connection()',
+      }),
+    }),
+    type: 'runtime',
+  },
+]
+
+export const instantValidationBlockedErrors: ReadyRuntimeError[] = [
+  {
+    id: 106,
+    runtime: true,
+    error: Object.assign(
+      new Error(
+        'Route "/instant/client-parent": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.'
+      ),
+      { __NEXT_ERROR_CODE: 'E1082' }
+    ),
+    frames: createStoryFrames({
+      reason:
+        'Route "/instant/client-parent": Could not validate `unstable_instant` because a Client Component in a parent segment prevented the page from rendering.',
+      file: 'app/instant/client-parent/page.tsx',
+      methodName: 'Page',
+      line: 3,
+      column: 1,
+      codeFrame: instantCodeFrame({
+        beforeLine: "import ClientShell from './client-shell'",
+        line: "'use client'",
+        markerLine: 3,
+        pointerColumn: 1,
+        afterLine: 'export const unstable_instant = true',
+      }),
+    }),
     type: 'runtime',
   },
 ]

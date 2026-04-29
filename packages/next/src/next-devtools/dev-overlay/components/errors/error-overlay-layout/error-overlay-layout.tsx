@@ -134,6 +134,10 @@ export function ErrorOverlayLayout({
                   // allow assertion in tests before error rating is implemented
                   data-nextjs-error-code={errorCode}
                 >
+                  <ErrorMessage
+                    errorMessage={errorMessage}
+                    errorType={errorType}
+                  />
                   <span data-nextjs-error-label-group>
                     <ErrorTypeLabel errorType={errorType} />
                     {error.environmentName && (
@@ -143,10 +147,6 @@ export function ErrorOverlayLayout({
                     )}
                   </span>
                 </div>
-                <ErrorMessage
-                  errorMessage={errorMessage}
-                  errorType={errorType}
-                />
               </ErrorOverlayDialogHeader>
 
               <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
@@ -178,5 +178,7 @@ export const styles = `
     display: flex;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 `

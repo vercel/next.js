@@ -30,13 +30,15 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
     isTooTall && errorType !== 'Blocking Route' && errorType !== 'Instant'
 
   return (
-    <div className="nextjs__container_errors_wrapper">
-      <div
-        ref={messageRef}
-        id="nextjs__container_errors_desc"
-        className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''} ${errorType === 'Instant' ? 'nextjs__container_errors_desc_instant' : ''}`}
-      >
-        {errorMessage}
+    <>
+      <div className="nextjs__container_errors_wrapper">
+        <div
+          ref={messageRef}
+          id="nextjs__container_errors_desc"
+          className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''} ${errorType === 'Instant' ? 'nextjs__container_errors_desc_instant' : ''}`}
+        >
+          {errorMessage}
+        </div>
       </div>
       {shouldTruncate && !isExpanded && (
         <>
@@ -51,13 +53,12 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
           </button>
         </>
       )}
-    </div>
+    </>
   )
 }
 
 export const styles = `
   .nextjs__container_errors_wrapper {
-    position: relative;
   }
 
   .nextjs__container_errors_desc {

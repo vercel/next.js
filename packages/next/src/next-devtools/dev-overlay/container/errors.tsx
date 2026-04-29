@@ -782,11 +782,12 @@ export const styles = `
   }
   .nextjs__container_errors__error_title {
     display: flex;
-    align-items: center;
+    align-items: start;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 8px;
     margin-bottom: 14px;
+    gap: 12px;
+    position: relative;
   }
   .error-overlay-notes-container {
     margin: 8px 2px;

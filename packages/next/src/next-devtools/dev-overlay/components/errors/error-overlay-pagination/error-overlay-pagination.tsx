@@ -165,7 +165,7 @@ export const styles = `
     color: var(--color-gray-900);
     text-align: center;
     font-size: var(--size-14);
-    font-weight: 500;
+    font-family: var(--font-mono);
     line-height: var(--size-16);
     font-variant-numeric: tabular-nums;
   }
