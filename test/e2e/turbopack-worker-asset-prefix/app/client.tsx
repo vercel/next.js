@@ -34,7 +34,7 @@ export default function ClientComponent() {
     try {
       // Trigger the turbopack `new Worker(new URL(..., import.meta.url))`
       // pattern. Result is intercepted by the patched Worker above.
-       
+
       new Worker(new URL('./worker.ts', import.meta.url))
     } catch {
       // Already captured by the patched constructor; React state will
