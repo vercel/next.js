@@ -82,10 +82,20 @@ async function createNextInstall({
         require('console').log('using provided pkg paths')
       } else {
         await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa('pnpm', ['turbo', 'run', 'pack-for-isolated-tests'], {
-            cwd: origRepoDir,
-            stdio: ['ignore', 'inherit', 'inherit'],
-          })
+          execa(
+            'pnpm',
+            [
+              'turbo',
+              'run',
+              'pack-for-isolated-tests',
+              '--output-logs',
+              'new-only',
+            ],
+            {
+              cwd: origRepoDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+            }
+          )
         )
 
         if (process.env.NEXT_TEST_WASM) {
