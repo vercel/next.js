@@ -11,7 +11,10 @@ use crate::{
         get_receiver_style, split_function_attributes,
     },
     global_name::{global_name_for_trait_method, global_name_for_type},
-    ident::{get_trait_default_impl_function_ident, get_trait_type_ident},
+    ident::{
+        get_trait_default_impl_function_ident, get_trait_type_ident,
+        get_trait_vtable_registry_ident,
+    },
     self_filter::is_self_used,
     value_trait_arguments::ValueTraitArguments,
 };
@@ -67,6 +70,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let supertraits = supertraits.iter().collect::<Vec<_>>();
 
     let trait_type_ident = get_trait_type_ident(trait_ident);
+    let trait_vtable_registry_ident = get_trait_vtable_registry_ident(trait_ident);
     let mut dynamic_trait_fns = Vec::new();
     let mut trait_methods: Vec<TokenStream2> = Vec::new();
     let mut default_methods: Vec<TokenStream2> = Vec::new();
@@ -335,20 +339,25 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             const DEFAULTS: &[Option<&turbo_tasks::macro_helpers::NativeFunction>] = &[#(#default_methods),*];
         }
 
+        // Per-trait `VTableRegistry`, populated during the ctor phase by `value_impl`
+        // expansions. `const`-constructible, so no `LazyLock` / first-access init. Kept
+        // private — the only reference is from the `VcValueTrait::IMPL_VTABLES` assoc const
+        // below.
+        #[doc(hidden)]
+        #[allow(non_upper_case_globals)]
+        static #trait_vtable_registry_ident:
+            turbo_tasks::macro_helpers::VTableRegistry<dyn #trait_ident> =
+            turbo_tasks::macro_helpers::VTableRegistry::new();
+
         #[automatically_derived]
         impl turbo_tasks::VcValueTrait for Box<dyn #trait_ident> {
             type ValueTrait = dyn #trait_ident;
 
+            const IMPL_VTABLES: &'static turbo_tasks::macro_helpers::VTableRegistry<Self::ValueTrait> =
+                &#trait_vtable_registry_ident;
+
             fn get_trait_type_id() -> turbo_tasks::TraitTypeId {
                 turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)
-            }
-
-            // TODO: Remove this Lazy VTableRegistry once trait resolution is fully migrated
-            fn get_impl_vtables() -> &'static turbo_tasks::macro_helpers::VTableRegistry<Self::ValueTrait> {
-                static registry: ::std::sync::LazyLock<turbo_tasks::macro_helpers::VTableRegistry<dyn # trait_ident>> =
-                    ::std::sync::LazyLock::new(|| turbo_tasks::macro_helpers::VTableRegistry::new(turbo_tasks::registry::get_trait_type_id(&#trait_type_ident)));
-
-                &*registry
             }
         }
 

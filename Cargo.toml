@@ -258,7 +258,7 @@ console-subscriber = "0.4.1"
 const_format = "0.2.30"
 crc32fast = "1.5.0"
 criterion = { package = "codspeed-criterion-compat", version = "4.3.0" }
-ctor = "0.8"
+ctor = "0.10"
 crossbeam-channel = "0.5.8"
 crossbeam-utils = "0.8"
 dashmap = "6.1.0"
