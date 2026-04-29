@@ -328,9 +328,7 @@ async fn to_single_pattern_mapping(
                     .to_unstyled_string(),
             ));
         }
-        ModuleResolveResultItem::OutputAsset(_)
-        | ModuleResolveResultItem::Empty
-        | ModuleResolveResultItem::Custom(_) => {
+        ModuleResolveResultItem::Empty | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug,
