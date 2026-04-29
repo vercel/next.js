@@ -155,7 +155,6 @@
   "with-segment-analytics-pages-router": true,
   "with-sentry": true,
   "with-service-worker": true,
-  "with-sfcc": true,
   "with-shallow-routing": true,
   "with-sitemap": true,
   "with-slate": true,
