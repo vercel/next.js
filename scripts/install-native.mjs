@@ -86,18 +86,24 @@ import { outdent } from 'outdent'
         `
     )
 
-    const args = [
-      'add',
-      `next@${nextVersion}`,
-      '--lockfile=false',
-      '--ignore-scripts',
-    ]
+    const args = ['install', '--lockfile=false', '--ignore-scripts']
     if (preferOffline) {
       args.push('--prefer-offline')
     }
     await execa('pnpm', args, { cwd: tmpdir })
 
-    let pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'))
+    /** @type {string[]} */
+    let pkgs
+    try {
+      pkgs = fs.readdirSync(path.join(tmpdir, 'node_modules/@next'), {})
+    } catch (error) {
+      throw new Error(
+        'No binary candidate found.\n' +
+          `This environment is not supported by Next.js or publish of ${nextVersion} is incomplete.\n` +
+          'If binaries are built from source, set `NEXT_SKIP_NATIVE_POSTINSTALL=1`.',
+        { cause: error }
+      )
+    }
     fs.mkdirSync(path.join(cwd, 'node_modules/@next'), { recursive: true })
 
     await Promise.all(
