@@ -1,4 +1,5 @@
 mod counter;
+mod memory_footprint;
 mod memory_pressure;
 
 use std::{
@@ -125,6 +126,19 @@ impl TurboMalloc {
     pub fn memory_pressure() -> Option<u8> {
         memory_pressure::memory_pressure()
     }
+
+    /// Returns the resident memory size of the current process in bytes, or
+    /// `None` when the current platform does not expose a memory footprint
+    /// signal or a query for it failed.
+    ///
+    /// - On Linux this is the resident set size from `/proc/self/statm`.
+    /// - On macOS this is `task_vm_info_data_t::phys_footprint` (what Apple calls "memory
+    ///   footprint" / Activity Monitor's "Memory" column).
+    /// - On Windows this is `PROCESS_MEMORY_COUNTERS::WorkingSetSize`.
+    /// - On other platforms this returns `None`.
+    pub fn memory_footprint() -> Option<usize> {
+        memory_footprint::memory_footprint()
+    }
 }
 
 /// Get the allocator for this platform that we should wrap with TurboMalloc.
@@ -212,6 +226,38 @@ mod tests {
         assert!(
             value <= 100,
             "memory_pressure() returned {value}, expected a value in 0..=100"
+        );
+    }
+
+    #[test]
+    fn memory_footprint_is_reported_on_supported_platforms() {
+        let value = TurboMalloc::memory_footprint();
+
+        // On all supported platforms the value must be reported.
+        #[cfg(any(
+            all(target_os = "linux", not(target_family = "wasm")),
+            target_os = "macos",
+            windows,
+        ))]
+        let value = value.expect("memory_footprint() should return Some on this platform");
+
+        // On unsupported platforms we expect None and have nothing further to assert.
+        #[cfg(not(any(
+            all(target_os = "linux", not(target_family = "wasm")),
+            target_os = "macos",
+            windows,
+        )))]
+        let Some(value) = value else {
+            return;
+        };
+
+        assert!(
+            value > 0,
+            "memory_footprint() returned {value}, expected a positive byte count"
+        );
+        assert!(
+            value < isize::MAX as usize,
+            "memory_footprint() returned {value}, which is implausibly large"
         );
     }
 }

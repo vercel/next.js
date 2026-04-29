@@ -24,11 +24,12 @@ pub type SpanId = NonZeroUsize;
 /// at the cut-off depth (Flattening).
 const CUT_OFF_DEPTH: u32 = 80;
 
-/// A single memory usage sample: (timestamp, memory_bytes, memory_pressure).
-/// Sorted by timestamp. `memory_pressure` is an OS-reported pressure value in
-/// the range `0..=100`; `0` is used when the reporter platform did not expose
-/// a pressure signal.
-type MemorySample = (Timestamp, u64, u8);
+/// A single memory usage sample: (timestamp, memory_bytes, memory_pressure,
+/// memory_footprint_bytes). Sorted by timestamp. `memory_pressure` is an
+/// OS-reported pressure value in the range `0..=100`; `memory_footprint` is
+/// the process resident memory size in bytes. `0` is used when the reporter
+/// platform did not expose the corresponding signal.
+type MemorySample = (Timestamp, u64, u8, u64);
 
 /// Maximum number of memory samples returned in a query result.
 const MAX_MEMORY_SAMPLES: usize = 200;
@@ -341,11 +342,18 @@ impl Store {
         span.self_deallocation_count += count;
     }
 
-    pub fn add_memory_sample(&mut self, ts: Timestamp, memory: u64, memory_pressure: u8) {
+    pub fn add_memory_sample(
+        &mut self,
+        ts: Timestamp,
+        memory: u64,
+        memory_pressure: u8,
+        memory_footprint: u64,
+    ) {
         // Samples arrive nearly sorted (roughly chronological from the trace
         // writer), so an insertion-sort step is efficient: push to the end
         // then swap backward until the timestamp ordering is restored.
-        self.memory_samples.push((ts, memory, memory_pressure));
+        self.memory_samples
+            .push((ts, memory, memory_pressure, memory_footprint));
         let mut i = self.memory_samples.len() - 1;
         while i > 0 && self.memory_samples[i - 1].0 > ts {
             self.memory_samples.swap(i, i - 1);
@@ -364,14 +372,14 @@ impl Store {
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, mem, _)| *mem).collect();
+            return slice.iter().map(|(_, mem, _, _)| *mem).collect();
         }
 
         // Merge groups of N samples, taking the max memory in each group.
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, mem, _)| *mem).max().unwrap())
+            .map(|chunk| chunk.iter().map(|(_, mem, _, _)| *mem).max().unwrap())
             .collect()
     }
 
@@ -388,13 +396,36 @@ impl Store {
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, _, p)| *p).collect();
+            return slice.iter().map(|(_, _, p, _)| *p).collect();
         }
 
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, _, p)| *p).max().unwrap())
+            .map(|chunk| chunk.iter().map(|(_, _, p, _)| *p).max().unwrap())
+            .collect()
+    }
+
+    /// Returns up to `MAX_MEMORY_SAMPLES` memory footprint values in the
+    /// range `[start, end]`. The returned slice has the same length and
+    /// group boundaries as [`Self::memory_samples_for_range`] so that the
+    /// two results can be rendered in parallel. Each group is downsampled
+    /// by taking the maximum footprint value.
+    pub fn memory_footprint_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
+        let slice = self.memory_samples_slice(start, end);
+        let count = slice.len();
+        if count == 0 {
+            return Vec::new();
+        }
+
+        if count <= MAX_MEMORY_SAMPLES {
+            return slice.iter().map(|(_, _, _, f)| *f).collect();
+        }
+
+        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        slice
+            .chunks(n)
+            .map(|chunk| chunk.iter().map(|(_, _, _, f)| *f).max().unwrap())
             .collect()
     }
 
@@ -402,9 +433,11 @@ impl Store {
         // Binary search for the first sample >= start
         let lo = self
             .memory_samples
-            .partition_point(|(ts, _, _)| *ts < start);
+            .partition_point(|(ts, _, _, _)| *ts < start);
         // Binary search for the first sample > end
-        let hi = self.memory_samples.partition_point(|(ts, _, _)| *ts <= end);
+        let hi = self
+            .memory_samples
+            .partition_point(|(ts, _, _, _)| *ts <= end);
         &self.memory_samples[lo..hi]
     }
 
