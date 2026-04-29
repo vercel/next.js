@@ -10127,8 +10127,10 @@ dependencies = [
 name = "turbo-tasks-malloc"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "libmimalloc-sys",
  "mimalloc",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

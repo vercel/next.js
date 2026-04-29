@@ -23,9 +23,11 @@ pub type SpanId = NonZeroUsize;
 /// at the cut-off depth (Flattening).
 const CUT_OFF_DEPTH: u32 = 80;
 
-/// A single memory usage sample: (timestamp, memory_bytes).
-/// Sorted by timestamp.
-type MemorySample = (Timestamp, u64);
+/// A single memory usage sample: (timestamp, memory_bytes, memory_pressure).
+/// Sorted by timestamp. `memory_pressure` is an OS-reported pressure value in
+/// the range `0..=100`; `0` is used when the reporter platform did not expose
+/// a pressure signal.
+type MemorySample = (Timestamp, u64, u8);
 
 /// Maximum number of memory samples returned in a query result.
 const MAX_MEMORY_SAMPLES: usize = 200;
@@ -340,11 +342,11 @@ impl Store {
         span.self_deallocation_count += count;
     }
 
-    pub fn add_memory_sample(&mut self, ts: Timestamp, memory: u64) {
+    pub fn add_memory_sample(&mut self, ts: Timestamp, memory: u64, memory_pressure: u8) {
         // Samples arrive nearly sorted (roughly chronological from the trace
         // writer), so an insertion-sort step is efficient: push to the end
         // then swap backward until the timestamp ordering is restored.
-        self.memory_samples.push((ts, memory));
+        self.memory_samples.push((ts, memory, memory_pressure));
         let mut i = self.memory_samples.len() - 1;
         while i > 0 && self.memory_samples[i - 1].0 > ts {
             self.memory_samples.swap(i, i - 1);
@@ -356,27 +358,55 @@ impl Store {
     /// `[start, end]`. When more samples exist, groups of N consecutive
     /// samples are merged by taking the maximum memory value in each group.
     pub fn memory_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u64> {
-        // Binary search for the first sample >= start
-        let lo = self.memory_samples.partition_point(|(ts, _)| *ts < start);
-        // Binary search for the first sample > end
-        let hi = self.memory_samples.partition_point(|(ts, _)| *ts <= end);
-
-        let slice = &self.memory_samples[lo..hi];
+        let slice = self.memory_samples_slice(start, end);
         let count = slice.len();
         if count == 0 {
             return Vec::new();
         }
 
         if count <= MAX_MEMORY_SAMPLES {
-            return slice.iter().map(|(_, mem)| *mem).collect();
+            return slice.iter().map(|(_, mem, _)| *mem).collect();
         }
 
         // Merge groups of N samples, taking the max memory in each group.
         let n = count.div_ceil(MAX_MEMORY_SAMPLES);
         slice
             .chunks(n)
-            .map(|chunk| chunk.iter().map(|(_, mem)| *mem).max().unwrap())
+            .map(|chunk| chunk.iter().map(|(_, mem, _)| *mem).max().unwrap())
             .collect()
+    }
+
+    /// Returns up to `MAX_MEMORY_SAMPLES` memory pressure values in the range
+    /// `[start, end]`. The returned slice has the same length and group
+    /// boundaries as [`Self::memory_samples_for_range`] so that the two
+    /// results can be rendered in parallel. Each group is downsampled by
+    /// taking the maximum pressure value.
+    pub fn memory_pressure_samples_for_range(&self, start: Timestamp, end: Timestamp) -> Vec<u8> {
+        let slice = self.memory_samples_slice(start, end);
+        let count = slice.len();
+        if count == 0 {
+            return Vec::new();
+        }
+
+        if count <= MAX_MEMORY_SAMPLES {
+            return slice.iter().map(|(_, _, p)| *p).collect();
+        }
+
+        let n = count.div_ceil(MAX_MEMORY_SAMPLES);
+        slice
+            .chunks(n)
+            .map(|chunk| chunk.iter().map(|(_, _, p)| *p).max().unwrap())
+            .collect()
+    }
+
+    fn memory_samples_slice(&self, start: Timestamp, end: Timestamp) -> &[MemorySample] {
+        // Binary search for the first sample >= start
+        let lo = self
+            .memory_samples
+            .partition_point(|(ts, _, _)| *ts < start);
+        // Binary search for the first sample > end
+        let hi = self.memory_samples.partition_point(|(ts, _, _)| *ts <= end);
+        &self.memory_samples[lo..hi]
     }
 
     pub fn complete_span(&mut self, span_index: SpanIndex) {
