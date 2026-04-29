@@ -458,11 +458,18 @@ pub enum JsValue {
     /// Binary expression e. g. `expr == expr`
     Binary(u32, Box<JsValue>, BinaryOperator, Box<JsValue>),
     /// A constructor call.
-    /// `(total_node_count, callee, args)`
-    New(u32, Box<JsValue>, Vec<JsValue>),
+    ///
+    /// `(total_node_count, list)` where `list` is a [`CallList`] with layout
+    /// `[args..., callee]`. Storing the callee at the tail lets `replace_builtin`-style
+    /// hot paths `pop` it off cheaply and reuse the remaining `Vec` as the owned args
+    /// with no reallocation. Unifying into one `Vec` drops the variant payload from
+    /// 40 to 32 bytes.
+    New(u32, CallList),
     /// A function call without a `this` context.
-    /// `(total_node_count, callee, args)`
-    Call(u32, Box<JsValue>, Vec<JsValue>),
+    ///
+    /// `(total_node_count, list)` where `list` is a [`CallList`] with layout
+    /// `[args..., callee]`. See [`JsValue::New`] for the size and hot-path rationale.
+    Call(u32, CallList),
     /// A super call to the parent constructor.
     /// `(total_node_count, args)`
     SuperCall(u32, Vec<JsValue>),
@@ -557,9 +564,49 @@ impl MemberCallList {
         Self(list)
     }
 
+    /// The receiver object. Lives at the tail of the underlying `Vec`.
+    pub fn obj(&self) -> &JsValue {
+        &self.0[self.0.len() - 1]
+    }
+
+    pub fn obj_mut(&mut self) -> &mut JsValue {
+        let n = self.0.len();
+        &mut self.0[n - 1]
+    }
+
+    /// The accessed property. Lives one slot before `obj`.
+    pub fn prop(&self) -> &JsValue {
+        &self.0[self.0.len() - 2]
+    }
+
+    pub fn prop_mut(&mut self) -> &mut JsValue {
+        let n = self.0.len();
+        &mut self.0[n - 2]
+    }
+
+    /// The call arguments — everything before `prop` and `obj`.
+    pub fn args(&self) -> &[JsValue] {
+        let n = self.0.len();
+        &self.0[..n - 2]
+    }
+
+    pub fn args_mut(&mut self) -> &mut [JsValue] {
+        let n = self.0.len();
+        &mut self.0[..n - 2]
+    }
+
+    /// Borrow `args`, `prop`, and `obj` simultaneously as mutable references. The single
+    /// `Vec` storage means callers can't get these via separate accessor calls.
+    pub fn as_parts_mut(&mut self) -> (&mut [JsValue], &mut JsValue, &mut JsValue) {
+        let n = self.0.len();
+        let (args, tail) = self.0.split_at_mut(n - 2);
+        let (prop_slot, obj_slot) = tail.split_at_mut(1);
+        (args, &mut prop_slot[0], &mut obj_slot[0])
+    }
+
     /// Take everything out. The returned `args` `Vec` reuses the original allocation — no
     /// copy. That's the point of storing obj/prop at the tail.
-    fn into_parts(mut self) -> (JsValue, JsValue, Vec<JsValue>) {
+    pub fn into_parts(mut self) -> (JsValue, JsValue, Vec<JsValue>) {
         let obj = self.0.pop().unwrap();
         let prop = self.0.pop().unwrap();
         (obj, prop, self.0)
@@ -567,14 +614,101 @@ impl MemberCallList {
 }
 
 impl std::ops::Deref for MemberCallList {
-    type Target = Vec<JsValue>;
-    fn deref(&self) -> &Vec<JsValue> {
+    type Target = [JsValue];
+    fn deref(&self) -> &[JsValue] {
         &self.0
     }
 }
 
 impl std::ops::DerefMut for MemberCallList {
-    fn deref_mut(&mut self) -> &mut Vec<JsValue> {
+    fn deref_mut(&mut self) -> &mut [JsValue] {
+        &mut self.0
+    }
+}
+
+/// Storage for [`JsValue::Call`] and [`JsValue::New`]: `[args..., callee]`.
+///
+/// Same trick as [`MemberCallList`]: keeping the callee at the tail lets
+/// `replace_builtin`-style fallthrough paths `pop` it off cheaply and reuse the remaining
+/// `Vec` as the owned args with no reallocation.
+///
+/// The custom `Debug` impl re-emits the pre-refactor `(callee, [args])` shape so fixture
+/// snapshots remain identical to the 3-tuple-payload version.
+#[derive(Default, Clone, Hash, PartialEq, Eq)]
+pub struct CallList(Vec<JsValue>);
+
+impl fmt::Debug for CallList {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Layout: [args..., callee]
+        let n = self.0.len();
+        let callee = &self.0[n - 1];
+        let args = &self.0[..n - 1];
+        if f.alternate() {
+            // Same trick as MemberCallList: emit two sibling fields inside the parent
+            // `debug_tuple`'s pretty-print output.
+            writeln!(f, "{callee:#?},")?;
+            write!(f, "{args:#?}")
+        } else {
+            write!(f, "{callee:?}, {args:?}")
+        }
+    }
+}
+
+impl CallList {
+    fn new(callee: JsValue, args: Vec<JsValue>) -> Self {
+        let mut list = args;
+        list.reserve_exact(1);
+        list.push(callee);
+        Self(list)
+    }
+
+    /// The callee. Lives at the tail of the underlying `Vec`.
+    pub fn callee(&self) -> &JsValue {
+        self.0.last().expect("CallList must always have a callee")
+    }
+
+    pub fn callee_mut(&mut self) -> &mut JsValue {
+        self.0
+            .last_mut()
+            .expect("CallList must always have a callee")
+    }
+
+    /// The call arguments — everything before the callee.
+    pub fn args(&self) -> &[JsValue] {
+        let n = self.0.len();
+        &self.0[..n - 1]
+    }
+
+    pub fn args_mut(&mut self) -> &mut [JsValue] {
+        let n = self.0.len();
+        &mut self.0[..n - 1]
+    }
+
+    /// Borrow `args` and `callee` simultaneously as mutable references. The single `Vec`
+    /// storage means callers can't get these via separate accessor calls.
+    pub fn as_parts_mut(&mut self) -> (&mut [JsValue], &mut JsValue) {
+        let n = self.0.len();
+        let (args, callee_slot) = self.0.split_at_mut(n - 1);
+        (args, &mut callee_slot[0])
+    }
+
+    /// Take everything out. The returned `args` `Vec` reuses the original allocation — no
+    /// copy. That's the point of storing the callee at the tail.
+    pub fn into_parts(mut self) -> (JsValue, Vec<JsValue>) {
+        let callee = self.0.pop().unwrap();
+        (callee, self.0)
+    }
+}
+
+impl std::ops::Deref for CallList {
+    type Target = [JsValue];
+    fn deref(&self) -> &[JsValue] {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for CallList {
+    fn deref_mut(&mut self) -> &mut [JsValue] {
         &mut self.0
     }
 }
@@ -833,20 +967,22 @@ impl Display for JsValue {
             ),
             JsValue::Binary(_, a, op, b) => write!(f, "({}{}{})", a, op.joiner(), b),
             JsValue::Tenary(_, test, cons, alt) => write!(f, "({test} ? {cons} : {alt})"),
-            JsValue::New(_, callee, list) => write!(
+            JsValue::New(_, list) => write!(
                 f,
                 "new {}({})",
-                callee,
-                list.iter()
+                list.callee(),
+                list.args()
+                    .iter()
                     .map(|v| v.to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::Call(_, callee, list) => write!(
+            JsValue::Call(_, list) => write!(
                 f,
                 "{}({})",
-                callee,
-                list.iter()
+                list.callee(),
+                list.args()
+                    .iter()
                     .map(|v| v.to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
@@ -859,23 +995,17 @@ impl Display for JsValue {
                     .collect::<Vec<_>>()
                     .join(", ")
             ),
-            JsValue::MemberCall(_, list) => {
-                // Layout: [args..., prop, obj]
-                let n = list.len();
-                let obj = &list[n - 1];
-                let prop = &list[n - 2];
-                let args = &list[..n - 2];
-                write!(
-                    f,
-                    "{}[{}]({})",
-                    obj,
-                    prop,
-                    args.iter()
-                        .map(|v| v.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                )
-            }
+            JsValue::MemberCall(_, list) => write!(
+                f,
+                "{}[{}]({})",
+                list.obj(),
+                list.prop(),
+                list.args()
+                    .iter()
+                    .map(|v| v.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             JsValue::Member(_, obj, prop) => write!(f, "{obj}[{prop}]"),
             JsValue::Module(ModuleValue {
                 module: name,
@@ -1156,12 +1286,14 @@ impl JsValue {
         }
     }
 
-    pub fn new(f: Box<JsValue>, args: Vec<JsValue>) -> Self {
-        Self::New(1 + f.total_nodes() + total_nodes(&args), f, args)
+    pub fn new(f: JsValue, args: Vec<JsValue>) -> Self {
+        let total = 1 + f.total_nodes() + total_nodes(&args);
+        Self::New(total, CallList::new(f, args))
     }
 
-    pub fn call(f: Box<JsValue>, args: Vec<JsValue>) -> Self {
-        Self::Call(1 + f.total_nodes() + total_nodes(&args), f, args)
+    pub fn call(f: JsValue, args: Vec<JsValue>) -> Self {
+        let total = 1 + f.total_nodes() + total_nodes(&args);
+        Self::Call(total, CallList::new(f, args))
     }
 
     pub fn super_call(args: Vec<JsValue>) -> Self {
@@ -1245,8 +1377,8 @@ impl JsValue {
             | JsValue::Logical(c, _, _)
             | JsValue::Binary(c, _, _, _)
             | JsValue::Tenary(c, _, _, _)
-            | JsValue::New(c, _, _)
-            | JsValue::Call(c, _, _)
+            | JsValue::New(c, _)
+            | JsValue::Call(c, _)
             | JsValue::SuperCall(c, _)
             | JsValue::MemberCall(c, _)
             | JsValue::Member(c, _, _)
@@ -1315,11 +1447,11 @@ impl JsValue {
                     })
                     .sum::<u32>();
             }
-            JsValue::New(c, f, list) => {
-                *c = 1 + f.total_nodes() + total_nodes(list);
+            JsValue::New(c, list) => {
+                *c = 1 + total_nodes(list);
             }
-            JsValue::Call(c, f, list) => {
-                *c = 1 + f.total_nodes() + total_nodes(list);
+            JsValue::Call(c, list) => {
+                *c = 1 + total_nodes(list);
             }
             JsValue::SuperCall(c, list) => {
                 *c = 1 + total_nodes(list);
@@ -1601,48 +1733,48 @@ impl JsValue {
                     operand.explain_internal_inner(hints, indent_depth, depth, unknown_depth)
                 )
             }
-            JsValue::New(_, callee, list) => {
-                format!(
-                    "new {}({})",
-                    callee.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
-                    pretty_join(
-                        &list
-                            .iter()
-                            .map(|v| v.explain_internal_inner(
-                                hints,
-                                indent_depth + 1,
-                                depth,
-                                unknown_depth
-                            ))
-                            .collect::<Vec<_>>(),
-                        indent_depth,
-                        ", ",
-                        ",",
-                        ""
-                    )
+            JsValue::New(_, list) => format!(
+                "new {}({})",
+                list.callee()
+                    .explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                pretty_join(
+                    &list
+                        .args()
+                        .iter()
+                        .map(|v| v.explain_internal_inner(
+                            hints,
+                            indent_depth + 1,
+                            depth,
+                            unknown_depth
+                        ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    ", ",
+                    ",",
+                    ""
                 )
-            }
-            JsValue::Call(_, callee, list) => {
-                format!(
-                    "{}({})",
-                    callee.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
-                    pretty_join(
-                        &list
-                            .iter()
-                            .map(|v| v.explain_internal_inner(
-                                hints,
-                                indent_depth + 1,
-                                depth,
-                                unknown_depth
-                            ))
-                            .collect::<Vec<_>>(),
-                        indent_depth,
-                        ", ",
-                        ",",
-                        ""
-                    )
+            ),
+            JsValue::Call(_, list) => format!(
+                "{}({})",
+                list.callee()
+                    .explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                pretty_join(
+                    &list
+                        .args()
+                        .iter()
+                        .map(|v| v.explain_internal_inner(
+                            hints,
+                            indent_depth + 1,
+                            depth,
+                            unknown_depth
+                        ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    ", ",
+                    ",",
+                    ""
                 )
-            }
+            ),
             JsValue::SuperCall(_, list) => {
                 format!(
                     "super({})",
@@ -1663,32 +1795,29 @@ impl JsValue {
                     )
                 )
             }
-            JsValue::MemberCall(_, list) => {
-                // Layout: [args..., prop, obj]
-                let n = list.len();
-                let obj = &list[n - 1];
-                let prop = &list[n - 2];
-                format!(
-                    "{}[{}]({})",
-                    obj.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
-                    prop.explain_internal_inner(hints, indent_depth, depth, unknown_depth),
-                    pretty_join(
-                        &list[..n - 2]
-                            .iter()
-                            .map(|v| v.explain_internal_inner(
-                                hints,
-                                indent_depth + 1,
-                                depth,
-                                unknown_depth
-                            ))
-                            .collect::<Vec<_>>(),
-                        indent_depth,
-                        ", ",
-                        ",",
-                        ""
-                    )
+            JsValue::MemberCall(_, list) => format!(
+                "{}[{}]({})",
+                list.obj()
+                    .explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                list.prop()
+                    .explain_internal_inner(hints, indent_depth, depth, unknown_depth),
+                pretty_join(
+                    &list
+                        .args()
+                        .iter()
+                        .map(|v| v.explain_internal_inner(
+                            hints,
+                            indent_depth + 1,
+                            depth,
+                            unknown_depth
+                        ))
+                        .collect::<Vec<_>>(),
+                    indent_depth,
+                    ", ",
+                    ",",
+                    ""
                 )
-            }
+            ),
             JsValue::Member(_, obj, prop) => {
                 format!(
                     "{}[{}]",
@@ -2131,15 +2260,13 @@ impl JsValue {
                         return None;
                     }
                 }
-                JsValue::MemberCall(_, list) if list.len() == 2 => {
-                    // Layout: [args..., prop, obj]; here args is empty so list = [prop, obj].
-                    let prop = &list[0];
-                    if let Some(prop) = prop.as_str() {
+                JsValue::MemberCall(_, list) if list.args().is_empty() => {
+                    if let Some(prop) = list.prop().as_str() {
                         segments.push(DefinableNameSegmentRef::Call(prop));
                     } else {
                         return None;
                     }
-                    current = &list[1];
+                    current = list.obj();
                 }
                 JsValue::TypeOf(_, arg) => {
                     segments.push(DefinableNameSegmentRef::TypeOf);
@@ -2197,8 +2324,8 @@ impl JsValue {
             // Otherwise it would be
             // `func_body(callee).has_side_effects() ||
             //      callee.has_side_effects() || args.iter().any(JsValue::has_side_effects`
-            JsValue::New(_, _callee, _args) => true,
-            JsValue::Call(_, _callee, _args) => true,
+            JsValue::New(_, _list) => true,
+            JsValue::Call(_, _list) => true,
             JsValue::SuperCall(_, _args) => true,
             JsValue::MemberCall(_, _list) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
@@ -2434,20 +2561,23 @@ impl JsValue {
                 logical_property: _,
             } => merge_if_known(values, JsValue::is_string),
 
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(
-                    WellKnownFunctionKind::RequireResolve
-                    | WellKnownFunctionKind::PathJoin
-                    | WellKnownFunctionKind::PathResolve(..)
-                    | WellKnownFunctionKind::OsArch
-                    | WellKnownFunctionKind::OsPlatform
-                    | WellKnownFunctionKind::PathDirname
-                    | WellKnownFunctionKind::PathToFileUrl
-                    | WellKnownFunctionKind::ProcessCwd,
-                ),
-                _,
-            ) => Some(true),
+            JsValue::Call(_, list)
+                if matches!(
+                    list.callee(),
+                    JsValue::WellKnownFunction(
+                        WellKnownFunctionKind::RequireResolve
+                            | WellKnownFunctionKind::PathJoin
+                            | WellKnownFunctionKind::PathResolve(..)
+                            | WellKnownFunctionKind::OsArch
+                            | WellKnownFunctionKind::OsPlatform
+                            | WellKnownFunctionKind::PathDirname
+                            | WellKnownFunctionKind::PathToFileUrl
+                            | WellKnownFunctionKind::ProcessCwd,
+                    )
+                ) =>
+            {
+                Some(true)
+            }
 
             JsValue::Awaited(_, operand) => match &**operand {
                 JsValue::Promise(_, v) => v.is_string(),
@@ -2666,8 +2796,8 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::New(_, callee, list) => {
-                let mut modified = visitor(callee);
+            JsValue::New(_, list) => {
+                let mut modified = false;
                 for item in list.iter_mut() {
                     if visitor(item) {
                         modified = true
@@ -2678,8 +2808,8 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::Call(_, callee, list) => {
-                let mut modified = visitor(callee);
+            JsValue::Call(_, list) => {
+                let mut modified = false;
                 for item in list.iter_mut() {
                     if visitor(item) {
                         modified = true
@@ -2781,15 +2911,17 @@ impl JsValue {
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
         match self {
-            JsValue::New(_, callee, list) if !list.is_empty() => {
-                let m = visitor(callee);
+            // "early" child is the callee (only when there are call args; otherwise the
+            // whole list walks as late children elsewhere).
+            JsValue::New(_, list) if !list.args().is_empty() => {
+                let m = visitor(list.callee_mut());
                 if m {
                     self.update_total_nodes();
                 }
                 m
             }
-            JsValue::Call(_, callee, list) if !list.is_empty() => {
-                let m = visitor(callee);
+            JsValue::Call(_, list) if !list.args().is_empty() => {
+                let m = visitor(list.callee_mut());
                 if m {
                     self.update_total_nodes();
                 }
@@ -2797,15 +2929,12 @@ impl JsValue {
             }
             // Layout: [args..., prop, obj]. "early" children are obj + prop (only when there
             // are call args; otherwise the whole list walks as late children elsewhere).
-            JsValue::MemberCall(_, list) if list.len() > 2 => {
-                let n = list.len();
-                let early = &mut list[n - 2..];
-                let mut modified = false;
-                for item in early.iter_mut() {
-                    if visitor(item) {
-                        modified = true;
-                    }
-                }
+            // "early" children of MemberCall are obj + prop (only when there are call args;
+            // otherwise the whole list walks as late children elsewhere).
+            JsValue::MemberCall(_, list) if !list.args().is_empty() => {
+                let m1 = visitor(list.prop_mut());
+                let m2 = visitor(list.obj_mut());
+                let modified = m1 || m2;
                 if modified {
                     self.update_total_nodes();
                 }
@@ -2829,9 +2958,10 @@ impl JsValue {
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
         match self {
-            JsValue::New(_, _, list) if !list.is_empty() => {
+            // Late children = the call args.
+            JsValue::New(_, list) if !list.args().is_empty() => {
                 let mut modified = false;
-                for item in list.iter_mut() {
+                for item in list.args_mut().iter_mut() {
                     if visitor(item) {
                         modified = true
                     }
@@ -2841,9 +2971,9 @@ impl JsValue {
                 }
                 modified
             }
-            JsValue::Call(_, _, list) if !list.is_empty() => {
+            JsValue::Call(_, list) if !list.args().is_empty() => {
                 let mut modified = false;
-                for item in list.iter_mut() {
+                for item in list.args_mut().iter_mut() {
                     if visitor(item) {
                         modified = true
                     }
@@ -2853,11 +2983,10 @@ impl JsValue {
                 }
                 modified
             }
-            // Layout: [args..., prop, obj]. Late children of MemberCall = the call args.
-            JsValue::MemberCall(_, list) if list.len() > 2 => {
-                let n = list.len();
+            // Late children of MemberCall = the call args.
+            JsValue::MemberCall(_, list) if !list.args().is_empty() => {
                 let mut modified = false;
-                for item in list[..n - 2].iter_mut() {
+                for item in list.args_mut().iter_mut() {
                     if visitor(item) {
                         modified = true
                     }
@@ -2916,14 +3045,12 @@ impl JsValue {
                     }
                 }
             }
-            JsValue::New(_, callee, list) => {
-                visitor(callee);
+            JsValue::New(_, list) => {
                 for item in list.iter() {
                     visitor(item);
                 }
             }
-            JsValue::Call(_, callee, list) => {
-                visitor(callee);
+            JsValue::Call(_, list) => {
                 for item in list.iter() {
                     visitor(item);
                 }
@@ -3225,11 +3352,11 @@ impl JsValue {
                 lc == rc && lo == ro && all_similar(l, r, depth - 1)
             }
             (JsValue::Not(lc, l), JsValue::Not(rc, r)) => lc == rc && l.similar(r, depth - 1),
-            (JsValue::New(lc, lf, la), JsValue::New(rc, rf, ra)) => {
-                lc == rc && lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
+            (JsValue::New(lc, ll), JsValue::New(rc, rl)) => {
+                lc == rc && all_similar(ll, rl, depth - 1)
             }
-            (JsValue::Call(lc, lf, la), JsValue::Call(rc, rf, ra)) => {
-                lc == rc && lf.similar(rf, depth - 1) && all_similar(la, ra, depth - 1)
+            (JsValue::Call(lc, ll), JsValue::Call(rc, rl)) => {
+                lc == rc && all_similar(ll, rl, depth - 1)
             }
             (JsValue::MemberCall(lc, ll), JsValue::MemberCall(rc, rl)) => {
                 lc == rc && all_similar(ll, rl, depth - 1)
@@ -3322,13 +3449,11 @@ impl JsValue {
             | JsValue::Add(_, v)
             | JsValue::Logical(_, _, v) => all_similar_hash(v, state, depth - 1),
             JsValue::Not(_, v) => v.similar_hash(state, depth - 1),
-            JsValue::New(_, a, b) => {
-                a.similar_hash(state, depth - 1);
-                all_similar_hash(b, state, depth - 1);
+            JsValue::New(_, list) => {
+                all_similar_hash(list, state, depth - 1);
             }
-            JsValue::Call(_, a, b) => {
-                a.similar_hash(state, depth - 1);
-                all_similar_hash(b, state, depth - 1);
+            JsValue::Call(_, list) => {
+                all_similar_hash(list, state, depth - 1);
             }
             JsValue::SuperCall(_, a) => {
                 all_similar_hash(a, state, depth - 1);
@@ -3653,31 +3778,35 @@ pub mod test_utils {
     ) -> Result<(JsValue, bool)> {
         let ImportAttributes { ignore, .. } = *attributes;
         let mut new_value = match v {
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::Import),
-                ref args,
-            ) => match &args[0] {
-                JsValue::Constant(ConstantValue::Str(v)) => {
-                    JsValue::promise(JsValue::Module(ModuleValue {
-                        module: v.as_atom().into_owned().into(),
-                        annotations: None,
-                    }))
+            JsValue::Call(_, ref list)
+                if matches!(
+                    list.callee(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::Import)
+                ) =>
+            {
+                match &list.args()[0] {
+                    JsValue::Constant(ConstantValue::Str(v)) => {
+                        JsValue::promise(JsValue::Module(ModuleValue {
+                            module: v.as_atom().into_owned().into(),
+                            annotations: None,
+                        }))
+                    }
+                    _ => v.into_unknown(true, rcstr!("import() non constant")),
                 }
-                _ => v.into_unknown(true, rcstr!("import() non constant")),
-            },
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire),
-                ref args,
-            ) => {
+            }
+            JsValue::Call(_, ref list)
+                if matches!(
+                    list.callee(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
+                ) =>
+            {
                 if let [
                     JsValue::Member(
                         _,
                         box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
                         box JsValue::Constant(ConstantValue::Str(prop)),
                     ),
-                ] = &args[..]
+                ] = list.args()
                     && prop.as_str() == "url"
                 {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
@@ -3685,51 +3814,61 @@ pub mod test_utils {
                     v.into_unknown(true, rcstr!("createRequire() non constant"))
                 }
             }
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve),
-                ref args,
-            ) => match &args[0] {
-                JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
-                _ => v.into_unknown(true, rcstr!("require.resolve non constant")),
-            },
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob),
-                _,
-            ) => v.into_unknown(false, rcstr!("import.meta.glob()")),
-            JsValue::Call(
-                _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext),
-                ref args,
-            ) => match parse_require_context(args) {
-                Ok(options) => {
-                    let mut map = FxIndexMap::default();
-
-                    map.insert(
-                        rcstr!("./a"),
-                        format!("[context: {}]/a", options.dir).into(),
-                    );
-                    map.insert(
-                        rcstr!("./b"),
-                        format!("[context: {}]/b", options.dir).into(),
-                    );
-                    map.insert(
-                        rcstr!("./c"),
-                        format!("[context: {}]/c", options.dir).into(),
-                    );
-
-                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        Box::new(RequireContextValue(map)),
-                    ))
+            JsValue::Call(_, ref list)
+                if matches!(
+                    list.callee(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
+                ) =>
+            {
+                match &list.args()[0] {
+                    JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
+                    _ => v.into_unknown(true, rcstr!("require.resolve non constant")),
                 }
-                Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string().into()),
-            },
-            JsValue::New(
-                _,
-                box JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor),
-                ref args,
-            ) => {
+            }
+            JsValue::Call(_, ref list)
+                if matches!(
+                    list.callee(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::ImportMetaGlob)
+                ) =>
+            {
+                v.into_unknown(false, rcstr!("import.meta.glob()"))
+            }
+            JsValue::Call(_, ref list)
+                if matches!(
+                    list.callee(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContext)
+                ) =>
+            {
+                match parse_require_context(list.args()) {
+                    Ok(options) => {
+                        let mut map = FxIndexMap::default();
+
+                        map.insert(
+                            rcstr!("./a"),
+                            format!("[context: {}]/a", options.dir).into(),
+                        );
+                        map.insert(
+                            rcstr!("./b"),
+                            format!("[context: {}]/b", options.dir).into(),
+                        );
+                        map.insert(
+                            rcstr!("./c"),
+                            format!("[context: {}]/c", options.dir).into(),
+                        );
+
+                        JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
+                            Box::new(RequireContextValue(map)),
+                        ))
+                    }
+                    Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string().into()),
+                }
+            }
+            JsValue::New(_, ref list)
+                if matches!(
+                    list.callee(),
+                    JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)
+                ) =>
+            {
                 if let [
                     JsValue::Constant(ConstantValue::Str(url)),
                     JsValue::Member(
@@ -3737,7 +3876,7 @@ pub mod test_utils {
                         box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
                         box JsValue::Constant(ConstantValue::Str(prop)),
                     ),
-                ] = &args[..]
+                ] = list.args()
                 {
                     if prop.as_str() == "url" {
                         // TODO avoid clone
@@ -4127,9 +4266,9 @@ mod tests {
                                 resolved.push((
                                     format!("{parent} -> {i} call"),
                                     if new {
-                                        JsValue::new(Box::new(func), new_args)
+                                        JsValue::new(func, new_args)
                                     } else {
-                                        JsValue::call(Box::new(func), new_args)
+                                        JsValue::call(func, new_args)
                                     },
                                 ));
                                 steps
@@ -4185,10 +4324,7 @@ mod tests {
                                     handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} dynamic import"),
-                                    JsValue::call(
-                                        Box::new(JsValue::FreeVar("import".into())),
-                                        new_args,
-                                    ),
+                                    JsValue::call(JsValue::FreeVar("import".into()), new_args),
                                 ));
                                 0
                             }
@@ -4295,6 +4431,6 @@ mod tests {
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn jsvalue_size() {
-        assert_eq!(40, size_of::<JsValue>());
+        assert_eq!(32, size_of::<JsValue>());
     }
 }

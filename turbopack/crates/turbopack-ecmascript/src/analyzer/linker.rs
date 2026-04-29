@@ -172,11 +172,13 @@ where
             // Visit a function call
             // This need special handling, since we want to replace the function call and process
             // the function return value after that.
-            Step::Visit(JsValue::Call(
-                _,
-                box JsValue::Function(function_nodes, func_ident, return_value),
-                args,
-            )) => {
+            Step::Visit(JsValue::Call(_, list))
+                if matches!(list.callee(), JsValue::Function(..)) =>
+            {
+                let (callee, args) = list.into_parts();
+                let JsValue::Function(function_nodes, func_ident, return_value) = callee else {
+                    unreachable!()
+                };
                 total_nodes -= 2; // Call + Function
                 if let Entry::Vacant(entry) = fun_args_values.lock().entry(func_ident) {
                     // Return value will stay in total_nodes
@@ -194,7 +196,7 @@ where
                     total_nodes += 1;
                     done.push(JsValue::unknown(
                         JsValue::call(
-                            Box::new(JsValue::Function(function_nodes, func_ident, return_value)),
+                            JsValue::Function(function_nodes, func_ident, return_value),
                             args,
                         ),
                         true,

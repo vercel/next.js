@@ -11,7 +11,8 @@ use crate::analyzer::JsValueUrlKind;
 pub fn early_replace_builtin(value: &mut JsValue) -> bool {
     match value {
         // matching calls like `callee(arg1, arg2, ...)`
-        JsValue::Call(_, box callee, args) => {
+        JsValue::Call(_, list) => {
+            let (args, callee) = list.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
             match callee {
                 // We don't know what the callee is, so we can early return
@@ -43,14 +44,9 @@ pub fn early_replace_builtin(value: &mut JsValue) -> bool {
             }
         }
         // matching calls with this context like `obj.prop(arg1, arg2, ...)`
-        // list layout: [args..., prop, obj]
         JsValue::MemberCall(_, list) => {
-            let n = list.len();
-            let (args, tail) = list.split_at_mut(n - 2);
+            let (args, prop, obj) = list.as_parts_mut();
             let args_have_side_effects = || args.iter().any(|arg| arg.has_side_effects());
-            let (prop_slot, obj_slot) = tail.split_at_mut(1);
-            let prop = &mut prop_slot[0];
-            let obj = &mut obj_slot[0];
             match obj {
                 // We don't know what the callee is, so we can early return
                 &mut JsValue::Unknown {
@@ -415,7 +411,7 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
                                             .enumerate()
                                             .map(|(i, item)| {
                                                 JsValue::call(
-                                                    Box::new(func.clone()),
+                                                    func.clone(),
                                                     vec![
                                                         item,
                                                         JsValue::Constant(ConstantValue::Num(
@@ -468,26 +464,25 @@ pub fn replace_builtin(value: &mut JsValue) -> bool {
             // without special handling, we convert it into a normal call like
             // `(obj.prop)(arg1, arg2, ...)`
             *value = JsValue::call(
-                Box::new(JsValue::member(Box::new(take(obj)), Box::new(take(prop)))),
+                JsValue::member(Box::new(take(obj)), Box::new(take(prop))),
                 take(args),
             );
             true
         }
         // match calls when the callee are multiple alternative functions like `(func1 |
         // func2)(arg1, arg2, ...)`
-        JsValue::Call(
-            _,
-            box JsValue::Alternatives {
-                total_nodes: _,
-                values,
-                logical_property: _,
-            },
-            args,
-        ) => {
+        JsValue::Call(_, list)
+            if matches!(list.callee(), JsValue::Alternatives { .. }) =>
+        {
+            // Take ownership so we can move the alternatives `values` out of the callee.
+            let (callee, args) = take(list).into_parts();
+            let JsValue::Alternatives { values, .. } = callee else {
+                unreachable!()
+            };
             *value = JsValue::alternatives(
-                take(values)
+                values
                     .into_iter()
-                    .map(|alt| JsValue::call(Box::new(alt), args.clone()))
+                    .map(|alt| JsValue::call(alt, args.clone()))
                     .collect(),
             );
             true

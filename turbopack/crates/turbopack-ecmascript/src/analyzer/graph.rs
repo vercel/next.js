@@ -701,7 +701,7 @@ impl EvalContext {
                     .flatten()
                     .map(|arg| self.eval(&arg.expr))
                     .collect();
-                let callee = Box::new(self.eval(callee));
+                let callee = self.eval(callee);
 
                 JsValue::new(callee, args)
             }
@@ -734,7 +734,7 @@ impl EvalContext {
                     };
                     JsValue::member_call(obj, prop, args)
                 } else {
-                    let callee = Box::new(self.eval(callee));
+                    let callee = self.eval(callee);
 
                     JsValue::call(callee, args)
                 }
@@ -772,7 +772,7 @@ impl EvalContext {
                 }
                 let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
 
-                let callee = Box::new(JsValue::FreeVar(atom!("import")));
+                let callee = JsValue::FreeVar(atom!("import"));
 
                 JsValue::call(callee, args)
             }
