@@ -18,9 +18,9 @@
     "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-jsx-a11y": "^6.10.0",
     "eslint-plugin-react": "^7.37.0",
-    "eslint-plugin-react-hooks": "^7.0.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "16.4.0",
-    "typescript-eslint": "^8.46.0"
+    "typescript-eslint": "^8.59.0"
   },
   "peerDependencies": {
     "eslint": ">=9.0.0",
