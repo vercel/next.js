@@ -77,7 +77,7 @@ class HTTPAccessFallbackErrorBoundary extends React.Component<
     }
   }
 
-  static getDerivedStateFromError(error: any) {
+  static getDerivedStateFromError(error: unknown) {
     if (isHTTPAccessFallbackError(error)) {
       const httpStatus = getAccessFallbackHTTPStatus(error)
       return {

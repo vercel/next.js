@@ -15,7 +15,7 @@ const isBotUserAgent =
   typeof window !== 'undefined' && isBot(window.navigator.userAgent)
 
 export type ErrorInfo = {
-  error: Error
+  error: unknown
   reset: () => void
   unstable_retry: () => void
 }
@@ -35,7 +35,7 @@ interface ErrorBoundaryHandlerProps extends ErrorBoundaryProps {
 }
 
 interface ErrorBoundaryHandlerState {
-  error: Error | null
+  error: null | { thrownValue: unknown }
   previousPathname: string | null
 }
 
@@ -54,14 +54,16 @@ export class ErrorBoundaryHandler extends React.Component<
     }
   }
 
-  static getDerivedStateFromError(error: Error) {
-    if (isNextRouterError(error)) {
+  static getDerivedStateFromError(
+    thrownValue: unknown
+  ): Partial<ErrorBoundaryHandlerState> {
+    if (isNextRouterError(thrownValue)) {
       // Re-throw if an expected internal Next.js router error occurs
       // this means it should be handled by a different boundary (such as a NotFound boundary in a parent segment)
-      throw error
+      throw thrownValue
     }
 
-    return { error }
+    return { error: { thrownValue } }
   }
 
   static getDerivedStateFromProps(
@@ -75,7 +77,7 @@ export class ErrorBoundaryHandler extends React.Component<
     // the error boundary and instead should fallback
     // to a hard navigation to attempt recovering
     if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
-      if (error && handleHardNavError(error)) {
+      if (error && handleHardNavError(error.thrownValue)) {
         // clear error so we don't render anything
         return {
           error: null,
@@ -118,14 +120,16 @@ export class ErrorBoundaryHandler extends React.Component<
     //When it's bot request, segment level error boundary will keep rendering the children,
     // the final error will be caught by the root error boundary and determine wether need to apply graceful degrade.
     if (this.state.error && !isBotUserAgent) {
-      handleISRError({ error: this.state.error })
+      const thrownValue = this.state.error.thrownValue
+      handleISRError({ error: thrownValue })
 
       return (
         <>
           {this.props.errorStyles}
           {this.props.errorScripts}
           <this.props.errorComponent
-            error={this.state.error}
+            // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
+            error={thrownValue}
             reset={this.reset}
             unstable_retry={this.unstable_retry}
           />
