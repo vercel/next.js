@@ -90,6 +90,10 @@ async function createNextInstall({
               'pack-for-isolated-tests',
               '--output-logs',
               'new-only',
+              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
+              // so Turborepo's tui isn't interactive anyway.
+              '--ui',
+              'stream',
             ],
             {
               cwd: origRepoDir,
