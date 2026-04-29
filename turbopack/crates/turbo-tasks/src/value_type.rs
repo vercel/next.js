@@ -482,7 +482,10 @@ mod tests {
         assert!(
             matches!(
                 vt.persistence,
-                ValueTypePersistence::SkipPersist { expensive: false },
+                ValueTypePersistence::SkipPersist {
+                    expensive: false,
+                    hash_only: false
+                },
             ),
             "`serialization = \"skip\"` must map to SkipPersist {{ expensive: false }}"
         );
@@ -493,7 +496,13 @@ mod tests {
     fn hash_maps_to_hash_only() {
         let vt = registry::get_value_type(HashValue::get_value_type_id());
         assert!(
-            matches!(vt.persistence, ValueTypePersistence::HashOnly),
+            matches!(
+                vt.persistence,
+                ValueTypePersistence::SkipPersist {
+                    expensive: false,
+                    hash_only: true
+                },
+            ),
             "`serialization = \"hash\"` must map to HashOnly"
         );
         assert!(!HashValue::has_serialization());
@@ -505,7 +514,10 @@ mod tests {
         assert!(
             matches!(
                 vt.persistence,
-                ValueTypePersistence::SkipPersist { expensive: true },
+                ValueTypePersistence::SkipPersist {
+                    expensive: true,
+                    hash_only: false
+                },
             ),
             "`serialization = \"skip\", evict = \"last\"` must map to SkipPersist {{ expensive: \
              true }}"
