@@ -7,6 +7,7 @@ import nextScriptForGa from './rules/next-script-for-ga'
 import noAssignModuleVariable from './rules/no-assign-module-variable'
 import noAsyncClientComponent from './rules/no-async-client-component'
 import noBeforeInteractiveScriptOutsideDocument from './rules/no-before-interactive-script-outside-document'
+import noCredentialShapeInConfigEnv from './rules/no-credential-shape-in-config-env'
 import noCssTags from './rules/no-css-tags'
 import noDocumentImportInPage from './rules/no-document-import-in-page'
 import noDuplicateHead from './rules/no-duplicate-head'
@@ -68,6 +69,7 @@ const plugin = {
     'no-async-client-component': noAsyncClientComponent,
     'no-before-interactive-script-outside-document':
       noBeforeInteractiveScriptOutsideDocument,
+    'no-credential-shape-in-config-env': noCredentialShapeInConfigEnv,
     'no-css-tags': noCssTags,
     'no-document-import-in-page': noDocumentImportInPage,
     'no-duplicate-head': noDuplicateHead,
