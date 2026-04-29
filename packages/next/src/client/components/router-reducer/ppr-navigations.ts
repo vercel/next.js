@@ -11,6 +11,7 @@ import {
   DEFAULT_SEGMENT_KEY,
   NOT_FOUND_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
+import { searchStringToRecord } from '../../../shared/lib/router/utils/search-string-to-record'
 import { matchSegment } from '../match-segments'
 import { createHrefFromUrl } from './create-href-from-url'
 import { fetchServerResponse } from './fetch-server-response'
@@ -741,7 +742,7 @@ function createSegmentFromRouteTree(newRouteTree: RouteTree): Segment {
     // This is based on equivalent logic in addSearchParamsIfPageSegment, used
     // on the server.
     const stringifiedQuery = JSON.stringify(
-      Object.fromEntries(new URLSearchParams(renderedSearch))
+      searchStringToRecord(renderedSearch)
     )
     return stringifiedQuery !== '{}'
       ? PAGE_SEGMENT_KEY + '?' + stringifiedQuery
