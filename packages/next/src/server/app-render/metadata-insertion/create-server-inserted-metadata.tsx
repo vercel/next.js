@@ -1,4 +1,4 @@
-import { htmlEscapeAttributeString } from '../../htmlescape'
+import { htmlEscapeAttributeString } from '../../../shared/lib/htmlescape'
 
 /**
  * For chromium based browsers (Chrome, Edge, etc.) and Safari,
