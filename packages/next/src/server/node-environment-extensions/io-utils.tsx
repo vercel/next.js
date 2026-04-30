@@ -3,60 +3,14 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import { abortOnSynchronousPlatformIOAccess } from '../app-render/dynamic-rendering'
 import { RenderStage } from '../app-render/staged-rendering'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
+import {
+  createSyncIOClientError,
+  createSyncIOError,
+  createSyncIORuntimeError,
+  type SyncIOApiType,
+} from '../app-render/sync-io-messages'
 
-type ApiType = 'time' | 'random' | 'crypto'
-
-const SYNC_IO_DOCS: Record<ApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-current-time',
-  random: 'https://nextjs.org/docs/messages/next-prerender-random',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto',
-}
-
-const SYNC_IO_CLIENT_DOCS: Record<ApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-current-time-client',
-  random: 'https://nextjs.org/docs/messages/next-prerender-random-client',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-crypto-client',
-}
-
-const SYNC_IO_RUNTIME_DOCS: Record<ApiType, string> = {
-  time: 'https://nextjs.org/docs/messages/next-prerender-runtime-current-time',
-  random: 'https://nextjs.org/docs/messages/next-prerender-runtime-random',
-  crypto: 'https://nextjs.org/docs/messages/next-prerender-runtime-crypto',
-}
-
-function createSyncIOError(
-  route: string,
-  expression: string,
-  type: ApiType
-): Error {
-  return new Error(
-    `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-      `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
-      `Ways to fix this:\n` +
-      `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
-      `  - Move the expression into a \`"use client"\` component\n` +
-      `  - Move the expression into a \`"use cache"\` component\n\n` +
-      `Learn more: ${SYNC_IO_DOCS[type]}`
-  )
-}
-
-function createSyncIORuntimeError(
-  route: string,
-  expression: string,
-  type: ApiType
-): Error {
-  return new Error(
-    `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-      `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
-      `Ways to fix this:\n` +
-      `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
-      `  - Move the expression into a \`"use client"\` component\n` +
-      `  - Move the expression into a \`"use cache"\` component\n\n` +
-      `Learn more: ${SYNC_IO_RUNTIME_DOCS[type]}`
-  )
-}
-
-export function io(expression: string, type: ApiType) {
+export function io(expression: string, type: SyncIOApiType) {
   const workUnitStore = workUnitAsyncStorage.getStore()
   const workStore = workAsyncStorage.getStore()
 
@@ -87,15 +41,12 @@ export function io(expression: string, type: ApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
-        const docsUrl = SYNC_IO_CLIENT_DOCS[type]
-        const message =
-          `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. ` +
-          `See more info here: ${docsUrl}`
-
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(new Error(message)),
+          applyOwnerStack(
+            createSyncIOClientError(workStore.route, expression, type)
+          ),
           workUnitStore
         )
       }

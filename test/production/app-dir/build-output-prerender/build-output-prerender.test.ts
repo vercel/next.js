@@ -71,7 +71,7 @@ describe('build-output-prerender', () => {
         if (isTurbopack) {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`\`new Date()\`\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at <unknown> (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -87,7 +87,7 @@ describe('build-output-prerender', () => {
           `)
         } else {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`\`new Date()\`\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at x (<next-dist-dir>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
@@ -194,7 +194,7 @@ describe('build-output-prerender', () => {
       it('shows all prerender errors with readable stacks and code frames', async () => {
         if (isTurbopack) {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`\`new Date()\`\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -209,9 +209,9 @@ describe('build-output-prerender', () => {
            Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
            Ways to fix this:
-             - Add a dynamic data access before this call (e.g. \`await connection()\`)
-             - Move the expression into a \`"use client"\` component
-             - Move the expression into a \`"use cache"\` component
+             - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+             - Prerender and cache the value with \`"use cache"\`
+             - Render the value on the client with \`"use client"\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-random
                at Page (app/server/page.tsx:13:27)
@@ -232,7 +232,7 @@ describe('build-output-prerender', () => {
         } else {
           // TODO(veil): Bundler protocols should not appear in stackframes.
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`\`new Date()\`\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (webpack:///app/client/page.tsx:4:28)
                at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
              2 |
@@ -248,9 +248,9 @@ describe('build-output-prerender', () => {
            Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
            Ways to fix this:
-             - Add a dynamic data access before this call (e.g. \`await connection()\`)
-             - Move the expression into a \`"use client"\` component
-             - Move the expression into a \`"use cache"\` component
+             - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+             - Prerender and cache the value with \`"use cache"\`
+             - Render the value on the client with \`"use client"\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-random
                at Page (webpack:///app/server/page.tsx:13:27)

@@ -950,9 +950,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at RandomReadingComponent (app/sync-random-with-fallback/page.tsx:37:23)
@@ -977,9 +977,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at RandomReadingComponent (webpack:///app/sync-random-with-fallback/page.tsx:37:23)
@@ -1006,9 +1006,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at a (app/sync-random-with-fallback/page.tsx:37:23)
@@ -1032,9 +1032,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at a (<next-dist-dir>)
@@ -1099,9 +1099,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at getRandomNumber (app/sync-random-without-fallback/page.tsx:32:15)
@@ -1127,9 +1127,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at getRandomNumber (webpack:///app/sync-random-without-fallback/page.tsx:32:15)
@@ -1157,9 +1157,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at a (app/sync-random-without-fallback/page.tsx:32:15)
@@ -1183,9 +1183,9 @@ describe('Cache Components Errors', () => {
                  Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                  Ways to fix this:
-                   - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                   - Move the expression into a \`"use client"\` component
-                   - Move the expression into a \`"use cache"\` component
+                   - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                   - Prerender and cache the value with \`"use cache"\`
+                   - Render the value on the client with \`"use client"\`
 
                  Learn more: https://nextjs.org/docs/messages/next-prerender-random
                      at a (<next-dist-dir>)
@@ -4886,9 +4886,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date/page.tsx:19:16)
@@ -4912,9 +4913,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date/page.tsx:19:16)
@@ -4940,9 +4942,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date/page.tsx:19:16)
@@ -4965,9 +4968,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5027,9 +5031,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5053,9 +5058,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5081,9 +5087,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/date-now/page.tsx:19:21)
@@ -5106,9 +5113,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5168,9 +5176,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5194,9 +5203,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at DateReadingComponent (webpack:///app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5222,9 +5232,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (app/sync-io-current-time/new-date/page.tsx:19:16)
@@ -5247,9 +5258,10 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
+                 - Measure elapsed time with \`performance.now()\` instead of \`Date.now()\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-current-time
                    at a (<next-dist-dir>)
@@ -5309,9 +5321,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-random/math-random/page.tsx:19:21)
@@ -5335,9 +5347,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-random/math-random/page.tsx:19:21)
@@ -5363,9 +5375,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-random/math-random/page.tsx:19:21)
@@ -5388,9 +5400,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -5450,9 +5462,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -5477,9 +5489,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (webpack:///app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -5506,9 +5518,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at a (app/sync-io-web-crypto/get-random-value/page.tsx:20:10)
@@ -5532,9 +5544,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at a (<next-dist-dir>)
@@ -5594,9 +5606,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -5620,9 +5632,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (webpack:///app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -5648,9 +5660,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at a (app/sync-io-web-crypto/random-uuid/page.tsx:19:23)
@@ -5673,9 +5685,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at a (<next-dist-dir>)
@@ -5753,9 +5765,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
@@ -5780,9 +5792,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:24)
@@ -5808,9 +5820,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-pair-sync/page.tsx:20:17)
@@ -5835,9 +5847,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -5915,9 +5927,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
@@ -5942,9 +5954,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/generate-key-sync/page.tsx:21:6)
@@ -5970,9 +5982,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-key-sync/page.tsx:20:17)
@@ -5997,9 +6009,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -6077,9 +6089,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
@@ -6104,9 +6116,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:39)
@@ -6132,9 +6144,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/generate-prime-sync/page.tsx:20:32)
@@ -6159,9 +6171,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -6239,9 +6251,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
@@ -6266,9 +6278,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at a (app/sync-io-node-crypto/get-random-values/page.tsx:21:10)
@@ -6294,9 +6306,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/get-random-values/page.tsx:21:3)
@@ -6321,9 +6333,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-crypto
                    at a (<next-dist-dir>)
@@ -6401,9 +6413,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
@@ -6428,9 +6440,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/random-bytes/page.tsx:20:24)
@@ -6456,9 +6468,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-bytes/page.tsx:20:17)
@@ -6483,9 +6495,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -6563,9 +6575,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
@@ -6590,9 +6602,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/random-fill-sync/page.tsx:21:10)
@@ -6618,9 +6630,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-fill-sync/page.tsx:21:3)
@@ -6645,9 +6657,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -6725,9 +6737,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
@@ -6752,9 +6764,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/random-int-between/page.tsx:20:24)
@@ -6780,9 +6792,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-between/page.tsx:20:17)
@@ -6807,9 +6819,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -6887,9 +6899,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
@@ -6914,9 +6926,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/random-int-up-to/page.tsx:20:24)
@@ -6942,9 +6954,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-int-up-to/page.tsx:20:17)
@@ -6969,9 +6981,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
@@ -7049,9 +7061,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
@@ -7076,9 +7088,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (app/sync-io-node-crypto/random-uuid/page.tsx:20:24)
@@ -7104,9 +7116,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at SyncIOComponent (webpack:///app/sync-io-node-crypto/random-uuid/page.tsx:20:17)
@@ -7131,9 +7143,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.
 
                Ways to fix this:
-                 - Add a dynamic data access before this call (e.g. \`await connection()\`)
-                 - Move the expression into a \`"use client"\` component
-                 - Move the expression into a \`"use cache"\` component
+                 - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call
+                 - Prerender and cache the value with \`"use cache"\`
+                 - Render the value on the client with \`"use client"\`
 
                Learn more: https://nextjs.org/docs/messages/next-prerender-random
                    at a (<next-dist-dir>)
