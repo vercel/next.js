@@ -7,8 +7,7 @@ import type { TraceEvent, SpanId } from './types'
  *
  * See: https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview
  *
- * We only emit duration begin/end events ('B' / 'E') today, mirroring the
- * algorithm in `scripts/trace-to-event-format.mjs`.
+ * We only emit duration begin/end events ('B' / 'E') today.
  */
 interface ChromeTraceEvent {
   name: string
@@ -76,11 +75,9 @@ const createEvent = (
 })
 
 /**
- * Recursively emit B/E events for `span` and its children into `out`.
- *
- * Mirrors `reportSpanRecursively` from
- * `scripts/trace-to-event-format.mjs`, including the `build-module-*`
- * package-name collapse for noisy module-build spans.
+ * Recursively emit B/E events for `span` and its children into `out`,
+ * including the `build-module-*` package-name collapse for noisy
+ * module-build spans.
  */
 const reportSpanRecursively = (out: ChromeTraceEvent[], span: SpanNode) => {
   const isBuildModule = span.name.startsWith('build-module-')
