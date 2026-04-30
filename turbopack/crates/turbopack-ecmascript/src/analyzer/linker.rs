@@ -1,4 +1,4 @@
-use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take};
+use std::{collections::hash_map::Entry, fmt::Display, future::Future, mem::take, sync::Arc};
 
 use anyhow::Result;
 use parking_lot::Mutex;
@@ -176,7 +176,9 @@ where
                 if matches!(call.callee(), JsValue::Function(..)) =>
             {
                 let (callee, args) = call.into_parts();
-                let JsValue::Function(function_nodes, func_ident, return_value) = callee else {
+                let JsValue::Function(function_nodes, func_ident, return_value) =
+                    Arc::unwrap_or_clone(callee)
+                else {
                     unreachable!()
                 };
                 total_nodes -= 2; // Call + Function
@@ -185,19 +187,26 @@ where
                     for arg in args.iter() {
                         total_nodes -= arg.total_nodes();
                     }
-                    entry.insert(args);
+                    // Materialize back to `Vec<JsValue>` for the legacy `fun_args_values`
+                    // map signature; the Arc unwrap is cheap when each arg is uniquely
+                    // owned (the common case here).
+                    let args_owned: Vec<JsValue> =
+                        args.into_iter().map(Arc::unwrap_or_clone).collect();
+                    entry.insert(args_owned);
                     work_queue_stack.push(Step::LeaveCall(func_ident));
-                    work_queue_stack.push(Step::Enter(*return_value));
+                    work_queue_stack.push(Step::Enter(Arc::unwrap_or_clone(return_value)));
                 } else {
                     total_nodes -= return_value.total_nodes();
                     for arg in args.iter() {
                         total_nodes -= arg.total_nodes();
                     }
                     total_nodes += 1;
+                    let args_owned: Vec<JsValue> =
+                        args.into_iter().map(Arc::unwrap_or_clone).collect();
                     done.push(JsValue::unknown(
                         JsValue::call_from_parts(
                             JsValue::Function(function_nodes, func_ident, return_value),
-                            args,
+                            args_owned,
                         ),
                         true,
                         rcstr!("recursive function call"),

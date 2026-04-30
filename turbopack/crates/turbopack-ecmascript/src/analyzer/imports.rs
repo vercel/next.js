@@ -174,7 +174,7 @@ impl ImportAnnotations {
             let (
                 JsValue::Constant(ConstantValue::Str(key)),
                 JsValue::Constant(ConstantValue::Str(value)),
-            ) = (key, value)
+            ) = (&**key, &**value)
             else {
                 continue;
             };
@@ -528,11 +528,11 @@ impl ImportMap {
         if let Some((i, i_sym)) = self.imports.get(id) {
             let r = &self.references[*i];
             return Some(JsValue::member(
-                Box::new(JsValue::Module(ModuleValue {
+                JsValue::Module(ModuleValue {
                     module: r.module_path.clone(),
                     annotations: r.annotations.clone(),
-                })),
-                Box::new(i_sym.clone().into()),
+                }),
+                i_sym.clone().into(),
             ));
         }
         if let Some(i) = self.namespace_imports.get(id) {

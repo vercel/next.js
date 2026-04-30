@@ -48,8 +48,8 @@ pub mod well_known;
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum ObjectPart {
-    KeyValue(JsValue, JsValue),
-    Spread(JsValue),
+    KeyValue(Arc<JsValue>, Arc<JsValue>),
+    Spread(Arc<JsValue>),
 }
 
 impl Default for ObjectPart {
@@ -422,7 +422,7 @@ pub enum JsValue {
     /// An array of nested values
     Array {
         total_nodes: u32,
-        items: Vec<JsValue>,
+        items: Vec<Arc<JsValue>>,
         mutable: bool,
     },
     /// An object of nested values
@@ -434,60 +434,60 @@ pub enum JsValue {
     /// A list of alternative values
     Alternatives {
         total_nodes: u32,
-        values: Vec<JsValue>,
+        values: Vec<Arc<JsValue>>,
         logical_property: Option<LogicalProperty>,
     },
     /// A function reference. The return value might contain [JsValue::Argument]
     /// placeholders that need to be replaced when calling this function.
     /// `(total_node_count, func_ident, return_value)`
-    Function(u32, u32, Box<JsValue>),
+    Function(u32, u32, Arc<JsValue>),
 
     // OPERATIONS
     // ----------------------------
     /// A string concatenation of values.
     /// `foo.${unknownVar}.js` => 'foo' + Unknown + '.js'
-    Concat(u32, Vec<JsValue>),
+    Concat(u32, Vec<Arc<JsValue>>),
     /// An addition of values.
     /// This can be converted to [JsValue::Concat] if the type of the variable
     /// is string.
-    Add(u32, Vec<JsValue>),
+    Add(u32, Vec<Arc<JsValue>>),
     /// Logical negation `!expr`
-    Not(u32, Box<JsValue>),
+    Not(u32, Arc<JsValue>),
     /// Logical operator chain e. g. `expr && expr`
-    Logical(u32, LogicalOperator, Vec<JsValue>),
+    Logical(u32, LogicalOperator, Vec<Arc<JsValue>>),
     /// Binary expression e. g. `expr == expr`
-    Binary(u32, Box<JsValue>, BinaryOperator, Box<JsValue>),
+    Binary(u32, Arc<JsValue>, BinaryOperator, Arc<JsValue>),
     /// A constructor call. `(total_node_count, list)` — see [`CallList`].
     New(u32, CallList),
     /// A function call without a `this` context. `(total_node_count, list)` — see [`CallList`].
     Call(u32, CallList),
     /// A super call to the parent constructor.
     /// `(total_node_count, args)`
-    SuperCall(u32, Vec<JsValue>),
+    SuperCall(u32, Vec<Arc<JsValue>>),
     /// A function call with a `this` context. `(total_node_count, list)` — see [`MemberCallList`].
     MemberCall(u32, MemberCallList),
     /// A member access `obj[prop]`
     /// `(total_node_count, obj, prop)`
-    Member(u32, Box<JsValue>, Box<JsValue>),
+    Member(u32, Arc<JsValue>, Arc<JsValue>),
     /// A tenary operator `test ? cons : alt`
     /// `(total_node_count, test, cons, alt)`
-    Tenary(u32, Box<JsValue>, Box<JsValue>, Box<JsValue>),
+    Tenary(u32, Arc<JsValue>, Arc<JsValue>, Arc<JsValue>),
     /// A promise resolving to some value
     /// `(total_node_count, value)`
-    Promise(u32, Box<JsValue>),
+    Promise(u32, Arc<JsValue>),
     /// An await call (potentially) unwrapping a promise.
     /// `(total_node_count, value)`
-    Awaited(u32, Box<JsValue>),
+    Awaited(u32, Arc<JsValue>),
 
     /// A for-of loop
     ///
     /// `(total_node_count, iterable)`
-    Iterated(u32, Box<JsValue>),
+    Iterated(u32, Arc<JsValue>),
 
     /// A `typeof` expression.
     ///
     /// `(total_node_count, operand)`
-    TypeOf(u32, Box<JsValue>),
+    TypeOf(u32, Arc<JsValue>),
 
     // PLACEHOLDERS
     // ----------------------------
@@ -514,7 +514,7 @@ pub enum JsValue {
 /// parent's `debug_tuple`. This keeps fixture snapshots identical to the 4-tuple-payload
 /// version without forcing a hand-written `Debug` on every `JsValue` arm.
 #[derive(Default, Clone, Hash, PartialEq, Eq)]
-pub struct MemberCallList(Vec<JsValue>);
+pub struct MemberCallList(Vec<Arc<JsValue>>);
 
 impl fmt::Debug for MemberCallList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -527,12 +527,14 @@ impl fmt::Debug for MemberCallList {
             // The parent `debug_tuple` writes the field's leading indent for us (via
             // PadAdapter) and appends `,\n` after we return. Emitting
             // `<obj>,\n<prop>,\n<args>` with no trailing comma makes us appear as three
-            // sibling fields in the parent's pretty-print output.
-            writeln!(f, "{obj:#?},")?;
-            writeln!(f, "{prop:#?},")?;
-            write!(f, "{args:#?}")
+            // sibling fields in the parent's pretty-print output. Strip the `Arc`
+            // wrapper from each emitted child so snapshots match the pre-Arc shape.
+            writeln!(f, "{:#?},", &**obj)?;
+            writeln!(f, "{:#?},", &**prop)?;
+            f.debug_list().entries(args.iter().map(|a| &**a)).finish()
         } else {
-            write!(f, "{obj:?}, {prop:?}, {args:?}")
+            write!(f, "{:?}, {:?}, ", &**obj, &**prop)?;
+            f.debug_list().entries(args.iter().map(|a| &**a)).finish()
         }
     }
 }
@@ -564,7 +566,16 @@ impl MemberCallList {
         &self.0[self.0.len() - 1]
     }
 
+    pub fn obj_arc(&self) -> &Arc<JsValue> {
+        &self.0[self.0.len() - 1]
+    }
+
     pub fn obj_mut(&mut self) -> &mut JsValue {
+        let n = self.0.len();
+        Arc::make_mut(&mut self.0[n - 1])
+    }
+
+    pub fn obj_arc_mut(&mut self) -> &mut Arc<JsValue> {
         let n = self.0.len();
         &mut self.0[n - 1]
     }
@@ -574,25 +585,34 @@ impl MemberCallList {
         &self.0[self.0.len() - 2]
     }
 
+    pub fn prop_arc(&self) -> &Arc<JsValue> {
+        &self.0[self.0.len() - 2]
+    }
+
     pub fn prop_mut(&mut self) -> &mut JsValue {
+        let n = self.0.len();
+        Arc::make_mut(&mut self.0[n - 2])
+    }
+
+    pub fn prop_arc_mut(&mut self) -> &mut Arc<JsValue> {
         let n = self.0.len();
         &mut self.0[n - 2]
     }
 
     /// The call arguments — everything before `prop` and `obj`.
-    pub fn args(&self) -> &[JsValue] {
+    pub fn args(&self) -> &[Arc<JsValue>] {
         let n = self.0.len();
         &self.0[..n - 2]
     }
 
-    pub fn args_mut(&mut self) -> &mut [JsValue] {
+    pub fn args_mut(&mut self) -> &mut [Arc<JsValue>] {
         let n = self.0.len();
         &mut self.0[..n - 2]
     }
 
     /// Borrow `args`, `prop`, and `obj` simultaneously as mutable references. The single
     /// `Vec` storage means callers can't get these via separate accessor calls.
-    pub fn as_parts_mut(&mut self) -> (&mut [JsValue], &mut JsValue, &mut JsValue) {
+    pub fn as_parts_mut(&mut self) -> (&mut [Arc<JsValue>], &mut Arc<JsValue>, &mut Arc<JsValue>) {
         let n = self.0.len();
         let (args, tail) = self.0.split_at_mut(n - 2);
         let (prop_slot, obj_slot) = tail.split_at_mut(1);
@@ -601,7 +621,7 @@ impl MemberCallList {
 
     /// Take everything out. The returned `args` `Vec` reuses the original allocation — no
     /// copy. That's the point of storing obj/prop at the tail.
-    pub fn into_parts(mut self) -> (JsValue, JsValue, Vec<JsValue>) {
+    pub fn into_parts(mut self) -> (Arc<JsValue>, Arc<JsValue>, Vec<Arc<JsValue>>) {
         let obj = self.0.pop().unwrap();
         let prop = self.0.pop().unwrap();
         (obj, prop, self.0)
@@ -639,7 +659,7 @@ impl MemberCallList {
 /// The custom `Debug` impl re-emits the pre-refactor `(callee, [args])` shape so fixture
 /// snapshots remain identical to the 3-tuple-payload version.
 #[derive(Default, Clone, Hash, PartialEq, Eq)]
-pub struct CallList(Vec<JsValue>);
+pub struct CallList(Vec<Arc<JsValue>>);
 
 impl fmt::Debug for CallList {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -649,11 +669,13 @@ impl fmt::Debug for CallList {
         let args = &self.0[..n - 1];
         if f.alternate() {
             // Same trick as MemberCallList: emit two sibling fields inside the parent
-            // `debug_tuple`'s pretty-print output.
-            writeln!(f, "{callee:#?},")?;
-            write!(f, "{args:#?}")
+            // `debug_tuple`'s pretty-print output. Strip the `Arc` wrapper from each
+            // emitted child so snapshots match the pre-Arc shape.
+            writeln!(f, "{:#?},", &**callee)?;
+            f.debug_list().entries(args.iter().map(|a| &**a)).finish()
         } else {
-            write!(f, "{callee:?}, {args:?}")
+            write!(f, "{:?}, ", &**callee)?;
+            f.debug_list().entries(args.iter().map(|a| &**a)).finish()
         }
     }
 }
@@ -683,26 +705,38 @@ impl CallList {
         self.0.last().expect("CallList must always have a callee")
     }
 
+    pub fn callee_arc(&self) -> &Arc<JsValue> {
+        self.0.last().expect("CallList must always have a callee")
+    }
+
     pub fn callee_mut(&mut self) -> &mut JsValue {
+        Arc::make_mut(
+            self.0
+                .last_mut()
+                .expect("CallList must always have a callee"),
+        )
+    }
+
+    pub fn callee_arc_mut(&mut self) -> &mut Arc<JsValue> {
         self.0
             .last_mut()
             .expect("CallList must always have a callee")
     }
 
     /// The call arguments — everything before the callee.
-    pub fn args(&self) -> &[JsValue] {
+    pub fn args(&self) -> &[Arc<JsValue>] {
         let n = self.0.len();
         &self.0[..n - 1]
     }
 
-    pub fn args_mut(&mut self) -> &mut [JsValue] {
+    pub fn args_mut(&mut self) -> &mut [Arc<JsValue>] {
         let n = self.0.len();
         &mut self.0[..n - 1]
     }
 
     /// Borrow `args` and `callee` simultaneously as mutable references. The single `Vec`
     /// storage means callers can't get these via separate accessor calls.
-    pub fn as_parts_mut(&mut self) -> (&mut [JsValue], &mut JsValue) {
+    pub fn as_parts_mut(&mut self) -> (&mut [Arc<JsValue>], &mut Arc<JsValue>) {
         let n = self.0.len();
         let (args, callee_slot) = self.0.split_at_mut(n - 1);
         (args, &mut callee_slot[0])
@@ -710,7 +744,7 @@ impl CallList {
 
     /// Take everything out. The returned `args` `Vec` reuses the original allocation — no
     /// copy. That's the point of storing the callee at the tail.
-    pub fn into_parts(mut self) -> (JsValue, Vec<JsValue>) {
+    pub fn into_parts(mut self) -> (Arc<JsValue>, Vec<Arc<JsValue>>) {
         let callee = self.0.pop().unwrap();
         (callee, self.0)
     }
@@ -809,7 +843,10 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
             CompileTimeDefineValue::Array(a) => {
                 let mut js_value = JsValue::Array {
                     total_nodes: a.len() as u32,
-                    items: a.iter().map(|i| i.try_into()).collect::<Result<Vec<_>>>()?,
+                    items: a
+                        .iter()
+                        .map(|i| Ok::<Arc<JsValue>, anyhow::Error>(Arc::new(i.try_into()?)))
+                        .collect::<Result<Vec<_>>>()?,
                     mutable: false,
                 };
                 js_value.update_total_nodes();
@@ -822,8 +859,8 @@ impl TryFrom<&CompileTimeDefineValue> for JsValue {
                         .iter()
                         .map(|(k, v)| {
                             Ok::<ObjectPart, anyhow::Error>(ObjectPart::KeyValue(
-                                k.clone().into(),
-                                v.try_into()?,
+                                Arc::new(k.clone().into()),
+                                Arc::new(v.try_into()?),
                             ))
                         })
                         .collect::<Result<Vec<_>>>()?,
@@ -1104,7 +1141,7 @@ fn pretty_join(
     }
 }
 
-fn total_nodes(vec: &[JsValue]) -> u32 {
+fn total_nodes(vec: &[Arc<JsValue>]) -> u32 {
     vec.iter().map(|v| v.total_nodes()).sum::<u32>()
 }
 
@@ -1145,8 +1182,23 @@ impl JsValue {
 }
 
 // Constructors
+//
+// Each list-shaped constructor has two flavors: the owned-`JsValue` form (e.g. `concat`)
+// for callers that build values from scratch, and an `_arc` variant (e.g. `concat_arc`) for
+// callers that already have `Arc<JsValue>` elements and want to avoid the per-element
+// re-wrap. Single-child constructors (`logical_not`, `tenary`, …) likewise take owned
+// `JsValue`s and wrap internally. Use the `_arc` variants in hot paths that thread
+// `Arc<JsValue>`s through.
 impl JsValue {
+    fn into_arc_vec(list: Vec<JsValue>) -> Vec<Arc<JsValue>> {
+        list.into_iter().map(Arc::new).collect()
+    }
+
     pub fn alternatives(list: Vec<JsValue>) -> Self {
+        Self::alternatives_arc(Self::into_arc_vec(list))
+    }
+
+    pub fn alternatives_arc(list: Vec<Arc<JsValue>>) -> Self {
         Self::Alternatives {
             total_nodes: 1 + total_nodes(&list),
             values: list,
@@ -1158,6 +1210,13 @@ impl JsValue {
         list: Vec<JsValue>,
         logical_property: LogicalProperty,
     ) -> Self {
+        Self::alternatives_with_additional_property_arc(Self::into_arc_vec(list), logical_property)
+    }
+
+    pub fn alternatives_with_additional_property_arc(
+        list: Vec<Arc<JsValue>>,
+        logical_property: LogicalProperty,
+    ) -> Self {
         Self::Alternatives {
             total_nodes: 1 + total_nodes(&list),
             values: list,
@@ -1166,22 +1225,33 @@ impl JsValue {
     }
 
     pub fn concat(list: Vec<JsValue>) -> Self {
+        Self::concat_arc(Self::into_arc_vec(list))
+    }
+
+    pub fn concat_arc(list: Vec<Arc<JsValue>>) -> Self {
         Self::Concat(1 + total_nodes(&list), list)
     }
 
     pub fn add(list: Vec<JsValue>) -> Self {
+        Self::add_arc(Self::into_arc_vec(list))
+    }
+
+    pub fn add_arc(list: Vec<Arc<JsValue>>) -> Self {
         Self::Add(1 + total_nodes(&list), list)
     }
 
     pub fn logical_and(list: Vec<JsValue>) -> Self {
+        let list = Self::into_arc_vec(list);
         Self::Logical(1 + total_nodes(&list), LogicalOperator::And, list)
     }
 
     pub fn logical_or(list: Vec<JsValue>) -> Self {
+        let list = Self::into_arc_vec(list);
         Self::Logical(1 + total_nodes(&list), LogicalOperator::Or, list)
     }
 
     pub fn nullish_coalescing(list: Vec<JsValue>) -> Self {
+        let list = Self::into_arc_vec(list);
         Self::Logical(
             1 + total_nodes(&list),
             LogicalOperator::NullishCoalescing,
@@ -1189,64 +1259,65 @@ impl JsValue {
         )
     }
 
-    pub fn tenary(test: Box<JsValue>, cons: Box<JsValue>, alt: Box<JsValue>) -> Self {
+    pub fn tenary(test: JsValue, cons: JsValue, alt: JsValue) -> Self {
         Self::Tenary(
             1 + test.total_nodes() + cons.total_nodes() + alt.total_nodes(),
-            test,
-            cons,
-            alt,
+            Arc::new(test),
+            Arc::new(cons),
+            Arc::new(alt),
         )
     }
 
-    pub fn iterated(iterable: Box<JsValue>) -> Self {
-        Self::Iterated(1 + iterable.total_nodes(), iterable)
+    pub fn iterated(iterable: JsValue) -> Self {
+        Self::Iterated(1 + iterable.total_nodes(), Arc::new(iterable))
     }
 
-    pub fn equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
+    pub fn equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            a,
+            Arc::new(a),
             BinaryOperator::Equal,
-            b,
+            Arc::new(b),
         )
     }
 
-    pub fn not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
+    pub fn not_equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            a,
+            Arc::new(a),
             BinaryOperator::NotEqual,
-            b,
+            Arc::new(b),
         )
     }
 
-    pub fn strict_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
+    pub fn strict_equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            a,
+            Arc::new(a),
             BinaryOperator::StrictEqual,
-            b,
+            Arc::new(b),
         )
     }
 
-    pub fn strict_not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
+    pub fn strict_not_equal(a: JsValue, b: JsValue) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            a,
+            Arc::new(a),
             BinaryOperator::StrictNotEqual,
-            b,
+            Arc::new(b),
         )
     }
 
-    pub fn logical_not(inner: Box<JsValue>) -> Self {
-        Self::Not(1 + inner.total_nodes(), inner)
+    pub fn logical_not(inner: JsValue) -> Self {
+        Self::Not(1 + inner.total_nodes(), Arc::new(inner))
     }
 
-    pub fn type_of(operand: Box<JsValue>) -> Self {
-        Self::TypeOf(1 + operand.total_nodes(), operand)
+    pub fn type_of(operand: JsValue) -> Self {
+        Self::TypeOf(1 + operand.total_nodes(), Arc::new(operand))
     }
 
     pub fn array(items: Vec<JsValue>) -> Self {
+        let items = Self::into_arc_vec(items);
         Self::Array {
             total_nodes: 1 + total_nodes(&items),
             items,
@@ -1255,6 +1326,7 @@ impl JsValue {
     }
 
     pub fn frozen_array(items: Vec<JsValue>) -> Self {
+        let items = Self::into_arc_vec(items);
         Self::Array {
             total_nodes: 1 + total_nodes(&items),
             items,
@@ -1279,7 +1351,7 @@ impl JsValue {
         Self::Function(
             1 + return_value.total_nodes(),
             func_ident,
-            Box::new(return_value),
+            Arc::new(return_value),
         )
     }
 
@@ -1364,6 +1436,11 @@ impl JsValue {
     }
 
     pub fn super_call(args: Vec<JsValue>) -> Self {
+        let args = Self::into_arc_vec(args);
+        Self::SuperCall(1 + total_nodes(&args), args)
+    }
+
+    pub fn super_call_arc(args: Vec<Arc<JsValue>>) -> Self {
         Self::SuperCall(1 + total_nodes(&args), args)
     }
 
@@ -1393,7 +1470,11 @@ impl JsValue {
         Self::MemberCall(total, list)
     }
 
-    pub fn member(o: Box<JsValue>, p: Box<JsValue>) -> Self {
+    pub fn member(o: JsValue, p: JsValue) -> Self {
+        Self::member_arc(Arc::new(o), Arc::new(p))
+    }
+
+    pub fn member_arc(o: Arc<JsValue>, p: Arc<JsValue>) -> Self {
         Self::Member(1 + o.total_nodes() + p.total_nodes(), o, p)
     }
 
@@ -1402,11 +1483,11 @@ impl JsValue {
         if let JsValue::Promise(_, _) = operand {
             return operand;
         }
-        Self::Promise(1 + operand.total_nodes(), Box::new(operand))
+        Self::Promise(1 + operand.total_nodes(), Arc::new(operand))
     }
 
-    pub fn awaited(operand: Box<JsValue>) -> Self {
-        Self::Awaited(1 + operand.total_nodes(), operand)
+    pub fn awaited(operand: JsValue) -> Self {
+        Self::Awaited(1 + operand.total_nodes(), Arc::new(operand))
     }
 
     pub fn unknown(value: impl Into<Arc<JsValue>>, side_effects: bool, reason: RcStr) -> Self {
@@ -2396,13 +2477,15 @@ impl JsValue {
                 total_nodes: _,
                 values,
                 logical_property: _,
-            } => values.iter().any(JsValue::has_side_effects),
+            } => values.iter().any(|a: &Arc<JsValue>| a.has_side_effects()),
             JsValue::Binary(_, a, _, b) => a.has_side_effects() || b.has_side_effects(),
             JsValue::Tenary(_, test, cons, alt) => {
                 test.has_side_effects() || cons.has_side_effects() || alt.has_side_effects()
             }
             JsValue::Not(_, value) => value.has_side_effects(),
-            JsValue::Array { items, .. } => items.iter().any(JsValue::has_side_effects),
+            JsValue::Array { items, .. } => {
+                items.iter().any(|a: &Arc<JsValue>| a.has_side_effects())
+            }
             JsValue::Object { parts, .. } => parts.iter().any(|v| match v {
                 ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
                 ObjectPart::Spread(v) => v.has_side_effects(),
@@ -2411,7 +2494,8 @@ impl JsValue {
             // have sideeffects as well.
             // Otherwise it would be
             // `func_body(callee).has_side_effects() ||
-            //      callee.has_side_effects() || args.iter().any(JsValue::has_side_effects`
+            //      callee.has_side_effects() || args.iter().any(|a: &Arc<JsValue>|
+            // a.has_side_effects()`
             JsValue::New(_, _call) => true,
             JsValue::Call(_, _call) => true,
             JsValue::SuperCall(_, _args) => true,
@@ -2455,19 +2539,21 @@ impl JsValue {
                 Some(LogicalProperty::Truthy) => Some(true),
                 Some(LogicalProperty::Falsy) => Some(false),
                 Some(LogicalProperty::Nullish) => Some(false),
-                _ => merge_if_known(values, JsValue::is_truthy),
+                _ => merge_if_known(values, |a: &Arc<JsValue>| a.is_truthy()),
             },
             JsValue::Not(_, value) => value.is_truthy().map(|x| !x),
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => all_if_known(list, JsValue::is_truthy),
-                LogicalOperator::Or => any_if_known(list, JsValue::is_truthy),
-                LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_truthy)
-                }
+                LogicalOperator::And => all_if_known(list, |a: &Arc<JsValue>| a.is_truthy()),
+                LogicalOperator::Or => any_if_known(list, |a: &Arc<JsValue>| a.is_truthy()),
+                LogicalOperator::NullishCoalescing => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_not_nullish(),
+                    |a: &Arc<JsValue>| a.is_truthy(),
+                ),
             },
-            JsValue::Binary(_, box a, op, box b) => {
+            JsValue::Binary(_, a, op, b) => {
                 let (positive_op, negate) = op.positive_op();
-                match (positive_op, a, b) {
+                match (positive_op, &**a, &**b) {
                     (
                         PositiveBinaryOperator::StrictEqual,
                         JsValue::Constant(a),
@@ -2536,16 +2622,22 @@ impl JsValue {
                 logical_property,
             } => match logical_property {
                 Some(LogicalProperty::Nullish) => Some(true),
-                _ => merge_if_known(values, JsValue::is_nullish),
+                _ => merge_if_known(values, |a: &Arc<JsValue>| a.is_nullish()),
             },
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_nullish)
+                LogicalOperator::And => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_truthy(),
+                    |a: &Arc<JsValue>| a.is_nullish(),
+                ),
+                LogicalOperator::Or => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_falsy(),
+                    |a: &Arc<JsValue>| a.is_nullish(),
+                ),
+                LogicalOperator::NullishCoalescing => {
+                    all_if_known(list, |a: &Arc<JsValue>| a.is_nullish())
                 }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_nullish)
-                }
-                LogicalOperator::NullishCoalescing => all_if_known(list, JsValue::is_nullish),
             },
             _ => None,
         }
@@ -2564,22 +2656,28 @@ impl JsValue {
     pub fn is_empty_string(&self) -> Option<bool> {
         match self {
             JsValue::Constant(c) => Some(c.is_empty_string()),
-            JsValue::Concat(_, list) => all_if_known(list, JsValue::is_empty_string),
+            JsValue::Concat(_, list) => all_if_known(list, |a: &Arc<JsValue>| a.is_empty_string()),
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
                 logical_property: _,
-            } => merge_if_known(values, JsValue::is_empty_string),
+            } => merge_if_known(values, |a: &Arc<JsValue>| a.is_empty_string()),
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_empty_string)
-                }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_empty_string)
-                }
-                LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_empty_string)
-                }
+                LogicalOperator::And => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_truthy(),
+                    |a: &Arc<JsValue>| a.is_empty_string(),
+                ),
+                LogicalOperator::Or => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_falsy(),
+                    |a: &Arc<JsValue>| a.is_empty_string(),
+                ),
+                LogicalOperator::NullishCoalescing => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_not_nullish(),
+                    |a: &Arc<JsValue>| a.is_empty_string(),
+                ),
             },
             // Booleans are not empty strings
             JsValue::Not(..) | JsValue::Binary(..) => Some(false),
@@ -2630,24 +2728,30 @@ impl JsValue {
             // Booleans are not strings
             JsValue::Not(..) | JsValue::Binary(..) => Some(false),
 
-            JsValue::Add(_, list) => any_if_known(list, JsValue::is_string),
+            JsValue::Add(_, list) => any_if_known(list, |a: &Arc<JsValue>| a.is_string()),
             JsValue::Logical(_, op, list) => match op {
-                LogicalOperator::And => {
-                    shortcircuit_if_known(list, JsValue::is_truthy, JsValue::is_string)
-                }
-                LogicalOperator::Or => {
-                    shortcircuit_if_known(list, JsValue::is_falsy, JsValue::is_string)
-                }
-                LogicalOperator::NullishCoalescing => {
-                    shortcircuit_if_known(list, JsValue::is_not_nullish, JsValue::is_string)
-                }
+                LogicalOperator::And => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_truthy(),
+                    |a: &Arc<JsValue>| a.is_string(),
+                ),
+                LogicalOperator::Or => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_falsy(),
+                    |a: &Arc<JsValue>| a.is_string(),
+                ),
+                LogicalOperator::NullishCoalescing => shortcircuit_if_known(
+                    list,
+                    |a: &Arc<JsValue>| a.is_not_nullish(),
+                    |a: &Arc<JsValue>| a.is_string(),
+                ),
             },
 
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
                 logical_property: _,
-            } => merge_if_known(values, JsValue::is_string),
+            } => merge_if_known(values, |a: &Arc<JsValue>| a.is_string()),
 
             JsValue::Call(_, call)
                 if matches!(
@@ -2832,6 +2936,16 @@ impl JsValue {
         &mut self,
         visitor: &mut impl FnMut(&mut JsValue) -> bool,
     ) -> bool {
+        // Helper: visit an `Arc<JsValue>` slot, calling `Arc::make_mut` only if the
+        // visitor actually modifies the value. The clone-on-write happens inside
+        // `make_mut`; siblings that aren't mutated keep their shared `Arc`.
+        fn visit_arc(
+            slot: &mut Arc<JsValue>,
+            visitor: &mut impl FnMut(&mut JsValue) -> bool,
+        ) -> bool {
+            visitor(Arc::make_mut(slot))
+        }
+
         match self {
             JsValue::Alternatives {
                 total_nodes: _,
@@ -2844,7 +2958,7 @@ impl JsValue {
             | JsValue::Array { items: list, .. } => {
                 let mut modified = false;
                 for item in list.iter_mut() {
-                    if visitor(item) {
+                    if visit_arc(item, visitor) {
                         modified = true
                     }
                 }
@@ -2854,7 +2968,7 @@ impl JsValue {
                 modified
             }
             JsValue::Not(_, value) => {
-                let modified = visitor(value);
+                let modified = visit_arc(value, visitor);
                 if modified {
                     self.update_total_nodes();
                 }
@@ -2865,15 +2979,15 @@ impl JsValue {
                 for item in parts.iter_mut() {
                     match item {
                         ObjectPart::KeyValue(key, value) => {
-                            if visitor(key) {
+                            if visit_arc(key, visitor) {
                                 modified = true
                             }
-                            if visitor(value) {
+                            if visit_arc(value, visitor) {
                                 modified = true
                             }
                         }
                         ObjectPart::Spread(value) => {
-                            if visitor(value) {
+                            if visit_arc(value, visitor) {
                                 modified = true
                             }
                         }
@@ -2901,7 +3015,7 @@ impl JsValue {
             JsValue::SuperCall(_, args) => {
                 let mut modified = false;
                 for item in args.iter_mut() {
-                    if visitor(item) {
+                    if visit_arc(item, visitor) {
                         modified = true
                     }
                 }
@@ -2919,7 +3033,7 @@ impl JsValue {
                 modified
             }
             JsValue::Function(_, _, return_value) => {
-                let modified = visitor(return_value);
+                let modified = visit_arc(return_value, visitor);
 
                 if modified {
                     self.update_total_nodes();
@@ -2927,8 +3041,8 @@ impl JsValue {
                 modified
             }
             JsValue::Binary(_, a, _, b) => {
-                let m1 = visitor(a);
-                let m2 = visitor(b);
+                let m1 = visit_arc(a, visitor);
+                let m2 = visit_arc(b, visitor);
                 let modified = m1 || m2;
                 if modified {
                     self.update_total_nodes();
@@ -2936,9 +3050,9 @@ impl JsValue {
                 modified
             }
             JsValue::Tenary(_, test, cons, alt) => {
-                let m1 = visitor(test);
-                let m2 = visitor(cons);
-                let m3 = visitor(alt);
+                let m1 = visit_arc(test, visitor);
+                let m2 = visit_arc(cons, visitor);
+                let m3 = visit_arc(alt, visitor);
                 let modified = m1 || m2 || m3;
                 if modified {
                     self.update_total_nodes();
@@ -2946,8 +3060,8 @@ impl JsValue {
                 modified
             }
             JsValue::Member(_, obj, prop) => {
-                let m1 = visitor(obj);
-                let m2 = visitor(prop);
+                let m1 = visit_arc(obj, visitor);
+                let m2 = visit_arc(prop, visitor);
                 let modified = m1 || m2;
                 if modified {
                     self.update_total_nodes();
@@ -2959,7 +3073,7 @@ impl JsValue {
             | JsValue::TypeOf(_, operand)
             | JsValue::Promise(_, operand)
             | JsValue::Awaited(_, operand) => {
-                let modified = visitor(operand);
+                let modified = visit_arc(operand, visitor);
                 if modified {
                     self.update_total_nodes();
                 }
@@ -3009,7 +3123,7 @@ impl JsValue {
                 modified
             }
             JsValue::Member(_, obj, _) => {
-                let m = visitor(obj);
+                let m = visitor(Arc::make_mut(obj));
                 if m {
                     self.update_total_nodes();
                 }
@@ -3029,7 +3143,7 @@ impl JsValue {
             JsValue::New(_, call) if !call.args().is_empty() => {
                 let mut modified = false;
                 for item in call.args_mut().iter_mut() {
-                    if visitor(item) {
+                    if visitor(Arc::make_mut(item)) {
                         modified = true
                     }
                 }
@@ -3041,7 +3155,7 @@ impl JsValue {
             JsValue::Call(_, call) if !call.args().is_empty() => {
                 let mut modified = false;
                 for item in call.args_mut().iter_mut() {
-                    if visitor(item) {
+                    if visitor(Arc::make_mut(item)) {
                         modified = true
                     }
                 }
@@ -3053,7 +3167,7 @@ impl JsValue {
             JsValue::MemberCall(_, call) if !call.args().is_empty() => {
                 let mut modified = false;
                 for item in call.args_mut().iter_mut() {
-                    if visitor(item) {
+                    if visitor(Arc::make_mut(item)) {
                         modified = true
                     }
                 }
@@ -3063,7 +3177,7 @@ impl JsValue {
                 modified
             }
             JsValue::Member(_, _, prop) => {
-                let m = visitor(prop);
+                let m = visitor(Arc::make_mut(prop));
                 if m {
                     self.update_total_nodes();
                 }
@@ -3178,15 +3292,15 @@ impl JsValue {
             logical_property: _,
         } = self
         {
-            if !values.contains(&v) {
+            if !values.iter().any(|existing| **existing == v) {
                 *c += v.total_nodes();
-                values.push(v);
+                values.push(Arc::new(v));
             }
         } else {
             let l = take(self);
             *self = JsValue::Alternatives {
                 total_nodes: 1 + l.total_nodes() + v.total_nodes(),
-                values: vec![l, v],
+                values: vec![Arc::new(l), Arc::new(v)],
                 logical_property: None,
             };
         }
@@ -3205,30 +3319,48 @@ impl JsValue {
                 logical_property: _,
             } => {
                 if values.len() == 1 {
-                    *self = take(&mut values[0]);
+                    *self = Arc::unwrap_or_clone(values.pop().unwrap());
                 } else {
                     let mut set = FxIndexSet::with_capacity_and_hasher(
                         values.len(),
                         BuildHasherDefault::<FxHasher>::default(),
                     );
                     for v in take(values) {
-                        match v {
-                            JsValue::Alternatives {
+                        // Flatten any nested `Alternatives` into the outer set. We need to
+                        // peek inside the `Arc` to inspect, and unwrap-or-clone if it turns
+                        // out to be the kind we want to flatten. The common case (refcount
+                        // == 1) avoids the deep clone.
+                        match Arc::try_unwrap(v) {
+                            Ok(JsValue::Alternatives {
                                 total_nodes: _,
-                                values,
+                                values: inner,
                                 logical_property: _,
-                            } => {
-                                for v in values {
-                                    set.insert(SimilarJsValue(v));
+                            }) => {
+                                for inner_v in inner {
+                                    set.insert(SimilarJsValue(inner_v));
                                 }
                             }
-                            v => {
-                                set.insert(SimilarJsValue(v));
+                            Ok(other) => {
+                                set.insert(SimilarJsValue(Arc::new(other)));
+                            }
+                            Err(arc) => {
+                                if let JsValue::Alternatives {
+                                    total_nodes: _,
+                                    values: inner,
+                                    logical_property: _,
+                                } = &*arc
+                                {
+                                    for inner_v in inner.iter() {
+                                        set.insert(SimilarJsValue(Arc::clone(inner_v)));
+                                    }
+                                } else {
+                                    set.insert(SimilarJsValue(arc));
+                                }
                             }
                         }
                     }
                     if set.len() == 1 {
-                        *self = set.into_iter().next().unwrap().0;
+                        *self = Arc::unwrap_or_clone(set.into_iter().next().unwrap().0);
                     } else {
                         *values = set.into_iter().map(|v| v.0).collect();
                         self.update_total_nodes();
@@ -3240,43 +3372,52 @@ impl JsValue {
                 v.retain(|v| v.as_str() != Some(""));
 
                 // TODO(kdy1): Remove duplicate
-                let mut new: Vec<JsValue> = vec![];
+                let mut new: Vec<Arc<JsValue>> = vec![];
                 for v in take(v) {
                     if let Some(str) = v.as_str() {
                         if let Some(last) = new.last_mut() {
                             if let Some(last_str) = last.as_str() {
-                                *last = [last_str, str].concat().into();
+                                *last = Arc::new([last_str, str].concat().into());
                             } else {
                                 new.push(v);
                             }
                         } else {
                             new.push(v);
                         }
-                    } else if let JsValue::Concat(_, v) = v {
-                        new.extend(v);
                     } else {
-                        new.push(v);
+                        // Flatten any nested `Concat` into the new list.
+                        match Arc::try_unwrap(v) {
+                            Ok(JsValue::Concat(_, inner)) => new.extend(inner),
+                            Ok(other) => new.push(Arc::new(other)),
+                            Err(arc) => {
+                                if let JsValue::Concat(_, inner) = &*arc {
+                                    new.extend(inner.iter().cloned());
+                                } else {
+                                    new.push(arc);
+                                }
+                            }
+                        }
                     }
                 }
                 if new.len() == 1 {
-                    *self = new.into_iter().next().unwrap();
+                    *self = Arc::unwrap_or_clone(new.into_iter().next().unwrap());
                 } else {
                     *v = new;
                     self.update_total_nodes();
                 }
             }
             JsValue::Add(_, v) => {
-                let mut added: Vec<JsValue> = Vec::new();
+                let mut added: Vec<Arc<JsValue>> = Vec::new();
                 let mut iter = take(v).into_iter();
                 while let Some(item) = iter.next() {
                     if item.is_string() == Some(true) {
-                        let mut concat = match added.len() {
+                        let mut concat: Vec<Arc<JsValue>> = match added.len() {
                             0 => Vec::new(),
                             1 => vec![added.into_iter().next().unwrap()],
-                            _ => vec![JsValue::Add(
+                            _ => vec![Arc::new(JsValue::Add(
                                 1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
                                 added,
-                            )],
+                            ))],
                         };
                         concat.push(item);
                         for item in iter.by_ref() {
@@ -3292,7 +3433,7 @@ impl JsValue {
                     }
                 }
                 if added.len() == 1 {
-                    *self = added.into_iter().next().unwrap();
+                    *self = Arc::unwrap_or_clone(added.into_iter().next().unwrap());
                 } else {
                     *v = added;
                     self.update_total_nodes();
@@ -3302,22 +3443,30 @@ impl JsValue {
                 // Nested logical expressions can be normalized: e. g. `a && (b && c)` => `a &&
                 // b && c`
                 if list.iter().any(|v| {
-                    if let JsValue::Logical(_, inner_op, _) = v {
+                    if let JsValue::Logical(_, inner_op, _) = &**v {
                         inner_op == op
                     } else {
                         false
                     }
                 }) => {
-                    // Taking the old list and constructing a new merged list
-                    for mut v in take(list).into_iter() {
-                        if let JsValue::Logical(_, inner_op, inner_list) = &mut v {
-                            if inner_op == op {
-                                list.append(inner_list);
-                            } else {
-                                list.push(v);
+                    // Taking the old list and constructing a new merged list. When the
+                    // shared `Arc` for an inner `Logical` happens to be uniquely owned
+                    // we can move its `Vec` out; otherwise we clone.
+                    for v in take(list).into_iter() {
+                        match Arc::try_unwrap(v) {
+                            Ok(JsValue::Logical(_, inner_op, inner_list)) if inner_op == *op => {
+                                list.extend(inner_list);
                             }
-                        } else {
-                            list.push(v);
+                            Ok(other) => list.push(Arc::new(other)),
+                            Err(arc) => {
+                                if let JsValue::Logical(_, inner_op, inner_list) = &*arc
+                                    && inner_op == op
+                                {
+                                    list.extend(inner_list.iter().cloned());
+                                } else {
+                                    list.push(arc);
+                                }
+                            }
                         }
                     }
                     self.update_total_nodes();
@@ -3351,7 +3500,6 @@ impl JsValue {
         if depth == 0 {
             return false;
         }
-
         fn all_parts_similar(a: &[ObjectPart], b: &[ObjectPart], depth: usize) -> bool {
             if a.len() != b.len() {
                 return false;
@@ -3469,7 +3617,11 @@ impl JsValue {
             return;
         }
 
-        fn all_similar_hash<H: std::hash::Hasher>(slice: &[JsValue], state: &mut H, depth: usize) {
+        fn all_similar_hash<H: std::hash::Hasher>(
+            slice: &[Arc<JsValue>],
+            state: &mut H,
+            depth: usize,
+        ) {
             for item in slice {
                 item.similar_hash(state, depth);
             }
@@ -3584,7 +3736,7 @@ const SIMILAR_HASH_DEPTH: usize = 2;
 /// A wrapper around `JsValue` that implements `PartialEq` and `Hash` by
 /// comparing the values with a depth of [SIMILAR_EQ_DEPTH] and hashing values
 /// with a depth of [SIMILAR_HASH_DEPTH].
-struct SimilarJsValue(JsValue);
+struct SimilarJsValue(Arc<JsValue>);
 
 impl PartialEq for SimilarJsValue {
     fn eq(&self, other: &Self) -> bool {
@@ -3667,7 +3819,7 @@ pub struct RequireContextOptions {
 
 /// Parse the arguments passed to a require.context invocation, validate them
 /// and convert them to the appropriate rust values.
-pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> {
+pub fn parse_require_context(args: &[Arc<JsValue>]) -> Result<RequireContextOptions> {
     if !(1..=3).contains(&args.len()) {
         // https://linear.app/vercel/issue/WEB-910/add-support-for-requirecontexts-mode-argument
         bail!("require.context() only supports 1-3 arguments (mode is not supported)");
@@ -3691,7 +3843,7 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
     };
 
     let filter = if let Some(filter) = args.get(2) {
-        if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
+        if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = &**filter {
             EsRegex::new(pattern, flags)?
         } else {
             bail!("require.context(..., ..., filter) requires filter to be a regex");
@@ -3853,7 +4005,7 @@ pub mod test_utils {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Import)
                 ) =>
             {
-                match &call.args()[0] {
+                match &*call.args()[0] {
                     JsValue::Constant(ConstantValue::Str(v)) => {
                         JsValue::promise(JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
@@ -3869,13 +4021,10 @@ pub mod test_utils {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
                 ) =>
             {
-                if let [
-                    JsValue::Member(
-                        _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(ConstantValue::Str(prop)),
-                    ),
-                ] = call.args()
+                if let [arg] = call.args()
+                    && let JsValue::Member(_, obj, prop) = &**arg
+                    && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**obj
+                    && let JsValue::Constant(ConstantValue::Str(prop)) = &**prop
                     && prop.as_str() == "url"
                 {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
@@ -3889,7 +4038,7 @@ pub mod test_utils {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireResolve)
                 ) =>
             {
-                match &call.args()[0] {
+                match &*call.args()[0] {
                     JsValue::Constant(v) => (v.to_string() + "/resolved/lib/index.js").into(),
                     _ => v.into_unknown(true, rcstr!("require.resolve non constant")),
                 }
@@ -3938,14 +4087,11 @@ pub mod test_utils {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::URLConstructor)
                 ) =>
             {
-                if let [
-                    JsValue::Constant(ConstantValue::Str(url)),
-                    JsValue::Member(
-                        _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(ConstantValue::Str(prop)),
-                    ),
-                ] = call.args()
+                if let [arg0, arg1] = call.args()
+                    && let JsValue::Constant(ConstantValue::Str(url)) = &**arg0
+                    && let JsValue::Member(_, obj, prop) = &**arg1
+                    && let JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta) = &**obj
+                    && let JsValue::Constant(ConstantValue::Str(prop)) = &**prop
                 {
                     if prop.as_str() == "url" {
                         // TODO avoid clone
@@ -4359,7 +4505,7 @@ mod tests {
                                 .await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
-                                    JsValue::type_of(Box::new(arg)),
+                                    JsValue::type_of(arg),
                                 ));
                                 steps
                             }

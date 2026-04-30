@@ -699,7 +699,7 @@ async fn parse_config_value(
                     .await;
                 };
 
-                if matches!(value, JsValue::Constant(ConstantValue::Undefined)) {
+                if matches!(&**value, JsValue::Constant(ConstantValue::Undefined)) {
                     continue;
                 }
                 match key {
@@ -1061,7 +1061,7 @@ async fn parse_route_matcher_from_js_value(
         let mut route_has = vec![];
         if let JsValue::Array { items, .. } = value {
             for (i, item) in items.iter().enumerate() {
-                if let JsValue::Object { parts, .. } = item {
+                if let JsValue::Object { parts, .. } = &**item {
                     let mut route_type = None;
                     let mut route_key = None;
                     let mut route_value = None;
@@ -1189,7 +1189,7 @@ async fn parse_route_matcher_from_js_value(
             for (i, item) in items.iter().enumerate() {
                 if let Some(matcher) = item.as_str() {
                     matchers.push(MiddlewareMatcherKind::Str(matcher.to_string()));
-                } else if let JsValue::Object { parts, .. } = item {
+                } else if let JsValue::Object { parts, .. } = &**item {
                     let mut matcher = ProxyMatcher::default();
                     let mut had_source = false;
                     for matcher_part in parts {
@@ -1225,7 +1225,7 @@ async fn parse_route_matcher_from_js_value(
                                     {
                                         matcher.locale = false;
                                     } else if matches!(
-                                        value,
+                                        &**value,
                                         JsValue::Constant(ConstantValue::Undefined)
                                     ) {
                                         // ignore

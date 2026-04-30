@@ -55,13 +55,14 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             values,
             logical_property: _,
         } => {
-            let mut alts = Pattern::Alternatives(values.iter().map(js_value_to_pattern).collect());
+            let mut alts =
+                Pattern::Alternatives(values.iter().map(|v| js_value_to_pattern(v)).collect());
             alts.normalize();
             alts
         }
         JsValue::Concat(_, parts) => {
             let mut concats =
-                Pattern::Concatenation(parts.iter().map(js_value_to_pattern).collect());
+                Pattern::Concatenation(parts.iter().map(|v| js_value_to_pattern(v)).collect());
             concats.normalize();
             concats
         }
@@ -296,6 +297,8 @@ pub fn inline_source_map_comment(original_path: &str, original_content: &str) ->
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use turbo_rcstr::rcstr;
     use turbopack_core::resolve::pattern::Pattern;
 
@@ -318,9 +321,9 @@ mod tests {
             js_value_to_pattern(&JsValue::Concat(
                 1,
                 vec![
-                    rcstr!("hello").into(),
-                    rcstr!("\\").into(),
-                    rcstr!("world").into()
+                    Arc::new(rcstr!("hello").into()),
+                    Arc::new(rcstr!("\\").into()),
+                    Arc::new(rcstr!("world").into()),
                 ]
             ))
         );
