@@ -32,7 +32,6 @@ use crate::{
         resolve::ResolvingIssue,
     },
     module::{Module, Modules, OptionModule},
-    output::{OutputAsset, OutputAssets},
     package_json::{PackageJsonIssue, read_package_json},
     raw_module::RawModule,
     reference_type::ReferenceType,
@@ -91,7 +90,6 @@ type AfterResolvePluginWithCondition = (
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
-    OutputAsset(ResolvedVc<Box<dyn OutputAsset>>),
     External {
         /// uri, path, reference, etc.
         name: RcStr,
@@ -237,21 +235,6 @@ impl ModuleResolveResult {
         ModuleResolveResult {
             primary: vec![(request_key, ModuleResolveResultItem::Module(module))]
                 .into_boxed_slice(),
-            affecting_sources: Default::default(),
-        }
-        .resolved_cell()
-    }
-
-    pub fn output_asset(
-        request_key: RequestKey,
-        output_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    ) -> ResolvedVc<Self> {
-        ModuleResolveResult {
-            primary: vec![(
-                request_key,
-                ModuleResolveResultItem::OutputAsset(output_asset),
-            )]
-            .into_boxed_slice(),
             affecting_sources: Default::default(),
         }
         .resolved_cell()
@@ -413,19 +396,6 @@ impl ModuleResolveResult {
             }
         }
         Ok(Vc::cell(set.into_iter().collect()))
-    }
-
-    #[turbo_tasks::function]
-    pub fn primary_output_assets(&self) -> Vc<OutputAssets> {
-        Vc::cell(
-            self.primary
-                .iter()
-                .filter_map(|(_, item)| match item {
-                    &ModuleResolveResultItem::OutputAsset(a) => Some(a),
-                    _ => None,
-                })
-                .collect(),
-        )
     }
 }
 

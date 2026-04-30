@@ -60,7 +60,7 @@ where
     fn deref(&self) -> &Self::Target {
         // This lookup will fail if the value type stored does not actually implement the trait,
         // which implies a bug in either the registry code or the macro code.
-        let downcast_ptr = <Box<U> as VcValueTrait>::get_impl_vtables().cast(
+        let downcast_ptr = <Box<U> as VcValueTrait>::IMPL_VTABLES.cast(
             self.shared_reference.type_id,
             self.shared_reference.reference.0.as_ptr() as *const (),
         );

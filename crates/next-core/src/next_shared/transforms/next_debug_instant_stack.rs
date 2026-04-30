@@ -1,7 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use next_custom_transforms::transforms::debug_instant_stack::debug_instant_stack;
+use next_custom_transforms::transforms::debug_instant_stack::DebugInstantStack;
 use swc_core::ecma::ast::Program;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{
@@ -12,9 +13,9 @@ use super::module_rule_match_js_no_url;
 
 pub async fn get_next_debug_instant_stack_rule(
     enable_mdx_rs: bool,
-    page_extensions: Vec<String>,
+    page_extensions: Vc<Vec<RcStr>>,
 ) -> Result<ModuleRule> {
-    let transform = EcmascriptInputTransform::Plugin(
+    let transform: EcmascriptInputTransform = EcmascriptInputTransform::Plugin(
         next_debug_instant_stack_transform_plugin(page_extensions)
             .to_resolved()
             .await?,
@@ -32,24 +33,27 @@ pub async fn get_next_debug_instant_stack_rule(
 }
 
 #[turbo_tasks::function]
-fn next_debug_instant_stack_transform_plugin(page_extensions: Vec<String>) -> Vc<TransformPlugin> {
-    Vc::cell(Box::new(NextDebugInstantStack { page_extensions })
-        as Box<dyn CustomTransformer + Send + Sync>)
+async fn next_debug_instant_stack_transform_plugin(
+    page_extensions: ResolvedVc<Vec<RcStr>>,
+) -> Result<Vc<TransformPlugin>> {
+    Ok(Vc::cell(Box::new(NextDebugInstantStack {
+        debug_instant_stack: DebugInstantStack::new(&*page_extensions.await?),
+    }) as Box<dyn CustomTransformer + Send + Sync>))
 }
 
 #[derive(Debug)]
 struct NextDebugInstantStack {
-    page_extensions: Vec<String>,
+    debug_instant_stack: DebugInstantStack,
 }
 
 #[async_trait]
 impl CustomTransformer for NextDebugInstantStack {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "debug_instant_stack", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        program.mutate(debug_instant_stack(
-            ctx.file_path_str.to_string(),
-            self.page_extensions.clone(),
-        ));
+        program.mutate(
+            self.debug_instant_stack
+                .get_pass(ctx.file_path_str.to_string()),
+        );
         Ok(())
     }
 }

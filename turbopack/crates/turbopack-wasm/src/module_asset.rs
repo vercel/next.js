@@ -3,9 +3,7 @@ use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, chunk_group::references_to_output_assets,
-    },
+    chunk::{AsyncModuleInfo, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -196,11 +194,13 @@ impl EcmascriptChunkPlaceable for WebAssemblyModuleAsset {
     #[turbo_tasks::function]
     async fn chunk_item_output_assets(
         self: Vc<Self>,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithReferenced>> {
-        let loader_references = self.loader().references().await?;
-        references_to_output_assets(&*loader_references).await
+        let wasm_asset = self.wasm_asset(chunking_context).to_resolved().await?;
+        Ok(OutputAssetsWithReferenced::from_assets(Vc::cell(vec![
+            ResolvedVc::upcast(wasm_asset),
+        ])))
     }
 }
 

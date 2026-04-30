@@ -748,11 +748,11 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect({ browser, next }).toDisplayRedbox(`
        {
-         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word",
+         "description": "Syntax error: <FIXME-project-root>/index.module.css Unknown word .button",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.module.css (1:1)
-       Syntax error: <FIXME-project-root>/index.module.css Unknown word
+       Syntax error: <FIXME-project-root>/index.module.css Unknown word .button
        > 1 | .button
            | ^",
          "stack": [],
@@ -1249,7 +1249,7 @@ describe('ReactRefreshLogBox', () => {
     if (isReact18) {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E336",
          "description": "A null error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -1260,7 +1260,7 @@ describe('ReactRefreshLogBox', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
+         "code": "E336",
          "description": "A null error was thrown, see here for more info: https://nextjs.org/docs/messages/threw-undefined",
          "environmentLabel": null,
          "label": "Runtime Error",
