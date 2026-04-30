@@ -92,6 +92,9 @@ export function getErrorTypeLabel(
   if (errorDetails.type === 'sync-io') {
     return `Instant`
   }
+  if (errorDetails.type === 'sync-io-client') {
+    return `Instant`
+  }
   if (type === 'recoverable') {
     return `Recoverable ${error.name}`
   }
@@ -108,6 +111,7 @@ type ErrorDetails =
   | DynamicMetadataErrorDetails
   | DynamicViewportErrorDetails
   | SyncIOErrorDetails
+  | SyncIOClientErrorDetails
 
 type NoErrorDetails = {
   type: 'empty'
@@ -137,6 +141,11 @@ type DynamicViewportErrorDetails = {
 
 type SyncIOErrorDetails = {
   type: 'sync-io'
+  cause: string
+}
+
+type SyncIOClientErrorDetails = {
+  type: 'sync-io-client'
   cause: string
 }
 
@@ -288,18 +297,23 @@ const SYNC_IO_APIS = [
   'crypto.randomUUID()',
 ]
 
-// `(?!-)` excludes `*-client` URLs emitted by `createSyncIOClientError`.
 const SYNC_IO_DOCS_PATTERN =
-  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(?!-)/
+  /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(-client)?/
 
-// Matches sync IO errors from `createSyncIOError` and
-// `createSyncIORuntimeError`, plus the "needs to bail out of prerendering"
-// abort/throw reason from `dynamic-rendering.ts`.
+// Matches sync IO errors from `createSyncIOError`,
+// `createSyncIORuntimeError`, and `createSyncIOClientError`, plus the
+// "needs to bail out of prerendering" abort/throw reason from
+// `dynamic-rendering.ts`.
 function isSyncIOError(message: string): boolean {
   return (
     message.includes('needs to bail out of prerendering') ||
     SYNC_IO_DOCS_PATTERN.test(message)
   )
+}
+
+function isSyncIOClientError(message: string): boolean {
+  const match = SYNC_IO_DOCS_PATTERN.exec(message)
+  return match !== null && match[2] === '-client'
 }
 
 function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
@@ -334,10 +348,11 @@ function getBlockingRouteErrorDetails(error: Error): null | ErrorDetails {
   }
 
   if (isSyncIOError(message)) {
+    const isClient = isSyncIOClientError(message)
     for (const api of SYNC_IO_APIS) {
       if (message.includes(api)) {
         return {
-          type: 'sync-io',
+          type: isClient ? 'sync-io-client' : 'sync-io',
           cause: api,
         }
       }
@@ -649,6 +664,39 @@ Next.js version: ${props.versionInfo.installed} (${process.env.__NEXT_BUNDLER})\
               kind="sync-io"
               cause={errorDetails.cause}
               explanation="Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request."
+              dialogResizerRef={dialogResizerRef}
+            />
+          </Suspense>
+        </ErrorOverlayLayout>
+      )
+    case 'sync-io-client':
+      return (
+        <ErrorOverlayLayout
+          errorCode={errorCode}
+          errorType={errorType}
+          errorMessage={
+            <>
+              Next.js encountered <code>{errorDetails.cause}</code> inside a
+              Client Component without a Suspense boundary above it.
+            </>
+          }
+          onClose={isServerError ? undefined : onClose}
+          debugInfo={debugInfo}
+          error={error}
+          runtimeErrors={runtimeErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          dialogResizerRef={dialogResizerRef}
+          generateErrorInfo={generateErrorInfo}
+          {...props}
+        >
+          <Suspense fallback={<div data-nextjs-error-suspended />}>
+            <InstantRuntimeError
+              key={activeError.id.toString()}
+              error={activeError}
+              variant="runtime"
+              kind="sync-io-client"
+              cause={errorDetails.cause}
               dialogResizerRef={dialogResizerRef}
             />
           </Suspense>

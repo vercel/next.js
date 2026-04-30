@@ -3,6 +3,7 @@ import {
   DOCS_URLS,
   EXPLANATIONS,
   SYNC_IO_DOCS,
+  SYNC_IO_CLIENT_DOCS,
   getCards,
   type FixCard,
   type GuidanceKind,
@@ -65,10 +66,14 @@ export function InstantGuidance({
   cause?: string
 }) {
   const cards = getCards(kind, variant, cause)
-  const docsUrl =
-    kind === 'sync-io' && cause
-      ? SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
-      : DOCS_URLS[kind]
+  let docsUrl: string
+  if (kind === 'sync-io' && cause) {
+    docsUrl = SYNC_IO_DOCS[cause] || DOCS_URLS[kind]
+  } else if (kind === 'sync-io-client' && cause) {
+    docsUrl = SYNC_IO_CLIENT_DOCS[cause] || DOCS_URLS[kind]
+  } else {
+    docsUrl = DOCS_URLS[kind]
+  }
   const defaultExplanation = explanation || EXPLANATIONS[kind]
 
   return (

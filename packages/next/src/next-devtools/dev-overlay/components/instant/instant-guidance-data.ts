@@ -335,6 +335,71 @@ const syncCryptoCards: FixCard[] = [
   },
 ]
 
+// ── Client sync IO cards (no Suspense above) ──────
+
+const syncClientDateCards: FixCard[] = [
+  {
+    title: 'Wrap in Suspense',
+    color: 'purple',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DateDisplay />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+  },
+  {
+    title: 'Move into a useEffect or handler',
+    color: 'amber',
+    snippets: [
+      { text: 'useEffect(() => {', highlight: true },
+      { text: '  setT(Date.now())' },
+      { text: '}, [])' },
+    ],
+  },
+]
+
+const syncClientMathCards: FixCard[] = [
+  {
+    title: 'Wrap in Suspense',
+    color: 'purple',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <RandomId />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+  },
+  {
+    title: 'Move into a useEffect or handler',
+    color: 'amber',
+    snippets: [
+      { text: 'useEffect(() => {', highlight: true },
+      { text: '  setId(String(Math.random()))' },
+      { text: '}, [])' },
+    ],
+  },
+]
+
+const syncClientCryptoCards: FixCard[] = [
+  {
+    title: 'Wrap in Suspense',
+    color: 'purple',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <TokenId />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+  },
+  {
+    title: 'Move into a useEffect or handler',
+    color: 'amber',
+    snippets: [
+      { text: 'useEffect(() => {', highlight: true },
+      { text: '  setId(crypto.randomUUID())' },
+      { text: '}, [])' },
+    ],
+  },
+]
+
 // ── Card lookup ───────────────────────────────────
 
 export type GuidanceKind =
@@ -342,6 +407,7 @@ export type GuidanceKind =
   | 'metadata'
   | 'viewport'
   | 'sync-io'
+  | 'sync-io-client'
 
 export type GuidanceVariant = 'runtime' | 'navigation'
 
@@ -350,6 +416,7 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
   metadata: 'https://nextjs.org/docs/messages/next-prerender-dynamic-metadata',
   viewport: 'https://nextjs.org/docs/messages/next-prerender-dynamic-viewport',
   'sync-io': '',
+  'sync-io-client': '',
 }
 
 export const SYNC_IO_DOCS: Record<string, string> = {
@@ -377,6 +444,35 @@ export const SYNC_IO_DOCS: Record<string, string> = {
     'https://nextjs.org/docs/messages/next-prerender-crypto',
 }
 
+export const SYNC_IO_CLIENT_DOCS: Record<string, string> = {
+  'Math.random()':
+    'https://nextjs.org/docs/messages/next-prerender-random-client',
+  'Date.now()':
+    'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+  'Date()':
+    'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+  'new Date()':
+    'https://nextjs.org/docs/messages/next-prerender-current-time-client',
+  'crypto.randomUUID()':
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  'crypto.getRandomValues()':
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  "require('node:crypto').randomUUID()":
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  "require('node:crypto').randomBytes(size)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  "require('node:crypto').randomFillSync(...)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  "require('node:crypto').randomInt(min, max)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  "require('node:crypto').generatePrimeSync(...)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  "require('node:crypto').generateKeyPairSync(...)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+  "require('node:crypto').generateKeySync(...)":
+    'https://nextjs.org/docs/messages/next-prerender-crypto-client',
+}
+
 export const EXPLANATIONS: Record<GuidanceKind, string> = {
   'blocking-route':
     'This prevents the route from being prerendered, blocking navigation and leading to a slower user experience.',
@@ -385,6 +481,8 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
   viewport:
     'This prevents the page from being prerendered, leading to a slower user experience.',
   'sync-io': '',
+  'sync-io-client':
+    'Without an upstream `<Suspense>` boundary, Next.js has no fallback to prerender in place of this Client Component.',
 }
 
 const syncCardsByCause: Record<string, FixCard[]> = {
@@ -403,6 +501,22 @@ const syncCardsByCause: Record<string, FixCard[]> = {
   "require('node:crypto').generateKeySync(...)": syncCryptoCards,
 }
 
+const syncClientCardsByCause: Record<string, FixCard[]> = {
+  'Math.random()': syncClientMathCards,
+  'Date.now()': syncClientDateCards,
+  'Date()': syncClientDateCards,
+  'new Date()': syncClientDateCards,
+  'crypto.randomUUID()': syncClientCryptoCards,
+  'crypto.getRandomValues()': syncClientCryptoCards,
+  "require('node:crypto').randomUUID()": syncClientCryptoCards,
+  "require('node:crypto').randomBytes(size)": syncClientCryptoCards,
+  "require('node:crypto').randomFillSync(...)": syncClientCryptoCards,
+  "require('node:crypto').randomInt(min, max)": syncClientCryptoCards,
+  "require('node:crypto').generatePrimeSync(...)": syncClientCryptoCards,
+  "require('node:crypto').generateKeyPairSync(...)": syncClientCryptoCards,
+  "require('node:crypto').generateKeySync(...)": syncClientCryptoCards,
+}
+
 export function getCards(
   kind: GuidanceKind,
   variant: GuidanceVariant,
@@ -417,6 +531,8 @@ export function getCards(
       return variant === 'runtime' ? viewportRuntimeCards : viewportDynamicCards
     case 'sync-io':
       return (cause && syncCardsByCause[cause]) || syncMathCards
+    case 'sync-io-client':
+      return (cause && syncClientCardsByCause[cause]) || syncClientMathCards
     default:
       return runtimeCards
   }

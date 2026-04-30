@@ -2003,10 +2003,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1224",
-               "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+               "code": "E1228",
+               "description": "Next.js encountered new Date() inside a Client Component without a Suspense boundary above it.",
                "environmentLabel": "Server",
-               "label": "Console Error",
+               "label": "Instant",
                "source": "app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
              > 5 |   const data = new Date().toISOString()
                  |                ^",
@@ -2051,9 +2051,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
-                     at Page (webpack:///app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+
+                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+
+                 Ways to fix this:
+                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
+                   - Move the read into a \`useEffect\` or event handler
+
+                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at SyncIO (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (app/sync-attribution/guarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2088,8 +2096,23 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (<next-dist-dir>)
+                 "Error: Route "/sync-attribution/guarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+
+                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+
+                 Ways to fix this:
+                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
+                   - Move the read into a \`useEffect\` or event handler
+
+                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at <unknown> (app/sync-attribution/guarded-async-unguarded-clientsync/client.tsx:5:16)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |                ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/guarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2210,8 +2233,8 @@ describe('Cache Components Errors', () => {
                    - Set \`export const instant = false\` to allow a blocking route
 
                  Learn more: https://nextjs.org/docs/messages/blocking-route
-                     at RequestData (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
-                     at Page (webpack:///app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
+                     at RequestData (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:34:18)
+                     at Page (app/sync-attribution/unguarded-async-guarded-clientsync/page.tsx:27:9)
                    32 |
                    33 | async function RequestData() {
                  > 34 |   ;(await cookies()).get('foo')
@@ -2240,40 +2263,9 @@ describe('Cache Components Errors', () => {
                  Learn more: https://nextjs.org/docs/messages/blocking-route
                      at a (<anonymous>)
                      at main (<anonymous>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<next-dist-dir>)
-                     at f (<next-dist-dir>)
-                     at g (<next-dist-dir>)
-                     at h (<next-dist-dir>)
-                     at i (<next-dist-dir>)
-                     at j (<anonymous>)
-                     at k (<next-dist-dir>)
                      at main (<anonymous>)
                      at body (<anonymous>)
                      at html (<anonymous>)
-                     at l (<next-dist-dir>)
-                     at m (<next-dist-dir>)
-                     at n (<next-dist-dir>)
-                     at o (<next-dist-dir>)
-                     at p (<next-dist-dir>)
-                     at q (<next-dist-dir>)
-                     at r (<next-dist-dir>)
-                     at s (<next-dist-dir>)
-                     at t (<anonymous>)
-                     at u (<next-dist-dir>)
-                     at v (<next-dist-dir>)
-                     at w (<next-dist-dir>)
-                     at x (<next-dist-dir>)
-                     at y (<next-dist-dir>)
-                     at z (<next-dist-dir>)
-                     at a (<next-dist-dir>)
-                     at b (<next-dist-dir>)
-                     at c (<next-dist-dir>)
-                     at d (<next-dist-dir>)
-                     at e (<anonymous>)
-                     at f (<next-dist-dir>)
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-guarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -2300,10 +2292,10 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1224",
-               "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
+               "code": "E1228",
+               "description": "Next.js encountered new Date() inside a Client Component without a Suspense boundary above it.",
                "environmentLabel": "Server",
-               "label": "Console Error",
+               "label": "Instant",
                "source": "app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx (5:16) @ SyncIO
              > 5 |   const data = new Date().toISOString()
                  |                ^",
@@ -2348,9 +2340,17 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at SyncIO (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
-                     at Page (webpack:///app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+
+                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+
+                 Ways to fix this:
+                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
+                   - Move the read into a \`useEffect\` or event handler
+
+                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at SyncIO (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                     at Page (app/sync-attribution/unguarded-async-unguarded-clientsync/page.tsx:22:9)
                    3 | export function SyncIO() {
                    4 |   // This is a sync IO access that should not cause an error
                  > 5 |   const data = new Date().toISOString()
@@ -2385,8 +2385,23 @@ describe('Cache Components Errors', () => {
                 `)
               } else {
                 expect(output).toMatchInlineSnapshot(`
-                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
-                     at a (<next-dist-dir>)
+                 "Error: Route "/sync-attribution/unguarded-async-unguarded-clientsync": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+
+                 Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+
+                 Ways to fix this:
+                   - Wrap the Client Component in \`<Suspense fallback={...}>\`
+                   - Move the read into a \`useEffect\` or event handler
+
+                 Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
+                     at <unknown> (app/sync-attribution/unguarded-async-unguarded-clientsync/client.tsx:5:16)
+                   3 | export function SyncIO() {
+                   4 |   // This is a sync IO access that should not cause an error
+                 > 5 |   const data = new Date().toISOString()
+                     |                ^
+                   6 |
+                   7 |   return (
+                   8 |     <main>
                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
                    - Start the app in development mode by running \`next dev\`, then open "/sync-attribution/unguarded-async-unguarded-clientsync" in your browser to investigate the error.
                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
