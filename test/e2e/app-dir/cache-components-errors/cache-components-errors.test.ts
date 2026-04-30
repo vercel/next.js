@@ -1352,16 +1352,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-cookies/page.tsx (18:25) @ CookiesReadingComponent
+                   "source": "app/sync-cookies/page.tsx (18:17) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
-                    |                         ^",
+                    |                 ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:25)",
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:17)",
                      "Page app/sync-cookies/page.tsx (11:7)",
                    ],
                  },
                  {
-                   "description": "<turbopack-module-id>.cookies(...).get is not a function",
+                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
@@ -1532,16 +1532,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
-                   "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
+                   "source": "app/sync-cookies-runtime/page.tsx (24:17) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as any).get('token')
-                    |                         ^",
+                    |                 ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:25)",
+                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:17)",
                      "Page app/sync-cookies-runtime/page.tsx (14:9)",
                    ],
                  },
                  {
-                   "description": "<turbopack-module-id>.cookies(...).get is not a function",
+                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:36) @ CookiesReadingComponent
@@ -1598,11 +1598,11 @@ describe('Cache Components Errors', () => {
                  "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
-                 "source": "app/sync-draft-mode/page.tsx (24:31) @ DraftModeReadingComponent
+                 "source": "app/sync-draft-mode/page.tsx (24:21) @ DraftModeReadingComponent
                > 24 |   const isEnabled = (draftMode() as any).isEnabled
-                    |                               ^",
+                    |                     ^",
                  "stack": [
-                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:31)",
+                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:21)",
                    "Page app/sync-draft-mode/page.tsx (13:7)",
                  ],
                }
@@ -1686,16 +1686,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-headers/page.tsx (18:29) @ HeadersReadingComponent
+                   "source": "app/sync-headers/page.tsx (18:21) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
-                    |                             ^",
+                    |                     ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers/page.tsx (18:29)",
+                     "HeadersReadingComponent app/sync-headers/page.tsx (18:21)",
                      "Page app/sync-headers/page.tsx (11:7)",
                    ],
                  },
                  {
-                   "description": "<turbopack-module-id>.headers(...).get is not a function",
+                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
@@ -1866,16 +1866,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
-                   "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
+                   "source": "app/sync-headers-runtime/page.tsx (24:21) @ HeadersReadingComponent
                > 24 |   const userAgent = (headers() as any).get('user-agent')
-                    |                             ^",
+                    |                     ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:29)",
+                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:21)",
                      "Page app/sync-headers-runtime/page.tsx (14:9)",
                    ],
                  },
                  {
-                   "description": "<turbopack-module-id>.headers(...).get is not a function",
+                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:40) @ HeadersReadingComponent
@@ -4407,11 +4407,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <unknown>
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
                  "stack": [
-                   "<unknown> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
                    "async ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
                  ],
                }
@@ -5701,7 +5701,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5721,11 +5721,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
-                  |                        ^",
+                  |                 ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
                ],
              }
@@ -5863,7 +5863,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5883,11 +5883,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
-             > 21 |     .generateKeySync('hmac', {
-                  |      ^",
+               "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
+             > 20 |   const first = crypto
+                  |                 ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
                ],
              }
@@ -6025,7 +6025,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6045,11 +6045,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
              > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
-                  |                                       ^",
+                  |                                ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32)",
                  "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
                ],
              }
@@ -6187,7 +6187,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6207,11 +6207,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:3) @ SyncIOComponent
              > 21 |   crypto.getRandomValues(first)
-                  |          ^",
+                  |   ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:10)",
+                 "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:3)",
                  "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
                ],
              }
@@ -6349,7 +6349,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6369,11 +6369,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').randomBytes(size) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomBytes(8)
-                  |                        ^",
+                  |                 ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:24)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
                ],
              }
@@ -6511,7 +6511,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6531,11 +6531,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
              > 21 |   crypto.randomFillSync(first, 4, 8)
-                  |          ^",
+                  |   ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3)",
                  "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
                ],
              }
@@ -6673,7 +6673,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6693,11 +6693,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128, 256)
-                  |                        ^",
+                  |                 ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:24)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
                ],
              }
@@ -6835,7 +6835,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6855,11 +6855,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128)
-                  |                        ^",
+                  |                 ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
                ],
              }
@@ -6997,7 +6997,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomUUID() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -7017,11 +7017,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                "description": "Next.js encountered require('node:crypto').randomUUID() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
              > 20 |   const first = crypto.randomUUID()
-                  |                        ^",
+                  |                 ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:24)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:17)",
                  "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
                ],
              }
