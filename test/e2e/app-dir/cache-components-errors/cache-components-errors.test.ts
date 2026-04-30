@@ -160,7 +160,7 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1164",
+             "code": "E1220",
              "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -426,22 +426,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1167",
-             "description": "Data that blocks navigation was accessed inside generateViewport()
-
-           Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this:
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
-
-           or
-
-           Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "code": "E1210",
+             "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/dynamic-viewport-static-route/page.tsx (2:9) @ Module.generateViewport
            > 2 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -512,22 +500,10 @@ describe('Cache Components Errors', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1167",
-             "description": "Data that blocks navigation was accessed inside generateViewport()
-
-           Viewport metadata needs to be available on page load so accessing data that waits for a user navigation while producing it prevents Next.js from prerendering an initial UI. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-           To fix this:
-
-           Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender generateViewport() as part of the HTML document, so it's instantly visible to the user.
-
-           or
-
-           Put a <Suspense> around your document <body>.This indicate to Next.js that you are opting into allowing blocking navigations for any page.
-
-           Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport",
+             "code": "E1210",
+             "description": "Next.js encountered uncached data in generateViewport().",
              "environmentLabel": "Server",
-             "label": "Blocking Route",
+             "label": "Instant",
              "source": "app/dynamic-viewport-dynamic-route/page.tsx (4:9) @ Module.generateViewport
            > 4 |   await new Promise((r) => setTimeout(r, 0))
                |         ^",
@@ -618,7 +594,7 @@ describe('Cache Components Errors', () => {
           await expect(browser).toDisplayCollapsedRedbox(`
            [
              {
-               "code": "E1164",
+               "code": "E1220",
                "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -632,7 +608,7 @@ describe('Cache Components Errors', () => {
                ],
              },
              {
-               "code": "E1164",
+               "code": "E1220",
                "description": "Next.js encountered uncached data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -939,7 +915,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered Math.random() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -1087,7 +1063,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered Math.random() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -1376,16 +1352,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-cookies/page.tsx (18:17) @ CookiesReadingComponent
+                   "source": "app/sync-cookies/page.tsx (18:25) @ CookiesReadingComponent
                > 18 |   const token = (cookies() as any).get('token')
-                    |                 ^",
+                    |                         ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:17)",
+                     "CookiesReadingComponent app/sync-cookies/page.tsx (18:25)",
                      "Page app/sync-cookies/page.tsx (11:7)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "description": "<turbopack-module-id>.cookies(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies/page.tsx (18:36) @ CookiesReadingComponent
@@ -1556,16 +1532,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-cookies-runtime" used \`cookies().get\`. \`cookies()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
-                   "source": "app/sync-cookies-runtime/page.tsx (24:17) @ CookiesReadingComponent
+                   "source": "app/sync-cookies-runtime/page.tsx (24:25) @ CookiesReadingComponent
                > 24 |   const token = (cookies() as any).get('token')
-                    |                 ^",
+                    |                         ^",
                    "stack": [
-                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:17)",
+                     "CookiesReadingComponent app/sync-cookies-runtime/page.tsx (24:25)",
                      "Page app/sync-cookies-runtime/page.tsx (14:9)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.cookies)(...).get is not a function",
+                   "description": "<turbopack-module-id>.cookies(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-cookies-runtime/page.tsx (24:36) @ CookiesReadingComponent
@@ -1622,11 +1598,11 @@ describe('Cache Components Errors', () => {
                  "description": "Route "/sync-draft-mode" used \`draftMode().isEnabled\`. \`draftMode()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                  "environmentLabel": "Prerender",
                  "label": "Console Error",
-                 "source": "app/sync-draft-mode/page.tsx (24:21) @ DraftModeReadingComponent
+                 "source": "app/sync-draft-mode/page.tsx (24:31) @ DraftModeReadingComponent
                > 24 |   const isEnabled = (draftMode() as any).isEnabled
-                    |                     ^",
+                    |                               ^",
                  "stack": [
-                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:21)",
+                   "DraftModeReadingComponent app/sync-draft-mode/page.tsx (24:31)",
                    "Page app/sync-draft-mode/page.tsx (13:7)",
                  ],
                }
@@ -1710,16 +1686,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-headers" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Prerender",
                    "label": "Console Error",
-                   "source": "app/sync-headers/page.tsx (18:21) @ HeadersReadingComponent
+                   "source": "app/sync-headers/page.tsx (18:29) @ HeadersReadingComponent
                > 18 |   const userAgent = (headers() as any).get('user-agent')
-                    |                     ^",
+                    |                             ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers/page.tsx (18:21)",
+                     "HeadersReadingComponent app/sync-headers/page.tsx (18:29)",
                      "Page app/sync-headers/page.tsx (11:7)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "description": "<turbopack-module-id>.headers(...).get is not a function",
                    "environmentLabel": "Prerender",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers/page.tsx (18:40) @ HeadersReadingComponent
@@ -1890,16 +1866,16 @@ describe('Cache Components Errors', () => {
                    "description": "Route "/sync-headers-runtime" used \`headers().get\`. \`headers()\` returns a Promise and must be unwrapped with \`await\` or \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                    "environmentLabel": "Server",
                    "label": "Console Error",
-                   "source": "app/sync-headers-runtime/page.tsx (24:21) @ HeadersReadingComponent
+                   "source": "app/sync-headers-runtime/page.tsx (24:29) @ HeadersReadingComponent
                > 24 |   const userAgent = (headers() as any).get('user-agent')
-                    |                     ^",
+                    |                             ^",
                    "stack": [
-                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:21)",
+                     "HeadersReadingComponent app/sync-headers-runtime/page.tsx (24:29)",
                      "Page app/sync-headers-runtime/page.tsx (14:9)",
                    ],
                  },
                  {
-                   "description": "(0 , <webpack-module-id>.headers)(...).get is not a function",
+                   "description": "<turbopack-module-id>.headers(...).get is not a function",
                    "environmentLabel": "Server",
                    "label": "Runtime TypeError",
                    "source": "app/sync-headers-runtime/page.tsx (24:40) @ HeadersReadingComponent
@@ -2027,7 +2003,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1196",
                "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`\`new Date()\`\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -2139,7 +2115,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1166",
+               "code": "E1221",
                "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2324,7 +2300,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1196",
                "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`\`new Date()\`\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -2866,7 +2842,7 @@ describe('Cache Components Errors', () => {
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1166",
+                 "code": "E1221",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3027,7 +3003,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1166",
+                 "code": "E1221",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3293,7 +3269,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1166",
+                 "code": "E1221",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3454,7 +3430,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
               await expect(browser).toDisplayCollapsedRedbox(`
                {
-                 "code": "E1166",
+                 "code": "E1221",
                  "description": "Next.js encountered runtime data during the initial render.",
                  "environmentLabel": "Server",
                  "label": "Instant",
@@ -3721,7 +3697,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1166",
+               "code": "E1221",
                "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -4431,11 +4407,11 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
                  "description": ""use cache: private" must not be used within \`unstable_cache()\`.",
                  "environmentLabel": null,
                  "label": "Runtime Error",
-                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ eval
+                 "source": "app/use-cache-private-in-unstable-cache/page.tsx (21:38) @ <unknown>
                > 21 | const getCachedData = unstable_cache(async () => {
                     |                                      ^",
                  "stack": [
-                   "eval app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
+                   "<unknown> app/use-cache-private-in-unstable-cache/page.tsx (21:38)",
                    "async ComponentWithCachedData app/use-cache-private-in-unstable-cache/page.tsx (16:16)",
                  ],
                }
@@ -4672,7 +4648,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1166",
+               "code": "E1221",
                "description": "Next.js encountered runtime data during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -4875,7 +4851,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1223",
              "description": "Next.js encountered Date() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5016,7 +4992,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1223",
              "description": "Next.js encountered Date.now() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5157,7 +5133,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1223",
              "description": "Next.js encountered new Date() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5298,7 +5274,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1223",
              "description": "Next.js encountered Math.random() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5439,7 +5415,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1223",
              "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5583,7 +5559,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E394",
+             "code": "E1223",
              "description": "Next.js encountered crypto.randomUUID() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5741,15 +5717,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.generateKeyPairSync('rsa', keyGenOptions)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/generate-key-pair-sync/page.tsx (12:9)",
                ],
              }
@@ -5903,15 +5879,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17) @ SyncIOComponent
-             > 20 |   const first = crypto
-                  |                 ^",
+               "source": "app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6) @ SyncIOComponent
+             > 21 |     .generateKeySync('hmac', {
+                  |      ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-key-sync/page.tsx (21:6)",
                  "Page app/sync-io-node-crypto/generate-key-sync/page.tsx (12:9)",
                ],
              }
@@ -6065,15 +6041,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39) @ SyncIOComponent
              > 20 |   const first = new Uint8Array(crypto.generatePrimeSync(128))
-                  |                                ^",
+                  |                                       ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:32)",
+                 "SyncIOComponent app/sync-io-node-crypto/generate-prime-sync/page.tsx (20:39)",
                  "Page app/sync-io-node-crypto/generate-prime-sync/page.tsx (12:9)",
                ],
              }
@@ -6227,15 +6203,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:3) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/get-random-values/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.getRandomValues(first)
-                  |   ^",
+                  |          ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:3)",
+                 "SyncIOComponent app/sync-io-node-crypto/get-random-values/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/get-random-values/page.tsx (12:9)",
                ],
              }
@@ -6389,15 +6365,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-bytes/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomBytes(8)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-bytes/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-bytes/page.tsx (12:9)",
                ],
              }
@@ -6551,15 +6527,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10) @ SyncIOComponent
              > 21 |   crypto.randomFillSync(first, 4, 8)
-                  |   ^",
+                  |          ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:3)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-fill-sync/page.tsx (21:10)",
                  "Page app/sync-io-node-crypto/random-fill-sync/page.tsx (12:9)",
                ],
              }
@@ -6713,15 +6689,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-int-between/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128, 256)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-int-between/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-between/page.tsx (12:9)",
                ],
              }
@@ -6875,15 +6851,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomInt(128)
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-int-up-to/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-int-up-to/page.tsx (12:9)",
                ],
              }
@@ -7037,15 +7013,15 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
+               "code": "E1223",
                "description": "Next.js encountered require('node:crypto').randomUUID() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
-               "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:17) @ SyncIOComponent
+               "source": "app/sync-io-node-crypto/random-uuid/page.tsx (20:24) @ SyncIOComponent
              > 20 |   const first = crypto.randomUUID()
-                  |                 ^",
+                  |                        ^",
                "stack": [
-                 "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:17)",
+                 "SyncIOComponent app/sync-io-node-crypto/random-uuid/page.tsx (20:24)",
                  "Page app/sync-io-node-crypto/random-uuid/page.tsx (12:9)",
                ],
              }
@@ -7182,7 +7158,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1164",
+             "code": "E1220",
              "description": "Next.js encountered uncached data during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",

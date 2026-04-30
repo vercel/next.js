@@ -21,7 +21,7 @@ describe('Cache Components Dev Errors', () => {
     // soft-navigating to the page (see test below).
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E394",
+       "code": "E1223",
        "description": "Next.js encountered Math.random() during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -51,7 +51,7 @@ describe('Cache Components Dev Errors', () => {
     // TODO: React should not include the anon stack in the Owner Stack.
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E394",
+       "code": "E1223",
        "description": "Next.js encountered Math.random() during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -98,7 +98,7 @@ describe('Cache Components Dev Errors', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1164",
+       "code": "E1220",
        "description": "Next.js encountered uncached data during the initial render.",
        "environmentLabel": "Server",
        "label": "Instant",
@@ -161,18 +161,13 @@ describe('Cache Components Dev Errors', () => {
         } else {
           await expect(browser).toDisplayRedbox(`
            {
-             "description": "  x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
+             "description": "Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.",
              "environmentLabel": null,
              "label": "Build Error",
-             "source": "./app/page.tsx
-           Error:   x Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
-              ,-[1:1]
-            1 | export const revalidate = 10
-              :              ^^^^^^^^^^
-            2 | export default function Page() {
-            3 |   return (
-            4 |     <div>Hello World</div>
-              \`----",
+             "source": "./app/page.tsx (1:14)
+           Route segment config "revalidate" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+           > 1 | export const revalidate = 10
+               |              ^^^^^^^^^^",
              "stack": [],
            }
           `)

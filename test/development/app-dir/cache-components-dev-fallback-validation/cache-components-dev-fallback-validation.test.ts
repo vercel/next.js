@@ -52,7 +52,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -67,7 +67,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -85,7 +85,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -100,7 +100,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -118,7 +118,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -133,7 +133,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -155,7 +155,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -170,7 +170,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -188,7 +188,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -203,7 +203,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -221,7 +221,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -236,7 +236,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -254,7 +254,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -269,7 +269,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -287,7 +287,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -302,7 +302,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -320,7 +320,7 @@ describe('Cache Components Fallback Validation', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
@@ -335,7 +335,7 @@ describe('Cache Components Fallback Validation', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E1166",
+         "code": "E1221",
          "description": "Next.js encountered runtime data during the initial render.",
          "environmentLabel": "Server",
          "label": "Instant",
