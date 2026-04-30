@@ -24,7 +24,6 @@ const Page = () => {
         src={url}
         id="script2"
         onLoad={() => {
-           
           document.getElementById('onload-div-1').textContent += _.repeat(
             'b',
             3
@@ -35,7 +34,6 @@ const Page = () => {
         src={url}
         id="script3"
         onLoad={() => {
-           
           document.getElementById('onload-div-1').textContent += _.repeat(
             'c',
             3
