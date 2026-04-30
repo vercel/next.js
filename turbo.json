@@ -20,6 +20,7 @@
       "dependsOn": ["^test-storybook"]
     },
     "pack-for-isolated-tests": {
+      "inputs": ["$TURBO_DEFAULT$", "dist/**"],
       "outputs": ["packed.tgz"]
     },
     "typescript": {},
