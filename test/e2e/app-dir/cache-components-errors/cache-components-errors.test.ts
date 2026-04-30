@@ -915,7 +915,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered Math.random() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -1063,7 +1063,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered Math.random() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -2003,7 +2003,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1196",
+               "code": "E1224",
                "description": "Route "/sync-attribution/guarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -2300,7 +2300,7 @@ describe('Cache Components Errors', () => {
 
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1196",
+               "code": "E1224",
                "description": "Route "/sync-attribution/unguarded-async-unguarded-clientsync" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -4851,8 +4851,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1223",
-             "description": "Next.js encountered Date() during the initial render.",
+             "code": "E1227",
+             "description": "Next.js encountered Date.now() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/date/page.tsx (19:16) @ DateReadingComponent
@@ -4996,7 +4996,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1223",
+             "code": "E1227",
              "description": "Next.js encountered Date.now() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5141,8 +5141,8 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1223",
-             "description": "Next.js encountered new Date() during the initial render.",
+             "code": "E1227",
+             "description": "Next.js encountered Date.now() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
              "source": "app/sync-io-current-time/new-date/page.tsx (19:16) @ DateReadingComponent
@@ -5286,7 +5286,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1223",
+             "code": "E1227",
              "description": "Next.js encountered Math.random() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5427,7 +5427,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1223",
+             "code": "E1227",
              "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5571,7 +5571,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1223",
+             "code": "E1227",
              "description": "Next.js encountered crypto.randomUUID() during the initial render.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -5713,7 +5713,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5729,7 +5729,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').generateKeyPairSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5875,7 +5875,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -5891,7 +5891,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').generateKeySync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6037,7 +6037,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6053,7 +6053,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').generatePrimeSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6199,7 +6199,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6215,7 +6215,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered crypto.getRandomValues() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6361,7 +6361,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6377,7 +6377,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomBytes(size) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6523,7 +6523,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6539,7 +6539,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomFillSync(...) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6685,7 +6685,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6701,7 +6701,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6847,7 +6847,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -6863,7 +6863,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomInt(min, max) during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -7009,7 +7009,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           if (isTurbopack) {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomUUID() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",
@@ -7025,7 +7025,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-route`
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E1223",
+               "code": "E1227",
                "description": "Next.js encountered require('node:crypto').randomUUID() during the initial render.",
                "environmentLabel": "Server",
                "label": "Instant",

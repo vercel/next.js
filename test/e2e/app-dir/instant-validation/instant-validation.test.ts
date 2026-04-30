@@ -744,7 +744,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1223",
+           "code": "E1227",
            "description": "Next.js encountered Date.now() during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -822,7 +822,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1223",
+           "code": "E1227",
            "description": "Next.js encountered Date.now() during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -925,7 +925,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1223",
+           "code": "E1227",
            "description": "Next.js encountered Date.now() during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -993,7 +993,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1223",
+           "code": "E1227",
            "description": "Next.js encountered Date.now() during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1089,7 +1089,7 @@ describe('instant validation', () => {
         )
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E1223",
+           "code": "E1227",
            "description": "Next.js encountered Date.now() during the initial render.",
            "environmentLabel": "Server",
            "label": "Instant",
