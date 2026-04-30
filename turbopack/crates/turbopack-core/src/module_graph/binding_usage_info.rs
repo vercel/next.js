@@ -293,7 +293,7 @@ pub async fn compute_binding_usage_info(
                 );
             }
 
-            static PRINT_USED_EXPORTS: Lazy<bool> = Lazy::new(|| {
+            static PRINT_USED_EXPORTS: LazyLock<bool> = LazyLock::new(|| {
                 std::env::var_os("TURBOPACK_PRINT_USED_EXPORTS")
                     .is_some_and(|v| v == "1" || v == "true")
             });
