@@ -2372,12 +2372,12 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/head/invalid-runtime-viewport-in-static": Next.js encountered runtime data in \`generateViewport()\`.
 
-\`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+           \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
              - Use a static viewport export instead of \`generateViewport()\`
              - Wrap your document \`<body>\` in \`<Suspense>\`
-  - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
@@ -2432,12 +2432,12 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-runtime": Next.js encountered uncached data in \`generateViewport()\`.
 
-\`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
              - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
              - Wrap your document \`<body>\` in \`<Suspense>\`
-  - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
@@ -2530,12 +2530,12 @@ describe('instant validation', () => {
             .toMatchInlineSnapshot(`
            "Error: Route "/suspense-in-root/head/invalid-dynamic-viewport-in-blocking-inside-static": Next.js encountered uncached data in \`generateViewport()\`.
 
-\`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
+           \`fetch(...)\` or \`connection()\` in \`generateViewport()\` prevents the page from being prerendered, leading to a slower user experience.
 
            Ways to fix this:
              - Cache the viewport data with \`"use cache"\` in \`generateViewport()\`
              - Wrap your document \`<body>\` in \`<Suspense>\`
-  - Set \`export const instant = false\` to allow a blocking route
+             - Set \`export const instant = false\` to allow a blocking route
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-dynamic-viewport
                at ignore-listed frames
