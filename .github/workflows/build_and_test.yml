@@ -797,9 +797,10 @@ jobs:
     with:
       nodeVersion: 20.9.0
       afterBuild: |
+        export NEXT_TEST_MODE=start
         export IS_WEBPACK_TEST=1
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
-        node run-tests.js \
+        node run-tests.js --type production \
           --concurrency 4 \
           test/production/pages-dir/production/test/index.test.ts \
           test/e2e/css-client-nav/css-client-nav.test.ts \
