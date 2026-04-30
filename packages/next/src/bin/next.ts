@@ -619,6 +619,27 @@ internal
   )
 
 internal
+  .command('perfetto')
+  .description(
+    'Convert a Next.js `.next/trace` file to the Chrome JSON Trace Event Format and serve it locally for visualization at https://ui.perfetto.dev. Open the printed URL to auto-launch Perfetto with the trace; refresh that page to re-read the file from disk.'
+  )
+  .argument(
+    '[file]',
+    `Path to the trace file. ${italic('If omitted, looks for `.next/trace` (next build) and `.next/dev/trace` (next dev) in the current directory.')}`
+  )
+  .addOption(
+    new Option(
+      '-p, --port <port>',
+      'Port to bind the local server to. Defaults to 3210, walking up by one if the port is in use.'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .action((file: string | undefined, options: { port: number | undefined }) => {
+    return import('../cli/internal/perfetto.js').then((mod) =>
+      mod.startPerfettoServerCli(file, { port: options.port })
+    )
+  })
+
+internal
   .command('query-trace')
   .description(
     'Query a running turbopack trace server (started with `next internal trace --mcp-port <port>`).'
