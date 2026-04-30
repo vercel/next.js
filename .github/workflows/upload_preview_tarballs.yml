@@ -67,4 +67,5 @@ jobs:
           github.event.workflow_run.head_sha }}" "${{ runner.temp
           }}/preview-tarballs"
         env:
+          BLOB_ACCESS: ${{ vars.PREVIEW_BUILDS_ACCESS }}
           BLOB_READ_WRITE_TOKEN: ${{ secrets.PREVIEW_BUILDS_BLOB_READ_WRITE_TOKEN }}
