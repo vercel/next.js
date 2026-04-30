@@ -24,35 +24,35 @@ const SYNC_IO_RUNTIME_DOCS: Record<ApiType, string> = {
   crypto: 'https://nextjs.org/docs/messages/next-prerender-runtime-crypto',
 }
 
-function createSyncIOMessage(
+function createSyncIOError(
   route: string,
   expression: string,
   type: ApiType
-): string {
-  return (
+): Error {
+  return new Error(
     `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-    `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
-    `Ways to fix this:\n` +
-    `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
-    `  - Move the expression into a \`"use client"\` component\n` +
-    `  - Move the expression into a \`"use cache"\` component\n\n` +
-    `Learn more: ${SYNC_IO_DOCS[type]}`
+      `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
+      `Ways to fix this:\n` +
+      `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
+      `  - Move the expression into a \`"use client"\` component\n` +
+      `  - Move the expression into a \`"use cache"\` component\n\n` +
+      `Learn more: ${SYNC_IO_DOCS[type]}`
   )
 }
 
-function createSyncIORuntimeMessage(
+function createSyncIORuntimeError(
   route: string,
   expression: string,
   type: ApiType
-): string {
-  return (
+): Error {
+  return new Error(
     `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-    `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
-    `Ways to fix this:\n` +
-    `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
-    `  - Move the expression into a \`"use client"\` component\n` +
-    `  - Move the expression into a \`"use cache"\` component\n\n` +
-    `Learn more: ${SYNC_IO_RUNTIME_DOCS[type]}`
+      `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
+      `Ways to fix this:\n` +
+      `  - Add a dynamic data access before this call (e.g. \`await connection()\`)\n` +
+      `  - Move the expression into a \`"use client"\` component\n` +
+      `  - Move the expression into a \`"use cache"\` component\n\n` +
+      `Learn more: ${SYNC_IO_RUNTIME_DOCS[type]}`
   )
 }
 
@@ -72,12 +72,10 @@ export function io(expression: string, type: ApiType) {
       if (prerenderSignal.aborted === false) {
         // If the prerender signal is already aborted we don't need to construct
         // any stacks because something else actually terminated the prerender.
-        const message = createSyncIOMessage(workStore.route, expression, type)
-
         abortOnSynchronousPlatformIOAccess(
           workStore.route,
           expression,
-          applyOwnerStack(new Error(message)),
+          applyOwnerStack(createSyncIOError(workStore.route, expression, type)),
           workUnitStore
         )
       }
@@ -106,25 +104,25 @@ export function io(expression: string, type: ApiType) {
     case 'request': {
       const stageController = workUnitStore.stagedRendering
       if (stageController && stageController.shouldTrackSyncInterrupt()) {
-        let message: string
+        let syncIOError: Error
         if (
           stageController.currentStage === RenderStage.Static ||
           stageController.currentStage === RenderStage.EarlyStatic
         ) {
-          message = createSyncIOMessage(workStore.route, expression, type)
+          syncIOError = createSyncIOError(workStore.route, expression, type)
         } else {
           // We're in the Runtime stage.
           // We only error for Sync IO in the Runtime stage if the route has a runtime prefetch config.
           // This check is implemented in `stageController.canSyncInterrupt()` --
           // if runtime prefetching isn't enabled, then we won't get here.
-          message = createSyncIORuntimeMessage(
+          syncIOError = createSyncIORuntimeError(
             workStore.route,
             expression,
             type
           )
         }
 
-        const syncIOError = applyOwnerStack(new Error(message))
+        syncIOError = applyOwnerStack(syncIOError)
         stageController.syncInterruptCurrentStageWithReason(syncIOError)
 
         // A build-time validation render uses a 'request' store type, but may be abortable.
