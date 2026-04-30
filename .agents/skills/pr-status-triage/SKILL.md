@@ -14,12 +14,12 @@ Use this skill when the user asks about PR status, CI failures, or review commen
 
 ## Workflow
 
-1. Run `node scripts/pr-status.js --wait` in the background (timeout 1 min), then read `scripts/pr-status/index.md`.
-2. Analyze each `job-{id}.md` and `thread-{N}.md` file for failures and review feedback.
+1. Run `node scripts/pr-status.js --wait` in the background (timeout 1 min), then read `scripts/pr-status/results/index.md`.
+2. Analyze each `job-{id}.md` and `thread-{N}.md` file in `scripts/pr-status/results/` for failures and review feedback.
 3. Prioritize blocking jobs first: build, lint, types, then test jobs.
 4. Treat failures as real until disproven; check the "Known Flaky Tests" section before calling anything flaky.
 5. Reproduce locally with the same mode and env vars as CI.
-6. After addressing review comments, reply to the thread describing what was done, then resolve it. Use `reply-and-resolve-thread` to do both in one step, or use `reply-thread` + `resolve-thread` separately. See `thread-N.md` files for ready-to-use commands.
+6. After addressing review comments, reply to the thread describing what was done, then resolve it. Use `reply-and-resolve-thread` to do both in one step, or use `reply-thread` + `resolve-thread` separately. See `scripts/pr-status/results/thread-N.md` files for ready-to-use commands.
 7. When the only remaining failures are known flaky tests and no code changes are needed, retrigger the failing CI jobs with `gh run rerun <run-id> --failed`. Then wait 5 minutes and go back to step 1. Repeat this loop up to 5 times.
 
 ## Quick Commands
