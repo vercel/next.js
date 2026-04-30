@@ -5,14 +5,13 @@ import path from 'path'
 import { hasNecessaryDependencies } from './has-necessary-dependencies'
 import type { NecessaryDependencies } from './has-necessary-dependencies'
 import { fileExists, FileType } from './file-exists'
-import { FatalError } from './fatal-error'
 import * as Log from '../build/output/log'
 import { getPkgManager } from './helpers/get-pkg-manager'
 
 async function missingDependencyError(dir: string) {
   const packageManager = getPkgManager(dir)
 
-  throw new FatalError(
+  throw new Error(
     bold(
       red(
         "It looks like you're trying to use Partytown with next/script but do not have the required package(s) installed."
@@ -65,35 +64,25 @@ export async function verifyPartytownSetup(
   dir: string,
   targetDir: string
 ): Promise<void> {
-  try {
-    const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
-      {
-        file: '@builder.io/partytown',
-        pkg: '@builder.io/partytown',
-        exportsRestrict: false,
-      },
-    ])
+  const partytownDeps: NecessaryDependencies = hasNecessaryDependencies(dir, [
+    {
+      file: '@builder.io/partytown',
+      pkg: '@builder.io/partytown',
+      exportsRestrict: false,
+    },
+  ])
 
-    if (partytownDeps.missing?.length > 0) {
-      await missingDependencyError(dir)
-    } else {
-      try {
-        await copyPartytownStaticFiles(partytownDeps, targetDir)
-      } catch (err) {
-        Log.warn(
-          `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
-            cyan('@builder.io/partytown')
-          )} is installed as a dependency.`
-        )
-      }
+  if (partytownDeps.missing?.length > 0) {
+    await missingDependencyError(dir)
+  } else {
+    try {
+      await copyPartytownStaticFiles(partytownDeps, targetDir)
+    } catch (err) {
+      Log.warn(
+        `Partytown library files could not be copied to the static directory. Please ensure that ${bold(
+          cyan('@builder.io/partytown')
+        )} is installed as a dependency.`
+      )
     }
-  } catch (err) {
-    // Don't show a stack trace when there is an error due to missing dependencies
-    if (err instanceof FatalError) {
-      console.error(err.message)
-      // Throw to allow finally blocks to run (e.g., telemetry flush)
-      throw err
-    }
-    throw err
   }
 }
