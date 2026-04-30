@@ -60,9 +60,31 @@ function deleteFromRequireCache(filePaths: string[]): void {
   }
 }
 
+// Listeners notified after the dev server's main-process require/manifest
+// caches are cleared. Worker pools that hold their own cached state —
+// distinct from the main process's — subscribe here so they can invalidate
+// in response to the same HMR events.
+const cacheInvalidationListeners = new Set<(filePaths: string[]) => void>()
+
+export function onCacheInvalidation(
+  listener: (filePaths: string[]) => void
+): () => void {
+  cacheInvalidationListeners.add(listener)
+  return () => {
+    cacheInvalidationListeners.delete(listener)
+  }
+}
+
 export function deleteCache(filePaths: string[]) {
   for (const filePath of filePaths) {
     clearManifestCache(filePath)
   }
   deleteFromRequireCache(filePaths)
+  for (const listener of cacheInvalidationListeners) {
+    try {
+      listener(filePaths)
+    } catch {
+      // Listener errors must not interfere with cache cleanup.
+    }
+  }
 }
