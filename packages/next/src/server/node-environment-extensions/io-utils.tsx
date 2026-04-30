@@ -89,7 +89,7 @@ export function io(expression: string, type: ApiType) {
         // any stacks because something else actually terminated the prerender.
         const docsUrl = SYNC_IO_CLIENT_DOCS[type]
         const message =
-          `Route "${workStore.route}" used \`${expression}\` inside a Client Component without a Suspense boundary above it. ` +
+          `Route "${workStore.route}" used ${expression} inside a Client Component without a Suspense boundary above it. ` +
           `See more info here: ${docsUrl}`
 
         abortOnSynchronousPlatformIOAccess(
