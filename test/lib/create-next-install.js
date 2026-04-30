@@ -82,10 +82,24 @@ async function createNextInstall({
         require('console').log('using provided pkg paths')
       } else {
         await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa('pnpm', ['turbo', 'run', 'pack-for-isolated-tests'], {
-            cwd: origRepoDir,
-            stdio: ['ignore', 'inherit', 'inherit'],
-          })
+          execa(
+            'pnpm',
+            [
+              'turbo',
+              'run',
+              'pack-for-isolated-tests',
+              '--output-logs',
+              'new-only',
+              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
+              // so Turborepo's tui isn't interactive anyway.
+              '--ui',
+              'stream',
+            ],
+            {
+              cwd: origRepoDir,
+              stdio: ['ignore', 'inherit', 'inherit'],
+            }
+          )
         )
 
         if (process.env.NEXT_TEST_WASM) {

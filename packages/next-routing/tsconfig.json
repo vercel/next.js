@@ -7,7 +7,7 @@
     "resolveJsonModule": true,
     "esModuleInterop": true,
     "skipLibCheck": false,
-    "lib": ["es2022", "dom", "dom.iterable"],
+    "lib": ["es2022", "dom"],
     "rootDir": "src",
     "types": ["jest"]
   },

@@ -44,6 +44,7 @@ pub enum ServerToClientMessage {
         args: Vec<(String, String)>,
         path: Vec<String>,
         memory_samples: Vec<u64>,
+        memory_pressure_samples: Vec<u8>,
     },
 }
 
@@ -294,6 +295,8 @@ fn handle_connection(
                                 path.reverse();
                                 let memory_samples =
                                     store.memory_samples_for_range(span.start(), span.end());
+                                let memory_pressure_samples = store
+                                    .memory_pressure_samples_for_range(span.start(), span.end());
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph,
@@ -308,6 +311,7 @@ fn handle_connection(
                                     args,
                                     path,
                                     memory_samples,
+                                    memory_pressure_samples,
                                 }
                             } else {
                                 ServerToClientMessage::QueryResult {
@@ -324,6 +328,7 @@ fn handle_connection(
                                     args: Vec::new(),
                                     path: Vec::new(),
                                     memory_samples: Vec::new(),
+                                    memory_pressure_samples: Vec::new(),
                                 }
                             }
                         };

@@ -91,14 +91,11 @@ use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     ident::AssetIdent,
-    module::{Module, ModuleSideEffects, OptionModule},
+    module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
-    resolve::{
-        FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json,
-        parse::Request,
-    },
+    resolve::{FindContextFileResult, find_context_file, origin::ResolveOrigin, package_json},
     source::Source,
     source_map::GenerateSourceMap,
 };
@@ -118,6 +115,7 @@ use crate::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
         esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
+        exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
     swc_comments::{CowComments, ImmutableComments},
@@ -679,7 +677,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             async_module: analyze_ref.async_module,
             generate_source_map,
             original_source_map: analyze_ref.source_map,
-            exports: analyze_ref.exports,
+            exports: self.get_exports().to_resolved().await?,
             async_module_info,
         }
         .cell())
@@ -899,7 +897,7 @@ impl ChunkableModule for EcmascriptModuleAsset {
 impl EcmascriptChunkPlaceable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn get_exports(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
-        Ok(*self.analyze().await?.exports)
+        Ok(*compute_ecmascript_module_exports(self, None).await?.exports)
     }
 
     #[turbo_tasks::function]
@@ -976,19 +974,6 @@ impl ResolveOrigin for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
         *self.asset_context
-    }
-
-    #[turbo_tasks::function]
-    async fn get_inner_asset(&self, request: Vc<Request>) -> Result<Vc<OptionModule>> {
-        Ok(Vc::cell(if let Some(inner_assets) = &self.inner_assets {
-            if let Some(request) = request.await?.request() {
-                inner_assets.await?.get(&request).copied()
-            } else {
-                None
-            }
-        } else {
-            None
-        }))
     }
 }
 
