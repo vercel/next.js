@@ -369,3 +369,7 @@ virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-
 mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }
 # Doesn't compile on recent nightly versions because of https://github.com/Michael-F-Bryan/include_dir/pull/117
 include_dir = { git = "https://github.com/vercel-labs/include_dir", branch = "turbopack" }
+
+[profile.samply]
+inherits = "release"
+debug = true

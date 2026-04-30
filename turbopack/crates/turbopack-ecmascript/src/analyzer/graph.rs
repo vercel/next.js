@@ -25,7 +25,8 @@ use turbo_rcstr::{RcStr, rcstr};
 use turbopack_core::resolve::ExportUsage;
 
 use super::{
-    ConstantValue, ImportMap, JsValue, ObjectPart, WellKnownFunctionKind, is_unresolved_id,
+    CallBuilder, ConstantValue, ImportMap, JsValue, MemberCallBuilder, ObjectPart,
+    WellKnownFunctionKind, is_unresolved_id,
 };
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
@@ -696,14 +697,9 @@ impl EvalContext {
                     );
                 }
 
-                let args: Vec<_> = args
-                    .iter()
-                    .flatten()
-                    .map(|arg| self.eval(&arg.expr))
-                    .collect();
-                let callee = self.eval(callee);
-
-                JsValue::new(callee, args)
+                let mut builder = CallBuilder::with_arg_count(args.iter().flatten().count());
+                builder.extend_args(args.iter().flatten().map(|arg| self.eval(&arg.expr)));
+                builder.finish_new(self.eval(callee))
             }
 
             Expr::Call(CallExpr {
@@ -719,8 +715,9 @@ impl EvalContext {
                     );
                 }
 
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(callee) {
+                    let mut builder = MemberCallBuilder::with_arg_count(args.len());
+                    builder.extend_args(args.iter().map(|arg| self.eval(&arg.expr)));
                     let obj = self.eval(obj);
                     let prop = match prop {
                         MemberProp::Ident(i) => i.sym.clone().into(),
@@ -732,11 +729,11 @@ impl EvalContext {
                         }
                         MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval(expr),
                     };
-                    JsValue::member_call(obj, prop, args)
+                    builder.finish(prop, obj)
                 } else {
-                    let callee = self.eval(callee);
-
-                    JsValue::call(callee, args)
+                    let mut builder = CallBuilder::with_arg_count(args.len());
+                    builder.extend_args(args.iter().map(|arg| self.eval(&arg.expr)));
+                    builder.finish_call(self.eval(callee))
                 }
             }
 
@@ -770,11 +767,9 @@ impl EvalContext {
                         rcstr!("spread in import() is not supported"),
                     );
                 }
-                let args = args.iter().map(|arg| self.eval(&arg.expr)).collect();
-
-                let callee = JsValue::FreeVar(atom!("import"));
-
-                JsValue::call(callee, args)
+                let mut builder = CallBuilder::with_arg_count(args.len());
+                builder.extend_args(args.iter().map(|arg| self.eval(&arg.expr)));
+                builder.finish_call(JsValue::FreeVar(atom!("import")))
             }
 
             Expr::Array(arr) => {

@@ -713,6 +713,85 @@ impl std::ops::DerefMut for CallList {
     }
 }
 
+/// Builder for `JsValue::Call` and `JsValue::New`.
+///
+/// Pre-sizes the underlying `Vec` for `arg_count` args plus the trailing callee, so
+/// `finish_call` / `finish_new` push the callee with no realloc. Use this when constructing
+/// a Call or New from scratch (e.g. while walking AST nodes); use [`JsValue::call`] /
+/// [`JsValue::new`] directly when you already have an args `Vec` with spare capacity (e.g.
+/// from [`CallList::into_parts`]).
+pub struct CallBuilder {
+    list: Vec<JsValue>,
+}
+
+impl CallBuilder {
+    /// Reserve capacity for `arg_count` args plus one trailing slot for the callee.
+    pub fn with_arg_count(arg_count: usize) -> Self {
+        Self {
+            list: Vec::with_capacity(arg_count + 1),
+        }
+    }
+
+    pub fn push_arg(&mut self, arg: JsValue) {
+        self.list.push(arg);
+    }
+
+    pub fn extend_args(&mut self, args: impl IntoIterator<Item = JsValue>) {
+        self.list.extend(args);
+    }
+
+    /// Consume the builder and produce a `JsValue::Call`. The pre-reserved slot
+    /// guarantees the trailing `push` does not realloc.
+    pub fn finish_call(mut self, callee: JsValue) -> JsValue {
+        let total = 1 + total_nodes(&self.list) + callee.total_nodes();
+        self.list.push(callee);
+        JsValue::Call(total, CallList(self.list))
+    }
+
+    /// Consume the builder and produce a `JsValue::New`.
+    pub fn finish_new(mut self, callee: JsValue) -> JsValue {
+        let total = 1 + total_nodes(&self.list) + callee.total_nodes();
+        self.list.push(callee);
+        JsValue::New(total, CallList(self.list))
+    }
+}
+
+/// Builder for `JsValue::MemberCall`.
+///
+/// Pre-sizes the underlying `Vec` for `arg_count` args plus two trailing slots (`prop` and
+/// `obj`) so `finish` pushes them with no realloc. Use this when constructing a MemberCall
+/// from scratch; use [`JsValue::member_call`] directly when you already have an args `Vec`
+/// with spare capacity (e.g. from [`MemberCallList::into_parts`]).
+pub struct MemberCallBuilder {
+    list: Vec<JsValue>,
+}
+
+impl MemberCallBuilder {
+    /// Reserve capacity for `arg_count` args plus two trailing slots for `prop` and `obj`.
+    pub fn with_arg_count(arg_count: usize) -> Self {
+        Self {
+            list: Vec::with_capacity(arg_count + 2),
+        }
+    }
+
+    pub fn push_arg(&mut self, arg: JsValue) {
+        self.list.push(arg);
+    }
+
+    pub fn extend_args(&mut self, args: impl IntoIterator<Item = JsValue>) {
+        self.list.extend(args);
+    }
+
+    /// Consume the builder and produce a `JsValue::MemberCall`. The pre-reserved slots
+    /// guarantee the two trailing `push`es do not realloc.
+    pub fn finish(mut self, prop: JsValue, obj: JsValue) -> JsValue {
+        let total = 1 + total_nodes(&self.list) + prop.total_nodes() + obj.total_nodes();
+        self.list.push(prop);
+        self.list.push(obj);
+        JsValue::MemberCall(total, MemberCallList(self.list))
+    }
+}
+
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
         ConstantValue::Str(ConstantString::Atom(v.into())).into()
@@ -1286,11 +1365,23 @@ impl JsValue {
         }
     }
 
+    /// Build a `JsValue::New` from an args `Vec` and a callee.
+    ///
+    /// Pushes `f` onto `args` to form the `[args..., callee]` layout. If `args.capacity()`
+    /// equals `args.len()`, this triggers a Vec realloc; for hot construction paths
+    /// prefer [`CallBuilder`] which pre-sizes the Vec at the producer. Use this helper
+    /// when threading an existing `CallList` Vec through (e.g. after [`CallList::into_parts`]
+    /// or [`MemberCallList::into_parts`]), where the underlying allocation already has
+    /// spare capacity for the trailing slot.
     pub fn new(f: JsValue, args: Vec<JsValue>) -> Self {
         let total = 1 + f.total_nodes() + total_nodes(&args);
         Self::New(total, CallList::new(f, args))
     }
 
+    /// Build a `JsValue::Call` from an args `Vec` and a callee.
+    ///
+    /// See [`JsValue::new`] for the realloc caveat — prefer [`CallBuilder`] when building
+    /// args from scratch.
     pub fn call(f: JsValue, args: Vec<JsValue>) -> Self {
         let total = 1 + f.total_nodes() + total_nodes(&args);
         Self::Call(total, CallList::new(f, args))
@@ -1300,6 +1391,10 @@ impl JsValue {
         Self::SuperCall(1 + total_nodes(&args), args)
     }
 
+    /// Build a `JsValue::MemberCall` from an args `Vec`, prop, and obj.
+    ///
+    /// See [`JsValue::new`] for the realloc caveat — prefer [`MemberCallBuilder`] when
+    /// building args from scratch.
     pub fn member_call(o: JsValue, p: JsValue, args: Vec<JsValue>) -> Self {
         let total = 1 + o.total_nodes() + p.total_nodes() + total_nodes(&args);
         Self::MemberCall(total, MemberCallList::new(o, p, args))
