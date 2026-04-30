@@ -238,6 +238,7 @@ jobs:
       needsRust: 'yes'
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
+      skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
       stepName: 'test-cargo-unit'
     secrets: inherit
