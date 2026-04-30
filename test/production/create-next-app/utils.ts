@@ -1,7 +1,10 @@
 import execa from 'execa'
-import { existsSync } from 'fs'
-import { join, resolve } from 'path'
+import { join } from 'path'
 import { createNext } from 'e2e-utils'
+import {
+  resolveTestPkgPaths,
+  serializeTestPkgPathsEnv,
+} from './lib/test-pkg-paths'
 
 export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
 
@@ -11,19 +14,12 @@ export const CNA_PATH = require.resolve('create-next-app/dist/index.js')
  * directly from the repo packages/ directory.
  */
 export function resolveNextTgzFilename(): string {
-  if (process.env.NEXT_TEST_PKG_PATHS) {
-    const pkgPaths = new Map<string, string>(
-      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
-    )
-    return pkgPaths.get('next')!
-  }
+  const pkgPaths = resolveTestPkgPaths()
+  const tarballPath = pkgPaths?.get('next')
 
-  const repoRoot = resolve(__dirname, '../../..')
-  const tarballPath = join(repoRoot, 'packages', 'next', 'packed.tgz')
-
-  if (!existsSync(tarballPath)) {
+  if (!tarballPath) {
     throw new Error(
-      `Could not find packed.tgz at ${tarballPath}. ` +
+      `Could not find packed "next" tarball. ` +
         `Run "pnpm turbo run pack-for-isolated-tests" first, ` +
         `or run this test via "node run-tests.js".`
     )
@@ -58,6 +54,17 @@ export const run = async (
     ...options,
     env: {
       ...process.env,
+      // CNA detects the package manager from `npm_config_user_agent`. CI
+      // runs jest directly (no `npm_config_user_agent` set) so CNA falls
+      // back to npm. Locally the test runs under pnpm, which would make
+      // CNA use pnpm and produce a `.pnpm`-based `node_modules/` that
+      // doesn't survive being copied into the isolated test directory.
+      // Clear the variable to mirror CI behavior across environments.
+      npm_config_user_agent: undefined,
+      // Forward all packed workspace tarballs so CNA can install siblings
+      // (`next-rspack`, `eslint-config-next`, ...) from their own tarballs
+      // when running tests directly (without `run-tests.js`).
+      NEXT_TEST_PKG_PATHS: serializeTestPkgPathsEnv(),
       ...options.env,
       NEXT_PRIVATE_TEST_VERSION: nextJSVersion,
     },
@@ -84,6 +91,12 @@ export async function tryNextDev({
   isEmpty?: boolean
 }) {
   const dir = join(cwd, projectName)
+  // CNA installs `eslint-config-next` from the same `packed.tgz` path as
+  // `next` (both come from `NEXT_PRIVATE_TEST_VERSION`), which causes npm to
+  // unpack next's tarball into `node_modules/eslint-config-next` and to
+  // create a `node_modules/.bin/next` shim pointing at that copy. Invoke
+  // next's bin directly so webpack loaders resolve under `node_modules/next`.
+  const nextBin = 'node_modules/next/dist/bin/next'
   const next = await createNext({
     files: dir,
     installCommand: 'true',
@@ -93,6 +106,8 @@ export async function tryNextDev({
     // under webpack where the built output is larger. Give them generous
     // headroom so these tests aren't flaky on loaded CI machines.
     startServerTimeout: 60_000,
+    buildCommand: `node ${nextBin} build`,
+    startCommand: `node ${nextBin} start`,
   })
 
   try {
