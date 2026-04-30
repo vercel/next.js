@@ -506,7 +506,7 @@ impl EvalContext {
             }) => {
                 let arg = self.eval(arg);
 
-                JsValue::logical_not(Box::new(arg))
+                JsValue::logical_not(arg)
             }
 
             Expr::Unary(UnaryExpr {
@@ -516,7 +516,7 @@ impl EvalContext {
             }) => {
                 let arg = self.eval(arg);
 
-                JsValue::type_of(Box::new(arg))
+                JsValue::type_of(arg)
             }
 
             Expr::Bin(BinExpr {
@@ -531,7 +531,7 @@ impl EvalContext {
                 match (l, r) {
                     (JsValue::Add(c, l), r) => JsValue::Add(
                         c + r.total_nodes(),
-                        l.into_iter().chain(iter::once(r)).collect(),
+                        l.into_iter().chain(iter::once(Arc::new(r))).collect(),
                     ),
                     (l, r) => JsValue::add(vec![l, r]),
                 }
@@ -563,28 +563,28 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::equal(self.eval(left), self.eval(right)),
 
             Expr::Bin(BinExpr {
                 op: op!("!="),
                 left,
                 right,
                 ..
-            }) => JsValue::not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::not_equal(self.eval(left), self.eval(right)),
 
             Expr::Bin(BinExpr {
                 op: op!("==="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_equal(self.eval(left), self.eval(right)),
 
             Expr::Bin(BinExpr {
                 op: op!("!=="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
+            }) => JsValue::strict_not_equal(self.eval(left), self.eval(right)),
 
             &Expr::Cond(CondExpr {
                 box ref cons,
@@ -600,11 +600,7 @@ impl EvalContext {
                         self.eval(alt)
                     }
                 } else {
-                    JsValue::tenary(
-                        Box::new(test),
-                        Box::new(self.eval(cons)),
-                        Box::new(self.eval(alt)),
-                    )
+                    JsValue::tenary(test, self.eval(cons), self.eval(alt))
                 }
             }
 
@@ -648,7 +644,7 @@ impl EvalContext {
                 SyntaxContext::empty(),
             )),
 
-            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(Box::new(self.eval(arg))),
+            Expr::Await(AwaitExpr { arg, .. }) => JsValue::awaited(self.eval(arg)),
 
             Expr::Seq(e) => {
                 let mut seq = e.exprs.iter().map(|e| self.eval(e)).peekable();
@@ -670,7 +666,7 @@ impl EvalContext {
                 ..
             }) => {
                 let obj = self.eval(obj);
-                JsValue::member(Box::new(obj), Box::new(prop.sym.clone().into()))
+                JsValue::member(obj, prop.sym.clone().into())
             }
 
             Expr::Member(MemberExpr {
@@ -680,7 +676,7 @@ impl EvalContext {
             }) => {
                 let obj = self.eval(obj);
                 let prop = self.eval(&computed.expr);
-                JsValue::member(Box::new(obj), Box::new(prop))
+                JsValue::member(obj, prop)
             }
 
             Expr::New(NewExpr {
@@ -798,19 +794,22 @@ impl EvalContext {
                     .iter()
                     .map(|prop| match prop {
                         PropOrSpread::Spread(SpreadElement { expr, .. }) => {
-                            ObjectPart::Spread(self.eval(expr))
+                            ObjectPart::Spread(Arc::new(self.eval(expr)))
                         }
                         PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp { key, box value })) => {
-                            ObjectPart::KeyValue(self.eval_prop_name(key), self.eval(value))
+                            ObjectPart::KeyValue(
+                                Arc::new(self.eval_prop_name(key)),
+                                Arc::new(self.eval(value)),
+                            )
                         }
                         PropOrSpread::Prop(box Prop::Shorthand(ident)) => ObjectPart::KeyValue(
-                            ident.sym.clone().into(),
-                            self.eval(&Expr::Ident(ident.clone())),
+                            Arc::new(ident.sym.clone().into()),
+                            Arc::new(self.eval(&Expr::Ident(ident.clone()))),
                         ),
-                        _ => ObjectPart::Spread(JsValue::unknown_empty(
+                        _ => ObjectPart::Spread(Arc::new(JsValue::unknown_empty(
                             true,
                             rcstr!("unsupported object part"),
-                        )),
+                        ))),
                     })
                     .collect(),
             ),
@@ -2347,7 +2346,7 @@ impl VisitAstPath for Analyzer<'_> {
         let iterable = self.eval_context.eval(&n.right);
 
         // TODO n.await is ignored (async interables)
-        self.with_pat_value(Some(JsValue::iterated(Box::new(iterable))), |this| {
+        self.with_pat_value(Some(JsValue::iterated(iterable)), |this| {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Left));
             n.left.visit_with_ast_path(this, &mut ast_path);
@@ -3110,7 +3109,12 @@ impl Analyzer<'_> {
                     .iter()
                     // TODO: This does not handle inline spreads correctly
                     // e.g. `let [a,..b,c] = [1,2,3]`
-                    .zip(items.into_iter().map(Some).chain(iter::repeat(None)))
+                    .zip(
+                        items
+                            .into_iter()
+                            .map(|v| Some(Arc::unwrap_or_clone(v)))
+                            .chain(iter::repeat(None)),
+                    )
                     .enumerate()
                 {
                     self.with_pat_value(value_item, |this| {
@@ -3123,8 +3127,8 @@ impl Analyzer<'_> {
             value => {
                 for (idx, elem) in arr.elems.iter().enumerate() {
                     let pat_value = Some(JsValue::member(
-                        Box::new(value.clone()),
-                        Box::new(JsValue::Constant(ConstantValue::Num((idx as f64).into()))),
+                        value.clone(),
+                        JsValue::Constant(ConstantValue::Num((idx as f64).into())),
                     ));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path
@@ -3160,10 +3164,7 @@ impl Analyzer<'_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
-                    let pat_value = Some(JsValue::member(
-                        Box::new(pat_value.clone()),
-                        Box::new(key_value),
-                    ));
+                    let pat_value = Some(JsValue::member(pat_value.clone(), key_value));
                     self.with_pat_value(pat_value, |this| {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::KeyValuePatProp(
                             kv,
@@ -3191,11 +3192,11 @@ impl Analyzer<'_> {
                         if let Some(box value) = value {
                             let value = self.eval_context.eval(value);
                             JsValue::alternatives(vec![
-                                JsValue::member(Box::new(pat_value.clone()), Box::new(key_value)),
+                                JsValue::member(pat_value.clone(), key_value),
                                 value,
                             ])
                         } else {
-                            JsValue::member(Box::new(pat_value.clone()), Box::new(key_value))
+                            JsValue::member(pat_value.clone(), key_value)
                         },
                     );
                     {
