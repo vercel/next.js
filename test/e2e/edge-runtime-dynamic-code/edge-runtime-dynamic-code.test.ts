@@ -9,6 +9,10 @@ const WASM_INSTANTIATE_ERROR = `Dynamic WASM code generation ('WebAssembly.insta
 
 jest.setTimeout(1000 * 60 * 2)
 
+type NextFetchResponse = Awaited<
+  ReturnType<ReturnType<typeof nextTestSetup>['next']['fetch']>
+>
+
 describe('Page using eval in development mode', () => {
   if (!isNextDev) {
     it('only runs in dev mode', () => {})
@@ -40,7 +44,7 @@ describe.each([
     computeRoute(useCase: string) {
       return `/${useCase}`
     },
-    async extractValue(response: Response) {
+    async extractValue(response: NextFetchResponse) {
       return JSON.parse(response.headers.get('data')!).value
     },
   },
@@ -49,7 +53,7 @@ describe.each([
     computeRoute(useCase: string) {
       return `/api/route?case=${useCase}`
     },
-    async extractValue(response: Response) {
+    async extractValue(response: NextFetchResponse) {
       return (await response.json()).value
     },
   },

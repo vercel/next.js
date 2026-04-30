@@ -15,7 +15,7 @@ import {
 } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import isAnimated from 'next/dist/compiled/is-animated'
-import type { NextInstance } from 'test/lib/next-modes/base'
+import type { NextInstance } from '../../lib/next-modes/base'
 
 function toQueryString(query: Record<string, any> | null | undefined): string {
   if (!query) return ''
@@ -38,6 +38,8 @@ type RunTestsCtx = {
   nextConfigImages?: Partial<import('next').NextConfig['images']>
   nextConfigExperimental?: Partial<import('next').NextConfig['experimental']>
 }
+
+type NextFetchOptions = Parameters<NextInstance['fetch']>[1]
 
 let infiniteRedirect = 0
 const largeSize = 1080 // defaults defined in server/config.ts
@@ -177,7 +179,7 @@ async function fetchWithDuration(
   next: NextInstance,
   pathname: string,
   query?: Record<string, any>,
-  opts?: RequestInit
+  opts?: NextFetchOptions
 ) {
   console.warn('Fetching', pathname, query)
   const qs = toQueryString(query)
@@ -215,7 +217,7 @@ export function runTests(ctx: RunTestsCtx) {
     it('should normalize invalid status codes', async () => {
       const url = `http://localhost:${slowImageServer.port}/slow.png?status=399`
       const query = { url, w: ctx.w, q: ctx.q }
-      const opts: RequestInit = {
+      const opts: NonNullable<NextFetchOptions> = {
         headers: { accept: 'image/webp' },
         redirect: 'manual',
       }

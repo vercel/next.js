@@ -8,6 +8,7 @@ describe('Image Component Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
+  type Browser = Awaited<ReturnType<typeof next.browser>>
 
   async function hasPreloadLinkMatchingUrl(browser, url) {
     const links = await browser.elementsByCss('link[rel=preload][as=image]')
@@ -38,7 +39,7 @@ describe('Image Component Tests', () => {
     return false
   }
 
-  function runTests(browser: () => ReturnType<typeof next.browser>) {
+  function runTests(browser: () => Browser) {
     it('should render an image tag', async () => {
       expect(await browser().hasElementByCssSelector('img')).toBeTruthy()
     })
@@ -133,7 +134,7 @@ describe('Image Component Tests', () => {
     })
   }
 
-  function lazyLoadingTests(browser: () => ReturnType<typeof next.browser>) {
+  function lazyLoadingTests(browser: () => Browser) {
     it('should have loaded the first image immediately', async () => {
       expect(await browser().elementById('lazy-top').getAttribute('src')).toBe(
         'https://example.com/myaccount/lazy1.jpg?auto=format&fit=max&w=2000'

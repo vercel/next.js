@@ -11,7 +11,7 @@ import { nextTestSetup } from 'e2e-utils'
 
     beforeAll(async () => {
       const result = await next.build()
-      buildExitCode = result.exitCode
+      buildExitCode = typeof result.exitCode === 'number' ? result.exitCode : -1
     })
 
     it('should successfully build with Bun module imports', () => {

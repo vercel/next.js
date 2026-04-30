@@ -4,8 +4,9 @@ describe('Custom Resolver Tests', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
+  type Browser = Awaited<ReturnType<typeof next.browser>>
 
-  function runTests(browser: () => ReturnType<typeof next.browser>) {
+  function runTests(browser: () => Browser) {
     it('Should use a custom resolver for image URL', async () => {
       expect(
         await browser().elementById('basic-image').getAttribute('src')

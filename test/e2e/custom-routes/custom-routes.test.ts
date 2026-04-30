@@ -47,8 +47,12 @@ describe('Custom routes', () => {
       })
     })
     await new Promise<void>((resolve, reject) => {
-      externalServer.listen(externalServerPort, (error) => {
-        if (error) return reject(error)
+      const onError = (error: Error) => {
+        reject(error)
+      }
+      externalServer.once('error', onError)
+      externalServer.listen(externalServerPort, () => {
+        externalServer.off('error', onError)
         resolve()
       })
     })
@@ -3486,8 +3490,12 @@ describe('Custom routes no-op rewrite', () => {
       res.end('external')
     })
     await new Promise<void>((resolve, reject) => {
-      externalServer.listen(port, (error) => {
-        if (error) return reject(error)
+      const onError = (error: Error) => {
+        reject(error)
+      }
+      externalServer.once('error', onError)
+      externalServer.listen(port, () => {
+        externalServer.off('error', onError)
         resolve()
       })
     })
@@ -3532,8 +3540,12 @@ describe('Custom routes solo types', () => {
       res.end('external')
     })
     await new Promise<void>((resolve, reject) => {
-      externalServer.listen(externalServerPort, (error) => {
-        if (error) return reject(error)
+      const onError = (error: Error) => {
+        reject(error)
+      }
+      externalServer.once('error', onError)
+      externalServer.listen(externalServerPort, () => {
+        externalServer.off('error', onError)
         resolve()
       })
     })
