@@ -13,6 +13,7 @@ use next_api::{
     },
 };
 use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, Effects, OperationVc, ReadRef, Vc};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
@@ -31,15 +32,15 @@ pub struct NapiEndpointConfig {}
 #[napi(object)]
 #[derive(Default)]
 pub struct NapiAssetPath {
-    pub path: String,
-    pub content_hash: String,
+    pub path: RcStr,
+    pub content_hash: RcStr,
 }
 
 impl From<AssetPath> for NapiAssetPath {
     fn from(asset_path: AssetPath) -> Self {
         Self {
-            path: asset_path.path.into_owned(),
-            content_hash: asset_path.content_hash.into_owned(),
+            path: asset_path.path,
+            content_hash: asset_path.content_hash,
         }
     }
 }
@@ -114,7 +115,7 @@ async fn issue_filter_from_endpoint(
     }
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "skip")]
 struct WrittenEndpointWithIssues {
     written: Option<ReadRef<EndpointOutputPaths>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -214,7 +215,7 @@ pub fn endpoint_server_changed_subscribe(
     )
 }
 
-#[turbo_tasks::value(shared, serialization = "none", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "skip", eq = "manual")]
 struct EndpointIssuesAndDiags {
     changed: Option<ReadRef<Completion>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,

@@ -157,6 +157,7 @@
       "test/e2e/app-dir/dynamic-data/dynamic-data.test.ts",
       "test/e2e/app-dir/dynamic-href/dynamic-href.test.ts",
       "test/e2e/app-dir/dynamic-in-generate-params/index.test.ts",
+      "test/e2e/app-dir/dynamic-import-tree-shaking/dynamic-import-tree-shaking.test.ts",
       "test/e2e/app-dir/dynamic-interception-route-revalidate/dynamic-interception-route-revalidate.test.ts",
       "test/e2e/app-dir/cache-components-*/**/*",
       "test/e2e/app-dir/cache-components/**/*",
@@ -168,6 +169,7 @@
       "test/e2e/app-dir/error-boundary-navigation/index.test.ts",
       "test/e2e/app-dir/error-boundary-navigation/override-node-env.test.ts",
       "test/e2e/app-dir/errors/index.test.ts",
+      "test/e2e/app-dir/expire-time/**/*",
       "test/e2e/app-dir/fallback-prefetch/fallback-prefetch.test.ts",
       "test/e2e/app-dir/fallback-shells/**/*",
       "test/e2e/app-dir/forbidden/basic/forbidden-basic.test.ts",
@@ -342,8 +344,11 @@
       "test/integration/app-types/app-types.test.ts",
       "test/production/app-dir-edge-runtime-with-wasm/index.test.ts",
       "test/production/app-dir-prevent-304-caching/index.test.ts",
+      "test/production/app-dir/actions-tree-shaking/basic/basic-edge.test.ts",
+      "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts",
       "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts",
       "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts",
+      "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts",
       "test/production/app-dir/actions-tree-shaking/use-effect-actions/use-effect-actions-edge.test.ts",
       "test/production/app-dir/app-fetch-build-cache/app-fetch-build-cache.test.ts",
       "test/production/app-dir/build-output-tree-view/build-output-tree-view.test.ts",
@@ -366,7 +371,8 @@
       "test/production/app-dir/worker-restart/worker-restart.test.ts",
       "test/production/app-dir/resume-data-cache/resume-data-cache.test.ts",
       "test/production/app-dir/unstable-cache-foreground-revalidate/unstable-cache-foreground-revalidate.test.ts",
-      "test/e2e/app-dir/parallel-routes-root-param-dynamic-child/parallel-routes-root-param-dynamic-child.test.ts"
+      "test/e2e/app-dir/parallel-routes-root-param-dynamic-child/parallel-routes-root-param-dynamic-child.test.ts",
+      "test/e2e/app-dir/unstable-io/unstable-io.test.ts"
     ]
   }
 }

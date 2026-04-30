@@ -46,6 +46,7 @@ const DEFINE_ENV_EXPRESSION = Symbol('DEFINE_ENV_EXPRESSION')
 interface DefineEnv {
   [key: string]:
     | string
+    | number
     | string[]
     | boolean
     | { [DEFINE_ENV_EXPRESSION]: string }
@@ -183,8 +184,8 @@ export function getDefineEnv({
       ? false
       : isUseNodeStreamsEnabled,
 
-    'process.env.NEXT_IMMUTABLE_ASSET_TOKEN':
-      config.experimental.immutableAssetToken || '',
+    'process.env.NEXT_SUPPORTS_IMMUTABLE_ASSETS':
+      config.experimental.supportsImmutableAssets || false,
 
     ...(config.experimental?.useSkewCookie || !config.deploymentId
       ? {
@@ -245,6 +246,7 @@ export function getDefineEnv({
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
     ),
+    'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
       config.experimental.prefetchInlining
     ),

@@ -1,12 +1,17 @@
-use anyhow::{Ok, Result, bail};
-use futures::try_join;
-use turbo_rcstr::{RcStr, rcstr};
+use anyhow::{Ok, Result};
+use async_trait::async_trait;
+use futures::join;
+use smallvec::{SmallVec, smallvec};
+use tracing::Instrument;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath, rebase};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
     output::{ExpandedOutputAssets, OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
 };
@@ -68,68 +73,102 @@ pub async fn emit_assets(
         .try_flat_join()
         .await?;
 
-    let mut node_assets_by_path = FxIndexMap::default();
-    let mut client_assets_by_path = FxIndexMap::default();
+    type AssetVec = SmallVec<[ResolvedVc<Box<dyn OutputAsset>>; 1]>;
+    let mut node_assets_by_path: FxIndexMap<FileSystemPath, AssetVec> = FxIndexMap::default();
+    let mut client_assets_by_path: FxIndexMap<FileSystemPath, AssetVec> = FxIndexMap::default();
     for (location, path, asset) in assets {
         match location {
             Location::Node => {
                 node_assets_by_path
                     .entry(path)
-                    .or_insert_with(Vec::new)
+                    .or_insert_with(|| smallvec![])
                     .push(asset);
             }
             Location::Client => {
                 client_assets_by_path
                     .entry(path)
-                    .or_insert_with(Vec::new)
+                    .or_insert_with(|| smallvec![])
                     .push(asset);
             }
         }
     }
 
+    /// Checks for duplicate assets at the same path. If duplicates with
+    /// different content are found, emits an `EmitConflictIssue` for each
+    /// conflict but still returns the first asset so emission can continue.
     async fn check_duplicates(
         path: &FileSystemPath,
-        assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
+        assets: AssetVec,
+        node_root: &FileSystemPath,
     ) -> Result<ResolvedVc<Box<dyn OutputAsset>>> {
         let mut iter = assets.into_iter();
         let first = iter.next().unwrap();
         for next in iter {
-            if let Some(diff) = assets_diff(*next, *first).owned().await? {
-                bail!(
-                    "Duplicate asset with different content: {}\n{}",
-                    path.to_string_ref().await?,
-                    diff
-                );
+            let ext: RcStr = path.extension().unwrap_or_default().into();
+            if let Some(detail) = assets_diff(*next, *first, ext, node_root.clone())
+                .owned()
+                .await?
+            {
+                EmitConflictIssue {
+                    asset_path: path.clone(),
+                    detail,
+                }
+                .resolved_cell()
+                .emit();
             }
         }
         Ok(first)
     }
 
-    try_join!(
+    // Use join! instead of try_join! to collect all errors deterministically
+    // rather than returning whichever branch fails first non-deterministically.
+    let (node_result, client_result) = join!(
         node_assets_by_path
             .into_iter()
-            .map(async |(path, assets)| {
-                let asset = check_duplicates(&path, assets).await?;
-                emit(*asset).as_side_effect().await
+            .map(|(path, assets)| {
+                let node_root = node_root.clone();
+
+                async move {
+                    let asset = check_duplicates(&path, assets, &node_root).await?;
+                    let span = tracing::info_span!(
+                        "emit asset",
+                        name = %path.to_string_ref().await?
+                    );
+                    async move { emit(*asset).as_side_effect().await }
+                        .instrument(span)
+                        .await
+                }
             })
             .try_join(),
         client_assets_by_path
             .into_iter()
-            .map(async |(path, assets)| {
-                let asset = check_duplicates(&path, assets).await?;
-                // Client assets are emitted to the client output path, which is prefixed
-                // with _next. We need to rebase them to remove that
-                // prefix.
-                emit_rebase(
-                    *asset,
-                    client_relative_path.clone(),
-                    client_output_path.clone(),
-                )
-                .as_side_effect()
-                .await
+            .map(|(path, assets)| {
+                let node_root = node_root.clone();
+                let client_relative_path = client_relative_path.clone();
+                let client_output_path = client_output_path.clone();
+
+                async move {
+                    let asset = check_duplicates(&path, assets, &node_root).await?;
+                    let span = tracing::info_span!(
+                        "emit asset",
+                        name = %path.to_string_ref().await?
+                    );
+                    async move {
+                        // Client assets are emitted to the client output path, which is
+                        // prefixed with _next. We need to rebase them to
+                        // remove that prefix.
+                        emit_rebase(*asset, client_relative_path, client_output_path)
+                            .as_side_effect()
+                            .await
+                    }
+                    .instrument(span)
+                    .await
+                }
             })
             .try_join(),
-    )?;
+    );
+    node_result?;
+    client_result?;
     Ok(())
 }
 
@@ -164,31 +203,67 @@ async fn emit_rebase(
     Ok(())
 }
 
+/// Compares two assets that target the same output path. If their content
+/// differs, writes both versions under `node_root` as `<hash>.<ext>` and
+/// returns a description of the difference.
 #[turbo_tasks::function]
 async fn assets_diff(
-    assets1: Vc<Box<dyn OutputAsset>>,
-    assets2: Vc<Box<dyn OutputAsset>>,
+    asset1: Vc<Box<dyn OutputAsset>>,
+    asset2: Vc<Box<dyn OutputAsset>>,
+    extension: RcStr,
+    node_root: FileSystemPath,
 ) -> Result<Vc<Option<RcStr>>> {
-    let content1 = assets1.content().await?;
-    let content2 = assets2.content().await?;
+    let content1 = asset1.content().await?;
+    let content2 = asset2.content().await?;
 
-    match (&*content1, &*content2) {
+    let detail = match (&*content1, &*content2) {
         (AssetContent::File(content1), AssetContent::File(content2)) => {
             let content1 = content1.await?;
             let content2 = content2.await?;
 
             match (&*content1, &*content2) {
-                (FileContent::NotFound, FileContent::NotFound) => Ok(Vc::cell(None)),
-                (FileContent::Content(content1), FileContent::Content(content2)) => {
-                    if content1 == content2 {
-                        Ok(Vc::cell(None))
+                (FileContent::NotFound, FileContent::NotFound) => None,
+                (FileContent::Content(file1), FileContent::Content(file2)) => {
+                    if file1 == file2 {
+                        None
                     } else {
-                        // TODO: Produce an actual diff, e.g. write both versions to
-                        // scratch space under `.next/` and run a text diff on them.
-                        Ok(Vc::cell(Some(rcstr!("file content differs"))))
+                        // Write both versions under node_root as <hash>.<ext> so the
+                        // user can diff them.
+                        let ext = &*extension;
+                        let hash1 = encode_hex(hash_xxh3_hash64(file1.content().content_hash()));
+                        let hash2 = encode_hex(hash_xxh3_hash64(file2.content().content_hash()));
+                        let name1 = if ext.is_empty() {
+                            hash1
+                        } else {
+                            format!("{hash1}.{ext}")
+                        };
+                        let name2 = if ext.is_empty() {
+                            hash2
+                        } else {
+                            format!("{hash2}.{ext}")
+                        };
+                        let path1 = node_root.join(&name1)?;
+                        let path2 = node_root.join(&name2)?;
+                        path1
+                            .write(FileContent::Content(file1.clone()).cell())
+                            .as_side_effect()
+                            .await?;
+                        path2
+                            .write(FileContent::Content(file2.clone()).cell())
+                            .as_side_effect()
+                            .await?;
+                        Some(format!(
+                            "file content differs, written to:\n  {}\n  {}",
+                            path1.to_string_ref().await?,
+                            path2.to_string_ref().await?,
+                        ))
                     }
                 }
-                _ => Ok(Vc::cell(Some(rcstr!("file content type differs")))),
+                _ => Some(
+                    "assets at the same path have mismatched file content types (one task wants \
+                     to write the file, another wants to delete it)"
+                        .into(),
+                ),
             }
         }
         (
@@ -202,13 +277,52 @@ async fn assets_diff(
             },
         ) => {
             if target1 == target2 && link_type1 == link_type2 {
-                Ok(Vc::cell(None))
+                None
             } else {
-                Ok(Vc::cell(Some(
-                    format!("redirect differs: {} vs {}", target1, target2).into(),
-                )))
+                Some(format!(
+                    "assets at the same path are both redirects but point to different targets: \
+                     {target1} vs {target2}"
+                ))
             }
         }
-        _ => Ok(Vc::cell(Some(rcstr!("asset content type differs")))),
+        _ => Some(
+            "assets at the same path have different content types (one is a file, the other is a \
+             redirect)"
+                .into(),
+        ),
+    };
+
+    Ok(Vc::cell(detail.map(|d| d.into())))
+}
+
+#[turbo_tasks::value]
+struct EmitConflictIssue {
+    asset_path: FileSystemPath,
+    detail: RcStr,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for EmitConflictIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.asset_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::Emit
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(
+            "Two or more assets with different content were emitted to the same output path".into(),
+        ))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some(StyledString::Text(self.detail.clone())))
     }
 }

@@ -73,6 +73,7 @@ import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
 import type { Params } from '../server/request/params'
+import { Bundler } from '../lib/bundler'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -220,7 +221,7 @@ async function exportAppImpl(
         isSrcDir: null,
         hasNowJson: !!(await findUp('now.json', { cwd: dir })),
         isCustomServer: null,
-        turboFlag: false,
+        turboFlag: options.bundler === Bundler.Turbopack,
         pagesDir: null,
         appDir: null,
       })
@@ -495,6 +496,7 @@ async function exportAppImpl(
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
     cacheLifeProfiles: nextConfig.cacheLife,
+    staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -511,6 +513,7 @@ async function exportAppImpl(
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      useCacheTimeout: nextConfig.experimental.useCacheTimeout,
       cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
       maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
         nextConfig.experimental.maxPostponedStateSize
@@ -706,9 +709,9 @@ async function exportAppImpl(
           worker.exportPages({
             buildId,
             deploymentId: nextConfig.deploymentId,
-            clientAssetToken:
-              nextConfig.experimental.immutableAssetToken ||
-              nextConfig.deploymentId,
+            clientAssetToken: nextConfig.experimental.supportsImmutableAssets
+              ? ''
+              : nextConfig.deploymentId,
             exportPaths: batch,
             parentSpanId: span.getId(),
             pagesDataDir,

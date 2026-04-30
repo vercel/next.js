@@ -681,13 +681,26 @@ export async function getAppPageStaticInfo({
   // Prevent use client and unstable_instant in the same file.
   if (directives?.has('client') && 'unstable_instant' in config) {
     throw new Error(
-      `Page "${page}" cannot export "unstable_instant" from a Client Component module. To use this API, convert this module to a Server Component by removing the "use client" directive.`
+      `"unstable_instant" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
     )
   }
 
   if ('unstable_instant' in config && !nextConfig.cacheComponents) {
     throw new Error(
-      `Page "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
+      `Route "${page}" cannot use \`export const unstable_instant = ...\` without enabling \`cacheComponents\`.`
+    )
+  }
+
+  // Prevent use client and unstable_prefetch in the same file.
+  if (directives?.has('client') && 'unstable_prefetch' in config) {
+    throw new Error(
+      `"unstable_prefetch" is a route segment config and can only be used when the segment is a Server Component module. Remove the "use client" directive from "${pageFilePath}" to use this API.`
+    )
+  }
+
+  if ('unstable_prefetch' in config && !nextConfig.cacheComponents) {
+    throw new Error(
+      `Route "${page}" cannot use \`export const unstable_prefetch = ...\` without enabling \`cacheComponents\`.`
     )
   }
 

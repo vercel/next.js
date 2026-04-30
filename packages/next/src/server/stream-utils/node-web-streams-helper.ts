@@ -22,6 +22,7 @@ import {
   NEXT_INSTANT_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import type { AnyStream } from '../app-render/stream-ops'
 
 function voidCatch() {
   // this catcher is designed to be used with pipeTo where we expect the underlying
@@ -125,10 +126,71 @@ function concatUint8Arrays(chunks: Array<Uint8Array>): Uint8Array {
   return result
 }
 
-export async function streamToUint8Array(
+export async function webstreamToUint8Array(
   stream: ReadableStream<Uint8Array>
 ): Promise<Uint8Array> {
   return concatUint8Arrays(await streamToChunks(stream))
+}
+
+function webToReadable(
+  stream: ReadableStream<Uint8Array> | import('node:stream').Readable
+): import('node:stream').Readable {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new Error('webToReadable cannot be used in the edge runtime')
+  } else {
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+    if (stream instanceof Readable) {
+      return stream
+    }
+    return Readable.fromWeb(stream as import('stream/web').ReadableStream)
+  }
+}
+
+export async function nodestreamToUint8Array(
+  stream: AnyStream
+): Promise<Uint8Array> {
+  const chunks: Buffer[] = []
+  for await (const chunk of webToReadable(stream)) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk)
+  }
+  return Buffer.concat(chunks)
+}
+
+export async function streamToUint8Array(stream: AnyStream) {
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    // Edge runtime always uses web streams
+    return webstreamToUint8Array(stream as ReadableStream<Uint8Array>)
+  } else {
+    let Readable: typeof import('node:stream').Readable
+    if (process.env.TURBOPACK) {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    } else if (process.env.__NEXT_BUNDLER === 'Webpack') {
+      Readable = (
+        __non_webpack_require__('node:stream') as typeof import('node:stream')
+      ).Readable
+    } else {
+      Readable = (require('node:stream') as typeof import('node:stream'))
+        .Readable
+    }
+
+    if (stream instanceof Readable) {
+      return nodestreamToUint8Array(stream)
+    }
+
+    return webstreamToUint8Array(stream)
+  }
 }
 
 export async function streamToBuffer(
@@ -281,7 +343,7 @@ export function renderToInitialFizzStream({
   )
 }
 
-function createMetadataTransformStream(
+export function createMetadataTransformStream(
   insert: () => Promise<string> | string
 ): TransformStream<Uint8Array, Uint8Array> {
   let chunkIndex = -1
@@ -382,7 +444,7 @@ function createMetadataTransformStream(
   })
 }
 
-function createHeadInsertionTransformStream(
+export function createHeadInsertionTransformStream(
   insert: () => Promise<string>
 ): TransformStream<Uint8Array, Uint8Array> {
   let inserted = false
@@ -459,12 +521,11 @@ function createHeadInsertionTransformStream(
   })
 }
 
-function createClientResumeScriptInsertionTransformStream(): TransformStream<
-  Uint8Array,
-  Uint8Array
+async function createClientResumeScriptInsertionTransformStream(): Promise<
+  TransformStream<Uint8Array, Uint8Array>
 > {
   const segmentPath = '/_full'
-  const cacheBustingHeader = computeCacheBustingSearchParam(
+  const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1', //            headers[NEXT_ROUTER_PREFETCH_HEADER]
     '/_full', //       headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]
     undefined, //      headers[NEXT_ROUTER_STATE_TREE_HEADER]
@@ -524,9 +585,9 @@ function createClientResumeScriptInsertionTransformStream(): TransformStream<
  * element inside <head>. Used during instant navigation testing to set
  * self.__next_instant_test before any async bootstrap scripts execute.
  */
-export function createInstantTestScriptInsertionTransformStream(
+export async function createInstantTestScriptInsertionTransformStream(
   requestId: string | null
-): TransformStream<Uint8Array, Uint8Array> {
+): Promise<TransformStream<Uint8Array, Uint8Array>> {
   // Kick off a fetch for the static RSC payload. This is the hydration
   // source for the locked static shell — same as the __NEXT_CLIENT_RESUME
   // fetch used for fallback routes, but with NEXT_INSTANT_PREFETCH_HEADER
@@ -536,7 +597,7 @@ export function createInstantTestScriptInsertionTransformStream(
   // as the feature flag (truthy = instant test mode). The client processes
   // this as a fallback prerender payload for hydration.
   const segmentPath = '/_full'
-  const cacheBustingHeader = computeCacheBustingSearchParam(
+  const cacheBustingHeader = await computeCacheBustingSearchParam(
     '1',
     segmentPath,
     undefined,
@@ -606,7 +667,7 @@ export function createInstantTestScriptInsertionTransformStream(
 
 // Suffix after main body content - scripts before </body>,
 // but wait for the major chunks to be enqueued.
-function createDeferredSuffixStream(
+export function createDeferredSuffixStream(
   suffix: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let flushed = false
@@ -651,7 +712,7 @@ function createDeferredSuffixStream(
   })
 }
 
-function createFlightDataInjectionTransformStream(
+export function createFlightDataInjectionTransformStream(
   stream: ReadableStream<Uint8Array>,
   delayDataUntilFirstHtmlChunk: boolean
 ): TransformStream<Uint8Array, Uint8Array> {
@@ -731,14 +792,17 @@ function createFlightDataInjectionTransformStream(
   })
 }
 
-const CLOSE_TAG = '</body></html>'
+export const CLOSE_TAG = '</body></html>'
 
 /**
  * This transform stream moves the suffix to the end of the stream, so results
  * like `</body></html><script>...</script>` will be transformed to
  * `<script>...</script></body></html>`.
  */
-function createMoveSuffixStream(): TransformStream<Uint8Array, Uint8Array> {
+export function createMoveSuffixStream(): TransformStream<
+  Uint8Array,
+  Uint8Array
+> {
   let foundSuffix = false
 
   return new TransformStream({
@@ -813,7 +877,7 @@ function createStripDocumentClosingTagsTransform(): TransformStream<
   })
 }
 
-function createHtmlDataDplIdTransformStream(
+export function createHtmlDataDplIdTransformStream(
   dplId: string
 ): TransformStream<Uint8Array, Uint8Array> {
   let didTransform = false
@@ -911,7 +975,7 @@ export function createRootLayoutValidatorStream(): TransformStream<
   })
 }
 
-function chainTransformers<T>(
+export function chainTransformers<T>(
   readable: ReadableStream<T>,
   transformers: ReadonlyArray<TransformStream<T, T> | null>
 ): ReadableStream<T> {
@@ -1074,7 +1138,7 @@ export async function continueStaticFallbackPrerender(
     // Insert generated tags to head
     createHeadInsertionTransformStream(getServerInsertedHTML),
     // Insert the client resume script into the head
-    createClientResumeScriptInsertionTransformStream(),
+    await createClientResumeScriptInsertionTransformStream(),
     // Transform metadata
     createMetadataTransformStream(getServerInsertedMetadata),
     // Insert the inlined data (Flight data, form state, etc.) stream into the HTML

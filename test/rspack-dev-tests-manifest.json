@@ -730,8 +730,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/dev-output/dev-output.test.ts": {
-    "passed": [],
-    "failed": ["dev-output shows Cache Components indicator when enabled"],
+    "passed": ["dev-output shows Cache Components indicator when enabled"],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -817,11 +817,11 @@
     "runtimeError": false
   },
   "test/development/app-dir/edge-errors-hmr/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "develop - app-dir - edge errros hmr should recover from build errors when client component error",
       "develop - app-dir - edge errros hmr should recover from build errors when server component error"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1100,6 +1100,17 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/rage-restart-trace/rage-restart-trace.test.ts": {
+    "passed": [
+      "rage restart trace attributes should not set rage-restart on first start",
+      "rage restart trace attributes should set missing-next-dir when .next is deleted before restart",
+      "rage restart trace attributes should set rage-restart when restarted within threshold"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-dir/react-performance-track/react-performance-track.test.ts": {
     "passed": [
       "react-performance-track should show cookies",
@@ -1127,22 +1138,23 @@
   },
   "test/development/app-dir/segment-explorer/segment-explorer.test.ts": {
     "passed": [
+      "segment-explorer should not have route info panel for pages router",
+      "segment-explorer should render the segment explorer for parallel routes"
+    ],
+    "failed": [
       "segment-explorer should cleanup on soft navigation",
       "segment-explorer should display boundary selector when a segment has only boundary files",
       "segment-explorer should display parallel routes default page when present",
       "segment-explorer should handle show file segments in order",
       "segment-explorer should handle special built-in not-found segments",
-      "segment-explorer should not have route info panel for pages router",
       "segment-explorer should render route for index page",
       "segment-explorer should render the segment explorer for nested routes",
-      "segment-explorer should render the segment explorer for parallel routes",
       "segment-explorer should render the segment explorer for parallel routes in edge runtime",
       "segment-explorer should show global-error segment",
       "segment-explorer should show navigation boundaries of the segment",
       "segment-explorer should show the custom error boundary when present",
       "segment-explorer should show the loading boundary when it is present"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1167,7 +1179,8 @@
     "runtimeError": false
   },
   "test/development/app-dir/server-components-hmr-cache/server-components-hmr-cache.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "server-components-hmr-cache edge runtime in after() should not use cached fetch calls for intentional refresh requests",
       "server-components-hmr-cache edge runtime in after() should use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache edge runtime should not use cached fetch calls for intentional refresh requests",
@@ -1186,18 +1199,21 @@
       "server-components-hmr-cache node runtime with experimental.serverComponentsHmrCache disabled should not use cached fetch calls for fast refresh requests",
       "server-components-hmr-cache should support reading from an infinite streaming fetch"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/development/app-dir/server-hmr/server-hmr.test.ts": {
     "passed": [
+      "server-hmr CLI/config conflict warning should warn when CLI flag conflicts with config",
+      "server-hmr metadata route hmr reflects manifest.ts changes on fetch/refresh",
       "server-hmr route handler hmr reflects route handler changes on fetch/refresh"
     ],
     "failed": [],
     "pending": [
       "server-hmr child module accept allows child modules to accept hot updates using module.hot.accept",
+      "server-hmr config opt-out re-evaluates unmodified dependencies when serverFastRefresh is disabled via config",
+      "server-hmr metadata route hmr does not prevent page hmr when metadata route has been loaded",
       "server-hmr module preservation does not re-evaluate an unmodified module when page module changes",
       "server-hmr module preservation re-evaluates a module when the module itself changes",
       "server-hmr route handler hmr does not re-evaluate an unmodified dependency when route changes",
@@ -1238,11 +1254,12 @@
       "react-dom/server in React Server environment explicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment explicit react-dom/server.node usage in library code",
       "react-dom/server in React Server environment implicit react-dom/server.edge usage in app code",
-      "react-dom/server in React Server environment implicit react-dom/server.edge usage in library code",
       "react-dom/server in React Server environment implicit react-dom/server.node usage in app code",
       "react-dom/server in React Server environment implicit react-dom/server.node usage in library code"
     ],
-    "failed": [],
+    "failed": [
+      "react-dom/server in React Server environment implicit react-dom/server.edge usage in library code"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1303,14 +1320,14 @@
     "runtimeError": false
   },
   "test/development/app-dir/typed-env/typed-env.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "typed-env should have env types from next config",
       "typed-env should rewrite env types if .env is modified"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
-    "runtimeError": true
+    "runtimeError": false
   },
   "test/development/app-dir/use-cache-errors/use-cache-errors.test.ts": {
     "passed": [
@@ -1334,14 +1351,24 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/development/app-dir/watch-distdir-deletion/index.test.ts": {
+    "passed": [
+      "app-dir watch-distdir-deletion should restart the server when distDir is deleted"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/development/app-hmr/hmr-env.test.ts": {
     "passed": [
-      "app-dir hmr-env should update server components pages when env files is changed (edge)",
-      "app-dir hmr-env should update server components pages when env files is changed (edge-module-var)",
       "app-dir hmr-env should update server components pages when env files is changed (node)",
       "app-dir hmr-env should update server components pages when env files is changed (node-module-var)"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir hmr-env should update server components pages when env files is changed (edge)",
+      "app-dir hmr-env should update server components pages when env files is changed (edge-module-var)"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -1350,11 +1377,11 @@
     "passed": [
       "app-dir-hmr filesystem changes should have no unexpected action error for hmr",
       "app-dir-hmr filesystem changes should not break when renaming a folder",
-      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page",
-      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
+      "app-dir-hmr filesystem changes should not continously poll when hitting a not found page"
     ],
     "failed": [
-      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime"
+      "app-dir-hmr filesystem changes can navigate cleanly to a page that requires a change in the Webpack runtime",
+      "app-dir-hmr filesystem changes should update server components after navigating to a page with a different runtime"
     ],
     "pending": [],
     "flakey": [],
@@ -1379,6 +1406,7 @@
       "allowed-dev-origins, basePath: \"\" configured allowed origins should load images regardless of allowed origins",
       "allowed-dev-origins, basePath: \"\" configured but not allowlisted origins should block no-cors requests from configured but non-allowlisted hosts",
       "allowed-dev-origins, basePath: \"\" configured but not allowlisted origins should block websocket requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"\" default blocking should allow requests from multi-level localhost subdomains",
       "allowed-dev-origins, basePath: \"\" default blocking should allow same-site requests without an origin header",
       "allowed-dev-origins, basePath: \"\" default blocking should block WebSocket from cross-site",
       "allowed-dev-origins, basePath: \"\" default blocking should block loading internal middleware from cross-site",
@@ -1391,6 +1419,7 @@
       "allowed-dev-origins, basePath: \"/docs\" configured allowed origins should load images regardless of allowed origins",
       "allowed-dev-origins, basePath: \"/docs\" configured but not allowlisted origins should block no-cors requests from configured but non-allowlisted hosts",
       "allowed-dev-origins, basePath: \"/docs\" configured but not allowlisted origins should block websocket requests from configured but non-allowlisted hosts",
+      "allowed-dev-origins, basePath: \"/docs\" default blocking should allow requests from multi-level localhost subdomains",
       "allowed-dev-origins, basePath: \"/docs\" default blocking should allow same-site requests without an origin header",
       "allowed-dev-origins, basePath: \"/docs\" default blocking should block WebSocket from cross-site",
       "allowed-dev-origins, basePath: \"/docs\" default blocking should block loading internal middleware from cross-site",
@@ -1977,7 +2006,6 @@
     "passed": [
       "Terminal Logging (Webpack) App Router - Client Components should forward client component logs in app router",
       "Terminal Logging (Webpack) App Router - Client Components should show source-mapped errors for client components",
-      "Terminal Logging (Webpack) App Router - Edge Runtime should handle edge runtime errors with source mapping",
       "Terminal Logging (Webpack) App Router - Hydration Errors should show hydration errors with owner stack trace",
       "Terminal Logging (Webpack) App Router - Server Components should not re-log server component logs",
       "Terminal Logging (Webpack) App Router - Server Components should show source-mapped errors for server components",
@@ -1987,7 +2015,9 @@
       "Terminal Logging (Webpack) Pages Router should show source-mapped errors for server errors from pages router ",
       "Terminal Logging (Webpack) Pages Router should show source-mapped errors in pages router"
     ],
-    "failed": [],
+    "failed": [
+      "Terminal Logging (Webpack) App Router - Edge Runtime should handle edge runtime errors with source mapping"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -2060,7 +2090,7 @@
   },
   "test/development/dev-indicator/dev-rendering-indicator.test.ts": {
     "passed": [
-      "Dev Rendering Indicator Shows build indicator when page is built from modifying"
+      "Dev Rendering Indicator Shows rendering indicator when navigating between pages"
     ],
     "failed": [],
     "pending": [],
@@ -2091,11 +2121,14 @@
   "test/development/error-overlay/index.test.tsx": {
     "passed": [
       "DevErrorOverlay can get error code from RSC error thrown by framework",
+      "DevErrorOverlay filters non-Error items from AggregateError.errors",
       "DevErrorOverlay ignores non-Error cause in the error overlay",
       "DevErrorOverlay loads fonts successfully",
       "DevErrorOverlay sends feedback when clicking helpful button",
       "DevErrorOverlay sends feedback when clicking not helpful button",
       "DevErrorOverlay should load dev overlay styles successfully",
+      "DevErrorOverlay shows AggregateError.errors in the error overlay",
+      "DevErrorOverlay shows AggregateError.errors with cause chains in the error overlay",
       "DevErrorOverlay shows Error.cause in the error overlay",
       "DevErrorOverlay shows nested Error.cause chain in the error overlay"
     ],
@@ -2182,6 +2215,19 @@
     ],
     "failed": [],
     "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/mcp-server/mcp-server-get-compilation-issues.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "mcp-server get_compilation_issues tool should detect CSS module composes errors",
+      "mcp-server get_compilation_issues tool should detect module-not-found errors",
+      "mcp-server get_compilation_issues tool should detect syntax errors",
+      "mcp-server get_compilation_issues tool should include issue metadata fields",
+      "mcp-server get_compilation_issues tool should return compilation issues without requiring a browser session"
+    ],
     "flakey": [],
     "runtimeError": false
   },
@@ -2689,11 +2735,17 @@
       "tsconfig-path-reloading tsconfig added after starting dev should automatically fast refresh content when path is added without error",
       "tsconfig-path-reloading tsconfig added after starting dev should load with initial paths config correctly",
       "tsconfig-path-reloading tsconfig should automatically fast refresh content when path is added without error",
-      "tsconfig-path-reloading tsconfig should load with initial paths config correctly"
+      "tsconfig-path-reloading tsconfig should load with initial paths config correctly",
+      "tsconfig-path-reloading tsconfig without baseUrl added after starting dev should automatically fast refresh content when path is added without error",
+      "tsconfig-path-reloading tsconfig without baseUrl added after starting dev should load with initial paths config correctly",
+      "tsconfig-path-reloading tsconfig without baseUrl should automatically fast refresh content when path is added without error",
+      "tsconfig-path-reloading tsconfig without baseUrl should load with initial paths config correctly"
     ],
     "failed": [
       "tsconfig-path-reloading tsconfig added after starting dev should recover from module not found when paths is updated",
-      "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated"
+      "tsconfig-path-reloading tsconfig should recover from module not found when paths is updated",
+      "tsconfig-path-reloading tsconfig without baseUrl added after starting dev should recover from module not found when paths is updated",
+      "tsconfig-path-reloading tsconfig without baseUrl should recover from module not found when paths is updated"
     ],
     "pending": [],
     "flakey": [],
@@ -2943,17 +2995,18 @@
       "unrecognized server actions should 404 when POSTing a non-server-action request to a nonexistent page",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: form-data/multipart",
       "unrecognized server actions should 404 when POSTing a server action with an unrecognized id to a nonexistent page: plaintext",
-      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
-      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
-      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
-      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js enabled",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with complex argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked from JS - with simple argument",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js disabled",
       "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - nodejs server action invoked via form - js enabled",
       "unrecognized server actions should error when POSTing a urlencoded action to a nonexistent page"
     ],
-    "failed": [],
+    "failed": [
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with complex argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked from JS - with simple argument",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js disabled",
+      "unrecognized server actions should error and log a warning when submitting a server action with an unrecognized ID - edge server action invoked via form - js enabled"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3002,6 +3055,37 @@
   },
   "test/e2e/app-dir/actions/app-action-node-middleware.test.ts": {
     "passed": [
+      "app-dir action handling encryption should send encrypted values from the closed over closure",
+      "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should error if server action arguments list is too long",
+      "app-dir action handling should handle action correctly with middleware rewrite",
+      "app-dir action handling should handle basic actions correctly",
+      "app-dir action handling should not block navigation events while a server action is in flight",
+      "app-dir action handling should not block router.back() while a server action is in flight",
+      "app-dir action handling should not log errors for non-action form POSTs",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should replace current route when redirecting with type set to replace",
+      "app-dir action handling should report errors with bad inputs correctly",
+      "app-dir action handling should support .bind",
+      "app-dir action handling should support chained .bind",
+      "app-dir action handling should support formData and redirect",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support headers in client imported actions",
+      "app-dir action handling should support hoc auth wrappers",
+      "app-dir action handling should support importing actions in client components",
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support notFound",
+      "app-dir action handling should support notFound (javascript disabled)",
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type"
+    ],
+    "failed": [
       "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
@@ -3017,7 +3101,6 @@
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
       "app-dir action handling encryption should be able to resolve other server actions and client components",
-      "app-dir action handling encryption should send encrypted values from the closed over closure",
       "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
       "app-dir action handling fetch actions should handle calls to redirect() with a absolute URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
@@ -3043,47 +3126,18 @@
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
-      "app-dir action handling should bundle external libraries if they are on the action layer",
-      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
-      "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
-      "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should not block navigation events while a server action is in flight",
-      "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
       "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
-      "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
-      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
-      "app-dir action handling should push new route when redirecting",
-      "app-dir action handling should replace current route when redirecting with type set to replace",
-      "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
-      "app-dir action handling should support .bind",
-      "app-dir action handling should support chained .bind",
-      "app-dir action handling should support formData and redirect",
-      "app-dir action handling should support headers and cookies",
-      "app-dir action handling should support headers in client imported actions",
-      "app-dir action handling should support hoc auth wrappers",
-      "app-dir action handling should support importing actions in client components",
-      "app-dir action handling should support importing the same action module instance in both server and action layers",
-      "app-dir action handling should support next/dynamic with ssr: false",
       "app-dir action handling should support next/dynamic with ssr: false (edge)",
-      "app-dir action handling should support notFound",
-      "app-dir action handling should support notFound (javascript disabled)",
-      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
-      "app-dir action handling should support setting cookies when redirecting (no javascript)",
-      "app-dir action handling should support setting cookies when redirecting (with javascript)",
-      "app-dir action handling should support uploading files",
-      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
-      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
-    "failed": [],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions",
@@ -3095,11 +3149,12 @@
   "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
     "passed": [
       "app-dir action progressive enhancement should support actions from client without JS",
-      "app-dir action progressive enhancement should support formData and redirect without JS",
+      "app-dir action progressive enhancement should support formData and redirect without JS"
+    ],
+    "failed": [
       "app-dir action progressive enhancement should support headers and cookies without JS (runtime: edge)",
       "app-dir action progressive enhancement should support headers and cookies without JS (runtime: node)"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3132,6 +3187,37 @@
   },
   "test/e2e/app-dir/actions/app-action.test.ts": {
     "passed": [
+      "app-dir action handling encryption should send encrypted values from the closed over closure",
+      "app-dir action handling should bundle external libraries if they are on the action layer",
+      "app-dir action handling should error if server action arguments list is too long",
+      "app-dir action handling should handle action correctly with middleware rewrite",
+      "app-dir action handling should handle basic actions correctly",
+      "app-dir action handling should not block navigation events while a server action is in flight",
+      "app-dir action handling should not block router.back() while a server action is in flight",
+      "app-dir action handling should not log errors for non-action form POSTs",
+      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
+      "app-dir action handling should push new route when redirecting",
+      "app-dir action handling should replace current route when redirecting with type set to replace",
+      "app-dir action handling should report errors with bad inputs correctly",
+      "app-dir action handling should support .bind",
+      "app-dir action handling should support chained .bind",
+      "app-dir action handling should support formData and redirect",
+      "app-dir action handling should support headers and cookies",
+      "app-dir action handling should support headers in client imported actions",
+      "app-dir action handling should support hoc auth wrappers",
+      "app-dir action handling should support importing actions in client components",
+      "app-dir action handling should support importing the same action module instance in both server and action layers",
+      "app-dir action handling should support next/dynamic with ssr: false",
+      "app-dir action handling should support notFound",
+      "app-dir action handling should support notFound (javascript disabled)",
+      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
+      "app-dir action handling should support setting cookies when redirecting (no javascript)",
+      "app-dir action handling should support setting cookies when redirecting (with javascript)",
+      "app-dir action handling should support uploading files",
+      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
+      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type"
+    ],
+    "failed": [
       "app-dir action handling \"use server\" export values should error when exporting non async functions at build time",
       "app-dir action handling Edge SSR should allow cookie and header async storages",
       "app-dir action handling Edge SSR should handle basic actions correctly",
@@ -3147,7 +3233,6 @@
       "app-dir action handling caching disabled by default should not override revalidate in server action",
       "app-dir action handling caching disabled by default should use no-store as default for server action",
       "app-dir action handling encryption should be able to resolve other server actions and client components",
-      "app-dir action handling encryption should send encrypted values from the closed over closure",
       "app-dir action handling fetch actions should handle a fetch action initiated from a static page",
       "app-dir action handling fetch actions should handle calls to redirect() with a absolute URL in a single pass",
       "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
@@ -3173,52 +3258,30 @@
       "app-dir action handling server actions render client components server component imported action should support importing client components from actions",
       "app-dir action handling should be possible to catch network errors",
       "app-dir action handling should be possible to catch regular errors",
-      "app-dir action handling should bundle external libraries if they are on the action layer",
-      "app-dir action handling should error if server action arguments list is too long",
       "app-dir action handling should forward action request to a worker that contains the action handler (edge)",
       "app-dir action handling should forward action request to a worker that contains the action handler (node)",
-      "app-dir action handling should handle action correctly with middleware rewrite",
       "app-dir action handling should handle actions executed in quick succession",
-      "app-dir action handling should handle basic actions correctly",
       "app-dir action handling should invalidate the client router cache if the redirect action triggers a revalidation",
       "app-dir action handling should keep action instances identical",
-      "app-dir action handling should not block navigation events while a server action is in flight",
-      "app-dir action handling should not block router.back() while a server action is in flight",
       "app-dir action handling should not error when a forwarded action triggers a redirect (edge)",
       "app-dir action handling should not error when a forwarded action triggers a redirect (node)",
-      "app-dir action handling should not log errors for non-action form POSTs",
       "app-dir action handling should only submit action once when resubmitting an action after navigation",
-      "app-dir action handling should propagate errors from a `text/plain` response to an error boundary",
-      "app-dir action handling should push new route when redirecting",
-      "app-dir action handling should replace current route when redirecting with type set to replace",
-      "app-dir action handling should report errors with bad inputs correctly",
       "app-dir action handling should reset the form state when the action redirects to a page that contains the same form",
-      "app-dir action handling should support .bind",
-      "app-dir action handling should support chained .bind",
-      "app-dir action handling should support formData and redirect",
-      "app-dir action handling should support headers and cookies",
-      "app-dir action handling should support headers in client imported actions",
-      "app-dir action handling should support hoc auth wrappers",
-      "app-dir action handling should support importing actions in client components",
-      "app-dir action handling should support importing the same action module instance in both server and action layers",
-      "app-dir action handling should support next/dynamic with ssr: false",
       "app-dir action handling should support next/dynamic with ssr: false (edge)",
-      "app-dir action handling should support notFound",
-      "app-dir action handling should support notFound (javascript disabled)",
-      "app-dir action handling should support setting cookies in route handlers with the correct overrides",
-      "app-dir action handling should support setting cookies when redirecting (no javascript)",
-      "app-dir action handling should support setting cookies when redirecting (with javascript)",
-      "app-dir action handling should support uploading files",
-      "app-dir action handling should trigger a refresh for a server action that also dispatches a navigation event",
-      "app-dir action handling should trigger an error boundary for action responses with an invalid content-type",
       "app-dir action handling should work with interception routes"
     ],
-    "failed": [],
     "pending": [
       "app-dir action handling fetch actions should handle revalidateTag + redirect",
       "app-dir action handling server actions render client components client component imported action should support importing client components from actions",
       "app-dir action handling should reset the form state when the action redirects to itself"
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/adapter-dynamic-metadata/adapter-dynamic-metadata.test.ts": {
+    "passed": ["adapter-dynamic-metadata should skip next dev"],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -3228,16 +3291,6 @@
       "app a11y features route announcer should announce h1 changes",
       "app a11y features route announcer should announce route changes when h1 changes inside an inner layout",
       "app a11y features route announcer should not announce the initital title"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/app-dir/app-alias/app-alias.test.ts": {
-    "passed": [
-      "app-dir alias should handle typescript paths alias correctly",
-      "app-dir alias should resolve css imports from outside with src folder presented"
     ],
     "failed": [],
     "pending": [],
@@ -3317,9 +3370,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-client-cache/client-cache.parallel-routes.test.ts": {
-    "passed": ["app dir client cache with parallel routes should skip dev"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["app dir client cache with parallel routes should skip dev"],
     "flakey": [],
     "runtimeError": false
   },
@@ -3350,24 +3403,12 @@
   },
   "test/e2e/app-dir/app-css/index.test.ts": {
     "passed": [
-      "app dir - css HMR should not break HMR when CSS is imported in a server component",
-      "app dir - css HMR should not create duplicate link tags during HMR",
-      "app dir - css HMR should support HMR for CSS imports in client components",
-      "app dir - css HMR should support HMR for CSS imports in server components",
-      "app dir - css HMR should support HMR with sass/scss",
-      "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
-      "app dir - css css support chunks should bundle css resources into chunks",
       "app dir - css css support client components should support css modules inside client components",
       "app dir - css css support client components should support css modules inside client page",
       "app dir - css css support client layouts should support css modules inside client layouts",
       "app dir - css css support client layouts should support global css inside client layouts",
       "app dir - css css support client pages should support css modules inside client pages",
       "app dir - css css support client pages should support global css inside client pages",
-      "app dir - css css support css import URLs should not mangle relative layers",
-      "app dir - css css support css import URLs should work with the media attribute",
-      "app dir - css css support css ordering should have inner layers take precedence over outer layers",
-      "app dir - css css support multiple entries should deduplicate styles on the module level",
-      "app dir - css css support multiple entries should only include the same style once in the flight data",
       "app dir - css css support page extensions should include css imported in MDX pages",
       "app dir - css css support server layouts should support css modules inside server layouts",
       "app dir - css css support server layouts should support external css imports",
@@ -3375,9 +3416,6 @@
       "app dir - css css support server pages should support css modules inside server pages",
       "app dir - css css support server pages should support css modules shared between server pages",
       "app dir - css css support server pages should support global css inside server pages",
-      "app dir - css css support should not affect css orders during HMR",
-      "app dir - css css support should not preload styles twice during HMR",
-      "app dir - css css support should reload @import styles during HMR",
       "app dir - css css support special entries should include css imported in client not-found.js",
       "app dir - css css support special entries should include css imported in client template.js",
       "app dir - css css support special entries should include css imported in error.js",
@@ -3385,7 +3423,25 @@
       "app dir - css css support special entries should include css imported in root not-found.js",
       "app dir - css css support special entries should include css imported in server not-found.js",
       "app dir - css css support special entries should include css imported in server template.js",
-      "app dir - css css support special entries should include root layout css for root not-found.js",
+      "app dir - css css support special entries should include root layout css for root not-found.js"
+    ],
+    "failed": [
+      "app dir - css HMR should not break HMR when CSS is imported in a server component",
+      "app dir - css HMR should not create duplicate link tags during HMR",
+      "app dir - css HMR should support HMR for CSS imports in client components",
+      "app dir - css HMR should support HMR for CSS imports in server components",
+      "app dir - css HMR should support HMR with sass/scss",
+      "app dir - css Suspensey CSS should suspend on CSS imports if its slow on client navigation",
+      "app dir - css css support chunks should bundle css resources into chunks",
+      "app dir - css css support css import URLs should not mangle external layers",
+      "app dir - css css support css import URLs should not mangle relative layers",
+      "app dir - css css support css import URLs should work with the media attribute",
+      "app dir - css css support css ordering should have inner layers take precedence over outer layers",
+      "app dir - css css support multiple entries should deduplicate styles on the module level",
+      "app dir - css css support multiple entries should only include the same style once in the flight data",
+      "app dir - css css support should not affect css orders during HMR",
+      "app dir - css css support should not preload styles twice during HMR",
+      "app dir - css css support should reload @import styles during HMR",
       "app dir - css sass support client layouts should support global sass/scss inside client layouts",
       "app dir - css sass support client layouts should support sass/scss modules inside client layouts",
       "app dir - css sass support client pages should support global sass/scss inside client pages",
@@ -3394,9 +3450,6 @@
       "app dir - css sass support server layouts should support sass/scss modules inside server layouts",
       "app dir - css sass support server pages should support global sass/scss inside server pages",
       "app dir - css sass support server pages should support sass/scss modules inside server pages"
-    ],
-    "failed": [
-      "app dir - css css support css import URLs should not mangle external layers"
     ],
     "pending": [
       "app dir - css css support multiple entries should only inject the same style once if used by different layers",
@@ -3410,7 +3463,8 @@
     "passed": [
       "app-dir - custom-cache-handler - cjs cjs module exports should have logs from cache-handler",
       "app-dir - custom-cache-handler - cjs-default-export cjs default export should have logs from cache-handler",
-      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler"
+      "app-dir - custom-cache-handler - esm esm default export should have logs from cache-handler",
+      "app-dir - custom-cache-handler - esm import.meta.resolve esm default export should have logs from cache-handler"
     ],
     "failed": [],
     "pending": [],
@@ -3437,15 +3491,16 @@
   },
   "test/e2e/app-dir/app-edge/app-edge.test.ts": {
     "passed": [
+      "app-dir edge SSR should resolve module without error in edge runtime"
+    ],
+    "failed": [
       "app-dir edge SSR should handle /index routes correctly",
       "app-dir edge SSR should handle edge only routes",
       "app-dir edge SSR should handle edge rsc hmr",
       "app-dir edge SSR should resolve client component without error",
-      "app-dir edge SSR should resolve module without error in edge runtime",
       "app-dir edge SSR should retrieve cookies in a server component in the edge runtime",
       "app-dir edge SSR should treat process as object without polyfill in edge runtime"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3514,12 +3569,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-fetch-deduping/app-fetch-deduping.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-fetch-deduping during next dev dedupes requests with different trace headers",
       "app-fetch-deduping during next dev should dedupe pending revalidation requests",
       "app-fetch-deduping during next dev should dedupe requests called from the same component"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -3579,7 +3634,6 @@
       "app-dir with proxy Mutate request headers for next/headers Updates headers",
       "app-dir with proxy retains a link response header from the proxy",
       "app-dir with proxy should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should ignore x-middleware-set-cookie as a request header",
       "app-dir with proxy should log compilation time",
       "app-dir with proxy should not incorrectly treat a Location header as a rewrite",
@@ -3588,6 +3642,7 @@
       "app-dir with proxy should support unstable_cache in proxy"
     ],
     "failed": [
+      "app-dir with proxy should be possible to read cookies that are set during the proxy handling of a server action",
       "app-dir with proxy should filter correctly after proxy rewrite"
     ],
     "pending": [
@@ -3630,7 +3685,6 @@
       "app-dir with middleware Mutate request headers for next/headers Updates headers",
       "app-dir with middleware retains a link response header from the middleware",
       "app-dir with middleware should be possible to modify cookies & read them in an RSC in a single request",
-      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should ignore x-middleware-set-cookie as a request header",
       "app-dir with middleware should not incorrectly treat a Location header as a rewrite",
       "app-dir with middleware should omit internal headers for middleware cookies",
@@ -3639,6 +3693,7 @@
       "app-dir with middleware should warn when deprecated middleware file is used"
     ],
     "failed": [
+      "app-dir with middleware should be possible to read cookies that are set during the middleware handling of a server action",
       "app-dir with middleware should filter correctly after middleware rewrite"
     ],
     "pending": [],
@@ -3750,12 +3805,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-root-params-getters/typecheck.test.ts": {
+    "passed": [
+      "app-root-param-getters - typecheck (multiple-roots) should pass typecheck with generated root-params types",
+      "app-root-param-getters - typecheck (simple) should pass typecheck with generated root-params types"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-root-params-getters/use-cache.test.ts": {
     "passed": [
       "app-root-param-getters - cache - at build noop in dev",
       "app-root-param-getters - cache - at runtime should allow using root params within a \"use cache\" - dev",
       "app-root-param-getters - cache - at runtime should error when using root params in \"use cache\" nested inside unstable_cache - dev",
       "app-root-param-getters - cache - at runtime should error when using root params within `unstable_cache` - dev",
+      "app-root-param-getters - cache dedup with root params should dedupe same root params and isolate different root params",
       "app-root-param-getters - private cache should allow using root params within a \"use cache: private\" - dev"
     ],
     "failed": [],
@@ -3843,6 +3909,7 @@
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
       "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
+      "app-custom-routes top-level await handles route handlers that use top-level await",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
       "app-custom-routes works with generateStaticParams correctly responds correctly on /static/first/data.json",
@@ -3920,6 +3987,7 @@
       "app-custom-routes invalid exports should print an error when exporting a default handler in dev",
       "app-custom-routes no bundle error should not print bundling warning about React",
       "app-custom-routes no response returned should print an error when no response is returned",
+      "app-custom-routes top-level await handles route handlers that use top-level await",
       "app-custom-routes works with api prefix correctly does not statically generate with dynamic usage",
       "app-custom-routes works with api prefix correctly statically generates correctly with no dynamic usage",
       "app-custom-routes works with generateStaticParams correctly responds correctly on /static/first/data.json",
@@ -3948,6 +4016,31 @@
   },
   "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts": {
     "passed": [
+      "app-dir static/dynamic handling should correctly handle \"default\" cache statuses",
+      "app-dir static/dynamic handling should correctly handle fetchCache = \"force-no-store\"",
+      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
+      "app-dir static/dynamic handling should correctly include headers instance in cache key",
+      "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
+      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
+      "app-dir static/dynamic handling should have logs from cache-handler",
+      "app-dir static/dynamic handling should keep querystring on static page",
+      "app-dir static/dynamic handling should not cache non-ok statusCode",
+      "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
+      "app-dir static/dynamic handling should respond correctly for dynamic route with dynamicParams false in layout",
+      "app-dir static/dynamic handling should respond correctly for partially dynamic route with dynamicParams false in layout",
+      "app-dir static/dynamic handling should still cache even though the W3C trace context headers `traceparent` and `tracestate` were different",
+      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
+      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should use auto no cache when no fetch config",
+      "app-dir static/dynamic handling should warn for too many cache tags",
+      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache"
+    ],
+    "failed": [
       "app-dir static/dynamic handling Incremental cache limits should cache request if response data size is greater than 2MB in development mode",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
       "app-dir static/dynamic handling should build dynamic param with edge runtime correctly",
@@ -3965,60 +4058,37 @@
       "app-dir static/dynamic handling should cache correctly with post method and revalidate edge",
       "app-dir static/dynamic handling should cache correctly with utf8 encoding",
       "app-dir static/dynamic handling should cache correctly with utf8 encoding edge",
-      "app-dir static/dynamic handling should correctly handle \"default\" cache statuses",
-      "app-dir static/dynamic handling should correctly handle fetchCache = \"force-no-store\"",
-      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
       "app-dir static/dynamic handling should correctly handle statusCode with notFound + ISR",
-      "app-dir static/dynamic handling should correctly include headers instance in cache key",
-      "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
-      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
       "app-dir static/dynamic handling should force SSR correctly for headers usage",
       "app-dir static/dynamic handling should handle dynamicParams: false correctly",
       "app-dir static/dynamic handling should handle dynamicParams: true correctly",
       "app-dir static/dynamic handling should handle partial-gen-params with default dynamicParams correctly",
       "app-dir static/dynamic handling should handle partial-gen-params with layout dynamicParams = false correctly",
       "app-dir static/dynamic handling should handle partial-gen-params with page dynamicParams = false correctly",
-      "app-dir static/dynamic handling should have logs from cache-handler",
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
-      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
-      "app-dir static/dynamic handling should not cache non-ok statusCode",
       "app-dir static/dynamic handling should not error with force-dynamic and catch-all routes",
       "app-dir static/dynamic handling should not error with generateStaticParams and authed data on revalidate",
       "app-dir static/dynamic handling should not error with generateStaticParams and dynamic data",
-      "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
-      "app-dir static/dynamic handling should respond correctly for dynamic route with dynamicParams false in layout",
-      "app-dir static/dynamic handling should respond correctly for partially dynamic route with dynamicParams false in layout",
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
       "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
-      "app-dir static/dynamic handling should still cache even though the W3C trace context headers `traceparent` and `tracestate` were different",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
-      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
-      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
-      "app-dir static/dynamic handling should use auto no cache when no fetch config",
-      "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
-      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should be able to read the draft mode status",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
-      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
-      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling updateTag/revalidateTag revalidateTag work with max profile in server actions",
       "app-dir static/dynamic handling updateTag/revalidateTag should show deprecation warning for revalidateTag without second argument",
@@ -4029,7 +4099,6 @@
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
-    "failed": [],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -4041,9 +4110,34 @@
   },
   "test/e2e/app-dir/app-static/app-static.test.ts": {
     "passed": [
-      "app-dir static/dynamic handling Incremental cache limits should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode",
       "app-dir static/dynamic handling it should revalidate tag correctly with edge route handler",
       "app-dir static/dynamic handling it should revalidate tag correctly with node route handler",
+      "app-dir static/dynamic handling should correctly handle \"default\" cache statuses",
+      "app-dir static/dynamic handling should correctly handle fetchCache = \"force-no-store\"",
+      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
+      "app-dir static/dynamic handling should correctly include headers instance in cache key",
+      "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
+      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
+      "app-dir static/dynamic handling should keep querystring on static page",
+      "app-dir static/dynamic handling should not cache non-ok statusCode",
+      "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
+      "app-dir static/dynamic handling should respond correctly for dynamic route with dynamicParams false in layout",
+      "app-dir static/dynamic handling should respond correctly for partially dynamic route with dynamicParams false in layout",
+      "app-dir static/dynamic handling should revalidate correctly with config and fetch revalidate",
+      "app-dir static/dynamic handling should still cache even though the W3C trace context headers `traceparent` and `tracestate` were different",
+      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
+      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
+      "app-dir static/dynamic handling should use auto no cache when no fetch config",
+      "app-dir static/dynamic handling should warn for too many cache tags",
+      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
+      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
+      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
+      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache"
+    ],
+    "failed": [
+      "app-dir static/dynamic handling Incremental cache limits should not cache request if response data size is greater than 2MB and FetchCache is possible in development mode",
       "app-dir static/dynamic handling should allow dynamic routes to access cookies",
       "app-dir static/dynamic handling should build dynamic param with edge runtime correctly",
       "app-dir static/dynamic handling should bypass fetch cache with cache-control: no-cache",
@@ -4060,13 +4154,7 @@
       "app-dir static/dynamic handling should cache correctly with post method and revalidate edge",
       "app-dir static/dynamic handling should cache correctly with utf8 encoding",
       "app-dir static/dynamic handling should cache correctly with utf8 encoding edge",
-      "app-dir static/dynamic handling should correctly handle \"default\" cache statuses",
-      "app-dir static/dynamic handling should correctly handle fetchCache = \"force-no-store\"",
-      "app-dir static/dynamic handling should correctly handle multi-level generateStaticParams when some levels are missing",
       "app-dir static/dynamic handling should correctly handle statusCode with notFound + ISR",
-      "app-dir static/dynamic handling should correctly include headers instance in cache key",
-      "app-dir static/dynamic handling should correctly skip caching POST fetch for POST handler",
-      "app-dir static/dynamic handling should error correctly for invalid params from generateStaticParams",
       "app-dir static/dynamic handling should force SSR correctly for headers usage",
       "app-dir static/dynamic handling should handle dynamicParams: false correctly",
       "app-dir static/dynamic handling should handle dynamicParams: true correctly",
@@ -4078,46 +4166,29 @@
       "app-dir static/dynamic handling should honor fetch cache correctly",
       "app-dir static/dynamic handling should honor fetch cache correctly (edge)",
       "app-dir static/dynamic handling should honor fetch cache in generateStaticParams",
-      "app-dir static/dynamic handling should keep querystring on static page",
       "app-dir static/dynamic handling should navigate to static path correctly",
       "app-dir static/dynamic handling should not cache correctly with POST method request init",
-      "app-dir static/dynamic handling should not cache non-ok statusCode",
       "app-dir static/dynamic handling should not error with force-dynamic and catch-all routes",
       "app-dir static/dynamic handling should not error with generateStaticParams and authed data on revalidate",
       "app-dir static/dynamic handling should not error with generateStaticParams and dynamic data",
       "app-dir static/dynamic handling should not filter out catch-all params with repeated segments in generateStaticParams",
-      "app-dir static/dynamic handling should not have cache tags header for non-minimal mode",
       "app-dir static/dynamic handling should not throw Dynamic Server Usage error when using generateStaticParams with draftMode",
       "app-dir static/dynamic handling should render not found pages correctly and fallback to the default one",
-      "app-dir static/dynamic handling should respond correctly for dynamic route with dynamicParams false in layout",
-      "app-dir static/dynamic handling should respond correctly for partially dynamic route with dynamicParams false in layout",
-      "app-dir static/dynamic handling should revalidate correctly with config and fetch revalidate",
       "app-dir static/dynamic handling should skip cache in draft mode",
       "app-dir static/dynamic handling should skip fetch cache when accessing request properties",
       "app-dir static/dynamic handling should skip fetch cache when an authorization header is present after dynamic usage",
       "app-dir static/dynamic handling should ssr dynamically when detected automatically with fetch cache option",
       "app-dir static/dynamic handling should ssr dynamically when forced via config",
-      "app-dir static/dynamic handling should still cache even though the W3C trace context headers `traceparent` and `tracestate` were different",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/app-page",
       "app-dir static/dynamic handling should stream properly for /stale-cache-serving-edge/route-handler",
-      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/app-page",
-      "app-dir static/dynamic handling should stream properly for /stale-cache-serving/route-handler",
-      "app-dir static/dynamic handling should use auto no cache when no fetch config",
-      "app-dir static/dynamic handling should warn for too many cache tags",
       "app-dir static/dynamic handling should work with dynamic path no generateStaticParams",
       "app-dir static/dynamic handling should work with forced dynamic path",
-      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/api/unstable-cache-node",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-edge",
-      "app-dir static/dynamic handling unstable-cache should work in pages/unstable-cache-node",
       "app-dir static/dynamic handling unstable_cache should be able to read the draft mode status",
       "app-dir static/dynamic handling unstable_cache should bypass cache in draft mode",
       "app-dir static/dynamic handling unstable_cache should not cache new result in draft mode",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-cache",
       "app-dir static/dynamic handling unstable_cache should not error when calling a fetch no-store",
       "app-dir static/dynamic handling unstable_cache should not error when retrieving the value undefined",
-      "app-dir static/dynamic handling unstable_cache should retrieve the same value on second request",
-      "app-dir static/dynamic handling unstable_noStore should not opt-out of static optimization when used in next/cache",
       "app-dir static/dynamic handling unstable_noStore should opt-out of static optimization",
       "app-dir static/dynamic handling updateTag/revalidateTag revalidateTag work with max profile in server actions",
       "app-dir static/dynamic handling updateTag/revalidateTag should show deprecation warning for revalidateTag without second argument",
@@ -4128,7 +4199,6 @@
       "app-dir static/dynamic handling useSearchParams client should bailout to client rendering - with suspense boundary",
       "app-dir static/dynamic handling useSearchParams client should have values from canonical url on rewrite"
     ],
-    "failed": [],
     "pending": [
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-edge",
       "app-dir static/dynamic handling should correctly de-dupe fetch without next cache /react-fetch-deduping-node",
@@ -4156,11 +4226,21 @@
   },
   "test/e2e/app-dir/app/index.test.ts": {
     "passed": [
+      "app dir - basic next/script should pass `nonce`",
+      "app dir - basic next/script should pass nonce when using next/font",
+      "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
+      "app dir - basic should handle hash in initial url",
+      "app dir - basic should not have duplicate config warnings",
+      "app dir - basic should return the `vary` header from pages for flight requests",
+      "app dir - basic should serve from public"
+    ],
+    "failed": [
       "app dir - basic <Link /> should allow linking from app page to pages page",
       "app dir - basic <Link /> should be soft for back navigation",
       "app dir - basic <Link /> should be soft for forward navigation",
       "app dir - basic <Link /> should hard push",
       "app dir - basic <Link /> should hard replace",
+      "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
       "app dir - basic <Link /> should push to external url",
       "app dir - basic <Link /> should replace to external url",
       "app dir - basic <Link /> should soft push",
@@ -4184,10 +4264,8 @@
       "app dir - basic known bugs should support React fetch instrumentation server component client-navigation",
       "app dir - basic next/script should insert preload tags for beforeInteractive and afterInteractive scripts",
       "app dir - basic next/script should load stylesheets for next/scripts",
-      "app dir - basic next/script should pass `nonce`",
       "app dir - basic next/script should pass manual `nonce`",
       "app dir - basic next/script should pass manual `nonce` pages",
-      "app dir - basic next/script should pass nonce when using next/font",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts with a src prop",
       "app dir - basic next/script should pass on extra props for beforeInteractive scripts without a src prop",
       "app dir - basic next/script should support next/script and render in correct order",
@@ -4201,6 +4279,7 @@
       "app dir - basic searchParams prop server component should have the correct search params on middleware rewrite",
       "app dir - basic searchParams prop server component should have the correct search params on rewrite",
       "app dir - basic server components Loading should render loading.js in browser for slow layout",
+      "app dir - basic server components Loading should render loading.js in browser for slow layout and page",
       "app dir - basic server components Loading should render loading.js in browser for slow page",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout",
       "app dir - basic server components Loading should render loading.js in initial html for slow layout and page",
@@ -4224,11 +4303,9 @@
       "app dir - basic server components should serve client component should serve server-side",
       "app dir - basic server components should serve shared component",
       "app dir - basic should encode chunk path correctly",
-      "app dir - basic should ensure the </body></html> suffix is at the end of the stream",
       "app dir - basic should expose app source page on window.next.__internal_src_page for /dashboard",
       "app dir - basic should expose app source page on window.next.__internal_src_page for /dashboard/another",
       "app dir - basic should expose app source page on window.next.__internal_src_page for /dynamic/category-1/id-2",
-      "app dir - basic should handle hash in initial url",
       "app dir - basic should have correct searchParams and params (client)",
       "app dir - basic should have correct searchParams and params (server)",
       "app dir - basic should include document html and body",
@@ -4237,20 +4314,17 @@
       "app dir - basic should match redirects in pages correctly $path",
       "app dir - basic should not apply client router filter on shallow",
       "app dir - basic should not create new root layout when nested (optional)",
-      "app dir - basic should not have duplicate config warnings",
       "app dir - basic should not include parent when not in parent directory",
       "app dir - basic should not serve when layout is provided but no folder index",
       "app dir - basic should not share edge workers",
       "app dir - basic should pass props from getServerSideProps in root layout",
       "app dir - basic should return normalized dynamic route params for catch-all edge page",
       "app dir - basic should return the `vary` header from edge runtime",
-      "app dir - basic should return the `vary` header from pages for flight requests",
       "app dir - basic should serve /index as separate page",
       "app dir - basic should serve dynamic parameter",
       "app dir - basic should serve dynamic route from pages",
       "app dir - basic should serve from app",
       "app dir - basic should serve from pages",
-      "app dir - basic should serve from public",
       "app dir - basic should serve nested parent",
       "app dir - basic should serve page as a segment name correctly",
       "app dir - basic should serve polyfills for browsers that do not support modules",
@@ -4260,10 +4334,6 @@
       "app dir - basic should use text/x-component for flight with edge runtime",
       "app dir - basic should work for catch-all edge page",
       "app dir - basic template component should render the template that holds state in a client component and reset on navigation"
-    ],
-    "failed": [
-      "app dir - basic <Link /> should navigate to pages dynamic route from pages page if it overlaps with an app page",
-      "app dir - basic server components Loading should render loading.js in browser for slow layout and page"
     ],
     "pending": [
       "app dir - basic HMR should HMR correctly when changing the component type",
@@ -4386,6 +4456,15 @@
     "pending": [
       "back/forward cache React state is preserved when navigating back to a page with different search params than before "
     ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/bfcache-regression/bfcache-regression.test.ts": {
+    "passed": [
+      "bfcache-regression should preserve interactivity after navigating back from an external page"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -4536,9 +4615,14 @@
       "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 nested should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` cacheLife with revalidate: 0 slow cache should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` catching an error at runtime should show a collapsed redbox error",
+      "Cache Components Errors Dev Inside `use cache` connection should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` cookies should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` draftMode should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` headers should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` in ignore-listed code connection should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` in ignore-listed code cookies should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` in ignore-listed code draftMode should show a redbox error",
+      "Cache Components Errors Dev Inside `use cache` in ignore-listed code headers should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` reading fallback params should show a redbox error",
       "Cache Components Errors Dev Inside `use cache` throwing an error at runtime should show a redbox error",
       "Cache Components Errors Dev Static Route should not show a collapsed redbox error",
@@ -4796,7 +4880,8 @@
       "cache-components should prerender pages that only use cached (unstable_cache) IO",
       "cache-components should prerender pages that only use cached fetches",
       "cache-components should prerender pages that render in a microtask",
-      "cache-components should prerender static not-found pages"
+      "cache-components should prerender static not-found pages",
+      "cache-components should render not-found with Suspense in layout without connection errors"
     ],
     "failed": [],
     "pending": [],
@@ -4874,6 +4959,16 @@
   "test/e2e/app-dir/client-reference-chunking/client-reference-chunking.test.ts": {
     "passed": [
       "client-reference-chunking should use the same chunks for client references across routes"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/client-reference-side-effects/client-reference-side-effects.test.ts": {
+    "passed": [
+      "client-reference-side-effects side effect behavior when only importing",
+      "client-reference-side-effects side effect behavior when rendering"
     ],
     "failed": [],
     "pending": [],
@@ -5232,12 +5327,13 @@
   },
   "test/e2e/app-dir/dedupe-rsc-error-log/dedupe-rsc-error-log.test.ts": {
     "passed": [
+      "dedupe-rsc-error-log should only log RSC error once for nodejs runtime"
+    ],
+    "failed": [
       "dedupe-rsc-error-log should only log RSC error once for edge runtime",
-      "dedupe-rsc-error-log should only log RSC error once for nodejs runtime",
       "dedupe-rsc-error-log should only log SSR error once for edge runtime",
       "dedupe-rsc-error-log should only log SSR error once for nodejs runtime"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5285,15 +5381,6 @@
   },
   "test/e2e/app-dir/draft-mode/draft-mode.test.ts": {
     "passed": [
-      "app dir - draft mode in edge runtime should be disabled from api route handler",
-      "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
-      "app dir - draft mode in edge runtime should generate rand when draft mode enabled",
-      "app dir - draft mode in edge runtime should have set-cookie header on enable",
-      "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
-      "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
-      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled",
-      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/index",
-      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies",
       "app dir - draft mode in nodejs runtime should be disabled from api route handler",
       "app dir - draft mode in nodejs runtime should be enabled from api route handler when draft mode enabled",
       "app dir - draft mode in nodejs runtime should generate rand when draft mode enabled",
@@ -5304,7 +5391,17 @@
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /index",
       "app dir - draft mode in nodejs runtime should use initial rand when draft mode is disabled on /with-cookies"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - draft mode in edge runtime should be disabled from api route handler",
+      "app dir - draft mode in edge runtime should be enabled from api route handler when draft mode enabled",
+      "app dir - draft mode in edge runtime should generate rand when draft mode enabled",
+      "app dir - draft mode in edge runtime should have set-cookie header on enable",
+      "app dir - draft mode in edge runtime should have set-cookie header with redirect location",
+      "app dir - draft mode in edge runtime should not perform full page navigation on router.refresh()",
+      "app dir - draft mode in edge runtime should read other cookies when draft mode enabled",
+      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/index",
+      "app dir - draft mode in edge runtime should use initial rand when draft mode is disabled on /with-edge/with-cookies"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5321,12 +5418,13 @@
   "test/e2e/app-dir/dynamic-css/index.test.ts": {
     "passed": [
       "app dir - dynamic css should not throw with accessing to ALS in preload css",
-      "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
-      "app dir - dynamic css should only apply corresponding css for page loaded that /another",
       "app dir - dynamic css should only apply corresponding css for page loaded that /ssr",
       "app dir - dynamic css should preload all chunks of dynamic component during SSR"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - dynamic css should only apply corresponding css for page loaded in edge runtime",
+      "app dir - dynamic css should only apply corresponding css for page loaded that /another"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -5418,10 +5516,6 @@
   },
   "test/e2e/app-dir/dynamic/dynamic.test.ts": {
     "passed": [
-      "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
-      "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
-      "app dir - next/dynamic no SSR should support dynamic import with TLA in client components",
-      "app dir - next/dynamic no SSR should support dynamic import with accessing named exports from client component",
       "app dir - next/dynamic should directly raise error when dynamic component error on server",
       "app dir - next/dynamic should generate correct client manifest for dynamic chunks",
       "app dir - next/dynamic should handle next/dynamic in SSR correctly",
@@ -5432,7 +5526,12 @@
       "app dir - next/dynamic should not render loading by default",
       "app dir - next/dynamic should render loading by default if loading is specified and loader is slow"
     ],
-    "failed": [],
+    "failed": [
+      "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components",
+      "app dir - next/dynamic no SSR should not render client component imported through ssr: false in client components in edge runtime",
+      "app dir - next/dynamic no SSR should support dynamic import with TLA in client components",
+      "app dir - next/dynamic no SSR should support dynamic import with accessing named exports from client component"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6005,6 +6104,12 @@
   },
   "test/e2e/app-dir/instant-validation/instant-validation-parallel-slots.test.ts": {
     "passed": [
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when both slots render and breadcrumbs calls cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when configured children slot is hidden, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering errors when configured children slot is hidden, no cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - both slots render, no cookies",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - only configured children slot renders, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - client navigation conditional slot rendering valid - only configured children slot renders, no cookies",
       "instant validation - parallel slot configs dev - client navigation config on children with slot catches unsuspended dynamic content in both slots when config is on fork-point layout",
       "instant validation - parallel slot configs dev - client navigation config on children with slot catches unsuspended dynamic content in slot when config is on children page",
       "instant validation - parallel slot configs dev - client navigation config on slot page catches unsuspended dynamic content in children when config is on slot layout",
@@ -6012,6 +6117,12 @@
       "instant validation - parallel slot configs dev - client navigation config on slot page catches unsuspended dynamic content in children when runtime config is on slot page",
       "instant validation - parallel slot configs dev - client navigation valid parallel slot configs valid - config on both children and slot pages",
       "instant validation - parallel slot configs dev - client navigation valid parallel slot configs valid - config on slot, children dynamic content inside Suspense",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when both slots render and breadcrumbs calls cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when configured children slot is hidden, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering errors when configured children slot is hidden, no cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - both slots render, no cookies",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - only configured children slot renders, breadcrumbs blocked",
+      "instant validation - parallel slot configs dev - initial load conditional slot rendering valid - only configured children slot renders, no cookies",
       "instant validation - parallel slot configs dev - initial load config on children with slot catches unsuspended dynamic content in both slots when config is on fork-point layout",
       "instant validation - parallel slot configs dev - initial load config on children with slot catches unsuspended dynamic content in slot when config is on children page",
       "instant validation - parallel slot configs dev - initial load config on slot page catches unsuspended dynamic content in children when config is on slot layout",
@@ -6067,7 +6178,9 @@
       "instant validation dev - client navigation invalid - runtime prefetch - missing suspense around dynamic",
       "instant validation dev - client navigation invalid - runtime prefetch - missing suspense around dynamic in a layout",
       "instant validation dev - client navigation invalid - runtime prefetch - suspense too high",
+      "instant validation dev - client navigation invalid - runtime prefetch - sync IO after public cache with cookie input",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO after runtime API",
+      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in layout generateMetadata when page is prefetchable",
       "instant validation dev - client navigation invalid - runtime prefetch - sync IO in runtime segment with valid static parent",
       "instant validation dev - client navigation invalid - static layout above runtime config blocks navigation",
@@ -6164,10 +6277,7 @@
       "instant validation dev - initial load valid - static prefetch - suspense around runtime and dynamic",
       "instant validation dev - initial load valid - target segment not visible in all navigations"
     ],
-    "failed": [
-      "instant validation dev - client navigation invalid - runtime prefetch - sync IO after public cache with cookie input",
-      "instant validation dev - client navigation invalid - runtime prefetch - sync IO in generateMetadata"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6231,10 +6341,11 @@
   },
   "test/e2e/app-dir/interception-route-prefetch-cache/interception-route-prefetch-cache.test.ts": {
     "passed": [
-      "interception-route-prefetch-cache runtime = edge should render the correct interception when two distinct layouts share the same path structure",
       "interception-route-prefetch-cache runtime = nodejs should render the correct interception when two distinct layouts share the same path structure"
     ],
-    "failed": [],
+    "failed": [
+      "interception-route-prefetch-cache runtime = edge should render the correct interception when two distinct layouts share the same path structure"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6253,10 +6364,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/interception-routes-output-export/interception-routes-output-export.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "interception-routes-output-export should error when using interception routes with static export"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6355,7 +6466,6 @@
       "app-dir - fetch logging placeholder to satisfy at least one test when isNextDev is false",
       "app-dir - fetch logging should not log requests for HMR refreshes",
       "app-dir - logging with default logging should not contain metadata internal segments for dynamic metadata routes",
-      "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with default logging should not log fetch requests at all",
       "app-dir - logging with fetches default logging should exclude Middleware invoked and _rsc requests",
       "app-dir - logging with fetches default logging should log 'skip' cache status with a reason when cache: 'no-cache' is used",
@@ -6389,15 +6499,18 @@
       "app-dir - logging with fetches verbose logging should respect request.init.cache when use with fetch input is instance",
       "app-dir - logging with fetches verbose logging should show cache reason of noStore when use with fetch",
       "app-dir - logging with fetches verbose logging when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes",
+      "app-dir - logging with verbose logging for edge runtime should log each page request only once",
+      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes"
+    ],
+    "failed": [
+      "app-dir - logging with default logging should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should exclude Middleware invoked and _rsc requests",
       "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when cache: 'no-cache' is used",
       "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when revalidate: 0 is used",
       "app-dir - logging with verbose logging for edge runtime should log 'skip' cache status with a reason when the browser indicates caching should be ignored",
-      "app-dir - logging with verbose logging for edge runtime should log each page request only once",
       "app-dir - logging with verbose logging for edge runtime should log requests for after revalidation via server action",
       "app-dir - logging with verbose logging for edge runtime should log requests for client-side navigations",
       "app-dir - logging with verbose logging for edge runtime should log requests with correct indentation",
-      "app-dir - logging with verbose logging for edge runtime should not contain metadata internal segments for dynamic metadata routes",
       "app-dir - logging with verbose logging for edge runtime should not contain trailing word page for app router routes",
       "app-dir - logging with verbose logging for edge runtime should not limit the number of requests that are logged",
       "app-dir - logging with verbose logging for edge runtime should not log _rsc query for client navigation RSC request",
@@ -6406,7 +6519,6 @@
       "app-dir - logging with verbose logging for edge runtime should show cache reason of noStore when use with fetch",
       "app-dir - logging with verbose logging for edge runtime when logging.fetches.hmrRefreshes is true should log requests for HMR refreshes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6482,6 +6594,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-dynamic-routes-async-deps/index.test.ts": {
+    "passed": [
+      "app dir - metadata dynamic routes with async deps should render page with og:image meta tag when opengraph-image has async dependencies",
+      "app dir - metadata dynamic routes with async deps should serve the opengraph-image route as a valid image"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-dynamic-routes/index.test.ts": {
     "passed": [
       "app dir - metadata dynamic routes icon image routes should render apple icon with dynamic routes",
@@ -6512,10 +6634,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/metadata-edge/index.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - Metadata API on the Edge runtime should render OpenGraph image meta tag correctly"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6809,6 +6931,19 @@
   },
   "test/e2e/app-dir/metadata/metadata.test.ts": {
     "passed": [
+      "app dir - metadata basic should support other basic tags",
+      "app dir - metadata basic should support stashed title in one layer of page and layout",
+      "app dir - metadata basic should support stashed title in two layers of page and layout",
+      "app dir - metadata basic should support title and description",
+      "app dir - metadata basic should support title template",
+      "app dir - metadata basic should use parent layout title when no title is defined in page",
+      "app dir - metadata static routes should have /favicon.ico as route",
+      "app dir - metadata static routes should have icons as route",
+      "app dir - metadata static routes should support sitemap.xml under every routes",
+      "app dir - metadata static routes should support static manifest.webmanifest",
+      "app dir - metadata viewport should skip initial-scale from viewport if it is set to undefined"
+    ],
+    "failed": [
       "app dir - metadata basic should apply metadata when navigating client-side",
       "app dir - metadata basic should handle metadataBase as url string",
       "app dir - metadata basic should handle metadataBase for urls resolved as only URL type",
@@ -6818,16 +6953,10 @@
       "app dir - metadata basic should support appLinks tags",
       "app dir - metadata basic should support apple related tags `itunes` and `appWebApp`",
       "app dir - metadata basic should support generateMetadata dynamic props",
-      "app dir - metadata basic should support other basic tags",
       "app dir - metadata basic should support other basic tags (edge)",
       "app dir - metadata basic should support robots tags",
       "app dir - metadata basic should support socials related tags like facebook and pinterest",
-      "app dir - metadata basic should support stashed title in one layer of page and layout",
-      "app dir - metadata basic should support stashed title in two layers of page and layout",
-      "app dir - metadata basic should support title and description",
-      "app dir - metadata basic should support title template",
       "app dir - metadata basic should support verification tags",
-      "app dir - metadata basic should use parent layout title when no title is defined in page",
       "app dir - metadata file based icons should not render if image file is not specified",
       "app dir - metadata file based icons should render icon and apple touch icon meta if their images are specified",
       "app dir - metadata hmr should handle updates to the file icon name and order",
@@ -6846,19 +6975,13 @@
       "app dir - metadata react cache should have same title and page value when navigating",
       "app dir - metadata regression: renders a large shell",
       "app dir - metadata should not effect metadata images convention like files under pages directory",
-      "app dir - metadata static routes should have /favicon.ico as route",
-      "app dir - metadata static routes should have icons as route",
       "app dir - metadata static routes should support root dir robots.txt",
-      "app dir - metadata static routes should support sitemap.xml under every routes",
-      "app dir - metadata static routes should support static manifest.webmanifest",
       "app dir - metadata twitter should render twitter card summary when image is not present",
       "app dir - metadata twitter should support default twitter app card",
       "app dir - metadata twitter should support default twitter player card",
       "app dir - metadata twitter should support twitter card summary_large_image when image present",
-      "app dir - metadata viewport should skip initial-scale from viewport if it is set to undefined",
       "app dir - metadata viewport should support dynamic viewport export"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7146,20 +7269,6 @@
   },
   "test/e2e/app-dir/next-after-app/index.test.ts": {
     "passed": [
-      "after() in edge runtime does not allow modifying cookies in a callback",
-      "after() in edge runtime interrupted RSC renders runs callbacks if a request is aborted before the page finishes streaming",
-      "after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
-      "after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
-      "after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
-      "after() in edge runtime interrupted RSC renders runs callbacks if the browser disconnects before the page finishes streaming",
-      "after() in edge runtime only runs callbacks after the response is fully sent",
-      "after() in edge runtime runs callbacks from nested after calls",
-      "after() in edge runtime runs in dynamic pages",
-      "after() in edge runtime runs in dynamic route handlers",
-      "after() in edge runtime runs in generateMetadata()",
-      "after() in edge runtime runs in middleware",
-      "after() in edge runtime runs in server actions",
-      "after() in edge runtime uses waitUntil from request context if available in a page",
       "after() in edge runtime uses waitUntil from request context if available in a route handler",
       "after() in edge runtime uses waitUntil from request context if available in middleware",
       "after() in nodejs runtime does not allow modifying cookies in a callback",
@@ -7179,7 +7288,22 @@
       "after() in nodejs runtime uses waitUntil from request context if available in a route handler",
       "after() in nodejs runtime uses waitUntil from request context if available in middleware"
     ],
-    "failed": [],
+    "failed": [
+      "after() in edge runtime does not allow modifying cookies in a callback",
+      "after() in edge runtime interrupted RSC renders runs callbacks if a request is aborted before the page finishes streaming",
+      "after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+      "after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
+      "after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
+      "after() in edge runtime interrupted RSC renders runs callbacks if the browser disconnects before the page finishes streaming",
+      "after() in edge runtime only runs callbacks after the response is fully sent",
+      "after() in edge runtime runs callbacks from nested after calls",
+      "after() in edge runtime runs in dynamic pages",
+      "after() in edge runtime runs in dynamic route handlers",
+      "after() in edge runtime runs in generateMetadata()",
+      "after() in edge runtime runs in middleware",
+      "after() in edge runtime runs in server actions",
+      "after() in edge runtime uses waitUntil from request context if available in a page"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -7820,16 +7944,15 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-font/next-font.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
+      "app dir - next/font app dir - next-font Dev errors should recover on font loader error",
       "app dir - next/font app dir - next-font computed styles should have correct styles at /",
       "app dir - next/font app dir - next-font computed styles should have correct styles at /client",
       "app dir - next/font app dir - next-font import values should have correct values at /",
       "app dir - next/font app dir - next-font import values should have correct values at /client",
       "app dir - next/font app dir - next-font import values should transform code in node_modules",
       "app dir - next/font app dir - next-font navigation should not have duplicate preload tags on navigation"
-    ],
-    "failed": [
-      "app dir - next/font app dir - next-font Dev errors should recover on font loader error"
     ],
     "pending": [],
     "flakey": [],
@@ -7863,17 +7986,18 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image-proxy.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "next-image-proxy loads images without any errors",
       "next-image-proxy should work with connection upgrade by removing it via filterReqHeaders()"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/next-image/next-image.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app dir - next-image browser content should render images nested under page dir on /nested route",
       "app dir - next-image browser content should render images on / route",
       "app dir - next-image image content should render images nested under page dir on /nested route",
@@ -7886,7 +8010,6 @@
       "app dir - next-image ssr content should render images on / route",
       "app dir - next-image ssr content should render images on /client route"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8035,14 +8158,15 @@
       "app dir - not-found - basic with default runtime should not reload the page",
       "app dir - not-found - basic with default runtime should render the 404 page when the file is removed, and restore the page when re-added",
       "app dir - not-found - basic with default runtime should return 404 status if notFound() is called in shell",
-      "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
+      "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes"
+    ],
+    "failed": [
       "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
       "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
       "app dir - not-found - basic with runtime = edge should not reload the page",
       "app dir - not-found - basic with runtime = edge should return 404 status if notFound() is called in shell",
       "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8050,11 +8174,12 @@
   "test/e2e/app-dir/not-found/conflict-route/index.test.ts": {
     "passed": [
       "app dir - not-found - conflict route with default runtime should allow to have a valid /not-found route",
-      "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes",
+      "app dir - not-found - conflict route with default runtime should use the not-found page for non-matching routes"
+    ],
+    "failed": [
       "app dir - not-found - conflict route with runtime = edge should allow to have a valid /not-found route",
       "app dir - not-found - conflict route with runtime = edge should use the not-found page for non-matching routes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8089,10 +8214,11 @@
   },
   "test/e2e/app-dir/not-found/group-route/index.test.ts": {
     "passed": [
-      "app dir - not-found - group route with default runtime should use the not-found page under group routes",
+      "app dir - not-found - group route with default runtime should use the not-found page under group routes"
+    ],
+    "failed": [
       "app dir - not-found - group route with runtime = edge should use the not-found page under group routes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8187,10 +8313,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/parallel-routes-and-interception-from-root/parallel-routes-and-interception-from-root.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "parallel-routes-and-interception-from-root should interpolate [locale] in \"/[locale]/example/(...)[locale]/intercepted\""
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8504,7 +8630,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/partial-fallback-shell-upgrade/partial-fallback-shell-upgrade.test.ts": {
-    "passed": ["partial-fallback-shell-upgrade skipped in dev"],
+    "passed": [
+      "partial-fallback-shell-upgrade skipped in dev",
+      "partial-fallback-shell-upgrade when disabled skipped in dev"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8875,10 +9004,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/proxy-with-middleware/proxy-with-middleware.test.ts": {
-    "passed": [],
-    "failed": [
+    "passed": [
       "proxy-with-middleware should error when both middleware and proxy files are detected"
     ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -8944,6 +9073,7 @@
   "test/e2e/app-dir/resolve-extensions/resolve-extensions.test.ts": {
     "passed": [
       "turbo-resolve-extensions should SSR",
+      "turbo-resolve-extensions should respect resolveExtensions priority (.web.tsx before .tsx)",
       "turbo-resolve-extensions should work using browser"
     ],
     "failed": [],
@@ -9193,15 +9323,10 @@
   },
   "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts": {
     "passed": [
-      "app dir - rsc basics client references with TLA (edge) should support TLA in lazy client reference",
-      "app dir - rsc basics client references with TLA (edge) should support TLA in sync client reference imports",
       "app dir - rsc basics client references with TLA (node) should support TLA in lazy client reference",
       "app dir - rsc basics client references with TLA (node) should support TLA in sync client reference imports",
-      "app dir - rsc basics edge should handle dynamic routes when URL segment matches the folder bracket syntax",
       "app dir - rsc basics next internal shared context should not error if just load next/navigation module in pages/api",
       "app dir - rsc basics next internal shared context should not error if just load next/router module in app page",
-      "app dir - rsc basics node should handle dynamic routes when URL segment matches the folder bracket syntax",
-      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
       "app dir - rsc basics should be able to navigate between rsc routes",
       "app dir - rsc basics should correctly render component returning null",
       "app dir - rsc basics should correctly render component returning undefined",
@@ -9214,27 +9339,33 @@
       "app dir - rsc basics should handle client components imported as namespace",
       "app dir - rsc basics should handle named client components imported as page",
       "app dir - rsc basics should handle streaming server components correctly",
-      "app dir - rsc basics should handle various kinds of exports correctly",
       "app dir - rsc basics should have correct client references keys in manifest",
-      "app dir - rsc basics should link correctly with next/link without mpa navigation to the page",
       "app dir - rsc basics should not apply rsc syntax checks in pages/api",
-      "app dir - rsc basics should not use bundled react for pages with app",
-      "app dir - rsc basics should render built-in 404 page for missing route if pagesDir is not presented",
       "app dir - rsc basics should render server components correctly",
-      "app dir - rsc basics should resolve different kinds of components correctly",
       "app dir - rsc basics should reuse the inline flight response without sending extra requests",
       "app dir - rsc basics should stick to the url without trailing /page suffix",
       "app dir - rsc basics should support multi-level server component imports",
+      "app dir - rsc basics should track client components in dynamic imports"
+    ],
+    "failed": [
+      "app dir - rsc basics client references with TLA (edge) should support TLA in lazy client reference",
+      "app dir - rsc basics client references with TLA (edge) should support TLA in sync client reference imports",
+      "app dir - rsc basics edge should handle dynamic routes when URL segment matches the folder bracket syntax",
+      "app dir - rsc basics node should handle dynamic routes when URL segment matches the folder bracket syntax",
+      "app dir - rsc basics should be able to call legacy react-dom/server APIs in client components",
+      "app dir - rsc basics should handle various kinds of exports correctly",
+      "app dir - rsc basics should link correctly with next/link without mpa navigation to the page",
+      "app dir - rsc basics should not use bundled react for pages with app",
+      "app dir - rsc basics should render built-in 404 page for missing route if pagesDir is not presented",
+      "app dir - rsc basics should resolve different kinds of components correctly",
       "app dir - rsc basics should support native modules in server component",
       "app dir - rsc basics should support next/link in server components",
       "app dir - rsc basics should support partial hydration with inlined server data",
       "app dir - rsc basics should support streaming for flight response",
       "app dir - rsc basics should suspense next/image in server components",
       "app dir - rsc basics should suspense next/legacy/image in server components",
-      "app dir - rsc basics should track client components in dynamic imports",
       "app dir - rsc basics should use canary react for app"
     ],
-    "failed": [],
     "pending": [
       "app dir - rsc basics should support partial hydration with inlined server data in browser"
     ],
@@ -9837,6 +9968,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/segment-cache/prefetch-inlining-no-cache-components/prefetch-inlining-no-cache-components.test.ts": {
+    "passed": [
+      "prefetch inlining without cacheComponents prefetch hints are only computed during build"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/segment-cache/prefetch-inlining/prefetch-inlining.test.ts": {
     "passed": [
       "prefetch inlining prefetch hints are only computed during build"
@@ -9847,17 +9987,17 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-layout-sharing/prefetch-layout-sharing.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "layout sharing in non-static prefetches disabled in development"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/prefetch-partial-rsc/prefetch-partial-rsc.test.ts": {
-    "passed": ["prefetch-partial-rsc resolves after a client-side navigation"],
-    "failed": [],
+    "passed": [],
+    "failed": ["prefetch-partial-rsc resolves after a client-side navigation"],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -9877,9 +10017,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/refresh/segment-cache-refresh.test.ts": {
-    "passed": ["segment cache (refresh) disabled in development"],
+    "passed": [],
     "failed": [],
-    "pending": [],
+    "pending": ["segment cache (refresh) disabled in development"],
     "flakey": [],
     "runtimeError": false
   },
@@ -9909,11 +10049,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/segment-cache/staleness/segment-cache-per-page-dynamic-stale-time.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [],
+    "pending": [
       "segment cache (per-page dynamic stale time) disabled in development"
     ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -9947,6 +10087,20 @@
   "test/e2e/app-dir/segment-cache/vary-params/vary-params.test.ts": {
     "passed": [
       "segment cache - vary params prefetching is disabled in dev mode"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/segment-config-ts/segment-config-ts.test.ts": {
+    "passed": [
+      "TypeScript type expressions in route segment config app directory should pick up maxDuration declared with `as const` assertion",
+      "TypeScript type expressions in route segment config app directory should pick up maxDuration declared with `as` type assertion",
+      "TypeScript type expressions in route segment config app directory should pick up maxDuration declared with `satisfies`",
+      "TypeScript type expressions in route segment config pages directory should pick up maxDuration from config object declared with `as const`",
+      "TypeScript type expressions in route segment config pages directory should pick up maxDuration from config object declared with `as`",
+      "TypeScript type expressions in route segment config pages directory should pick up maxDuration from config object declared with `satisfies`"
     ],
     "failed": [],
     "pending": [],
@@ -9992,10 +10146,11 @@
   },
   "test/e2e/app-dir/server-actions-redirect-middleware-rewrite/server-actions-redirect-middleware-rewrite.test.ts": {
     "passed": [
-      "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite",
       "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in nodejs runtime with middleware rewrite"
     ],
-    "failed": [],
+    "failed": [
+      "app-dir - server-actions-redirect-middleware-rewrite.test should redirect correctly in edge runtime with middleware rewrite"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10025,12 +10180,12 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/server-source-maps/server-source-maps-edge.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "app-dir - server source maps edge runtime logged errors have a sourcemapped stack with a codeframe",
       "app-dir - server source maps edge runtime should log the correct values on app-render error",
       "app-dir - server source maps edge runtime thrown SSR errors"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10188,11 +10343,11 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/temporary-references/temporary-references.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "temporary-references should return the same object that was sent to the action (edge)",
       "temporary-references should return the same object that was sent to the action (node)"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -10269,6 +10424,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/turbopack-postcss-multiple-configs/turbopack-postcss-multiple-configs.test.ts": {
+    "passed": [
+      "turbopack-postcss-multiple-configs should only run with Turbopack"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
     "passed": ["turbopack-reports should render page importing sqlite3"],
     "failed": [],
@@ -10311,6 +10475,13 @@
   },
   "test/e2e/app-dir/typeof-window/typeof-window.test.ts": {
     "passed": ["typeof-window should work using cheerio"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/types/types.test.ts": {
+    "passed": ["app-dir types should check types"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -10362,6 +10533,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/unstable-io/unstable-io.test.ts": {
+    "passed": [
+      "unstable_io with cache components should make content after unstable_io() dynamic during prerender",
+      "unstable_io with cache components should resolve immediately inside a \"use cache\" scope",
+      "unstable_io with cache components should work in pages router with React.use() (CC)",
+      "unstable_io with cache components should work in pages router with getServerSideProps (CC)",
+      "unstable_io with cache components should work in pages router with getStaticProps (CC)",
+      "unstable_io without cache components should be a no-op during prerender without cache components",
+      "unstable_io without cache components should work in pages router with React.use()",
+      "unstable_io without cache components should work in pages router with getServerSideProps",
+      "unstable_io without cache components should work in pages router with getStaticProps"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/unstable-rethrow/unstable-rethrow.test.ts": {
     "passed": [
       "unstable-rethrow should correctly trigger the not found page as not found",
@@ -10392,6 +10580,7 @@
   "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
     "passed": [
       "use-cache-custom-handler calls neither refreshTags nor getExpiration if \"use cache\" is not used",
+      "use-cache-custom-handler should dedupe nested caches across different outer cache scopes, and still propagate cache life/tags correctly",
       "use-cache-custom-handler should not call getExpiration after an action",
       "use-cache-custom-handler should not call updateTags for a normal invocation",
       "use-cache-custom-handler should revalidate after redirect using a modern custom cache handler",
@@ -10462,7 +10651,8 @@
   "test/e2e/app-dir/use-cache-route-handler-only/use-cache-route-handler-only.test.ts": {
     "passed": [
       "use-cache-route-handler-only should be able to revalidate prerendered route handlers",
-      "use-cache-route-handler-only should cache results in node route handlers"
+      "use-cache-route-handler-only should cache results in node route handlers",
+      "use-cache-route-handler-only should dedupe concurrent cache invocations in route handlers"
     ],
     "failed": [],
     "pending": [],
@@ -10495,6 +10685,7 @@
   },
   "test/e2e/app-dir/use-cache-swr/use-cache-swr.test.ts": {
     "passed": [
+      "use-cache-swr should dedupe SWR regens across concurrent requests",
       "use-cache-swr should pass implicit tags to cache handler get() for nested caches during SWR",
       "use-cache-swr should serve stale data and then pre-warmed data on subsequent request"
     ],
@@ -10551,8 +10742,12 @@
       "use-cache should cache results for cached functions imported from client components",
       "use-cache should cache results for cached functions passed to client components",
       "use-cache should cache results in route handlers",
+      "use-cache should dedupe a streaming cache across concurrent requests",
       "use-cache should dedupe cached data in the RSC payload",
+      "use-cache should dedupe private caches within a single request",
+      "use-cache should dedupe shared inner caches across different outer caches",
       "use-cache should dedupe with react cache inside \"use cache\"",
+      "use-cache should not dedupe private caches across concurrent requests",
       "use-cache should not have unhandled rejection of Request data promises when use cache is enabled without cacheComponents",
       "use-cache should not log \"use cache\" functions called from client",
       "use-cache should not read nor write cached data when draft mode is enabled js disabled, with cookies",
@@ -10562,11 +10757,13 @@
       "use-cache should not use stale caches in server actions that have revalidated",
       "use-cache should override fetch with cookies/auth in use cache properly",
       "use-cache should override fetch with no-store in use cache properly",
+      "use-cache should resolve different children correctly when deduping",
       "use-cache should return the same object reference for multiple invocations",
       "use-cache should revalidate before redirecting in a route handler",
       "use-cache should revalidate caches after redirect",
       "use-cache should revalidate caches during on-demand revalidation",
       "use-cache should revalidate caches nested in unstable_cache",
+      "use-cache should stream the result of a deduped invocation",
       "use-cache should update after revalidateTag correctly",
       "use-cache should use revalidate config in fetch",
       "use-cache usage in node_modules should cache results when using a directive with a handler",
@@ -10581,10 +10778,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-node-streams-env-precedence/use-node-streams-env-precedence.test.ts": {
-    "passed": [],
+  "test/e2e/app-dir/use-offline/use-offline.test.ts": {
+    "passed": ["useOffline skipped in dev mode"],
     "failed": [],
-    "pending": ["use-node-streams env precedence only testable in start mode"],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -10815,7 +11012,7 @@
       "Document and App - Rendering via HTTP _app should show valid error when thrown in _app getInitialProps",
       "Document and App - Rendering via HTTP _app shows a custom tag",
       "Document and App - Rendering via HTTP _document Document.getInitialProps returns html prop representing app shell",
-      "Document and App - Rendering via HTTP _document adds a timestamp to link tags with preload attribute to invalidate the cache in dev",
+      "Document and App - Rendering via HTTP _document adds a timestamp only to CSS/font link tags to invalidate the cache in dev",
       "Document and App - Rendering via HTTP _document adds crossOrigin to all scripts and preload links",
       "Document and App - Rendering via HTTP _document adds nonces to all scripts and preload links",
       "Document and App - Rendering via HTTP _document renders ctx.renderPage with enhanceApp and enhanceComponent correctly",
@@ -10993,25 +11190,27 @@
   },
   "test/e2e/build-indicator/test/index.test.ts": {
     "passed": [
-      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
-      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
-      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation",
       "Build Activity Indicator Invalid position config should validate position config"
     ],
     "failed": [],
-    "pending": [],
+    "pending": [
+      "Build Activity Indicator build indicator Enabled - (app) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (app) Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator build indicator Enabled - (pages) Shows the build indicator when a page is built during navigation"
+    ],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/cache-handlers-upstream-wiring/index.test.ts": {
     "passed": [
-      "cache-handlers-upstream-wiring cacheComponents disabled, edge app router uses configured cacheHandler for edge app page and edge app route",
       "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router uses configured cacheHandlers for custom app-router cache kind",
       "cache-handlers-upstream-wiring cacheComponents enabled, non-edge app router wires revalidateTag and revalidatePath to the custom cache handler",
       "cache-handlers-upstream-wiring pages router non-edge wires res.revalidate() through the configured custom cacheHandler"
     ],
-    "failed": [],
+    "failed": [
+      "cache-handlers-upstream-wiring cacheComponents disabled, edge app router uses configured cacheHandler for edge app page and edge app route"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11217,21 +11416,24 @@
       "deferred-entries should build pages router route with no data fetching when using deferred entries",
       "deferred-entries should build pages router routes when using deferred entries",
       "deferred-entries should call onBeforeDeferredEntries before building deferred entry",
-      "deferred-entries should call onBeforeDeferredEntries during HMR even when non-deferred entry changes",
-      "deferred-entries should handle successive non-deferred edits without callback looping",
       "deferred-entries should render app router current time on every request",
       "deferred-entries should render timestamp written by onBeforeDeferredEntries in deferred source file",
+      "deferred-entries should run middleware for app router, pages router, and API routes"
+    ],
+    "failed": [
+      "deferred-entries should call onBeforeDeferredEntries during HMR even when non-deferred entry changes",
+      "deferred-entries should handle successive non-deferred edits without callback looping",
       "deferred-entries should run instrumentation hooks with deferred entries",
-      "deferred-entries should run middleware for app router, pages router, and API routes",
       "deferred-entries should update deferred rendered timestamp during HMR when non-deferred entry changes"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
   },
   "test/e2e/define/define.test.ts": {
     "passed": [
+      "compiler.define compiler.define should render a boolean variable on server and client side",
+      "compiler.define compiler.define should render a number variable on server and client side",
       "compiler.define compiler.define should render the magic expression on client side",
       "compiler.define compiler.define should render the magic expression on server side",
       "compiler.define compiler.define should render the magic variable on client side",
@@ -11293,8 +11495,8 @@
   },
   "test/e2e/edge-async-local-storage/index.test.ts": {
     "passed": [
-      "edge api can use async local storage cans use a single instance per request",
-      "edge api can use async local storage cans use multiple instances per request"
+      "edge api can use async local storage can use a single instance per request",
+      "edge api can use async local storage can use multiple instances per request"
     ],
     "failed": [],
     "pending": [],
@@ -11403,11 +11605,12 @@
   },
   "test/e2e/edge-runtime-uses-edge-light-import-specifier-for-packages/edge-runtime-uses-edge-light-import-specifier-for-packages.test.ts": {
     "passed": [
-      "edge-runtime uses edge-light import specifier for packages app-dir imports the correct module",
       "edge-runtime uses edge-light import specifier for packages pages import the correct module",
       "edge-runtime uses edge-light import specifier for packages pages/api endpoints import the correct module"
     ],
-    "failed": [],
+    "failed": [
+      "edge-runtime uses edge-light import specifier for packages app-dir imports the correct module"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -11874,12 +12077,8 @@
   },
   "test/e2e/import-conditions/import-conditions.test.ts": {
     "passed": [
-      "react version App Router Route Handler with edge runtime",
-      "react version App Router Route Handler with nodejs runtime",
       "react version App Router page headers with edge runtime",
       "react version App Router page headers with nodejs runtime",
-      "react version App Router page with edge runtime",
-      "react version App Router page with nodejs runtime",
       "react version Pages Router API route with edge runtime",
       "react version Pages Router API route with nodejs runtime",
       "react version Pages Router page headers with edge runtime",
@@ -11887,7 +12086,25 @@
       "react version Pages Router page with edge runtime",
       "react version Pages Router page with nodejs runtime after hydration"
     ],
-    "failed": [],
+    "failed": [
+      "react version App Router Route Handler with edge runtime",
+      "react version App Router Route Handler with nodejs runtime",
+      "react version App Router page with edge runtime",
+      "react version App Router page with nodejs runtime"
+    ],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/import-meta-glob/import-meta-glob.test.ts": {
+    "passed": [],
+    "failed": [
+      "import-meta-glob should resolve eager glob modules",
+      "import-meta-glob should resolve lazy glob modules",
+      "import-meta-glob should resolve named import glob modules",
+      "import-meta-glob should support multiple patterns",
+      "import-meta-glob should support negative patterns"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12265,6 +12482,7 @@
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
+      "Middleware Runtime with i18n should not treat as _next/data request with just header",
       "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
@@ -12304,6 +12522,7 @@
       "Middleware Runtime without i18n should have init header for NextResponse.redirect",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
+      "Middleware Runtime without i18n should not treat as _next/data request with just header",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
@@ -12350,6 +12569,7 @@
       "Middleware Runtime with i18n should have init header for NextResponse.redirect",
       "Middleware Runtime with i18n should keep non data requests in their original shape",
       "Middleware Runtime with i18n should normalize data requests into page requests",
+      "Middleware Runtime with i18n should not treat as _next/data request with just header",
       "Middleware Runtime with i18n should only contain middleware route in dev middleware manifest",
       "Middleware Runtime with i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime with i18n should respond with 400 on decode failure",
@@ -12390,6 +12610,7 @@
       "Middleware Runtime without i18n should have init header for NextResponse.redirect",
       "Middleware Runtime without i18n should keep non data requests in their original shape",
       "Middleware Runtime without i18n should normalize data requests into page requests",
+      "Middleware Runtime without i18n should not treat as _next/data request with just header",
       "Middleware Runtime without i18n should only contain middleware route in dev middleware manifest",
       "Middleware Runtime without i18n should redirect the same for direct visit and client-transition",
       "Middleware Runtime without i18n should respond with 400 on decode failure",
@@ -12470,15 +12691,14 @@
       "Middleware Redirect should redirect",
       "Middleware Redirect should redirect (infinite-loop)",
       "Middleware Redirect should redirect cleanly with the original url param",
+      "Middleware Redirect should redirect correctly with redirect in next.config.js",
       "Middleware Redirect should redirect multiple times",
       "Middleware Redirect should redirect to api route with locale",
       "Middleware Redirect should redirect to data urls with data requests and internal redirects",
       "Middleware Redirect should redirect to external urls with data requests and external redirects",
       "Middleware Redirect should redirect with a fragment"
     ],
-    "failed": [
-      "Middleware Redirect should redirect correctly with redirect in next.config.js"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12498,15 +12718,14 @@
       "Middleware Redirect should redirect",
       "Middleware Redirect should redirect (infinite-loop)",
       "Middleware Redirect should redirect cleanly with the original url param",
+      "Middleware Redirect should redirect correctly with redirect in next.config.js",
       "Middleware Redirect should redirect multiple times",
       "Middleware Redirect should redirect to api route with locale",
       "Middleware Redirect should redirect to data urls with data requests and internal redirects",
       "Middleware Redirect should redirect to external urls with data requests and external redirects",
       "Middleware Redirect should redirect with a fragment"
     ],
-    "failed": [
-      "Middleware Redirect should redirect correctly with redirect in next.config.js"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -12685,21 +12904,22 @@
   "test/e2e/module-layer/module-layer.test.ts": {
     "passed": [
       "module layer client packages in middleware should error when import server packages in middleware",
-      "module layer with server-only in server targets should contain client react exports for pages api",
       "module layer with server-only in server targets should render installed react-server condition for middleware",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/default",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/default-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/mixed",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/server-only",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client"
+    ],
+    "failed": [
+      "module layer with server-only in server targets should contain client react exports for pages api",
+      "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/default-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /api/server-only-edge",
-      "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/client-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/route-edge",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server",
       "module layer with server-only in server targets should render routes marked with restriction marks without errors /app/server-edge"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13055,19 +13275,20 @@
   },
   "test/e2e/on-request-error/basic/basic.test.ts": {
     "passed": [
+      "on-request-error - basic app router should catch server component page error in node runtime"
+    ],
+    "failed": [
       "on-request-error - basic app router should catch app routes error in edge runtime",
       "on-request-error - basic app router should catch app routes error in node runtime",
       "on-request-error - basic app router should catch client component page error in edge runtime",
       "on-request-error - basic app router should catch client component page error in node runtime",
       "on-request-error - basic app router should catch server component page error in edge runtime",
-      "on-request-error - basic app router should catch server component page error in node runtime",
       "on-request-error - basic middleware should catch middleware error",
       "on-request-error - basic pages router should catch pages router api error in edge runtime",
       "on-request-error - basic pages router should catch pages router api error in node runtime",
       "on-request-error - basic pages router should catch pages router page error in edge runtime",
       "on-request-error - basic pages router should catch pages router page error in node runtime"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13104,12 +13325,13 @@
   },
   "test/e2e/on-request-error/server-action-error/server-action-error.test.ts": {
     "passed": [
+      "on-request-error - server-action-error should catch server action error in listener callback in nodejs runtime"
+    ],
+    "failed": [
       "on-request-error - server-action-error should catch server action error in listener callback in edge runtime",
-      "on-request-error - server-action-error should catch server action error in listener callback in nodejs runtime",
       "on-request-error - server-action-error should catch the server action form error in edge runtime",
       "on-request-error - server-action-error should catch the server action form error in nodejs runtime"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13167,27 +13389,16 @@
   "test/e2e/opentelemetry/instrumentation/opentelemetry.test.ts": {
     "passed": [
       "opentelemetry incoming context propagation app router should handle RSC with fetch",
-      "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
-      "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
-      "opentelemetry incoming context propagation app router should handle error in RSC",
-      "opentelemetry incoming context propagation app router should handle error inside Suspense boundary",
-      "opentelemetry incoming context propagation app router should handle route handlers in app router",
       "opentelemetry incoming context propagation app router should handle route handlers in app router on edge",
       "opentelemetry incoming context propagation app router should propagate custom context without span",
-      "opentelemetry incoming context propagation app router should trace middleware",
       "opentelemetry incoming context propagation pages should handle api routes in pages",
       "opentelemetry incoming context propagation pages should handle api routes in pages on edge",
-      "opentelemetry incoming context propagation pages should handle getServerSideProps",
       "opentelemetry incoming context propagation pages should handle getServerSideProps exceptions",
       "opentelemetry incoming context propagation pages should handle getServerSideProps on edge",
       "opentelemetry incoming context propagation pages should handle getServerSideProps returning notFound",
-      "opentelemetry incoming context propagation pages should handle getStaticProps when fallback: 'blocking'",
       "opentelemetry root context app router should handle RSC with fetch",
-      "opentelemetry root context app router should handle RSC with fetch in RSC mode",
-      "opentelemetry root context app router should handle RSC with fetch on edge",
       "opentelemetry root context app router should handle error in RSC",
       "opentelemetry root context app router should handle error inside Suspense boundary",
-      "opentelemetry root context app router should handle route handlers in app router",
       "opentelemetry root context app router should handle route handlers in app router on edge",
       "opentelemetry root context app router should propagate custom context without span",
       "opentelemetry root context app router should trace middleware",
@@ -13201,7 +13412,19 @@
       "opentelemetry with custom server should set attributes correctly on handleRequest span",
       "opentelemetry with disabled fetch tracing root context app router with disabled fetch should handle RSC with disabled fetch"
     ],
-    "failed": [],
+    "failed": [
+      "opentelemetry incoming context propagation app router should handle RSC with fetch in RSC mode",
+      "opentelemetry incoming context propagation app router should handle RSC with fetch on edge",
+      "opentelemetry incoming context propagation app router should handle error in RSC",
+      "opentelemetry incoming context propagation app router should handle error inside Suspense boundary",
+      "opentelemetry incoming context propagation app router should handle route handlers in app router",
+      "opentelemetry incoming context propagation app router should trace middleware",
+      "opentelemetry incoming context propagation pages should handle getServerSideProps",
+      "opentelemetry incoming context propagation pages should handle getStaticProps when fallback: 'blocking'",
+      "opentelemetry root context app router should handle RSC with fetch in RSC mode",
+      "opentelemetry root context app router should handle RSC with fetch on edge",
+      "opentelemetry root context app router should handle route handlers in app router"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13385,11 +13608,13 @@
   "test/e2e/react-compiler/react-compiler.test.ts": {
     "passed": [
       "react-compiler babelrc should memoize Components",
+      "react-compiler babelrc should memoize Pages Router Components",
       "react-compiler babelrc should name functions in dev",
       "react-compiler babelrc should work with a library that uses the react-server condition",
       "react-compiler babelrc should work with a library using use client",
       "react-compiler babelrc throws if the React Compiler is used in a React Server environment",
       "react-compiler default should memoize Components",
+      "react-compiler default should memoize Pages Router Components",
       "react-compiler default should name functions in dev",
       "react-compiler default should work with a library that uses the react-server condition",
       "react-compiler default should work with a library using use client",
@@ -13411,14 +13636,14 @@
     "runtimeError": false
   },
   "test/e2e/react-version/react-version.test.ts": {
-    "passed": [
+    "passed": [],
+    "failed": [
       "react version should use default react condition for pages router apis",
       "react version should use default react condition for pages router pages",
       "react version should use react-server condition for app router client components pages",
       "react version should use react-server condition for app router custom routes",
       "react version should use react-server condition for app router server components pages"
     ],
-    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13546,11 +13771,47 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/styled-jsx-dynamic/index.test.ts": {
+    "passed": [
+      "styled-jsx dynamic styles SSR should contain dynamic styled-jsx styles during SSR"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/styled-jsx/index.test.ts": {
     "passed": [
       "styled-jsx should contain styled-jsx styles during SSR",
       "styled-jsx should render styles during CSR",
       "styled-jsx should render styles inside TypeScript"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/swc-auto-polyfill-disabled/swc-auto-polyfill-disabled.test.ts": {
+    "passed": [
+      "swc-auto-polyfill-disabled should render the page correctly without swcEnvOptions"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/swc-auto-polyfill/swc-auto-polyfill.test.ts": {
+    "passed": [
+      "swc-auto-polyfill should render the page correctly with swcEnvOptions enabled"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/swc-plugins-env/index.test.ts": {
+    "passed": [
+      "swc-plugins-env should pass correct environment to swc plugins"
     ],
     "failed": [],
     "pending": [],
@@ -13624,20 +13885,21 @@
     "passed": [
       "testmode app router should avoid fetch cache",
       "testmode app router should fetch real data when Next-Test-* headers are not present",
-      "testmode app router should handle API with fetch in edge function",
-      "testmode app router should handle API with fetch in serverless function",
-      "testmode app router should handle API with http.get in serverless function",
-      "testmode app router should handle RSC with fetch in edge function",
       "testmode app router should handle RSC with fetch in serverless function",
       "testmode app router should handle RSC with http.get in serverless function",
       "testmode middleware should intercept fetchs in middleware",
       "testmode page router should handle API with fetch",
       "testmode page router should handle API with http.get",
-      "testmode page router should handle getServerSideProps with fetch",
-      "testmode page router should handle getServerSideProps with http.get",
       "testmode rewrites should handle rewrites"
     ],
-    "failed": [],
+    "failed": [
+      "testmode app router should handle API with fetch in edge function",
+      "testmode app router should handle API with fetch in serverless function",
+      "testmode app router should handle API with http.get in serverless function",
+      "testmode app router should handle RSC with fetch in edge function",
+      "testmode page router should handle getServerSideProps with fetch",
+      "testmode page router should handle getServerSideProps with http.get"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -13830,6 +14092,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/turbopack-trace-server-query/turbopack-trace-server.test.ts": {
+    "passed": [
+      "turbopack-trace-server CLI: should show an error when the trace server is not running"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/twoslash/index.test.ts": {
     "passed": [
       "twoslash should annotate twoslash types default",
@@ -13870,6 +14141,26 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/typescript-paths/test/index.test.ts": {
+    "passed": [
+      "typescript paths default behavior should alias components",
+      "typescript paths default behavior should handle typescript paths alias correctly",
+      "typescript paths default behavior should not resolve to .d.ts files",
+      "typescript paths default behavior should resolve a single matching alias",
+      "typescript paths default behavior should resolve the first item in the array first",
+      "typescript paths default behavior should resolve the second item in as a fallback",
+      "typescript paths without baseurl default behavior should alias components",
+      "typescript paths without baseurl default behavior should handle typescript paths alias correctly",
+      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
+      "typescript paths without baseurl default behavior should resolve a single matching alias",
+      "typescript paths without baseurl default behavior should resolve the first item in the array first",
+      "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/typescript-version-no-warning/typescript-version-no-warning.test.ts": {
     "passed": ["typescript-version-no-warning should skip"],
     "failed": [],
@@ -13879,6 +14170,24 @@
   },
   "test/e2e/typescript-version-warning/typescript-version-warning.test.ts": {
     "passed": ["typescript-version-warning should skip"],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/typescript-workspaces-paths/packages/www/test/index.test.ts": {
+    "passed": [
+      "TypeScript Features default behavior should alias components",
+      "TypeScript Features default behavior should not resolve to .d.ts files",
+      "TypeScript Features default behavior should resolve a single matching alias",
+      "TypeScript Features default behavior should resolve the first item in the array first",
+      "TypeScript Features default behavior should resolve the second item in as a fallback",
+      "TypeScript Features default behavior without baseUrl should alias components",
+      "TypeScript Features default behavior without baseUrl should not resolve to .d.ts files",
+      "TypeScript Features default behavior without baseUrl should resolve a single matching alias",
+      "TypeScript Features default behavior without baseUrl should resolve the first item in the array first",
+      "TypeScript Features default behavior without baseUrl should resolve the second item in as a fallback"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -14932,7 +15241,10 @@
       "create-next-app should not create AGENTS.md and CLAUDE.md with --no-agents-md flag",
       "create-next-app should not create if the target directory is not empty",
       "create-next-app should not create if the target directory is not writable",
-      "create-next-app should not install dependencies if --skip-install"
+      "create-next-app should not install dependencies if --skip-install",
+      "create-next-app should not print assumed defaults when all flags are provided",
+      "create-next-app should not print assumed defaults with --yes flag",
+      "create-next-app should print assumed defaults when flags are partially provided"
     ],
     "failed": [],
     "pending": [],
@@ -14979,12 +15291,13 @@
   },
   "test/integration/create-next-app/package-manager/yarn.test.ts": {
     "passed": [
-      "create-next-app with package manager yarn should use yarn for --use-yarn flag",
       "create-next-app with package manager yarn should use yarn for --use-yarn flag with example",
-      "create-next-app with package manager yarn should use yarn when user-agent is yarn",
       "create-next-app with package manager yarn should use yarn when user-agent is yarn with example"
     ],
-    "failed": [],
+    "failed": [
+      "create-next-app with package manager yarn should use yarn for --use-yarn flag",
+      "create-next-app with package manager yarn should use yarn when user-agent is yarn"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -14992,12 +15305,12 @@
   "test/integration/create-next-app/prompts.test.ts": {
     "passed": [
       "create-next-app prompts should not prompt user for choice and use defaults if --yes is defined",
-      "create-next-app prompts should prompt user for choice if --import-alias is absent",
-      "create-next-app prompts should prompt user for choice if --js or --ts flag is absent",
-      "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
       "create-next-app prompts should prompt user to confirm reset preferences",
       "create-next-app prompts should show reuse previous settings option when preferences exist",
+      "create-next-app prompts should use default for --tailwind when other flags are provided",
+      "create-next-app prompts should use default for --ts when other flags are provided",
+      "create-next-app prompts should use default import alias when other flags are provided",
       "create-next-app prompts should use recommended defaults when user selects that option"
     ],
     "failed": [],
@@ -23118,18 +23431,18 @@
     ],
     "failed": [],
     "pending": [
-      "Next.js Script - Primary Strategies - Production Mode production mode Does not duplicate inline scripts",
-      "Next.js Script - Primary Strategies - Production Mode production mode Error message is shown if Partytown is not installed locally",
-      "Next.js Script - Primary Strategies - Production Mode production mode onReady fires after load event and then on every subsequent re-mount",
-      "Next.js Script - Primary Strategies - Production Mode production mode onReady should only fires once after loaded (issue #39993)",
-      "Next.js Script - Primary Strategies - Production Mode production mode onload fires correctly",
-      "Next.js Script - Primary Strategies - Production Mode production mode priority afterInteractive",
-      "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive",
-      "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive - older version",
-      "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive on navigate",
-      "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script",
-      "Next.js Script - Primary Strategies - Production Mode production mode priority beforeInteractive with inline script should execute",
-      "Next.js Script - Primary Strategies - Production Mode production mode priority lazyOnload"
+      "Next.js Script - Primary Strategies - Production Mode Does not duplicate inline scripts",
+      "Next.js Script - Primary Strategies - Production Mode Error message is shown if Partytown is not installed locally",
+      "Next.js Script - Primary Strategies - Production Mode onReady fires after load event and then on every subsequent re-mount",
+      "Next.js Script - Primary Strategies - Production Mode onReady should only fires once after loaded (issue #39993)",
+      "Next.js Script - Primary Strategies - Production Mode onload fires correctly",
+      "Next.js Script - Primary Strategies - Production Mode priority afterInteractive",
+      "Next.js Script - Primary Strategies - Production Mode priority beforeInteractive",
+      "Next.js Script - Primary Strategies - Production Mode priority beforeInteractive - older version",
+      "Next.js Script - Primary Strategies - Production Mode priority beforeInteractive on navigate",
+      "Next.js Script - Primary Strategies - Production Mode priority beforeInteractive with inline script",
+      "Next.js Script - Primary Strategies - Production Mode priority beforeInteractive with inline script should execute",
+      "Next.js Script - Primary Strategies - Production Mode priority lazyOnload"
     ],
     "flakey": [],
     "runtimeError": false
@@ -23171,15 +23484,16 @@
     "passed": [
       "server-side dev errors should show server-side error for api route correctly",
       "server-side dev errors should show server-side error for dynamic api route correctly",
-      "server-side dev errors should show server-side error for dynamic gssp page correctly",
-      "server-side dev errors should show server-side error for gsp page correctly",
-      "server-side dev errors should show server-side error for gssp page correctly",
       "server-side dev errors should show server-side error for uncaught empty exception correctly",
       "server-side dev errors should show server-side error for uncaught empty rejection correctly",
       "server-side dev errors should show server-side error for uncaught exception correctly",
       "server-side dev errors should show server-side error for uncaught rejection correctly"
     ],
-    "failed": [],
+    "failed": [
+      "server-side dev errors should show server-side error for dynamic gssp page correctly",
+      "server-side dev errors should show server-side error for gsp page correctly",
+      "server-side dev errors should show server-side error for gssp page correctly"
+    ],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -23290,6 +23604,7 @@
       "config telemetry production mode emits telemetry for middleware related options",
       "config telemetry production mode emits telemetry for transpilePackages",
       "config telemetry production mode emits telemetry for usage of @vercel/og",
+      "config telemetry production mode emits telemetry for usage of `adapterPath`",
       "config telemetry production mode emits telemetry for usage of `experimental/cacheComponents`",
       "config telemetry production mode emits telemetry for usage of `nextScriptWorkers`",
       "config telemetry production mode emits telemetry for usage of `optimizeCss`",
@@ -23394,28 +23709,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/tsconfig-verifier/test/index.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "tsconfig.json verifier Creates a default tsconfig.json when one is missing",
-      "tsconfig.json verifier Updates an existing tsconfig.json without losing comments",
-      "tsconfig.json verifier Works with an empty tsconfig.json (docs)",
-      "tsconfig.json verifier allows you to extend another configuration file",
-      "tsconfig.json verifier allows you to set bundler moduleResolution mode",
-      "tsconfig.json verifier allows you to set commonjs module mode",
-      "tsconfig.json verifier allows you to set es2020 module mode",
-      "tsconfig.json verifier allows you to set node16 module mode",
-      "tsconfig.json verifier allows you to set node16 moduleResolution mode",
-      "tsconfig.json verifier allows you to set target mode",
-      "tsconfig.json verifier allows you to set verbatimModuleSyntax true via extends without adding isolatedModules",
-      "tsconfig.json verifier allows you to set verbatimModuleSyntax true without adding isolatedModules",
-      "tsconfig.json verifier allows you to skip moduleResolution, esModuleInterop and resolveJsonModule when using \"module: preserve\"",
-      "tsconfig.json verifier creates compilerOptions when you extend another config"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/turbopack-unsupported-log/index.test.ts": {
     "passed": [],
     "failed": [],
@@ -23458,13 +23751,6 @@
       "TypeScript App Type Declarations should overwrite next-env.d.ts if an incorrect one exists",
       "TypeScript App Type Declarations should write a new next-env.d.ts if none exist"
     ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/typescript-baseurl/test/index.test.ts": {
-    "passed": ["TypeScript Features default behavior should render the page"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -23529,37 +23815,6 @@
       "TypeScript onlyRemoveTypeImports production mode should render a normal page correctly",
       "TypeScript onlyRemoveTypeImports production mode should render a page with type import correctly"
     ],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/typescript-paths/test/index.test.ts": {
-    "passed": [
-      "typescript paths default behavior should alias components",
-      "typescript paths default behavior should not resolve to .d.ts files",
-      "typescript paths default behavior should resolve a single matching alias",
-      "typescript paths default behavior should resolve the first item in the array first",
-      "typescript paths default behavior should resolve the second item in as a fallback",
-      "typescript paths without baseurl default behavior should alias components",
-      "typescript paths without baseurl default behavior should not resolve to .d.ts files",
-      "typescript paths without baseurl default behavior should resolve a single matching alias",
-      "typescript paths without baseurl default behavior should resolve the first item in the array first",
-      "typescript paths without baseurl default behavior should resolve the second item in as a fallback"
-    ],
-    "failed": [],
-    "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/integration/typescript-workspaces-paths/packages/www/test/index.test.ts": {
-    "passed": [
-      "TypeScript Features default behavior should alias components",
-      "TypeScript Features default behavior should not resolve to .d.ts files",
-      "TypeScript Features default behavior should resolve a single matching alias",
-      "TypeScript Features default behavior should resolve the first item in the array first",
-      "TypeScript Features default behavior should resolve the second item in as a fallback"
-    ],
-    "failed": [],
-    "pending": [],
     "flakey": [],
     "runtimeError": false
   },

@@ -34,7 +34,7 @@ impl Xxh3Hash128Hasher {
 
     /// Finish the hash computation and return the digest as bytes.
     pub fn finish_bytes(&self) -> [u8; 16] {
-        self.0.digest128().to_ne_bytes()
+        self.0.digest128().to_le_bytes()
     }
 
     /// Finish the hash computation and return the digest as u128.

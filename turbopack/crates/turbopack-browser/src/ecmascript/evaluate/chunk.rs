@@ -171,18 +171,22 @@ impl EcmascriptBrowserEvaluateChunk {
             params = StringifyJs(&params),
         )?;
 
+        let asset_context = turbopack::get_runtime_asset_context(environment);
+
         let runtime_type = *this.chunking_context.runtime_type().await?;
         match runtime_type {
             RuntimeType::Production | RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_browser_runtime_code(
-                    environment,
+                    asset_context,
                     this.chunking_context.chunk_base_path(),
+                    this.chunking_context.worker_asset_prefix(),
                     this.chunking_context.asset_suffix(),
                     this.chunking_context.worker_forwarded_globals(),
                     runtime_type,
                     output_root_to_root_path,
                     source_maps,
                     this.chunking_context.chunk_loading_global(),
+                    this.chunking_context.cross_origin(),
                 );
                 code.push_code(&*runtime_code.await?);
             }

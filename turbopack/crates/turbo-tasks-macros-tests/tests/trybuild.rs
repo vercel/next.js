@@ -1,3 +1,13 @@
+// Unset RUSTC_WRAPPER before trybuild tests run. When sccache wraps rustc, it
+// emits "warning: ignoring -C extra-filename flag due to -o flag" which pollutes
+// trybuild's stderr snapshot comparisons. Unsetting it here means only the
+// sub-compilations trybuild spawns are affected — the main test binary was already
+// compiled with sccache.
+#[ctor::ctor]
+fn unset_rustc_wrapper() {
+    unsafe { std::env::remove_var("RUSTC_WRAPPER") };
+}
+
 #[test]
 fn derive_operation_value() {
     let t = trybuild::TestCases::new();

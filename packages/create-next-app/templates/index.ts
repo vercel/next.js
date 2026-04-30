@@ -15,7 +15,7 @@ import { Bundler, GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.4";
+const nextjsReactPeerVersion = "19.2.5";
 function sorted(obj: Record<string, string>) {
   return Object.keys(obj)
     .sort()
@@ -242,7 +242,7 @@ export const installTemplate = async ({
     ) {
       packageJson.dependencies["next-rspack"] = path.resolve(
         path.dirname(NEXT_PRIVATE_TEST_VERSION),
-        "../next-rspack/next-rspack-packed.tgz",
+        "../next-rspack/packed.tgz",
       );
     } else {
       packageJson.dependencies["next-rspack"] = version;
@@ -288,7 +288,7 @@ export const installTemplate = async ({
   if (biome) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      "@biomejs/biome": "2.2.0",
+      "@biomejs/biome": "2.4.2",
     };
   }
 

@@ -63,11 +63,23 @@ describe('instant-validation-build', () => {
         )
         expect(extractBuildValidationError(result.cliOutput))
           .toMatchInlineSnapshot(`
-         "Error: Route "/invalid-missing-suspense-around-runtime": Uncached data or \`connection()\` was accessed outside of \`<Suspense>\`. This delays the entire page from rendering, resulting in a slow user experience. Learn more: https://nextjs.org/docs/messages/blocking-route
+         "Error: Route "/invalid-missing-suspense-around-runtime": Next.js encountered uncached data during the initial render.
+
+         \`fetch(...)\` or \`connection()\` accessed outside of \`<Suspense>\` blocks navigation, leading to a slower user experience.
+
+         Ways to fix this:
+           - Cache the data access with \`"use cache"\`
+           - Move the data access into a child component within a <Suspense> boundary
+           - Set \`export const instant = false\` to allow a blocking route
+
+         Learn more: https://nextjs.org/docs/messages/blocking-route
              at main (<anonymous>)
              at body (<anonymous>)
              at html (<anonymous>)
          Build-time instant validation failed for route "/invalid-missing-suspense-around-runtime".
+         To get a more detailed stack trace and pinpoint the issue, try one of the following:
+           - Start the app in development mode by running \`next dev\`, then open "/invalid-missing-suspense-around-runtime" in your browser to investigate the error.
+           - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
          Stopping prerender due to instant validation errors."
         `)
         expect(result.exitCode).toBe(1)
@@ -93,17 +105,20 @@ describe('instant-validation-build', () => {
            at body (<anonymous>)
            at html (<anonymous>) {
          [cause]: Error: Kaboom
-             at a (app/(default)/server-errors/page-throws/page.tsx:24:9)
-           22 | async function Throws(): Promise<never> {
-           23 |   await cookies()
-         > 24 |   throw new Error('Kaboom')
+             at a (app/(default)/server-errors/page-throws/page.tsx:22:9)
+           20 | async function Throws(): Promise<never> {
+           21 |   await cookies()
+         > 22 |   throw new Error('Kaboom')
               |         ^
-           25 | }
-           26 | {
+           23 | }
+           24 | {
            digest: '<error-digest>'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/server-errors/page-throws" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.exitCode).toBe(1)
@@ -121,17 +136,20 @@ describe('instant-validation-build', () => {
            at body (<anonymous>)
            at html (<anonymous>) {
          [cause]: Error: Kaboom
-             at b (app/(default)/server-errors/page-throws-with-suspense/page.tsx:24:9)
-           22 | async function Throws(): Promise<never> {
-           23 |   await cookies()
-         > 24 |   throw new Error('Kaboom')
+             at b (app/(default)/server-errors/page-throws-with-suspense/page.tsx:22:9)
+           20 | async function Throws(): Promise<never> {
+           21 |   await cookies()
+         > 22 |   throw new Error('Kaboom')
               |         ^
-           25 | }
-           26 | {
+           23 | }
+           24 | {
            digest: '<error-digest>'
          }
        }
        Build-time instant validation failed for route "/server-errors/page-throws-with-suspense".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/server-errors/page-throws-with-suspense" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.exitCode).toBe(1)
@@ -165,6 +183,9 @@ describe('instant-validation-build', () => {
            9 |
        }
        Build-time instant validation failed for route "/client-errors/page-throws".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/client-errors/page-throws" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.exitCode).toBe(1)
@@ -199,6 +220,9 @@ describe('instant-validation-build', () => {
            9 |
        }
        Build-time instant validation failed for route "/client-errors/page-throws-with-suspense".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/client-errors/page-throws-with-suspense" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.exitCode).toBe(1)
@@ -221,19 +245,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/search-params/invalid-undeclared-search-param" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
-           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:31:14)
+           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:29:14)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:30:3)
-         29 |   const sp = await searchParams
-         30 |   ensureThrows(
-       > 31 |     () => sp.undeclared,
+           at a (app/(default)/search-params/invalid-undeclared-search-param/page.tsx:28:3)
+         27 |   const sp = await searchParams
+         28 |   ensureThrows(
+       > 29 |     () => sp.undeclared,
             |              ^
-         32 |     \`Expected accessing an undeclared search param to throw\`
-         33 |   )
-         34 |   return null {
+         30 |     \`Expected accessing an undeclared search param to throw\`
+         31 |   )
+         32 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-search-param".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/search-params/invalid-undeclared-search-param" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -255,19 +282,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/search-params/invalid-undeclared-search-param-caught" accessed searchParam "undeclared" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`searchParams\` object, or \`{ "undeclared": null }\` if it should be absent.
-           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:35:16)
+           at <unknown> (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:33:16)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:34:5)
-         33 |   try {
-         34 |     ensureThrows(
-       > 35 |       () => sp.undeclared,
+           at a (app/(default)/search-params/invalid-undeclared-search-param-caught/page.tsx:32:5)
+         31 |   try {
+         32 |     ensureThrows(
+       > 33 |       () => sp.undeclared,
             |                ^
-         36 |       \`Expected accessing an undeclared search param to throw\`
-         37 |     )
-         38 |   } catch (err) { {
+         34 |       \`Expected accessing an undeclared search param to throw\`
+         35 |     )
+         36 |   } catch (err) { {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-search-param-caught".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/search-params/invalid-undeclared-search-param-caught" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -294,6 +324,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-use-search-params".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/search-params/invalid-undeclared-use-search-params" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -320,6 +353,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/search-params/invalid-undeclared-use-search-params-caught".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/search-params/invalid-undeclared-use-search-params-caught" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -359,19 +395,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/headers/invalid-undeclared-header-get" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
-           at <unknown> (app/(default)/headers/invalid-undeclared-header-get/page.tsx:27:24)
+           at <unknown> (app/(default)/headers/invalid-undeclared-header-get/page.tsx:25:24)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/headers/invalid-undeclared-header-get/page.tsx:26:3)
-         25 |   const headersStore = await headers()
-         26 |   ensureThrows(
-       > 27 |     () => headersStore.get('undeclaredHeader'),
+           at a (app/(default)/headers/invalid-undeclared-header-get/page.tsx:24:3)
+         23 |   const headersStore = await headers()
+         24 |   ensureThrows(
+       > 25 |     () => headersStore.get('undeclaredHeader'),
             |                        ^
-         28 |     \`Expected get() to throw for undeclared headers\`
-         29 |   )
-         30 |   return null {
+         26 |     \`Expected get() to throw for undeclared headers\`
+         27 |   )
+         28 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/headers/invalid-undeclared-header-get".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/headers/invalid-undeclared-header-get" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -385,19 +424,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/headers/invalid-undeclared-header-get-caught" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
-           at <unknown> (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:30:25)
+           at <unknown> (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:28:25)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:29:5)
-         28 |   try {
-         29 |     ensureThrows(
-       > 30 |       () => headerStore.get('undeclaredHeader'),
+           at a (app/(default)/headers/invalid-undeclared-header-get-caught/page.tsx:27:5)
+         26 |   try {
+         27 |     ensureThrows(
+       > 28 |       () => headerStore.get('undeclaredHeader'),
             |                         ^
-         31 |       \`Expected get() to throw for undeclared headers\`
-         32 |     )
-         33 |   } catch (err) { {
+         29 |       \`Expected get() to throw for undeclared headers\`
+         30 |     )
+         31 |   } catch (err) { {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/headers/invalid-undeclared-header-get-caught".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/headers/invalid-undeclared-header-get-caught" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.exitCode).toBe(1)
@@ -410,19 +452,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/headers/invalid-undeclared-header-has" accessed header "undeclaredheader" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`headers\` array, or \`["undeclaredheader", null]\` if it should be absent.
-           at <unknown> (app/(default)/headers/invalid-undeclared-header-has/page.tsx:27:23)
+           at <unknown> (app/(default)/headers/invalid-undeclared-header-has/page.tsx:25:23)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/headers/invalid-undeclared-header-has/page.tsx:26:3)
-         25 |   const headerStore = await headers()
-         26 |   ensureThrows(
-       > 27 |     () => headerStore.has('undeclaredHeader'),
+           at a (app/(default)/headers/invalid-undeclared-header-has/page.tsx:24:3)
+         23 |   const headerStore = await headers()
+         24 |   ensureThrows(
+       > 25 |     () => headerStore.has('undeclaredHeader'),
             |                       ^
-         28 |     \`Expected has() to throw for undeclared headers\`
-         29 |   )
-         30 |   return null {
+         26 |     \`Expected has() to throw for undeclared headers\`
+         27 |   )
+         28 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/headers/invalid-undeclared-header-has".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/headers/invalid-undeclared-header-has" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -462,19 +507,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/cookies/invalid-undeclared-cookie-get" accessed cookie "undeclaredCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
-           at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:28:23)
+           at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:26:23)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:27:3)
-         26 |
-         27 |   ensureThrows(
-       > 28 |     () => cookieStore.get('undeclaredCookie'),
+           at a (app/(default)/cookies/invalid-undeclared-cookie-get/page.tsx:25:3)
+         24 |
+         25 |   ensureThrows(
+       > 26 |     () => cookieStore.get('undeclaredCookie'),
             |                       ^
-         29 |     \`Expected get() to throw for undeclared cookies\`
-         30 |   )
-         31 |   return null {
+         27 |     \`Expected get() to throw for undeclared cookies\`
+         28 |   )
+         29 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/cookies/invalid-undeclared-cookie-get".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/cookies/invalid-undeclared-cookie-get" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -488,19 +536,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/cookies/invalid-undeclared-cookie-get-caught" accessed cookie "undeclaredCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
-           at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:30:25)
+           at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:28:25)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:29:5)
-         28 |   try {
-         29 |     ensureThrows(
-       > 30 |       () => cookieStore.get('undeclaredCookie'),
+           at a (app/(default)/cookies/invalid-undeclared-cookie-get-caught/page.tsx:27:5)
+         26 |   try {
+         27 |     ensureThrows(
+       > 28 |       () => cookieStore.get('undeclaredCookie'),
             |                         ^
-         31 |       \`Expected get() to throw for undeclared cookies\`
-         32 |     )
-         33 |   } catch (err) { {
+         29 |       \`Expected get() to throw for undeclared cookies\`
+         30 |     )
+         31 |   } catch (err) { {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/cookies/invalid-undeclared-cookie-get-caught".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/cookies/invalid-undeclared-cookie-get-caught" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -514,19 +565,22 @@ describe('instant-validation-build', () => {
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`
        "Error: Route "/cookies/invalid-undeclared-cookie-has" accessed cookie "undeclaredCookie" which is not defined in the \`samples\` of \`unstable_instant\`. Add it to the sample's \`cookies\` array, or \`{ name: "undeclaredCookie", value: null }\` if it should be absent.
-           at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:27:23)
+           at <unknown> (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:25:23)
            at <unknown> (ensure-error.ts:11:5)
-           at a (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:26:3)
-         25 |   const cookieStore = await cookies()
-         26 |   ensureThrows(
-       > 27 |     () => cookieStore.has('undeclaredCookie'),
+           at a (app/(default)/cookies/invalid-undeclared-cookie-has/page.tsx:24:3)
+         23 |   const cookieStore = await cookies()
+         24 |   ensureThrows(
+       > 25 |     () => cookieStore.has('undeclaredCookie'),
             |                       ^
-         28 |     \`Expected has() to throw for undeclared cookies\`
-         29 |   )
-         30 |   return null {
+         26 |     \`Expected has() to throw for undeclared cookies\`
+         27 |   )
+         28 |   return null {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/cookies/invalid-undeclared-cookie-has".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/cookies/invalid-undeclared-cookie-has" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -571,6 +625,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided/[one]/[two]".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/params/invalid-param-not-provided/[one]/[two]" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -597,6 +654,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-param-not-provided-caught/[one]/[two]".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/params/invalid-param-not-provided-caught/[one]/[two]" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -631,6 +691,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-undeclared-use-params/[one]/[two]".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/params/invalid-undeclared-use-params/[one]/[two]" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -657,6 +720,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/params/invalid-undeclared-use-params-caught/[one]/[two]".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/params/invalid-undeclared-use-params-caught/[one]/[two]" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -741,6 +807,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/pathname/invalid-use-pathname-missing-params/[one]/[two]".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/pathname/invalid-use-pathname-missing-params/[one]/[two]" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -781,6 +850,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/root-params/[lang]/invalid-root-param-not-provided".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/root-params/[lang]/invalid-root-param-not-provided" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')
@@ -807,6 +879,9 @@ describe('instant-validation-build', () => {
          digest: 'INSTANT_VALIDATION_ERROR'
        }
        Build-time instant validation failed for route "/root-params/[lang]/invalid-root-param-not-provided-caught".
+       To get a more detailed stack trace and pinpoint the issue, try one of the following:
+         - Start the app in development mode by running \`next dev\`, then open "/root-params/[lang]/invalid-root-param-not-provided-caught" in your browser to investigate the error.
+         - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
        Stopping prerender due to instant validation errors."
       `)
       expect(result.cliOutput).not.toContain('AssertionError')

@@ -80,8 +80,8 @@ import type {
 } from '../server/route-modules/app-route/module'
 import type { FunctionsConfigManifest, ManifestRoute } from './index'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
-import { parseAppRoute } from '../shared/lib/router/routes/app'
-import { fillMetadataSegment } from '../lib/metadata/get-metadata-route'
+import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
+import { fillStaticMetadataSegment } from '../lib/metadata/get-metadata-route'
 import { STATIC_METADATA_IMAGES } from '../lib/metadata/is-metadata-route'
 
 // Build a set of static metadata image filenames for quick lookup
@@ -111,10 +111,10 @@ function getTreeViewDisplayPath(pagePath: string): string {
     return pagePath
   }
 
-  // Transform using fillMetadataSegment with isStatic=true
+  // Transform using the static metadata resolver so dynamic segments use "-"
   const segment = pagePath.slice(0, lastSlash)
   const lastSegment = filename
-  return fillMetadataSegment(segment, {}, lastSegment, true)
+  return fillStaticMetadataSegment(segment, lastSegment)
 }
 
 export type ROUTER_TYPE = 'pages' | 'app'
@@ -211,6 +211,48 @@ export interface PageInfo {
 }
 
 export type PageInfos = Map<string, PageInfo>
+
+function getTreeViewSymbol(
+  item: string,
+  pageInfo: PageInfo | undefined
+): string {
+  if (item === '/_app' || item === '/_app.server') {
+    return ' '
+  }
+
+  if (isEdgeRuntime(pageInfo?.runtime)) {
+    return 'ƒ'
+  }
+
+  if (pageInfo?.isRoutePPREnabled) {
+    if (
+      // If the page has an empty static shell, then it's equivalent to a
+      // dynamic page
+      pageInfo?.hasEmptyStaticShell ||
+      // ensure we don't mark dynamic paths that postponed as being dynamic
+      // since in this case we're able to partially prerender it
+      (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
+    ) {
+      return 'ƒ'
+    }
+
+    if (!pageInfo?.hasPostponed) {
+      return '○'
+    }
+
+    return '◐'
+  }
+
+  if (pageInfo?.isStatic) {
+    return '○'
+  }
+
+  if (pageInfo?.isSSG) {
+    return '●'
+  }
+
+  return 'ƒ'
+}
 
 export interface RoutesUsingEdgeRuntime {
   [route: string]: 0
@@ -333,34 +375,8 @@ export async function printTreeView(
         (pageInfo?.pageDuration || 0) +
         (pageInfo?.ssgPageDurations?.reduce((a, b) => a + (b || 0), 0) || 0)
 
-      let symbol: string
-
-      if (item === '/_app' || item === '/_app.server') {
-        symbol = ' '
-      } else if (isEdgeRuntime(pageInfo?.runtime)) {
-        symbol = 'ƒ'
-      } else if (pageInfo?.isRoutePPREnabled) {
-        if (
-          // If the page has an empty static shell, then it's equivalent to a
-          // dynamic page
-          pageInfo?.hasEmptyStaticShell ||
-          // ensure we don't mark dynamic paths that postponed as being dynamic
-          // since in this case we're able to partially prerender it
-          (pageInfo.isDynamicAppRoute && !pageInfo.hasPostponed)
-        ) {
-          symbol = 'ƒ'
-        } else if (!pageInfo?.hasPostponed) {
-          symbol = '○'
-        } else {
-          symbol = '◐'
-        }
-      } else if (pageInfo?.isStatic) {
-        symbol = '○'
-      } else if (pageInfo?.isSSG) {
-        symbol = '●'
-      } else {
-        symbol = 'ƒ'
-      }
+      const symbol = getTreeViewSymbol(item, pageInfo)
+      const hasChildRoutes = Boolean(pageInfo?.ssgPageRoutes?.length)
 
       const displayPath = getTreeViewDisplayPath(item)
 
@@ -381,10 +397,14 @@ export async function printTreeView(
         ])
       }
 
-      usedSymbols.add(symbol)
+      // Grouped rows act as headers for the generated outputs below them. The
+      // child rows carry the concrete route symbols instead.
+      if (!hasChildRoutes) {
+        usedSymbols.add(symbol)
+      }
 
       messages.push([
-        `${border} ${symbol} ${displayPath}${
+        `${border} ${hasChildRoutes ? ' ' : symbol} ${displayPath}${
           totalDuration > MIN_DURATION
             ? ` (${getPrettyDuration(totalDuration)})`
             : ''
@@ -446,12 +466,17 @@ export async function printTreeView(
         routes.forEach(
           ({ route, duration, avgDuration }, index, { length }) => {
             const innerSymbol = index === length - 1 ? '└' : '├'
+            // Generated child paths can have more precise metadata than the
+            // parent route pattern, so prefer the child entry when present.
+            const routePageInfo = pageInfos.get(route) ?? pageInfo
+            const routeSymbol = getTreeViewSymbol(route, routePageInfo)
+            usedSymbols.add(routeSymbol)
 
             const initialCacheControl =
               pageInfos.get(route)?.initialCacheControl
 
             messages.push([
-              `${contSymbol} ${innerSymbol} ${route}${
+              `${contSymbol} ${innerSymbol} ${routeSymbol} ${route}${
                 duration > MIN_DURATION
                   ? ` (${getPrettyDuration(duration)})`
                   : ''
@@ -659,6 +684,8 @@ export async function isPageStatic({
   pageType,
   cacheComponents,
   authInterrupts,
+  useCacheTimeout,
+  staticPageGenerationTimeout,
   originalAppPath,
   isrFlushToDisk,
   cacheMaxMemorySize,
@@ -677,6 +704,8 @@ export async function isPageStatic({
   distDir: string
   cacheComponents: boolean
   authInterrupts: boolean
+  useCacheTimeout: number
+  staticPageGenerationTimeout: number
   configFileName: string
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
   locales?: readonly string[]
@@ -836,7 +865,7 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
-        const route = parseAppRoute(page, true)
+        const route = parseNormalizedAppRoute(page)
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
@@ -849,6 +878,8 @@ export async function isPageStatic({
               route,
               cacheComponents,
               authInterrupts,
+              useCacheTimeout,
+              staticPageGenerationTimeout,
               segments,
               distDir,
               requestHeaders: {},

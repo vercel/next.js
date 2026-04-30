@@ -195,6 +195,11 @@ impl EcmascriptChunkPlaceable for SideEffectsModule {
                 } else {
                     None
                 },
+                supports_arrow_functions: *chunking_context
+                    .environment()
+                    .runtime_versions()
+                    .supports_arrow_functions()
+                    .await?,
                 ..Default::default()
             },
             additional_ids: Default::default(),

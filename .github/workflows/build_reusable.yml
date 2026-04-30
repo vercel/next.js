@@ -62,7 +62,7 @@ on:
         description: 'List of runner labels'
         required: false
         type: string
-        default: '["self-hosted", "linux", "x64", "metal"]'
+        default: '["ubuntu-latest-16-core-oss"]'
       buildNativeTarget:
         description: 'Target for build-native step'
         required: false
@@ -85,6 +85,12 @@ on:
         type: string
         default: ''
 
+      uploadNativeArtifact:
+        description: 'Artifact name to upload native .node files to after building. When set, this job is the native binary producer.'
+        required: false
+        type: string
+        default: ''
+
       browser:
         description: 'Browser to use for tests'
         required: false
@@ -92,7 +98,8 @@ on:
         default: 'chromium'
 env:
   NAPI_CLI_VERSION: 2.18.4
-  TURBO_VERSION: 2.8.11
+  TURBO_VERSION: 2.9.4
+  TURBO_ARGS: '-v --env-mode loose --remote-cache-timeout 300 --log-order stream'
   NODE_LTS_VERSION: 20.9.0
   # run-tests.js reads `TEST_CONCURRENCY` if no explicit `--concurrency` or `-c`
   # argument is provided
@@ -100,9 +107,11 @@ env:
   # disable backtrace for test snapshots
   RUST_BACKTRACE: 0
 
-  TURBO_TEAM: 'vtest314-next-e2e-tests'
-  TURBO_CACHE: 'remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_REMOTE_CACHE_TOKEN }}
+  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  # Prefer shared remote cache across runs, but keep local cache enabled so jobs
+  # degrade gracefully if the remote cache or token is unavailable.
+  TURBO_CACHE: 'local:rw,remote:rw'
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
   NEXT_TELEMETRY_DISABLED: 1
   # allow not skipping install-native postinstall script if we don't have a binary available already
@@ -146,7 +155,7 @@ jobs:
     steps:
       # enforce consistent line endings for git on windows
       - name: Configure git to use LF endings
-        if: ${{ contains(fromJson(inputs.runs_on_labels), 'windows') }}
+        if: ${{ runner.os == 'Windows' }}
         run: |
           git config --global core.autocrlf false
           git config --global core.eol lf
@@ -166,9 +175,10 @@ jobs:
       - name: Install fnm
         if: steps.check-fnm.outputs.found != 'true'
         run: |
+          export FNM_DIR="${HOME}/.local/share/fnm"
           curl -fsSL https://fnm.vercel.app/install | bash
-          export PATH="/home/runner/.local/share/fnm:$PATH"
-          echo "/home/runner/.local/share/fnm" >> $GITHUB_PATH
+          export PATH="$FNM_DIR:$PATH"
+          echo "$FNM_DIR" >> $GITHUB_PATH
           fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
 
       - name: Normalize input step names into path key
@@ -201,11 +211,16 @@ jobs:
           which node
           node --version
       - name: Prepare corepack
-        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
+        if: ${{ runner.os == 'Linux' }}
         run: |
           npm i -g corepack@0.31
       - run: corepack enable
       - run: pwd
+
+      - name: Kill stale sccache processes
+        if: ${{ runner.os == 'Windows' }}
+        shell: powershell
+        run: Get-Process sccache -ErrorAction SilentlyContinue | Stop-Process -Force
 
       - run: rm -rf .git
 
@@ -232,24 +247,16 @@ jobs:
       # local action -> needs to run after checkout
       - name: Install Rust
         uses: ./.github/actions/setup-rust
-        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - name: Install nextest
         if: ${{ inputs.needsNextest == 'yes' }}
-        uses: taiki-e/install-action@nextest
+        run: cargo binstall --no-confirm cargo-nextest@0.9.133
 
       - run: rustc --version
-        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ (inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - run: corepack prepare --activate yarn@1.22.19 && npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
-
-      - name: Cache on ${{ github.ref_name }}
-        uses: ijjk/rust-cache@turbo-cache-v1.0.9
-        if: ${{ inputs.rustCacheKey }}
-        with:
-          cache-provider: 'turbo'
-          save-if: ${{ github.ref_name == 'canary' }}
-          shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ inputs.rustBuildProfile }}-${{ hashFiles('.cargo/config.toml') }}
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
@@ -260,19 +267,39 @@ jobs:
           git config --global user.name "vercel-ci-bot"
           git config --global user.email "infra+ci@vercel.com"
 
-      - run: cargo clean
-        if: ${{ inputs.skipNativeBuild != 'yes' || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
-
       # normalize versions before build-native for better cache hits
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
-        if: ${{ inputs.skipNativeBuild != 'yes' }}
+      - name: Start sccache
+        uses: ./.github/actions/sccache
+        if: ${{ runner.os != 'Windows' && ((inputs.uploadNativeArtifact != '') || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
+        with:
+          turbo-token: ${{ secrets.TURBO_TOKEN }}
+
+      - name: Download pre-built native binary
+        if: ${{ inputs.skipNativeBuild != 'yes' && inputs.uploadNativeArtifact == '' }}
+        id: native-download
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ runner.os == 'Windows' && 'next-swc-windows' || 'next-swc-linux' }}
+          path: packages/next-swc/native/
+
+      - run: pnpm dlx turbo@${TURBO_VERSION} run build-native-${{ inputs.rustBuildProfile }} ${TURBO_ARGS} --summarize -- --target ${{ inputs.buildNativeTarget }}
+        if: ${{ inputs.skipNativeBuild != 'yes' && (inputs.uploadNativeArtifact != '' || steps.native-download.outcome != 'success') }}
+
+      - name: Upload native artifact
+        if: ${{ inputs.uploadNativeArtifact != '' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.uploadNativeArtifact }}
+          path: packages/next-swc/native/next-swc.*.node
+          retention-days: 1
 
       - name: Upload next-swc artifact
         if: ${{ inputs.uploadSwcArtifact == 'yes' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: next-swc-binary
           path: packages/next-swc/native/next-swc.linux-x64-gnu.node
@@ -282,7 +309,7 @@ jobs:
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
       - run: pnpm install
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.needsNextest == 'yes' }}
 
       - name: Install node-file-trace test dependencies
         if: ${{ inputs.needsNextest == 'yes' }}
@@ -292,12 +319,33 @@ jobs:
       - run: ANALYZE=1 pnpm build
         if: ${{ inputs.skipInstallBuild != 'yes' }}
 
-      - run: pnpm playwright install --with-deps ${{ inputs.browser }}
+      - name: Install Playwright browsers
         if: ${{ inputs.skipInstallBuild != 'yes' }}
+        run: |
+          PW_VERSION=$(pnpm playwright --version 2>/dev/null || echo "unknown")
+          CACHE_DIR="$HOME/.cache"
+          VERSION_FILE="$CACHE_DIR/playwright-version"
+          STAMP="$CACHE_DIR/playwright-deps-$(echo "${{ inputs.browser }}" | tr ' ' '-')"
+
+          # Clear stamp files when Playwright version changes
+          if [ -f "$VERSION_FILE" ] && [ "$(cat "$VERSION_FILE")" != "$PW_VERSION" ]; then
+            echo "Playwright version changed ($(cat "$VERSION_FILE") -> $PW_VERSION), clearing stamps"
+            rm -f "$CACHE_DIR"/playwright-deps-*
+          fi
+
+          mkdir -p "$CACHE_DIR"
+          echo "$PW_VERSION" > "$VERSION_FILE"
+
+          if [ -f "$STAMP" ]; then
+            pnpm playwright install ${{ inputs.browser }}
+          else
+            pnpm playwright install --with-deps ${{ inputs.browser }}
+            touch "$STAMP"
+          fi
 
       - name: Download pre-built test timings
         if: ${{ inputs.testTimingsArtifact != '' }}
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{ inputs.testTimingsArtifact }}
 
@@ -325,7 +373,7 @@ jobs:
 
       - name: Upload test result artifacts
         if: ${{ inputs.testReportsArtifactPrefix != '' && inputs.afterBuild && always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ inputs.testReportsArtifactPrefix }}-${{ steps.var.outputs.input_step_key }}
           path: test/**/*.results.json
@@ -340,26 +388,30 @@ jobs:
 
       - name: Upload Turborepo summary
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: turbo-run-summary-${{ steps.var.outputs.input_step_key }}
           path: .turbo/runs
           if-no-files-found: ignore
 
       - name: Upload bundle analyzer artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.uploadAnalyzerArtifacts == 'yes' }}
         with:
           name: webpack bundle analysis stats-${{ steps.var.outputs.input_step_key }}
           path: packages/next/dist/compiled/next-server/report.*.html
 
+      - name: Install datadog-ci
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
+        uses: ./.github/actions/setup-datadog-ci
+
       - name: Upload test report to datadog
-        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork }}
+        if: ${{ inputs.afterBuild && always() && !github.event.pull_request.head.repo.fork && env.DATADOG_API_KEY != '' }}
         run: |
           # Add a `test.type` tag to distinguish between turbopack and next.js runs
           # Add a `nextjs.test_session.name` tag to help identify the job
           if [ -d ./test/test-junit-report ]; then
-            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+            "$DATADOG_CI_PATH" junit upload \
               --service nextjs \
               --tags test.type:nextjs \
               --tags test_session.name:"${{ inputs.stepName }}" \
@@ -367,7 +419,7 @@ jobs:
               ./test/test-junit-report
           fi
           if [ -d ./test/turbopack-test-junit-report ]; then
-            pnpm dlx @datadog/datadog-ci@2.45.1 junit upload \
+            "$DATADOG_CI_PATH" junit upload \
               --service nextjs \
               --tags test.type:turbopack \
               --tags test_session.name:"${{ inputs.stepName }}" \
@@ -376,7 +428,7 @@ jobs:
           fi
 
       - name: Upload Playwright Snapshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: ${{ inputs.afterBuild && always() }}
         with:
           name: test-playwright-snapshots-${{ steps.var.outputs.input_step_key }}

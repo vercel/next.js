@@ -24,6 +24,10 @@ type CacheLifeConfig = {
 /**
  * This function allows you to purge [cached data](https://nextjs.org/docs/app/building-your-application/caching) on-demand for a specific cache tag.
  *
+ * The second argument specifies a [`cacheLife`](https://nextjs.org/docs/app/api-reference/functions/cacheLife#reference) profile
+ * (e.g. `"max"`), or a `{ expire }` object. For immediate expiration in Server Actions, use
+ * [`updateTag`](https://nextjs.org/docs/app/api-reference/functions/updateTag) instead.
+ *
  * Read more: [Next.js Docs: `revalidateTag`](https://nextjs.org/docs/app/api-reference/functions/revalidateTag)
  */
 export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {

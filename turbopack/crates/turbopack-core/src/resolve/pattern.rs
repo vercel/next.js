@@ -2670,11 +2670,13 @@ mod tests {
             async fn read_matches_operation() -> anyhow::Result<Vc<ReadMatchesOutput>> {
                 let root = DiskFileSystem::new(
                     rcstr!("test"),
-                    Path::new(env!("CARGO_MANIFEST_DIR"))
-                        .join("tests/pattern/read_matches")
-                        .to_str()
-                        .unwrap()
-                        .into(),
+                    Vc::cell(
+                        Path::new(env!("CARGO_MANIFEST_DIR"))
+                            .join("tests/pattern/read_matches")
+                            .to_str()
+                            .unwrap()
+                            .into(),
+                    ),
                 )
                 .root()
                 .owned()

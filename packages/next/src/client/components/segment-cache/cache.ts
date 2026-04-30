@@ -31,6 +31,7 @@ import {
   type RSCResponse,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
+import { fetch } from './fetch'
 import {
   pingPrefetchTask,
   isPrefetchTaskDirty,
@@ -1672,15 +1673,7 @@ export async function fetchRouteOnCacheMiss(
         response !== null && response.redirected ? new URL(response.url) : url
     }
 
-    if (
-      !response ||
-      !response.ok ||
-      // 204 is a Cache miss. Though theoretically this shouldn't happen when
-      // PPR is enabled, because we always respond to route tree requests, even
-      // if it needs to be blockingly generated on demand.
-      response.status === 204 ||
-      !response.body
-    ) {
+    if (!response || !response.ok || !response.body) {
       // Server responded with an error, or with a miss. We should still cache
       // the response, but we can try again after 10 seconds.
       rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
@@ -1862,7 +1855,21 @@ export async function fetchRouteOnCacheMiss(
     return { value: null, closed: closed.promise }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
-    // decoding the response.
+    // decoding the response. If we're offline, reject with staleAt=-1 so the
+    // entry immediately expires and gets retried once the scheduler is
+    // re-pinged after connectivity is restored.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectRouteCacheEntry(entry, -1)
+        return null
+      }
+    }
     rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
     return null
   }
@@ -1936,7 +1943,6 @@ export async function fetchSegmentsOnCacheMiss(
     if (
       !response ||
       !response.ok ||
-      response.status === 204 || // Cache miss
       // This checks whether the response was served from the per-segment cache,
       // rather than the old prefetching flow. If it fails, it implies that PPR
       // is disabled on this route. Theoretically this should never happen
@@ -2065,6 +2071,18 @@ export async function fetchSegmentsOnCacheMiss(
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectRemainingSegmentsInBundle(segments, -1)
+        return null
+      }
+    }
     rejectRemainingSegmentsInBundle(segments, Date.now() + 10 * 1000)
     return null
   }
@@ -2263,6 +2281,18 @@ export async function fetchSegmentPrefetchesUsingDynamicRequest(
     // the scheduler can track the number of concurrent network connections.
     return { value: null, closed: closed.promise }
   } catch (error) {
+    if (process.env.__NEXT_USE_OFFLINE) {
+      const { checkOfflineError } =
+        require('../offline') as typeof import('../offline')
+      if (checkOfflineError(error)) {
+        // Unlike navigations and server actions, prefetches don't await
+        // waitForConnection — they just reject the cache entry with an
+        // immediate expiration so it gets retried once the scheduler is
+        // re-pinged after connectivity is restored.
+        rejectSegmentEntriesIfStillPending(spawnedEntries, -1)
+        return null
+      }
+    }
     rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
     return null
   }
@@ -2689,8 +2719,9 @@ async function fetchPrefetchResponse<T>(
   return response
 }
 
-async function createNonTaskyPrefetchResponseStream(
-  body: ReadableStream<Uint8Array>
+export async function createNonTaskyPrefetchResponseStream(
+  body: ReadableStream<Uint8Array>,
+  byteLimit?: number
 ): Promise<{ stream: ReadableStream<Uint8Array>; size: number }> {
   // Buffer the entire response before passing it to the Flight client. This
   // ensures that when Flight processes the stream, all model data is available
@@ -2703,13 +2734,24 @@ async function createNonTaskyPrefetchResponseStream(
   // These could all be consolidated into a single transformation. Refactor
   // once the cached navigations experiment lands.
   //
-  // Read the entire response from the network.
+  // Read the response from the network, optionally truncating at byteLimit.
   const reader = body.getReader()
   const chunks: Uint8Array[] = []
   let size = 0
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
+    if (byteLimit !== undefined && size + value.byteLength >= byteLimit) {
+      const remaining = byteLimit - size
+      if (remaining > 0) {
+        chunks.push(
+          value.byteLength > remaining ? value.subarray(0, remaining) : value
+        )
+        size += remaining
+      }
+      reader.cancel()
+      break
+    }
     chunks.push(value)
     size += value.byteLength
   }
