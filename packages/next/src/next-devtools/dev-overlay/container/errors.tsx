@@ -288,6 +288,7 @@ const SYNC_IO_APIS = [
   'crypto.randomUUID()',
 ]
 
+// `(?!-)` excludes `*-client` URLs emitted by `createSyncIOClientError`.
 const SYNC_IO_DOCS_PATTERN =
   /https:\/\/nextjs\.org\/docs\/messages\/next-prerender-(?:runtime-)?(random|current-time|crypto)(?!-)/
 

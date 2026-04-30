@@ -24,10 +24,11 @@ function elapsedTimeBullet(type: SyncIOApiType): string {
     : ''
 }
 
-export function createSyncIOError(
+function createSyncIOErrorImpl(
   route: string,
   expression: string,
-  type: SyncIOApiType
+  type: SyncIOApiType,
+  docsUrl: string
 ): Error {
   return new Error(
     `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
@@ -38,8 +39,16 @@ export function createSyncIOError(
       `  - Render the value on the client with \`"use client"\`\n` +
       elapsedTimeBullet(type) +
       `\n` +
-      `Learn more: ${SYNC_IO_DOCS[type]}`
+      `Learn more: ${docsUrl}`
   )
+}
+
+export function createSyncIOError(
+  route: string,
+  expression: string,
+  type: SyncIOApiType
+): Error {
+  return createSyncIOErrorImpl(route, expression, type, SYNC_IO_DOCS[type])
 }
 
 export function createSyncIORuntimeError(
@@ -47,16 +56,11 @@ export function createSyncIORuntimeError(
   expression: string,
   type: SyncIOApiType
 ): Error {
-  return new Error(
-    `Route "${route}": Next.js encountered ${expression} during the initial render.\n\n` +
-      `Without a prior data access, Next.js doesn't know whether to prerender this value or compute it on each request.\n\n` +
-      `Ways to fix this:\n` +
-      `  - Render at request time by adding a dynamic data access (e.g. \`await connection()\`) before this call\n` +
-      `  - Prerender and cache the value with \`"use cache"\`\n` +
-      `  - Render the value on the client with \`"use client"\`\n` +
-      elapsedTimeBullet(type) +
-      `\n` +
-      `Learn more: ${SYNC_IO_RUNTIME_DOCS[type]}`
+  return createSyncIOErrorImpl(
+    route,
+    expression,
+    type,
+    SYNC_IO_RUNTIME_DOCS[type]
   )
 }
 

@@ -73,12 +73,16 @@ export function InstantGuidance({
 
   return (
     <div data-nextjs-instant-guidance>
-      <p data-nextjs-instant-explanation>
-        {defaultExplanation ? <>{defaultExplanation} </> : null}
-        <a href={docsUrl} target="_blank" rel="noopener noreferrer">
-          Learn more
-        </a>
-      </p>
+      {defaultExplanation || docsUrl ? (
+        <p data-nextjs-instant-explanation>
+          {defaultExplanation ? <>{defaultExplanation} </> : null}
+          {docsUrl ? (
+            <a href={docsUrl} target="_blank" rel="noopener noreferrer">
+              Learn more
+            </a>
+          ) : null}
+        </p>
+      ) : null}
 
       <p data-nextjs-instant-fix-heading>Ways to fix this:</p>
 
