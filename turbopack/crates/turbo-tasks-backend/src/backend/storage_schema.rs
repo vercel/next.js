@@ -1402,7 +1402,10 @@ mod tests {
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
 
-        storage.drop_partial(true, false);
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(true, false)
+        );
 
         // Persistent entries gone; transient residue preserved.
         assert!(!storage.output_dependent().contains(&persistent_task(1)));
@@ -1448,7 +1451,10 @@ mod tests {
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
 
-        storage.drop_partial(false, true);
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(false, true)
+        );
 
         // Inline upper: transient residue remains.
         assert_eq!(storage.upper().len(), 1);
@@ -1486,7 +1492,13 @@ mod tests {
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
 
-        storage.drop_partial(true, false);
+        // Only persistent entries → no `filter_transient` residue, but the
+        // `meta_restored` transient flag is still set (we only dropped the
+        // data category), so the authoritative outcome is `HasResidue`.
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(true, false)
+        );
 
         assert!(storage.output_dependent().is_empty());
     }
@@ -1504,7 +1516,10 @@ mod tests {
         storage.flags.set_invalidator(true);
         storage.flags.set_immutable(true);
 
-        storage.drop_partial(true, true);
+        // Drop both categories → both `*_restored` transient flags are
+        // cleared, persisted flag bits are cleared, no residue. Outcome is
+        // `Empty` and the caller can erase the entry.
+        assert_eq!(DropPartialOutcome::Empty, storage.drop_partial(true, true));
 
         assert!(!storage.flags.invalidator());
         assert!(!storage.flags.immutable());
@@ -1527,7 +1542,11 @@ mod tests {
         storage.flags.set_data_restored(true);
         storage.flags.set_meta_restored(true);
 
-        storage.drop_partial(false, true);
+        // Filter-transient `output` keeps its transient value → residue.
+        assert_eq!(
+            DropPartialOutcome::HasResidue,
+            storage.drop_partial(false, true)
+        );
 
         // Transient output retained.
         assert_eq!(
@@ -1589,7 +1608,12 @@ mod tests {
             storage.flags.set_data_restored(true);
             storage.flags.set_meta_restored(true);
 
-            storage.drop_partial(true, false);
+            // KeepMe is `evict = "last"` → non-recoverable → retained as
+            // residue.
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(true, false)
+            );
 
             let cells = storage.cell_data().expect("residue keeps the variant");
             assert_eq!(cells.len(), 1);
@@ -1606,7 +1630,10 @@ mod tests {
             storage.flags.set_data_restored(true);
             storage.flags.set_meta_restored(true);
 
-            storage.drop_partial(true, false);
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(true, false)
+            );
 
             assert!(
                 storage.cell_data().is_none(),
@@ -1624,7 +1651,10 @@ mod tests {
             storage.flags.set_data_restored(true);
             storage.flags.set_meta_restored(true);
 
-            storage.drop_partial(true, false);
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(true, false)
+            );
             // Only KeepMe entry survives.
             assert_eq!(storage.cell_data().unwrap().len(), 1);
 
@@ -1651,7 +1681,12 @@ mod tests {
             storage.flags.set_data_restored(true);
             storage.flags.set_meta_restored(true);
 
-            storage.drop_partial(false, true);
+            // Meta-only drop doesn't touch `cell_data` (data category), so
+            // the data category stays non-empty → `HasResidue`.
+            assert_eq!(
+                DropPartialOutcome::HasResidue,
+                storage.drop_partial(false, true)
+            );
 
             // cell_data is category=data; meta-only drop leaves it alone.
             assert_eq!(storage.cell_data().unwrap().len(), 1);
