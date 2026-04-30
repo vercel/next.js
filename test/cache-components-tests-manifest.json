@@ -311,6 +311,7 @@
       "test/e2e/edge-configurable-runtime/index.test.ts",
       "test/e2e/edge-pages-support/edge-document.test.ts",
       "test/e2e/edge-pages-support/index.test.ts",
+      "test/e2e/edge-runtime-deprecated/edge-runtime-deprecated.test.ts",
       "test/e2e/edge-runtime-uses-edge-light-import-specifier-for-packages/edge-runtime-uses-edge-light-import-specifier-for-packages.test.ts",
       "test/e2e/import-conditions/import-conditions.test.ts",
       "test/e2e/manual-client-base-path/index.test.ts",
