@@ -27,9 +27,4 @@ module.exports = {
     '/index': ['public/exclude-me/**/*'],
     '/route1': ['public/exclude-me/**/*'],
   },
-  experimental: {
-    turbotrace: {
-      contextDirectory: path.join(__dirname, '..', '..', '..', '..'),
-    },
-  },
 }
