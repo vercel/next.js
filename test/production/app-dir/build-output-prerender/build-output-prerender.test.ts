@@ -45,9 +45,7 @@ describe('build-output-prerender', () => {
           if (isTurbopack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Turbopack)
-             - Cache Components enabled
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
+             - Cache Components enabled"
             `)
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
@@ -58,7 +56,7 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
+             "▲ Next.js x.y.z (webpack)
              - Cache Components enabled"
             `)
           }
@@ -69,7 +67,15 @@ describe('build-output-prerender', () => {
         if (isTurbopack) {
           // TODO(veil): Why is the location incomplete unless we enable --no-mangling?
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           "Error: Route "/client": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+
+           Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+
+           Ways to fix this:
+             - Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - Move the read into a \`useEffect\` or event handler
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at <unknown> (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -94,13 +100,7 @@ describe('build-output-prerender', () => {
              - Move the read into a \`useEffect\` or event handler
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-               at <unknown> (app/client/page.tsx:4:28)
-             2 |
-             3 | export default function Page() {
-           > 4 |   return <p>Current time: {new Date().toISOString()}</p>
-               |                            ^
-             5 | }
-             6 |
+               at x (<next-dist-dir>)
            To get a more detailed stack trace and pinpoint the issue, try one of the following:
              - Start the app in development mode by running \`next dev\`, then open "/client" in your browser to investigate the error.
              - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
@@ -172,7 +172,6 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -190,13 +189,13 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
-             ▲ Next.js x.y.z (Turbopack)
+             ▲ Next.js x.y.z (webpack)
              - Cache Components enabled
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
           }
         }
@@ -205,7 +204,15 @@ describe('build-output-prerender', () => {
       it('shows all prerender errors with readable stacks and code frames', async () => {
         if (isTurbopack) {
           expect(getPrerenderOutput(next.cliOutput)).toMatchInlineSnapshot(`
-           "Error: Route "/client" used \`new Date()\` inside a Client Component without a Suspense boundary above it. See more info here: https://nextjs.org/docs/messages/next-prerender-current-time-client
+           "Error: Route "/client": Next.js encountered \`new Date()\` inside a Client Component without a Suspense boundary above it.
+
+           Without an upstream \`<Suspense>\` boundary, Next.js has no fallback to prerender in place of this Client Component, so the value would be fixed at build time instead of computed per request.
+
+           Ways to fix this:
+             - Wrap the Client Component in \`<Suspense fallback={...}>\`
+             - Move the read into a \`useEffect\` or event handler
+
+           Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
                at Page (app/client/page.tsx:4:28)
              2 |
              3 | export default function Page() {
@@ -252,7 +259,8 @@ describe('build-output-prerender', () => {
              - Move the read into a \`useEffect\` or event handler
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-current-time-client
-               at Page (app/client/page.tsx:4:28)
+               at Page (webpack:///app/client/page.tsx:4:28)
+               at ClientPageRoot (webpack:///src/client/components/client-page.tsx:61:12)
              2 |
              3 | export default function Page() {
            > 4 |   return <p>Current time: {new Date().toISOString()}</p>
@@ -271,7 +279,7 @@ describe('build-output-prerender', () => {
              - Render the value on the client with \`"use client"\`
 
            Learn more: https://nextjs.org/docs/messages/next-prerender-random
-               at Page (app/server/page.tsx:13:27)
+               at Page (webpack:///app/server/page.tsx:13:27)
                at Page (<anonymous>)
              11 |   await cachedDelay()
              12 |
@@ -329,11 +337,9 @@ describe('build-output-prerender', () => {
           }
         } else {
           if (isTurbopack) {
-            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
-             "▲ Next.js x.y.z (Turbopack)
-             - Experiments (use with caution):
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)"
-            `)
+            expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
+              `"▲ Next.js x.y.z (Turbopack)"`
+            )
           } else if (isRspack) {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "▲ Next.js x.y.z (Rspack)
@@ -342,7 +348,7 @@ describe('build-output-prerender', () => {
             `)
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(
-              `"▲ Next.js x.y.z (Turbopack)"`
+              `"▲ Next.js x.y.z (webpack)"`
             )
           }
         }
@@ -409,7 +415,6 @@ describe('build-output-prerender', () => {
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
                ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ✓ strictRouteTypes (enabled by \`__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES\`)
                ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
             `)
           } else if (isRspack) {
@@ -426,12 +431,12 @@ describe('build-output-prerender', () => {
           } else {
             expect(getPreambleOutput(next.cliOutput)).toMatchInlineSnapshot(`
              "⚠ Prerendering is running in debug mode with NODE_ENV='development'. This will affect performance and should not be used for production.
-             ▲ Next.js x.y.z (Turbopack)
+             ▲ Next.js x.y.z (webpack)
              - Experiments (use with caution):
                ✓ allowDevelopmentBuild (enabled by \`--debug-prerender\`)
                ⨯ prerenderEarlyExit (disabled by \`--debug-prerender\`)
-               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)
-               ⨯ turbopackMinify (disabled by \`--debug-prerender\`)"
+               ⨯ serverMinification (disabled by \`--debug-prerender\`)
+               ✓ serverSourceMaps (enabled by \`--debug-prerender\`)"
             `)
           }
         }

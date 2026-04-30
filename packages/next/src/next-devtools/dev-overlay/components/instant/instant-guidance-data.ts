@@ -348,7 +348,7 @@ const syncClientDateCards: FixCard[] = [
     ],
   },
   {
-    title: 'Move into a useEffect or handler',
+    title: 'Move into effect or event handler',
     color: 'amber',
     snippets: [
       { text: 'useEffect(() => {', highlight: true },
@@ -369,7 +369,7 @@ const syncClientMathCards: FixCard[] = [
     ],
   },
   {
-    title: 'Move into a useEffect or handler',
+    title: 'Move into effect or event handler',
     color: 'amber',
     snippets: [
       { text: 'useEffect(() => {', highlight: true },
@@ -390,7 +390,7 @@ const syncClientCryptoCards: FixCard[] = [
     ],
   },
   {
-    title: 'Move into a useEffect or handler',
+    title: 'Move into effect or event handler',
     color: 'amber',
     snippets: [
       { text: 'useEffect(() => {', highlight: true },
