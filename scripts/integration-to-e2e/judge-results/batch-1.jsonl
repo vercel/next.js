@@ -1,0 +1,10 @@
+{"suite":"test/integration/import-assertion","verdict":"fail","testCountOriginal":2,"testCountConverted":1,"missingTests":["second suite from runDevSuite/runProdSuite"],"issues":["Original registers two Jest tests (dev + prod); converted has one it()"],"warnings":["Original fixture included tsconfig.json; new may be missing it"]}
+{"suite":"test/integration/import-attributes","verdict":"fail","testCountOriginal":2,"testCountConverted":1,"missingTests":["second suite from runDevSuite/runProdSuite"],"issues":["Original registers two Jest tests (dev + prod); converted has one it()"],"warnings":["Original fixture included tsconfig.json; new may be missing it"]}
+{"suite":"test/integration/compression","verdict":"warn","testCountOriginal":1,"testCountConverted":1,"missingTests":[],"issues":[],"warnings":["Original beforeAll called renderViaHTTP on '/' before the test; new test does not pre-render"]}
+{"suite":"test/integration/dedupes-scripts","verdict":"pass","testCountOriginal":1,"testCountConverted":1,"missingTests":[],"issues":[],"warnings":["TURBOPACK_DEV describe.skip wrapper may differ"]}
+{"suite":"test/integration/dynamic-require","verdict":"pass","testCountOriginal":1,"testCountConverted":1,"missingTests":[],"issues":[],"warnings":[]}
+{"suite":"test/integration/externals-esm-loose","verdict":"pass","testCountOriginal":3,"testCountConverted":3,"missingTests":[],"issues":[],"warnings":[]}
+{"suite":"test/integration/image-generation","verdict":"pass","testCountOriginal":1,"testCountConverted":1,"missingTests":[],"issues":[],"warnings":[]}
+{"suite":"test/integration/gsp-extension","verdict":"pass","testCountOriginal":3,"testCountConverted":3,"missingTests":[],"issues":[],"warnings":[]}
+{"suite":"test/integration/babel-next-image","verdict":"pass","testCountOriginal":1,"testCountConverted":1,"missingTests":[],"issues":[],"warnings":[]}
+{"suite":"test/integration/empty-project","verdict":"fail","testCountOriginal":1,"testCountConverted":1,"missingTests":[],"issues":["afterAll .gitkeep restoration not present in converted"],"warnings":[]}

@@ -1,0 +1,2241 @@
+[
+  {
+    "original": "test/integration/404-page",
+    "originalTestFiles": ["test/integration/404-page/test/index.test.ts"],
+    "converted": ["test/e2e/404-page/404-page.test.ts"]
+  },
+  {
+    "original": "test/integration/404-page-app",
+    "originalTestFiles": ["test/integration/404-page-app/test/index.test.ts"],
+    "converted": ["test/e2e/404-page-app/404-page-app.test.ts"]
+  },
+  {
+    "original": "test/integration/404-page-custom-error",
+    "originalTestFiles": [
+      "test/integration/404-page-custom-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/404-page-custom-error/404-page-custom-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/404-page-ssg",
+    "originalTestFiles": ["test/integration/404-page-ssg/test/index.test.ts"],
+    "converted": ["test/e2e/404-page-ssg/404-page-ssg.test.ts"]
+  },
+  {
+    "original": "test/integration/500-page",
+    "originalTestFiles": [
+      "test/integration/500-page/test/index.test.ts",
+      "test/integration/500-page/test/gsp-gssp.test.ts"
+    ],
+    "converted": [
+      "test/e2e/500-page/500-page.test.ts",
+      "test/production/500-page/app-router-only/app-router-only.test.ts",
+      "test/production/500-page/mixed-router-no-custom-pages-error/mixed-router-no-error.test.ts",
+      "test/production/500-page/mixed-router-with-custom-pages-error/mixed-router-with-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/absolute-assetprefix",
+    "originalTestFiles": [
+      "test/integration/absolute-assetprefix/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/absolute-assetprefix/absolute-assetprefix.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/api-body-parser",
+    "originalTestFiles": [
+      "test/integration/api-body-parser/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/api-body-parser/api-body-parser.test.ts"]
+  },
+  {
+    "original": "test/integration/api-catch-all",
+    "originalTestFiles": ["test/integration/api-catch-all/test/index.test.ts"],
+    "converted": ["test/e2e/api-catch-all/api-catch-all.test.ts"]
+  },
+  {
+    "original": "test/integration/api-support",
+    "originalTestFiles": ["test/integration/api-support/test/index.test.ts"],
+    "converted": ["test/e2e/api-support/api-support.test.ts"]
+  },
+  {
+    "original": "test/integration/app-aspath",
+    "originalTestFiles": ["test/integration/app-aspath/test/index.test.ts"],
+    "converted": ["test/development/app-aspath/app-aspath.test.ts"]
+  },
+  {
+    "original": "test/integration/app-config-asset-prefix",
+    "originalTestFiles": [
+      "test/integration/app-config-asset-prefix/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/app-config-asset-prefix/app-config-asset-prefix.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/app-document-add-hmr",
+    "originalTestFiles": [
+      "test/integration/app-document-add-hmr/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/app-document-add-hmr/app-document-add-hmr.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/app-document-import-order",
+    "originalTestFiles": [
+      "test/integration/app-document-import-order/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/app-document-import-order/app-document-import-order.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/app-document-remove-hmr",
+    "originalTestFiles": [
+      "test/integration/app-document-remove-hmr/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/app-document-remove-hmr/app-document-remove-hmr.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/app-document-style-fragment",
+    "originalTestFiles": [
+      "test/integration/app-document-style-fragment/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/app-document-style-fragment/app-document-style-fragment.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/app-dynamic-error",
+    "originalTestFiles": [
+      "test/integration/app-dynamic-error/test/index.test.ts"
+    ],
+    "converted": ["test/production/app-dynamic-error/app-dynamic-error.test.ts"]
+  },
+  {
+    "original": "test/integration/app-functional",
+    "originalTestFiles": ["test/integration/app-functional/test/index.test.ts"],
+    "converted": ["test/development/app-functional/app-functional.test.ts"]
+  },
+  {
+    "original": "test/integration/app-tree",
+    "originalTestFiles": ["test/integration/app-tree/test/index.test.ts"],
+    "converted": ["test/e2e/app-tree/app-tree.test.ts"]
+  },
+  {
+    "original": "test/integration/app-types",
+    "originalTestFiles": ["test/integration/app-types/app-types.test.ts"],
+    "converted": ["test/production/app-types/app-types.test.ts"]
+  },
+  {
+    "original": "test/integration/auto-export",
+    "originalTestFiles": ["test/integration/auto-export/test/index.test.ts"],
+    "converted": ["test/e2e/auto-export/auto-export.test.ts"]
+  },
+  {
+    "original": "test/integration/auto-export-error-bail",
+    "originalTestFiles": [
+      "test/integration/auto-export-error-bail/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/auto-export-error-bail/auto-export-error-bail.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/auto-export-query-error",
+    "originalTestFiles": [
+      "test/integration/auto-export-query-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/auto-export-query-error/auto-export-query-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/babel-custom",
+    "originalTestFiles": ["test/integration/babel-custom/test/index.test.ts"],
+    "converted": ["test/production/babel-custom/babel-custom.test.ts"]
+  },
+  {
+    "original": "test/integration/babel-next-image",
+    "originalTestFiles": [
+      "test/integration/babel-next-image/babel-next-image.test.ts"
+    ],
+    "converted": ["test/development/babel-next-image/babel-next-image.test.ts"]
+  },
+  {
+    "original": "test/integration/basepath-root-catch-all",
+    "originalTestFiles": [
+      "test/integration/basepath-root-catch-all/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/basepath-root-catch-all/basepath-root-catch-all.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/bigint",
+    "originalTestFiles": ["test/integration/bigint/test/index.test.ts"],
+    "converted": ["test/e2e/bigint/bigint.test.ts"]
+  },
+  {
+    "original": "test/integration/broken-webpack-plugin",
+    "originalTestFiles": [
+      "test/integration/broken-webpack-plugin/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/broken-webpack-plugin/broken-webpack-plugin.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/build-output",
+    "originalTestFiles": ["test/integration/build-output/test/index.test.ts"],
+    "converted": ["test/production/build-output/build-output.test.ts"]
+  },
+  {
+    "original": "test/integration/build-trace-extra-entries",
+    "originalTestFiles": [
+      "test/integration/build-trace-extra-entries/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/build-trace-extra-entries/build-trace-extra-entries.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/build-trace-extra-entries-monorepo",
+    "originalTestFiles": [
+      "test/integration/build-trace-extra-entries-monorepo/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/build-trace-extra-entries-monorepo/build-trace-extra-entries-monorepo.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/build-trace-extra-entries-turbo",
+    "originalTestFiles": [
+      "test/integration/build-trace-extra-entries-turbo/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/build-trace-extra-entries-turbo/build-trace-extra-entries-turbo.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/build-warnings",
+    "originalTestFiles": ["test/integration/build-warnings/test/index.test.ts"],
+    "converted": ["test/production/build-warnings/build-warnings.test.ts"]
+  },
+  {
+    "original": "test/integration/catches-missing-getStaticProps",
+    "originalTestFiles": [
+      "test/integration/catches-missing-getStaticProps/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/catches-missing-getStaticProps/catches-missing-getStaticProps.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/chunking",
+    "originalTestFiles": ["test/integration/chunking/test/index.test.ts"],
+    "converted": ["test/production/chunking/chunking.test.ts"]
+  },
+  {
+    "original": "test/integration/cli",
+    "originalTestFiles": ["test/integration/cli/test/index.test.ts"],
+    "converted": ["test/e2e/cli/cli.test.ts"]
+  },
+  {
+    "original": "test/integration/client-404",
+    "originalTestFiles": ["test/integration/client-404/test/index.test.ts"],
+    "converted": ["test/e2e/client-404/client-404.test.ts"]
+  },
+  {
+    "original": "test/integration/client-navigation-a11y",
+    "originalTestFiles": [
+      "test/integration/client-navigation-a11y/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/client-navigation-a11y/client-navigation-a11y.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/client-shallow-routing",
+    "originalTestFiles": [
+      "test/integration/client-shallow-routing/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/client-shallow-routing/client-shallow-routing.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/compression",
+    "originalTestFiles": ["test/integration/compression/test/index.test.ts"],
+    "converted": ["test/development/compression/compression.test.ts"]
+  },
+  {
+    "original": "test/integration/config",
+    "originalTestFiles": ["test/integration/config/test/index.test.ts"],
+    "converted": ["test/development/config/config.test.ts"]
+  },
+  {
+    "original": "test/integration/config-devtool-dev",
+    "originalTestFiles": [
+      "test/integration/config-devtool-dev/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/config-devtool-dev/config-devtool-dev.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/config-experimental-warning",
+    "originalTestFiles": [
+      "test/integration/config-experimental-warning/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/config-experimental-warning/config-experimental-warning.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/config-mjs",
+    "originalTestFiles": ["test/integration/config-mjs/test/index.test.ts"],
+    "converted": ["test/development/config-mjs/config-mjs.test.ts"]
+  },
+  {
+    "original": "test/integration/config-output-export",
+    "originalTestFiles": [
+      "test/integration/config-output-export/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/config-output-export/config-output-export.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/config-promise-error",
+    "originalTestFiles": [
+      "test/integration/config-promise-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/config-promise-error/config-promise-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/config-resolve-alias",
+    "originalTestFiles": [
+      "test/integration/config-resolve-alias/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/config-resolve-alias/config-resolve-alias.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/config-syntax-error",
+    "originalTestFiles": [
+      "test/integration/config-syntax-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/config-syntax-error/config-syntax-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/config-validation",
+    "originalTestFiles": [
+      "test/integration/config-validation/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/config-validation/index.test.ts",
+      "test/production/config-validation/config-validation.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/conflicting-public-file-page",
+    "originalTestFiles": [
+      "test/integration/conflicting-public-file-page/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/conflicting-public-file-page/conflicting-public-file-page.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/conflicting-ssg-paths",
+    "originalTestFiles": [
+      "test/integration/conflicting-ssg-paths/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/conflicting-ssg-paths/conflicting-ssg-paths.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/cpu-profiling",
+    "originalTestFiles": ["test/integration/cpu-profiling/test/index.test.ts"],
+    "converted": [
+      "test/e2e/cpu-profiling/cpu-profiling-build.test.ts",
+      "test/e2e/cpu-profiling/cpu-profiling-dev.test.ts",
+      "test/e2e/cpu-profiling/cpu-profiling.test.ts",
+      "test/production/cpu-profiling/cpu-profiling.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/create-next-app",
+    "originalTestFiles": [
+      "test/integration/create-next-app/biome-config.test.ts",
+      "test/integration/create-next-app/eslint-config.test.ts",
+      "test/integration/create-next-app/examples.test.ts",
+      "test/integration/create-next-app/index.test.ts",
+      "test/integration/create-next-app/prompts.test.ts",
+      "test/integration/create-next-app/package-manager/bun.test.ts",
+      "test/integration/create-next-app/package-manager/npm.test.ts",
+      "test/integration/create-next-app/package-manager/pnpm.test.ts",
+      "test/integration/create-next-app/package-manager/yarn.test.ts",
+      "test/integration/create-next-app/templates/app-api.test.ts",
+      "test/integration/create-next-app/templates/app.test.ts",
+      "test/integration/create-next-app/templates/matrix.test.ts",
+      "test/integration/create-next-app/templates/pages.test.ts"
+    ],
+    "converted": [
+      "test/production/create-next-app/biome-config.test.ts",
+      "test/production/create-next-app/eslint-config.test.ts",
+      "test/production/create-next-app/examples.test.ts",
+      "test/production/create-next-app/index.test.ts",
+      "test/production/create-next-app/package-manager/bun.test.ts",
+      "test/production/create-next-app/package-manager/npm.test.ts",
+      "test/production/create-next-app/package-manager/pnpm.test.ts",
+      "test/production/create-next-app/package-manager/yarn.test.ts",
+      "test/production/create-next-app/prompts.test.ts",
+      "test/production/create-next-app/templates/app-api.test.ts",
+      "test/production/create-next-app/templates/app.test.ts",
+      "test/production/create-next-app/templates/matrix.test.ts",
+      "test/production/create-next-app/templates/pages.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/critical-css",
+    "originalTestFiles": ["test/integration/critical-css/test/index.test.ts"],
+    "converted": ["test/production/critical-css/critical-css.test.ts"]
+  },
+  {
+    "original": "test/integration/css",
+    "originalTestFiles": [
+      "test/integration/css/test/css-and-styled-jsx.test.ts",
+      "test/integration/css/test/basic-global-support.test.ts",
+      "test/integration/css/test/css-compilation.test.ts",
+      "test/integration/css/test/css-rendering.test.ts",
+      "test/integration/css/test/css-modules.test.ts",
+      "test/integration/css/test/dev-css-handling.test.ts",
+      "test/integration/css/test/valid-invalid-css.test.ts"
+    ],
+    "converted": [
+      "test/development/css-features/css-modules-support.test.ts",
+      "test/development/css-features/dev-css-handling.test.ts",
+      "test/e2e/css-features/css-and-styled-jsx.test.ts",
+      "test/e2e/css-features/css-modules-ordering.test.ts",
+      "test/production/css-features/basic-global-support.test.ts",
+      "test/production/css-features/browserslist.test.ts",
+      "test/production/css-features/css-compilation.test.ts",
+      "test/production/css-features/css-features.test.ts",
+      "test/production/css-features/css-modules-ordering.test.ts",
+      "test/production/css-features/css-modules-support.test.ts",
+      "test/production/css-features/css-modules.test.ts",
+      "test/production/css-features/css-rendering.test.ts",
+      "test/production/css-features/valid-invalid-css.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/css-client-nav",
+    "originalTestFiles": ["test/integration/css-client-nav/test/index.test.ts"],
+    "converted": ["test/e2e/css-client-nav/css-client-nav.test.ts"]
+  },
+  {
+    "original": "test/integration/css-customization",
+    "originalTestFiles": [
+      "test/integration/css-customization/test/index.test.ts"
+    ],
+    "converted": ["test/production/css-customization/css-customization.test.ts"]
+  },
+  {
+    "original": "test/integration/css-features",
+    "originalTestFiles": [
+      "test/integration/css-features/test/browserslist.test.ts",
+      "test/integration/css-features/test/css-modules.test.ts",
+      "test/integration/css-features/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/css-features/css-modules-support.test.ts",
+      "test/development/css-features/dev-css-handling.test.ts",
+      "test/e2e/css-features/css-and-styled-jsx.test.ts",
+      "test/e2e/css-features/css-modules-ordering.test.ts",
+      "test/production/css-features/basic-global-support.test.ts",
+      "test/production/css-features/browserslist.test.ts",
+      "test/production/css-features/css-compilation.test.ts",
+      "test/production/css-features/css-features.test.ts",
+      "test/production/css-features/css-modules-ordering.test.ts",
+      "test/production/css-features/css-modules-support.test.ts",
+      "test/production/css-features/css-modules.test.ts",
+      "test/production/css-features/css-rendering.test.ts",
+      "test/production/css-features/valid-invalid-css.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/css-minify",
+    "originalTestFiles": ["test/integration/css-minify/test/index.test.ts"],
+    "converted": ["test/production/css-minify/css-minify.test.ts"]
+  },
+  {
+    "original": "test/integration/css-modules",
+    "originalTestFiles": ["test/integration/css-modules/test/index.test.ts"],
+    "converted": [
+      "test/development/css-modules/css-modules.test.ts",
+      "test/production/css-modules/css-modules.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/custom-error",
+    "originalTestFiles": ["test/integration/custom-error/test/index.test.ts"],
+    "converted": ["test/e2e/custom-error/custom-error.test.ts"]
+  },
+  {
+    "original": "test/integration/custom-error-page-exception",
+    "originalTestFiles": [
+      "test/integration/custom-error-page-exception/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/custom-error-page-exception/custom-error-page-exception.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/custom-page-extension",
+    "originalTestFiles": [
+      "test/integration/custom-page-extension/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/custom-page-extension/custom-page-extension.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/custom-routes",
+    "originalTestFiles": ["test/integration/custom-routes/test/index.test.ts"],
+    "converted": ["test/e2e/custom-routes/custom-routes.test.ts"]
+  },
+  {
+    "original": "test/integration/custom-routes-catchall",
+    "originalTestFiles": [
+      "test/integration/custom-routes-catchall/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/custom-routes-catchall/custom-routes-catchall.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/custom-routes-i18n",
+    "originalTestFiles": [
+      "test/integration/custom-routes-i18n/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/custom-routes-i18n/custom-routes-i18n.test.ts"]
+  },
+  {
+    "original": "test/integration/custom-routes-i18n-index-redirect",
+    "originalTestFiles": [
+      "test/integration/custom-routes-i18n-index-redirect/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/custom-routes-i18n-index-redirect/custom-routes-i18n-index-redirect.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/custom-server",
+    "originalTestFiles": ["test/integration/custom-server/test/index.test.ts"],
+    "converted": [
+      "test/e2e/custom-server/custom-server.test.ts",
+      "test/production/custom-server/custom-server.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/custom-server-types",
+    "originalTestFiles": [
+      "test/integration/custom-server-types/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/custom-server-types/custom-server-types.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/data-fetching-errors",
+    "originalTestFiles": [
+      "test/integration/data-fetching-errors/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/data-fetching-errors/data-fetching-errors.test.ts"]
+  },
+  {
+    "original": "test/integration/dedupes-scripts",
+    "originalTestFiles": [
+      "test/integration/dedupes-scripts/test/index.test.ts"
+    ],
+    "converted": ["test/production/dedupes-scripts/dedupes-scripts.test.ts"]
+  },
+  {
+    "original": "test/integration/development-hmr-refresh",
+    "originalTestFiles": [
+      "test/integration/development-hmr-refresh/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/development-hmr-refresh/development-hmr-refresh.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/disable-js",
+    "originalTestFiles": ["test/integration/disable-js/test/index.test.ts"],
+    "converted": ["test/e2e/disable-js/disable-js.test.ts"]
+  },
+  {
+    "original": "test/integration/dist-dir",
+    "originalTestFiles": ["test/integration/dist-dir/test/index.test.ts"],
+    "converted": ["test/e2e/dist-dir/dist-dir.test.ts"]
+  },
+  {
+    "original": "test/integration/document-file-dependencies",
+    "originalTestFiles": [
+      "test/integration/document-file-dependencies/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/document-file-dependencies/document-file-dependencies.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/document-head-warnings",
+    "originalTestFiles": [
+      "test/integration/document-head-warnings/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/document-head-warnings/document-head-warnings.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/draft-mode",
+    "originalTestFiles": ["test/integration/draft-mode/test/index.test.ts"],
+    "converted": ["test/e2e/draft-mode/draft-mode.test.ts"]
+  },
+  {
+    "original": "test/integration/dynamic-optional-routing",
+    "originalTestFiles": [
+      "test/integration/dynamic-optional-routing/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/dynamic-optional-routing/dynamic-optional-routing.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/dynamic-optional-routing-root-fallback",
+    "originalTestFiles": [
+      "test/integration/dynamic-optional-routing-root-fallback/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/dynamic-optional-routing-root-fallback/dynamic-optional-routing-root-fallback.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/dynamic-optional-routing-root-static-paths",
+    "originalTestFiles": [
+      "test/integration/dynamic-optional-routing-root-static-paths/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/dynamic-optional-routing-root-static-paths/dynamic-optional-routing-root-static-paths.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/dynamic-require",
+    "originalTestFiles": [
+      "test/integration/dynamic-require/test/index.test.ts"
+    ],
+    "converted": ["test/development/dynamic-require/index.test.ts"]
+  },
+  {
+    "original": "test/integration/dynamic-route-rename",
+    "originalTestFiles": [
+      "test/integration/dynamic-route-rename/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/dynamic-route-rename/dynamic-route-rename.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/dynamic-routing",
+    "originalTestFiles": [
+      "test/integration/dynamic-routing/test/index.test.ts",
+      "test/integration/dynamic-routing/test/middleware.test.ts"
+    ],
+    "converted": [
+      "test/e2e/dynamic-routing-middleware/dynamic-routing-middleware.test.ts",
+      "test/e2e/dynamic-routing/dynamic-routing.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/edge-runtime-configurable-guards",
+    "originalTestFiles": [
+      "test/integration/edge-runtime-configurable-guards/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/edge-runtime-configurable-guards/edge-runtime-configurable-guards.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/edge-runtime-dynamic-code",
+    "originalTestFiles": [
+      "test/integration/edge-runtime-dynamic-code/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/edge-runtime-dynamic-code/edge-runtime-dynamic-code.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/edge-runtime-module-errors",
+    "originalTestFiles": [
+      "test/integration/edge-runtime-module-errors/test/index.test.ts",
+      "test/integration/edge-runtime-module-errors/test/module-imports.test.ts"
+    ],
+    "converted": [
+      "test/e2e/edge-runtime-module-errors/edge-runtime-module-errors.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/edge-runtime-response-error",
+    "originalTestFiles": [
+      "test/integration/edge-runtime-response-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/edge-runtime-response-error/edge-runtime-response-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/edge-runtime-streaming-error",
+    "originalTestFiles": [
+      "test/integration/edge-runtime-streaming-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/edge-runtime-streaming-error/edge-runtime-streaming-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/edge-runtime-with-node.js-apis",
+    "originalTestFiles": [
+      "test/integration/edge-runtime-with-node.js-apis/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/edge-runtime-with-node.js-apis/edge-runtime-with-node.js-apis.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/empty-object-getInitialProps",
+    "originalTestFiles": [
+      "test/integration/empty-object-getInitialProps/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/empty-object-getInitialProps/empty-object-getInitialProps.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/empty-project",
+    "originalTestFiles": ["test/integration/empty-project/test/index.test.ts"],
+    "converted": ["test/development/empty-project/empty-project.test.ts"]
+  },
+  {
+    "original": "test/integration/env-config",
+    "originalTestFiles": ["test/integration/env-config/test/index.test.ts"],
+    "converted": ["test/e2e/env-config/env-config.test.ts"]
+  },
+  {
+    "original": "test/integration/error-in-error",
+    "originalTestFiles": ["test/integration/error-in-error/test/index.test.ts"],
+    "converted": ["test/production/error-in-error/error-in-error.test.ts"]
+  },
+  {
+    "original": "test/integration/error-load-fail",
+    "originalTestFiles": [
+      "test/integration/error-load-fail/test/index.test.ts"
+    ],
+    "converted": ["test/production/error-load-fail/error-load-fail.test.ts"]
+  },
+  {
+    "original": "test/integration/error-plugin-stack-overflow",
+    "originalTestFiles": [
+      "test/integration/error-plugin-stack-overflow/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/error-plugin-stack-overflow/error-plugin-stack-overflow.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/errors-on-output-to-public",
+    "originalTestFiles": [
+      "test/integration/errors-on-output-to-public/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/errors-on-output-to-public/errors-on-output-to-public.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/errors-on-output-to-static",
+    "originalTestFiles": [
+      "test/integration/errors-on-output-to-static/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/errors-on-output-to-static/errors-on-output-to-static.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-404",
+    "originalTestFiles": ["test/integration/export-404/test/index.test.ts"],
+    "converted": ["test/production/export-404/export-404.test.ts"]
+  },
+  {
+    "original": "test/integration/export-dynamic-pages",
+    "originalTestFiles": [
+      "test/integration/export-dynamic-pages/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/export-dynamic-pages/export-dynamic-pages.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-fallback-true-error",
+    "originalTestFiles": [
+      "test/integration/export-fallback-true-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/export-fallback-true-error/export-fallback-true-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-getInitialProps-warn",
+    "originalTestFiles": [
+      "test/integration/export-getInitialProps-warn/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/export-getInitialProps-warn/export-getInitialProps-warn.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-image-default",
+    "originalTestFiles": [
+      "test/integration/export-image-default/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/export-image-default/export-image-default.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-image-loader",
+    "originalTestFiles": [
+      "test/integration/export-image-loader/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/export-image-loader/export-image-loader.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-image-loader-legacy",
+    "originalTestFiles": [
+      "test/integration/export-image-loader-legacy/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/export-image-loader-legacy/export-image-loader-legacy.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-index-not-found-gsp",
+    "originalTestFiles": [
+      "test/integration/export-index-not-found-gsp/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/export-index-not-found-gsp/export-index-not-found-gsp.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/export-intent",
+    "originalTestFiles": ["test/integration/export-intent/test/index.test.ts"],
+    "converted": ["test/production/export-intent/export-intent.test.ts"]
+  },
+  {
+    "original": "test/integration/export-subfolders",
+    "originalTestFiles": [
+      "test/integration/export-subfolders/test/index.test.ts"
+    ],
+    "converted": ["test/production/export-subfolders/export-subfolders.test.ts"]
+  },
+  {
+    "original": "test/integration/externals-esm-loose",
+    "originalTestFiles": [
+      "test/integration/externals-esm-loose/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/externals-esm-loose/externals-esm-loose.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/externals-pages-bundle",
+    "originalTestFiles": [
+      "test/integration/externals-pages-bundle/test/externals.test.ts",
+      "test/integration/externals-pages-bundle/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/externals-pages-bundle/externals-pages-bundle.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/fallback-false-rewrite",
+    "originalTestFiles": [
+      "test/integration/fallback-false-rewrite/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/fallback-false-rewrite/fallback-false-rewrite.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/fallback-modules",
+    "originalTestFiles": [
+      "test/integration/fallback-modules/test/index.test.ts"
+    ],
+    "converted": ["test/production/fallback-modules/fallback-modules.test.ts"]
+  },
+  {
+    "original": "test/integration/fallback-route-params",
+    "originalTestFiles": [
+      "test/integration/fallback-route-params/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/fallback-route-params/fallback-route-params.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/fetch-polyfill",
+    "originalTestFiles": ["test/integration/fetch-polyfill/test/index.test.ts"],
+    "converted": ["test/e2e/fetch-polyfill/fetch-polyfill.test.ts"]
+  },
+  {
+    "original": "test/integration/fetch-polyfill-ky-universal",
+    "originalTestFiles": [
+      "test/integration/fetch-polyfill-ky-universal/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/fetch-polyfill-ky-universal/fetch-polyfill-ky-universal.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/file-serving",
+    "originalTestFiles": ["test/integration/file-serving/test/index.test.ts"],
+    "converted": ["test/e2e/file-serving/file-serving.test.ts"]
+  },
+  {
+    "original": "test/integration/filesystempublicroutes",
+    "originalTestFiles": [
+      "test/integration/filesystempublicroutes/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/filesystempublicroutes/filesystempublicroutes.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/firebase-grpc",
+    "originalTestFiles": ["test/integration/firebase-grpc/test/index.test.ts"],
+    "converted": ["test/production/firebase-grpc/firebase-grpc.test.ts"]
+  },
+  {
+    "original": "test/integration/future",
+    "originalTestFiles": ["test/integration/future/test/index.test.ts"],
+    "converted": ["test/production/future/future.test.ts"]
+  },
+  {
+    "original": "test/integration/getinitialprops",
+    "originalTestFiles": [
+      "test/integration/getinitialprops/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/getinitialprops/getinitialprops.test.ts"]
+  },
+  {
+    "original": "test/integration/getserversideprops-export-error",
+    "originalTestFiles": [
+      "test/integration/getserversideprops-export-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/getserversideprops-export-error/getserversideprops-export-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/getserversideprops-preview",
+    "originalTestFiles": [
+      "test/integration/getserversideprops-preview/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/getserversideprops-preview/getserversideprops-preview.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/gip-identifier",
+    "originalTestFiles": ["test/integration/gip-identifier/test/index.test.ts"],
+    "converted": ["test/e2e/gip-identifier/gip-identifier.test.ts"]
+  },
+  {
+    "original": "test/integration/gsp-build-errors",
+    "originalTestFiles": [
+      "test/integration/gsp-build-errors/test/index.test.ts"
+    ],
+    "converted": ["test/production/gsp-build-errors/gsp-build-errors.test.ts"]
+  },
+  {
+    "original": "test/integration/gsp-extension",
+    "originalTestFiles": ["test/integration/gsp-extension/test/index.test.ts"],
+    "converted": ["test/production/gsp-extension/gsp-extension.test.ts"]
+  },
+  {
+    "original": "test/integration/gssp-pageProps-merge",
+    "originalTestFiles": [
+      "test/integration/gssp-pageProps-merge/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/gssp-pageProps-merge/gssp-pageProps-merge.test.ts"]
+  },
+  {
+    "original": "test/integration/gssp-redirect",
+    "originalTestFiles": ["test/integration/gssp-redirect/test/index.test.ts"],
+    "converted": ["test/e2e/gssp-redirect/gssp-redirect.test.ts"]
+  },
+  {
+    "original": "test/integration/gssp-redirect-base-path",
+    "originalTestFiles": [
+      "test/integration/gssp-redirect-base-path/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/gssp-redirect-base-path/gssp-redirect-base-path.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/gssp-redirect-with-rewrites",
+    "originalTestFiles": [
+      "test/integration/gssp-redirect-with-rewrites/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/gssp-redirect-with-rewrites/gssp-redirect-with-rewrites.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/handles-export-errors",
+    "originalTestFiles": [
+      "test/integration/handles-export-errors/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/handles-export-errors/handles-export-errors.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/hashbang",
+    "originalTestFiles": ["test/integration/hashbang/test/index.test.ts"],
+    "converted": ["test/e2e/hashbang/hashbang.test.ts"]
+  },
+  {
+    "original": "test/integration/hydrate-then-render",
+    "originalTestFiles": [
+      "test/integration/hydrate-then-render/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/hydrate-then-render/hydrate-then-render.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/hydration",
+    "originalTestFiles": ["test/integration/hydration/test/index.test.ts"],
+    "converted": ["test/e2e/hydration/hydration.test.ts"]
+  },
+  {
+    "original": "test/integration/i18n-support",
+    "originalTestFiles": ["test/integration/i18n-support/test/index.test.ts"],
+    "converted": ["test/e2e/i18n-support/i18n-support.test.ts"]
+  },
+  {
+    "original": "test/integration/i18n-support-base-path",
+    "originalTestFiles": [
+      "test/integration/i18n-support-base-path/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/i18n-support-base-path/i18n-support-base-path.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/i18n-support-catchall",
+    "originalTestFiles": [
+      "test/integration/i18n-support-catchall/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/i18n-support-catchall/i18n-support-catchall.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/i18n-support-custom-error",
+    "originalTestFiles": [
+      "test/integration/i18n-support-custom-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/i18n-support-custom-error/i18n-support-custom-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/i18n-support-fallback-rewrite",
+    "originalTestFiles": [
+      "test/integration/i18n-support-fallback-rewrite/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/i18n-support-fallback-rewrite/i18n-support-fallback-rewrite.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/i18n-support-fallback-rewrite-legacy",
+    "originalTestFiles": [
+      "test/integration/i18n-support-fallback-rewrite-legacy/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/i18n-support-fallback-rewrite-legacy/i18n-support-fallback-rewrite-legacy.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/i18n-support-index-rewrite",
+    "originalTestFiles": [
+      "test/integration/i18n-support-index-rewrite/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/i18n-support-index-rewrite/i18n-support-index-rewrite.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/i18n-support-same-page-hash-change",
+    "originalTestFiles": [
+      "test/integration/i18n-support-same-page-hash-change/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/i18n-support-same-page-hash-change/i18n-support-same-page-hash-change.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/image-generation",
+    "originalTestFiles": [
+      "test/integration/image-generation/test/index.test.ts"
+    ],
+    "converted": ["test/production/image-generation/image-generation.test.ts"]
+  },
+  {
+    "original": "test/integration/image-optimizer",
+    "originalTestFiles": [
+      "test/integration/image-optimizer/test/content-disposition-type.test.ts",
+      "test/integration/image-optimizer/test/dangerously-allow-svg.test.ts",
+      "test/integration/image-optimizer/test/disable-write-to-cache-dir.test.ts",
+      "test/integration/image-optimizer/test/index.test.ts",
+      "test/integration/image-optimizer/test/max-disk-size-cache-85kb.test.ts",
+      "test/integration/image-optimizer/test/max-disk-size-cache-zero.test.ts",
+      "test/integration/image-optimizer/test/maximum-redirects-0.test.ts",
+      "test/integration/image-optimizer/test/maximum-redirects-1.test.ts",
+      "test/integration/image-optimizer/test/minimum-cache-ttl.test.ts",
+      "test/integration/image-optimizer/test/sharp.test.ts",
+      "test/integration/image-optimizer/test/util.ts"
+    ],
+    "converted": [
+      "test/e2e/image-optimizer/content-disposition-type.test.ts",
+      "test/e2e/image-optimizer/dangerously-allow-svg.test.ts",
+      "test/e2e/image-optimizer/disable-write-to-cache-dir.test.ts",
+      "test/e2e/image-optimizer/image-optimizer.test.ts",
+      "test/e2e/image-optimizer/max-disk-size-cache-85kb.test.ts",
+      "test/e2e/image-optimizer/max-disk-size-cache-zero.test.ts",
+      "test/e2e/image-optimizer/maximum-redirects-0.test.ts",
+      "test/e2e/image-optimizer/maximum-redirects-1.test.ts",
+      "test/e2e/image-optimizer/minimum-cache-ttl.test.ts",
+      "test/e2e/image-optimizer/sharp.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/import-assertion",
+    "originalTestFiles": [
+      "test/integration/import-assertion/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/import-assertion/import-assertion.test.ts"]
+  },
+  {
+    "original": "test/integration/import-attributes",
+    "originalTestFiles": [
+      "test/integration/import-attributes/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/import-attributes/import-attributes.test.ts"]
+  },
+  {
+    "original": "test/integration/index-index",
+    "originalTestFiles": ["test/integration/index-index/test/index.test.ts"],
+    "converted": ["test/e2e/index-index/index-index.test.ts"]
+  },
+  {
+    "original": "test/integration/initial-ref",
+    "originalTestFiles": ["test/integration/initial-ref/test/index.test.ts"],
+    "converted": ["test/e2e/initial-ref/initial-ref.test.ts"]
+  },
+  {
+    "original": "test/integration/invalid-config-values",
+    "originalTestFiles": [
+      "test/integration/invalid-config-values/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/invalid-config-values/invalid-config-values.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/invalid-custom-routes",
+    "originalTestFiles": [
+      "test/integration/invalid-custom-routes/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/invalid-custom-routes/invalid-custom-routes.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/invalid-document-image-import",
+    "originalTestFiles": [
+      "test/integration/invalid-document-image-import/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/invalid-document-image-import/invalid-document-image-import.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/invalid-href",
+    "originalTestFiles": ["test/integration/invalid-href/test/index.test.ts"],
+    "converted": ["test/e2e/invalid-href/invalid-href.test.ts"]
+  },
+  {
+    "original": "test/integration/invalid-middleware-matchers",
+    "originalTestFiles": [
+      "test/integration/invalid-middleware-matchers/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/invalid-middleware-matchers/invalid-middleware-matchers.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/invalid-multi-match",
+    "originalTestFiles": [
+      "test/integration/invalid-multi-match/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/invalid-multi-match/invalid-multi-match.test.ts"]
+  },
+  {
+    "original": "test/integration/invalid-page-automatic-static-optimization",
+    "originalTestFiles": [
+      "test/integration/invalid-page-automatic-static-optimization/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/invalid-page-automatic-static-optimization/invalid-page-automatic-static-optimization.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/invalid-revalidate-values",
+    "originalTestFiles": [
+      "test/integration/invalid-revalidate-values/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/invalid-revalidate-values/invalid-revalidate-values.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/invalid-server-options",
+    "originalTestFiles": [
+      "test/integration/invalid-server-options/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/invalid-server-options/invalid-server-options.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/jsconfig",
+    "originalTestFiles": ["test/integration/jsconfig/test/index.test.ts"],
+    "converted": ["test/production/jsconfig/jsconfig.test.ts"]
+  },
+  {
+    "original": "test/integration/jsconfig-baseurl",
+    "originalTestFiles": [
+      "test/integration/jsconfig-baseurl/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/jsconfig-baseurl/jsconfig-baseurl.test.ts"]
+  },
+  {
+    "original": "test/integration/jsconfig-empty",
+    "originalTestFiles": ["test/integration/jsconfig-empty/test/index.test.ts"],
+    "converted": ["test/production/jsconfig-empty/jsconfig-empty.test.ts"]
+  },
+  {
+    "original": "test/integration/jsconfig-paths",
+    "originalTestFiles": ["test/integration/jsconfig-paths/test/index.test.ts"],
+    "converted": ["test/e2e/jsconfig-paths/jsconfig-paths.test.ts"]
+  },
+  {
+    "original": "test/integration/jsconfig-paths-wildcard",
+    "originalTestFiles": [
+      "test/integration/jsconfig-paths-wildcard/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/jsconfig-paths-wildcard/jsconfig-paths-wildcard.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/json-serialize-original-error",
+    "originalTestFiles": [
+      "test/integration/json-serialize-original-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/json-serialize-original-error/json-serialize-original-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/link-ref-app",
+    "originalTestFiles": ["test/integration/link-ref-app/test/index.test.ts"],
+    "converted": ["test/e2e/link-ref-app/link-ref-app.test.ts"]
+  },
+  {
+    "original": "test/integration/link-ref-pages",
+    "originalTestFiles": ["test/integration/link-ref-pages/test/index.test.ts"],
+    "converted": ["test/e2e/link-ref-pages/link-ref-pages.test.ts"]
+  },
+  {
+    "original": "test/integration/link-with-encoding",
+    "originalTestFiles": [
+      "test/integration/link-with-encoding/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/link-with-encoding/link-with-encoding.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/link-without-router",
+    "originalTestFiles": [
+      "test/integration/link-without-router/test/index.test.tsx"
+    ],
+    "converted": ["test/e2e/link-without-router/link-without-router.test.tsx"]
+  },
+  {
+    "original": "test/integration/middleware-basic",
+    "originalTestFiles": [
+      "test/integration/middleware-basic/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/middleware-basic/middleware-basic.test.ts"]
+  },
+  {
+    "original": "test/integration/middleware-build-errors",
+    "originalTestFiles": [
+      "test/integration/middleware-build-errors/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/middleware-build-errors/middleware-build-errors.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/middleware-dev-update",
+    "originalTestFiles": [
+      "test/integration/middleware-dev-update/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/middleware-dev-update/middleware-dev-update.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/middleware-overrides-node.js-api",
+    "originalTestFiles": [
+      "test/integration/middleware-overrides-node.js-api/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/middleware-overrides-node.js-api/middleware-overrides-node.js-api.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/middleware-prefetch",
+    "originalTestFiles": [
+      "test/integration/middleware-prefetch/tests/index.test.ts"
+    ],
+    "converted": [
+      "test/production/middleware-prefetch/middleware-prefetch.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/middleware-src",
+    "originalTestFiles": ["test/integration/middleware-src/test/index.test.ts"],
+    "converted": ["test/e2e/middleware-src/middleware-src.test.ts"]
+  },
+  {
+    "original": "test/integration/middleware-src-node",
+    "originalTestFiles": [
+      "test/integration/middleware-src-node/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/middleware-src-node/middleware-src-node.test.ts"]
+  },
+  {
+    "original": "test/integration/missing-document-component-error",
+    "originalTestFiles": [
+      "test/integration/missing-document-component-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/missing-document-component-error/missing-document-component-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/mixed-ssg-serverprops-error",
+    "originalTestFiles": [
+      "test/integration/mixed-ssg-serverprops-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/mixed-ssg-serverprops-error/mixed-ssg-serverprops-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/module-ids",
+    "originalTestFiles": ["test/integration/module-ids/test/index.test.ts"],
+    "converted": ["test/e2e/module-ids/module-ids.test.ts"]
+  },
+  {
+    "original": "test/integration/next-dynamic",
+    "originalTestFiles": ["test/integration/next-dynamic/test/index.test.ts"],
+    "converted": ["test/e2e/next-dynamic/next-dynamic.test.ts"]
+  },
+  {
+    "original": "test/integration/next-dynamic-css",
+    "originalTestFiles": [
+      "test/integration/next-dynamic-css/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/next-dynamic-css/next-dynamic-css.test.ts"]
+  },
+  {
+    "original": "test/integration/next-dynamic-css-asset-prefix",
+    "originalTestFiles": [
+      "test/integration/next-dynamic-css-asset-prefix/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/next-dynamic-css-asset-prefix/next-dynamic-css-asset-prefix.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/next-dynamic-lazy-compilation",
+    "originalTestFiles": [
+      "test/integration/next-dynamic-lazy-compilation/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/next-dynamic-lazy-compilation/next-dynamic-lazy-compilation.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/next-image-legacy",
+    "originalTestFiles": [
+      "test/integration/next-image-legacy/asset-prefix/test/index.test.ts",
+      "test/integration/next-image-legacy/base-path/test/index.test.ts",
+      "test/integration/next-image-legacy/base-path/test/static.test.ts",
+      "test/integration/next-image-legacy/basic/test/index.test.ts",
+      "test/integration/next-image-legacy/custom-resolver/test/index.test.ts",
+      "test/integration/next-image-legacy/default/test/index.test.ts",
+      "test/integration/next-image-legacy/default/test/static.test.ts",
+      "test/integration/next-image-legacy/image-from-node-modules/test/index.test.ts",
+      "test/integration/next-image-legacy/no-intersection-observer-fallback/test/index.test.ts",
+      "test/integration/next-image-legacy/noscript/test/index.test.ts",
+      "test/integration/next-image-legacy/react-virtualized/test/index.test.ts",
+      "test/integration/next-image-legacy/trailing-slash/test/index.test.ts",
+      "test/integration/next-image-legacy/typescript/test/index.test.ts",
+      "test/integration/next-image-legacy/unicode/test/index.test.ts",
+      "test/integration/next-image-legacy/unoptimized/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/next-image-legacy/asset-prefix/asset-prefix.test.ts",
+      "test/e2e/next-image-legacy/base-path/base-path-static.test.ts",
+      "test/e2e/next-image-legacy/base-path/base-path.test.ts",
+      "test/e2e/next-image-legacy/default/default-static.test.ts",
+      "test/e2e/next-image-legacy/default/default.test.ts",
+      "test/e2e/next-image-legacy/image-from-node-modules/image-from-node-modules.test.ts",
+      "test/e2e/next-image-legacy/trailing-slash/trailing-slash.test.ts",
+      "test/e2e/next-image-legacy/typescript/typescript.test.ts",
+      "test/e2e/next-image-legacy/unicode/unicode.test.ts",
+      "test/e2e/next-image-legacy/unoptimized/unoptimized.test.ts",
+      "test/production/next-image-legacy/basic/basic.test.ts",
+      "test/production/next-image-legacy/custom-resolver/custom-resolver.test.ts",
+      "test/production/next-image-legacy/no-intersection-observer-fallback/no-intersection-observer-fallback.test.ts",
+      "test/production/next-image-legacy/noscript/noscript.test.ts",
+      "test/production/next-image-legacy/react-virtualized/react-virtualized.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/next-image-new",
+    "originalTestFiles": [
+      "test/integration/next-image-new/app-dir-image-from-node-modules/test/index.test.ts",
+      "test/integration/next-image-new/app-dir-localpatterns/test/index.test.ts",
+      "test/integration/next-image-new/app-dir-qualities/test/index.test.ts",
+      "test/integration/next-image-new/app-dir/test/index.test.ts",
+      "test/integration/next-image-new/app-dir/test/static.test.ts",
+      "test/integration/next-image-new/asset-prefix/test/index.test.ts",
+      "test/integration/next-image-new/base-path/test/index.test.ts",
+      "test/integration/next-image-new/base-path/test/static.test.ts",
+      "test/integration/next-image-new/both-basepath-trailingslash/test/index.test.ts",
+      "test/integration/next-image-new/default/test/index.test.ts",
+      "test/integration/next-image-new/default/test/static.test.ts",
+      "test/integration/next-image-new/export-config/test/index.test.ts",
+      "test/integration/next-image-new/image-from-node-modules/test/index.test.ts",
+      "test/integration/next-image-new/invalid-image-import/test/index.test.ts",
+      "test/integration/next-image-new/loader-config-default-loader-with-file/test/index.test.ts",
+      "test/integration/next-image-new/loader-config-edge-runtime/test/index.test.ts",
+      "test/integration/next-image-new/loader-config/test/index.test.ts",
+      "test/integration/next-image-new/middleware/test/index.test.ts",
+      "test/integration/next-image-new/middleware/test/middleware-intercept-next-image.test.ts",
+      "test/integration/next-image-new/react-virtualized/test/index.test.ts",
+      "test/integration/next-image-new/trailing-slash/test/index.test.ts",
+      "test/integration/next-image-new/typescript/test/index.test.ts",
+      "test/integration/next-image-new/unicode/test/index.test.ts",
+      "test/integration/next-image-new/unoptimized/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/next-image-new/export-config/export-config.test.ts",
+      "test/development/next-image-new/invalid-image-import/invalid-image-import.test.ts",
+      "test/development/next-image-new/middleware/middleware-intercept.test.ts",
+      "test/development/next-image-new/middleware/middleware.test.ts",
+      "test/e2e/next-image-new/app-dir-image-from-node-modules/app-dir-image-from-node-modules.test.ts",
+      "test/e2e/next-image-new/app-dir-localpatterns/app-dir-localpatterns.test.ts",
+      "test/e2e/next-image-new/app-dir-qualities/app-dir-qualities.test.ts",
+      "test/e2e/next-image-new/app-dir/app-dir-static.test.ts",
+      "test/e2e/next-image-new/app-dir/app-dir.test.ts",
+      "test/e2e/next-image-new/asset-prefix/asset-prefix.test.ts",
+      "test/e2e/next-image-new/base-path/base-path-static.test.ts",
+      "test/e2e/next-image-new/base-path/base-path.test.ts",
+      "test/e2e/next-image-new/both-basepath-trailingslash/both-basepath-trailingslash.test.ts",
+      "test/e2e/next-image-new/default/default-static.test.ts",
+      "test/e2e/next-image-new/default/default.test.ts",
+      "test/e2e/next-image-new/image-from-node-modules/image-from-node-modules.test.ts",
+      "test/e2e/next-image-new/loader-config-default-loader-with-file/loader-config-default-loader-with-file.test.ts",
+      "test/e2e/next-image-new/loader-config-edge-runtime/loader-config-edge-runtime.test.ts",
+      "test/e2e/next-image-new/loader-config/loader-config.test.ts",
+      "test/e2e/next-image-new/trailing-slash/trailing-slash.test.ts",
+      "test/e2e/next-image-new/typescript/typescript.test.ts",
+      "test/e2e/next-image-new/unicode/unicode.test.ts",
+      "test/e2e/next-image-new/unoptimized/unoptimized.test.ts",
+      "test/production/next-image-new/invalid-image-import/invalid-image-import.test.ts",
+      "test/production/next-image-new/react-virtualized/react-virtualized.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/no-op-export",
+    "originalTestFiles": ["test/integration/no-op-export/test/index.test.ts"],
+    "converted": ["test/production/no-op-export/no-op-export.test.ts"]
+  },
+  {
+    "original": "test/integration/no-override-next-props",
+    "originalTestFiles": [
+      "test/integration/no-override-next-props/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/no-override-next-props/no-override-next-props.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/no-page-props",
+    "originalTestFiles": ["test/integration/no-page-props/test/index.test.ts"],
+    "converted": ["test/e2e/no-page-props/no-page-props.test.ts"]
+  },
+  {
+    "original": "test/integration/node-fetch-keep-alive",
+    "originalTestFiles": [
+      "test/integration/node-fetch-keep-alive/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/node-fetch-keep-alive/node-fetch-keep-alive.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/non-next-dist-exclude",
+    "originalTestFiles": [
+      "test/integration/non-next-dist-exclude/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/non-next-dist-exclude/non-next-dist-exclude.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/non-standard-node-env-warning",
+    "originalTestFiles": [
+      "test/integration/non-standard-node-env-warning/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/non-standard-node-env-warning/non-standard-node-env-warning.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/not-found-revalidate",
+    "originalTestFiles": [
+      "test/integration/not-found-revalidate/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/not-found-revalidate/not-found-revalidate.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/nullish-config",
+    "originalTestFiles": ["test/integration/nullish-config/test/index.test.ts"],
+    "converted": ["test/e2e/nullish-config/nullish-config.test.ts"]
+  },
+  {
+    "original": "test/integration/numeric-sep",
+    "originalTestFiles": ["test/integration/numeric-sep/test/index.test.ts"],
+    "converted": ["test/production/numeric-sep/numeric-sep.test.ts"]
+  },
+  {
+    "original": "test/integration/ondemand",
+    "originalTestFiles": ["test/integration/ondemand/test/index.test.ts"],
+    "converted": ["test/development/ondemand/ondemand.test.ts"]
+  },
+  {
+    "original": "test/integration/optional-chaining-nullish-coalescing",
+    "originalTestFiles": [
+      "test/integration/optional-chaining-nullish-coalescing/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/optional-chaining-nullish-coalescing/optional-chaining-nullish-coalescing.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/page-config",
+    "originalTestFiles": ["test/integration/page-config/test/index.test.ts"],
+    "converted": ["test/production/page-config/page-config.test.ts"]
+  },
+  {
+    "original": "test/integration/page-extensions",
+    "originalTestFiles": [
+      "test/integration/page-extensions/test/index.test.ts"
+    ],
+    "converted": ["test/production/page-extensions/page-extensions.test.ts"]
+  },
+  {
+    "original": "test/integration/plugin-mdx-rs",
+    "originalTestFiles": ["test/integration/plugin-mdx-rs/test/index.test.ts"],
+    "converted": ["test/development/plugin-mdx-rs/plugin-mdx-rs.test.ts"]
+  },
+  {
+    "original": "test/integration/polyfilling-minimal",
+    "originalTestFiles": [
+      "test/integration/polyfilling-minimal/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/polyfilling-minimal/polyfilling-minimal.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/polyfills",
+    "originalTestFiles": ["test/integration/polyfills/test/index.test.ts"],
+    "converted": ["test/production/polyfills/polyfills.test.ts"]
+  },
+  {
+    "original": "test/integration/port-env-var",
+    "originalTestFiles": ["test/integration/port-env-var/test/index.test.ts"],
+    "converted": ["test/e2e/port-env-var/port-env-var.test.ts"]
+  },
+  {
+    "original": "test/integration/preload-viewport",
+    "originalTestFiles": [
+      "test/integration/preload-viewport/test/index.test.ts"
+    ],
+    "converted": ["test/production/preload-viewport/preload-viewport.test.ts"]
+  },
+  {
+    "original": "test/integration/prerender",
+    "originalTestFiles": ["test/integration/prerender/test/index.test.ts"],
+    "converted": ["test/development/prerender/prerender.test.ts"]
+  },
+  {
+    "original": "test/integration/prerender-export",
+    "originalTestFiles": [
+      "test/integration/prerender-export/test/index.test.ts"
+    ],
+    "converted": ["test/production/prerender-export/prerender-export.test.ts"]
+  },
+  {
+    "original": "test/integration/prerender-fallback-encoding",
+    "originalTestFiles": [
+      "test/integration/prerender-fallback-encoding/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/prerender-fallback-encoding/prerender-fallback-encoding.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/prerender-invalid-catchall-params",
+    "originalTestFiles": [
+      "test/integration/prerender-invalid-catchall-params/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/prerender-invalid-catchall-params/index.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/prerender-invalid-paths",
+    "originalTestFiles": [
+      "test/integration/prerender-invalid-paths/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/prerender-invalid-paths/prerender-invalid-paths.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/prerender-no-revalidate",
+    "originalTestFiles": [
+      "test/integration/prerender-no-revalidate/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/prerender-no-revalidate/prerender-no-revalidate.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/prerender-preview",
+    "originalTestFiles": [
+      "test/integration/prerender-preview/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/prerender-preview/prerender-preview.test.ts"]
+  },
+  {
+    "original": "test/integration/prerender-revalidate",
+    "originalTestFiles": [
+      "test/integration/prerender-revalidate/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/prerender-revalidate/prerender-revalidate.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/preview-fallback",
+    "originalTestFiles": [
+      "test/integration/preview-fallback/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/preview-fallback/preview-fallback.test.ts"]
+  },
+  {
+    "original": "test/integration/production-build-dir",
+    "originalTestFiles": [
+      "test/integration/production-build-dir/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/production-build-dir/production-build-dir.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/production-config",
+    "originalTestFiles": [
+      "test/integration/production-config/test/index.test.ts"
+    ],
+    "converted": ["test/production/production-config/production-config.test.ts"]
+  },
+  {
+    "original": "test/integration/production-nav",
+    "originalTestFiles": ["test/integration/production-nav/test/index.test.ts"],
+    "converted": ["test/production/production-nav/production-nav.test.ts"]
+  },
+  {
+    "original": "test/integration/production-start-no-build",
+    "originalTestFiles": [
+      "test/integration/production-start-no-build/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/production-start-no-build/production-start-no-build.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/query-with-encoding",
+    "originalTestFiles": [
+      "test/integration/query-with-encoding/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/query-with-encoding/query-with-encoding.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/re-export-all-exports-from-page-disallowed",
+    "originalTestFiles": [
+      "test/integration/re-export-all-exports-from-page-disallowed/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/re-export-all-exports-from-page-disallowed/re-export-all-exports-from-page-disallowed.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/react-current-version",
+    "originalTestFiles": [
+      "test/integration/react-current-version/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/react-current-version/react-current-version.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/relay-graphql-swc-multi-project",
+    "originalTestFiles": [
+      "test/integration/relay-graphql-swc-multi-project/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/relay-graphql-swc-multi-project/relay-graphql-swc-multi-project.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/relay-graphql-swc-single-project",
+    "originalTestFiles": [
+      "test/integration/relay-graphql-swc-single-project/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/relay-graphql-swc-single-project/relay-graphql-swc-single-project.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/render-error-on-module-error",
+    "originalTestFiles": [
+      "test/integration/render-error-on-module-error/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/render-error-on-module-error/render-error-on-module-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/render-error-on-top-level-error",
+    "originalTestFiles": [
+      "test/integration/render-error-on-top-level-error/with-get-initial-props/test/index.test.ts",
+      "test/integration/render-error-on-top-level-error/without-get-initial-props/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/render-error-on-top-level-error/render-error-on-top-level-error.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/repeated-slashes",
+    "originalTestFiles": [
+      "test/integration/repeated-slashes/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/repeated-slashes/repeated-slashes.test.ts"]
+  },
+  {
+    "original": "test/integration/revalidate-as-path",
+    "originalTestFiles": [
+      "test/integration/revalidate-as-path/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/revalidate-as-path/revalidate-as-path.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/rewrite-with-browser-history",
+    "originalTestFiles": [
+      "test/integration/rewrite-with-browser-history/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/rewrite-with-browser-history/rewrite-with-browser-history.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/rewrites-client-resolving",
+    "originalTestFiles": [
+      "test/integration/rewrites-client-resolving/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/rewrites-client-resolving/rewrites-client-resolving.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/rewrites-destination-query-array",
+    "originalTestFiles": [
+      "test/integration/rewrites-destination-query-array/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/rewrites-destination-query-array/rewrites-destination-query-array.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/rewrites-has-condition",
+    "originalTestFiles": [
+      "test/integration/rewrites-has-condition/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/rewrites-has-condition/rewrites-has-condition.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/rewrites-manual-href-as",
+    "originalTestFiles": [
+      "test/integration/rewrites-manual-href-as/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/rewrites-manual-href-as/rewrites-manual-href-as.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/root-catchall-cache",
+    "originalTestFiles": [
+      "test/integration/root-catchall-cache/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/root-catchall-cache/root-catchall-cache.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/root-optional-revalidate",
+    "originalTestFiles": [
+      "test/integration/root-optional-revalidate/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/root-optional-revalidate/root-optional-revalidate.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/route-index",
+    "originalTestFiles": ["test/integration/route-index/test/index.test.ts"],
+    "converted": ["test/e2e/route-index/route-index.test.ts"]
+  },
+  {
+    "original": "test/integration/route-indexes",
+    "originalTestFiles": ["test/integration/route-indexes/test/index.test.ts"],
+    "converted": ["test/e2e/route-indexes/route-indexes.test.ts"]
+  },
+  {
+    "original": "test/integration/route-load-cancel",
+    "originalTestFiles": [
+      "test/integration/route-load-cancel/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/route-load-cancel/route-load-cancel.test.ts"]
+  },
+  {
+    "original": "test/integration/route-load-cancel-css",
+    "originalTestFiles": [
+      "test/integration/route-load-cancel-css/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/route-load-cancel-css/route-load-cancel-css.test.ts",
+      "test/production/route-load-cancel-css/route-load-cancel-css/route-load-cancel-css.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/router-hash-navigation",
+    "originalTestFiles": [
+      "test/integration/router-hash-navigation/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/router-hash-navigation/router-hash-navigation.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/router-is-ready",
+    "originalTestFiles": [
+      "test/integration/router-is-ready/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/router-is-ready/router-is-ready.test.ts"]
+  },
+  {
+    "original": "test/integration/router-is-ready-app-gip",
+    "originalTestFiles": [
+      "test/integration/router-is-ready-app-gip/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/router-is-ready-app-gip/router-is-ready-app-gip.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/router-prefetch",
+    "originalTestFiles": [
+      "test/integration/router-prefetch/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/router-prefetch/router-prefetch.test.ts"]
+  },
+  {
+    "original": "test/integration/router-rerender",
+    "originalTestFiles": [
+      "test/integration/router-rerender/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/router-rerender/router-rerender.test.ts"]
+  },
+  {
+    "original": "test/integration/script-loader",
+    "originalTestFiles": ["test/integration/script-loader/test/index.test.ts"],
+    "converted": ["test/e2e/script-loader/script-loader.test.ts"]
+  },
+  {
+    "original": "test/integration/scroll-back-restoration",
+    "originalTestFiles": [
+      "test/integration/scroll-back-restoration/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/scroll-back-restoration/scroll-back-restoration.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/scroll-forward-restoration",
+    "originalTestFiles": [
+      "test/integration/scroll-forward-restoration/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/scroll-forward-restoration/scroll-forward-restoration.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/server-asset-modules",
+    "originalTestFiles": [
+      "test/integration/server-asset-modules/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/server-asset-modules/server-asset-modules.test.ts"]
+  },
+  {
+    "original": "test/integration/server-side-dev-errors",
+    "originalTestFiles": [
+      "test/integration/server-side-dev-errors/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/server-side-dev-errors/server-side-dev-errors.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/sharp-api",
+    "originalTestFiles": ["test/integration/sharp-api/test/sharp-api.test.ts"],
+    "converted": ["test/production/sharp-api/sharp-api.test.ts"]
+  },
+  {
+    "original": "test/integration/src-dir-support",
+    "originalTestFiles": [
+      "test/integration/src-dir-support/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/src-dir-support/src-dir-support.test.ts"]
+  },
+  {
+    "original": "test/integration/src-dir-support-double-dir",
+    "originalTestFiles": [
+      "test/integration/src-dir-support-double-dir/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/src-dir-support-double-dir/src-dir-support-double-dir.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/ssg-dynamic-routes-404-page",
+    "originalTestFiles": [
+      "test/integration/ssg-dynamic-routes-404-page/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/ssg-dynamic-routes-404-page/ssg-dynamic-routes-404-page.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/static-404",
+    "originalTestFiles": ["test/integration/static-404/test/index.test.ts"],
+    "converted": ["test/production/static-404/static-404.test.ts"]
+  },
+  {
+    "original": "test/integration/static-page-name",
+    "originalTestFiles": [
+      "test/integration/static-page-name/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/static-page-name/static-page-name.test.ts"]
+  },
+  {
+    "original": "test/integration/styled-jsx-plugin",
+    "originalTestFiles": [
+      "test/integration/styled-jsx-plugin/test/index.test.ts"
+    ],
+    "converted": ["test/production/styled-jsx-plugin/styled-jsx-plugin.test.ts"]
+  },
+  {
+    "original": "test/integration/telemetry",
+    "originalTestFiles": [
+      "test/integration/telemetry/test/index.test.ts",
+      "test/integration/telemetry/test/config.test.ts",
+      "test/integration/telemetry/test/page-features.test.ts"
+    ],
+    "converted": [
+      "test/e2e/telemetry/config.test.ts",
+      "test/e2e/telemetry/page-features.test.ts",
+      "test/e2e/telemetry/telemetry.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/trailing-slash-dist",
+    "originalTestFiles": [
+      "test/integration/trailing-slash-dist/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/trailing-slash-dist/trailing-slash-dist.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/trailing-slashes-href-resolving",
+    "originalTestFiles": [
+      "test/integration/trailing-slashes-href-resolving/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/trailing-slashes-href-resolving/trailing-slashes-href-resolving.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/trailing-slashes-rewrite",
+    "originalTestFiles": [
+      "test/integration/trailing-slashes-rewrite/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/trailing-slashes-rewrite/trailing-slashes-rewrite.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/tsconfig-verifier",
+    "originalTestFiles": [
+      "test/integration/tsconfig-verifier/test/index.test.ts"
+    ],
+    "converted": ["test/production/tsconfig-verifier/tsconfig-verifier.test.ts"]
+  },
+  {
+    "original": "test/integration/turbopack-unsupported-log",
+    "originalTestFiles": [
+      "test/integration/turbopack-unsupported-log/index.test.ts"
+    ],
+    "converted": [
+      "test/development/turbopack-unsupported-log/turbopack-unsupported-log.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/turborepo-access-trace",
+    "originalTestFiles": [
+      "test/integration/turborepo-access-trace/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/turborepo-access-trace/turborepo-access-trace.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/turbotrace-with-webpack-worker",
+    "originalTestFiles": [
+      "test/integration/turbotrace-with-webpack-worker/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/turbotrace-with-webpack-worker/turbotrace-with-webpack-worker.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/typeof-window-replace",
+    "originalTestFiles": [
+      "test/integration/typeof-window-replace/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/typeof-window-replace/typeof-window-replace.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/typescript",
+    "originalTestFiles": ["test/integration/typescript/test/index.test.ts"],
+    "converted": ["test/e2e/typescript/typescript.test.ts"]
+  },
+  {
+    "original": "test/integration/typescript-app-type-declarations",
+    "originalTestFiles": [
+      "test/integration/typescript-app-type-declarations/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/typescript-app-type-declarations/typescript-app-type-declarations.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/typescript-custom-tsconfig",
+    "originalTestFiles": [
+      "test/integration/typescript-custom-tsconfig/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/typescript-custom-tsconfig/test/index.test.ts",
+      "test/production/typescript-custom-tsconfig/typescript-custom-tsconfig.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/typescript-external-dir",
+    "originalTestFiles": [
+      "test/integration/typescript-external-dir/project/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/typescript-external-dir/typescript-external-dir.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/typescript-filtered-files",
+    "originalTestFiles": [
+      "test/integration/typescript-filtered-files/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/typescript-filtered-files/typescript-filtered-files.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/typescript-hmr",
+    "originalTestFiles": ["test/integration/typescript-hmr/test/index.test.ts"],
+    "converted": ["test/development/typescript-hmr/typescript-hmr.test.ts"]
+  },
+  {
+    "original": "test/integration/typescript-ignore-errors",
+    "originalTestFiles": [
+      "test/integration/typescript-ignore-errors/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/typescript-ignore-errors/typescript-ignore-errors.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/typescript-only-remove-type-imports",
+    "originalTestFiles": [
+      "test/integration/typescript-only-remove-type-imports/test/index.test.ts"
+    ],
+    "converted": [
+      "test/e2e/typescript-only-remove-type-imports/typescript-only-remove-type-imports.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/undefined-webpack-config",
+    "originalTestFiles": [
+      "test/integration/undefined-webpack-config/test/index.test.ts"
+    ],
+    "converted": [
+      "test/development/undefined-webpack-config/undefined-webpack-config.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/webpack-bun-externals",
+    "originalTestFiles": [
+      "test/integration/webpack-bun-externals/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/webpack-bun-externals/webpack-bun-externals.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/webpack-config-extensionalias",
+    "originalTestFiles": [
+      "test/integration/webpack-config-extensionalias/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/webpack-config-extensionalias/webpack-config-extensionalias.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/webpack-config-mainjs",
+    "originalTestFiles": [
+      "test/integration/webpack-config-mainjs/test/index.test.ts"
+    ],
+    "converted": [
+      "test/production/webpack-config-mainjs/webpack-config-mainjs.test.ts"
+    ]
+  },
+  {
+    "original": "test/integration/webpack-require-hook",
+    "originalTestFiles": [
+      "test/integration/webpack-require-hook/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/webpack-require-hook/webpack-require-hook.test.ts"]
+  },
+  {
+    "original": "test/integration/with-electron",
+    "originalTestFiles": ["test/integration/with-electron/test/index.test.ts"],
+    "converted": ["test/production/with-electron/with-electron.test.ts"]
+  },
+  {
+    "original": "test/integration/worker-webpack5",
+    "originalTestFiles": [
+      "test/integration/worker-webpack5/test/index.test.ts"
+    ],
+    "converted": ["test/e2e/worker-webpack5/worker-webpack5.test.ts"]
+  }
+]

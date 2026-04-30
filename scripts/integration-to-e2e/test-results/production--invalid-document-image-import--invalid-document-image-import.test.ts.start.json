@@ -1,0 +1,15 @@
+{
+  "file": "test/production/invalid-document-image-import/invalid-document-image-import.test.ts",
+  "mode": "start",
+  "verdict": "pass",
+  "exitCode": 0,
+  "durationMs": 4099,
+  "killed": false,
+  "summary": "Tests:       2 skipped, 2 total",
+  "testsPassed": 0,
+  "testsFailed": 0,
+  "testsSkipped": 2,
+  "testsTotal": 2,
+  "failedTests": [],
+  "output": "\n> nextjs-project@0.0.0 test-start-turbo /Users/timneutkens/projects/next.js-3\n> pnpm run with-turbo pnpm test-start-inner test/production/invalid-document-image-import/invalid-document-image-import.test.ts\n\n\n> nextjs-project@0.0.0 with-turbo /Users/timneutkens/projects/next.js-3\n> cross-env IS_TURBOPACK_TEST=1 pnpm test-start-inner test/production/invalid-document-image-import/invalid-document-image-import.test.ts\n\n\n> nextjs-project@0.0.0 test-start-inner /Users/timneutkens/projects/next.js-3\n> cross-env NEXT_TEST_MODE=start pnpm testheadless test/production/invalid-document-image-import/invalid-document-image-import.test.ts\n\n\n> nextjs-project@0.0.0 testheadless /Users/timneutkens/projects/next.js-3\n> cross-env HEADLESS=true pnpm testonly test/production/invalid-document-image-import/invalid-document-image-import.test.ts\n\n\n> nextjs-project@0.0.0 testonly /Users/timneutkens/projects/next.js-3\n> jest --runInBand test/production/invalid-document-image-import/invalid-document-image-import.test.ts\n\n\u001b[33m⚠️  WARNING: Build is stale!\u001b[0m\n\u001b[33m   Build was compiled at commit: 5a28456b\u001b[0m\n\u001b[33m   Current HEAD is at commit:    b8ad1187\u001b[0m\n\u001b[33m   Run `pnpm build` to rebuild.\n\u001b[0m\nRunning tests with turbopack because environment variable IS_TURBOPACK_TEST is set\nUsing test mode: start in test folder production\nTest Suites: 1 skipped, 0 of 1 total\nTests:       2 skipped, 2 total\nSnapshots:   0 total\nTime:        0.667 s\nRan all test suites matching /test\\/production\\/invalid-document-image-import\\/invalid-document-image-import.test.ts/i.\n"
+}
