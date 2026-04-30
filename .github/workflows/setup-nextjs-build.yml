@@ -103,10 +103,6 @@ jobs:
           # This is being used in github action to collect test results. Do not change it, or should update ./.github/actions/next-integration-test to match.
           docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.28.1-jammy /bin/bash -c 'curl https://install-node.vercel.app/v16 | FORCE=1 bash && cd /work && echo RUNNING NEXTJS VERSION: $(packages/next/dist/bin/next --version) && ls -al packages/next-swc/native && node -e "console.log(\"Container\", require(\"os\").arch(), require(\"os\").platform())"'
 
-      - name: Temporary test skip
-        run: |
-          rm -rf test/integration/jsconfig-paths/test/index.test.js
-
       # Once build completes, creates a cache of the build output
       # so subsequent job to actually execute tests can reuse it.
       # Note that we do not use upload / download artifacts for this -

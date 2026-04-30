@@ -42,7 +42,7 @@ const CHANGE_ITEM_GROUPS = {
   ],
   cna: [
     'packages/create-next-app',
-    'test/integration/create-next-app',
+    'test/production/create-next-app',
     'examples/basic-css',
     'examples/mdx-pages',
     'examples/with-sass',
@@ -52,7 +52,7 @@ const CHANGE_ITEM_GROUPS = {
   'next-swc': [
     'packages/next-swc',
     'scripts/normalize-version-bump.js',
-    'test/integration/create-next-app',
+    'test/production/create-next-app',
     'scripts/send-trace-to-jaeger',
   ],
 }
